@@ -16,8 +16,11 @@
 #include "AnimGraphNode_PoseByName.h"
 #include "AnimGraphNode_PoseDriver.h"
 #include "UObject/UObjectIterator.h"
-#include "AnimBlueprintCompiler.h"
 #include "Animation/AnimLayerInterface.h"
+#include "IAnimBlueprintCompilerHandlerCollection.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
+#include "IAnimBlueprintGeneratedClassCompiledData.h"
+#include "IAnimBlueprintCompilationContext.h"
 
 void UAnimGraphNode_AssetPlayerBase::PinConnectionListChanged(UEdGraphPin* Pin)
 {
@@ -47,13 +50,12 @@ void UAnimGraphNode_AssetPlayerBase::PinDefaultValueChanged(UEdGraphPin* Pin)
 	}
 }
 
-void UAnimGraphNode_AssetPlayerBase::OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext)
+void UAnimGraphNode_AssetPlayerBase::OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	UBlueprint* Blueprint = GetBlueprint();
-	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = CastChecked<UAnimBlueprintGeneratedClass>(InCompilerContext.NewClass);
 
 	// Process Asset Player nodes to, if necessary cache off their node index for retrieval at runtime (used for evaluating Automatic Rule Transitions when using Layer nodes)
-	auto ProcessGraph = [this, NewAnimBlueprintClass](UEdGraph* Graph)
+	auto ProcessGraph = [this, &OutCompiledData](UEdGraph* Graph)
 	{
 		// Make sure we do not process the default AnimGraph
 		static const FName DefaultAnimGraphName("AnimGraph");
@@ -63,11 +65,11 @@ void UAnimGraphNode_AssetPlayerBase::OnProcessDuringCompilation(FAnimBlueprintCo
 			// Also make sure we do not process any empty stub graphs
 			if (!GraphName.Contains(ANIM_FUNC_DECORATOR))
 			{
-				if (Graph->Nodes.ContainsByPredicate([this, NewAnimBlueprintClass](UEdGraphNode* Node) { return Node->NodeGuid == NodeGuid; }))
+				if (Graph->Nodes.ContainsByPredicate([this, &OutCompiledData](UEdGraphNode* Node) { return Node->NodeGuid == NodeGuid; }))
 				{
-					if (int32* IndexPtr = NewAnimBlueprintClass->AnimBlueprintDebugData.NodeGuidToIndexMap.Find(NodeGuid))
+					if (int32* IndexPtr = OutCompiledData.GetAnimBlueprintDebugData().NodeGuidToIndexMap.Find(NodeGuid))
 					{
-						FGraphAssetPlayerInformation& Info = NewAnimBlueprintClass->GraphAssetPlayerInformation.FindOrAdd(FName(*GraphName));
+						FGraphAssetPlayerInformation& Info = OutCompiledData.GetGraphAssetPlayerInformation().FindOrAdd(FName(*GraphName));
 						Info.PlayerNodeIndices.AddUnique(*IndexPtr);
 					}
 				}

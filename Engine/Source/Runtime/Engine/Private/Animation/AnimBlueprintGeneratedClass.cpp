@@ -20,7 +20,6 @@
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_StateMachine.h"
 #include "EdGraph/EdGraphNode.h"
-#include "Animation/AnimInstanceSubsystemData.h"
 #include "Algo/Reverse.h"
 
 /////////////////////////////////////////////////////
@@ -276,9 +275,6 @@ void UAnimBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	Super::Serialize(Ar);
-
-	// Init subsystem maps
-	RebuildSubsystemMaps();
 }
 
 void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
@@ -293,7 +289,6 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	DynamicResetNodeProperties.Empty();
 	StateMachineNodeProperties.Empty();
 	InitializationNodeProperties.Empty();
-	SubsystemProperties.Empty();
 
 #if WITH_EDITORONLY_DATA
 	for (FExposedValueHandler& Handler : EvaluateGraphExposedInputs)
@@ -330,15 +325,8 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 				}
 				AnimNodeProperties.Add(StructProp);
 			}
-			else if(StructProp->Struct->IsChildOf(FAnimInstanceSubsystemData::StaticStruct()))
-			{
-				SubsystemProperties.Add(StructProp);
-			}
 		}
 	}
-
-	// Properties are in reverse order with respect to the subsystems
-	Algo::Reverse(SubsystemProperties);
 }
 
 void UAnimBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)
@@ -383,6 +371,9 @@ void UAnimBlueprintGeneratedClass::PostLoad()
 {
 	Super::PostLoad();
 	GenerateAnimationBlueprintFunctions();
+
+	// Post-load property access library
+	PropertyAccess::PostLoadLibrary(PropertyAccessLibrary);
 }
 
 void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
@@ -601,41 +592,3 @@ const UEdGraphNode* UAnimBlueprintGeneratedClass::GetVisualNodeFromNodePropertyI
 }
 
 #endif // WITH_EDITORONLY_DATA
-
-UAnimBlueprintClassSubsystem* UAnimBlueprintGeneratedClass::GetSubsystem(TSubclassOf<UAnimBlueprintClassSubsystem> InClass) const
-{
-	return GetRootClass()->SubsystemMap.FindRef(InClass);
-}
-
-UAnimBlueprintClassSubsystem* UAnimBlueprintGeneratedClass::FindSubsystemWithInterface(TSubclassOf<UInterface> InClassInterface) const
-{
-	return GetRootClass()->SubsystemInterfaceMap.FindRef(InClassInterface);
-}
-
-void UAnimBlueprintGeneratedClass::RebuildSubsystemMaps()
-{
-	SubsystemMap.Reset();
-	SubsystemInterfaceMap.Reset();
-
-	// Init subsystem maps
-	for(UAnimBlueprintClassSubsystem* Subsystem : Subsystems)
-	{
-		SubsystemMap.Add(Subsystem->GetClass(), Subsystem);
-
-		for(const FImplementedInterface& ImplementedInterface : Subsystem->GetClass()->Interfaces)
-		{
-			SubsystemInterfaceMap.Add(ImplementedInterface.Class, Subsystem);
-		}
-	}
-}
-
-const UAnimBlueprintGeneratedClass* UAnimBlueprintGeneratedClass::GetRootClass() const
-{
-	const UAnimBlueprintGeneratedClass* RootClass = this;
-	while(const UAnimBlueprintGeneratedClass* NextClass = Cast<UAnimBlueprintGeneratedClass>(RootClass->GetSuperClass()))
-	{
-		RootClass = NextClass;
-	}
-
-	return RootClass;
-}

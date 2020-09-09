@@ -2,8 +2,8 @@
 	"FileVersion" : 3,
 	"Version" : 1,
 	"VersionName" : "1.0",
-	"FriendlyName" : "Property Access",
-	"Description" : "Support for copying properties from one object to another. Required for Animation and UMG systems to function correctly",
+	"FriendlyName" : "Property Access Editor",
+	"Description" : "Editor support for copying properties from one object to another. Required for Animation and UMG systems to function correctly",
 	"Category" : "Runtime",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",
@@ -17,11 +17,6 @@
 	
 	"Modules" :
 	[
-		{
-			"Name" : "PropertyAccess",
-			"Type": "Runtime" ,
-			"LoadingPhase" : "PreDefault"
-		},
 		{
 			"Name" : "PropertyAccessEditor",
 			"Type": "UncookedOnly" ,

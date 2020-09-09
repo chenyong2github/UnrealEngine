@@ -7,7 +7,6 @@
 #include "Misc/Guid.h"
 #include "AnimGraphNode_CustomProperty.h"
 #include "IClassVariableCreator.h"
-#include "Animation/AnimInstanceSubsystemData.h"
 
 #include "AnimGraphNode_LinkedAnimGraphBase.generated.h"
 
@@ -44,7 +43,7 @@ public:
 	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const PURE_VIRTUAL(UAnimGraphNode_LinkedAnimGraphBase::GetLinkedAnimGraphNode, return nullptr;);
 
 protected:
-	friend class UAnimBlueprintCompilerSubsystem_LinkedAnimGraph;
+	friend class FAnimBlueprintCompilerHandler_LinkedAnimGraph;
 
 	// Called pre-compilation to allocate pose links
 	void AllocatePoseLinks();

@@ -26,7 +26,7 @@ public:
 	virtual ~IPropertyAccessLibraryCompiler() {}
 
 	// Begin compilation - reset the library to its default state
-	virtual void BeginCompilation(UClass* InClass) = 0;
+	virtual void BeginCompilation(const UClass* InClass) = 0;
 
 	// Add a copy to the property access library we are compiling
 	// @return an integer handle to the pending copy. This can be resolved to a true copy index by calling MapCopyIndex

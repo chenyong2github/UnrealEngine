@@ -64,7 +64,7 @@ private:
 	int32 ResolvedArrayIndex = INDEX_NONE;
 
 	// IClassVariableCreator interface
-	virtual void CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext) override;
+	virtual void CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext) override;
 
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins() override;

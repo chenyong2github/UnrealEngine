@@ -7,7 +7,9 @@
 #include "Animation/AnimNodeBase.h"
 #include "AnimGraphNode_Base.h"
 #include "KismetCompilerModule.h"
-#include "AnimBlueprintCompilerSubsystemCollection.h"
+#include "AnimBlueprintCompilerHandlerCollection.h"
+#include "IAnimBlueprintCompilerHandlerCollection.h"
+#include "IAnimBlueprintCompilerCreationContext.h"
 
 class UAnimationGraphSchema;
 class UAnimGraphNode_SaveCachedPose;
@@ -35,43 +37,22 @@ struct FPoseLinkMappingRecord;
 struct FAnimGraphNodePropertyBinding;
 class FAnimBlueprintCompilerContext;
 
-#define ANIM_FUNC_DECORATOR	TEXT("__AnimFunc")
-
 //////////////////////////////////////////////////////////////////////////
 // FAnimBlueprintCompilerContext
 class FAnimBlueprintCompilerContext : public FKismetCompilerContext
 {
-	friend class UAnimBlueprintCompilerSubsystem;
+	friend class FAnimBlueprintCompilerCreationContext;
+	friend class FAnimBlueprintCompilationContext;
+	friend class FAnimBlueprintVariableCreationContext;
+	friend class FAnimBlueprintCompilationBracketContext;
+	friend class FAnimBlueprintPostExpansionStepContext;
+	friend class FAnimBlueprintCopyTermDefaultsContext;
 
 protected:
 	typedef FKismetCompilerContext Super;
 public:
 	FAnimBlueprintCompilerContext(UAnimBlueprint* SourceSketch, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions);
 	virtual ~FAnimBlueprintCompilerContext();
-
-	virtual void PostCompile() override;
-
-	// Get a Subsystem of specified type
-	template <typename TSubsystemClass>
-	TSubsystemClass* GetSubsystem() const
-	{
-		checkSlow(this != nullptr);
-		return AnimBlueprintCompilerSubsystemCollection.GetSubsystem<TSubsystemClass>(TSubsystemClass::StaticClass());
-	}
-
-	// Find the first subsystem implementing the specified interface
-	template<typename InterfaceClass>
-	InterfaceClass* FindSubsystemWithInterface() const
-	{
-		checkSlow(this != nullptr);
-		return AnimBlueprintCompilerSubsystemCollection.FindSubsystemWithInterface<InterfaceClass>(InterfaceClass::UClassType::StaticClass());
-	}
-
-	// Allow nodes to create variables by exposing this
-	using FKismetCompilerContext::CreateVariable;
-
-	// Expose expansion functionality
-	using FKismetCompilerContext::ExpansionStep;
 
 protected:
 	// Implementation of FKismetCompilerContext interface
@@ -83,6 +64,7 @@ protected:
 	virtual void OnNewClassSet(UBlueprintGeneratedClass* ClassToUse) override;
 	virtual void OnPostCDOCompiled() override;
 	virtual void CopyTermDefaultsToDefaultObject(UObject* DefaultObject) override;
+	virtual void PostCompile() override;
 	virtual void PostCompileDiagnostics() override;
 	virtual void EnsureProperGeneratedClass(UClass*& TargetClass) override;
 	virtual void CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO) override;
@@ -90,7 +72,7 @@ protected:
 	virtual void PrecompileFunction(FKismetFunctionContext& Context, EInternalCompilerFlags InternalFlags) override;
 	virtual void SetCalculatedMetaDataAndFlags(UFunction* Function, UK2Node_FunctionEntry* EntryNode, const UEdGraphSchema_K2* Schema ) override;
 	virtual bool ShouldForceKeepNode(const UEdGraphNode* Node) const override;
-	virtual void PostExpansionStep(UEdGraph* Graph) override;
+	virtual void PostExpansionStep(const UEdGraph* Graph) override;
 	// End of FKismetCompilerContext interface
 
 protected:
@@ -124,16 +106,34 @@ protected:
 	// True if any parent class is also generated from an animation blueprint
 	bool bIsDerivedAnimBlueprint;
 
-	// Subsystems that this context is hosting
-	FAnimBlueprintCompilerSubsystemCollection AnimBlueprintCompilerSubsystemCollection;
+	// Handlers that this context is hosting
+	FAnimBlueprintCompilerHandlerCollection AnimBlueprintCompilerHandlerCollection;
 
-	// Expose compile options to subsystems
+	// Graph schema classes that this compiler is aware of - they will skip default function processing
+	TArray<TSubclassOf<UEdGraphSchema>> KnownGraphSchemas;
+
+	/** Delegate fired when the class starts compiling. The class may be new or recycled. */
+	FOnStartCompilingClass OnStartCompilingClassDelegate;
+
+	/** Delegate fired before all animation nodes are processed */
+	FOnPreProcessAnimationNodes OnPreProcessAnimationNodesDelegate;
+
+	/** Delegate fired after all animation nodes are processed */
+	FOnPostProcessAnimationNodes OnPostProcessAnimationNodesDelegate;
+
+	/** Delegate fired post- graph expansion */
+	FOnPostExpansionStep OnPostExpansionStepDelegate;
+
+	/** Delegate fired when the class has finished compiling */
+	FOnFinishCompilingClass OnFinishCompilingClassDelegate;
+
+	/** Delegate fired when data is being copied to the CDO */
+	FOnCopyTermDefaultsToDefaultObject OnCopyTermDefaultsToDefaultObjectDelegate;
+
+	// Expose compile options to handlers
 	using FKismetCompilerContext::CompileOptions;
 
 private:
-	// Run a function for each subsystem we have registered
-	void ForEachSubsystem(TFunctionRef<void(UAnimBlueprintCompilerSubsystem*)> InFunction);
-
 	// Run a function on the passed-in graph and each subgraph of it
 	void ForAllSubGraphs(UEdGraph* InGraph, TFunctionRef<void(UEdGraph*)> InPerGraphFunction);
 
@@ -153,9 +153,9 @@ private:
 	void ProcessAnimationNodes(TArray<UAnimGraphNode_Base*>& AnimNodeList);
 
 	// Gets all anim graph nodes that are piped into the provided node (traverses input pins)
-	void GetLinkedAnimNodes(UAnimGraphNode_Base* InGraphNode, TArray<UAnimGraphNode_Base*>& LinkedAnimNodes);
-	void GetLinkedAnimNodes_TraversePin(UEdGraphPin* InPin, TArray<UAnimGraphNode_Base*>& LinkedAnimNodes);
-	void GetLinkedAnimNodes_ProcessAnimNode(UAnimGraphNode_Base* AnimNode, TArray<UAnimGraphNode_Base*>& LinkedAnimNodes);
+	void GetLinkedAnimNodes(UAnimGraphNode_Base* InGraphNode, TArray<UAnimGraphNode_Base*>& LinkedAnimNodes) const;
+	void GetLinkedAnimNodes_TraversePin(UEdGraphPin* InPin, TArray<UAnimGraphNode_Base*>& LinkedAnimNodes) const;
+	void GetLinkedAnimNodes_ProcessAnimNode(UAnimGraphNode_Base* AnimNode, TArray<UAnimGraphNode_Base*>& LinkedAnimNodes) const;
 
 	// Returns the allocation index of the specified node, processing it if it was pending
 	int32 GetAllocationIndexOfNode(UAnimGraphNode_Base* VisualAnimNode);
@@ -168,14 +168,5 @@ private:
 
 	// Expands split pins for a graph
 	void ExpandSplitPins(UEdGraph* InGraph);
-
-	// Add the subsystem classes to the currently compiling class
-	void AddSubsystemClasses(const TArray<TSubclassOf<UAnimBlueprintClassSubsystem>>& SubsystemClasses);
-
-	// Process all the gathered class subsystems
-	void ProcessClassSubsystems();
-
-	// Process a single class subsystem
-	void ProcessClassSubsystem(UAnimBlueprintClassSubsystem* InSubsystem);
 };
 

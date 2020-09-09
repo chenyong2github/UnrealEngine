@@ -3,6 +3,8 @@
 #include "AnimGraphNode_StateResult.h"
 #include "GraphEditorSettings.h"
 #include "AnimBlueprintCompiler.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
+#include "IAnimBlueprintCompilationContext.h"
 
 #define LOCTEXT_NAMESPACE "A3Nodes"
 
@@ -44,9 +46,9 @@ FString UAnimGraphNode_StateResult::GetDocumentationLink() const
 	return TEXT("Shared/GraphNodes/AnimationStateMachine");
 }
 
-void UAnimGraphNode_StateResult::OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext)
+void UAnimGraphNode_StateResult::OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
-	UAnimGraphNode_StateResult* TrueNode = InCompilerContext.MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_StateResult>(this);
+	UAnimGraphNode_StateResult* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_StateResult>(this);
 
 	Node.Name = TrueNode->GetGraph()->GetFName();
 }

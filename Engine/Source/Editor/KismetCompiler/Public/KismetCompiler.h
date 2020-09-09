@@ -388,7 +388,7 @@ protected:
 	virtual void PostCompile() { OnPostCompile.Broadcast(); }
 
 	// Gives derived classes a chance to process post-node expansion
-	virtual void PostExpansionStep(UEdGraph* Graph) {}
+	virtual void PostExpansionStep(const UEdGraph* Graph) {}
 
 	/** Determines if a node is pure */
 	virtual bool IsNodePure(const UEdGraphNode* Node) const;

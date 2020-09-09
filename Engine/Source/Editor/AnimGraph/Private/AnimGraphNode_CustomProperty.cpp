@@ -15,11 +15,15 @@
 #include "DetailWidgetRow.h"
 #include "PropertyCustomizationHelpers.h"
 #include "KismetCompilerMisc.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
+#include "IAnimBlueprintCompilerHandlerCollection.h"
+#include "IAnimBlueprintCompilerHandler.h"
 #include "KismetCompiler.h"
+#include "IAnimBlueprintCompilationContext.h"
 
 #define LOCTEXT_NAMESPACE "CustomPropNode"
 
-void UAnimGraphNode_CustomProperty::CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext)
+void UAnimGraphNode_CustomProperty::CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext)
 {
 	for (UEdGraphPin* Pin : Pins)
 	{
@@ -39,16 +43,12 @@ void UAnimGraphNode_CustomProperty::CreateClassVariablesFromBlueprint(FKismetCom
 			FString PrefixedName = GetPinTargetVariableName(Pin);
 
 			// Create a property on the new class to hold the pin data
-			FProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(InCompilerContext.NewClass, FName(*PrefixedName), Pin->PinType, InCompilerContext.NewClass, CPF_None, CastChecked<UEdGraphSchema_K2>(GetSchema()), InCompilerContext.MessageLog);
-			if (NewProperty)
-			{
-				FKismetCompilerUtilities::LinkAddedProperty(InCompilerContext.NewClass, NewProperty);
-			}
+			InCreationContext.CreateVariable(FName(*PrefixedName), Pin->PinType);
 		}
 	}
 }
 
-void UAnimGraphNode_CustomProperty::OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext)
+void UAnimGraphNode_CustomProperty::OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	for (UEdGraphPin* Pin : Pins)
 	{
@@ -162,12 +162,12 @@ void UAnimGraphNode_CustomProperty::ReallocatePinsDuringReconstruction(TArray<UE
 	}
 }
 
-void UAnimGraphNode_CustomProperty::GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, FProperty*& OutProperty)
+void UAnimGraphNode_CustomProperty::GetInstancePinProperty(const IAnimBlueprintCompilationContext& InCompilationContext, UEdGraphPin* InInputPin, FProperty*& OutProperty)
 {
 	// The actual name of the instance property
 	FString FullName = GetPinTargetVariableName(InInputPin);
 
-	if(FProperty* Property = FindFProperty<FProperty>(InOwnerInstanceClass, *FullName))
+	if(FProperty* Property = InCompilationContext.FindClassFProperty<FProperty>(*FullName))
 	{
 		OutProperty = Property;
 	}

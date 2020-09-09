@@ -29,33 +29,11 @@ void UAnimClassData::DynamicClassInitialization(UDynamicClass* InDynamicClass)
 		Algo::Transform(AnimBlueprintFunctionData[FunctionIndex].InputPoseNodeProperties, AnimBlueprintFunctions[FunctionIndex].InputPoseNodeProperties, ResolveTransform);
 	}
 
-	Algo::Transform(SubsystemProperties, ResolvedSubsystemProperties, ResolveTransform);
-
-	// Init subsystem maps
-	for(UAnimBlueprintClassSubsystem* Subsystem : Subsystems)
-	{
-		SubsystemMap.Add(Subsystem->GetClass(), Subsystem);
-
-		for(const FImplementedInterface& ImplementedInterface : Subsystem->GetClass()->Interfaces)
-		{
-			SubsystemInterfaceMap.Add(ImplementedInterface.Class, Subsystem);
-		}
-
-		Subsystem->PostLoadSubsystem();
-	}
+	// Init property access library
+	PropertyAccess::PostLoadLibrary(PropertyAccessLibrary);
 
 	// Init exposed value handlers
 	FExposedValueHandler::DynamicClassInitialization(EvaluateGraphExposedInputs, InDynamicClass);
-}
-
-UAnimBlueprintClassSubsystem* UAnimClassData::GetSubsystem(TSubclassOf<UAnimBlueprintClassSubsystem> InClass) const
-{
-	return SubsystemMap.FindRef(InClass);
-}
-
-UAnimBlueprintClassSubsystem* UAnimClassData::FindSubsystemWithInterface(TSubclassOf<UInterface> InClassInterface) const
-{
-	return SubsystemInterfaceMap.FindRef(InClassInterface);
 }
 
 #if WITH_EDITOR
@@ -102,14 +80,6 @@ void UAnimClassData::CopyFrom(UAnimBlueprintGeneratedClass* AnimClass)
 	EvaluateGraphExposedInputs = AnimClass->GetExposedValueHandlers();
 	GraphNameAssetPlayers = AnimClass->GetGraphAssetPlayerInformation();
 	GraphBlendOptions = AnimClass->GetGraphBlendOptions();
-
-	Algo::Transform(AnimClass->GetSubsystemProperties(), SubsystemProperties, MakePropertyPath);
-	ResolvedSubsystemProperties = AnimClass->GetSubsystemProperties();
-
-	// Deep-copy (duplicate) subsystems
-	Algo::Transform(AnimClass->GetSubsystems(), Subsystems, [this](UAnimBlueprintClassSubsystem* InSubsystem)
-	{
-		return DuplicateObject(InSubsystem, this);
-	});
+	PropertyAccessLibrary = AnimClass->GetPropertyAccessLibrary();
 }
 #endif // WITH_EDITOR

@@ -13,7 +13,7 @@ struct FEdGraphPinType;
 namespace PropertyAccess
 {
 	/** Resolve a property path to a structure, returning the leaf property and array index if any. @return true if resolution succeeded */
-	extern EPropertyAccessResolveResult ResolveLeafProperty(UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex);
+	extern EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex);
 
 	// Get the compatibility of the two supplied properties. Ordering matters for promotion (A->B).
 	extern EPropertyAccessCompatibility GetPropertyCompatibility(const FProperty* InPropertyA, const FProperty* InPropertyB);
@@ -32,11 +32,16 @@ public:
 	FPropertyAccessLibraryCompiler();
 
 	// IPropertyAccessLibraryCompiler interface
+	virtual void BeginCompilation(const UClass* InClass) override;
 	virtual int32 AddCopy(TArrayView<FString> InSourcePath, TArrayView<FString> InDestPath, EPropertyAccessBatchType InBatchType, UObject* InAssociatedObject = nullptr) override;
 	virtual bool FinishCompilation() override;
 	virtual void IterateErrors(TFunctionRef<void(const FText&, UObject*)> InFunction) const override;
 	virtual int32 MapCopyIndex(int32 InIndex) const override;
 
+	// Set up the compiler ready for compilation
+	void Setup(const UClass* InClass, FPropertyAccessLibrary* InLibrary);
+
+public:
 	// Stored copy info for processing in FinishCompilation()
 	struct FQueuedCopy
 	{
@@ -58,7 +63,7 @@ protected:
 	FPropertyAccessLibrary* Library;
 
 	// The class we are compiling the library for
-	UClass* Class;
+	const UClass* Class;
 
 	// All copies to process in FinishCompilation()
 	TArray<FQueuedCopy> QueuedCopies;

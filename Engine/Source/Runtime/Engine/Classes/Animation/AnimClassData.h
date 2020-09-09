@@ -11,6 +11,7 @@
 #include "Animation/AnimClassInterface.h"
 #include "Algo/Transform.h"
 #include "AnimBlueprintGeneratedClass.h"
+#include "PropertyAccess.h"
 
 #include "AnimClassData.generated.h"
 
@@ -114,19 +115,9 @@ public:
 	UPROPERTY()
 	TMap<FName, FAnimGraphBlendOptions> GraphBlendOptions;
 
-private:
-	/** Data for each subsystem */
+	// Property access library
 	UPROPERTY()
-	TArray<UAnimBlueprintClassSubsystem*> Subsystems;
-
-	/** Map of class->subsystem */
-	TMap<TSubclassOf<UAnimBlueprintClassSubsystem>, UAnimBlueprintClassSubsystem*> SubsystemMap;
-	TMap<TSubclassOf<UInterface>, UAnimBlueprintClassSubsystem*> SubsystemInterfaceMap;
-
-	/** Subsystem properties */
-	UPROPERTY()
-	TArray< TFieldPath<FStructProperty> > SubsystemProperties;
-	TArray<FStructProperty*> ResolvedSubsystemProperties;
+	FPropertyAccessLibrary PropertyAccessLibrary;
 
 public:
 	// IAnimClassInterface interface
@@ -147,12 +138,19 @@ public:
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const override { return EvaluateGraphExposedInputs; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GraphNameAssetPlayers; }
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const override { return GraphBlendOptions; }
-	virtual const TArray<UAnimBlueprintClassSubsystem*>& GetSubsystems() const override { return Subsystems; }
-	virtual UAnimBlueprintClassSubsystem* GetSubsystem(TSubclassOf<UAnimBlueprintClassSubsystem> InClass) const override;
-	virtual UAnimBlueprintClassSubsystem* FindSubsystemWithInterface(TSubclassOf<UInterface> InClassInterface) const override;
-	virtual const TArray<FStructProperty*>& GetSubsystemProperties() const override { return ResolvedSubsystemProperties; }
+	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary() const override { return PropertyAccessLibrary; }
 
-	// Resolve TFieldPaths to FStructPropertys, setup subsystems, init value handlers
+private:
+	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines_Direct() const override { return BakedStateMachines; }
+	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies_Direct() const override { return AnimNotifies; }
+	virtual const TArray<FName>& GetSyncGroupNames_Direct() const override { return SyncGroupNames; }
+	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap_Direct() const override { return OrderedSavedPoseIndicesMap; }
+	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation_Direct() const override { return GraphNameAssetPlayers; }
+	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions_Direct() const override { return GraphBlendOptions; }
+	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary_Direct() const override { return PropertyAccessLibrary; }
+
+public:
+	// Resolve TFieldPaths to FStructPropertys, init value handlers
 	void DynamicClassInitialization(UDynamicClass* InDynamicClass);
 
 #if WITH_EDITOR

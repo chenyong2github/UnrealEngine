@@ -3,34 +3,36 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AnimBlueprintCompilerSubsystem.h"
+#include "IAnimBlueprintCompilerHandler.h"
 #include "IPropertyAccessCompiler.h"
 #include "Animation/AnimNodeBase.h"
-
-#include "AnimBlueprintCompilerSubsystem_Base.generated.h"
 
 class UAnimGraphNode_Base;
 struct FAnimGraphNodePropertyBinding;
 class UK2Node_CustomEvent;
+class IAnimBlueprintCompilationContext;
+class IAnimBlueprintGeneratedClassCompiledData;
+class IAnimBlueprintCompilerCreationContext;
+class IAnimBlueprintCompilationBracketContext;
+class IAnimBlueprintPostExpansionStepContext;
+class IAnimBlueprintCopyTermDefaultsContext;
 
-UCLASS()
-class UAnimBlueprintCompilerSubsystem_Base : public UAnimBlueprintCompilerSubsystem
+class FAnimBlueprintCompilerHandler_Base : public IAnimBlueprintCompilerHandler
 {
-	GENERATED_BODY()
-
 public:
+	FAnimBlueprintCompilerHandler_Base(IAnimBlueprintCompilerCreationContext& InCreationContext);
+
 	// Adds a map of struct eval handlers for the specified node
-	void AddStructEvalHandlers(UAnimGraphNode_Base* InNode);
+	void AddStructEvalHandlers(UAnimGraphNode_Base* InNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
 	// Create an 'expanded' evaluation handler for the specified node, called in the compiler's node expansion step
-	void CreateEvaluationHandlerForNode(UAnimGraphNode_Base* InNode);
+	void CreateEvaluationHandlerForNode(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode);
 
 private:
-	// UAnimBlueprintCompilerSubsystem interface
-	virtual void StartCompilingClass(UClass* InClass) override;
-	virtual void FinishCompilingClass(UClass* InClass) override;
-	virtual void PostExpansionStep(UEdGraph* InGraph) override;
-	virtual void CopyTermDefaultsToDefaultObject(UObject* InDefaultObject) override;
+	void StartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	void FinishCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	void PostExpansionStep(const UEdGraph* InGraph, IAnimBlueprintPostExpansionStepContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	void CopyTermDefaultsToDefaultObject(UObject* InDefaultObject, IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
 private:
 	/** Record of a single copy operation */
@@ -231,7 +233,7 @@ private:
 
 		FStructProperty* GetHandlerNodeProperty() const { return NodeVariableProperty; }
 
-		void BuildFastPathCopyRecords(UAnimBlueprintCompilerSubsystem_Base& InSubsystem);
+		void BuildFastPathCopyRecords(FAnimBlueprintCompilerHandler_Base& InHandler);
 
 	private:
 
@@ -249,7 +251,7 @@ private:
 	};
 
 	// Create an evaluation handler for the specified node/record
-	void CreateEvaluationHandler(UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& Record);
+	void CreateEvaluationHandler(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& Record);
 
 private:
 	// Records of pose pins for later patchup with an associated evaluation handler

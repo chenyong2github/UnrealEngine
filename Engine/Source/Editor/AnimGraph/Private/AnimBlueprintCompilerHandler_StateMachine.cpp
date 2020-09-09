@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimBlueprintCompilerSubsystem_StateMachine.h"
+#include "AnimBlueprintCompilerHandler_StateMachine.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "K2Node_AnimGetter.h"
 #include "K2Node_TransitionRuleGetter.h"
@@ -14,79 +14,59 @@
 #include "AnimationStateMachineSchema.h"
 #include "Algo/Transform.h"
 #include "Animation/AnimTypes.h"
+#include "IAnimBlueprintGeneratedClassCompiledData.h"
+#include "IAnimBlueprintCompilerCreationContext.h"
+#include "IAnimBlueprintCompilationContext.h"
 
-#define LOCTEXT_NAMESPACE "StateMachineSubsystem"
+#define LOCTEXT_NAMESPACE "StateMachineHandler"
 
-int32 UAnimBlueprintCompilerSubsystem_StateMachine::FindOrAddNotify(FAnimNotifyEvent& Notify)
+FAnimBlueprintCompilerHandler_StateMachine::FAnimBlueprintCompilerHandler_StateMachine(IAnimBlueprintCompilerCreationContext& InCreationContext)
 {
-	if ((Notify.NotifyName == NAME_None) && (Notify.Notify == nullptr) && (Notify.NotifyStateClass == nullptr))
-	{
-		// Non event, don't add it
-		return INDEX_NONE;
-	}
-
-	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
-
-	int32 NewIndex = INDEX_NONE;
-	for (int32 NotifyIdx = 0; NotifyIdx < GetNewAnimBlueprintClass()->AnimNotifies.Num(); NotifyIdx++)
-	{
-		if( (GetNewAnimBlueprintClass()->AnimNotifies[NotifyIdx].NotifyName == Notify.NotifyName) 
-			&& (GetNewAnimBlueprintClass()->AnimNotifies[NotifyIdx].Notify == Notify.Notify) 
-			&& (GetNewAnimBlueprintClass()->AnimNotifies[NotifyIdx].NotifyStateClass == Notify.NotifyStateClass) 
-			)
-		{
-			NewIndex = NotifyIdx;
-			break;
-		}
-	}
-
-	if (NewIndex == INDEX_NONE)
-	{
-		NewIndex = GetNewAnimBlueprintClass()->AnimNotifies.Add(Notify);
-	}
-	return NewIndex;
+	InCreationContext.OnPreProcessAnimationNodes().AddRaw(this, &FAnimBlueprintCompilerHandler_StateMachine::PreProcessAnimationNodes);
+	InCreationContext.OnPostProcessAnimationNodes().AddRaw(this, &FAnimBlueprintCompilerHandler_StateMachine::PostProcessAnimationNodes);
+	InCreationContext.RegisterKnownGraphSchema(UAnimationStateMachineSchema::StaticClass());
 }
 
-void UAnimBlueprintCompilerSubsystem_StateMachine::PreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes)
+void FAnimBlueprintCompilerHandler_StateMachine::PreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
-	GetConsolidatedEventGraph()->GetNodesOfClass<UK2Node_TransitionRuleGetter>(RootTransitionGetters);
+	InCompilationContext.GetConsolidatedEventGraph()->GetNodesOfClass<UK2Node_TransitionRuleGetter>(RootTransitionGetters);
 
 	// Get anim getters from the root anim graph (processing the nodes below will collect them in nested graphs)
-	GetConsolidatedEventGraph()->GetNodesOfClass<UK2Node_AnimGetter>(RootGraphAnimGetters);
+	InCompilationContext.GetConsolidatedEventGraph()->GetNodesOfClass<UK2Node_AnimGetter>(RootGraphAnimGetters);
 }
 
-void UAnimBlueprintCompilerSubsystem_StateMachine::PostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes)
+void FAnimBlueprintCompilerHandler_StateMachine::PostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	// Process the getter nodes in the graph if there were any
 	for (auto GetterIt = RootTransitionGetters.CreateIterator(); GetterIt; ++GetterIt)
 	{
-		ProcessTransitionGetter(*GetterIt, nullptr); // transition nodes should not appear at top-level
+		ProcessTransitionGetter(*GetterIt, nullptr, InCompilationContext, OutCompiledData); // transition nodes should not appear at top-level
 	}
 
 	// Wire root getters
 	for(UK2Node_AnimGetter* RootGraphGetter : RootGraphAnimGetters)
 	{
-		AutoWireAnimGetter(RootGraphGetter, nullptr);
+		AutoWireAnimGetter(RootGraphGetter, nullptr, InCompilationContext, OutCompiledData);
 	}
 
 	// Wire nested getters
 	for(UK2Node_AnimGetter* Getter : FoundGetterNodes)
 	{
-		AutoWireAnimGetter(Getter, nullptr);
+		AutoWireAnimGetter(Getter, nullptr, InCompilationContext, OutCompiledData);
 	}
 }
 
-UK2Node_CallFunction* UAnimBlueprintCompilerSubsystem_StateMachine::SpawnCallAnimInstanceFunction(UEdGraphNode* SourceNode, FName FunctionName)
+UK2Node_CallFunction* FAnimBlueprintCompilerHandler_StateMachine::SpawnCallAnimInstanceFunction(IAnimBlueprintCompilationContext& InCompilationContext, UEdGraphNode* SourceNode, FName FunctionName)
 {
 	//@TODO: SKELETON: This is a call on a parent function (UAnimInstance::StaticClass() specifically), should we treat it as self or not?
-	UK2Node_CallFunction* FunctionCall = SpawnIntermediateNode<UK2Node_CallFunction>(SourceNode);
+	UK2Node_CallFunction* FunctionCall = InCompilationContext.SpawnIntermediateNode<UK2Node_CallFunction>(SourceNode);
 	FunctionCall->FunctionReference.SetSelfMember(FunctionName);
 	FunctionCall->AllocateDefaultPins();
 
 	return FunctionCall;
 }
 
-void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2Node_TransitionRuleGetter* Getter, UAnimStateTransitionNode* TransitionNode)
+void FAnimBlueprintCompilerHandler_StateMachine::ProcessTransitionGetter(UK2Node_TransitionRuleGetter* Getter, UAnimStateTransitionNode* TransitionNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	// Get common elements for multiple getters
 	UEdGraphPin* OutputPin = Getter->GetOutputPin();
@@ -98,12 +78,12 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 	if (UAnimGraphNode_Base* SourcePlayerNode = Getter->AssociatedAnimAssetPlayerNode)
 	{
 		// This check should never fail as the source state is always processed first before handling it's rules
-		UAnimGraphNode_Base* TrueSourceNode = GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_Base>(SourcePlayerNode);
-		UAnimGraphNode_Base* UndertypedPlayerNode = GetSourceNodeToProcessedNodeMap().FindRef(TrueSourceNode);
+		UAnimGraphNode_Base* TrueSourceNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_Base>(SourcePlayerNode);
+		UAnimGraphNode_Base* UndertypedPlayerNode = InCompilationContext.GetSourceNodeToProcessedNodeMap().FindRef(TrueSourceNode);
 
 		if (UndertypedPlayerNode == NULL)
 		{
-			GetMessageLog().Error(TEXT("ICE: Player node @@ was not processed prior to handling a transition getter @@ that used it"), SourcePlayerNode, Getter);
+			InCompilationContext.GetMessageLog().Error(TEXT("ICE: Player node @@ was not processed prior to handling a transition getter @@ that used it"), SourcePlayerNode, Getter);
 			return;
 		}
 
@@ -111,14 +91,14 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 		UEdGraph* PlayerGraph = UndertypedPlayerNode->GetGraph();
 		if (!PlayerGraph->Nodes.Contains(UndertypedPlayerNode))
 		{
-			GetMessageLog().Error(TEXT("@@ is not associated with a node in @@; please delete and recreate it"), Getter, PlayerGraph);
+			InCompilationContext.GetMessageLog().Error(TEXT("@@ is not associated with a node in @@; please delete and recreate it"), Getter, PlayerGraph);
 		}
 
 		// Make sure the referenced AnimAsset player has been allocated
-		PlayerNodeIndex = GetAllocationIndexOfNode(UndertypedPlayerNode);
+		PlayerNodeIndex = InCompilationContext.GetAllocationIndexOfNode(UndertypedPlayerNode);
 		if (PlayerNodeIndex == INDEX_NONE)
 		{
-			GetMessageLog().Error(*LOCTEXT("BadAnimAssetNodeUsedInGetter", "@@ doesn't have a valid associated AnimAsset node.  Delete and recreate it").ToString(), Getter);
+			InCompilationContext.GetMessageLog().Error(*LOCTEXT("BadAnimAssetNodeUsedInGetter", "@@ doesn't have a valid associated AnimAsset node.  Delete and recreate it").ToString(), Getter);
 		}
 
 		// Grab the AnimAsset, and time pin if needed
@@ -132,7 +112,7 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 		}
 		else
 		{
-			GetMessageLog().Error(TEXT("@@ is associated with @@, which is an unexpected type"), Getter, UndertypedPlayerNode);
+			InCompilationContext.GetMessageLog().Error(TEXT("@@ is associated with @@, which is an unexpected type"), Getter, UndertypedPlayerNode);
 		}
 
 		bool bNeedTimePin = false;
@@ -153,10 +133,10 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 
 		if (bNeedTimePin && (PlayerNodeIndex != INDEX_NONE) && (TimePropertyName != NULL) && (TimePropertyInStructType != NULL))
 		{
-			const FProperty* NodeProperty = GetAllocatedPropertiesByIndex().FindChecked(PlayerNodeIndex);
+			const FProperty* NodeProperty = InCompilationContext.GetAllocatedPropertiesByIndex().FindChecked(PlayerNodeIndex);
 
 			// Create a struct member read node to grab the current position of the sequence player node
-			UK2Node_StructMemberGet* TimeReadNode = SpawnIntermediateNode<UK2Node_StructMemberGet>(Getter, GetConsolidatedEventGraph());
+			UK2Node_StructMemberGet* TimeReadNode = InCompilationContext.SpawnIntermediateNode<UK2Node_StructMemberGet>(Getter, InCompilationContext.GetConsolidatedEventGraph());
 			TimeReadNode->VariableReference.SetSelfMember(NodeProperty->GetFName());
 			TimeReadNode->StructType = TimePropertyInStructType;
 
@@ -172,90 +152,90 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 	case ETransitionGetter::AnimationAsset_GetCurrentTime:
 		if ((AnimAsset != NULL) && (SourceTimePin != NULL))
 		{
-			GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceAssetPlayerTime"));
+			GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceAssetPlayerTime"));
 			GetterHelper->FindPinChecked(TEXT("AssetPlayerIndex"))->DefaultValue = FString::FromInt(PlayerNodeIndex);
 		}
 		else
 		{
 			if (Getter->AssociatedAnimAssetPlayerNode)
 			{
-				GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Time. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
+				InCompilationContext.GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Time. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
 			}
 			else
 			{
-				GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
+				InCompilationContext.GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
 			}
 		}
 		break;
 	case ETransitionGetter::AnimationAsset_GetLength:
 		if (AnimAsset != NULL)
 		{
-			GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceAssetPlayerLength"));
+			GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceAssetPlayerLength"));
 			GetterHelper->FindPinChecked(TEXT("AssetPlayerIndex"))->DefaultValue = FString::FromInt(PlayerNodeIndex);
 		}
 		else
 		{
 			if (Getter->AssociatedAnimAssetPlayerNode)
 			{
-				GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Length. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
+				InCompilationContext.GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Length. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
 			}
 			else
 			{
-				GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
+				InCompilationContext.GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
 			}
 		}
 		break;
 	case ETransitionGetter::AnimationAsset_GetCurrentTimeFraction:
 		if ((AnimAsset != NULL) && (SourceTimePin != NULL))
 		{
-			GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceAssetPlayerTimeFraction"));
+			GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceAssetPlayerTimeFraction"));
 			GetterHelper->FindPinChecked(TEXT("AssetPlayerIndex"))->DefaultValue = FString::FromInt(PlayerNodeIndex);
 		}
 		else
 		{
 			if (Getter->AssociatedAnimAssetPlayerNode)
 			{
-				GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Time Fraction. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
+				InCompilationContext.GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Time Fraction. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
 			}
 			else
 			{
-				GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
+				InCompilationContext.GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
 			}
 		}
 		break;
 	case ETransitionGetter::AnimationAsset_GetTimeFromEnd:
 		if ((AnimAsset != NULL) && (SourceTimePin != NULL))
 		{
-			GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceAssetPlayerTimeFromEnd"));
+			GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceAssetPlayerTimeFromEnd"));
 			GetterHelper->FindPinChecked(TEXT("AssetPlayerIndex"))->DefaultValue = FString::FromInt(PlayerNodeIndex);
 		}
 		else
 		{
 			if (Getter->AssociatedAnimAssetPlayerNode)
 			{
-				GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Time Remaining. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
+				InCompilationContext.GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Time Remaining. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
 			}
 			else
 			{
-				GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
+				InCompilationContext.GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
 			}
 		}
 		break;
 	case ETransitionGetter::AnimationAsset_GetTimeFromEndFraction:
 		if ((AnimAsset != NULL) && (SourceTimePin != NULL))
 		{
-			GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceAssetPlayerTimeFromEndFraction"));
+			GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceAssetPlayerTimeFromEndFraction"));
 			GetterHelper->FindPinChecked(TEXT("AssetPlayerIndex"))->DefaultValue = FString::FromInt(PlayerNodeIndex);
 		}
 		else
 		{
 			if (Getter->AssociatedAnimAssetPlayerNode)
 			{
-				GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Time Remaining Fraction. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
+				InCompilationContext.GetMessageLog().Error(TEXT("Please replace @@ with Get Relevant Anim Time Remaining Fraction. @@ has no animation asset"), Getter, Getter->AssociatedAnimAssetPlayerNode);
 			}
 			else
 			{
-				GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
+				InCompilationContext.GetMessageLog().Error(TEXT("@@ is not asscociated with an asset player"), Getter);
 			}
 		}
 		break;
@@ -263,19 +243,19 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 	case ETransitionGetter::CurrentTransitionDuration:
 		{
 			check(TransitionNode);
-			if(UAnimStateNode* SourceStateNode = GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNode>(TransitionNode->GetPreviousState()))
+			if(UAnimStateNode* SourceStateNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNode>(TransitionNode->GetPreviousState()))
 			{
-				if(UObject* SourceTransitionNode = GetMessageLog().FindSourceObject(TransitionNode))
+				if(UObject* SourceTransitionNode = InCompilationContext.GetMessageLog().FindSourceObject(TransitionNode))
 				{
-					if(FStateMachineDebugData* DebugData = GetNewAnimBlueprintClass()->GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
+					if(FStateMachineDebugData* DebugData = OutCompiledData.GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
 					{
 						if(int32* pStateIndex = DebugData->NodeToStateIndex.Find(SourceStateNode))
 						{
 							const int32 StateIndex = *pStateIndex;
 							
 							// This check should never fail as all animation nodes should be processed before getters are
-							UAnimGraphNode_Base* CompiledMachineInstanceNode = GetSourceNodeToProcessedNodeMap().FindChecked(DebugData->MachineInstanceNode.Get());
-							const int32 MachinePropertyIndex = GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
+							UAnimGraphNode_Base* CompiledMachineInstanceNode = InCompilationContext.GetSourceNodeToProcessedNodeMap().FindChecked(DebugData->MachineInstanceNode.Get());
+							const int32 MachinePropertyIndex = InCompilationContext.GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
 							int32 TransitionPropertyIndex = INDEX_NONE;
 
 							for(TMap<TWeakObjectPtr<UEdGraphNode>, int32>::TIterator TransIt(DebugData->NodeToTransitionIndex); TransIt; ++TransIt)
@@ -291,7 +271,7 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 
 							if(TransitionPropertyIndex != INDEX_NONE)
 							{
-								GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceTransitionCrossfadeDuration"));
+								GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceTransitionCrossfadeDuration"));
 								GetterHelper->FindPinChecked(TEXT("MachineIndex"))->DefaultValue = FString::FromInt(MachinePropertyIndex);
 								GetterHelper->FindPinChecked(TEXT("TransitionIndex"))->DefaultValue = FString::FromInt(TransitionPropertyIndex);
 							}
@@ -306,9 +286,9 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 		{
 			if (Getter->AssociatedStateNode)
 			{
-				if (UAnimStateNode* SourceStateNode = GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNode>(Getter->AssociatedStateNode))
+				if (UAnimStateNode* SourceStateNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNode>(Getter->AssociatedStateNode))
 				{
-					if (FStateMachineDebugData* DebugData = GetNewAnimBlueprintClass()->GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
+					if (FStateMachineDebugData* DebugData = OutCompiledData.GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
 					{
 						if (int32* pStateIndex = DebugData->NodeToStateIndex.Find(SourceStateNode))
 						{
@@ -316,10 +296,10 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 							//const int32 MachineIndex = DebugData->MachineIndex;
 
 							// This check should never fail as all animation nodes should be processed before getters are
-							UAnimGraphNode_Base* CompiledMachineInstanceNode = GetSourceNodeToProcessedNodeMap().FindChecked(DebugData->MachineInstanceNode.Get());
-							const int32 MachinePropertyIndex = GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
+							UAnimGraphNode_Base* CompiledMachineInstanceNode = InCompilationContext.GetSourceNodeToProcessedNodeMap().FindChecked(DebugData->MachineInstanceNode.Get());
+							const int32 MachinePropertyIndex = InCompilationContext.GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
 
-							GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceStateWeight"));
+							GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceStateWeight"));
 							GetterHelper->FindPinChecked(TEXT("MachineIndex"))->DefaultValue = FString::FromInt(MachinePropertyIndex);
 							GetterHelper->FindPinChecked(TEXT("StateIndex"))->DefaultValue = FString::FromInt(StateIndex);
 						}
@@ -329,7 +309,7 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 
 			if (GetterHelper == NULL)
 			{
-				GetMessageLog().Error(TEXT("@@ is not associated with a valid state"), Getter);
+				InCompilationContext.GetMessageLog().Error(TEXT("@@ is not associated with a valid state"), Getter);
 			}
 		}
 		break;
@@ -337,21 +317,21 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 	case ETransitionGetter::CurrentState_ElapsedTime:
 		{
 			check(TransitionNode);
-			if (UAnimStateNode* SourceStateNode = GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNode>(TransitionNode->GetPreviousState()))
+			if (UAnimStateNode* SourceStateNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNode>(TransitionNode->GetPreviousState()))
 			{
-				if (FStateMachineDebugData* DebugData = GetNewAnimBlueprintClass()->GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
+				if (FStateMachineDebugData* DebugData = OutCompiledData.GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
 				{
 					// This check should never fail as all animation nodes should be processed before getters are
-					UAnimGraphNode_Base* CompiledMachineInstanceNode = GetSourceNodeToProcessedNodeMap().FindChecked(DebugData->MachineInstanceNode.Get());
-					const int32 MachinePropertyIndex = GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
+					UAnimGraphNode_Base* CompiledMachineInstanceNode = InCompilationContext.GetSourceNodeToProcessedNodeMap().FindChecked(DebugData->MachineInstanceNode.Get());
+					const int32 MachinePropertyIndex = InCompilationContext.GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
 
-					GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceCurrentStateElapsedTime"));
+					GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceCurrentStateElapsedTime"));
 					GetterHelper->FindPinChecked(TEXT("MachineIndex"))->DefaultValue = FString::FromInt(MachinePropertyIndex);
 				}
 			}
 			if (GetterHelper == NULL)
 			{
-				GetMessageLog().Error(TEXT("@@ is not associated with a valid state"), Getter);
+				InCompilationContext.GetMessageLog().Error(TEXT("@@ is not associated with a valid state"), Getter);
 			}
 		}
 		break;
@@ -359,10 +339,10 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 	case ETransitionGetter::CurrentState_GetBlendWeight:
 		{
 			check(TransitionNode);
-			if (UAnimStateNode* SourceStateNode = GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNode>(TransitionNode->GetPreviousState()))
+			if (UAnimStateNode* SourceStateNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNode>(TransitionNode->GetPreviousState()))
 			{
 				{
-					if (FStateMachineDebugData* DebugData = GetNewAnimBlueprintClass()->GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
+					if (FStateMachineDebugData* DebugData = OutCompiledData.GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
 					{
 						if (int32* pStateIndex = DebugData->NodeToStateIndex.Find(SourceStateNode))
 						{
@@ -370,10 +350,10 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 							//const int32 MachineIndex = DebugData->MachineIndex;
 
 							// This check should never fail as all animation nodes should be processed before getters are
-							UAnimGraphNode_Base* CompiledMachineInstanceNode = GetSourceNodeToProcessedNodeMap().FindChecked(DebugData->MachineInstanceNode.Get());
-							const int32 MachinePropertyIndex = GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
+							UAnimGraphNode_Base* CompiledMachineInstanceNode = InCompilationContext.GetSourceNodeToProcessedNodeMap().FindChecked(DebugData->MachineInstanceNode.Get());
+							const int32 MachinePropertyIndex = InCompilationContext.GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
 
-							GetterHelper = SpawnCallAnimInstanceFunction(Getter, TEXT("GetInstanceStateWeight"));
+							GetterHelper = SpawnCallAnimInstanceFunction(InCompilationContext, Getter, TEXT("GetInstanceStateWeight"));
 							GetterHelper->FindPinChecked(TEXT("MachineIndex"))->DefaultValue = FString::FromInt(MachinePropertyIndex);
 							GetterHelper->FindPinChecked(TEXT("StateIndex"))->DefaultValue = FString::FromInt(StateIndex);
 						}
@@ -382,13 +362,13 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 			}
 			if (GetterHelper == NULL)
 			{
-				GetMessageLog().Error(TEXT("@@ is not associated with a valid state"), Getter);
+				InCompilationContext.GetMessageLog().Error(TEXT("@@ is not associated with a valid state"), Getter);
 			}
 		}
 		break;
 
 	default:
-		GetMessageLog().Error(TEXT("Unrecognized getter type on @@"), Getter);
+		InCompilationContext.GetMessageLog().Error(TEXT("Unrecognized getter type on @@"), Getter);
 		break;
 	}
 
@@ -398,7 +378,7 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 		check(GetterHelper->IsNodePure());
 
 		UEdGraphPin* NewReturnPin = GetterHelper->FindPinChecked(TEXT("ReturnValue"));
-		GetMessageLog().NotifyIntermediatePinCreation(NewReturnPin, OutputPin);
+		InCompilationContext.GetMessageLog().NotifyIntermediatePinCreation(NewReturnPin, OutputPin);
 
 		NewReturnPin->CopyPersistentDataFromOldPin(*OutputPin);
 	}
@@ -407,7 +387,7 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::ProcessTransitionGetter(UK2No
 	Getter->BreakAllNodeLinks();
 }
 
-void UAnimBlueprintCompilerSubsystem_StateMachine::AutoWireAnimGetter(class UK2Node_AnimGetter* Getter, UAnimStateTransitionNode* InTransitionNode)
+void FAnimBlueprintCompilerHandler_StateMachine::AutoWireAnimGetter(class UK2Node_AnimGetter* Getter, UAnimStateTransitionNode* InTransitionNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	UEdGraphPin* ReferencedNodeTimePin = nullptr;
 	int32 ReferencedNodeIndex = INDEX_NONE;
@@ -417,13 +397,13 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::AutoWireAnimGetter(class UK2N
 
 	if(UAnimGraphNode_Base* SourceNode = Getter->SourceNode)
 	{
-		UAnimGraphNode_Base* ActualSourceNode = GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_Base>(SourceNode);
+		UAnimGraphNode_Base* ActualSourceNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_Base>(SourceNode);
 		
-		if(UAnimGraphNode_Base* ProcessedSourceNode = GetSourceNodeToProcessedNodeMap().FindRef(ActualSourceNode))
+		if(UAnimGraphNode_Base* ProcessedSourceNode = InCompilationContext.GetSourceNodeToProcessedNodeMap().FindRef(ActualSourceNode))
 		{
 			ProcessedNodeCheck = ProcessedSourceNode;
 
-			ReferencedNodeIndex = GetAllocationIndexOfNode(ProcessedSourceNode);
+			ReferencedNodeIndex = InCompilationContext.GetAllocationIndexOfNode(ProcessedSourceNode);
 
 			if(ProcessedSourceNode->DoesSupportTimeForTransitionGetter())
 			{
@@ -432,9 +412,9 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::AutoWireAnimGetter(class UK2N
 
 				if(ReferencedNodeIndex != INDEX_NONE && TimePropertyName && TimePropertyInStructType)
 				{
-					FProperty* NodeProperty = GetAllocatedPropertiesByIndex().FindChecked(ReferencedNodeIndex);
+					FProperty* NodeProperty = InCompilationContext.GetAllocatedPropertiesByIndex().FindChecked(ReferencedNodeIndex);
 
-					UK2Node_StructMemberGet* ReaderNode = SpawnIntermediateNode<UK2Node_StructMemberGet>(Getter, GetConsolidatedEventGraph());
+					UK2Node_StructMemberGet* ReaderNode = InCompilationContext.SpawnIntermediateNode<UK2Node_StructMemberGet>(Getter, InCompilationContext.GetConsolidatedEventGraph());
 					ReaderNode->VariableReference.SetSelfMember(NodeProperty->GetFName());
 					ReaderNode->StructType = TimePropertyInStructType;
 					ReaderNode->AllocatePinsForSingleMemberGet(TimePropertyName);
@@ -447,10 +427,10 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::AutoWireAnimGetter(class UK2N
 	
 	if(Getter->SourceStateNode)
 	{
-		UObject* SourceObject = GetMessageLog().FindSourceObject(Getter->SourceStateNode);
+		UObject* SourceObject = InCompilationContext.GetMessageLog().FindSourceObject(Getter->SourceStateNode);
 		if(UAnimStateNode* SourceStateNode = Cast<UAnimStateNode>(SourceObject))
 		{
-			if(FStateMachineDebugData* DebugData = GetNewAnimBlueprintClass()->GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
+			if(FStateMachineDebugData* DebugData = OutCompiledData.GetAnimBlueprintDebugData().StateMachineDebugData.Find(SourceStateNode->GetGraph()))
 			{
 				if(int32* StateIndexPtr = DebugData->NodeToStateIndex.Find(SourceStateNode))
 				{
@@ -460,7 +440,7 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::AutoWireAnimGetter(class UK2N
 		}
 		else if(UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(SourceObject))
 		{
-			if(FStateMachineDebugData* DebugData = GetNewAnimBlueprintClass()->GetAnimBlueprintDebugData().StateMachineDebugData.Find(TransitionNode->GetGraph()))
+			if(FStateMachineDebugData* DebugData = OutCompiledData.GetAnimBlueprintDebugData().StateMachineDebugData.Find(TransitionNode->GetGraph()))
 			{
 				if(int32* TransitionIndexPtr = DebugData->NodeToTransitionIndex.Find(TransitionNode))
 				{
@@ -490,12 +470,12 @@ void UAnimBlueprintCompilerSubsystem_StateMachine::AutoWireAnimGetter(class UK2N
 	}
 }
 
-int32 UAnimBlueprintCompilerSubsystem_StateMachine::ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, UAnimStateTransitionNode* TransitionNode, TArray<UEdGraphNode*>* ClonedNodes)
+int32 FAnimBlueprintCompilerHandler_StateMachine::ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData, UAnimStateTransitionNode* TransitionNode, TArray<UEdGraphNode*>* ClonedNodes)
 {
 	// Clone the nodes from the source graph
-	// Note that we outer this graph to the ConsolidatedEventGraph to allow ExpandSplitPins to 
+	// Note that we outer this graph to the ConsolidatedEventGraph to allow ExpansionStep to 
 	// correctly retrieve the context for any expanded function calls (custom make/break structs etc.)
-	UEdGraph* ClonedGraph = FEdGraphUtilities::CloneGraph(SourceGraph, GetConsolidatedEventGraph(), &GetMessageLog(), true);
+	UEdGraph* ClonedGraph = FEdGraphUtilities::CloneGraph(SourceGraph, InCompilationContext.GetConsolidatedEventGraph(), &InCompilationContext.GetMessageLog(), true);
 
 	// Grab all the animation nodes and find the corresponding root node in the cloned set
 	UAnimGraphNode_Base* TargetRootNode = nullptr;
@@ -520,7 +500,7 @@ int32 UAnimBlueprintCompilerSubsystem_StateMachine::ExpandGraphAndProcessNodes(U
 			AnimNodeList.Add(TestNode);
 
 			//@TODO: There ought to be a better way to determine this
-			if (GetMessageLog().FindSourceObject(TestNode) == GetMessageLog().FindSourceObject(SourceRootNode))
+			if (InCompilationContext.GetMessageLog().FindSourceObject(TestNode) == InCompilationContext.GetMessageLog().FindSourceObject(SourceRootNode))
 			{
 				TargetRootNode = TestNode;
 			}
@@ -534,30 +514,30 @@ int32 UAnimBlueprintCompilerSubsystem_StateMachine::ExpandGraphAndProcessNodes(U
 	check(TargetRootNode);
 
 	// Run another expansion pass to catch the graph we just added (this is slightly wasteful 
-	ExpansionStep(ClonedGraph, false);
+	InCompilationContext.ExpansionStep(ClonedGraph, false);
 
 	// Validate graph now we have expanded/pruned
-	ValidateGraphIsWellFormed(ClonedGraph);
+	InCompilationContext.ValidateGraphIsWellFormed(ClonedGraph);
 
 	// Move the cloned nodes into the consolidated event graph
-	const bool bIsLoading = GetBlueprint()->bIsRegeneratingOnLoad || IsAsyncLoading();
-	const bool bIsCompiling = GetBlueprint()->bBeingCompiled;
-	ClonedGraph->MoveNodesToAnotherGraph(GetConsolidatedEventGraph(), bIsLoading, bIsCompiling);
+	const bool bIsLoading = InCompilationContext.GetBlueprint()->bIsRegeneratingOnLoad || IsAsyncLoading();
+	const bool bIsCompiling = InCompilationContext.GetBlueprint()->bBeingCompiled;
+	ClonedGraph->MoveNodesToAnotherGraph(InCompilationContext.GetConsolidatedEventGraph(), bIsLoading, bIsCompiling);
 
 	// Process any animation nodes
 	{
 		TArray<UAnimGraphNode_Base*> RootSet;
 		RootSet.Add(TargetRootNode);
 
-		PruneIsolatedAnimationNodes(RootSet, AnimNodeList);
+		InCompilationContext.PruneIsolatedAnimationNodes(RootSet, AnimNodeList);
 
-		ProcessAnimationNodes(AnimNodeList);
+		InCompilationContext.ProcessAnimationNodes(AnimNodeList);
 	}
 
 	// Process the getter nodes in the graph if there were any
 	for (auto GetterIt = Getters.CreateIterator(); GetterIt; ++GetterIt)
 	{
-		ProcessTransitionGetter(*GetterIt, TransitionNode);
+		ProcessTransitionGetter(*GetterIt, TransitionNode, InCompilationContext, OutCompiledData);
 	}
 
 	// Wire anim getter nodes
@@ -567,17 +547,7 @@ int32 UAnimBlueprintCompilerSubsystem_StateMachine::ExpandGraphAndProcessNodes(U
 	}
 
 	// Returns the index of the processed cloned version of SourceRootNode
-	return GetAllocationIndexOfNode(TargetRootNode);	
-}
-
-bool UAnimBlueprintCompilerSubsystem_StateMachine::ShouldProcessFunctionGraph(UEdGraph* InGraph) const
-{
-	if (InGraph->Schema->IsChildOf(UAnimationStateMachineSchema::StaticClass()))
-	{
-		return false;
-	}
-
-	return true;
+	return InCompilationContext.GetAllocationIndexOfNode(TargetRootNode);	
 }
 
 #undef LOCTEXT_NAMESPACE

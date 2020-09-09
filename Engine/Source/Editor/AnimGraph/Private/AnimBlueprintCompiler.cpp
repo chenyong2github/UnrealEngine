@@ -37,7 +37,9 @@
 #include "Algo/Transform.h"
 #include "Algo/Accumulate.h"
 #include "IClassVariableCreator.h"
-#include "Animation/AnimInstanceSubsystemData.h"
+#include "AnimBlueprintGeneratedClassCompiledData.h"
+#include "AnimBlueprintCompilationContext.h"
+#include "AnimBlueprintVariableCreationContext.h"
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintCompiler"
 
@@ -49,8 +51,10 @@ FAnimBlueprintCompilerContext::FAnimBlueprintCompilerContext(UAnimBlueprint* Sou
 	, AnimBlueprint(SourceSketch)
 	, bIsDerivedAnimBlueprint(false)
 {
-	AnimBlueprintCompilerSubsystemCollection.RegisterContext(this);
-	AnimBlueprintCompilerSubsystemCollection.Initialize(GetTransientPackage());
+	AnimBlueprintCompilerHandlerCollection.Initialize(this);
+
+	// Add the animation graph schema to skip default function processing on them
+	KnownGraphSchemas.AddUnique(UAnimationGraphSchema::StaticClass());
 
 	// Make sure the skeleton has finished preloading
 	if (AnimBlueprint->TargetSkeleton != nullptr)
@@ -138,8 +142,6 @@ FAnimBlueprintCompilerContext::FAnimBlueprintCompilerContext(UAnimBlueprint* Sou
 FAnimBlueprintCompilerContext::~FAnimBlueprintCompilerContext()
 {
 	DestroyAnimGraphStubFunctions();
-
-	AnimBlueprintCompilerSubsystemCollection.Deinitialize();
 }
 
 void FAnimBlueprintCompilerContext::ForAllSubGraphs(UEdGraph* InGraph, TFunctionRef<void(UEdGraph*)> InPerGraphFunction)
@@ -164,9 +166,10 @@ void FAnimBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		{
 			TArray<IClassVariableCreator*> ClassVariableCreators;
 			InGraph->GetNodesOfClass(ClassVariableCreators);
+			FAnimBlueprintVariableCreationContext CreationContext(this);
 			for(IClassVariableCreator* ClassVariableCreator : ClassVariableCreators)
 			{
-				ClassVariableCreator->CreateClassVariablesFromBlueprint(*this);
+				ClassVariableCreator->CreateClassVariablesFromBlueprint(CreationContext);
 			}
 		};
 
@@ -252,62 +255,9 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 	NewAnimBlueprintDebugData.NodePropertyIndexToNodeMap.Add(AllocatedIndex, TrueSourceObject);
 	NewAnimBlueprintClass->GetDebugData().RegisterClassPropertyAssociation(TrueSourceObject, NewProperty);
 
-	// Add to the classes subsystem map
-	TArray<TSubclassOf<UAnimBlueprintClassSubsystem>> SubsystemClasses;
-	VisualAnimNode->GetRequiredClassSubsystems(SubsystemClasses);
-	AddSubsystemClasses(SubsystemClasses);
-
-	VisualAnimNode->ProcessDuringCompilation(*this);
-}
-
-void FAnimBlueprintCompilerContext::ProcessClassSubsystems()
-{
-	// Sort subsystems by class name
-	NewAnimBlueprintClass->Subsystems.Sort([](UAnimBlueprintClassSubsystem& InSubsystemA, UAnimBlueprintClassSubsystem& InSubsystemB)
-	{
-		return InSubsystemA.GetClass()->GetName() < InSubsystemB.GetClass()->GetName();
-	});
-
-	// Rebuild subsystem maps
-	NewAnimBlueprintClass->RebuildSubsystemMaps();
-
-	// Process all gathered class subsystems
-	for(UAnimBlueprintClassSubsystem* Subsystem : NewAnimBlueprintClass->Subsystems)
-	{
-		ProcessClassSubsystem(Subsystem);
-	}
-}
-
-void FAnimBlueprintCompilerContext::ProcessClassSubsystem(UAnimBlueprintClassSubsystem* InSubsystem)
-{
-	const FString SubsystemVariableName = ClassScopeNetNameMap.MakeValidName(InSubsystem);
-
-	const UScriptStruct* InstanceDataType = InSubsystem->GetInstanceDataType();
-	check(InstanceDataType->IsChildOf(FAnimInstanceSubsystemData::StaticStruct()));
-
-	FEdGraphPinType SubsystemVariableType;
-	SubsystemVariableType.PinCategory = UAnimationGraphSchema::PC_Struct;
-	SubsystemVariableType.PinSubCategoryObject = MakeWeakObjectPtr(const_cast<UScriptStruct*>(InstanceDataType));
-
-	FStructProperty* NewProperty = CastField<FStructProperty>(CreateVariable(FName(*SubsystemVariableName), SubsystemVariableType));
-	if (NewProperty == nullptr)
-	{
-		MessageLog.Error(*FText::Format(LOCTEXT("SubsystemPropertyCreationFailed", "Failed to create subsystem property for '{0}'"), FText::FromString(InSubsystem->GetName())).ToString());
-	}
-}
-
-void FAnimBlueprintCompilerContext::AddSubsystemClasses(const TArray<TSubclassOf<UAnimBlueprintClassSubsystem>>& SubsystemClasses)
-{
-	for(const TSubclassOf<UAnimBlueprintClassSubsystem>& NodeSubsystemClass : SubsystemClasses)
-	{
-		UAnimBlueprintClassSubsystem* ExistingSubsystem = NewAnimBlueprintClass->SubsystemMap.FindRef(NodeSubsystemClass);
-		if(ExistingSubsystem == nullptr)
-		{
-			UAnimBlueprintClassSubsystem* NewSubsystem = NewObject<UAnimBlueprintClassSubsystem>(NewAnimBlueprintClass, NodeSubsystemClass.Get());
-			NewAnimBlueprintClass->Subsystems.Add(NewSubsystem);
-			NewAnimBlueprintClass->SubsystemMap.Add(NodeSubsystemClass, NewSubsystem);
-		}
-	}
+	FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
+	FAnimBlueprintCompilationContext CompilerContext(this);
+	VisualAnimNode->ProcessDuringCompilation(CompilerContext, CompiledData);
 }
 
 int32 FAnimBlueprintCompilerContext::GetAllocationIndexOfNode(UAnimGraphNode_Base* VisualAnimNode)
@@ -324,12 +274,11 @@ bool FAnimBlueprintCompilerContext::ShouldForceKeepNode(const UEdGraphNode* Node
 	return Node->IsA<UAnimGraphNode_Base>();
 }
 
-void FAnimBlueprintCompilerContext::PostExpansionStep(UEdGraph* Graph)
+void FAnimBlueprintCompilerContext::PostExpansionStep(const UEdGraph* Graph)
 {
-	ForEachSubsystem([Graph](UAnimBlueprintCompilerSubsystem* InSubsystem)
-	{
-		InSubsystem->PostExpansionStep(Graph);
-	});
+	FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
+	FAnimBlueprintPostExpansionStepContext CompilerContext(this);
+	OnPostExpansionStepDelegate.Broadcast(Graph, CompilerContext, CompiledData);
 }
 
 void FAnimBlueprintCompilerContext::PruneIsolatedAnimationNodes(const TArray<UAnimGraphNode_Base*>& RootSet, TArray<UAnimGraphNode_Base*>& GraphNodes)
@@ -401,7 +350,7 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNodes(TArray<UAnimGraphNode_
 	}
 }
 
-void FAnimBlueprintCompilerContext::GetLinkedAnimNodes(UAnimGraphNode_Base* InGraphNode, TArray<UAnimGraphNode_Base*> &LinkedAnimNodes)
+void FAnimBlueprintCompilerContext::GetLinkedAnimNodes(UAnimGraphNode_Base* InGraphNode, TArray<UAnimGraphNode_Base*> &LinkedAnimNodes) const
 {
 	for(UEdGraphPin* Pin : InGraphNode->Pins)
 	{
@@ -419,7 +368,7 @@ void FAnimBlueprintCompilerContext::GetLinkedAnimNodes(UAnimGraphNode_Base* InGr
 	}
 }
 
-void FAnimBlueprintCompilerContext::GetLinkedAnimNodes_TraversePin(UEdGraphPin* InPin, TArray<UAnimGraphNode_Base*>& LinkedAnimNodes)
+void FAnimBlueprintCompilerContext::GetLinkedAnimNodes_TraversePin(UEdGraphPin* InPin, TArray<UAnimGraphNode_Base*>& LinkedAnimNodes) const
 {
 	if(!InPin)
 	{
@@ -446,13 +395,13 @@ void FAnimBlueprintCompilerContext::GetLinkedAnimNodes_TraversePin(UEdGraphPin* 
 	}
 }
 
-void FAnimBlueprintCompilerContext::GetLinkedAnimNodes_ProcessAnimNode(UAnimGraphNode_Base* AnimNode, TArray<UAnimGraphNode_Base *> &LinkedAnimNodes)
+void FAnimBlueprintCompilerContext::GetLinkedAnimNodes_ProcessAnimNode(UAnimGraphNode_Base* AnimNode, TArray<UAnimGraphNode_Base *>& LinkedAnimNodes) const
 {
 	if(!AllocatedAnimNodes.Contains(AnimNode))
 	{
 		UAnimGraphNode_Base* TrueSourceNode = MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_Base>(AnimNode);
 
-		if(UAnimGraphNode_Base** AllocatedNode = SourceNodeToProcessedNodeMap.Find(TrueSourceNode))
+		if(UAnimGraphNode_Base*const* AllocatedNode = SourceNodeToProcessedNodeMap.Find(TrueSourceNode))
 		{
 			LinkedAnimNodes.Add(*AllocatedNode);
 		}
@@ -482,7 +431,7 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 	ConsolidatedEventGraph->GetNodesOfClass<UAnimGraphNode_Base>(RootAnimNodeList);
 
 	// We recursively build the node lists for pre- and post-processing phases to make sure
-	// we catch any subsystem-relevant nodes in sub-graphs
+	// we catch any handler-relevant nodes in sub-graphs
 	TArray<UAnimGraphNode_Base*> AllSubGraphsAnimNodeList;
 	ForAllSubGraphs(ConsolidatedEventGraph, [&AllSubGraphsAnimNodeList](UEdGraph* InGraph)
 	{
@@ -513,26 +462,14 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 		// Validate the graph
 		ValidateGraphIsWellFormed(ConsolidatedEventGraph);
 
-		ForEachSubsystem([this, &AllSubGraphsAnimNodeList](UAnimBlueprintCompilerSubsystem* InSubsystem)
-		{
-			// Add any subsystem classes that need to be added without paying heed to node connectivity
-			TArray<TSubclassOf<UAnimBlueprintClassSubsystem>> SubsystemClasses;
-			InSubsystem->GetRequiredClassSubsystems(SubsystemClasses);
-			AddSubsystemClasses(SubsystemClasses);
-
-			InSubsystem->PreProcessAnimationNodes(AllSubGraphsAnimNodeList);
-		});
+		FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
+		FAnimBlueprintCompilationContext CompilerContext(this);
+		OnPreProcessAnimationNodesDelegate.Broadcast(AllSubGraphsAnimNodeList, CompilerContext, CompiledData);
 
 		// Process the animation nodes
 		ProcessAnimationNodes(RootAnimNodeList);
 
-		ForEachSubsystem([&AllSubGraphsAnimNodeList](UAnimBlueprintCompilerSubsystem* InSubsystem)
-		{
-			InSubsystem->PostProcessAnimationNodes(AllSubGraphsAnimNodeList);
-		});
-
-		// Process all the gathered class subsystems
-		ProcessClassSubsystems();
+		OnPostProcessAnimationNodesDelegate.Broadcast(AllSubGraphsAnimNodeList, CompilerContext, CompiledData);
 	}
 	else
 	{
@@ -682,11 +619,9 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 			}
 		}   
 
-		// Let each subsystem copy any data it wants
-		ForEachSubsystem([DefaultObject](UAnimBlueprintCompilerSubsystem* InSubsystem)
-		{
-			InSubsystem->CopyTermDefaultsToDefaultObject(DefaultObject);
-		});
+		FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
+		FAnimBlueprintCopyTermDefaultsContext CompilerContext(this);
+		OnCopyTermDefaultsToDefaultObjectDelegate.Broadcast(DefaultObject, CompilerContext, CompiledData);
 
 		UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = CastChecked<UAnimBlueprintGeneratedClass>(NewClass);
 
@@ -884,26 +819,13 @@ void FAnimBlueprintCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 
 void FAnimBlueprintCompilerContext::ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool bInternalFunction)
 {
-	if (SourceGraph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
+	if(!KnownGraphSchemas.FindByPredicate([SourceGraph](const TSubclassOf<UEdGraphSchema>& InSchemaClass)
 	{
-		// Animation graph
-		// Do nothing, as this graph has already been processed
-	}
-	else
+		return SourceGraph->Schema->IsChildOf(InSchemaClass.Get());
+	}))
 	{
-		bool bProcessGraph = true;
-
-		// Let each subsystem opt out
-		ForEachSubsystem([SourceGraph, &bProcessGraph](UAnimBlueprintCompilerSubsystem* InSubsystem)
-		{
-			bProcessGraph &= InSubsystem->ShouldProcessFunctionGraph(SourceGraph);
-		});
-
-		if(bProcessGraph)
-		{
-			// Let the regular K2 compiler handle this one
-			Super::ProcessOneFunctionGraph(SourceGraph, bInternalFunction);
-		}
+		// Not known as a schema that this compiler looks at, pass to the default
+		Super::ProcessOneFunctionGraph(SourceGraph, bInternalFunction);
 	}
 }
 
@@ -931,19 +853,9 @@ void FAnimBlueprintCompilerContext::SpawnNewClass(const FString& NewClassName)
 	}
 	NewClass = NewAnimBlueprintClass;
 
-	// Add any subsystem classes that need to be added without paying heed to node connectivity
-	ForEachSubsystem([this](UAnimBlueprintCompilerSubsystem* InSubsystem)
-	{
-		TArray<TSubclassOf<UAnimBlueprintClassSubsystem>> SubsystemClasses;
-		InSubsystem->GetRequiredClassSubsystems(SubsystemClasses);
-		AddSubsystemClasses(SubsystemClasses);
-	});
-
-	// Give each subsystem a crack
-	ForEachSubsystem([this](UAnimBlueprintCompilerSubsystem* InSubsystem)
-	{
-		InSubsystem->StartCompilingClass(NewAnimBlueprintClass);
-	});
+	FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
+	FAnimBlueprintCompilationBracketContext CompilerContext(this);
+	OnStartCompilingClassDelegate.Broadcast(NewAnimBlueprintClass, CompilerContext, CompiledData);
 }
 
 void FAnimBlueprintCompilerContext::OnPostCDOCompiled()
@@ -986,10 +898,6 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	NewAnimBlueprintClass->EvaluateGraphExposedInputs.Empty();
 	NewAnimBlueprintClass->GraphAssetPlayerInformation.Empty();
 	NewAnimBlueprintClass->GraphBlendOptions.Empty();
-	NewAnimBlueprintClass->Subsystems.Empty();
-	NewAnimBlueprintClass->SubsystemMap.Empty();
-	NewAnimBlueprintClass->SubsystemInterfaceMap.Empty();
-	NewAnimBlueprintClass->SubsystemProperties.Empty();
 
 	// Copy over runtime data from the blueprint to the class
 	NewAnimBlueprintClass->TargetSkeleton = AnimBlueprint->TargetSkeleton;
@@ -997,19 +905,9 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	UAnimBlueprint* RootAnimBP = UAnimBlueprint::FindRootAnimBlueprint(AnimBlueprint);
 	bIsDerivedAnimBlueprint = RootAnimBP != NULL;
 
-	// Add any class subsystems that need to be added without paying heed to node connectivity
-	ForEachSubsystem([this](UAnimBlueprintCompilerSubsystem* InSubsystem)
-	{
-		TArray<TSubclassOf<UAnimBlueprintClassSubsystem>> SubsystemClasses;
-		InSubsystem->GetRequiredClassSubsystems(SubsystemClasses);
-		AddSubsystemClasses(SubsystemClasses);
-	});
-
-	// Give each subsystem a crack
-	ForEachSubsystem([this](UAnimBlueprintCompilerSubsystem* InSubsystem)
-	{
-		InSubsystem->StartCompilingClass(NewAnimBlueprintClass);
-	});
+	FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
+	FAnimBlueprintCompilationBracketContext CompilerContext(this);
+	OnStartCompilingClassDelegate.Broadcast(NewAnimBlueprintClass, CompilerContext, CompiledData);
 }
 
 void FAnimBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
@@ -1052,11 +950,9 @@ void FAnimBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 		}
 	}
 
-	// Give each subsystem a crack
-	ForEachSubsystem([Class](UAnimBlueprintCompilerSubsystem* InSubsystem)
-	{
-		InSubsystem->FinishCompilingClass(Class);
-	});
+	FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
+	FAnimBlueprintCompilationBracketContext CompilerContext(this);
+	OnFinishCompilingClassDelegate.Broadcast(AnimBlueprintGeneratedClass, CompilerContext, CompiledData);
 
 	Super::FinishCompilingClass(Class);
 }
@@ -1352,15 +1248,6 @@ void FAnimBlueprintCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Fun
 			Function->SetMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly, TEXT("true"));
 			Function->SetMetaData(FBlueprintMetadata::MD_AnimBlueprintFunction, TEXT("true"));
 		}
-	}
-}
-
-void FAnimBlueprintCompilerContext::ForEachSubsystem(TFunctionRef<void(UAnimBlueprintCompilerSubsystem*)> InFunction)
-{
-	const TArray<UAnimBlueprintCompilerSubsystem*>& Subsystems = AnimBlueprintCompilerSubsystemCollection.GetSubsystemArray(TSubclassOf<UAnimBlueprintCompilerSubsystem>(UAnimBlueprintCompilerSubsystem::StaticClass()));
-	for(UAnimBlueprintCompilerSubsystem* Subsystem : Subsystems)
-	{
-		InFunction(Subsystem);
 	}
 }
 

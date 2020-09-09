@@ -8,6 +8,16 @@
 #include "IClassVariableCreator.generated.h"
 
 class FKismetCompilerContext;
+class FProperty;
+struct FEdGraphPinType;
+
+/** Context passed to IClassVariableCreator::CreateClassVariablesFromBlueprint */
+class IAnimBlueprintVariableCreationContext
+{
+public:
+	/** Create a class variable in the current class */
+	virtual FProperty* CreateVariable(const FName Name, const FEdGraphPinType& Type) = 0;
+};
 
 UINTERFACE(MinimalAPI)
 class UClassVariableCreator : public UInterface
@@ -23,7 +33,7 @@ public:
 	/** 
 	 * Implement this in a graph node and the anim BP compiler will call this expecting to generate
 	 * class variables.
-	 * @param	InCompilerContext	The compiler context for the current BP compilation
+	 * @param	InVariableCreator	The variable creation context for the current BP compilation
 	 */
-	virtual void CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext) = 0;
+	virtual void CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext) = 0;
 };
