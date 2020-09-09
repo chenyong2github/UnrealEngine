@@ -489,12 +489,12 @@ export function computeTargets(
 
 	const { blah, errors } = computeTargetsImpl(sourceBranch, ubergraph, cl, info.forceStompChanges, commandArguments, defaultTargets, logger)
 
-	if (!blah) {
+	if (errors.length > 0) {
+		info.errors = errors
 		return
 	}
 
-	if (errors.length > 0) {
-		info.errors = errors
+	if (!blah) {
 		return
 	}
 
