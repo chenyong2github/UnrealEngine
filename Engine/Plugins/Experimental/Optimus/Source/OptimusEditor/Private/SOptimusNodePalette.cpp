@@ -25,7 +25,7 @@ void SOptimusNodePaletteItem::Construct(const FArguments& InArgs, FCreateWidgetF
 	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
 
 	TSharedRef<SWidget> IconWidget = CreateIconWidget(IconToolTip, IconBrush, IconColor);
-	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget(NameFont, InCreateData, bIsReadOnly);
+	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget(InCreateData, bIsReadOnly);
 #if 0
 	TSharedRef<SWidget> HotkeyDisplayWidget = CreateHotkeyDisplayWidget(NameFont, HotkeyChord);
 #endif

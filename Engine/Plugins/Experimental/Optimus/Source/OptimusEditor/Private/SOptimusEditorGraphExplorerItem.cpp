@@ -146,7 +146,7 @@ void SOptimusEditorGraphEplorerItem::Construct(
 		.VAlign(VAlign_Center)
 		.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
 		[
-			CreateTextSlotWidget( NameFont, InCreateData, bIsReadOnly )
+			CreateTextSlotWidget(InCreateData, bIsReadOnly )
 		]		
 	];
 }
