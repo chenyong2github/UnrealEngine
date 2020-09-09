@@ -281,8 +281,6 @@ UMockRootMotionSource* UMockRootMotionComponent::ResolveRootMotionSource(int32 I
 	else
 	{
 		RootMotionSourceCache.Instance = NewObject<UMockRootMotionSource>(this, ClassObj);
-
-		UE_LOG(LogTemp, Warning, TEXT("Instantiated RootMotion: %s"), *GetPathNameSafe(RootMotionSourceCache.Instance));
 		
 		FBitReader BitReader(const_cast<uint8*>(Data.GetData()), (int64)Data.Num() << 3);
 		RootMotionSourceCache.Instance->SerializePayloadParameters(BitReader);
