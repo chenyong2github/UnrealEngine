@@ -408,6 +408,7 @@ public:
 	void CacheRequiredAnimCurveUids(const FCurveEvaluationOption& CurveEvalOption);
 
 	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InRetargetSource) const;
+	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InSourceName, const TArray<FTransform>& InRetargetTransforms) const;
 
 private:
 	/** 

@@ -107,21 +107,21 @@ private:
 	void DeleteTrack(int32 TrackIndex);
 	
 	// get default transform - it considers for retarget source if exists
-	FTransform GetDefaultTransform(int32 SkeletonIndex, USkeleton* InSkeleton, const FName& InRetargetSourceName) const;
-	FTransform GetDefaultTransform(const FName& InTrackName, USkeleton* InSkeleton, const FName& InRetargetSourceName) const;
+	FTransform GetDefaultTransform(const FName& InTrackName, USkeleton* InSkeleton, const TArray<FTransform>& RefPose) const;
+	FTransform GetDefaultTransform(int32 SkeletonIndex, const TArray<FTransform>& RefPose) const;
 
 #if WITH_EDITOR
 	void AddOrUpdatePose(const FSmartName& InPoseName, const TArray<FTransform>& InlocalSpacePose, const TArray<float>& InCurveData);
 	void RenamePose(FSmartName OldPoseName, FSmartName NewPoseName);
 	int32 DeletePose(FSmartName PoseName);
 	bool DeleteCurve(FSmartName CurveName);
-	bool InsertTrack(const FName& InTrackName, USkeleton* InSkeleton, FName& InRetargetSourceName);
+	bool InsertTrack(const FName& InTrackName, USkeleton* InSkeleton, const TArray<FTransform>& RefPose);
 	
 	bool FillUpSkeletonPose(FPoseData* PoseData, USkeleton* InSkeleton);
 	void RetrieveSourcePoseFromExistingPose(bool bAdditive, int32 InBasePoseIndex, const TArray<FTransform>& InBasePose, const TArray<float>& InBaseCurve);
 
 	// editor features for full pose <-> additive pose
-	void ConvertToFullPose(USkeleton* InSkeleton, FName& InRetargetSourceName);
+	void ConvertToFullPose(USkeleton* InSkeleton, const TArray<FTransform>& RefPose);
 	void ConvertToAdditivePose(const TArray<FTransform>& InBasePose, const TArray<float>& InBaseCurve);
 #endif // WITH_EDITOR
 	friend class UPoseAsset;
@@ -154,6 +154,16 @@ public:
 	FName RetargetSource;
 
 #if WITH_EDITORONLY_DATA
+	/** If RetargetSource is set to Default (None), this is asset for the base pose to use when retargeting. Transform data will be saved in RetargetSourceAssetReferencePose. */
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category=Animation)
+	TSoftObjectPtr<USkeletalMesh> RetargetSourceAsset;
+#endif
+
+	/** When using RetargetSourceAsset, use the post stored here */
+	UPROPERTY()
+	TArray<FTransform> RetargetSourceAssetReferencePose;
+
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(Category=Source, EditAnywhere)
 	UAnimSequence* SourceAnimation;
 #endif // WITH_EDITORONLY_DATA
@@ -179,6 +189,7 @@ public:
 	//Begin UObject Interface
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//End UObject Interface
 
@@ -277,4 +288,10 @@ private:
 
 private:
 	void RecacheTrackmap();
+
+#if WITH_EDITORONLY_DATA
+	void UpdateRetargetSourceAsset();
+#endif
+	const TArray<FTransform>& GetRetargetTransforms() const;
+	FName GetRetargetTransformsSourceName() const;
 };
