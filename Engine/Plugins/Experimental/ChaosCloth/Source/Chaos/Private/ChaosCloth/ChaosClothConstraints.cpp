@@ -383,7 +383,7 @@ void FClothConstraints::SetMaximumDistanceConstraints(const TConstArrayView<floa
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetBackstopConstraints(const TConstArrayView<float>& BackstopDistances, const TConstArrayView<float>& BackstopRadiuses)
+void FClothConstraints::SetBackstopConstraints(const TConstArrayView<float>& BackstopDistances, const TConstArrayView<float>& BackstopRadiuses, bool bUseLegacyBackstop)
 {
 	BackstopConstraints = MakeShared<TPBDSphericalBackstopConstraint<float, 3>>(
 		ParticleOffset,
@@ -391,7 +391,8 @@ void FClothConstraints::SetBackstopConstraints(const TConstArrayView<float>& Bac
 		*AnimationPositions,
 		*AnimationNormals,
 		BackstopRadiuses,
-		BackstopDistances);
+		BackstopDistances,
+		bUseLegacyBackstop);
 	++NumConstraintRules;
 }
 
