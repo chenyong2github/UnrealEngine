@@ -17,11 +17,9 @@
 
 namespace GetDataTableRowHelper
 {
-
-const FName DataTablePinName = "DataTable";
-const FName RowNotFoundPinName = "RowNotFound";
-const FName RowNamePinName = "RowName";
-
+	const FName DataTablePinName = "DataTable";
+	const FName RowNotFoundPinName = "RowNotFound";
+	const FName RowNamePinName = "RowName";
 }
 
 UK2Node_GetDataTableRow::UK2Node_GetDataTableRow(const FObjectInitializer& ObjectInitializer)
