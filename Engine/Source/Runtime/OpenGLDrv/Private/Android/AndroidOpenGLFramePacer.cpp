@@ -327,10 +327,23 @@ bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_StallForEmulatedSyncInterval);
 					float MinTimeBetweenFrames = (float(DesiredSyncIntervalRelativeToDevice) / DriverRefreshRate);
 
-					float ThisTime = FPlatformTime::Seconds() - LastTimeEmulatedSync;
-					if (ThisTime > 0 && ThisTime < MinTimeBetweenFrames)
+					for (;;)
 					{
-						FPlatformProcess::Sleep(MinTimeBetweenFrames - ThisTime);
+						float ThisTime = FPlatformTime::Seconds() - LastTimeEmulatedSync;
+						// sleep only when there is substantial time left to a next sync interval
+						// for a small duration rely on eglSwapBuffers
+						if (ThisTime > 0.001f && ThisTime < MinTimeBetweenFrames)
+						{
+							// do not sleep for too long, poll occlussion queries from time to time as RT might be waiting for them
+							float SleepDuration = FMath::Min(MinTimeBetweenFrames - ThisTime, 0.003f);
+							FPlatformProcess::Sleep(SleepDuration);
+						}
+						else
+						{
+							break;
+						}
+
+						static_cast<FOpenGLDynamicRHI*>(GDynamicRHI)->RHIPollOcclusionQueries();
 					}
 				}
 			}
