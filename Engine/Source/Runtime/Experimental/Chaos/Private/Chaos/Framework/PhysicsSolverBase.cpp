@@ -106,6 +106,7 @@ namespace Chaos
 		: BufferMode(BufferingModeIn)
 		, ThreadingMode(InThreadingMode)
 		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
+		, bPaused_External(false)
 		, Owner(InOwner)
 		, TraitIdx(InTraitIdx)
 	{

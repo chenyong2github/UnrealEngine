@@ -7,6 +7,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "PhysicsSettingsEnums.h"
 #include "BodySetupEnums.h"
+#include "ChaosSolverConfiguration.h"
 
 #include "PhysicsSettingsCore.generated.h"
 
@@ -112,6 +113,10 @@ class PHYSICSCORE_API UPhysicsSettingsCore: public UDeveloperSettings
 	*  Determines the default physics shape complexity. */
 	UPROPERTY(config, EditAnywhere, Category = Simulation)
 	TEnumAsByte<ECollisionTraceFlag> DefaultShapeComplexity;
+
+	/** Options to apply to Chaos solvers on creation */
+	UPROPERTY(config, EditAnywhere, Category = ChaosPhysics)
+	FChaosSolverConfiguration SolverOptions;
 
 	static UPhysicsSettingsCore* Get() { return CastChecked<UPhysicsSettingsCore>(UPhysicsSettingsCore::StaticClass()->GetDefaultObject()); }
 

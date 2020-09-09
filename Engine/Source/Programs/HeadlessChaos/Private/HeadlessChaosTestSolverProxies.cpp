@@ -29,8 +29,7 @@ namespace ChaosTest {
 
 		// Make a solver
 		auto* Solver = Module->CreateSolver<Traits>(nullptr);
-		Solver->SetEnabled(true);
-
+		
 		// Make a particle
 
 		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
@@ -81,8 +80,7 @@ namespace ChaosTest {
 
 		// Make a solver
 		auto* Solver = Module->CreateSolver<Traits>(nullptr, EThreadingMode::DedicatedThread);
-		Solver->SetEnabled(true);
-
+		
 		// Make a particle
 
 		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
@@ -134,8 +132,7 @@ namespace ChaosTest {
 
 		// Make a solver
 		auto* Solver = Module->CreateSolver<Traits>(nullptr);
-		Solver->SetEnabled(true);
-
+		
 		// Make a particle
 
 		TUniquePtr<TPBDRigidParticle<float, 3>> Particle = TPBDRigidParticle<float, 3>::CreateParticle();
