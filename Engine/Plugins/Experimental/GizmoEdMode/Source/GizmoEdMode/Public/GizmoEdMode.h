@@ -49,4 +49,6 @@ private:
 	TArray<UInteractiveGizmo*> InteractiveGizmos;
 
 	FDelegateHandle WidgetModeChangedHandle;
+
+	bool bNeedInitialGizmos{false};
 };
