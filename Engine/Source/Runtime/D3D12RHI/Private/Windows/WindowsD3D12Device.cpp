@@ -47,6 +47,14 @@ static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
 	TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
 	ECVF_ReadOnly
 );
+int32 GDX12NVAfterMathTrackResources = 0;
+static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
+	TEXT("r.DX12NVAfterMathTrackResources"),
+	GDX12NVAfterMathTrackResources,
+	TEXT("Enable NV Aftermath resource tracing in D3D12"),
+	ECVF_ReadOnly
+);
+int32 GDX12NVAfterMathMarkers = 0;
 #endif
 
 static inline int D3D12RHI_PreferAdapterVendor()
