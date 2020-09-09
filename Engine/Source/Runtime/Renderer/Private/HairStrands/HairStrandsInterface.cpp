@@ -120,7 +120,15 @@ void TransitBufferToReadable(FRHICommandListImmediate& RHICmdList, FBufferTransi
 {
 	if (BuffersToTransit.Num())
 	{
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, BuffersToTransit.GetData(), BuffersToTransit.Num());
+		FMemMark Mark(FMemStack::Get());
+		TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
+		Transitions.Reserve(BuffersToTransit.Num());
+		for (FRHIUnorderedAccessView* UAV : BuffersToTransit)
+		{
+			// TODO: do we know the source state here?
+			Transitions.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
+		RHICmdList.Transition(Transitions);
 		BuffersToTransit.SetNum(0, false);
 	}
 }

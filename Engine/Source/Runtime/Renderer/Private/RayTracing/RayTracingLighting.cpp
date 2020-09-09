@@ -180,12 +180,12 @@ static void CreateRaytracingLightCullingStructure(
 	}
 
 	{
-		FRHIUnorderedAccessView* UAVs[] =
+		FRHITransitionInfo Transitions[] =
 		{
-			LightCullVolumeUAV.GetReference(),
-			OutLightingData.LightIndices.UAV.GetReference(),
+			FRHITransitionInfo(LightCullVolumeUAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			FRHITransitionInfo(OutLightingData.LightIndices.UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
 		};
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
+		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 	}
 
 }
