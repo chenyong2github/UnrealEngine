@@ -12,11 +12,11 @@ struct FDistanceData
 	float DistanceSquared;
 };
 
-struct CameraDataInterface_InstanceData
+struct FCameraDataInterface_InstanceData
 {
-	FVector CameraLocation;
-	FRotator CameraRotation;
-	float CameraFOV;
+	FVector CameraLocation = FVector::ZeroVector;
+	FRotator CameraRotation = FRotator::ZeroRotator;
+	float CameraFOV = 0.0f;
 
 	TQueue<FDistanceData, EQueueMode::Mpsc> DistanceSortQueue;
 	TArray<FDistanceData> ParticlesSortedByDistance;	
@@ -49,7 +49,7 @@ public:
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual int32 PerInstanceDataSize() const override { return sizeof(CameraDataInterface_InstanceData); }
+	virtual int32 PerInstanceDataSize() const override { return sizeof(FCameraDataInterface_InstanceData); }
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
