@@ -280,7 +280,6 @@ bool UNiagaraSpriteRendererProperties::PopulateRequiredBindings(FNiagaraParamete
 #if WITH_EDITOR
 void UNiagaraSpriteRendererProperties::RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter)
 {
-	Modify();
 
 	for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
 	{
