@@ -19,7 +19,7 @@ namespace Turnkey.Commands
 			foreach (UnrealTargetPlatform TargetPlatform in UnrealTargetPlatform.GetValidPlatforms())
 			{
 				// HACK UNTIUL WIN32 IS GONE COMPLETELY
-				if (TargetPlatform == UnrealTargetPlatform.Win32)
+				if (TargetPlatform == UnrealTargetPlatform.Win32 || TargetPlatform == UnrealTargetPlatform.XboxOne)
 				{
 					continue;
 				}
