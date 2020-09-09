@@ -46,6 +46,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ActorLayerUtilities",
+			"Enabled": true
+		},
+		{
 			"Name": "OpenColorIO",
 			"Enabled": true
 		}
