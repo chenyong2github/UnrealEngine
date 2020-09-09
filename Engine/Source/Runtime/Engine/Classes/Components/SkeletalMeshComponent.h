@@ -1373,7 +1373,7 @@ private:
 	 * cloth data on the game thread, for example if we want to generate particles at cloth vertices. When the data is not required
 	 * except for rendering, we can set this to false to eliminate a potential game thread stall while we wait for the cloth sim 
 	 */
-	bool ShouldWaitForParallelClothTask() const;
+	bool ShouldWaitForClothInTickFunction() const;
 
 	/** Stalls on any currently running clothing simulations, needed when changing core sim state, or to access the clothing data */
 	void HandleExistingParallelClothSimulation();
@@ -1538,6 +1538,9 @@ public:
 
 	//Handle registering our end physics tick function
 	virtual void RegisterEndPhysicsTick(bool bRegister);
+
+	virtual bool RequiresPreEndOfFrameSync() const override;
+	virtual void OnPreEndOfFrameSync() override;
 
 	//Handle registering our pre cloth tick function
 	void RegisterClothTick(bool bRegister);
