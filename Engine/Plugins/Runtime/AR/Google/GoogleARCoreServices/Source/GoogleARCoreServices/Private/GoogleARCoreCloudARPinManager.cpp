@@ -49,7 +49,7 @@ namespace {
 			return ECloudARPinCloudState::ErrorInternalError;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_NOT_AUTHORIZED:
 			return ECloudARPinCloudState::ErrorNotAuthorized;
-		case AR_CLOUD_ANCHOR_STATE_ERROR_SERVICE_UNAVAILABLE:
+		case AR_CLOUD_ANCHOR_STATE_ERROR_HOSTING_SERVICE_UNAVAILABLE:
 			return ECloudARPinCloudState::ErrorServiceUnavailable;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOURCE_EXHAUSTED:
 			return ECloudARPinCloudState::ErrorResourceExhausted;
@@ -57,8 +57,6 @@ namespace {
 			return ECloudARPinCloudState::ErrorHostingDatasetProcessingFailed;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_CLOUD_ID_NOT_FOUND:
 			return ECloudARPinCloudState::ErrorResolvingCloudIDNotFound;
-		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOLVING_LOCALIZATION_NO_MATCH:
-			return ECloudARPinCloudState::ErrorResolvingLocalizationNoMatch;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOLVING_SDK_VERSION_TOO_OLD:
 			return ECloudARPinCloudState::ErrorSDKVersionTooOld;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOLVING_SDK_VERSION_TOO_NEW:

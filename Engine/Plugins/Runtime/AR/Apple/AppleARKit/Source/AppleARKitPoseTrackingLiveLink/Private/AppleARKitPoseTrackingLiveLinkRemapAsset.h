@@ -7,16 +7,17 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
 #include "LiveLinkRetargetAsset.h"
+
 #include "AppleARKitPoseTrackingLiveLinkRemapAsset.generated.h"
 
-UCLASS(Blueprintable)
-class UAppleARKitPoseTrackingLiveLinkRemapAsset :
-	public ULiveLinkRetargetAsset
+
+UCLASS(Blueprintable, Abstract, Deprecated, meta = (DeprecationMessage="This class is deprecated. Please use \"ARLiveLinkRetargetAsset\" instead."))
+class UDEPRECATED_AppleARKitPoseTrackingLiveLinkRemapAsset : public ULiveLinkRetargetAsset
 {
 	GENERATED_BODY()
 
 public:
-	UAppleARKitPoseTrackingLiveLinkRemapAsset(const FObjectInitializer& ObjectInitializer);
+	UDEPRECATED_AppleARKitPoseTrackingLiveLinkRemapAsset(const FObjectInitializer& ObjectInitializer);
 	virtual void BuildPoseFromAnimationData(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose) override;
 
 	UPROPERTY(EditAnywhere, Category="LiveLink")
@@ -27,7 +28,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="LiveLink")
 	TMap<FName, FName> AppleARKitBoneNamesToMeshBoneNames;
+
 private:
 	FName GetRemappedBoneName(FName BoneName) const;
-
 };

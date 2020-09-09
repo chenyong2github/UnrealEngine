@@ -848,11 +848,11 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanSurface& InSurface) c
 	check(!QCOMDepthStencilView);
 	check(!QCOMDepthView);
 
-	uint32 UEFlags = InSurface.UEFlags;
+	ETextureCreateFlags UEFlags = InSurface.UEFlags;
 	check(UEFlags & TexCreate_DepthStencilTargetable);
 
-	QCOMDepthStencilSurface = new FVulkanSurface(*InSurface.Device, InSurface.GetViewType(), InSurface.PixelFormat, InSurface.Height, InSurface.Width,
-													InSurface.Depth, 1, InSurface.GetNumMips(), InSurface.GetNumSamples(), UEFlags, FRHIResourceCreateInfo());
+	QCOMDepthStencilSurface = new FVulkanSurface(*InSurface.Device, nullptr, InSurface.GetViewType(), InSurface.PixelFormat, InSurface.Height, InSurface.Width,
+													InSurface.Depth, 1, InSurface.GetNumMips(), InSurface.GetNumSamples(), UEFlags, ERHIAccess::Unknown, FRHIResourceCreateInfo());
 
 	check(QCOMDepthStencilSurface->GetViewType() == VK_IMAGE_VIEW_TYPE_2D);
 	check(QCOMDepthStencilSurface->Image != VK_NULL_HANDLE);

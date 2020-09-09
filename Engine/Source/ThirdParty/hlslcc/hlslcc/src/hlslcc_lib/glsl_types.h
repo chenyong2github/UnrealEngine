@@ -630,7 +630,7 @@ private:
 	/** Constructor for image types */
 	glsl_type(
 	enum glsl_sampler_dim dim, bool array, bool is_sampler_buffer, bool is_shader_storage_buffer,
-		const struct glsl_type* type, const char *name);
+		const struct glsl_type* type, const char *name, const char* InHlslName);
 
 	/** Constructor for record types */
 	glsl_type(const glsl_struct_field *fields, unsigned num_fields,

@@ -13,6 +13,8 @@
 
 extern ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld);
 
+extern int32 GGPULightmassOnlyBakeWhatYouSee;
+
 FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmassModule)
 	: World(InWorld)
 	, GPULightmassModule(InGPULightmassModule)
@@ -23,9 +25,15 @@ FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmas
 
 	InstallGameThreadEventHooks();
 
+	bOnlyBakeWhatYouSee = GGPULightmassOnlyBakeWhatYouSee == 1;
+
 	// Start the lightmass 'progress' notification
 	FNotificationInfo Info(LOCTEXT("LightBuildMessage", "Building lighting"));
 	Info.bFireAndForget = false;
+	Info.ButtonDetails.Add(FNotificationButtonInfo(
+		LOCTEXT("Save", "Save"),
+		LOCTEXT("LightBuildSaveToolTip", "Save intermediate results from the lighting build in progress."),
+		FSimpleDelegate::CreateLambda([InWorld, this]() { this->Scene.ApplyFinishedLightmapsToWorld(); })));
 	Info.ButtonDetails.Add(FNotificationButtonInfo(
 		LOCTEXT("LightBuildCancel", "Cancel"),
 		LOCTEXT("LightBuildCancelToolTip", "Cancels the lighting build in progress."),

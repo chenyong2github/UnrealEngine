@@ -11,8 +11,8 @@ class FViewInfo;
 struct FShaderDrawDebugData
 {
 	FIntPoint CursorPosition;
-	TRefCountPtr<FPooledRDGBuffer> Buffer;
-	TRefCountPtr<FPooledRDGBuffer> IndirectBuffer;
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
+	TRefCountPtr<FRDGPooledBuffer> IndirectBuffer;
 };
 
 namespace ShaderDrawDebug 

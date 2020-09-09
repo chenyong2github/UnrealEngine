@@ -9,8 +9,8 @@ Texture2DStreamIn_DDC_AsyncReallocate.cpp: Load texture 2D mips from the DDC usi
 
 #if WITH_EDITORONLY_DATA
 
-FTexture2DStreamIn_DDC_AsyncReallocate::FTexture2DStreamIn_DDC_AsyncReallocate(UTexture2D* InTexture, int32 InRequestedMips)
-	: FTexture2DStreamIn_DDC(InTexture, InRequestedMips)
+FTexture2DStreamIn_DDC_AsyncReallocate::FTexture2DStreamIn_DDC_AsyncReallocate(UTexture2D* InTexture)
+	: FTexture2DStreamIn_DDC(InTexture)
 {
 	PushTask(FContext(InTexture, TT_None), TT_Render, SRA_UPDATE_CALLBACK(AsyncReallocate), TT_None, nullptr);
 }

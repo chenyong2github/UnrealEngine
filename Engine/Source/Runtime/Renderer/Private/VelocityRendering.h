@@ -33,7 +33,7 @@ EMeshPass::Type GetMeshPassFromVelocityPass(EVelocityPass VelocityPass);
 struct FVelocityRendering
 {
 	static EPixelFormat GetFormat(EShaderPlatform ShaderPlatform);
-	static FPooledRenderTargetDesc GetRenderTargetDesc(EShaderPlatform ShaderPlatform);
+	static FRDGTextureDesc GetRenderTargetDesc(EShaderPlatform ShaderPlatform);
 
 	/** Returns true if the separate velocity pass is enabled. */
 	static bool IsSeparateVelocityPassSupported(EShaderPlatform ShaderPlatform);

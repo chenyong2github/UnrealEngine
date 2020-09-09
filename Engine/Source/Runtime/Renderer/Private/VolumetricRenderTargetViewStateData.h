@@ -30,13 +30,9 @@ public:
 
 	FRDGTextureRef GetOrCreateVolumetricTracingRT(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef GetOrCreateVolumetricTracingRTDepth(FRDGBuilder& GraphBuilder);
-	void ExtractToVolumetricTracingRT(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGPixelSubSetRT);
-	void ExtractToVolumetricTracingRTDepth(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGPixelSubSetRTDepth);
 
 	FRDGTextureRef GetOrCreateDstVolumetricReconstructRT(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef GetOrCreateDstVolumetricReconstructRTDepth(FRDGBuilder& GraphBuilder);
-	void ExtractDstVolumetricReconstructRT(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGFullResRT);
-	void ExtractDstVolumetricReconstructRTDepth(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGFullResRT);
 
 	TRefCountPtr<IPooledRenderTarget> GetDstVolumetricReconstructRT();
 	TRefCountPtr<IPooledRenderTarget> GetDstVolumetricReconstructRTDepth();
@@ -45,7 +41,6 @@ public:
 	FRDGTextureRef GetOrCreateSrcVolumetricReconstructRTDepth(FRDGBuilder& GraphBuilder);
 
 	bool GetHistoryValid() const { return bHistoryValid; }
-	bool GetVolumetricTracingRTValid() const { return bVolumetricTracingRTValid && bVolumetricTracingRTDepthValid; }
 	const FIntPoint& GetCurrentVolumetricReconstructRTResolution() const { return VolumetricReconstructRTResolution; }
 	const FIntPoint& GetCurrentVolumetricTracingRTResolution() const { return VolumetricTracingRTResolution; }
 	const FIntPoint& GetCurrentTracingPixelOffset() const { return CurrentPixelOffset; }
@@ -69,8 +64,6 @@ private:
 	uint32 CurrentRT;
 	bool bFirstTimeUsed;
 	bool bHistoryValid;
-	bool bVolumetricTracingRTValid;
-	bool bVolumetricTracingRTDepthValid;
 
 	int32 FrameId;
 	uint32 NoiseFrameIndex;	// This is only incremented once all Volumetric render target samples have been iterated

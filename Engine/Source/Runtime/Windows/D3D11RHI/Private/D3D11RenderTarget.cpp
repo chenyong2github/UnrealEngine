@@ -63,8 +63,8 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	StateCache.GetViewports(&NumSavedViewports,&SavedViewport);
 
 	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.
+
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 	// No alpha blending, no depth tests or writes, no stencil tests or writes, no backface culling.
 	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
@@ -102,11 +102,11 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 
 		//hack this to  pass validation in SetDepthStencil state since we are directly changing targets with a call to OMSetRenderTargets later.
 		CurrentDSVAccessType = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true,CF_Always>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
+		check(DestTexture);
+		GraphicsPSOInit.DepthStencilTargetFormat = DestTexture->GetFormat();
 
-		// Write to the dest texture as a depth-stencil target.
-		ID3D11RenderTargetView* NullRTV = NULL;
-		Direct3DDeviceContext->OMSetRenderTargets(1,&NullRTV,DestTextureDSV);
+		RHICmdList.BeginRenderPass(FRHIRenderPassInfo(DestTexture, EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil), TEXT(""));
 	}
 	else
 	{
@@ -119,10 +119,9 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 			Direct3DDeviceContext->ClearRenderTargetView(DestTextureRTV,(float*)&ClearColor);
 		}
 
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false,CF_Always>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-		// Write to the dest surface as a render target.
-		Direct3DDeviceContext->OMSetRenderTargets(1,&DestTextureRTV,NULL);
+		RHICmdList.BeginRenderPass(FRHIRenderPassInfo(DestTexture, ERenderTargetActions::Load_Store), TEXT(""));
 	}
 
 	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)ResolveTargetDesc.Width, (float)ResolveTargetDesc.Height, 1.0f);
@@ -132,6 +131,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
 	TShaderMapRef<TPixelShader> ResolvePixelShader(ShaderMap);
 
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
@@ -153,6 +153,8 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	}
 
 	RHICmdList.DrawPrimitive(0, 2, 1);
+
+	RHICmdList.EndRenderPass();
 
 	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.
 
@@ -186,7 +188,7 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRH
 		return;
 	}
 
-	RHITransitionResources(EResourceTransitionAccess::EReadable, &SourceTextureRHI, 1);
+	// @todo fix this RHITransitionResources(EResourceTransitionAccess::EReadable, &SourceTextureRHI, 1);
 
 	FRHICommandList_RecursiveHazardous RHICmdList(this);
 	
@@ -1113,29 +1115,6 @@ void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRec
 
 void FD3D11DynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
 {
-	if (InInfo.bGeneratingMips)
-	{
-		FRHITexture* Textures[MaxSimultaneousRenderTargets];
-		FRHITexture** LastTexture = Textures;
-		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-		{
-			if (!InInfo.ColorRenderTargets[Index].RenderTarget)
-			{
-				break;
-			}
-
-			*LastTexture = InInfo.ColorRenderTargets[Index].RenderTarget;
-			++LastTexture;
-		}
-
-		//Use RWBarrier since we don't transition individual subresources.  Basically treat the whole texture as R/W as we walk down the mip chain.
-		int32 NumTextures = (int32)(LastTexture - Textures);
-		if (NumTextures)
-		{
-			RHITransitionResources(EResourceTransitionAccess::ERWSubResBarrier, Textures, NumTextures);
-		}
-	}
-
 	FRHISetRenderTargetsInfo RTInfo;
 	InInfo.ConvertToRenderTargetsInfo(RTInfo);
 	SetRenderTargetsAndClear(RTInfo);

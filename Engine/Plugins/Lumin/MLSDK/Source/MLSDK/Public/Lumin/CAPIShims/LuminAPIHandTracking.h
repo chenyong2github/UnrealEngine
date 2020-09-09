@@ -10,23 +10,23 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_hand_tracking.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingCreate)
-#define MLHandTrackingCreate ::MLSDK_API::MLHandTrackingCreateShim
+#define MLHandTrackingCreate ::LUMIN_MLSDK_API::MLHandTrackingCreateShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingDestroy)
-#define MLHandTrackingDestroy ::MLSDK_API::MLHandTrackingDestroyShim
+#define MLHandTrackingDestroy ::LUMIN_MLSDK_API::MLHandTrackingDestroyShim
 CREATE_DEPRECATED_MSG_SHIM(ml_perception_client, MLResult, MLHandTrackingGetData, "Replaced by MLHandTrackingDataEx.")
-#define MLHandTrackingGetData ::MLSDK_API::MLHandTrackingGetDataShim
+#define MLHandTrackingGetData ::LUMIN_MLSDK_API::MLHandTrackingGetDataShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingGetDataEx)
-#define MLHandTrackingGetDataEx ::MLSDK_API::MLHandTrackingGetDataExShim
+#define MLHandTrackingGetDataEx ::LUMIN_MLSDK_API::MLHandTrackingGetDataExShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingGetStaticData)
-#define MLHandTrackingGetStaticData ::MLSDK_API::MLHandTrackingGetStaticDataShim
+#define MLHandTrackingGetStaticData ::LUMIN_MLSDK_API::MLHandTrackingGetStaticDataShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingSetConfiguration)
-#define MLHandTrackingSetConfiguration ::MLSDK_API::MLHandTrackingSetConfigurationShim
+#define MLHandTrackingSetConfiguration ::LUMIN_MLSDK_API::MLHandTrackingSetConfigurationShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandTrackingGetConfiguration)
-#define MLHandTrackingGetConfiguration ::MLSDK_API::MLHandTrackingGetConfigurationShim
+#define MLHandTrackingGetConfiguration ::LUMIN_MLSDK_API::MLHandTrackingGetConfigurationShim
 
 }
 

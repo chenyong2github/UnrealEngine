@@ -1894,11 +1894,7 @@ void FInternalPlayWorldCommandCallbacks::PlayInVR_Clicked()
 			}
 		}
 
-		const bool bHMDIsReady = (GEngine && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected());
-		if (bHMDIsReady)
-		{
-			SessionParams.SessionPreviewTypeOverride = EPlaySessionPreviewType::VRPreview;
-		}
+		SessionParams.SessionPreviewTypeOverride = EPlaySessionPreviewType::VRPreview;
 
 		// Spawn a new window to play in.
 		GUnrealEd->RequestPlaySession(SessionParams);

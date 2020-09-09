@@ -2,14 +2,14 @@
 
 Copyright (c) Facebook Technologies, LLC and its affiliates.  All rights reserved.
 
-Licensed under the Oculus SDK License Version 3.5 (the "License");
+Licensed under the Oculus Master SDK License Version 1.0 (the "License");
 you may not use the Oculus SDK except in compliance with the License,
 which is provided at the time of installation or download, or which
 otherwise accompanies this software in either electronic or hard copy form.
 
 You may obtain a copy of the License at
 
-https://developer.oculus.com/licenses/sdk-3.5/
+https://developer.oculus.com/licenses/oculusmastersdk-1.0/
 
 Unless required by applicable law or agreed to in writing, the Oculus SDK
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -171,6 +171,16 @@ OVRP_EXPORT ovrpResult ovrp_GetLayerTextureFoveation(
     ovrpTextureHandle* foveationTextureHandle,
     ovrpSizei* foveationResultSize);
 
+/// Gets the space warp texture handles for a specific layer stage and eye.
+OVRP_EXPORT ovrpResult ovrp_GetLayerTextureSpaceWarp(
+  int layerId,
+  int stage,
+  ovrpEye eyeId,
+  ovrpTextureHandle* motionVectorTextureHandle,
+  ovrpSizei* motionVectorResultSize,
+  ovrpTextureHandle* depthTextureHandle,
+  ovrpSizei* depthResultSize);
+
 /// Gets the texture handle for a specific layer stage and eye.
 OVRP_EXPORT ovrpResult ovrp_GetLayerAndroidSurfaceObject(int layerId, void** surfaceObject);
 
@@ -207,6 +217,20 @@ OVRP_EXPORT ovrpResult ovrp_CalculateEyeLayerDesc2(
     ovrpTextureFormat depthFormat,
     int layerFlags,
     ovrpLayerDesc_EyeFov* layerDesc);
+
+/// Calculates eye layer description
+OVRP_EXPORT ovrpResult ovrp_CalculateEyeLayerDesc3(
+  ovrpLayout layout,
+  float textureScale,
+  int mipLevels,
+  int sampleCount,
+  ovrpTextureFormat format,
+  ovrpTextureFormat depthFormat,
+  ovrpTextureFormat motionVectorFormat,
+  ovrpTextureFormat motionVectorDepthFormat,
+  float motionVectorTextureScale,
+  int layerFlags,
+  ovrpLayerDesc_EyeFov* layerDesc);
 
 /// Calculates the recommended viewport rect for the specified eye
 OVRP_EXPORT ovrpResult ovrp_CalculateEyeViewportRect(
@@ -563,6 +587,12 @@ OVRP_EXPORT ovrpResult ovrp_GetTiledMultiResLevel(ovrpTiledMultiResLevel* level)
 /// Sets MultiRes levels
 OVRP_EXPORT ovrpResult ovrp_SetTiledMultiResLevel(ovrpTiledMultiResLevel level);
 
+/// Return if MultiRes is dynamic or not
+OVRP_EXPORT ovrpResult ovrp_GetTiledMultiResDynamic(ovrpBool* isDynamic);
+
+/// Sets if MultiRes is dynamic or not
+OVRP_EXPORT ovrpResult ovrp_SetTiledMultiResDynamic(ovrpBool isDynamic);
+
 /// Return true if the device supports GPU Util querying
 OVRP_EXPORT ovrpResult ovrp_GetGPUUtilSupported(ovrpBool* gpuUtilSupported);
 
@@ -617,10 +647,6 @@ OVRP_EXPORT ovrpResult ovrp_GetTrackingTransformRelativePose(ovrpPosef* tracking
 
 OVRP_EXPORT ovrpResult ovrp_GetTimeInSeconds(double* timeInSeconds);
 
-/// Return a parameter for PTW to compress depth value
-/// Intuitively, it means the closest depth we can save in alpha.
-OVRP_EXPORT ovrpResult ovrp_GetPTWNear(float* ptwNear);
-
 OVRP_EXPORT ovrpResult ovrp_GetASWVelocityScale(float* aswVelocityScale);
 OVRP_EXPORT ovrpResult ovrp_GetASWDepthScale(float* aswDepthScale);
 OVRP_EXPORT ovrpResult ovrp_GetASWAdaptiveMode(ovrpBool* aswAdaptiveMode);
@@ -631,10 +657,27 @@ OVRP_EXPORT ovrpResult ovrp_GetPredictedDisplayTime(int frameIndex, double* pred
 
 OVRP_EXPORT ovrpResult ovrp_GetHandTrackingEnabled(ovrpBool* handTrackingEnabled);
 OVRP_EXPORT ovrpResult ovrp_GetHandState(ovrpStep step, ovrpHand hand, ovrpHandState* handState);
+OVRP_EXPORT ovrpResult ovrp_GetHandState2(ovrpStep step, int frameIndex, ovrpHand hand, ovrpHandState* handState);
 OVRP_EXPORT ovrpResult ovrp_GetSkeleton(ovrpSkeletonType skeletonType, ovrpSkeleton* skeleton);
 OVRP_EXPORT ovrpResult ovrp_GetMesh(ovrpMeshType meshType, ovrpMesh* mesh);
 
 OVRP_EXPORT ovrpResult ovrp_GetLocalTrackingSpaceRecenterCount(int* recenterCount);
+
+// Returns true if the system Hmd is in 3dof mode
+OVRP_EXPORT ovrpResult ovrp_GetSystemHmd3DofModeEnabled(ovrpBool* enabled);
+
+OVRP_EXPORT ovrpResult ovrp_SetClientColorDesc(ovrpColorSpace colorSpace);
+OVRP_EXPORT ovrpResult ovrp_GetHmdColorDesc(ovrpColorSpace* colorSpace);
+
+
+
+
+
+
+
+
+
+
 
 #ifdef __cplusplus
 }

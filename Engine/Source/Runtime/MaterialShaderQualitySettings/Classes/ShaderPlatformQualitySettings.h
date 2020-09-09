@@ -13,7 +13,7 @@
 * 
 */
 UENUM()
-enum class EMobileCSMQuality : uint8
+enum class EMobileShadowQuality : uint8
 {
 	// Lowest quality, no filtering.
 	NoFiltering,
@@ -41,7 +41,7 @@ public:
 		, bForceLQReflections(false)
 		, bForceDisablePreintegratedGF(false)
 		, bDisableMaterialNormalCalculation(false)
-		, MobileCSMQuality(EMobileCSMQuality::PCF_2x2)
+		, MobileShadowQuality(EMobileShadowQuality::PCF_2x2)
 	{
 	}
 
@@ -69,8 +69,8 @@ public:
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Disable material normal calculation"), Category = "Quality")
 	bool bDisableMaterialNormalCalculation;
 
-	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Cascade shadow mapping quality"), Category = "Quality")
-	EMobileCSMQuality MobileCSMQuality;
+	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Mobile shadow mapping quality"), Category = "Quality")
+	EMobileShadowQuality MobileShadowQuality;
 
 	MATERIALSHADERQUALITYSETTINGS_API bool CanOverride(EShaderPlatform ShaderPlatform) const;
 	MATERIALSHADERQUALITYSETTINGS_API bool HasAnyOverridesSet() const;

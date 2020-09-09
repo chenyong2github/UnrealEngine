@@ -32,7 +32,7 @@ FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::IsImmediateAsyncCompute()
 	return this == &FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
 }
 
-FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::Bypass()
+FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::Bypass() const
 {
 	return GRHICommandList.Bypass();
 }

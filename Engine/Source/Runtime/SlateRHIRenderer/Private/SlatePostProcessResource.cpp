@@ -49,7 +49,7 @@ void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize)
 				RenderTargetSize.Y,
 				PixelFormat,
 				1,
-				/*TexCreateFlags=*/0,
+				TexCreate_None,
 				TexCreate_RenderTargetable,
 				/*bNeedsTwoCopies=*/false,
 				CreateInfo,

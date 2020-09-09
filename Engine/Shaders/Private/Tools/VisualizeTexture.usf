@@ -6,6 +6,9 @@
 
 #include "../Common.ush"
 
+#define INPUT_MAPPING_COLOR 0
+#define INPUT_MAPPING_DEPTH 1
+#define INPUT_MAPPING_SHADOW 2
 
 // to visualize the content of a texture to the screen, useful for debugging
 // use "VisualizeTexture" in the console to activate
@@ -105,12 +108,11 @@ void VisualizeTexturePS(
 	TexLookup.a = (IntTexLookup >> 24) & 0xFF;
 #endif
 	
-	// Normal = 0, SceneDepth = 1 and ShadowDepth = 2
-	int InputValueMapping = (int)VisualizeParam[2].r;
-	if(InputValueMapping != 0)
+	uint InputValueMapping = (uint)VisualizeParam[2].r;
+	if(InputValueMapping != INPUT_MAPPING_COLOR)
 	{
 		float Depth = TexLookup.r;
-		if (InputValueMapping == 1)  // SceneDepth 
+		if (InputValueMapping == INPUT_MAPPING_DEPTH)
 		{
 			// current z buffer is negated (1 is near, 0 is far)
 #if HAS_INVERTED_Z_BUFFER
@@ -127,7 +129,7 @@ void VisualizeTexturePS(
 			float Value = Depth * Depth;
 			TexLookup = float4(pow(Value, 0.25f), pow(Value, 1), pow(Value, 4), 0);
 		} 
-		else if (InputValueMapping == 2) // ShadowDepth
+		else if (InputValueMapping == INPUT_MAPPING_SHADOW)
 		{
 			// linearly blend from White (near) to Teal (far).
 			float3 TealBlue = float3(54.f/255.f, 117.f/255.f, 136.f/255.f);
@@ -183,10 +185,4 @@ void VisualizeTexturePS(
 #endif
 	OutColor.rgb = lerp(FracOutColor, AlternateColor, VisualizeParam[1].x);	
 	OutColor.a = 0;
-}
-
-
-void PresentPS(float4 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
-{
-	OutColor = Texture2DSample(VisualizeTexture2D, VisualizeTexture2DSampler, InUV.xy);	
 }

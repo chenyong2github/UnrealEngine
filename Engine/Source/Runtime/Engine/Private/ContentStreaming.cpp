@@ -23,6 +23,8 @@
 #include "AudioStreamingCache.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "VT/VirtualTextureChunkManager.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -245,8 +247,10 @@ bool TrackRenderAssetEvent(FStreamingRenderAsset* StreamingRenderAsset, UStreama
 	}
 
 	int32 NumTrackedAssets = GTrackedRenderAssetNames.Num();
-	if ( NumTrackedAssets )
+	if (NumTrackedAssets && RenderAsset)
 	{
+		const FStreamableRenderResourceState ResourceState = RenderAsset->GetStreamableResourceState();
+
 		// See if it matches any of the texture/mesh names that we're tracking.
 		FString AssetNameString = RenderAsset->GetFullName();
 		const TCHAR* AssetName = *AssetNameString;
@@ -275,9 +279,9 @@ bool TrackRenderAssetEvent(FStreamingRenderAsset* StreamingRenderAsset, UStreama
 						LastEvent = &GTrackedRenderAssets[NewIndex];
 					}
 
-					int32 WantedMips		= RenderAsset->GetNumRequestedMips();
+					int32 WantedMips = ResourceState.NumRequestedLODs;
 					float BoostFactor		= 1.0f;
-					FStreamingRenderAsset::EAssetType AssetType = FStreamingRenderAsset::AT_Num;
+					EStreamableRenderAssetType AssetType = EStreamableRenderAssetType::None;
 					if ( StreamingRenderAsset )
 					{
 						WantedMips			= StreamingRenderAsset->WantedMips;
@@ -285,8 +289,8 @@ bool TrackRenderAssetEvent(FStreamingRenderAsset* StreamingRenderAsset, UStreama
 						AssetType			= StreamingRenderAsset->RenderAssetType;
 					}
 
-					if ( LastEvent->NumResidentMips != RenderAsset->GetNumResidentMips() ||
-						 LastEvent->NumRequestedMips != RenderAsset->GetNumRequestedMips() ||
+					if ( LastEvent->NumResidentMips != ResourceState.NumResidentLODs ||
+						 LastEvent->NumRequestedMips != ResourceState.NumRequestedLODs ||
 						 LastEvent->WantedMips != WantedMips ||
 						 LastEvent->BoostFactor != BoostFactor ||
 						 bIsDestroying )
@@ -294,14 +298,14 @@ bool TrackRenderAssetEvent(FStreamingRenderAsset* StreamingRenderAsset, UStreama
 						GTrackedRenderAssetEventIndex	= (GTrackedRenderAssetEventIndex + 1) % NUM_TRACKEDRENDERASSETEVENTS;
 						FTrackedRenderAssetEvent& NewEvent	= GTrackedRenderAssetEvents[GTrackedRenderAssetEventIndex];
 						NewEvent.RenderAssetName		= LastEvent->RenderAssetName;
-						NewEvent.NumResidentMips		= LastEvent->NumResidentMips	= RenderAsset->GetNumResidentMips();
-						NewEvent.NumRequestedMips		= LastEvent->NumRequestedMips	= RenderAsset->GetNumRequestedMips();
+						NewEvent.NumResidentMips		= LastEvent->NumResidentMips	= ResourceState.NumResidentLODs;
+						NewEvent.NumRequestedMips		= LastEvent->NumRequestedMips	= ResourceState.NumResidentLODs;
 						NewEvent.WantedMips				= LastEvent->WantedMips			= WantedMips;
 						NewEvent.Timestamp				= LastEvent->Timestamp			= float(FPlatformTime::Seconds() - GStartTime);
 						NewEvent.BoostFactor			= LastEvent->BoostFactor		= BoostFactor;
 						UE_LOG(LogContentStreaming, Log, TEXT("%s: \"%s\", ResidentMips: %d/%d, RequestedMips: %d, WantedMips: %d, Boost: %.1f (%s)"),
 							FStreamingRenderAsset::GetStreamingAssetTypeStr(AssetType),
-							AssetName, LastEvent->NumResidentMips, RenderAsset->GetNumMipsForStreaming(), bIsDestroying ? 0 : LastEvent->NumRequestedMips, LastEvent->WantedMips, 
+							AssetName, LastEvent->NumResidentMips, ResourceState.MaxNumLODs, bIsDestroying ? 0 : LastEvent->NumRequestedMips, LastEvent->WantedMips, 
 							BoostFactor, bIsDestroying ? TEXT("DESTROYED") : TEXT("updated") );
 					}
 				}
@@ -754,7 +758,7 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 	: NumIterations(1)
 	, DisableResourceStreamingCount(0)
 	, LoadMapTimeLimit(5.0f)
-	, TextureStreamingManager(nullptr)
+	, RenderAssetStreamingManager(nullptr)
 {
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 	// Disable texture streaming if that was requested (needs to happen before the call to ProcessNewlyLoadedUObjects, as that can load textures)
@@ -799,9 +803,9 @@ FStreamingManagerCollection::~FStreamingManagerCollection()
 	delete AudioStreamingManager;
 	AudioStreamingManager = nullptr;
 
-	RemoveStreamingManager(TextureStreamingManager);
-	delete TextureStreamingManager;
-	TextureStreamingManager = nullptr;
+	RemoveStreamingManager(RenderAssetStreamingManager);
+	delete RenderAssetStreamingManager;
+	RenderAssetStreamingManager = nullptr;
 
 	UE_CLOG(StreamingManagers.Num() > 0, LogContentStreaming, Display, TEXT("There are %d unreleased StreamingManagers"), StreamingManagers.Num());
 }
@@ -985,19 +989,26 @@ bool FStreamingManagerCollection::IsStreamingEnabled() const
 	return DisableResourceStreamingCount == 0;
 }
 
-bool FStreamingManagerCollection::IsTextureStreamingEnabled() const
+bool FStreamingManagerCollection::IsRenderAssetStreamingEnabled(EStreamableRenderAssetType FilteredAssetType) const
 {
-	return IsRenderAssetStreamingEnabled();
-}
-
-bool FStreamingManagerCollection::IsMeshStreamingEnabled() const
-{
-	return CVarMeshStreaming.GetValueOnAnyThread() != 0 && IsRenderAssetStreamingEnabled();
-}
-
-bool FStreamingManagerCollection::IsRenderAssetStreamingEnabled() const
-{
-	return TextureStreamingManager != 0;
+	if (RenderAssetStreamingManager)
+	{
+		switch (FilteredAssetType)
+		{
+		case EStreamableRenderAssetType::None:
+			return true;
+		case EStreamableRenderAssetType::Texture:
+			return FPlatformProperties::SupportsTextureStreaming();
+		case EStreamableRenderAssetType::StaticMesh:
+		case EStreamableRenderAssetType::SkeletalMesh:
+			return FPlatformProperties::SupportsMeshLODStreaming() && CVarMeshStreaming.GetValueOnAnyThread() != 0;
+		case EStreamableRenderAssetType::LandscapeMeshMobile:
+			return true;
+		default:
+			break;
+		}
+	}
+	return false;
 }
 
 IRenderAssetStreamingManager& FStreamingManagerCollection::GetTextureStreamingManager() const
@@ -1007,8 +1018,8 @@ IRenderAssetStreamingManager& FStreamingManagerCollection::GetTextureStreamingMa
 
 IRenderAssetStreamingManager& FStreamingManagerCollection::GetRenderAssetStreamingManager() const
 {
-	check(TextureStreamingManager != 0);
-	return *TextureStreamingManager;
+	check(RenderAssetStreamingManager != 0);
+	return *RenderAssetStreamingManager;
 }
 
 IAudioStreamingManager& FStreamingManagerCollection::GetAudioStreamingManager() const
@@ -1266,43 +1277,24 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 	if ( bUseTextureStreaming )
 	{
 		//Add the texture streaming manager if it's needed.
-		if( !TextureStreamingManager )
+		if( !RenderAssetStreamingManager )
 		{
 			FlushRenderingCommands();
 
 			GConfig->GetFloat( TEXT("TextureStreaming"), TEXT("LoadMapTimeLimit"), LoadMapTimeLimit, GEngineIni );
 			// Create the streaming manager and add the default streamers.
-			TextureStreamingManager = new FRenderAssetStreamingManager();
-			AddStreamingManager( TextureStreamingManager );		
+			RenderAssetStreamingManager = new FRenderAssetStreamingManager();
+			AddStreamingManager( RenderAssetStreamingManager );		
 				
+			// TODO : Register all levels
+
 			//Need to work out if all textures should be streamable and added to the texture streaming manager.
 			//This works but may be more heavy handed than necessary.
 			if( !bIsInit )
 			{
-				for( TObjectIterator<UTexture2D>It; It; ++It )
+				for( TObjectIterator<UStreamableRenderAsset>It; It; ++It )
 				{
-					It->UpdateResource();
-				}
-				for (TObjectIterator<UStaticMesh> It; It; ++It)
-				{
-					if (It->bIsStreamable)
-					{
-						It->LinkStreaming();
-					}
-				}
-				for (TObjectIterator<USkeletalMesh> It; It; ++It)
-				{
-					if (It->bIsStreamable)
-					{
-						It->LinkStreaming();
-					}
-				}
-				for (TObjectIterator<ULandscapeLODStreamingProxy> It; It; ++It)
-				{
-					if (It->bIsStreamable)
-					{
-						It->LinkStreaming();
-					}
+					It->LinkStreaming();
 				}
 			}
 		}
@@ -1310,44 +1302,31 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 	else
 	{
 		//Remove the texture streaming manager if needed.
-		if( TextureStreamingManager )
+		if( RenderAssetStreamingManager )
 		{
 			FlushRenderingCommands();
-			TextureStreamingManager->BlockTillAllRequestsFinished();
+			RenderAssetStreamingManager->BlockTillAllRequestsFinished();
 
-			RemoveStreamingManager(TextureStreamingManager);
-			delete TextureStreamingManager;
-			TextureStreamingManager = nullptr;
+			// Stream all LODs back in before disabling the streamer.
+			for( TObjectIterator<UStreamableRenderAsset>It; It; ++It )
+			{
+				if (It->IsStreamable())
+				{
+					// Force LODs in with high priority, including cinematic ones.
+					It->SetForceMipLevelsToBeResident(30.f, 0xFFFFFFFF);
+					It->StreamIn(FStreamableRenderResourceState::MAX_LOD_COUNT, true);
+				}
+			}
+			RenderAssetStreamingManager->BlockTillAllRequestsFinished();
 
-			for( TObjectIterator<UTexture2D>It; It; ++It )
+			for( TObjectIterator<UStreamableRenderAsset>It; It; ++It )
 			{
-				if( It->bIsStreamable )
-				{
-					It->UpdateResource();
-				}
+				It->UnlinkStreaming();
 			}
-			for (TObjectIterator<UStaticMesh> It; It; ++It)
-			{
-				if (It->bIsStreamable)
-				{
-					// This will clear StreamingIndex
-					It->LinkStreaming();
-				}
-			}
-			for (TObjectIterator<USkeletalMesh> It; It; ++It)
-			{
-				if (It->bIsStreamable)
-				{
-					It->LinkStreaming();
-				}
-			}
-			for (TObjectIterator<ULandscapeLODStreamingProxy> It; It; ++It)
-			{
-				if (It->bIsStreamable)
-				{
-					It->LinkStreaming();
-				}
-			}
+
+			RemoveStreamingManager(RenderAssetStreamingManager);
+			delete RenderAssetStreamingManager;
+			RenderAssetStreamingManager = nullptr;
 		}
 	}
 }

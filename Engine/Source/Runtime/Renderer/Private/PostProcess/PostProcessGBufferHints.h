@@ -19,7 +19,7 @@ struct FVisualizeGBufferHintsInputs
 	FScreenPassTexture OriginalSceneColor;
 
 	// [Required] The scene textures used to visualize gbuffer hints.
-	const FSceneTextureParameters* SceneTextures = nullptr;
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = nullptr;
 };
 
 FScreenPassTexture AddVisualizeGBufferHintsPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeGBufferHintsInputs& Inputs);

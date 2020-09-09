@@ -7,9 +7,12 @@
 
 #include "GoogleARCorePointCloudRendererComponent.generated.h"
 
-/** A helper component that renders the latest point cloud from the ARCore tracking session. */
-UCLASS(Experimental, ClassGroup = (GoogleARCore), meta = (BlueprintSpawnableComponent))
-class GOOGLEARCOREBASE_API UGoogleARCorePointCloudRendererComponent : public USceneComponent
+/**
+ * A helper component that renders the latest point cloud from the ARCore tracking session.
+ * NOTE: This class is now deprecated, use UPointCloudComponent from the "PointCloud" plugin.
+ */
+UCLASS(Experimental, ClassGroup = (GoogleARCore), Deprecated)
+class GOOGLEARCOREBASE_API UDEPRECATED_GoogleARCorePointCloudRendererComponent : public USceneComponent
 {
 	GENERATED_BODY()
 public:
@@ -21,7 +24,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GoogleARCore|PointCloudRenderer")
 	float PointSize;
 
-	UGoogleARCorePointCloudRendererComponent();
+	UDEPRECATED_GoogleARCorePointCloudRendererComponent();
 
 	/** Function called on every frame on this Component. */
 	void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * ThisTickFunction) override;

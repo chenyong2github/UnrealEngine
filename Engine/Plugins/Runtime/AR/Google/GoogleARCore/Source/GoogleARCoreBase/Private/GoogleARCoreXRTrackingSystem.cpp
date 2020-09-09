@@ -9,6 +9,23 @@
 #include "GoogleARCoreTypes.h"
 #include "GoogleARCoreXRCamera.h"
 #include "ARSessionConfig.h"
+#include "GoogleARCoreBaseModule.h"
+#include "GoogleARCoreDependencyHandler.h"
+
+
+DECLARE_CYCLE_STAT(TEXT("OnStartGameFrame"), STAT_OnStartGameFrame, STATGROUP_ARCore);
+
+static const FName ARCoreSystemName(TEXT("FGoogleARCoreXRTrackingSystem"));
+
+FGoogleARCoreXRTrackingSystem* FGoogleARCoreXRTrackingSystem::GetInstance()
+{
+	if (GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetSystemName() == ARCoreSystemName))
+	{
+		return static_cast<FGoogleARCoreXRTrackingSystem*>(GEngine->XRSystem.Get());
+	}
+	
+	return nullptr;
+}
 
 FGoogleARCoreXRTrackingSystem::FGoogleARCoreXRTrackingSystem()
 	: FXRTrackingSystemBase(this)
@@ -26,10 +43,13 @@ FGoogleARCoreXRTrackingSystem::FGoogleARCoreXRTrackingSystem()
 	UE_LOG(LogGoogleARCoreTrackingSystem, Log, TEXT("Creating GoogleARCore Tracking System."));
 	ARCoreDeviceInstance = FGoogleARCoreDevice::GetInstance();
 	check(ARCoreDeviceInstance);
+	
+	IModularFeatures::Get().RegisterModularFeature(UGoogleARCoreDependencyHandler::GetModularFeatureName(), GetMutableDefault<UGoogleARCoreDependencyHandler>());
 }
 
 FGoogleARCoreXRTrackingSystem::~FGoogleARCoreXRTrackingSystem()
 {
+	IModularFeatures::Get().UnregisterModularFeature(UGoogleARCoreDependencyHandler::GetModularFeatureName(), GetMutableDefault<UGoogleARCoreDependencyHandler>());
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -37,8 +57,12 @@ FGoogleARCoreXRTrackingSystem::~FGoogleARCoreXRTrackingSystem()
 ////////////////////////////////////////////////////////////////////////////////
 FName FGoogleARCoreXRTrackingSystem::GetSystemName() const
 {
-	static FName DefaultName(TEXT("FGoogleARCoreXRTrackingSystem"));
-	return DefaultName;
+	return ARCoreSystemName;
+}
+
+int32 FGoogleARCoreXRTrackingSystem::GetXRSystemFlags() const
+{
+	return EXRSystemFlags::IsAR | EXRSystemFlags::IsTablet;
 }
 
 bool FGoogleARCoreXRTrackingSystem::IsHeadTrackingAllowed() const
@@ -86,6 +110,13 @@ bool FGoogleARCoreXRTrackingSystem::EnumerateTrackedDevices(TArray<int32>& OutDe
 
 bool FGoogleARCoreXRTrackingSystem::OnStartGameFrame(FWorldContext& WorldContext)
 {
+	SCOPE_CYCLE_COUNTER(STAT_OnStartGameFrame);
+	
+	if (auto World = WorldContext.World())
+	{
+		ARCoreDeviceInstance->UpdateGameFrame(World);
+	}
+	
 	FTransform CurrentPose;
 	bHasValidPose = false;
 	if (ARCoreDeviceInstance->GetIsARCoreSessionRunning())
@@ -117,9 +148,21 @@ bool FGoogleARCoreXRTrackingSystem::OnStartGameFrame(FWorldContext& WorldContext
 		{
 			LightEstimate = nullptr;
 		}
+		
+		if (auto Camera = GetARCoreCamera())
+		{
+			auto CameraTexture = ARCoreDeviceInstance->GetLastCameraTexture();
+			auto DepthTexture = ARCoreDeviceInstance->GetDepthTexture();
+			Camera->UpdateCameraTextures(CameraTexture, DepthTexture, bWantsDepthOcclusion);
+		}
 	}
 
 	return true;
+}
+
+FGoogleARCoreXRCamera* FGoogleARCoreXRTrackingSystem::GetARCoreCamera()
+{
+	return static_cast<FGoogleARCoreXRCamera*>(GetXRCamera().Get());
 }
 
 void FGoogleARCoreXRTrackingSystem::ConfigARCoreXRCamera(bool bInMatchDeviceCameraFOV, bool bInEnablePassthroughCameraRendering)
@@ -127,14 +170,20 @@ void FGoogleARCoreXRTrackingSystem::ConfigARCoreXRCamera(bool bInMatchDeviceCame
 	bMatchDeviceCameraFOV = bInMatchDeviceCameraFOV;
 	bEnablePassthroughCameraRendering = bInEnablePassthroughCameraRendering;
 
-	static_cast<FGoogleARCoreXRCamera*>(GetXRCamera().Get())->ConfigXRCamera(bEnablePassthroughCameraRendering, bEnablePassthroughCameraRendering);
+	if (auto Camera = GetARCoreCamera())
+	{
+		Camera->ConfigXRCamera(bEnablePassthroughCameraRendering, bEnablePassthroughCameraRendering);
+	}
 }
 
 
 void FGoogleARCoreXRTrackingSystem::EnableColorCameraRendering(bool bInEnablePassthroughCameraRendering)
 {
 	bEnablePassthroughCameraRendering = bInEnablePassthroughCameraRendering;
-	static_cast<FGoogleARCoreXRCamera*>(GetXRCamera().Get())->ConfigXRCamera(bEnablePassthroughCameraRendering, bEnablePassthroughCameraRendering);
+	if (auto Camera = GetARCoreCamera())
+	{
+		Camera->ConfigXRCamera(bEnablePassthroughCameraRendering, bEnablePassthroughCameraRendering);
+	}
 }
 
 bool FGoogleARCoreXRTrackingSystem::GetColorCameraRenderingEnabled()
@@ -198,8 +247,37 @@ EARTrackingQuality FGoogleARCoreXRTrackingSystem::OnGetTrackingQuality() const
 
 EARTrackingQualityReason FGoogleARCoreXRTrackingSystem::OnGetTrackingQualityReason() const
 {
+	EGoogleARCoreTrackingFailureReason GoogleARFailureReason = FGoogleARCoreDevice::GetInstance()->GetTrackingFailureReason();
+
 	// Dont return EARTrackingQualityReason::None, which means that the tracking quality is not limited
-	return EARTrackingQualityReason::InsufficientFeatures;
+	EARTrackingQualityReason TrackingQualityReason;
+
+	// tracking quality reason
+	switch (GoogleARFailureReason)
+	{
+	case EGoogleARCoreTrackingFailureReason::None:
+		TrackingQualityReason = EARTrackingQualityReason::None;
+		break;
+
+	case EGoogleARCoreTrackingFailureReason::BadState:
+		TrackingQualityReason = EARTrackingQualityReason::BadState;
+		break;
+
+	case EGoogleARCoreTrackingFailureReason::InsufficientLight:
+		TrackingQualityReason = EARTrackingQualityReason::InsufficientLight;
+		break;
+
+	case EGoogleARCoreTrackingFailureReason::ExcessiveMotion:
+		TrackingQualityReason = EARTrackingQualityReason::ExcessiveMotion;
+		break;
+
+	default:
+		case EGoogleARCoreTrackingFailureReason::InsufficientFeatures:
+		TrackingQualityReason = EARTrackingQualityReason::InsufficientFeatures;
+		break;
+	}
+
+	return TrackingQualityReason;
 }
 
 bool FGoogleARCoreXRTrackingSystem::IsARAvailable() const
@@ -211,6 +289,7 @@ bool FGoogleARCoreXRTrackingSystem::IsARAvailable() const
 void FGoogleARCoreXRTrackingSystem::OnStartARSession(UARSessionConfig* SessionConfig)
 {
 	FGoogleARCoreDevice::GetInstance()->StartARCoreSessionRequest(SessionConfig);
+	bWantsDepthOcclusion = SessionConfig->bUseSceneDepthForOcclusion;
 }
 
 void FGoogleARCoreXRTrackingSystem::OnPauseARSession()
@@ -306,6 +385,21 @@ UARLightEstimate* FGoogleARCoreXRTrackingSystem::OnGetCurrentLightEstimate() con
 	return LightEstimate;
 }
 
+UARPin* FGoogleARCoreXRTrackingSystem::FindARPinByComponent(const USceneComponent* Component) const
+{
+	TArray<UARPin*> Pins;
+	FGoogleARCoreDevice::GetInstance()->GetAllARPins(Pins);
+	for (UARPin* Pin : Pins)
+	{
+		if (Pin->GetPinnedComponent() == Component)
+		{
+			return Pin;
+		}
+	}
+
+	return nullptr;
+}
+
 UARPin* FGoogleARCoreXRTrackingSystem::OnPinComponent(USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry /*= nullptr*/, const FName DebugName /*= NAME_None*/)
 {
 	UARPin* NewARPin = nullptr;
@@ -317,6 +411,52 @@ UARPin* FGoogleARCoreXRTrackingSystem::OnPinComponent(USceneComponent* Component
 void FGoogleARCoreXRTrackingSystem::OnRemovePin(UARPin* PinToRemove)
 {
 	FGoogleARCoreDevice::GetInstance()->RemoveARPin(PinToRemove);
+}
+
+bool FGoogleARCoreXRTrackingSystem::OnTryGetOrCreatePinForNativeResource(void* InNativeResource, const FString& InPinName, UARPin*& OutPin)
+{
+	return FGoogleARCoreDevice::GetInstance()->TryGetOrCreatePinForNativeResource(InNativeResource, InPinName, OutPin);
+}
+
+static TSharedPtr<FGoogleARCoreSession> CreateTempARCoreSession(EARSessionType SessionType)
+{
+	if (SessionType == EARSessionType::None)
+	{
+		return nullptr;
+	}
+	
+	const bool bUseFrontCamera = SessionType == EARSessionType::Face;
+	return FGoogleARCoreSession::CreateARCoreSession(bUseFrontCamera);
+}
+
+TArray<FARVideoFormat> FGoogleARCoreXRTrackingSystem::OnGetSupportedVideoFormats(EARSessionType SessionType) const
+{
+	if (SessionType == EARSessionType::None)
+	{
+		return {};
+	}
+
+	// We're creating a temp session here as the "current" session from FGoogleARCoreDevice may not be available
+	// or it may use a different session type
+	auto NewARCoreSession = CreateTempARCoreSession(SessionType);
+	if (NewARCoreSession && NewARCoreSession->GetSessionCreateStatus() == EGoogleARCoreAPIStatus::AR_SUCCESS)
+	{
+		TArray<FGoogleARCoreCameraConfig> SupportedCameraConfig = NewARCoreSession->GetSupportedCameraConfig();
+
+		TArray<FARVideoFormat> VideoFormats;
+
+		for (const FGoogleARCoreCameraConfig& CameraConfig : SupportedCameraConfig)
+		{
+			// FPS is not exposed so we assume it's 30...
+			// Note that we're using CameraTextureResolution rather than CameraImageResolution as the former is relevant
+			// to the camera passthrough rendering
+			VideoFormats.AddUnique({ CameraConfig.GetMaxFPS(), CameraConfig.CameraTextureResolution.X, CameraConfig.CameraTextureResolution.Y });
+		}
+
+		return VideoFormats;
+	}
+
+	return {};
 }
 
 TArray<FVector> FGoogleARCoreXRTrackingSystem::OnGetPointCloud() const
@@ -413,4 +553,72 @@ TSharedPtr<class IXRCamera, ESPMode::ThreadSafe> FGoogleARCoreXRTrackingSystem::
 		XRCamera = FSceneViewExtensions::NewExtension<FGoogleARCoreXRCamera>(*this, DeviceId);
 	}
 	return XRCamera;
+}
+
+void FGoogleARCoreXRTrackingSystem::OnTrackableAdded(UARTrackedGeometry* InTrackedGeometry)
+{
+	if (ensure(InTrackedGeometry))
+	{
+		UE_LOG(LogGoogleARCoreTrackingSystem, Log, TEXT("OnTrackableAdded: %s"), *InTrackedGeometry->GetName());
+		TriggerOnTrackableAddedDelegates(InTrackedGeometry);
+	}
+}
+
+void FGoogleARCoreXRTrackingSystem::OnTrackableUpdated(UARTrackedGeometry* InTrackedGeometry)
+{
+	if (ensure(InTrackedGeometry))
+	{
+		TriggerOnTrackableUpdatedDelegates(InTrackedGeometry);
+	}
+}
+
+void FGoogleARCoreXRTrackingSystem::OnTrackableRemoved(UARTrackedGeometry* InTrackedGeometry)
+{
+	if (ensure(InTrackedGeometry))
+	{
+		UE_LOG(LogGoogleARCoreTrackingSystem, Log, TEXT("OnTrackableRemoved: %s"), *InTrackedGeometry->GetName());
+		TriggerOnTrackableRemovedDelegates(InTrackedGeometry);
+	}
+}
+
+UARTexture* FGoogleARCoreXRTrackingSystem::OnGetARTexture(EARTextureType TextureType) const
+{
+	if (TextureType == EARTextureType::CameraImage)
+	{
+		return ARCoreDeviceInstance->GetLastCameraTexture();
+	}
+	else if (TextureType == EARTextureType::SceneDepthMap)
+	{
+		return ARCoreDeviceInstance->GetDepthTexture();
+	}
+	
+	return nullptr;
+}
+
+bool FGoogleARCoreXRTrackingSystem::OnGetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const
+{
+	const auto Result = FGoogleARCoreDevice::GetInstance()->GetCameraTextureIntrinsics(OutCameraIntrinsics);
+	return Result == EGoogleARCoreFunctionStatus::Success;
+}
+
+bool FGoogleARCoreXRTrackingSystem::OnIsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature) const
+{
+#if PLATFORM_ANDROID
+	if (SessionTrackingFeature == EARSessionTrackingFeature::SceneDepth)
+	{
+		auto NewARCoreSession = CreateTempARCoreSession(SessionType);
+		if (NewARCoreSession && NewARCoreSession->GetSessionCreateStatus() == EGoogleARCoreAPIStatus::AR_SUCCESS)
+		{
+			if (auto SessionHandle = NewARCoreSession->GetHandle())
+			{
+				int32_t bSupported = 0;
+				ArSession_isDepthModeSupported(SessionHandle, AR_DEPTH_MODE_AUTOMATIC, &bSupported);
+				return bSupported != 0;
+			}
+		}
+		
+	}
+#endif
+	
+	return false;
 }

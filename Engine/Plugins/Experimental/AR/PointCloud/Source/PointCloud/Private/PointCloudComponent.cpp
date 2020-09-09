@@ -8,14 +8,15 @@
 #include "Engine/Engine.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
+#include "ARBlueprintLibrary.h"
+#include "TimerManager.h"
+
 
 DECLARE_CYCLE_STAT(TEXT("Create Point Cloud Proxy"), STAT_PointCloud_CreateSceneProxy, STATGROUP_PointCloud);
 DECLARE_CYCLE_STAT(TEXT("Point Cloud Comp Update"), STAT_PointCloud_ComponentUpdateCost, STATGROUP_PointCloud);
 
 UPointCloudComponent::UPointCloudComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, PointColor(1.f, 1.f, 1.f, 1.f)
-	, PointSize(1.f)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PostPhysics;
@@ -27,6 +28,29 @@ UPointCloudComponent::UPointCloudComponent(const FObjectInitializer& ObjectIniti
 	{
 		PointCloudMaterial = GEngine->WireframeMaterial;
 	}
+}
+
+void UPointCloudComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	
+#if !UE_SERVER
+	if (PointCloudUpdateInterval > 0.f)
+	{
+		FTimerHandle TimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateUObject(this, &ThisClass::UpdatePointCloud), PointCloudUpdateInterval, true);
+	}
+#endif
+}
+
+void UPointCloudComponent::UpdatePointCloud()
+{
+	if (!bIsVisible)
+	{
+		return;
+	}
+	
+	SetPointCloud(UARBlueprintLibrary::GetPointCloud());
 }
 
 void UPointCloudComponent::ClearPointCloud()

@@ -324,7 +324,7 @@ public:
 		const int32 SizeX = GParticleSimulationTextureSizeX;
 		const int32 SizeY = GParticleSimulationTextureSizeY;
 
-		const uint32 ExtraFlags = CVarGPUParticleAFRReinject.GetValueOnRenderThread() == 1 ? TexCreate_AFRManual : 0;
+		const ETextureCreateFlags ExtraFlags = CVarGPUParticleAFRReinject.GetValueOnRenderThread() == 1 ? TexCreate_AFRManual : TexCreate_None;
 
 		FRHIResourceCreateInfo CreateInfo(FClearValueBinding::Transparent);
 		RHICreateTargetableShaderResource2D(
@@ -349,6 +349,7 @@ public:
 		{
 			FRHIRenderPassInfo RPInfo(TextureTargetRHI, ERenderTargetActions::Clear_Store);
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+			RHICmdList.Transition(FRHITransitionInfo(TextureTargetRHI, ERHIAccess::SRVMask, ERHIAccess::RTV));
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("Clear"));
 			RHICmdList.EndRenderPass();
 		}
@@ -394,10 +395,10 @@ public:
 			ParticleResources->RenderAttributesTexture.InitResource();
 			ParticleResources->SimulationAttributesTexture.InitResource();
 
-			FRHITexture* AttributeTextures[2];
-			AttributeTextures[0] = ParticleResources->RenderAttributesTexture.TextureRHI;
-			AttributeTextures[1] = ParticleResources->SimulationAttributesTexture.TextureRHI;
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, AttributeTextures, 2);
+			FRHITransitionInfo AttributeTextures[2];
+			AttributeTextures[0] = FRHITransitionInfo(ParticleResources->RenderAttributesTexture.TextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+			AttributeTextures[1] = FRHITransitionInfo(ParticleResources->SimulationAttributesTexture.TextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+			RHICmdList.Transition(MakeArrayView(AttributeTextures, 2));
 		});
 	}
 
@@ -4584,13 +4585,10 @@ void FFXSystem::PrepareGPUSimulation(FRHICommandListImmediate& RHICmdList)
 	FParticleStateTextures& CurrentStateTextures = ParticleSimulationResources->GetCurrentStateTextures();
 
 	// Setup render states.
-	FRHITexture* RenderTargets[2] =
-	{
-		CurrentStateTextures.PositionTextureTargetRHI,
-		CurrentStateTextures.VelocityTextureTargetRHI,
-	};
-
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, RenderTargets, 2);
+	FRHITransitionInfo RTVTransitions[2];
+	RTVTransitions[0] = FRHITransitionInfo(CurrentStateTextures.PositionTextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::RTV);
+	RTVTransitions[1] = FRHITransitionInfo(CurrentStateTextures.VelocityTextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::RTV);
+	RHICmdList.Transition(MakeArrayView(RTVTransitions, 2));
 }
 
 void FFXSystem::FinalizeGPUSimulation(FRHICommandListImmediate& RHICmdList)
@@ -4599,13 +4597,10 @@ void FFXSystem::FinalizeGPUSimulation(FRHICommandListImmediate& RHICmdList)
 	FParticleStateTextures& CurrentStateTextures = ParticleSimulationResources->GetVisualizeStateTextures();
 
 	// Setup render states.
-	FRHITexture* RenderTargets[2] =
-	{
-		CurrentStateTextures.PositionTextureTargetRHI,
-		CurrentStateTextures.VelocityTextureTargetRHI,
-	};
-	
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, RenderTargets, 2);
+	FRHITransitionInfo SRVTransitions[2];
+	SRVTransitions[0] = FRHITransitionInfo(CurrentStateTextures.PositionTextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+	SRVTransitions[1] = FRHITransitionInfo(CurrentStateTextures.VelocityTextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+	RHICmdList.Transition(MakeArrayView(SRVTransitions, 2));
 }
 
 void FFXSystem::SimulateGPUParticles(
@@ -4659,6 +4654,9 @@ void FFXSystem::SimulateGPUParticles(
 			RHICmdList.BeginUpdateMultiFrameResource(PreviousStateRenderTargets[1]);
 
 			{
+				RHICmdList.Transition(FRHITransitionInfo(PreviousStateRenderTargets[0], ERHIAccess::Unknown, ERHIAccess::RTV));
+				RHICmdList.Transition(FRHITransitionInfo(PreviousStateRenderTargets[1], ERHIAccess::Unknown, ERHIAccess::RTV));
+
 				FRHIRenderPassInfo RPInfo(2, PreviousStateRenderTargets, ERenderTargetActions::Clear_Store);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("GPUParticlesClearPreviousStateTextures"));
 				RHICmdList.EndRenderPass();
@@ -4959,7 +4957,11 @@ void FFXSystem::SimulateGPUParticles(
 	}
 	
 	// finish current state render
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, CurrentStateRenderTargets, 2);
+	FRHITransitionInfo SRVTransitions[2];
+	SRVTransitions[0] = FRHITransitionInfo(CurrentStateRenderTargets[0], ERHIAccess::Unknown, ERHIAccess::SRVMask);
+	SRVTransitions[1] = FRHITransitionInfo(CurrentStateRenderTargets[1], ERHIAccess::Unknown, ERHIAccess::SRVMask);
+	RHICmdList.Transition(MakeArrayView(SRVTransitions, 2));
+
 	RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[0]);
 	RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[1]);
 
@@ -4968,8 +4970,8 @@ void FFXSystem::SimulateGPUParticles(
 		//the fixed timestep works in two stages.  A first stage which simulates the fixed timestep and this second stage which simulates any remaining time from the actual delta time.  e.g.  fixed timestep of 16ms and actual dt of 23ms
 		//will make this second step simulate an interpolated extra 7ms.  This second interpolated step is what we render on THIS frame, but it is NOT fed into the next frame's simulation.  Thus we do not need to transfer it between GPUs in AFR mode.
 		FParticleStateTextures& VisualizeStateTextures = ParticleSimulationResources->GetPreviousStateTextures();
+				
 		FRHITexture* VisualizeStateRHIs[2] = { VisualizeStateTextures.PositionTextureTargetRHI, VisualizeStateTextures.VelocityTextureTargetRHI };
-
 		FRHIRenderPassInfo RPInfo(2, VisualizeStateRHIs, ERenderTargetActions::Load_Store);
 		{
 			TransitionRenderPassTargets(RHICmdList, RPInfo);
@@ -4997,7 +4999,11 @@ void FFXSystem::SimulateGPUParticles(
 
 			RHICmdList.EndRenderPass();
 		}
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, VisualizeStateRHIs, 2);		
+
+		FRHITransitionInfo VisualizeSRVTransitions[2];
+		VisualizeSRVTransitions[0] = FRHITransitionInfo(VisualizeStateTextures.PositionTextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+		VisualizeSRVTransitions[1] = FRHITransitionInfo(VisualizeStateTextures.VelocityTextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+		RHICmdList.Transition(MakeArrayView(VisualizeSRVTransitions, 2));
 	}
 
 #if WITH_MGPU

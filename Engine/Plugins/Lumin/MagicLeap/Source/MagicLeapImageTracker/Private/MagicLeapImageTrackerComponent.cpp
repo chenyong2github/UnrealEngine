@@ -4,12 +4,15 @@
 #include "IMagicLeapPlugin.h"
 #include "MagicLeapImageTrackerModule.h"
 #include "MagicLeapImageTrackerRunnable.h"
+#include "Misc/Guid.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
 
 UMagicLeapImageTrackerComponent::UMagicLeapImageTrackerComponent()
-: bIsTracking(false)
+: AxisOrientation(EMagicLeapImageTargetOrientation::ForwardAxisAsNormal)
+, bTargetSet(false)
+, LastStatus(EMagicLeapImageTargetStatus::NotTracked)
 #if WITH_EDITOR
 , TextureBeforeEdit(nullptr)
 #endif // WITH_EDITOR
@@ -32,20 +35,69 @@ void UMagicLeapImageTrackerComponent::TickComponent(float DeltaTime, enum ELevel
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (!bIsTracking)
+	if (!bTargetSet)
 	{
 		UTexture2D* TempTargetImageTexture = TargetImageTexture;
+		// Because SetTargetAsync() can also be called from outside this component,
+		// it checks if the input texture is same as the existing TargetImageTexture and skips setting the target
+		// if its the same. So, we reset TargetImageTexture to null here to bypass that check.
 		TargetImageTexture = nullptr;
-		bIsTracking = SetTargetAsync(TempTargetImageTexture);
+		bTargetSet = SetTargetAsync(TempTargetImageTexture);
 	}
 	else
 	{
-		FVector Location;
-		FRotator Rotation;
-		if (GetMagicLeapImageTrackerModule().TryGetRelativeTransform(Name, Location, Rotation))
+		FMagicLeapImageTargetState TargetState;
+		GetMagicLeapImageTrackerModule().GetTargetState(Name, true /* bProvideTransformInTrackingSpace */, TargetState);
+		// GetTargetState() reports orientation with ForwardAxisAsNormal
+		if (AxisOrientation == EMagicLeapImageTargetOrientation::UpAxisAsNormal)
 		{
-			this->SetRelativeLocationAndRotation(Location, Rotation);
+			FQuat CurrentOrientation = TargetState.Rotation.Quaternion();
+			// Rotate -180 degrees around Z. This makes Y axis point to our Right, X is our Forward, Z is Up.
+			CurrentOrientation = CurrentOrientation * FQuat(FVector(0, 0, 1), -PI);
+			// Rotate -90 degrees around Y. This makes Z axis point to our Back, X is our Up, Y is Right.
+			CurrentOrientation = CurrentOrientation * FQuat(FVector(0, 1, 0), -PI / 2);
+			TargetState.Rotation = CurrentOrientation.Rotator();
 		}
+
+		switch (TargetState.TrackingStatus)
+		{
+			case EMagicLeapImageTargetStatus::NotTracked:
+			{
+				if (LastStatus != TargetState.TrackingStatus)
+				{
+					OnImageTargetLost.Broadcast();
+				}
+				break;
+			}
+			case EMagicLeapImageTargetStatus::Tracked:
+			{
+				// set transform before firing the "found" event
+				SetRelativeLocationAndRotation(TargetState.Location, TargetState.Rotation);
+
+				if (LastStatus != TargetState.TrackingStatus)
+				{
+					OnImageTargetFound.Broadcast();
+				}
+
+				break;
+			}
+			case EMagicLeapImageTargetStatus::Unreliable:
+			{
+				const FVector LastTrackedLocation = GetComponentLocation();
+				const FRotator LastTrackedRotation = GetComponentRotation();
+				if (bUseUnreliablePose)
+				{
+					SetRelativeLocationAndRotation(TargetState.Location, TargetState.Rotation);
+				}
+
+				// Developer can choose whether to use this unreliable pose or not.
+				OnImageTargetUnreliableTracking.Broadcast(LastTrackedLocation, LastTrackedRotation, TargetState.Location, TargetState.Rotation);
+
+				break;
+			}
+		}
+
+		LastStatus = TargetState.TrackingStatus;
 	}
 }
 
@@ -70,29 +122,27 @@ bool UMagicLeapImageTrackerComponent::SetTargetAsync(UTexture2D* ImageTarget)
 	}
 
 	TargetImageTexture = ImageTarget;
-	if (Name.Len() == 0) Name = GetFullGroupName(true);
+	if (Name.Len() == 0)
+	{
+		Name = FGuid::NewGuid().ToString();
+	}
 
-	FMagicLeapImageTrackerTarget Target;
-	Target.Name = Name;
-#if WITH_MLSDK
-	Target.Settings.longer_dimension = LongerDimension / IMagicLeapPlugin::Get().GetWorldToMetersScale();
-	Target.Settings.is_stationary = bIsStationary;
-#endif // WITH_MLSDK
-	Target.Texture = TargetImageTexture;
-	Target.bUseUnreliablePose = bUseUnreliablePose;
-	Target.OnSetImageTargetSucceeded = OnSetImageTargetSucceeded;
-	Target.OnSetImageTargetFailed = OnSetImageTargetFailed;
-	Target.OnImageTargetFound = OnImageTargetFound;
-	Target.OnImageTargetLost = OnImageTargetLost;
-	Target.OnImageTargetUnreliableTracking = OnImageTargetUnreliableTracking;
+	FMagicLeapImageTargetSettings TargetSettings;
+	TargetSettings.ImageTexture = TargetImageTexture;
+	TargetSettings.Name = Name;
+	TargetSettings.LongerDimension = LongerDimension;
+	TargetSettings.bIsStationary = bIsStationary;
+	// TODO : expose option to pause tracking for this specific target
+	TargetSettings.bIsEnabled = true;
 
-	GetMagicLeapImageTrackerModule().SetTargetAsync(Target);
+	GetMagicLeapImageTrackerModule().SetTargetAsync(TargetSettings, OnSetImageTargetSucceeded, OnSetImageTargetFailed);
+
 	return true;
 }
 
 bool UMagicLeapImageTrackerComponent::RemoveTargetAsync()
 {
-	bIsTracking = false;
+	bTargetSet = false;
 	return GetMagicLeapImageTrackerModule().RemoveTargetAsync(Name);
 }
 

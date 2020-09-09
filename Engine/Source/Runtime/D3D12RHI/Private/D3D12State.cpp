@@ -407,7 +407,7 @@ FBlendStateRHIRef FD3D12DynamicRHI::RHICreateBlendState(const FBlendStateInitial
 	D3D12_BLEND_DESC &BlendDesc = BlendState->Desc;
 	FMemory::Memzero(&BlendDesc, sizeof(D3D12_BLEND_DESC));
 
-	BlendDesc.AlphaToCoverageEnable = false;
+	BlendDesc.AlphaToCoverageEnable = Initializer.bUseAlphaToCoverage;
 	BlendDesc.IndependentBlendEnable = Initializer.bUseIndependentRenderTargetBlendStates;
 
 	static_assert(MaxSimultaneousRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT, "Too many MRTs.");

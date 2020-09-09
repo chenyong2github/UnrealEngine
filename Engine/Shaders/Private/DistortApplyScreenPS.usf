@@ -83,12 +83,15 @@ void Merge(
 #endif
 }
 
-void Merge_ES2(
+Texture2D		DistortionAccumulateTexture;
+SamplerState	DistortionAccumulateSampler;
+
+void Merge_Mobile(
 	in noperspective float4 TexCoord: TEXCOORD0,
 	out half4 OutColor : SV_Target0
 )
 {
-	half4 AccumDist = PostprocessInput1.Sample(PostprocessInput1Sampler, TexCoord.xy);
+	half4 AccumDist = DistortionAccumulateTexture.Sample(DistortionAccumulateSampler, TexCoord.xy);
 	// apply inverse scale
 	// offset = [R-B,G-A] 
 	half2 DistBufferUVOffset = (AccumDist.rg - AccumDist.ba);
@@ -102,6 +105,6 @@ void Merge_ES2(
 		NewBufferUV = TexCoord.xy;
 	}
 
-	OutColor = PostprocessInput0.Sample(PostprocessInput0Sampler, NewBufferUV.xy);
+	OutColor = SceneColorTexture.Sample(SceneColorTextureSampler, NewBufferUV.xy);
 }
 

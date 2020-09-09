@@ -56,3 +56,12 @@ public:
 
 bool GetJsonField(FString& OutVal, const TSharedPtr<FJsonObject>& JsonObject, const TCHAR* FieldName);
 bool GetJsonField(int64& OutVal, const TSharedPtr<FJsonObject>& JsonObject, const TCHAR* FieldName);
+
+class SslCertDisabler
+{
+	bool prevValue;
+public:
+	SslCertDisabler();
+
+	~SslCertDisabler();
+};

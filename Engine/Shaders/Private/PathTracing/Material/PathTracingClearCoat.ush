@@ -10,88 +10,25 @@
 #define EVAL_BOTTOM_LAYER 1
 #define EVAL_REFRACTION 1
 
-void CalcFresnelCoefficients(float CosTheta1, float N1, float N2, out float CosTheta2, out float Rs, out float Rp)
-{
-	Rs = 0.0;
-	Rp = 0.0;
-	CosTheta2 = 0.0;
-	// Use Snell's law to compute CosTheta2:
-	// N1 * sin(Theta1) = N2 * sin(Theta2)
-	// [N1 * sin(Theta1)]^2 = [N2 * sin(Theta2)]^2
-	float SinTheta1_Squared = 1.0 - CosTheta1 * CosTheta1;
-	float SinTheta2_Squared = (SinTheta1_Squared * N1 * N1) / (N2 * N2);
-
-	float CosTheta1_Squared = 1.0 - SinTheta1_Squared;
-	float CosTheta2_Squared = 1.0 - SinTheta2_Squared;
-	if (CosTheta2_Squared >= 0.0)
-	{
-		CosTheta2 = sqrt(CosTheta2_Squared);
-
-		// Optimized Fresnel equations
-		// Rs = (N1 * CosTheta1 - N2 * CosTheta2) / (N1 * CosTheta1 + N2 * CosTheta2);
-		// Rp = (N2 * CosTheta1 - N1 * CosTheta2) / (N2 * CosTheta1 + N1 * CosTheta2);
-		float N1_CosTheta1 = N1 * CosTheta1;
-		float N1_CosTheta2 = N1 * CosTheta2;
-		float N2_CosTheta1 = N2 * CosTheta1;
-		float N2_CosTheta2 = N2 * CosTheta2;
-		Rs = (N1_CosTheta1 - N2_CosTheta2) / (N1_CosTheta1 + N2_CosTheta2);
-		Rp = (N2_CosTheta1 - N1_CosTheta2) / (N2_CosTheta1 + N1_CosTheta2);
-	}
-}
-
-float FresnelReflectance(float CosTheta1, float N1, float N2)
-{
-	float CosTheta2;
-	float Rs;
-	float Rp;
-	CalcFresnelCoefficients(CosTheta1, N1, N2, CosTheta2, Rs, Rp);
-
-	float Fr = (Rs * Rs + Rp * Rp) / 2.0;
-	return Fr;
-}
-
-float FresnelTransmittance(float CosTheta1, float N1, float N2)
-{
-	float Ft = 0.0;
-	if (CosTheta1 > 0.0)
-	{
-		float CosTheta2;
-		float Rs;
-		float Rp;
-		CalcFresnelCoefficients(CosTheta1, N1, N2, CosTheta2, Rs, Rp);
-
-		float Ts = Rs + 1;
-		float Tp = (Rp + 1) * N1 / N2;
-		Ft = (Ts * Ts + Tp * Tp) / 2.0;
-		Ft *= (N2 * CosTheta2) / (N1 * CosTheta1);
-	}
-
-	return Ft;
-}
+#include "PathTracingFresnel.ush"
 
 float3 CalcThinTransmission(float NoL, float NoV, FMaterialClosestHitPayload Payload)
 {
-	float3 Transmission = 0.0;
-	if (NoL > 0.0 && NoV > 0.0)
+	float3 Transmission = 1.0;
+
+	float AbsorptionMix = GetMetallic(Payload);
+	if (AbsorptionMix > 0.0)
 	{
 		float LayerThickness = GetClearCoatThickness(Payload);
 		float ThinDistance = LayerThickness * (rcp(NoV) + rcp(NoL));
-		float Metallic = GetMetallic(Payload);
-		float ClearCoat = GetClearCoat(Payload);
-		float AbsorptionMix = Metallic;
 
-		// Only absorb for metallic materials
-		Transmission = 1.0;
-		if (AbsorptionMix > 0.0)
-		{
-			// Base color represents reflected color viewed at 0 incidence angle, after being absorbed through the substrate.
-			// Because of this, extinction is normalized by traveling through layer thickness twice
-			float3 TransmissionColor = Diffuse_Lambert(GetBaseColor(Payload) );
-			float3 ExtinctionCoefficient = -log(TransmissionColor) / (2.0 * LayerThickness);
-			float3 OpticalDepth = ExtinctionCoefficient * max(ThinDistance - 2.0 * LayerThickness, 0.0);
-			Transmission = exp(-OpticalDepth);
-			Transmission = lerp(1.0, Transmission, AbsorptionMix);
-		}
+		// Base color represents reflected color viewed at 0 incidence angle, after being absorbed through the substrate.
+		// Because of this, extinction is normalized by traveling through layer thickness twice
+		float3 TransmissionColor = Diffuse_Lambert(GetBaseColor(Payload) );
+		float3 ExtinctionCoefficient = -log(TransmissionColor) / (2.0 * LayerThickness);
+		float3 OpticalDepth = ExtinctionCoefficient * max(ThinDistance - 2.0 * LayerThickness, 0.0);
+		Transmission = exp(-OpticalDepth);
+		Transmission = lerp(1.0, Transmission, AbsorptionMix);
 	}
 	return Transmission;
 }
@@ -160,7 +97,7 @@ float ClearCoat_PdfMaterial(
 	if (IsValidV2 && IsValidL2)
 	{
 		Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
-		BottomLayerPdf = DefaultLit_PdfMaterial(V2, -L2, Payload);
+		BottomLayerPdf = DefaultLit_PdfMaterial(V2, -L2, Payload, GetClearCoatIor(Payload));
 		Payload.WorldNormal = N;
 	}
 	
@@ -234,7 +171,7 @@ void ClearCoat_EvalMaterial(
 		Payload.WorldNormal = N2;
 		float3 BottomLayerThroughput;
 		float BottomLayerPdf;
-		DefaultLit_EvalMaterial(-V2, L2, Payload, BottomLayerThroughput, BottomLayerPdf);
+		DefaultLit_EvalMaterial(-V2, L2, Payload, GetClearCoatIor(Payload), BottomLayerThroughput, BottomLayerPdf);
 		Payload.WorldNormal = N;
 
 		// Calculate transmission through substrate
@@ -333,7 +270,7 @@ void ClearCoat_SampleMaterial(
 			float3 L2;
 			float3 BottomLayerThroughput;
 			float BottomLayerPdf;
-			DefaultLit_SampleMaterial(-V2, Payload, RandSample, L2, BottomLayerThroughput, BottomLayerPdf);
+			DefaultLit_SampleMaterial(-V2, Payload, GetClearCoatIor(Payload), RandSample, L2, BottomLayerThroughput, BottomLayerPdf);
 			Payload.WorldNormal = N;
 
 			// Refract outgoing ray

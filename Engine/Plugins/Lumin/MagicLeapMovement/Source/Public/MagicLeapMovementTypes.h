@@ -13,7 +13,7 @@ enum class EMagicLeapMovementType : uint8
 
 /** Settings for a movement session. */
 USTRUCT(BlueprintType)
-struct FMagicLeapMovementSettings
+struct MAGICLEAPMOVEMENT_API FMagicLeapMovementSettings
 {
 	GENERATED_BODY()
 
@@ -106,7 +106,7 @@ struct FMagicLeapMovementSettings
 
 /** 3DoF specific movement settings that must be provided when starting a 3DoF movement session. */
 USTRUCT(BlueprintType)
-struct FMagicLeapMovement3DofSettings
+struct MAGICLEAPMOVEMENT_API FMagicLeapMovement3DofSettings
 {
 	GENERATED_BODY()
 
@@ -117,7 +117,7 @@ struct FMagicLeapMovement3DofSettings
 
 /** 6DoF specific movement settings that must be provided when starting a 3DoF movement session. */
 USTRUCT(BlueprintType)
-struct FMagicLeapMovement6DofSettings
+struct MAGICLEAPMOVEMENT_API FMagicLeapMovement6DofSettings
 {
 	GENERATED_BODY()
 

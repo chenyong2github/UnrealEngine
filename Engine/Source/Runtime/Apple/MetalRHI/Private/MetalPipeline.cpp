@@ -337,7 +337,7 @@ struct FMetalGraphicsPipelineKey
 			if (TargetFormat == PF_Unknown) { continue; }
 
 			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
-			uint32 Flags = Init.RenderTargetFlags[i];
+			ETextureCreateFlags Flags = (ETextureCreateFlags)Init.RenderTargetFlags[i];
 			if (Flags & TexCreate_SRGB)
 			{
 #if PLATFORM_MAC // Expand as R8_sRGB is iOS only.
@@ -399,6 +399,8 @@ struct FMetalGraphicsPipelineKey
 		Key.SetHashValue(Offset_StencilFormat, NumBits_StencilFormat, StencilFormatKey);
 
 		Key.SetHashValue(Offset_SampleCount, NumBits_SampleCount, Init.NumSamples);
+
+		Key.SetHashValue(Offset_AlphaToCoverage, NumBits_AlphaToCoverage, Init.NumSamples > 1 && BlendState->bUseAlphaToCoverage ? 1 : 0);
 		
 #if PLATFORM_MAC
 		Key.SetHashValue(Offset_PrimitiveTopology, NumBits_PrimitiveTopology, TranslatePrimitiveTopology(Init.PrimitiveType));
@@ -602,7 +604,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 		[self initResourceMask:EMetalShaderVertex];
 		[self initResourceMask:EMetalShaderFragment];
 		
-		if (SafeGetRuntimeDebuggingLevel() < EMetalDebugLevelValidation METAL_STATISTICS_ONLY(&& !GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+		if (SafeGetRuntimeDebuggingLevel() < EMetalDebugLevelValidation)
 		{
 			RenderPipelineReflection = mtlpp::RenderPipelineReflection(nil);
 		}
@@ -611,7 +613,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 	{
 		[self initResourceMask:EMetalShaderCompute];
 		
-		if (SafeGetRuntimeDebuggingLevel() < EMetalDebugLevelValidation METAL_STATISTICS_ONLY(&& !GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+		if (SafeGetRuntimeDebuggingLevel() < EMetalDebugLevelValidation)
 		{
 			ComputePipelineReflection = mtlpp::ComputePipelineReflection(nil);
 		}
@@ -620,7 +622,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 	{
 		[self initResourceMask:EMetalShaderStream];
 		
-		if (SafeGetRuntimeDebuggingLevel() < EMetalDebugLevelValidation METAL_STATISTICS_ONLY(&& !GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+		if (SafeGetRuntimeDebuggingLevel() < EMetalDebugLevelValidation)
 		{
 			StreamPipelineReflection = mtlpp::RenderPipelineReflection(nil);
 		}
@@ -793,7 +795,7 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 		TargetWidth += GPixelFormats[TargetFormat].BlockBytes;
 		
 		mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
-		uint32 Flags = Init.RenderTargetFlags[i];
+		ETextureCreateFlags Flags = (ETextureCreateFlags)Init.RenderTargetFlags[i];
 		if (Flags & TexCreate_SRGB)
 		{
 #if PLATFORM_MAC // Expand as R8_sRGB is iOS only.
@@ -918,7 +920,9 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 	}
 	
 	static bool bNoMSAA = FParse::Param(FCommandLine::Get(), TEXT("nomsaa"));
-	RenderPipelineDesc.SetSampleCount(!bNoMSAA ? FMath::Max(Init.NumSamples, (uint16)1u) : (uint16)1u);
+	uint16 NumSamples = !bNoMSAA ? FMath::Max(Init.NumSamples, (uint16)1u) : (uint16)1u;
+	RenderPipelineDesc.SetSampleCount(NumSamples);
+	RenderPipelineDesc.SetAlphaToCoverageEnabled(NumSamples > 1 && BlendState->bUseAlphaToCoverage);
 #if PLATFORM_MAC
 	RenderPipelineDesc.SetInputPrimitiveTopology(TranslatePrimitiveTopology(Init.PrimitiveType));
 	DebugPipelineDesc.SetSampleCount(!bNoMSAA ? FMath::Max(Init.NumSamples, (uint16)1u) : (uint16)1u);
@@ -1025,9 +1029,9 @@ static FMetalShaderPipeline* CreateSeparateMetalTessellationPipeline(bool const 
 	mtlpp::AutoReleasedRenderPipelineReflection* Reflection = nullptr;
 	mtlpp::AutoReleasedRenderPipelineReflection OutReflection;
 	Reflection = &OutReflection;
-	if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTICS_ONLY(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+	if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
 	{
-		RenderOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTICS_ONLY(|NSUInteger(EMTLPipelineStats));
+		RenderOption = mtlpp::PipelineOption::ArgumentInfo | mtlpp::PipelineOption::BufferTypeInfo;
 	}
 	
 	ns::Error Error;
@@ -1110,10 +1114,10 @@ static FMetalShaderPipeline* CreateSeparateMetalTessellationPipeline(bool const 
 			HullShaderPipelineDesc.SetLabel([NSString stringWithFormat:@"%@", HullName.GetPtr()]);
 		}
 #endif
-		if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTICS_ONLY(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+		if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
 		{
 			mtlpp::AutoReleasedComputePipelineReflection HullReflection;
-			ComputeOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTICS_ONLY(|NSUInteger(EMTLPipelineStats));
+			ComputeOption = mtlpp::PipelineOption::ArgumentInfo | mtlpp::PipelineOption::BufferTypeInfo;
 			HullPipelineState = Device.NewComputePipelineState(HullShaderPipelineDesc, (mtlpp::PipelineOption)ComputeOption, &HullReflection, &AutoError);
 			Pipeline->ComputePipelineReflection = HullReflection;
 		}
@@ -1572,10 +1576,10 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 					RenderPipelineDesc.SetLabel([NSString stringWithFormat:@"%@", VertexName.GetPtr()]);
 				}
 #endif
-				if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTICS_ONLY(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+				if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
 				{
 					mtlpp::AutoReleasedComputePipelineReflection Reflection;
-					ComputeOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTICS_ONLY(|NSUInteger(EMTLPipelineStats));
+					ComputeOption = mtlpp::PipelineOption::ArgumentInfo | mtlpp::PipelineOption::BufferTypeInfo;
 					Pipeline->ComputePipelineState = Device.NewComputePipelineState(ComputePipelineDesc, (mtlpp::PipelineOption)ComputeOption, &Reflection, &AutoError);
 #if METAL_DEBUG_OPTIONS
 					Pipeline->ComputePipelineReflection = Reflection;
@@ -1694,15 +1698,15 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
             }
         }
 #endif
-        
-        NSUInteger RenderOption = mtlpp::PipelineOption::NoPipelineOption;
+
+		NSUInteger RenderOption = mtlpp::PipelineOption::NoPipelineOption;
 		mtlpp::AutoReleasedRenderPipelineReflection* Reflection = nullptr;
 		mtlpp::AutoReleasedRenderPipelineReflection OutReflection;
 		Reflection = &OutReflection;
-        if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTICS_ONLY(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
-        {
-        	RenderOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTICS_ONLY(|NSUInteger(EMTLPipelineStats));
-        }
+		if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
+		{
+			RenderOption = mtlpp::PipelineOption::ArgumentInfo | mtlpp::PipelineOption::BufferTypeInfo;
+		}
 
 		{
 			ns::AutoReleasedError RenderError;
@@ -1735,15 +1739,15 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 			return nil;
 		}
 		
-    #if METAL_DEBUG_OPTIONS
-	#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+#if METAL_DEBUG_OPTIONS
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		Pipeline->ComputeSource = DomainShader ? VertexShader->GetSourceCode() : nil;
         Pipeline->VertexSource = DomainShader ? DomainShader->GetSourceCode() : VertexShader->GetSourceCode();
-	#else
+#else
 		Pipeline->VertexSource = VertexShader->GetSourceCode();
-	#endif
+#endif
         Pipeline->FragmentSource = PixelShader ? PixelShader->GetSourceCode() : nil;
-    #endif
+#endif
 		
 #if !PLATFORM_TVOS
 		if (GMetalCommandBufferDebuggingEnabled)

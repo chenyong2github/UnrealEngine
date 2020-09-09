@@ -61,7 +61,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FViewInfo& View
 	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 }
 
-void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture)
 {
 	static TMap<FName, uint32> RayTracingDebugVisualizationModes;
 	if (RayTracingDebugVisualizationModes.Num() == 0)
@@ -111,24 +111,19 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 
 	if (DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_BARYCENTRICS)
 	{
-		return RenderRayTracingBarycentrics(RHICmdList, View);
+		return RenderRayTracingBarycentrics(GraphBuilder, View, SceneColorTexture);
 	}
 
-	FRDGBuilder GraphBuilder(RHICmdList);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	if (DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PRIMARY_RAYS) 
 	{
 		FRDGTextureRef OutputColor = nullptr;
 		FRDGTextureRef HitDistanceTexture = nullptr;
-		auto SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 
 		RenderRayTracingPrimaryRaysView(
 				GraphBuilder, View, &OutputColor, &HitDistanceTexture, 1, 1, 1,
 			ERayTracingPrimaryRaysFlag::ConsiderSurfaceScatter);
 
-		AddDrawTexturePass(GraphBuilder, View, OutputColor, SceneColor, View.ViewRect.Min, View.ViewRect.Min, View.ViewRect.Size());
-
-		GraphBuilder.Execute();
+		AddDrawTexturePass(GraphBuilder, View, OutputColor, SceneColorTexture, View.ViewRect.Min, View.ViewRect.Min, View.ViewRect.Size());
 		return;
 	}
 
@@ -148,7 +143,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 	RayGenParameters->OpaqueOnly = CVarRayTracingDebugModeOpaqueOnly.GetValueOnRenderThread();
 	RayGenParameters->TLAS = RayTracingSceneRHI->GetShaderResourceView();
 	RayGenParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	RayGenParameters->Output = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor()));
+	RayGenParameters->Output = GraphBuilder.CreateUAV(SceneColorTexture);
 
 	FIntRect ViewRect = View.ViewRect;
 
@@ -156,7 +151,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 		RDG_EVENT_NAME("RayTracingDebug"),
 		RayGenParameters,
 		ERDGPassFlags::Compute,
-		[this, RayGenParameters, RayGenShader, &SceneContext, RayTracingSceneRHI, Pipeline, ViewRect](FRHICommandList& RHICmdList)
+		[this, RayGenParameters, RayGenShader, RayTracingSceneRHI, Pipeline, ViewRect](FRHICommandList& RHICmdList)
 	{
 		SCOPED_GPU_STAT(RHICmdList, RayTracingDebug);
 
@@ -165,8 +160,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 
 		RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, ViewRect.Size().X, ViewRect.Size().Y);
 	});
-
-	GraphBuilder.Execute();
 }
 
 #undef LOCTEXT_NAMESPACE

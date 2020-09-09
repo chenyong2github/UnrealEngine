@@ -337,6 +337,8 @@ TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> FHoloLensTargetDevice::GenerateReq
 		return nullptr;
 	}
 
+	SslCertDisabler disabler;
+	
 	auto HttpRequest = TSharedPtr<IHttpRequest, ESPMode::ThreadSafe>(FPlatformHttp::ConstructRequest());
 
 	if (Info.RequiresCredentials)

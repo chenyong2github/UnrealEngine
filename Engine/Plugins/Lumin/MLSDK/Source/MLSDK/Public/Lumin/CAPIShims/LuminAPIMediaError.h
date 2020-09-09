@@ -11,11 +11,11 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_media_error.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_mediaerror, const char *, MLMediaResultGetString)
-#define MLMediaResultGetString ::MLSDK_API::MLMediaResultGetStringShim
+#define MLMediaResultGetString ::LUMIN_MLSDK_API::MLMediaResultGetStringShim
 
 }
 

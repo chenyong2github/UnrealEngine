@@ -5,6 +5,7 @@
 #include "ILuminARTracker.h"
 #include "MagicLeapImageTrackerTypes.h"
 #include "LuminARTrackableResource.h"
+#include "ARTypes.h"
 
 class FLuminARImplementation;
 
@@ -18,27 +19,36 @@ public:
 	virtual void DestroyEntityTracker() override;
 	virtual void OnStartGameFrame() override;
 	virtual bool IsHandleTracked(const FGuid& Handle) const override;
-	const FString* GetTargetNameFromHandle(const FGuid& Handle) const;
 	virtual UARTrackedGeometry* CreateTrackableObject() override;
+	virtual UClass* GetARComponentClass(const UARSessionConfig& SessionConfig) override;
 	virtual IARRef* CreateNativeResource(const FGuid& Handle, UARTrackedGeometry* TrackableObject) override;
 
-	void OnSetImageTargetSucceeded(FMagicLeapImageTrackerTarget& Target);
+	void AddCandidateImageForTracking(UARCandidateImage* NewCandidateImage);
 
 private:
-	TMap<FGuid, FString> TrackedTargetNames;
+	void OnSetImageTargetSucceeded(const FString& TargetName);
+	void AddPredefinedCandidateImages();
+	void EnableImageTracker();
+
+	FMagicLeapSetImageTargetCompletedStaticDelegate SuccessDelegate;
+	TMap<FGuid, UARCandidateImage*> TrackedTargetNames;
+	bool bAttemptedTrackerCreation;
 };
 
 class FLuminARTrackedImageResource : public FLuminARTrackableResource
 {
 public:
-	FLuminARTrackedImageResource(const FGuid& InTrackableHandle, UARTrackedGeometry* InTrackedGeometry, const FLuminARImageTracker& InTracker)
+	FLuminARTrackedImageResource(const FGuid& InTrackableHandle, UARTrackedGeometry* InTrackedGeometry, const FLuminARImageTracker& InTracker, UARCandidateImage* InCandidateImage)
 		: FLuminARTrackableResource(InTrackableHandle, InTrackedGeometry)
 		, Tracker(InTracker)
+		, CandidateImage(InCandidateImage)
 	{
 	}
 
-	void UpdateGeometryData(FLuminARImplementation* InARSystemSupport) override;
+	// TODO : try to match the signature of other trackable resources
+	void UpdateTrackerData(FLuminARImplementation* InARSystemSupport, const FMagicLeapImageTargetState& TargetState);
 
 private:
 	const FLuminARImageTracker& Tracker;
+	UARCandidateImage* CandidateImage;
 };

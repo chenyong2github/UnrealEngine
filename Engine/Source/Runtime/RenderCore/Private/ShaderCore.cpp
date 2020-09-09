@@ -373,11 +373,9 @@ void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBuffe
 			*SlotRegistry.GetDebugDescription(Slot), ExpectedHash);
 
 		UE_LOG(LogShaders, Fatal,
-			TEXT("Shader requested a global uniform buffer of type '%s' at static slot '%s', but it was null. ")
-			TEXT("Global uniform buffers are bound by RHICmdList.SetGlobalUniformBuffers. This must be called ")
-			TEXT("before any PSOs are set for the shaders that need the binding. Global uniform buffer bindings ")
-			TEXT("are handled automatically by RDG if the uniform buffer is included in the pass parameter struct, ")
-			TEXT("otherwise a call to the command list method above is necessary."),
+			TEXT("Shader requested a global uniform buffer of type '%s' at static slot '%s', but it was null. The uniform buffer should ")
+			TEXT("be bound using RHICmdList.SetGlobalUniformBuffers() or passed into an RDG pass using SHADER_PARAMETER_STRUCT_REF() or ")
+			TEXT("SHADER_PARAMETER_RDG_UNIFORM_BUFFER()."),
 			ExpectedStructMetadata->GetShaderVariableName(), *SlotRegistry.GetDebugDescription(Slot));
 	}
 	else

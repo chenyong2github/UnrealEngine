@@ -29,6 +29,8 @@ enum class EMobileHDRMode
 /** True if HDR is enabled for the mobile renderer. */
 ENGINE_API bool IsMobileHDR();
 
+ENGINE_API bool IsMobileDeferredShading();
+
 ENGINE_API EMobileHDRMode GetMobileHDRMode();
 
 ENGINE_API bool IsMobileColorsRGB();

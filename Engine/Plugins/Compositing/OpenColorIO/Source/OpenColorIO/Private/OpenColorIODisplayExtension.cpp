@@ -174,7 +174,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 		return SceneColor;
 	}
 
-	if (!(SceneColor.Texture->Desc.TargetableFlags & ETextureCreateFlags::TexCreate_ShaderResource))
+	if (!(SceneColor.Texture->Desc.Flags & ETextureCreateFlags::TexCreate_ShaderResource))
 	{
 		return SceneColor;
 	}
@@ -193,7 +193,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 
 		// Reusing the same output description for our back buffer as SceneColor
 		FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
-		OutputDesc.TargetableFlags |= TexCreate_RenderTargetable;
+		OutputDesc.Flags |= TexCreate_RenderTargetable;
 		FLinearColor ClearColor(0., 0., 0., 0.);
 		OutputDesc.ClearValue = FClearValueBinding(ClearColor);
 

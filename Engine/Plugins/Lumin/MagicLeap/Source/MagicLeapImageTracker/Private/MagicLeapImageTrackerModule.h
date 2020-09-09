@@ -12,19 +12,28 @@ class FMagicLeapImageTrackerModule : public IMagicLeapImageTrackerModule, public
 public:
 	FMagicLeapImageTrackerModule();
 	virtual ~FMagicLeapImageTrackerModule();
+
+	/** IModuleInterface */
 	void StartupModule() override;
 	void ShutdownModule() override;
+
+	/** IMagicLeapTrackerEntity interface */
 	void DestroyEntityTracker() override;
+
 	bool Tick(float DeltaTime);
-	virtual void SetTargetAsync(const FMagicLeapImageTrackerTarget& ImageTarget) override;
-	bool RemoveTargetAsync(const FString& InName);
+
 	uint32 GetMaxSimultaneousTargets() const;
 	void SetMaxSimultaneousTargets(uint32 NewNumTargets);
+
+	/** IMagicLeapImageTrackerModule interface */
 	virtual bool GetImageTrackerEnabled() const override;
 	virtual void SetImageTrackerEnabled(bool bEnabled) override;
+	virtual void SetTargetAsync(const FMagicLeapImageTargetSettings& ImageTarget, const FMagicLeapSetImageTargetCompletedStaticDelegate& SucceededDelegate, const FMagicLeapSetImageTargetCompletedStaticDelegate& FailedDelegate) override;
+	virtual void SetTargetAsync(const FMagicLeapImageTargetSettings& ImageTarget, const FMagicLeapSetImageTargetSucceededMulti& SucceededDelegate, const FMagicLeapSetImageTargetFailedMulti& FailedDelegate) override;
+	virtual bool RemoveTargetAsync(const FString& TargetName) override;
 	virtual void DestroyTracker() override;
-	virtual bool TryGetRelativeTransform(const FString& TargetName, FVector& OutLocation, FRotator& OutRotation) override;
-	virtual bool IsTracked(const FString& TargetName) const override;
+	virtual void GetTargetState(const FString& TargetName, bool bProvideTransformInTrackingSpace, FMagicLeapImageTargetState& TargetState) const override;
+	virtual FGuid GetTargetHandle(const FString& TargetName) const override;
 
 private:
 	FTickerDelegate TickDelegate;

@@ -2,14 +2,14 @@
 
 Copyright (c) Facebook Technologies, LLC and its affiliates.  All rights reserved.
 
-Licensed under the Oculus SDK License Version 3.5 (the "License");
+Licensed under the Oculus Master SDK License Version 1.0 (the "License");
 you may not use the Oculus SDK except in compliance with the License,
 which is provided at the time of installation or download, or which
 otherwise accompanies this software in either electronic or hard copy form.
 
 You may obtain a copy of the License at
 
-https://developer.oculus.com/licenses/sdk-3.5/
+https://developer.oculus.com/licenses/oculusmastersdk-1.0/
 
 Unless required by applicable law or agreed to in writing, the Oculus SDK
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,7 @@ limitations under the License.
 #endif
 
 #define OVRP_MAJOR_VERSION 1
-#define OVRP_MINOR_VERSION 44
+#define OVRP_MINOR_VERSION 51
 #define OVRP_PATCH_VERSION 0
 
 #define OVRP_VERSION OVRP_MAJOR_VERSION, OVRP_MINOR_VERSION, OVRP_PATCH_VERSION
@@ -45,6 +45,8 @@ limitations under the License.
 #ifndef OVRP_EXPORT
 #ifdef _WIN32
 #define OVRP_EXPORT __declspec(dllexport)
+#elif __ANDROID__
+#define OVRP_EXPORT __attribute__ ((visibility ("default")))
 #else
 #define OVRP_EXPORT
 #endif
@@ -63,6 +65,8 @@ limitations under the License.
 #define OVRP_CONSTREF(Type) const Type*
 #define OVRP_DEFAULTVALUE(Value)
 #endif
+
+#define OVRP_UNUSED(x) ((void)(x))
 
 #ifndef OVRP_MIXED_REALITY_PRIVATE
 #define OVRP_MIXED_REALITY_PRIVATE 0
@@ -102,6 +106,7 @@ typedef enum {
   ovrpFailure_OperationFailed = -1006,
   ovrpFailure_InsufficientSize = -1007,
   ovrpFailure_DataIsInvalid = -1008,
+  ovrpFailure_DeprecatedOperation = -1009,
 } ovrpResult;
 
 #define OVRP_SUCCESS(result) ((result) >= 0)
@@ -184,6 +189,16 @@ typedef enum {
   ovrpTracker_EnumSize = 0x7fffffff
 } ovrpTracker;
 
+
+
+
+
+
+
+
+
+
+
 /// Identifies a tracked VR Node.
 typedef enum {
   ovrpNode_None = -1,
@@ -198,6 +213,9 @@ typedef enum {
   ovrpNode_TrackerThree = 8,
   ovrpNode_Head = 9,
   ovrpNode_DeviceObjectZero = 10,
+
+
+
   ovrpNode_Count,
   ovrpNode_EnumSize = 0x7fffffff
 } ovrpNode;
@@ -207,6 +225,9 @@ typedef enum {
   ovrpTrackingOrigin_EyeLevel = 0,
   ovrpTrackingOrigin_FloorLevel = 1,
   ovrpTrackingOrigin_Stage = 2,
+
+
+
   ovrpTrackingOrigin_Count,
   ovrpTrackingOrigin_EnumSize = 0x7fffffff
 } ovrpTrackingOrigin;
@@ -246,7 +267,7 @@ typedef enum {
 } ovrpSystemRegion;
 
 typedef enum {
-  ovrpSystemHeadset_None,
+  ovrpSystemHeadset_None = 0,
 
   // Mobile & Standalone headsets
   ovrpSystemHeadset_GearVR_R320,  // Note4 Innovator
@@ -257,6 +278,12 @@ typedef enum {
   ovrpSystemHeadset_GearVR_R325,  // GearVR Commercial 4 (USB Type C)
   ovrpSystemHeadset_Oculus_Go,    // Oculus Go Commercial 1
   ovrpSystemHeadset_Oculus_Quest, // Oculus Quest
+  ovrpSystemHeadset_Placeholder_9,
+  ovrpSystemHeadset_Placeholder_10,
+  ovrpSystemHeadset_Placeholder_11,
+  ovrpSystemHeadset_Placeholder_12,
+  ovrpSystemHeadset_Placeholder_13,
+  ovrpSystemHeadset_Placeholder_14,
 
   // PC headsets
   ovrpSystemHeadset_Rift_DK1 = 0x1000,
@@ -264,6 +291,13 @@ typedef enum {
   ovrpSystemHeadset_Rift_CV1,
   ovrpSystemHeadset_Rift_CB,
   ovrpSystemHeadset_Rift_S,
+  ovrpSystemHeadset_Oculus_Link_Quest,    // Quest connected through Oculus Link
+  ovrpSystemHeadset_PC_Placeholder_4102,
+  ovrpSystemHeadset_PC_Placeholder_4103,
+  ovrpSystemHeadset_PC_Placeholder_4104,
+  ovrpSystemHeadset_PC_Placeholder_4105,
+  ovrpSystemHeadset_PC_Placeholder_4106,
+  ovrpSystemHeadset_PC_Placeholder_4107,
   ovrpSystemHeadset_EnumSize = 0x7fffffff
 } ovrpSystemHeadset;
 
@@ -352,7 +386,7 @@ typedef enum {
   ovrpController_LHand = 0x20,
   ovrpController_RHand = 0x40,
   ovrpController_Hands = ovrpController_LHand | ovrpController_RHand,
-  ovrpController_Touchpad = 0x08000000,
+  ovrpController_Touchpad_DEPRECATED = 0x08000000,
   ovrpController_LTrackedRemote = 0x01000000,
   ovrpController_RTrackedRemote = 0x02000000,
   ovrpController_Active = 0x80000000,
@@ -666,8 +700,17 @@ typedef enum {
   ovrpCameraStatus_Calibrating,
   ovrpCameraStatus_CalibrationFailed,
   ovrpCameraStatus_Calibrated,
+  ovrpCameraStatus_ThirdPerson,
   ovrpCameraStatus_EnumSize = 0x7fffffff
 } ovrpCameraStatus;
+
+// Camera anchor types
+typedef enum {
+	ovrpCameraAnchorType_PreDefined = 0,
+	ovrpCameraAnchorType_Custom = 1,
+  ovrpCameraAnchorType_Count,
+	ovrpCameraAnchorType_EnumSize = 0x7fffffff
+} ovrpCameraAnchorType;
 
 /// Camera intrinsics
 typedef struct {
@@ -688,7 +731,11 @@ typedef struct {
   ovrpPosef RelativePose;
 } ovrpCameraExtrinsics;
 
+typedef void* ovrpCameraAnchorHandle;
+#define OVRP_ANCHOR_INVALID_HANDLE    nullptr
+
 #define OVRP_EXTERNAL_CAMERA_NAME_SIZE 32
+#define OVRP_ANCHOR_NAME_SIZE 32
 
 #if !OVRP_MIXED_REALITY_PRIVATE
 /// Unified camera device types
@@ -698,7 +745,7 @@ typedef enum {
   ovrpCameraDevice_WebCamera0 = ovrpCameraDevice_WebCamera_First + 0,
   ovrpCameraDevice_WebCamera1 = ovrpCameraDevice_WebCamera_First + 1,
   ovrpCameraDevice_WebCamera_Last = ovrpCameraDevice_WebCamera1,
-  ovrpCameraDevice_ZEDStereoCamera = 300,
+  ovrpCameraDevice_DEPRECATED_DEVICE = 300, // ovrpCameraDevice_ZEDStereoCamera before deprecation
   ovrpCameraDevice_EnumSize = 0x7fffffff
 } ovrpCameraDevice;
 #endif
@@ -736,7 +783,7 @@ const static ovrpFrustum2f s_identityFrustum2 = {0, 0, {0, 0, 0, 0}};
 const static ovrpVector3f s_vec3Zero = {0, 0, 0};
 const static ovrpVector2f s_vec2Zero = {0, 0};
 const static ovrpVector3f s_vec3One = {1, 1, 1};
-const static ovrpQuatf s_identifyQuat = {0, 0, 0, 1};
+const static ovrpQuatf s_identityQuat = {0, 0, 0, 1};
 const static ovrpCameraIntrinsics s_invalidCameraIntrinsics = {ovrpBool_False, -1, {0, 0, 0, 0}, 0, 0, {0, 0}};
 const static ovrpCameraExtrinsics s_invalidCameraExtrinsics = {ovrpBool_False,
                                                                -1,
@@ -754,6 +801,8 @@ typedef enum {
   ovrpDistortionWindowFlag_Protected = 0x00000001,
   /// If true, the compositor's graphics device skips error checking to improve performance.
   ovrpDistortionWindowFlag_NoErrorContext = 0x00000002,
+  /// Reserved 0x00000004 in ovrp_SetupDistortionWindow3
+
   ovrpDistortionWindowFlag_EnumSize = 0x7fffffff
 } ovrpDistortionWindowFlag;
 
@@ -773,6 +822,9 @@ typedef enum {
   ovrpShape_EyeFov = 3,
   ovrpShape_OffcenterCubemap = 4,
   ovrpShape_Equirect = 5,
+
+
+
   ovrpShape_EnumSize = 0xF
 } ovrpShape;
 
@@ -793,6 +845,8 @@ typedef enum {
   ovrpTextureFormat_B8G8R8A8_sRGB = 4,
   ovrpTextureFormat_B8G8R8A8 = 5,
   ovrpTextureFormat_R5G6B5 = 11,
+  ovrpTextureFormat_R16G16_FP = 12,
+  ovrpTextureFormat_A2B10G10R10 = 13,
 
   //depth texture formats
   ovrpTextureFormat_D16 = 6,
@@ -823,6 +877,13 @@ typedef enum {
   ovrpLayerFlag_ProtectedContent = (1 << 6),
   /// Allocate AndroidSurfaceSwapChain, instead of regular TextureSwapChain
   ovrpLayerFlag_AndroidSurfaceSwapChain = (1 << 7),
+  /// Allocate SpaceWarp data with m_textureSwapChain together
+  ovrpLayerFlag_SpaceWarpDataAllocation = (1 << 8),
+  ovrpLayerFlag_SpaceWarpDedicatedDepth = (1 << 9),
+  /// VrApi flag: VRAPI_ANDROID_SURFACE_SWAP_CHAIN_FLAG_SYNCHRONOUS
+  ovrpLayerFlag_Synchronous = (1 << 10),
+  /// VrApi flag:VRAPI_ANDROID_SURFACE_SWAP_CHAIN_FLAG_USE_TIMESTAMPS
+  ovrpLayerFlag_UseTimestamps = (1 << 11),
 } ovrpLayerFlags;
 
 /// Layer description used by ovrp_SetupLayer to create the layer
@@ -849,6 +910,9 @@ typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Quad;
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Cylinder;
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Cubemap;
 
+
+
+
 typedef struct {
   OVRP_LAYER_DESC_TYPE;
   ovrpFovf Fov[ovrpEye_Count];
@@ -856,6 +920,11 @@ typedef struct {
   ovrpSizei MaxViewportSize;
   //added for 1.17
   ovrpTextureFormat DepthFormat;
+
+  //added for 1.49
+  ovrpTextureFormat MotionVectorFormat;
+  ovrpTextureFormat MotionVectorDepthFormat;
+  ovrpSizei MotionVectorTextureSize;
 } ovrpLayerDesc_EyeFov;
 
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_OffcenterCubemap;
@@ -869,6 +938,9 @@ typedef union {
   ovrpLayerDesc_EyeFov EyeFov;
   ovrpLayerDesc_OffcenterCubemap OffcenterCubemap;
   ovrpLayerDesc_Equirect Equirect;
+
+
+
 } ovrpLayerDescUnion;
 
 #undef OVRP_LAYER_DESC
@@ -888,14 +960,16 @@ typedef enum {
   ovrpLayerSubmitFlag_InverseAlpha = (1 << 4),
   /// Combine the submitted layer with the layers generated from OVROverlay commands
   ovrpLayerSubmitFlag_CombineLayerSubmits = (1 << 5),
-  /// Enable Positional timeWarp on Fov layer
-  ovrpLayerSubmitFlag_PositionalTimeWarp = (1 << 6),
   /// Enable Space warp on Fov layer
-  ovrpLayerSubmitFlag_SpaceWarp = (1 << 7),
+  ovrpLayerSubmitFlag_SpaceWarp_Deprecated = (1 << 7), // [JianZhang] Todo: deprecated, will be cleaned up in next version.
   /// Enable VrApi "Expensive" SuperSample Flag.
   ovrpLayerSubmitFlag_ExpensiveSuperSample = (1 << 8),
   /// Enable per-overlay show/hide functionality.
   ovrpLayerSubmitFlag_Hidden = (1 << 9),
+  /// Force the texture's alpha to 1.0 on Rift
+  ovrpLayerSubmitFlag_IgnoreSourceAlpha = (1 << 10),
+  /// Enable Space warp on Fov layer
+  ovrpLayerSubmitFlag_SpaceWarp = (1 << 11),
 } ovrpLayerSubmitFlags;
 
 /// Layer state to submit to ovrp_EndFrame
@@ -935,6 +1009,14 @@ typedef struct {
   float Radius;
 } ovrpLayerSubmit_Cylinder;
 
+
+
+
+
+
+
+
+
 typedef OVRP_LAYER_SUBMIT_TYPE ovrpLayerSubmit_Cubemap;
 
 typedef struct {
@@ -945,6 +1027,11 @@ typedef struct {
   float DepthFar;
   // added in 1.44
   ovrpFovf Fov[ovrpEye_Count];
+  // added in 1.49
+  float MotionVectorDepthNear;
+  float MotionVectorDepthFar;
+  ovrpVector2f MotionVectorScale;
+  ovrpVector2f MotionVectorOffset;
 } ovrpLayerSubmit_EyeFov;
 
 typedef OVRP_LAYER_SUBMIT_TYPE ovrpLayerSubmit_OffcenterCubemap;
@@ -958,6 +1045,9 @@ typedef union {
   ovrpLayerSubmit_EyeFov EyeFov;
   ovrpLayerSubmit_OffcenterCubemap OffcenterCubemap;
   ovrpLayerSubmit_Equirect Equirect;
+
+
+
 } ovrpLayerSubmitUnion;
 
 typedef enum {
@@ -970,22 +1060,6 @@ typedef enum {
 #undef OVRP_LAYER_SUBMIT
 #undef OVRP_LAYER_SUBMIT_TYPE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //-----------------------------------------------------------------
 // Hand tracking
 //-----------------------------------------------------------------
@@ -994,6 +1068,8 @@ typedef enum ovrpHandStatus_ {
   ovrpHandStatus_HandTracked = (1 << 0), // hand is currently tracked by hand tracking
   ovrpHandStatus_InputValid = (1 << 1), // if this is set the pointer pose and pinch data is usable
   ovrpHandStatus_SystemGestureInProgress = (1 << 6), // if this is set the user is performing the system gesture
+  ovrpHandStatus_DominantHand = (1 << 7), // if this is set the hand is considered the dominant hand
+  ovrpHandStatus_MenuPressed = (1 << 8), // if this is set the hand performed the system gesture as the non-dominant hand
   ovrpHandStatus_EnumSize = 0x7fffffff
 } ovrpHandStatus;
 
@@ -1182,7 +1258,7 @@ typedef struct ovrpHandState_ {
 
   // World space position and translation of the pointer attached to the hand.
   ovrpPosef PointerPose;
-  
+
   float HandScale;
 
   // Tracking confidence. Range [0,1], 0.0 = lowest confidence, 1.0 = highest confidence.
@@ -1200,5 +1276,131 @@ typedef struct ovrpHandState_ {
   // Time stamp of the captured sample that the pose was extrapolated from.
   double SampleTimeStamp;
 } ovrpHandState;
+
+//-----------------------------------------------------------------
+// Color Space Management
+//-----------------------------------------------------------------
+/// Color space types for HMDs
+///
+/// Until vrapi_SetClientColorDesc is called, the client will default to Rec2020 for Quest and
+/// Rec709 for Go HMDs.
+///
+/// This API only handles color-space remapping. Unless specified, all color spaces use D65 white
+/// point. It will not affect brightness, contrast or gamma curves. Some of these aspects such as
+/// gamma, is handled by the texture format being used. From the GPU samplers' point-of-view, each
+/// texture will continue to be treated as linear luminance including sRGB which is converted to
+/// linear by the texture sampler.
+///
+/// 'VRAPI_COLORSPACE_UNMANAGED' will force the runtime to skip color correction for the provided
+/// content. This is *not* recommended unless the app developer is sure about what they're doing.
+/// 'VRAPI_COLORSPACE_UNMANAGED' is mostly useful for research & experimentation, but not for
+/// software distribution. This is because unless the client is applying the necessary corrections
+/// for each HMD type, the results seen in the HMD will be uncalibrated. This is especially true for
+/// future HMDs where the color space is not yet known or defined, which could lead to colors that
+/// look too dull, too saturated, or hue shifted.
+///
+/// Although native Quest and Rift CV1 color spaces are provided as options, they are not
+/// standardized color spaces. While we provide the exact color space primary coordinates, for
+/// better standardized visualized of authored content, it's recommended that the developers master
+/// using a well-defined color space in the provided in the options such as Rec.2020.
+///
+/// It is also recommended that content be authored for the wider color spaces instead of Rec.709 to
+/// prevent visuals from looking "washed out", "dull" or "desaturated" on wider gamut devices like
+/// the Quest.
+///
+/// Unique Color Space Details with Chromaticity Primaries in CIE 1931 xy:
+///
+/// Color Space: P3, similar to DCI-P3, but using D65 white point instead.
+/// Red  : (0.680, 0.320)
+/// Green: (0.265, 0.690)
+/// Blue : (0.150, 0.060)
+/// White: (0.313, 0.329)
+///
+/// Color Space: Rift CV1 between P3 & Adobe RGB using D75 white point
+/// Red  : (0.666, 0.334)
+/// Green: (0.238, 0.714)
+/// Blue : (0.139, 0.053)
+/// White: (0.298, 0.318)
+///
+/// Color Space: Quest similar to Rift CV1 using D75 white point
+/// Red  : (0.661, 0.338)
+/// Green: (0.228, 0.718)
+/// Blue : (0.142, 0.042)
+/// White: (0.298, 0.318)
+///
+/// Color Space: Rift S similar to Rec 709 using D75
+/// Red  : (0.640, 0.330)
+/// Green: (0.292, 0.586)
+/// Blue : (0.156, 0.058)
+/// White: (0.298, 0.318)
+///
+/// Note: Due to LCD limitations, the Go display will not be able to meaningfully differentiate
+/// brightness levels below 13 out of 255 for 8-bit sRGB or 0.0015 out of 1.0 max for linear-RGB
+/// shader output values. To that end, it is recommended that reliance on a dark and narrow gamut is
+/// avoided, and the content is instead spread across a larger brightness range when possible.
+///
+typedef enum ovrpColorSpace_ {
+    /// Default value until client sets calls SetClientColorDesc
+    ovrpColorSpace_Unknown = 0,
+    /// No color correction, not recommended for production use. See notes above for more info
+    ovrpColorSpace_Unmanaged = 1,
+    /// Preferred color space for standardized color across all Oculus HMDs with D65 white point
+    ovrpColorSpace_Rec_2020 = 2,
+    /// Rec. 709 is used on Oculus Go and shares the same primary color coordinates as sRGB
+    ovrpColorSpace_Rec_709 = 3,
+    /// Oculus Rift CV1 uses a unique color space, see enum description for more info
+    ovrpColorSpace_Rift_CV1 = 4,
+    /// Oculus Rift S uses a unique color space, see enum description for more info
+    ovrpColorSpace_Rift_S = 5,
+    /// Oculus Quest's native color space is slightly different than Rift CV1
+    ovrpColorSpace_Quest = 6,
+    /// Similar to DCI-P3. See notes above for more details on P3
+    ovrpColorSpace_P3 = 7,
+    /// Similar to sRGB but with deeper greens using D65 white point
+    ovrpColorSpace_Adobe_RGB = 8,
+    ovrpColorSpace_Count
+} ovrpColorSpace;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif

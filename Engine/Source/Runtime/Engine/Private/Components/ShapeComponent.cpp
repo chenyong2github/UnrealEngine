@@ -24,6 +24,7 @@ UShapeComponent::UShapeComponent(const FObjectInitializer& ObjectInitializer)
 
 	bHiddenInGame = true;
 	bCastDynamicShadow = false;
+	bExcludeFromLightAttachmentGroup = true;
 	ShapeColor = FColor(223, 149, 157, 255);
 	bShouldCollideWhenPlacing = false;
 

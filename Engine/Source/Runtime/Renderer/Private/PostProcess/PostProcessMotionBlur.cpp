@@ -456,24 +456,20 @@ void AddMotionBlurVelocityPass(
 
 	FRDGTextureRef VelocityFlatTexture =
 		GraphBuilder.CreateTexture(
-			FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc::Create2D(
 				Viewports.Velocity.Extent,
 				PF_FloatR11G11B10,
 				FClearValueBinding::None,
-				GFastVRamConfig.VelocityFlat,
-				TexCreate_ShaderResource | TexCreate_UAV,
-				false),
+				GFastVRamConfig.VelocityFlat | TexCreate_ShaderResource | TexCreate_UAV),
 			TEXT("VelocityFlat"));
 
 	FRDGTextureRef VelocityTileTextureSetup =
 		GraphBuilder.CreateTexture(
-			FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc::Create2D(
 				VelocityTileCount,
 				PF_FloatRGBA,
 				FClearValueBinding::None,
-				GFastVRamConfig.VelocityMax,
-				TexCreate_ShaderResource | TexCreate_UAV,
-				false),
+				GFastVRamConfig.VelocityMax | TexCreate_ShaderResource | TexCreate_UAV),
 			TEXT("VelocityTile"));
 
 	const FMotionBlurParameters MotionBlurParametersNoScale = GetMotionBlurParameters(View, Viewports.Color.Rect.Size(), 1.0f);
@@ -502,13 +498,11 @@ void AddMotionBlurVelocityPass(
 
 	FRDGTextureRef VelocityTileTexture =
 		GraphBuilder.CreateTexture(
-			FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc::Create2D(
 				VelocityTileCount,
 				PF_FloatRGBA,
 				FClearValueBinding::None,
-				GFastVRamConfig.MotionBlur,
-				TexCreate_ShaderResource | (ScatterDilatation ? TexCreate_RenderTargetable : TexCreate_UAV),
-				false),
+				GFastVRamConfig.MotionBlur | TexCreate_ShaderResource | (ScatterDilatation ? TexCreate_RenderTargetable : TexCreate_UAV)),
 			TEXT("DilatedVelocityTile"));
 
 	FMotionBlurVelocityDilateParameters VelocityDilateParameters;
@@ -520,13 +514,11 @@ void AddMotionBlurVelocityPass(
 	{
 		FRDGTextureRef VelocityTileDepthTexture =
 			GraphBuilder.CreateTexture(
-				FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc::Create2D(
 					VelocityTileCount,
 					PF_ShadowDepth,
 					FClearValueBinding::DepthOne,
-					TexCreate_None,
-					TexCreate_DepthStencilTargetable,
-					false),
+					TexCreate_DepthStencilTargetable),
 				TEXT("DilatedVelocityDepth"));
 
 		FMotionBlurVelocityDilateScatterParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVelocityDilateScatterParameters>();
@@ -684,10 +676,9 @@ FRDGTextureRef AddMotionBlurFilterPass(
 
 	FRDGTextureDesc OutColorDesc = ColorTexture->Desc;
 	OutColorDesc.Reset();
-	OutColorDesc.TargetableFlags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
-	OutColorDesc.TargetableFlags |= bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable;
+	OutColorDesc.Flags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
+	OutColorDesc.Flags |= bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable;
 	OutColorDesc.Flags |= GFastVRamConfig.MotionBlur;
-	OutColorDesc.AutoWritable = false;
 	OutColorDesc.Format =  IsPostProcessingWithAlphaChannelSupported() ? PF_FloatRGBA : PF_FloatRGB;
 
 	FRDGTextureRef ColorTextureOutput = GraphBuilder.CreateTexture(OutColorDesc, TEXT("MotionBlur"));

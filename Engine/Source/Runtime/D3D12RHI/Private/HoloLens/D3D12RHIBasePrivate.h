@@ -38,5 +38,7 @@
 #define D3D12RHI_HEAP_FLAG_ALLOW_INDIRECT_BUFFERS		D3D12_HEAP_FLAG_NONE
 
 #include "../Public/D3D12Util.h"
-#include "HoloLensD3D12DiskCache.h"
-#include "HoloLensD3D12PipelineState.h"
+
+// Windows desktop version is used.
+#include "Windows/WindowsD3D12DiskCache.h"
+#include "Windows/WindowsD3D12PipelineState.h"

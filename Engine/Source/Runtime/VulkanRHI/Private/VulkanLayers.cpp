@@ -100,17 +100,27 @@ static const ANSICHAR* GDeviceExtensions[] =
 #if VULKAN_SUPPORTS_MAINTENANCE_LAYER1
 	VK_KHR_MAINTENANCE1_EXTENSION_NAME,
 #endif
+
 #if VULKAN_SUPPORTS_MAINTENANCE_LAYER2
 	VK_KHR_MAINTENANCE2_EXTENSION_NAME,
 #endif
+
 #if VULKAN_SUPPORTS_VALIDATION_CACHE
 	VK_EXT_VALIDATION_CACHE_EXTENSION_NAME,
 #endif
+
 #if VULKAN_SUPPORTS_MEMORY_PRIORITY
 	VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
 #endif
 
+#if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS
+	// If we decide to support separate depth-stencil transitions, enable this.
+	//VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+	//VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME,
+#endif
+
 	//VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME,
+	
 	nullptr
 };
 
@@ -737,7 +747,15 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	if (GGPUCrashDebuggingEnabled)
 	{
 		HasAMDBufferMarker = HasExtension(DeviceExtensions, VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
-		bHasAnyCrashExtension = bHasAnyCrashExtension || !HasAMDBufferMarker;
+		bHasAnyCrashExtension = bHasAnyCrashExtension || HasAMDBufferMarker;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_NV_DEVICE_DIAGNOSTIC_CONFIG
+	if (GGPUCrashDebuggingEnabled)
+	{
+		HasNVDeviceDiagnosticConfig = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
+		bHasAnyCrashExtension = bHasAnyCrashExtension || HasNVDeviceDiagnosticConfig;
 	}
 #endif
 
@@ -745,7 +763,7 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	if (GGPUCrashDebuggingEnabled)
 	{
 		HasNVDiagnosticCheckpoints = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
-		bHasAnyCrashExtension = bHasAnyCrashExtension || !HasNVDiagnosticCheckpoints;
+		bHasAnyCrashExtension = bHasAnyCrashExtension || HasNVDiagnosticCheckpoints;
 	}
 #endif
 
@@ -774,8 +792,6 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasEXTASTCDecodeMode = 0;
 #endif
 
-	HasEXTFragmentDensityMap = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
-
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 	HasDriverProperties = HasExtension(DeviceExtensions, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
 #endif
@@ -788,7 +804,9 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 
 	HasKHRImageFormatList = HasExtension(DeviceExtensions, VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
 
+#if VULKAN_SUPPORTS_QCOM_RENDERPASS_TRANSFORM
 	HasQcomRenderPassTransform = HasExtension(DeviceExtensions, VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME);
+#endif
 }
 
 void FVulkanDynamicRHI::SetupValidationRequests()

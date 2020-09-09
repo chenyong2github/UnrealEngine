@@ -9,8 +9,11 @@
 #include "Features/IModularFeature.h"
 #include "Engine/GameViewportClient.h"
 #include "IXRInput.h"
+#include "XRGestureConfig.h"
+#include "Kismet/GameplayStatics.h"
 
 class IXRCamera;
+class UARPin;
 
 /**
  * Struct representing the properties of an external tracking sensor.
@@ -35,6 +38,7 @@ struct FXRSensorProperties
 };
 
 
+
 /**
  * Main access point to an XR tracking system. Use it to enumerate devices and query their poses.
  */
@@ -51,6 +55,11 @@ public:
 	 * Returns version string.
 	 */
 	virtual FString GetVersionString() const = 0;
+
+	/**
+	 * Returns device specific flags.
+	 */
+	virtual int32 GetXRSystemFlags() const = 0;
 
 	/**
 	 * Device id 0 is reserved for an HMD. This should represent the HMD or the first HMD in case multiple HMDs are supported.
@@ -388,4 +397,38 @@ public:
 	 * Called just after the late update on the render thread passing back the current relative transform.
 	 */
 	virtual void OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeTransform) {}
+
+	/**
+	 * Platform Agnostic Query about HMD details
+	 */
+	virtual void GetHMDData(UObject* WorldContext, FXRHMDData& HMDData)
+	{
+		HMDData.bValid = true;
+		HMDData.DeviceName = GetSystemName();
+		HMDData.ApplicationInstanceID = FApp::GetInstanceId();
+
+		bool bIsTracking = IsTracking(IXRTrackingSystem::HMDDeviceId);
+		HMDData.TrackingStatus = bIsTracking ? ETrackingStatus::Tracked : ETrackingStatus::NotTracked;
+
+		APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(WorldContext, 0);
+		if (CameraManager)
+		{
+			HMDData.Rotation = CameraManager->GetCameraRotation().Quaternion();
+			HMDData.Position = CameraManager->GetCameraLocation();
+		}
+		//GetCurrentPose(0, HMDVisualizationData.Rotation, HMDVisualizationData.Position);
+	}
+
+	/**
+	 * Platform Agnostic Query about MotionControllers details
+	 */
+	virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) = 0;
+
+	virtual bool ConfigureGestures(const FXRGestureConfig& GestureConfig) = 0;
+
+	virtual EXRDeviceConnectionResult::Type ConnectRemoteXRDevice(const FString& IpAddress, const int32 BitRate)
+	{ 
+		return EXRDeviceConnectionResult::FeatureNotSupported;
+	};
+	virtual void DisconnectRemoteXRDevice() {};
 };

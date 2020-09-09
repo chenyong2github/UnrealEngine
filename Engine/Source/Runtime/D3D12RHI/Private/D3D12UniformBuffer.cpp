@@ -6,11 +6,16 @@
 
 #include "D3D12RHIPrivate.h"
 #include "UniformBuffer.h"
-#include "RenderGraphResources.h"
+#include "ShaderParameterStruct.h"
 
 FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12UpdateUniformBufferTime);
+
+	if (Validation == EUniformBufferValidation::ValidateResources)
+	{
+		ValidateShaderParameterResourcesRHI(Contents, Layout);
+	}
 
 	//Note: This is not overly efficient in the mGPU case (we create two+ upload locations) but the CPU savings of having no extra indirection to the resource are worth
 	//      it in single node.
@@ -76,41 +81,14 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 		{
 			CurrentBuffer.ResourceTable.Empty(NumResources);
 			CurrentBuffer.ResourceTable.AddZeroed(NumResources);
-			for (int32 i = 0; i < NumResources; ++i)
+			for (int32 Index = 0; Index < NumResources; ++Index)
 			{
-				EUniformBufferBaseType ResourceType = Layout.Resources[i].MemberType;
-
-				FRHIResource* Resource;
-				if (IsShaderParameterTypeIgnoredByRHI(ResourceType))
-				{
-					continue;
-				}
-				else if (IsRDGResourceReferenceShaderParameterType(ResourceType))
-				{
-					check(IsInRenderingThread()); // TODO: UE-68018
-					FRDGResource* ResourcePtr = *(FRDGResource**)((uint8*)Contents + Layout.Resources[i].MemberOffset);
-					Resource = ResourcePtr ? ResourcePtr->GetRHI() : nullptr;
-				}
-				else
-				{
-					Resource = *(FRHIResource**)((uint8*)Contents + Layout.Resources[i].MemberOffset);
-				}
-
-				// Allow null SRV's in uniform buffers for feature levels that don't support SRV's in shaders
-				if (!(GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && (ResourceType == UBMT_SRV || ResourceType == UBMT_RDG_TEXTURE_SRV)) && Validation == EUniformBufferValidation::ValidateResources)
-				{
-					check(Resource);
-				}
-
-				CurrentBuffer.ResourceTable[i] = Resource;
+				CurrentBuffer.ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout.Resources[Index].MemberOffset, Layout.Resources[Index].MemberType);
 			}
 		}
 	}
 
-	if (UniformBufferOut)
-	{
-		UpdateBufferStats<FD3D12UniformBuffer>(&UniformBufferOut->ResourceLocation, true);
-	}
+	UpdateBufferStats<FD3D12UniformBuffer>(&UniformBufferOut->ResourceLocation, true);
 
 	return UniformBufferOut;
 }
@@ -156,6 +134,8 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 	check(UniformBufferRHI);
 
 	const FRHIUniformBufferLayout& Layout = UniformBufferRHI->GetLayout();
+	ValidateShaderParameterResourcesRHI(Contents, Layout);
+
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const bool bBypass = RHICmdList.Bypass();
 
@@ -172,32 +152,10 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 			? (FRHIResource**)FMemory_Alloca(sizeof(FRHIResource*) * NumResources) 
 			: (FRHIResource**)RHICmdList.Alloc(sizeof(FRHIResource*) * NumResources, alignof(FRHIResource*));
 
-		for (int32 ResourceIndex = 0; ResourceIndex < NumResources; ++ResourceIndex)
+		for (int32 Index = 0; Index < NumResources; ++Index)
 		{
-			EUniformBufferBaseType ResourceType = Layout.Resources[ResourceIndex].MemberType;
-
-			FRHIResource* Resource;
-			if (IsShaderParameterTypeIgnoredByRHI(ResourceType))
-			{
-				continue;
-			}
-			else if (IsRDGResourceReferenceShaderParameterType(ResourceType))
-			{
-				check(IsInRenderingThread()); // TODO: UE-68018
-				FRDGResource* ResourcePtr = *(FRDGResource**)((uint8*)Contents + Layout.Resources[ResourceIndex].MemberOffset);
-				Resource = ResourcePtr ? ResourcePtr->GetRHI() : nullptr;
-			}
-			else
-			{
-				Resource = *(FRHIResource**)((uint8*)Contents + Layout.Resources[ResourceIndex].MemberOffset);
-			}
-
-			checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."),
-				*Layout.GetDebugName(),
-				ResourceIndex,
-				Layout.Resources[ResourceIndex].MemberType);
-
-			CmdListResources[ResourceIndex] = Resource;
+			const auto Parameter = Layout.Resources[Index];
+			CmdListResources[Index] = GetShaderParameterResourceRHI(Contents, Parameter.MemberOffset, Parameter.MemberType);
 		}
 	}
 

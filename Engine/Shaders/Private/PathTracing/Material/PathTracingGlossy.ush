@@ -32,8 +32,6 @@ float PredividedG_SmithV(float a2, float NoV, const float NoL)
 	return 0.5f / (G_SmithV * NoL);
 }
 
-#if GBUFFER_HAS_TANGENT
-
 float4 ImportanceSampleVisibleGGX_Aniso(float2 DiskE, float2 a2, float3 V)
 {
 	// TODO float2 alpha for anisotropic
@@ -73,7 +71,6 @@ float4 ImportanceSampleVisibleGGX_Aniso(float2 DiskE, float2 a2, float3 V)
 
 	return float4(H, PDF);
 }
-#endif
 
 float Glossy_Pdf(float3 IncomingDirection, float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
 {
@@ -104,33 +101,36 @@ float Glossy_Pdf(float3 IncomingDirection, float3 OutgoingDirection, FMaterialCl
 
 	if (NoL * NoV > 0.0f && NoH > 0.0f)
 	{
-#if GBUFFER_HAS_TANGENT
-		float ax = 0;
-		float ay = 0;
-		GetAnisotropicRoughness(Roughness*Roughness, Payload.Anisotropy, ax, ay);
-
-		//#todo check energy normalization factor
-		float3 X = Payload.WorldTangent;
-		float3 Y = normalize(cross(N_World, X));
-		float3 H_World = TangentToWorld(H, N_World);
-
-		float XoH = saturate(dot(X, H_World));
-		float YoH = saturate(dot(Y, H_World));
-
-		float D = D_GGXaniso(ax, ay, NoH, XoH, YoH);
-
-		if (VoH > 0.0)
+		if (Payload.HasAnisotropy())
 		{
-			SpecularPdf = D * NoH / (4.0 * VoH);
-		}
-#else
-		float a2 = Pow4(Roughness);
-		float D = D_GGX(a2, NoH);
-		float G1 = PredividedG_SmithV(a2, abs(NoV), abs(NoL));
+			float ax = 0;
+			float ay = 0;
+			GetAnisotropicRoughness(Roughness*Roughness, Payload.Anisotropy, ax, ay);
 
-		SpecularPdf = ClampIfInvalid(G1 * D);
-		SpecularPdf *= NoL;
-#endif
+			//#todo check energy normalization factor
+			float3 X = Payload.WorldTangent;
+			float3 Y = normalize(cross(N_World, X));
+			float3 H_World = TangentToWorld(H, N_World);
+
+			float XoH = saturate(dot(X, H_World));
+			float YoH = saturate(dot(Y, H_World));
+
+			float D = D_GGXaniso(ax, ay, NoH, XoH, YoH);
+
+			if (VoH > 0.0)
+			{
+				SpecularPdf = D * NoH / (4.0 * VoH);
+			}
+		}
+		else
+		{
+			float a2 = Pow4(Roughness);
+			float D = D_GGX(a2, NoH);
+			float G1 = PredividedG_SmithV(a2, abs(NoV), abs(NoL));
+
+			SpecularPdf = ClampIfInvalid(G1 * D);
+			SpecularPdf *= NoL;
+		}
 	}
 
 	// Diffuse 
@@ -176,16 +176,22 @@ void Glossy_SampleMaterial(
 	{	
 		bool Flip = V.z < 0.0f;
 
-#if GBUFFER_HAS_TANGENT
+		float4 ResGGX = 0;
 		float ax = 0;
 		float ay = 0;
-		GetAnisotropicRoughness(Roughness*Roughness, Payload.Anisotropy, ax, ay);
 
-		float2 a2 = float2(ax, ay);
-		float4 ResGGX = ImportanceSampleVisibleGGX_Aniso(UniformSampleDisk(RandSample.xy), Pow4(Roughness), Flip ? -V : V);
-#else
-		float4 ResGGX = ImportanceSampleVisibleGGX(UniformSampleDisk(RandSample.xy), Pow4(Roughness), Flip ? -V : V);
-#endif
+		if (Payload.HasAnisotropy())
+		{
+			GetAnisotropicRoughness(Roughness*Roughness, Payload.Anisotropy, ax, ay);
+
+			float2 a2 = float2(ax, ay);
+			ResGGX = ImportanceSampleVisibleGGX_Aniso(UniformSampleDisk(RandSample.xy), Pow4(Roughness), Flip ? -V : V);
+		}
+		else
+		{
+			ResGGX = ImportanceSampleVisibleGGX(UniformSampleDisk(RandSample.xy), Pow4(Roughness), Flip ? -V : V);
+		}
+
 		float3 H = ResGGX.xyz;
 		if (Flip)
 		{
@@ -203,36 +209,42 @@ void Glossy_SampleMaterial(
 			return;
 		}
 
-#if GBUFFER_HAS_TANGENT
+		float D = 0;
+		float G2 = 0;
+		float G1 = 0;
 
-		//#todo check energy normalization factor
-		
-		float3 X = Payload.WorldTangent;
-		float3 Y = normalize(cross(N_World, X));
-		float3 H_World = TangentToWorld(H, N_World);
+		if (Payload.HasAnisotropy())
+		{
+			//#todo check energy normalization factor
+			
+			float3 X = Payload.WorldTangent;
+			float3 Y = normalize(cross(N_World, X));
+			float3 H_World = TangentToWorld(H, N_World);
 
-		float XoH = saturate(dot(X, H_World));
-		float YoH = saturate(dot(Y, H_World));
-		float XoV = saturate(dot(X, V_World));
-		float YoV = saturate(dot(Y, V_World));
+			float XoH = saturate(dot(X, H_World));
+			float YoH = saturate(dot(Y, H_World));
+			float XoV = saturate(dot(X, V_World));
+			float YoV = saturate(dot(Y, V_World));
 
-		//#todo: optimize, we are doing it twice. Work in world coords all the time
-		float3 L_World = TangentToWorld(L, N_World);
+			//#todo: optimize, we are doing it twice. Work in world coords all the time
+			float3 L_World = TangentToWorld(L, N_World);
 
-		float XoL = saturate(dot(X, L_World));
-		float YoL = saturate(dot(Y, L_World));
+			float XoL = saturate(dot(X, L_World));
+			float YoL = saturate(dot(Y, L_World));
 
-		float D = D_GGXaniso(ax, ay, NoH, XoH, YoH);
-		float G2 = Vis_SmithJointAniso(ax, ay, abs(NoV), abs(NoL), XoV, XoL, YoV, YoL);
+			D = D_GGXaniso(ax, ay, NoH, XoH, YoH);
+			G2 = Vis_SmithJointAniso(ax, ay, abs(NoV), abs(NoL), XoV, XoL, YoV, YoL);
 
-		float a2_NoAniso = Pow4(Roughness); //todo
-		float G1 = PredividedG_SmithV(a2_NoAniso, abs(NoV), abs(NoL));
-#else
-		float a2 = Pow4(Roughness);
-		float D = D_GGX(a2, NoH);
-		float G2 = Vis_SmithJointApprox(a2, abs(NoV), abs(NoL));
-		float G1 = PredividedG_SmithV(a2, abs(NoV), abs(NoL));
-#endif
+			float a2_NoAniso = Pow4(Roughness); //todo
+			G1 = PredividedG_SmithV(a2_NoAniso, abs(NoV), abs(NoL));
+		}
+		else
+		{
+			float a2 = Pow4(Roughness);
+			D = D_GGX(a2, NoH);
+			G2 = Vis_SmithJointApprox(a2, abs(NoV), abs(NoL));
+			G1 = PredividedG_SmithV(a2, abs(NoV), abs(NoL));
+		}
 
 		float3 F = F_Schlick(SpecularColor, dot(V, H));
 
@@ -299,37 +311,44 @@ void Glossy_EvalMaterial(
 
 	if (NoL * NoV > 0.0f && NoH > 0.0f)
 	{
-#if GBUFFER_HAS_TANGENT
-		float ax = 0;
-		float ay = 0;
-		GetAnisotropicRoughness(Roughness*Roughness, Payload.Anisotropy, ax, ay);
+		float D = 0;
+		float G2 = 0;
+		float G1 = 0;
 
-		//#todo check energy normalization factor
+		if (Payload.HasAnisotropy())
+		{
+			float ax = 0;
+			float ay = 0;
+			GetAnisotropicRoughness(Roughness*Roughness, Payload.Anisotropy, ax, ay);
 
-		float3 X = Payload.WorldTangent;
-		float3 Y = normalize(cross(N_World, X));
+			//#todo check energy normalization factor
 
-		float3 H_World = TangentToWorld(H, N_World);
+			float3 X = Payload.WorldTangent;
+			float3 Y = normalize(cross(N_World, X));
 
-		float XoH = saturate(dot(X, H_World));
-		float YoH = saturate(dot(Y, H_World));
-		float XoV = saturate(dot(X, V_World));
-		float YoV = saturate(dot(Y, V_World));
-		//#todo check world vs local
-		float XoL = saturate(dot(X, L_World));
-		float YoL = saturate(dot(Y, L_World));
+			float3 H_World = TangentToWorld(H, N_World);
 
-		float D = D_GGXaniso(ax, ay, NoH, XoH, YoH);
-		float G2 = Vis_SmithJointAniso(ax, ay, abs(NoV), abs(NoL), XoV, XoL, YoV, YoL);
+			float XoH = saturate(dot(X, H_World));
+			float YoH = saturate(dot(Y, H_World));
+			float XoV = saturate(dot(X, V_World));
+			float YoV = saturate(dot(Y, V_World));
+			//#todo check world vs local
+			float XoL = saturate(dot(X, L_World));
+			float YoL = saturate(dot(Y, L_World));
 
-		float a2 = Pow4(Roughness);
-		float G1 = PredividedG_SmithV(a2, abs(NoV), abs(NoL));
-#else
-		float a2 = Pow4(Roughness);
-		float D = D_GGX(a2, NoH);
-		float G2 = Vis_SmithJointApprox(a2, abs(NoV), abs(NoL));
-		float G1 = PredividedG_SmithV(a2, abs(NoV), abs(NoL));
-#endif
+			float D = D_GGXaniso(ax, ay, NoH, XoH, YoH);
+			float G2 = Vis_SmithJointAniso(ax, ay, abs(NoV), abs(NoL), XoV, XoL, YoV, YoL);
+
+			float a2 = Pow4(Roughness);
+			float G1 = PredividedG_SmithV(a2, abs(NoV), abs(NoL));
+		}
+		else
+		{
+			float a2 = Pow4(Roughness);
+			float D = D_GGX(a2, NoH);
+			float G2 = Vis_SmithJointApprox(a2, abs(NoV), abs(NoL));
+			float G1 = PredividedG_SmithV(a2, abs(NoV), abs(NoL));
+		}
 
 		SpecularThroughput = ClampIfInvalid(G2 * D);
 		SpecularPdf = ClampIfInvalid(G1 * D);
@@ -348,7 +367,6 @@ void Glossy_EvalMaterial(
 
 	// Add contributions
 	OutThroughput = (DiffuseThroughput + SpecularThroughput);
-	OutThroughput *= NoL;
 
 	float ProbSpecular = GetSpecularEventProbability(SpecularColor, NoV);
 	OutPdf = ProbSpecular * SpecularPdf + (1.0f - ProbSpecular) * DiffusePdf;

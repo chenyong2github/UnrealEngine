@@ -8,7 +8,7 @@
 
 /** Parameters for a raycast request. */
 USTRUCT(BlueprintType, meta = (HasNativeMake = "MagicLeap.MagicLeapRaycastFunctionLibrary.MakeRaycastQueryParams"))
-struct FMagicLeapRaycastQueryParams
+struct MAGICLEAP_API FMagicLeapRaycastQueryParams
 {
 	GENERATED_BODY()
 
@@ -63,7 +63,7 @@ enum class EMagicLeapRaycastResultState : uint8
 
 /** Result of a raycast. */
 USTRUCT(BlueprintType)
-struct FMagicLeapRaycastHitResult
+struct MAGICLEAP_API FMagicLeapRaycastHitResult
 {
 	GENERATED_BODY()
 

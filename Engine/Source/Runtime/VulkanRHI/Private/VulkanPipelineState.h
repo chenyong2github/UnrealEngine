@@ -10,7 +10,6 @@
 #include "VulkanMemory.h"
 #include "VulkanCommandBuffer.h"
 #include "VulkanDescriptorSets.h"
-#include "VulkanGlobalUniformBuffer.h"
 #include "VulkanPipeline.h"
 #include "VulkanRHIPrivate.h"
 #include "Containers/ArrayView.h"
@@ -51,7 +50,7 @@ public:
 	inline void SetStorageBuffer(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanStructuredBuffer* StructuredBuffer)
 	{
 		check(StructuredBuffer && (StructuredBuffer->GetBufferUsageFlags() & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-		MarkDirty(DSWriter[DescriptorSet].WriteStorageBuffer(BindingIndex, *StructuredBuffer->GetBufferAllocation(), StructuredBuffer->GetOffset(), StructuredBuffer->GetCurrentSize()));
+		MarkDirty(DSWriter[DescriptorSet].WriteStorageBuffer(BindingIndex, StructuredBuffer->GetCurrentAllocation(), StructuredBuffer->GetOffset(), StructuredBuffer->GetCurrentSize()));
 	}
 
 	inline void SetUAVTexelBufferViewState(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanBufferView* View)
@@ -102,11 +101,11 @@ public:
 		{
 			if (bDynamic)
 			{
-				MarkDirty(DSWriter[DescriptorSet].WriteDynamicUniformBuffer(BindingIndex, *UniformBuffer->GetBufferAllocation(), 0, UniformBuffer->GetSize(), UniformBuffer->GetOffset()));
+				MarkDirty(DSWriter[DescriptorSet].WriteDynamicUniformBuffer(BindingIndex, UniformBuffer->Allocation, 0, UniformBuffer->GetSize(), UniformBuffer->GetOffset()));
 			}
 			else
 			{
-				MarkDirty(DSWriter[DescriptorSet].WriteUniformBuffer(BindingIndex, *UniformBuffer->GetBufferAllocation(), UniformBuffer->GetOffset(), UniformBuffer->GetSize()));
+				MarkDirty(DSWriter[DescriptorSet].WriteUniformBuffer(BindingIndex, UniformBuffer->Allocation, UniformBuffer->GetOffset(), UniformBuffer->GetSize()));
 			}
 		}
 	}
@@ -310,13 +309,13 @@ static inline bool UpdatePackedUniformBuffers(VkDeviceSize UBOffsetAlignment, co
 
 			if (bIsDynamic)
 			{
-				const bool bDirty = DescriptorWriteSet.WriteDynamicUniformBuffer(BindingIndex, *UniformBufferUploader->GetCPUBufferAllocation(), UniformBufferUploader->GetCPUBufferOffset(), UBSize, RingBufferOffset);
+				const bool bDirty = DescriptorWriteSet.WriteDynamicUniformBuffer(BindingIndex, UniformBufferUploader->GetCPUBufferAllocation(), UniformBufferUploader->GetCPUBufferOffset(), UBSize, RingBufferOffset);
 				bAnyUBDirty = bAnyUBDirty || bDirty;
 
 			}
 			else
 			{
-				const bool bDirty = DescriptorWriteSet.WriteUniformBuffer(BindingIndex, *UniformBufferUploader->GetCPUBufferAllocation(), RingBufferOffset + UniformBufferUploader->GetCPUBufferOffset(), UBSize);
+				const bool bDirty = DescriptorWriteSet.WriteUniformBuffer(BindingIndex, UniformBufferUploader->GetCPUBufferAllocation(), RingBufferOffset + UniformBufferUploader->GetCPUBufferOffset(), UBSize);
 				bAnyUBDirty = bAnyUBDirty || bDirty;
 
 			}

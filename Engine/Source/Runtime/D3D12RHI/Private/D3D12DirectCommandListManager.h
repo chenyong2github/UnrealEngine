@@ -77,11 +77,11 @@ private:
 };
 
 // Automatically increments the current fence value after Signal.
-class FD3D12Fence : public FRHIComputeFence, public FD3D12AdapterChild, public FD3D12MultiNodeGPUObject, public FNoncopyable
+class FD3D12Fence : public FRefCountedObject, public FD3D12AdapterChild, public FD3D12MultiNodeGPUObject, public FNoncopyable
 {
 public:
 	FD3D12Fence(FD3D12Adapter* InParent, FRHIGPUMask InGPUMask, const FName& InName = L"<unnamed>");
-	~FD3D12Fence();
+	virtual ~FD3D12Fence();
 
 	virtual void CreateFence();
 	virtual uint64 Signal(ED3D12CommandQueueType InQueueType);
@@ -118,6 +118,8 @@ protected:
 
 	uint64 LastCompletedFences[MAX_NUM_GPUS];
 	FD3D12FenceCore* FenceCores[MAX_NUM_GPUS];
+
+	FName Name;
 };
 
 // Fence value must be incremented manually. Useful when you need incrementing and signaling to happen at different times, e.g. for a FrameFence,

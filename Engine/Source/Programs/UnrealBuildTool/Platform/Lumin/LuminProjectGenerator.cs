@@ -36,7 +36,9 @@ namespace UnrealBuildTool
 			if (!VSSupportChecked)
 			{
 				// TODO: add a registry check or file exists check to confirm if MLExtension is installed on the given ProjectFileFormat.
-				VSDebuggingEnabled = (ProjectFileFormat == VCProjectFileFormat.VisualStudio2015 || ProjectFileFormat == VCProjectFileFormat.VisualStudio2017);
+				VSDebuggingEnabled = (ProjectFileFormat == VCProjectFileFormat.VisualStudio2015 
+									|| ProjectFileFormat == VCProjectFileFormat.VisualStudio2017 
+									|| ProjectFileFormat == VCProjectFileFormat.VisualStudio2019);
 				VSSupportChecked = true;
 			}
             return VSDebuggingEnabled;
@@ -115,11 +117,11 @@ namespace UnrealBuildTool
                 // Can't use $(NMakeOutput) directly since that is defined after <ELFFile> tag and thus ends up being translated as an empty string.
                 string ELFFile = bGetEntriesForBlueprintOnlyProject ? PackagePath : Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
 				// Provide path to stripped executable so all symbols are resolved from the external sym file instead.
-                ELFFile = Path.Combine(ELFFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Binaries", NMakeOutputPath.GetFileName());
+				ELFFile = Path.Combine(ELFFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Binaries", GetElfName(NMakeOutputPath));
 				string DebuggerFlavor = "MLDebugger";
 
 				string SymFile = Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
-				SymFile = Path.Combine(SymFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Binaries", Path.ChangeExtension(NMakeOutputPath.GetFileName(), ".sym"));
+				SymFile = Path.Combine(SymFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Binaries", Path.ChangeExtension(GetElfName(NMakeOutputPath), ".sym"));
 
 				// following are defaults for debugger options
 				string Attach = "false";

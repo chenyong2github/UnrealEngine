@@ -686,6 +686,13 @@ public:
 	 * used when comparing dates and times that should be independent of the user's locale.
 	 * To get the date and time in the current locale, use Now() instead.
 	 *
+	 * This method will use an estimate if USE_ESTIMATED_UTCNOW is 1. To calculate the 
+	 * estimate it will initialize a base reference time and keep track of the offset from 
+	 * that time with FPlatformTime::Cycles64().  
+	 * This is appropriate for platforms whose implementations of FPlatformTime::UtcTime 
+	 * are expensive.  To use, enable bUseEstimatedUtcNow in TargetRules.  The rebase time
+	 * is stored in time.EstimatedUtcNowRebaseTimeSeconds (default setting is 600 seconds).
+	 *
 	 * @return Current date and time.
 	 * @see Now
 	 */

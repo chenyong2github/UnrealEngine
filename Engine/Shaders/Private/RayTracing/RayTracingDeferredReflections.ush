@@ -49,16 +49,14 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 
     // not 'const', may need to be modified below
 	FGBufferData GBuffer         = GetGBufferDataFromSceneTextures(UV);
-	float DeviceZ                = SceneDepthBuffer.Load(int3(PixelPos, 0)).r;
+	float DeviceZ                = SceneDepthTexture.Load(int3(PixelPos, 0)).r;
 
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelPos, DeviceZ, WorldPosition, CameraDirection);
 	float3 V = -CameraDirection;
 
-#if GBUFFER_HAS_TANGENT
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
-#endif
 
 	FSortedReflectionRay Ray = (FSortedReflectionRay)0;
 	Ray.PixelCoordinates = PackPixelCoordinates(PixelPos);

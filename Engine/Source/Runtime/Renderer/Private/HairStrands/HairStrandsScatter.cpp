@@ -53,12 +53,8 @@ static FRDGTextureRef AddPreScatterComposePass(
 	{
 		FRDGTextureDesc Desc;
 		Desc.Extent = Resolution;
-		Desc.Depth = 0;
 		Desc.Format = InSceneColorTexture->Desc.Format;
-		Desc.NumMips = 1;
-		Desc.NumSamples = 1;
-		Desc.Flags = TexCreate_None;
-		Desc.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
+		Desc.Flags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(0);
 		OutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairComposedTexture"));
 	}

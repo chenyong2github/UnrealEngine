@@ -165,6 +165,10 @@ void Main(
 		half Opacity = GetMaterialOpacityRaw(PixelMaterialInputs);
 #if MATERIALBLENDING_MASKED || (DECAL_BLEND_MODE == DECALBLENDMODEID_VOLUMETRIC)
 		half Mask = GetMaterialMask(PixelMaterialInputs);
+		if (!bOutputScales)
+		{
+			clip(GetMaterialMask(PixelMaterialInputs));
+		}
 #endif
 		half4 SSData = GetMaterialSubsurfaceDataRaw(PixelMaterialInputs);
 		float Custom0 = GetMaterialCustomData0(MaterialParameters);

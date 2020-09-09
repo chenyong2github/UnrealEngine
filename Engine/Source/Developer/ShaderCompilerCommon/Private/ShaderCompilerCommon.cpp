@@ -5,6 +5,13 @@
 #include "Modules/ModuleManager.h"
 #include "HlslccDefinitions.h"
 #include "HAL/FileManager.h"
+#include "HAL/ExceptionHandling.h"
+
+#if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
+THIRD_PARTY_INCLUDES_START
+	#include "ShaderConductor/ShaderConductor.hpp"
+THIRD_PARTY_INCLUDES_END
+#endif
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, ShaderCompilerCommon);
 
@@ -75,7 +82,7 @@ void BuildResourceTableTokenStream(const TArray<uint32>& InResourceMap, int32 Ma
 
 bool BuildResourceTableMapping(
 	const TMap<FString,FResourceTableEntry>& ResourceTableMap,
-	const TMap<FString,uint32>& ResourceTableLayoutHashes,
+	const TMap<FString, uint32>& ResourceTableLayoutHashes,
 	TBitArray<>& UsedUniformBufferSlots,
 	FShaderParameterMap& ParameterMap,
 	FShaderCompilerResourceTable& OutSRT)
@@ -168,6 +175,20 @@ bool BuildResourceTableMapping(
 
 	OutSRT.MaxBoundResourceTable = MaxBoundResourceTable;
 	return true;
+}
+
+void CullGlobalUniformBuffers(const TMap<FString, FString>& ResourceTableLayoutSlots, FShaderParameterMap& ParameterMap)
+{
+	TArray<FString> ParameterNames;
+	ParameterMap.GetAllParameterNames(ParameterNames);
+
+	for (const FString& Name : ParameterNames)
+	{
+		if (ResourceTableLayoutSlots.Contains(*Name))
+		{
+			ParameterMap.RemoveParameterAllocation(*Name);
+		}
+	}
 }
 
 const TCHAR* FindNextWhitespace(const TCHAR* StringPtr)
@@ -1339,7 +1360,7 @@ static FString Mali_ExtractErrors(const FString &MaliOutput)
 	return ReturnedErrors;
 }
 
-void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput& ShaderOutput, const ANSICHAR* ShaderSource, const int32 SourceSize, bool bVulkanSpirV)
+void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput& ShaderOutput, const ANSICHAR* ShaderSource, const int32 SourceSize, bool bVulkanSpirV, const ANSICHAR* VulkanSpirVEntryPoint)
 {
 	const bool bCompilerExecutableExists = FPaths::FileExists(Input.ExtraSettings.OfflineCompilerPath);
 
@@ -1362,27 +1383,27 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 		switch (Frequency)
 		{
 			case SF_Vertex:
-				GLSLSourceFile += TEXT(".vert");
+				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".vert");
 				CompilerCommand += TEXT(" -v");
 			break;
 			case SF_Pixel:
-				GLSLSourceFile += TEXT(".frag");
+				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".frag");
 				CompilerCommand += TEXT(" -f");
 			break;
 			case SF_Geometry:
-				GLSLSourceFile += TEXT(".geom");
+				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".geom");
 				CompilerCommand += TEXT(" -g");
 			break;
 			case SF_Hull:
-				GLSLSourceFile += TEXT(".tesc");
+				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".tesc");
 				CompilerCommand += TEXT(" -t");
 			break;
 			case SF_Domain:
-				GLSLSourceFile += TEXT(".tese");
+				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".tese");
 				CompilerCommand += TEXT(" -e");
 			break;
 			case SF_Compute:
-				GLSLSourceFile += TEXT(".comp");
+				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".comp");
 				CompilerCommand += TEXT(" -C");
 			break;
 
@@ -1393,7 +1414,7 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 
 		if (bVulkanSpirV)
 		{
-			CompilerCommand += TEXT(" -p");
+			CompilerCommand += FString::Printf(TEXT(" -y %s -p"), ANSI_TO_TCHAR(VulkanSpirVEntryPoint));
 		}
 		else
 		{
@@ -1468,40 +1489,68 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 }
 
 
-void DumpDebugUSF(const FShaderCompilerInput& Input, const ANSICHAR* Source, int32 SourceLength, uint32 HlslCCFlags, const TCHAR* OverrideBaseFilename)
+FString GetDumpDebugUSFContents(const FShaderCompilerInput& Input, const FString& Source, uint32 HlslCCFlags)
+{
+	FString Contents = Source;
+	Contents += TEXT("\n");
+	Contents += CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
+	Contents += TEXT("#if 0 /*DIRECT COMPILE*/\n");
+	Contents += CreateShaderCompilerWorkerDirectCommandLine(Input, HlslCCFlags);
+	Contents += TEXT("\n#endif /*DIRECT COMPILE*/\n");
+
+	return Contents;
+}
+
+void DumpDebugUSF(const FShaderCompilerInput& Input, const ANSICHAR* Source, uint32 HlslCCFlags, const TCHAR* OverrideBaseFilename)
+{
+	FString NewSource = Source ? Source : "";
+	FString Contents = GetDumpDebugUSFContents(Input, NewSource, HlslCCFlags);
+	DumpDebugUSF(Input, NewSource, HlslCCFlags, OverrideBaseFilename);
+}
+
+void DumpDebugUSF(const FShaderCompilerInput& Input, const FString& Source, uint32 HlslCCFlags, const TCHAR* OverrideBaseFilename)
 {
 	FString BaseSourceFilename = (OverrideBaseFilename && *OverrideBaseFilename) ? OverrideBaseFilename : *Input.GetSourceFilename();
 	FString Filename = Input.DumpDebugInfoPath / BaseSourceFilename;
 
 	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*Filename)))
 	{
-		if (SourceLength > 0 && !Source[SourceLength])
-		{
-			// Skip possible extra NUL character
-			--SourceLength;
-		}
-		FileWriter->Serialize((void*)Source, SourceLength);
-		{
-			FString Line = TEXT("\n");
-
-			Line += CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
-
-			Line += TEXT("#if 0 /*DIRECT COMPILE*/\n");
-			Line += CreateShaderCompilerWorkerDirectCommandLine(Input, HlslCCFlags);
-			Line += TEXT("\n#endif /*DIRECT COMPILE*/\n");
-
-			FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
-		}
+		FString Contents = GetDumpDebugUSFContents(Input, Source, HlslCCFlags);
+		FileWriter->Serialize(TCHAR_TO_ANSI(*Contents), Contents.Len());
 		FileWriter->Close();
 	}
 }
 
-void DumpDebugUSF(const FShaderCompilerInput& Input, const FString& Source, uint32 HlslCCFlags, const TCHAR* OverrideBaseFilename)
+void DumpDebugShaderText(const FShaderCompilerInput& Input, const FString& InSource, const FString& FileExtension)
 {
-	auto AnsiSourceFile = StringCast<ANSICHAR>(*Source);
-	DumpDebugUSF(Input, (ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length(), HlslCCFlags, OverrideBaseFilename);
+	FTCHARToUTF8 StringConverter(InSource.GetCharArray().GetData(), InSource.Len());
+
+	// Provide mutable container to pass string to FArchive inside inner function
+	TArray<ANSICHAR> SourceAnsi;
+	SourceAnsi.SetNum(InSource.Len() + 1);
+	FCStringAnsi::Strncpy(SourceAnsi.GetData(), StringConverter.Get(), SourceAnsi.Num());
+
+	// Forward temporary container to primary function
+	DumpDebugShaderText(Input, SourceAnsi.GetData(), InSource.Len(), FileExtension);
 }
 
+void DumpDebugShaderText(const FShaderCompilerInput& Input, ANSICHAR* InSource, int32 InSourceLength, const FString& FileExtension)
+{
+	DumpDebugShaderBinary(Input, InSource, InSourceLength * sizeof(ANSICHAR), FileExtension);
+}
+
+void DumpDebugShaderBinary(const FShaderCompilerInput& Input, void* InData, int32 InDataByteSize, const FString& FileExtension)
+{
+	if (InData != nullptr && InDataByteSize > 0 && !FileExtension.IsEmpty())
+	{
+		const FString Filename = Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".") + FileExtension;
+		if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*Filename)))
+		{
+			FileWriter->Serialize(InData, InDataByteSize);
+			FileWriter->Close();
+		}
+	}
+}
 
 namespace CrossCompiler
 {
@@ -2435,4 +2484,774 @@ namespace CrossCompiler
 
 		return true;
 	}
+
+	/////////// FShaderConductorContext ///////////
+
+#if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
+
+	// Inner wrapper function is required here because '__try'-statement cannot be used with function that requires object unwinding
+	static void InnerScRewriteWrapper(
+		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
+		const ShaderConductor::Compiler::Options& InOptions,
+		ShaderConductor::Compiler::ResultDesc& OutResultDesc)
+	{
+		OutResultDesc = ShaderConductor::Compiler::Rewrite(InSourceDesc, InOptions);
+	}
+
+	static ShaderConductor::Compiler::ResultDesc ScRewriteWrapper(
+		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
+		const ShaderConductor::Compiler::Options& InOptions,
+		bool& bOutException)
+	{
+		bOutException = false;
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__try
+#endif
+		{
+			ShaderConductor::Compiler::ResultDesc Result;
+			InnerScRewriteWrapper(InSourceDesc, InOptions, Result);
+			return Result;
+		}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+			ShaderConductor::Compiler::ResultDesc ResultDesc;
+			FMemory::Memzero(ResultDesc);
+			bOutException = true;
+			return ResultDesc;
+		}
+#endif
+	}
+
+	static ShaderConductor::Compiler::ResultDesc ScCompileWrapper(
+		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
+		const ShaderConductor::Compiler::Options& InOptions,
+		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
+		bool& bOutException)
+	{
+		bOutException = false;
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__try
+#endif
+		{
+			ShaderConductor::Compiler::ResultDesc Result = ShaderConductor::Compiler::Compile(InSourceDesc, InOptions, InTargetDesc);
+			return Result;
+		}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+			ShaderConductor::Compiler::ResultDesc ResultDesc;
+			FMemory::Memzero(ResultDesc);
+			bOutException = true;
+			return ResultDesc;
+		}
+#endif
+	}
+
+	static ShaderConductor::Compiler::ResultDesc ScConvertBinaryWrapper(
+		const ShaderConductor::Compiler::ResultDesc& InBinaryDesc,
+		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
+		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
+		bool& bOutException)
+	{
+		bOutException = false;
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__try
+#endif
+		{
+			return ShaderConductor::Compiler::ConvertBinary(InBinaryDesc, InSourceDesc, InTargetDesc);
+		}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+			ShaderConductor::Compiler::ResultDesc ResultDesc;
+			FMemory::Memzero(ResultDesc);
+			bOutException = true;
+			return ResultDesc;
+		}
+#endif
+	}
+
+	// Converts the byte array 'InString' (without null terminator) to the output ANSI string 'OutString' (with appended null terminator).
+	static void ConvertByteArrayToAnsiString(const ANSICHAR* InString, uint32 InStringLength, TArray<ANSICHAR>& OutString)
+	{
+		// 'FCStringAnsi::Strncpy()' will put a '\0' character at the end
+		OutString.SetNum(InStringLength + 1);
+		FCStringAnsi::Strncpy(OutString.GetData(), InString, OutString.Num());
+	}
+
+	// Converts the FString to the output ANSI string 'OutString'.
+	static void ConvertFStringToAnsiString(const FString& InString, TArray<ANSICHAR>& OutString)
+	{
+		ConvertByteArrayToAnsiString(TCHAR_TO_ANSI(*InString), InString.Len(), OutString);
+	}
+
+	// Copies the NULL-terminated string 'InString' to 'OutString'. Also copies the '\0' character at the end.
+	static void CopyAnsiString(const ANSICHAR* InString, TArray<ANSICHAR>& OutString)
+	{
+		// 'InString' is NULL-terminated, so we can use 'FCStringAnsi::Strlen()'
+		if (InString != nullptr)
+		{
+			ConvertByteArrayToAnsiString(InString, FCStringAnsi::Strlen(InString), OutString);
+		}
+	}
+
+	// Converts the specified ShaderConductor blob to FString.
+	static bool ConvertByteArrayToFString(const void* InData, uint32 InSize, FString& OutString)
+	{
+		if (InData != nullptr && InSize > 0)
+		{
+			FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(InData), InSize);
+			OutString = FString(UTF8Converter.Length(), UTF8Converter.Get());
+			return true;
+		}
+		return false;
+	}
+
+	// Converts the specified ShaderConductor blob to FString.
+	static bool ConvertScBlobToFString(ShaderConductor::Blob* Blob, FString& OutString)
+	{
+		if (Blob && Blob->Size() > 0)
+		{
+			return ConvertByteArrayToFString(Blob->Data(), Blob->Size(), OutString);
+		}
+		return false;
+	}
+
+	static ShaderConductor::ShaderStage ToShaderConductorShaderStage(EHlslShaderFrequency Frequency)
+	{
+		check(Frequency >= HSF_VertexShader && Frequency <= HSF_ComputeShader);
+		switch (Frequency)
+		{
+		case HSF_VertexShader:		return ShaderConductor::ShaderStage::VertexShader;
+		case HSF_PixelShader:		return ShaderConductor::ShaderStage::PixelShader;
+		case HSF_GeometryShader:	return ShaderConductor::ShaderStage::GeometryShader;
+		case HSF_HullShader:		return ShaderConductor::ShaderStage::HullShader;
+		case HSF_DomainShader:		return ShaderConductor::ShaderStage::DomainShader;
+		case HSF_ComputeShader:		return ShaderConductor::ShaderStage::ComputeShader;
+		default:					return ShaderConductor::ShaderStage::NumShaderStages;
+		}
+	}
+
+	static ShaderConductor::Compiler::ShaderModel ToShaderConductorShaderModel(EHlslCompileTarget Target)
+	{
+		switch (Target)
+		{
+		case HCT_FeatureLevelSM4:		return { 4, 0 };
+		case HCT_FeatureLevelES3_1Ext:	return { 4, 0 };
+		case HCT_FeatureLevelSM5:		return { 5, 0 };
+		case HCT_FeatureLevelES3_1:		return { 4, 0 };
+		default: checkf(0, TEXT("Invalid input shader target for enum <EHlslCompileTarget>."));
+		}
+		return { 6,0 };
+	}
+
+	// Wrapper structure to hold all intermediate buffers for ShaderConductor
+	struct FShaderConductorContext::FShaderConductorIntermediates
+	{
+		FShaderConductorIntermediates()
+			: Stage(ShaderConductor::ShaderStage::NumShaderStages)
+		{
+		}
+
+		TArray<ANSICHAR> ShaderSource;
+		TArray<ANSICHAR> Filename;
+		TArray<ANSICHAR> EntryPoint;
+		ShaderConductor::ShaderStage Stage;
+		TArray<TPair<TArray<ANSICHAR>, TArray<ANSICHAR>>> Defines;
+		TArray<ShaderConductor::MacroDefine> DefineRefs;
+		TArray<TPair<TArray<ANSICHAR>, TArray<ANSICHAR>>> Flags;
+		TArray<ShaderConductor::MacroDefine> FlagRefs;
+	};
+
+	static void ConvertScSourceDesc(const FShaderConductorContext::FShaderConductorIntermediates& Intermediates, ShaderConductor::Compiler::SourceDesc& OutSourceDesc)
+	{
+		// Convert descriptor with pointers to the ANSI strings
+		OutSourceDesc.source = Intermediates.ShaderSource.GetData();
+		OutSourceDesc.fileName = Intermediates.Filename.GetData();
+		OutSourceDesc.entryPoint = Intermediates.EntryPoint.GetData();
+		OutSourceDesc.stage = Intermediates.Stage;
+		if (Intermediates.DefineRefs.Num() > 0)
+		{
+			OutSourceDesc.defines = Intermediates.DefineRefs.GetData();
+			OutSourceDesc.numDefines = static_cast<uint32>(Intermediates.DefineRefs.Num());
+		}
+		else
+		{
+			OutSourceDesc.defines = nullptr;
+			OutSourceDesc.numDefines = 0;
+		}
+	}
+
+	static const ANSICHAR* GetGlslFamilyVersionString(int32 Version)
+	{
+		switch (Version)
+		{
+		case 310: return "310";
+		case 320: return "320";
+		case 330: return "330";
+		case 430: return "430";
+		default: return nullptr;
+		}
+	}
+
+	static void ConvertScTargetDescLanguageGlslFamily(const FShaderConductorTarget& InTarget, ShaderConductor::Compiler::TargetDesc& OutTargetDesc)
+	{
+		OutTargetDesc.language = (InTarget.Language == EShaderConductorLanguage::Glsl ? ShaderConductor::ShadingLanguage::Glsl : ShaderConductor::ShadingLanguage::Essl);
+		OutTargetDesc.platform = "";
+		OutTargetDesc.version = GetGlslFamilyVersionString(InTarget.Version);
+		checkf(OutTargetDesc.version, TEXT("Unsupported target shader version for GLSL family: %d"), InTarget.Version);
+	}
+
+	static const ANSICHAR* GetMetalFamilyVersionString(int32 Version)
+	{
+		switch (Version)
+		{
+		case 20100: return "20100";
+		case 20000: return "20000";
+		case 10200: return "10200";
+		case 10100: return "10100";
+		case 10000: return "10000";
+		default: return nullptr;
+		}
+	}
+
+	static void ConvertScTargetDescLanguageMetalFamily(const FShaderConductorTarget& InTarget, ShaderConductor::Compiler::TargetDesc& OutTargetDesc)
+	{
+		OutTargetDesc.language = ShaderConductor::ShadingLanguage::Msl;
+		OutTargetDesc.platform = (InTarget.Language == EShaderConductorLanguage::Metal_macOS ? "macOS" : "iOS");
+		OutTargetDesc.version = GetMetalFamilyVersionString(InTarget.Version);
+		checkf(OutTargetDesc.version, TEXT("Unsupported target shader version for Metal family: %d"), InTarget.Version);
+	}
+
+	static void ConvertScTargetDesc(FShaderConductorContext::FShaderConductorIntermediates& Intermediates, const FShaderConductorTarget& InTarget, ShaderConductor::Compiler::TargetDesc& OutTargetDesc)
+	{
+		// Convert FString to ANSI string and store them as intermediates
+		FMemory::Memzero(OutTargetDesc);
+
+		switch (InTarget.Language)
+		{
+		case EShaderConductorLanguage::Glsl:
+		case EShaderConductorLanguage::Essl:
+			ConvertScTargetDescLanguageGlslFamily(InTarget, OutTargetDesc);
+			break;
+		case EShaderConductorLanguage::Metal_macOS:
+		case EShaderConductorLanguage::Metal_iOS:
+			ConvertScTargetDescLanguageMetalFamily(InTarget, OutTargetDesc);
+			break;
+		}
+
+		// Convert flags map into an array container
+		TArray<ANSICHAR> FlagName, FlagValue;
+		for (const TPair<FString, FString>& Iter : InTarget.CompileFlags.GetDefinitionMap())
+		{
+			ConvertFStringToAnsiString(Iter.Key, FlagName);
+			ConvertFStringToAnsiString(Iter.Value, FlagValue);
+			Intermediates.Flags.Emplace(MoveTemp(FlagName), MoveTemp(FlagValue));
+		}
+
+		// Store references after all elements have been added to the container so the pointers remain valid
+		Intermediates.FlagRefs.SetNum(Intermediates.Flags.Num());
+		for (int32 Index = 0; Index < Intermediates.Flags.Num(); ++Index)
+		{
+			Intermediates.FlagRefs[Index].name = Intermediates.Flags[Index].Key.GetData();
+			Intermediates.FlagRefs[Index].value = Intermediates.Flags[Index].Value.GetData();
+		}
+
+		OutTargetDesc.options = Intermediates.FlagRefs.GetData();
+		OutTargetDesc.numOptions = static_cast<uint32>(Intermediates.FlagRefs.Num());
+	}
+
+	static void ConvertScOptions(const FShaderConductorOptions& InOptions, ShaderConductor::Compiler::Options& OutOptions)
+	{
+		OutOptions.removeUnusedGlobals = InOptions.bRemoveUnusedGlobals;
+		OutOptions.packMatricesInRowMajor = InOptions.bPackMatricesInRowMajor;
+		OutOptions.enable16bitTypes = InOptions.bEnable16bitTypes;
+		OutOptions.enableDebugInfo = InOptions.bEnableDebugInfo;
+		OutOptions.disableOptimizations = InOptions.bDisableOptimizations;
+		OutOptions.enableFMAPass = InOptions.bEnableFMAPass;
+		OutOptions.globalsAsPushConstants = InOptions.bGlobalsAsPushConstants;
+		OutOptions.shaderModel = ToShaderConductorShaderModel(InOptions.TargetProfile);
+	}
+
+	static void ConvertScDefines(FShaderConductorContext::FShaderConductorIntermediates& Intermediates, const FShaderCompilerDefinitions& InDefinitions)
+	{
+		// Convert FString to ANSI string for each macro definition and its value
+		TArray<ANSICHAR> DefineName, DefineValue;
+
+		for (const TPair<FString, FString>& Iter : InDefinitions.GetDefinitionMap())
+		{
+			ConvertFStringToAnsiString(Iter.Key, DefineName);
+			ConvertFStringToAnsiString(Iter.Value, DefineValue);
+			Intermediates.Defines.Emplace(MoveTemp(DefineName), MoveTemp(DefineValue));
+		}
+
+		// Store references after all elements have been added to the container so the pointers remain valid
+		Intermediates.DefineRefs.SetNum(Intermediates.Defines.Num());
+		for (int32 Index = 0; Index < Intermediates.Defines.Num(); ++Index)
+		{
+			Intermediates.DefineRefs[Index].name = Intermediates.Defines[Index].Key.GetData();
+			Intermediates.DefineRefs[Index].value = Intermediates.Defines[Index].Value.GetData();
+		}
+	}
+
+	// Returns whether the specified line of text contains only these characters, making it a valid line marker from DXC: ' ', '\t', '~', '^'
+	static bool IsTextLineDxcLineMarker(const FString& Line)
+	{
+		bool bContainsLineMarkerChars = false;
+		for (TCHAR Char : Line)
+		{
+			if (Char == TCHAR('~') || Char == TCHAR('^'))
+			{
+				// Line contains at least one of the necessary characters to be a potential DXC line marker.
+				bContainsLineMarkerChars = true;
+			}
+			else if (!(Char == TCHAR(' ') || Char == TCHAR('\t')))
+			{
+				// Illegal character for a potential DXC line marker.
+				return false;
+			}
+		}
+		return bContainsLineMarkerChars;
+	}
+
+	// Converts the error blob from ShaderConductor into an array of error reports (of type FShaderCompilerError).
+	static void ConvertScCompileErrors(ShaderConductor::Blob& ErrorBlob, TArray<FShaderCompilerError>& OutErrors)
+	{
+		// Convert blob into FString
+		FString ErrorString;
+		if (ConvertScBlobToFString(&ErrorBlob, ErrorString))
+		{
+			// Convert FString into array of FString (one for each line)
+			TArray<FString> ErrorStringLines;
+			ErrorString.ParseIntoArray(ErrorStringLines, TEXT("\n"));
+
+			// Returns whether the specified line in the 'ErrorStringLines' array has a line marker.
+			auto HasErrorLineMarker = [&ErrorStringLines](int32 LineIndex)
+			{
+				if (LineIndex + 2 < ErrorStringLines.Num())
+				{
+					return IsTextLineDxcLineMarker(ErrorStringLines[LineIndex + 2]);
+				}
+				return false;
+			};
+
+			// Iterate over all errors. Most (but not all) contain a highlighted line and line marker.
+			for (int32 LineIndex = 0; LineIndex < ErrorStringLines.Num();)
+			{
+				if (HasErrorLineMarker(LineIndex))
+				{
+					// Add current line as error with highlighted source line (LineIndex+1) and line marker (LineIndex+2)
+					OutErrors.Emplace(MoveTemp(ErrorStringLines[LineIndex]), MoveTemp(ErrorStringLines[LineIndex + 1]), MoveTemp(ErrorStringLines[LineIndex + 2]));
+					LineIndex += 3;
+				}
+				else
+				{
+					// Add current line as single error
+					OutErrors.Emplace(MoveTemp(ErrorStringLines[LineIndex]));
+					LineIndex += 1;
+				}
+			}
+		}
+	}
+
+	// Implements the ShaderConductor::Blob interface with a weak reference to a block of data.
+	class FShaderConductorWeakRefBlob : public ShaderConductor::Blob
+	{
+	public:
+		FShaderConductorWeakRefBlob(const FShaderConductorWeakRefBlob&) = delete;
+		FShaderConductorWeakRefBlob& operator = (const FShaderConductorWeakRefBlob&) = delete;
+
+		FShaderConductorWeakRefBlob()
+			: DataPtr(nullptr)
+			, DataSize(0)
+		{
+		}
+
+		FShaderConductorWeakRefBlob(const void* InData, uint32 InSize)
+			: DataPtr(InData)
+			, DataSize(InSize)
+		{
+		}
+
+		FShaderConductorWeakRefBlob(FShaderConductorWeakRefBlob&& Rhs)
+			: DataPtr(Rhs.DataPtr)
+			, DataSize(Rhs.DataSize)
+		{
+			Rhs.DataPtr = nullptr;
+			Rhs.DataSize = 0;
+		}
+
+		virtual const void* Data() const override
+		{
+			return DataPtr;
+		}
+		virtual uint32_t Size() const override
+		{
+			return DataSize;
+		}
+	private:
+		const void* DataPtr;
+		uint32_t DataSize;
+	};
+
+	FShaderConductorContext::FShaderConductorContext()
+		: Intermediates(new FShaderConductorIntermediates())
+	{
+	}
+
+	FShaderConductorContext::~FShaderConductorContext()
+	{
+		delete Intermediates;
+	}
+
+	FShaderConductorContext::FShaderConductorContext(FShaderConductorContext&& Rhs)
+		: Errors(MoveTemp(Rhs.Errors))
+		, Intermediates(Rhs.Intermediates)
+	{
+		Rhs.Intermediates = nullptr;
+	}
+
+	FShaderConductorContext& FShaderConductorContext::operator = (FShaderConductorContext&& Rhs)
+	{
+		Errors = MoveTemp(Rhs.Errors);
+		delete Intermediates;
+		Intermediates = Rhs.Intermediates;
+		Rhs.Intermediates = nullptr;
+		return *this;
+	}
+
+	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions)
+	{
+		// Convert FString to ANSI string and store them as intermediates
+		ConvertFStringToAnsiString(ShaderSource, Intermediates->ShaderSource);
+		ConvertFStringToAnsiString(Filename, Intermediates->Filename);
+		ConvertFStringToAnsiString(EntryPoint, Intermediates->EntryPoint);
+
+		// Convert macro definitions map into an array container
+		if (Definitions != nullptr)
+		{
+			ConvertScDefines(*Intermediates, *Definitions);
+		}
+
+		// Convert shader stage
+		Intermediates->Stage = ToShaderConductorShaderStage(ShaderStage);
+
+		return true;
+	}
+
+	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions)
+	{
+		// Store ANSI strings as intermediates
+		CopyAnsiString(ShaderSource, Intermediates->ShaderSource);
+		CopyAnsiString(Filename, Intermediates->Filename);
+		CopyAnsiString(EntryPoint, Intermediates->EntryPoint);
+
+		// Convert macro definitions map into an array container
+		if (Definitions != nullptr)
+		{
+			ConvertScDefines(*Intermediates, *Definitions);
+		}
+
+		// Convert shader stage
+		Intermediates->Stage = ToShaderConductorShaderStage(ShaderStage);
+
+		return true;
+	}
+
+	bool FShaderConductorContext::RewriteHlsl(const FShaderConductorOptions& Options, FString* OutSource)
+	{
+		// Convert descriptors for ShaderConductor interface
+		ShaderConductor::Compiler::SourceDesc ScSourceDesc;
+		ConvertScSourceDesc(*Intermediates, ScSourceDesc);
+
+		ShaderConductor::Compiler::Options ScOptions;
+		ConvertScOptions(Options, ScOptions);
+
+		// Rewrite HLSL with wrapper function to catch exceptions from ShaderConductor
+		bool bSucceeded = false;
+		bool bException = false;
+		ShaderConductor::Compiler::ResultDesc ResultDesc = ScRewriteWrapper(ScSourceDesc, ScOptions, bException);
+		ShaderConductor::Blob* RewriteBlob = ResultDesc.target;
+
+		if (!ResultDesc.hasError && !bException && RewriteBlob != nullptr)
+		{
+			// Copy rewritten HLSL code into intermediate source code.
+			ConvertByteArrayToAnsiString(reinterpret_cast<const ANSICHAR*>(RewriteBlob->Data()), RewriteBlob->Size(), Intermediates->ShaderSource);
+
+			// If output source is specified, also convert to TCHAR string
+			if (OutSource != nullptr)
+			{
+				*OutSource = ANSI_TO_TCHAR(Intermediates->ShaderSource.GetData());
+			}
+			bSucceeded = true;
+		}
+		else
+		{
+			if (bException)
+			{
+				Errors.Add(TEXT("ShaderConductor exception during rewrite"));
+			}
+			bSucceeded = false;
+		}
+
+		// Append compile error and warning to output reports
+		if (ShaderConductor::Blob* ErrorBlob = ResultDesc.errorWarningMsg)
+		{
+			ConvertScCompileErrors(*ErrorBlob, Errors);
+			ShaderConductor::DestroyBlob(ErrorBlob);
+		}
+
+		// Clean up intermediate buffers
+		if (RewriteBlob)
+		{
+			ShaderConductor::DestroyBlob(RewriteBlob);
+		}
+
+		return bSucceeded;
+	}
+
+	bool FShaderConductorContext::CompileHlslToSpirv(const FShaderConductorOptions& Options, TArray<uint32>& OutSpirv)
+	{
+		// Convert descriptors for ShaderConductor interface
+		ShaderConductor::Compiler::SourceDesc ScSourceDesc;
+		ConvertScSourceDesc(*Intermediates, ScSourceDesc);
+
+		ShaderConductor::Compiler::TargetDesc ScTargetDesc;
+		FMemory::Memzero(ScTargetDesc);
+		ScTargetDesc.language = ShaderConductor::ShadingLanguage::SpirV;
+
+		ShaderConductor::Compiler::Options ScOptions;
+		ConvertScOptions(Options, ScOptions);
+
+		// Compile HLSL source code to SPIR-V
+		bool bSucceeded = false;
+		bool bException = false;
+		ShaderConductor::Compiler::ResultDesc ResultDesc = ScCompileWrapper(ScSourceDesc, ScOptions, ScTargetDesc, bException);
+
+		if (!ResultDesc.hasError && !bException && ResultDesc.target != nullptr)
+		{
+			// Copy result blob into output SPIR-V module
+			OutSpirv = TArray<uint32>(reinterpret_cast<const uint32*>(ResultDesc.target->Data()), ResultDesc.target->Size() / 4);
+			bSucceeded = true;
+		}
+		else
+		{
+			if (bException)
+			{
+				Errors.Add(TEXT("ShaderConductor exception during compilation"));
+			}
+			bSucceeded = false;
+		}
+
+		// Append compile error and warning to output reports
+		if (ShaderConductor::Blob* ErrorBlob = ResultDesc.errorWarningMsg)
+		{
+			ConvertScCompileErrors(*ErrorBlob, Errors);
+			ShaderConductor::DestroyBlob(ErrorBlob);
+		}
+
+		// Clean up intermediate buffers
+		if (ResultDesc.target)
+		{
+			ShaderConductor::DestroyBlob(ResultDesc.target);
+		}
+
+		return bSucceeded;
+	}
+
+	bool FShaderConductorContext::CompileSpirvToSource(const FShaderConductorOptions& Options, const FShaderConductorTarget& Target, const void* InSpirv, uint32 InSpirvByteSize, FString& OutSource)
+	{
+		return CompileSpirvToSourceBuffer(
+			Options, Target, InSpirv, InSpirvByteSize,
+			[&OutSource](const void* Data, uint32 Size)
+			{
+				// Convert source buffer to FString
+				ConvertByteArrayToFString(Data, Size, OutSource);
+			}
+		);
+	}
+
+	bool FShaderConductorContext::CompileSpirvToSourceAnsi(const FShaderConductorOptions& Options, const FShaderConductorTarget& Target, const void* InSpirv, uint32 InSpirvByteSize, TArray<ANSICHAR>& OutSource)
+	{
+		return CompileSpirvToSourceBuffer(
+			Options, Target, InSpirv, InSpirvByteSize,
+			[&OutSource](const void* Data, uint32 Size)
+			{
+				// Convert source buffer to ANSI string
+				ConvertByteArrayToAnsiString(reinterpret_cast<const ANSICHAR*>(Data), Size, OutSource);
+			}
+		);
+	}
+
+	bool FShaderConductorContext::CompileSpirvToSourceBuffer(const FShaderConductorOptions& Options, const FShaderConductorTarget& Target, const void* InSpirv, uint32 InSpirvByteSize, const TFunction<void(const void* Data, uint32 Size)>& OutputCallback)
+	{
+		check(OutputCallback != nullptr);
+		check(InSpirv != nullptr);
+		check(InSpirvByteSize > 0);
+		checkf(InSpirvByteSize % 4 == 0, TEXT("SPIR-V code unaligned. Size must be a multiple of 4, but %u was specified."), InSpirvByteSize);
+
+		// Convert descriptors for ShaderConductor interface
+		ShaderConductor::Compiler::SourceDesc ScSourceDesc;
+		ConvertScSourceDesc(*Intermediates, ScSourceDesc);
+
+		ShaderConductor::Compiler::TargetDesc ScTargetDesc;
+		ConvertScTargetDesc(*Intermediates, Target, ScTargetDesc);
+
+		ShaderConductor::Compiler::Options ScOptions;
+		ConvertScOptions(Options, ScOptions);
+
+		// Create temporary weak reference to SPIR-V provided in ShaderConductor::Blob interface.
+		// Avoid copy, so don't use ShaderConductor::CreateBlob().
+		FShaderConductorWeakRefBlob SpirvBlob(InSpirv, InSpirvByteSize);
+		ShaderConductor::Compiler::ResultDesc ScBinaryDesc;
+		ScBinaryDesc.target = &SpirvBlob;
+		ScBinaryDesc.isText = false;
+		ScBinaryDesc.errorWarningMsg = nullptr;
+		ScBinaryDesc.hasError = false;
+
+		// Convert the input SPIR-V into Metal high level source
+		bool bSucceeded = false;
+		bool bException = false;
+		ShaderConductor::Compiler::ResultDesc ResultDesc = ScConvertBinaryWrapper(ScBinaryDesc, ScSourceDesc, ScTargetDesc, bException);
+
+		if (!ResultDesc.hasError && !bException && ResultDesc.target != nullptr)
+		{
+			// Copy result blob into output SPIR-V module
+			OutputCallback(ResultDesc.target->Data(), ResultDesc.target->Size());
+			bSucceeded = true;
+		}
+		else
+		{
+			if (bException)
+			{
+				Errors.Add(TEXT("ShaderConductor exception during SPIR-V binary conversion"));
+			}
+			bSucceeded = false;
+		}
+
+		// Append compile error and warning to output reports
+		if (ShaderConductor::Blob* ErrorBlob = ResultDesc.errorWarningMsg)
+		{
+			FString ErrorString;
+			if (ConvertScBlobToFString(ErrorBlob, ErrorString))
+			{
+				Errors.Add(*ErrorString);
+			}
+			ShaderConductor::DestroyBlob(ResultDesc.errorWarningMsg);
+		}
+
+		// Clean up intermediate buffers
+		if (ResultDesc.target)
+		{
+			ShaderConductor::DestroyBlob(ResultDesc.target);
+		}
+
+		return bSucceeded;
+	}
+
+	void FShaderConductorContext::FlushErrors(TArray<FShaderCompilerError>& OutErrors)
+	{
+		if (OutErrors.Num() > 0)
+		{
+			// Append internal list of errors to output list, then clear internal list
+			for (const FShaderCompilerError& ErrorEntry : Errors)
+			{
+				OutErrors.Add(ErrorEntry);
+			}
+			Errors.Empty();
+		}
+		else
+		{
+			// Move internal list of errors into output list
+			OutErrors = MoveTemp(Errors);
+		}
+	}
+
+	const ANSICHAR* FShaderConductorContext::GetSourceString() const
+	{
+		return (Intermediates->ShaderSource.Num() > 0 ? Intermediates->ShaderSource.GetData() : nullptr);
+	}
+
+	int32 FShaderConductorContext::GetSourceLength() const
+	{
+		return (Intermediates->ShaderSource.Num() > 0 ? (Intermediates->ShaderSource.Num() - 1) : 0);
+	}
+
+#else // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
+
+	FShaderConductorContext::FShaderConductorContext()
+	{
+		checkf(0, TEXT("Cannot instantiate FShaderConductorContext for unsupported platform"));
+	}
+
+	FShaderConductorContext::~FShaderConductorContext()
+	{
+		// Dummy
+	}
+
+	FShaderConductorContext::FShaderConductorContext(FShaderConductorContext&& Rhs)
+	{
+		// Dummy
+	}
+
+	FShaderConductorContext& FShaderConductorContext::operator = (FShaderConductorContext&& Rhs)
+	{
+		return *this; // Dummy
+	}
+
+	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions)
+	{
+		return false; // Dummy
+	}
+
+	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions)
+	{
+		return false; // Dummy
+	}
+
+	bool FShaderConductorContext::RewriteHlsl(const FShaderConductorOptions& Options, FString* OutSource)
+	{
+		return false; // Dummy
+	}
+
+	bool FShaderConductorContext::CompileHlslToSpirv(const FShaderConductorOptions& Options, TArray<uint32>& OutSpirv)
+	{
+		return false; // Dummy
+	}
+
+	bool FShaderConductorContext::CompileSpirvToSource(const FShaderConductorOptions& Options, const FShaderConductorTarget& Target, const void* InSpirv, uint32 InSpirvByteSize, FString& OutSource)
+	{
+		return false; // Dummy
+	}
+
+	bool FShaderConductorContext::CompileSpirvToSourceAnsi(const FShaderConductorOptions& Options, const FShaderConductorTarget& Target, const void* InSpirv, uint32 InSpirvByteSize, TArray<ANSICHAR>& OutSource)
+	{
+		return false; // Dummy
+	}
+
+	bool FShaderConductorContext::CompileSpirvToSourceBuffer(const FShaderConductorOptions& Options, const FShaderConductorTarget& Target, const void* InSpirv, uint32 InSpirvByteSize, const TFunction<void(const void* Data, uint32 Size)>& OutputCallback)
+	{
+		return false; // Dummy
+	}
+
+	void FShaderConductorContext::FlushErrors(TArray<FShaderCompilerError>& OutErrors)
+	{
+		// Dummy
+	}
+
+	const ANSICHAR* FShaderConductorContext::GetSourceString() const
+	{
+		return nullptr; // Dummy
+	}
+
+	int32 FShaderConductorContext::GetSourceLength() const
+	{
+		return 0; // Dummy
+	}
+
+#endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 }

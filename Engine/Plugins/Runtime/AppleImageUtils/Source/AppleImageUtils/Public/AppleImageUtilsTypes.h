@@ -17,7 +17,11 @@ enum class ETextureRotationDirection : uint8
 	None,
 	Left,
 	Right,
-	Down
+	Down,
+	LeftMirrored,
+	RightMirrored,
+	DownMirrored,
+	UpMirrored
 };
 
 UENUM(BlueprintType, Category="AppleImageUtils", meta=(Experimental))

@@ -152,9 +152,8 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 		return false;
 	}
 
-	FD3D11DynamicRHI* d3d11RHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
 	FViewport* MainViewport = GEngine->GameViewport->Viewport;
-	if (d3d11RHI==nullptr || MainViewport==nullptr)
+	if (GD3D11RHI ==nullptr || MainViewport==nullptr)
 	{
 		return false;
 	}
@@ -196,8 +195,8 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 	RenderViewportData.TopLeftX = 0.0f;
 	RenderViewportData.TopLeftY = 0.0f;
 
-	FD3D11Device*          Device        = d3d11RHI->GetDevice();
-	FD3D11DeviceContext*   DeviceContext = d3d11RHI->GetDeviceContext();
+	FD3D11Device*          Device        = GD3D11RHI->GetDevice();
+	FD3D11DeviceContext*   DeviceContext = GD3D11RHI->GetDeviceContext();
 
 	FD3D11Viewport* Viewport  = static_cast<FD3D11Viewport*>(MainViewport->GetViewportRHI().GetReference());
 	IDXGISwapChain* SwapChain = (IDXGISwapChain*)Viewport->GetSwapChain();
@@ -247,13 +246,12 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::InitializeResources_Rend
 			check(GEngine);
 			check(GEngine->GameViewport);
 
-			FD3D11DynamicRHI* d3d11RHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
 			FViewport* MainViewport = GEngine->GameViewport->Viewport;
 
-			if (d3d11RHI && MainViewport)
+			if (GD3D11RHI && MainViewport)
 			{
-				FD3D11Device*                 Device = d3d11RHI->GetDevice();
-				FD3D11DeviceContext*   DeviceContext = d3d11RHI->GetDeviceContext();
+				FD3D11Device*                 Device = GD3D11RHI->GetDevice();
+				FD3D11DeviceContext*   DeviceContext = GD3D11RHI->GetDeviceContext();
 
 				check(Device);
 				check(DeviceContext);

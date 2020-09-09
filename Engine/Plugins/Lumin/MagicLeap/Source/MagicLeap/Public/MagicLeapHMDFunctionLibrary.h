@@ -39,7 +39,7 @@ enum class EMagicLeapHeadTrackingMapEvent : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FMagicLeapHeadTrackingState
+struct MAGICLEAP_API FMagicLeapHeadTrackingState
 {
 	GENERATED_BODY()
 
@@ -55,7 +55,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FMagicLeapGraphicsClientPerformanceInfo
+struct MAGICLEAP_API FMagicLeapGraphicsClientPerformanceInfo
 {
 	GENERATED_BODY()
 

@@ -2,6 +2,8 @@
 
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "RHIGPUReadback.h"
+#include "RendererUtils.h"
+#include "ScenePrivate.h"
 #include "Curves/CurveFloat.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
@@ -349,7 +351,7 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	//AutoExposureMeterMask
 	const FTextureRHIRef MeterMask = Settings.AutoExposureMeterMask ?
 									Settings.AutoExposureMeterMask->Resource->TextureRHI :
-									GSystemTextures.WhiteDummy->GetRenderTargetItem().ShaderResourceTexture;
+									GWhiteTexture->TextureRHI;
 
 	// The distance at which we switch from linear to exponential. I.e. at StartDistance=1.5, when linear is 1.5 f-stops away from hitting the 
 	// target, we switch to exponential.
@@ -486,10 +488,9 @@ FRDGTextureRef AddHistogramEyeAdaptationPass(
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FRDGTextureRef HistogramTexture)
 {
-	View.SwapEyeAdaptationRTs(GraphBuilder.RHICmdList);
-	View.SetValidEyeAdaptation();
+	View.SwapEyeAdaptationTextures(GraphBuilder);
 
-	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptation(GraphBuilder.RHICmdList), TEXT("EyeAdaptation"), ERDGResourceFlags::MultiFrame);
+	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERenderTargetTexture::Targetable, ERDGTextureFlags::MultiFrame);
 
 	FEyeAdaptationShader::FParameters PassBaseParameters;
 	PassBaseParameters.EyeAdaptation = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
@@ -567,7 +568,6 @@ FScreenPassTexture AddBasicEyeAdaptationSetupPass(
 
 	FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
 	OutputDesc.Reset();
-	OutputDesc.DebugName = TEXT("EyeAdaptationBasicSetup");
 	// Require alpha channel for log2 information.
 	OutputDesc.Format = PF_FloatRGBA;
 	OutputDesc.Flags |= GFastVRamConfig.EyeAdaptation;
@@ -669,12 +669,11 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 	FScreenPassTexture SceneColor,
 	FRDGTextureRef EyeAdaptationTexture)
 {
-	View.SwapEyeAdaptationRTs(GraphBuilder.RHICmdList);
-	View.SetValidEyeAdaptation();
+	View.SwapEyeAdaptationTextures(GraphBuilder);
 
 	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
 
-	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptation(GraphBuilder.RHICmdList), TEXT("EyeAdaptation"), ERDGResourceFlags::MultiFrame);
+	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERenderTargetTexture::Targetable, ERDGTextureFlags::MultiFrame);
 
 	FBasicEyeAdaptationShader::FParameters PassBaseParameters;
 	PassBaseParameters.View = View.ViewUniformBuffer;
@@ -721,9 +720,9 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 	return OutputTexture;
 }
 
-FSceneViewState::FEyeAdaptationRTManager::~FEyeAdaptationRTManager() {}
+FSceneViewState::FEyeAdaptationManager::~FEyeAdaptationManager() {}
 
-void FSceneViewState::FEyeAdaptationRTManager::SafeRelease()
+void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 {
 	for (int32 Index = 0; Index < 3; Index++)
 	{
@@ -735,7 +734,7 @@ void FSceneViewState::FEyeAdaptationRTManager::SafeRelease()
 	}
 }
 
-void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposure)
+void FSceneViewState::FEyeAdaptationManager::SwapTextures(FRDGBuilder& GraphBuilder, bool bInUpdateLastExposure)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationRTManager_SwapRTs);
 
@@ -749,6 +748,8 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposur
 
 	if (bInUpdateLastExposure && PooledRenderTarget[CurrentBuffer].IsValid() && (GIsEditor || CVarEnablePreExposureOnlyInTheEditor.GetValueOnRenderThread() == 0))
 	{
+		FRDGTextureRef CurrentTexture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget[CurrentBuffer], ERenderTargetTexture::ShaderResource, ERDGTextureFlags::MultiFrame);
+
 		// first, read the value from two frames ago
 		int32 PreviousPreviousBuffer = GetPreviousPreviousIndex();
 		if (ExposureTextureReadback[PreviousPreviousBuffer] != nullptr &&
@@ -757,7 +758,7 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposur
 			// Workaround until FRHIGPUTextureReadback::Lock has multigpu support
 			FRHIGPUMask ReadBackGPUMask = LastLastFrameGPUMask;
 
-			SCOPED_GPU_MASK(RHICmdList, ReadBackGPUMask);
+			RDG_GPU_MASK_SCOPE(GraphBuilder, ReadBackGPUMask);
 
 			// Read the last request results.
 			FVector4* ReadbackData = (FVector4*)ExposureTextureReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4));
@@ -775,24 +776,30 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposur
 			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
 			ExposureTextureReadback[CurrentBuffer].Reset(new FRHIGPUTextureReadback(ExposureValueName));
 			// Send the first request.
-			ExposureTextureReadback[CurrentBuffer]->EnqueueCopy(RHICmdList, PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture);
+			AddEnqueueCopyPass(GraphBuilder, ExposureTextureReadback[CurrentBuffer].Get(), CurrentTexture);
 		}
 		else // it exists, so just enqueue, don't  reset
 		{
 			// Send the request for next update.
-			ExposureTextureReadback[CurrentBuffer]->EnqueueCopy(RHICmdList, PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture);
+			AddEnqueueCopyPass(GraphBuilder, ExposureTextureReadback[CurrentBuffer].Get(), CurrentTexture);
 		}
 	}
 
 	CurrentBuffer = (CurrentBuffer+1)%3;
 }
 
-TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationRTManager::GetRTRef(FRHICommandList* RHICmdList, const int BufferNumber)
+const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetTexture(uint32 TextureIndex) const
 {
-	check(0 <= BufferNumber && BufferNumber < 3);
+	check(0 <= TextureIndex && TextureIndex < 3);
+	return PooledRenderTarget[TextureIndex];
+}
+
+const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetOrCreateTexture(FRHICommandList& RHICmdList, uint32 TextureIndex)
+{
+	check(0 <= TextureIndex && TextureIndex < 3);
 
 	// Create textures if needed.
-	if (!PooledRenderTarget[BufferNumber].IsValid() && RHICmdList)
+	if (!PooledRenderTarget[TextureIndex].IsValid())
 	{
 		// Create the texture needed for EyeAdaptation
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
@@ -800,36 +807,43 @@ TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationRTManager::Get
 		{
 			Desc.TargetableFlags |= TexCreate_UAV;
 		}
-		GRenderTargetPool.FindFreeElement(*RHICmdList, Desc, PooledRenderTarget[BufferNumber], TEXT("EyeAdaptation"), true, ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget[TextureIndex], TEXT("EyeAdaptation"), ERenderTargetTransience::NonTransient);
 	}
 
-	return PooledRenderTarget[BufferNumber];
+	return PooledRenderTarget[TextureIndex];
 }
 
-FExposureBufferData& FSceneViewState::FEyeAdaptationRTManager::GetBufferRef(const int BufferNumber)
+const FExposureBufferData* FSceneViewState::FEyeAdaptationManager::GetBuffer(uint32 BufferIndex) const
 {
-	check(0 <= BufferNumber && BufferNumber < 3);
+	check(0 <= BufferIndex && BufferIndex < 3);
+	const FExposureBufferData& Instance = ExposureBufferData[BufferIndex];
+	return Instance.IsValid() ? &Instance : nullptr;
+}
+
+FExposureBufferData* FSceneViewState::FEyeAdaptationManager::GetOrCreateBuffer(FRHICommandListImmediate& RHICmdList, uint32 BufferIndex)
+{
+	check(BufferIndex == 0 || BufferIndex == 1);
 
 	// Create textures if needed.
-	if (!ExposureBufferData[BufferNumber].IsValid())
+	if (!ExposureBufferData[BufferIndex].IsValid())
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("ExposureBuffer"));
-		ExposureBufferData[BufferNumber].Buffer = RHICreateVertexBuffer(sizeof(FVector4), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy, CreateInfo);
+		ExposureBufferData[BufferIndex].Buffer = RHICreateVertexBuffer(sizeof(FVector4), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy, CreateInfo);
 		
-		FVector4* BufferData = (FVector4*)RHILockVertexBuffer(ExposureBufferData[BufferNumber].Buffer, 0, sizeof(FVector4), RLM_WriteOnly);
+		FVector4* BufferData = (FVector4*)RHICmdList.LockVertexBuffer(ExposureBufferData[BufferIndex].Buffer, 0, sizeof(FVector4), RLM_WriteOnly);
 		*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-		RHIUnlockVertexBuffer(ExposureBufferData[BufferNumber].Buffer);
+		RHICmdList.UnlockVertexBuffer(ExposureBufferData[BufferIndex].Buffer);
 
-		ExposureBufferData[BufferNumber].SRV = RHICreateShaderResourceView(ExposureBufferData[BufferNumber].Buffer, sizeof(FVector4), PF_A32B32G32R32F);
-		ExposureBufferData[BufferNumber].UAV = RHICreateUnorderedAccessView(ExposureBufferData[BufferNumber].Buffer, PF_A32B32G32R32F);
+		ExposureBufferData[BufferIndex].SRV = RHICmdList.CreateShaderResourceView(ExposureBufferData[BufferIndex].Buffer, sizeof(FVector4), PF_A32B32G32R32F);
+		ExposureBufferData[BufferIndex].UAV = RHICmdList.CreateUnorderedAccessView(ExposureBufferData[BufferIndex].Buffer, PF_A32B32G32R32F);
 	}
 
-	return ExposureBufferData[BufferNumber];
+	return &ExposureBufferData[BufferIndex];
 }
 
-void FSceneViewState::FEyeAdaptationRTManager::SwapBuffers(bool bInUpdateLastExposure)
+void FSceneViewState::FEyeAdaptationManager::SwapBuffers(FRDGBuilder& GraphBuilder, bool bInUpdateLastExposure)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationRTManager_SwapBuffers);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationManager_SwapBuffers);
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -956,7 +970,7 @@ static const FName NAME_EyeAdaptation(TEXT("EyeAdaptation"));
 
 void FSceneViewState::BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList)
 {
-	FRHITexture* EyeAdaptation = GetEyeAdaptation(RHICmdList)->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+	FRHITexture* EyeAdaptation = GetCurrentEyeAdaptationTexture(RHICmdList)->GetRenderTargetItem().ShaderResourceTexture.GetReference();
 	RHICmdList.BroadcastTemporalEffect(FName(NAME_EyeAdaptation, UniqueID), { &EyeAdaptation, 1 });
 }
 

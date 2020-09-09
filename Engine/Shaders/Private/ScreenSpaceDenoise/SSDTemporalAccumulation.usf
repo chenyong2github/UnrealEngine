@@ -464,7 +464,7 @@ void TemporallyAccumulate(
 
 		if (1)
 		{
-			float4 EncodedVelocity = SceneVelocityBuffer.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
+			float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
 			if (EncodedVelocity.x > 0.0)
 			{
 				Velocity = DecodeVelocityFromTexture(EncodedVelocity);

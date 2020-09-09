@@ -48,6 +48,24 @@ uint32 FOculusInputModule::GetNumberOfTouchControllers() const
 	return 0;
 }
 
+uint32 FOculusInputModule::GetNumberOfHandControllers() const
+{
+	if (OculusInputDevice.IsValid())
+	{
+		return OculusInputDevice.Pin()->GetNumberOfHandControllers();
+	}
+	return 0;
+}
+
+TSharedPtr<IInputDevice> FOculusInputModule::GetInputDevice() const
+{
+	if (OculusInputDevice.IsValid())
+	{
+		return OculusInputDevice.Pin();
+	}
+	return NULL;
+}
+
 
 #endif	// OCULUS_INPUT_SUPPORTED_PLATFORMS
 

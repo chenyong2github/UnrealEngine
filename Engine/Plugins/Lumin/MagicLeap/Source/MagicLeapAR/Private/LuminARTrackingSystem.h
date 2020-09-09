@@ -7,11 +7,12 @@
 #include "IHeadMountedDisplay.h"
 #include "Slate/SceneViewport.h"
 #include "SceneView.h"
-#include "ARSystem.h"
+#include "ARSystemSupportBase.h"
 #include "ARLightEstimate.h"
 #include "Engine/Engine.h" // for FWorldContext
 #include "Containers/Queue.h"
 #include "Containers/Map.h"
+#include "ARActor.h"
 
 #include "LuminARTypes.h"
 #include "LuminARTypesPrivate.h"
@@ -22,7 +23,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLuminAR, Log, All);
 
-class FLuminARImplementation : public IARSystemSupport, public FGCObject, public TSharedFromThis<IARSystemSupport, ESPMode::ThreadSafe>
+class FLuminARImplementation : public FARSystemSupportBase, public FGCObject, public TSharedFromThis<IARSystemSupport, ESPMode::ThreadSafe>
 {
 public:
 	FLuminARImplementation();
@@ -49,8 +50,7 @@ public:
 	void DumpTrackableHandleMap(const FGuid& SessionHandle) const;
 	// ~ULuminARUObjectManager functions
 
-	ULuminARCandidateImage* AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary);
-	UARCandidateImage* GetCandidateImage(const FString& Name);
+	ULuminARCandidateImage* AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary, EMagicLeapImageTargetOrientation InAxisOrientation);
 
 protected:
 	// IARSystemSupport
@@ -74,23 +74,25 @@ protected:
 	virtual bool OnIsTrackingTypeSupported(EARSessionType SessionType) const override;
 	virtual UARLightEstimate* OnGetCurrentLightEstimate() const override;
 
+	virtual UARPin* FindARPinByComponent(const USceneComponent* Component) const override;
 	virtual UARPin* OnPinComponent(USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry = nullptr, const FName DebugName = NAME_None) override;
 	virtual void OnRemovePin(UARPin* PinToRemove) override;
-	virtual UARTextureCameraImage* OnGetCameraImage() override { return nullptr; }
-	virtual UARTextureCameraDepth* OnGetCameraDepth() override { return nullptr; }
 	virtual bool OnAddManualEnvironmentCaptureProbe(FVector Location, FVector Extent) { return false; }
 	virtual TSharedPtr<FARGetCandidateObjectAsyncTask, ESPMode::ThreadSafe> OnGetCandidateObject(FVector Location, FVector Extent) const { return TSharedPtr<FARGetCandidateObjectAsyncTask, ESPMode::ThreadSafe>(); }
 	virtual TSharedPtr<FARSaveWorldAsyncTask, ESPMode::ThreadSafe> OnSaveWorld() const { return TSharedPtr<FARSaveWorldAsyncTask, ESPMode::ThreadSafe>(); }
 	virtual EARWorldMappingState OnGetWorldMappingStatus() const;
 	virtual TArray<FARVideoFormat> OnGetSupportedVideoFormats(EARSessionType SessionType) const override { return TArray<FARVideoFormat>(); }
 	virtual TArray<FVector> OnGetPointCloud() const;
-	virtual bool OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth) { bUpdateTrackedImages = true;  return true; }
+	virtual bool OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth);
 	//~IARSystemSupport
 
 private:
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	//~ FGCObject
+
+	void ClearTrackedGeometries();
+	void OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID);
 
 	template< class T >
 	void GetAllTrackables(TArray<T*>& OutLuminARTrackableList) const;
@@ -103,10 +105,8 @@ private:
 
 	TMap<FGuid, TSharedPtr<LuminArAnchor>> HandleToLuminAnchorMap;
 	TMap<FGuid, UARPin*> HandleToAnchorMap;
-	TMap<FGuid, TWeakObjectPtr<UARTrackedGeometry>> TrackableHandleMap;
+	TMap<FGuid, FTrackedGeometryGroup> TrackedGeometryGroups;
 	// ~ULuminARUObjectManager functions
-
-	void UpdateTrackedImages();
 
 private:
 	bool bIsLuminARSessionRunning;
@@ -114,7 +114,7 @@ private:
 	int64 LatestCameraTimestamp;
 	ELuminARTrackingState LatestCameraTrackingState;
 	bool bStartSessionRequested; // User called StartSession
-	bool bUpdateTrackedImages;
+	int32 LastTrackedGeometry_DebugId;
 
 	EARSessionStatus CurrentSessionStatus;
 
@@ -124,7 +124,8 @@ private:
 	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
 	TQueue<TFunction<void()>> RunOnGameThreadQueue;
 
-	TArray<UTexture2D*> TargetImageTextures;
+	//for networked callbacks
+	FDelegateHandle SpawnARActorDelegateHandle;
 };
 
 DEFINE_LOG_CATEGORY_STATIC(LogLuminARImplementation, Log, All);
@@ -141,12 +142,13 @@ void FLuminARImplementation::RemoveHandleIf(TUniqueFunction<bool(const FGuid&)> 
 {
 	static_assert(TIsDerivedFrom<T, UARTrackedGeometry>::IsDerived, "T must be derived from UARTrackedGeometry");
 
-	for (TMap<FGuid, TWeakObjectPtr<UARTrackedGeometry>>::TIterator Iterator = TrackableHandleMap.CreateIterator(); Iterator; ++Iterator)
+	for (TMap<FGuid, FTrackedGeometryGroup>::TIterator Iterator = TrackedGeometryGroups.CreateIterator(); Iterator; ++Iterator)
 	{
-		auto* DerivedPointer = Cast<T>(Iterator->Value);
+		FTrackedGeometryGroup& TrackedGeoemtryGroup = Iterator->Value;
+		auto* DerivedPointer = Cast<T>(TrackedGeoemtryGroup.TrackedGeometry);
 		if (DerivedPointer && HandleOperator(Iterator->Key))
 		{
-			Iterator->Value->SetTrackingState(EARTrackingState::StoppedTracking);
+			DerivedPointer->SetTrackingState(EARTrackingState::StoppedTracking);
 			Iterator.RemoveCurrent();
 		}
 	}
@@ -157,26 +159,30 @@ T* FLuminARImplementation::GetOrCreateTrackableFromHandle(const FGuid& Trackable
 {
 	static_assert(TIsDerivedFrom<T, UARTrackedGeometry>::IsDerived, "T must be derived from UARTrackedGeometry");
 
-	if (!TrackableHandleMap.Contains(TrackableHandle)
-		|| !TrackableHandleMap[TrackableHandle].IsValid()
-		|| TrackableHandleMap[TrackableHandle]->GetTrackingState() == EARTrackingState::StoppedTracking)
+	if (!TrackedGeometryGroups.Contains(TrackableHandle)
+		|| !(TrackedGeometryGroups[TrackableHandle].TrackedGeometry != nullptr)
+		|| TrackedGeometryGroups[TrackableHandle].TrackedGeometry->GetTrackingState() == EARTrackingState::StoppedTracking)
 	{
 		// Add the trackable to the cache.
 		UARTrackedGeometry* NewTrackableObject = nullptr;
 		IARRef* NativeResource = nullptr;
+		const UARSessionConfig& SessionConfig = ARSystem->GetSessionConfig();
+		UClass* ARComponentClass = nullptr;
+
 
 		for (ILuminARTracker* Tracker : Trackers)
 		{
 			if (Tracker->IsHandleTracked(TrackableHandle))
 			{
 				NewTrackableObject = Tracker->CreateTrackableObject();
+				ARComponentClass = Tracker->GetARComponentClass(SessionConfig);
 				NewTrackableObject->UniqueId = TrackableHandle;
 				NativeResource = Tracker->CreateNativeResource(TrackableHandle, NewTrackableObject);
 				break;
 			}
 		}
 
-		if (NewTrackableObject == nullptr)
+		if ((NewTrackableObject == nullptr) || (ARComponentClass == nullptr))
 		{
 			//checkf(false, TEXT("ULuminARUObjectManager failed to get a valid trackable %p. Unknow LuminAR Trackable Type."), TrackableHandle);
 			return nullptr;
@@ -187,15 +193,23 @@ T* FLuminARImplementation::GetOrCreateTrackableFromHandle(const FGuid& Trackable
 
 		FLuminARTrackableResource* TrackableResource = static_cast<FLuminARTrackableResource*>(NewTrackableObject->GetNativeResource());
 
+		FString NewAnchorDebugName = FString::Printf(TEXT("OBJ-%02d"), LastTrackedGeometry_DebugId++);
+
+		FTrackedGeometryGroup TrackedGeometryGroup(NewTrackableObject);
+		TrackedGeometryGroups.Add(TrackableHandle, TrackedGeometryGroup);
+		NewTrackableObject->UniqueId = TrackableHandle;
+		NewTrackableObject->SetDebugName(FName(*NewAnchorDebugName));
+
 		// no, we always do this in ProcessPlaneQuery
 		// Update the tracked geometry data using the native resource
 		//TrackableResource->UpdateGeometryData();
 		ensure(TrackableResource->GetTrackingState() != EARTrackingState::StoppedTracking);
-
-		TrackableHandleMap.Add(TrackableHandle, TWeakObjectPtr<UARTrackedGeometry>(NewTrackableObject));
+		
+		AARActor::RequestSpawnARActor(TrackableHandle, ARComponentClass);
 	}
 
-	T* Result = Cast<T>(TrackableHandleMap[TrackableHandle].Get());
+	//T* Result = Cast<T>(TrackableHandleMap[TrackableHandle].Get());
+	T* Result = Cast<T>(TrackedGeometryGroups[TrackableHandle].TrackedGeometry);
 	//checkf(Result, TEXT("ULuminARUObjectManager failed to get a valid trackable %p from the map."), TrackableHandle);
 	return Result;
 }
@@ -207,14 +221,17 @@ void FLuminARImplementation::GetAllTrackables(TArray<T*>& OutLuminARTrackableLis
 
 	static_assert(TIsDerivedFrom<T, UARTrackedGeometry>::IsDerived, "T must be derived from UARTrackedGeometry");
 
-	for (auto TrackableHandleMapPair : TrackableHandleMap)
+	//for (auto TrackableHandleMapPair : TrackableHandleMap)
+	for (auto GeoIt = TrackedGeometryGroups.CreateConstIterator(); GeoIt; ++GeoIt)
 	{
-		TWeakObjectPtr<UARTrackedGeometry>& Value = TrackableHandleMapPair.Value;
-		if (Value.IsValid() &&
-			Value->GetTrackingState() != EARTrackingState::StoppedTracking
+		const FTrackedGeometryGroup& TrackedGeometryGroup = GeoIt.Value();
+
+		UARTrackedGeometry* TrackedGeometry = TrackedGeometryGroup.TrackedGeometry;
+		if ((TrackedGeometry != nullptr) &&
+			(TrackedGeometry->GetTrackingState() != EARTrackingState::StoppedTracking)
 			)
 		{
-			T* Trackable = Cast<T>(Value.Get());
+			T* Trackable = Cast<T>(TrackedGeometry);
 			if (Trackable)
 			{
 				OutLuminARTrackableList.Add(Trackable);

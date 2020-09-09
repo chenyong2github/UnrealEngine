@@ -1072,12 +1072,30 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 		// Sort the emitter indices in the execution order array so that dependencies are satisfied. Also, emitters with the same priority value don't have any
 		// inter-dependencies, so we can use that if we ever want to parallelize emitter execution.
 		Algo::Sort(EmitterExecutionOrder, [&EmitterPriorities](int32 IdxA, int32 IdxB) { return EmitterPriorities[IdxA] < EmitterPriorities[IdxB]; });
+
+		// Emitters with the same priority value can execute in parallel. Look for the emitters where the priority increases and mark them as needing to start a new
+		// overlap group. This informs the execution code about where to insert synchronization points to satisfy data dependencies.
+		// Note that we don't want to set the flag on the first emitter, since on the GPU all the systems are bunched together, and we don't mind overlapping the
+		// first emitter from a system with the previous emitters from a different system, as we don't have inter-system dependencies.
+		int32 PrevIdx = EmitterExecutionOrder[0];
+		for (int32 i = 1; i < EmitterExecutionOrder.Num(); ++i)
+		{
+			int32 CurrentIdx = EmitterExecutionOrder[i];
+			// A bit of paranoia never hurt anyone. Check that the priorities are monotonically increasing.
+			checkSlow(EmitterPriorities[PrevIdx] <= EmitterPriorities[CurrentIdx]);
+			if (EmitterPriorities[PrevIdx] != EmitterPriorities[CurrentIdx])
+			{
+				EmitterExecutionOrder[i] |= kStartNewOverlapGroupBit;
+			}
+			PrevIdx = CurrentIdx;
+		}
 	}
 
 	// go through and remove any entries in the EmitterExecutionOrder array for emitters where we don't have a CachedEmitter, they have
 	// likely been cooked out because of scalability
 	EmitterExecutionOrder.SetNum(Algo::StableRemoveIf(EmitterExecutionOrder, [this](int32 EmitterIdx)
 	{
+		EmitterIdx = EmitterIdx & (~kStartNewOverlapGroupBit);
 		return EmitterHandles[EmitterIdx].GetInstance() == nullptr;
 	}));
 }

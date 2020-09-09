@@ -9,6 +9,7 @@ Texture2DMipAllocator_AsyncReallocate.h: Implementation of FTextureMipAllocator 
 #include "CoreMinimal.h"
 #include "TextureMipAllocator.h"
 #include "Engine/Texture2D.h"
+#include "Rendering/Texture2DResource.h"
 
 class UTexture2D;
 
@@ -20,7 +21,7 @@ class FTexture2DMipAllocator_AsyncReallocate : public FTextureMipAllocator
 {
 public:
 
-	FTexture2DMipAllocator_AsyncReallocate();
+	FTexture2DMipAllocator_AsyncReallocate(UTexture* Texture);
 	~FTexture2DMipAllocator_AsyncReallocate();
 
 	// ********************************************************
@@ -31,7 +32,6 @@ public:
 	bool FinalizeMips(const FTextureUpdateContext& Context, const FTextureUpdateSyncOptions& SyncOptions) final override;
 	void Cancel(const FTextureUpdateSyncOptions& SyncOptions) final override;
 	ETickThread GetCancelThread() const final override;
-	int32 GetCurrentFirstMip(UTexture* Texture) const final override;
 
 protected:
 

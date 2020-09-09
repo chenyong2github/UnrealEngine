@@ -12,6 +12,7 @@
 #include "MetalVertexDeclaration.h"
 #include "MetalGraphicsPipelineState.h"
 #include "MetalComputePipelineState.h"
+#include "MetalTransitionData.h"
 
 
 //------------------------------------------------------------------------------
@@ -106,6 +107,26 @@ void FMetalDynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 
 //------------------------------------------------------------------------------
 
+#pragma mark - Metal Dynamic RHI Resource Transition Methods -
+
+
+void FMetalDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+{
+	checkf(FMath::IsPowerOfTwo(uint32(SrcPipelines)) && FMath::IsPowerOfTwo(uint32(DstPipelines)), TEXT("Support for multi-pipe resources is not yet implemented."));
+
+	// Construct the data in-place on the transition instance
+	new (Transition->GetPrivateData<FMetalTransitionData>()) FMetalTransitionData(SrcPipelines, DstPipelines, CreateFlags, Infos);
+}
+
+void FMetalDynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
+{
+	// Destruct the private data object of the transition instance.
+	Transition->GetPrivateData<FMetalTransitionData>()->~FMetalTransitionData();
+}
+
+
+//------------------------------------------------------------------------------
+
 #pragma mark - Metal Dynamic RHI Render Query Methods -
 
 
@@ -131,49 +152,4 @@ bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 		FMetalRHIRenderQuery* Query = ResourceCast(QueryRHI);
 		return Query->GetResult(OutNumPixels, bWait, GPUIndex);
 	}
-}
-
-void FMetalDynamicRHI::RHICalibrateTimers()
-{
-#if defined(UE_MTL_RHI_SUPPORTS_CALIBRATE_TIMERS)
-	check(IsInRenderingThread());
-#if METAL_STATISTICS
-	FMetalContext& Context = ImmediateContext.GetInternalContext();
-	if (Context.GetCommandQueue().GetStatistics())
-	{
-		FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList());
-		mtlpp::CommandBuffer Buffer = Context.GetCommandQueue().CreateCommandBuffer();
-
-		id<IMetalStatisticsSamples> Samples = Context.GetCommandQueue().GetStatistics()->RegisterEncoderStatistics(Buffer.GetPtr(), EMetalSampleComputeEncoderStart);
-		mtlpp::ComputeCommandEncoder Encoder = Buffer.ComputeCommandEncoder();
-#if MTLPP_CONFIG_VALIDATE && METAL_DEBUG_OPTIONS
-		FMetalComputeCommandEncoderDebugging Debugging;
-		if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
-		{
-			FMetalCommandBufferDebugging CmdDebug = FMetalCommandBufferDebugging::Get(Buffer);
-			Debugging = FMetalComputeCommandEncoderDebugging(Encoder, CmdDebug);
-		}
-#endif // MTLPP_CONFIG_VALIDATE && METAL_DEBUG_OPTIONS
-
-		Context.GetCommandQueue().GetStatistics()->RegisterEncoderStatistics(Buffer.GetPtr(), EMetalSampleComputeEncoderEnd);
-		check(Samples);
-		[Samples retain];
-		Encoder.EndEncoding();
-		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, Debugging.EndEncoder());
-
-		FMetalProfiler* Profiler = ImmediateContext.GetProfiler();
-		Buffer.AddCompletedHandler(^(const mtlpp::CommandBuffer & theBuffer) {
-			double GpuTimeSeconds = theBuffer.GetGpuStartTime();
-			const double CyclesPerSecond = 1.0 / FPlatformTime::GetSecondsPerCycle();
-			NSUInteger EndTime = GpuTimeSeconds * CyclesPerSecond;
-			NSUInteger StatsTime = Samples.Array[0];
-			Profiler->TimingSupport.SetCalibrationTimestamp(StatsTime / 1000, EndTime / 1000);
-			[Samples release];
-		});
-
-		Context.GetCommandQueue().CommitCommandBuffer(Buffer);
-		Buffer.WaitUntilCompleted();
-	}
-#endif // METAL_STATISTICS
-#endif // UE_MTL_RHI_SUPPORTS_CALIBRATE_TIMERS
 }

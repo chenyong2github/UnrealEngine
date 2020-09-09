@@ -364,7 +364,7 @@ bool FMagicLeapMediaCodecPlayer::Open(const FString& Url, const IMediaOptions* O
 		// This module is only for Lumin so this is fine for now.
 		FLuminPlatformFile* LuminPlatformFile = static_cast<FLuminPlatformFile*>(&PlatformFile);
 		// make sure the file exists
-		if (!LuminPlatformFile->FileExists(*FilePath, FilePath))
+		if (!LuminPlatformFile->FileExistsWithPath(*FilePath, FilePath))
 		{
 			UE_LOG(LogMagicLeapMediaCodec, Error, TEXT("File doesn't exist %s."), *FilePath);
 			EventSink.ReceiveMediaEvent(EMediaEvent::MediaOpenFailed);
@@ -763,7 +763,7 @@ void FMagicLeapMediaCodecPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timeco
 						if (TextureDataPtr->VideoTexture == nullptr)
 						{
 							FRHIResourceCreateInfo CreateInfo;
-							TextureDataPtr->VideoTexture = RHICmdList.CreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
+							TextureDataPtr->VideoTexture = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
 						}
 
 						FMagicLeapHelperVulkan::AliasMediaTexture(TextureDataPtr->VideoTexture, NewMediaTexture);
@@ -814,7 +814,7 @@ void FMagicLeapMediaCodecPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timeco
 					if (MediaVideoTexture == nullptr)
 					{
 						FRHIResourceCreateInfo CreateInfo;
-						MediaVideoTexture = RHICmdList.CreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
+						MediaVideoTexture = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
 						TextureDataPtr->VideoTexture = MediaVideoTexture;
 
 						if (MediaVideoTexture == nullptr)

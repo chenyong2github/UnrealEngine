@@ -17,6 +17,7 @@ public:
 	virtual void OnStartGameFrame() override;
 	virtual bool IsHandleTracked(const FGuid& Handle) const override;
 	virtual UARTrackedGeometry* CreateTrackableObject() override;
+	virtual UClass* GetARComponentClass(const UARSessionConfig& SessionConfig) override;
 	virtual IARRef* CreateNativeResource(const FGuid& Handle, UARTrackedGeometry* TrackableObject) override;
 
 private:

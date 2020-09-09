@@ -26,7 +26,6 @@
 
 MaterialExpressionClasses::MaterialExpressionClasses()
 	: bInitialized( false )
-	, bMaterialLayersEnabled( false )
 {
 
 }
@@ -76,14 +75,8 @@ FCategorizedMaterialExpressionNode* MaterialExpressionClasses::GetCategoryNode(c
 
 void MaterialExpressionClasses::InitMaterialExpressionClasses()
 {
-	// @TODO: Remove this. Temporary flag for toggling experimental material layers functionality
-	IMaterialEditorModule& MaterialEditorModule = FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	const bool bNewMaterialLayersEnabled = MaterialEditorModule.MaterialLayersEnabled();
-
-	if( !bInitialized || bMaterialLayersEnabled != bNewMaterialLayersEnabled )
+	if(!bInitialized)
 	{
-		bMaterialLayersEnabled = bNewMaterialLayersEnabled;
-
 		UMaterialEditorOptions* TempEditorOptions = NewObject<UMaterialEditorOptions>();
 		UClass* BaseType = UMaterialExpression::StaticClass();
 		if( BaseType )
@@ -100,11 +93,6 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 					{
 						ExpressionInputs.Empty();
 
-						// @TODO: Remove this. Temporary flag for toggling experimental material layers functionality
-						if (!bMaterialLayersEnabled && Class == UMaterialExpressionMaterialAttributeLayers::StaticClass())
-						{
-							continue;
-						}
 						if (Class == UMaterialExpressionMaterialLayerOutput::StaticClass())
 						{
 							continue;

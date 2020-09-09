@@ -24,7 +24,9 @@ namespace UnrealBuildTool.Rules
 				{
 					"LuminRuntimeSettings",
 					"MLSDK",
-					"MagicLeap"
+					"MagicLeap",
+					"MagicLeapPrivileges",
+					"HeadMountedDisplay"
 				}
 			);
 		}

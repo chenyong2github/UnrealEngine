@@ -8,9 +8,23 @@
 #include "Misc/App.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Serialization/BulkData2.h"
+#include "Templates/RefCounting.h"
+#include "RenderAssetUpdate.h"
+#include "Streaming/StreamableRenderResourceState.h"
 #include "StreamableRenderAsset.generated.h"
 
 #define STREAMABLERENDERASSET_NODEFAULT(FuncName) LowLevelFatalError(TEXT("UStreamableRenderAsset::%s has no default implementation"), TEXT(#FuncName))
+ // Allows yield to lower priority threads
+#define RENDER_ASSET_STREAMING_SLEEP_DT (0.010f)
+
+enum class EStreamableRenderAssetType : uint8
+{
+	None,
+	Texture,
+	StaticMesh,
+	SkeletalMesh,
+	LandscapeMeshMobile,
+};
 
 UCLASS(Abstract, MinimalAPI)
 class UStreamableRenderAsset : public UObject
@@ -21,28 +35,7 @@ public:
 	/** Get an integer representation of the LOD group */
 	virtual int32 GetLODGroupForStreaming() const
 	{
-		STREAMABLERENDERASSET_NODEFAULT(GetLODGroupForStreaming);
-		return -1;
-	}
-
-	/** Get the total number of LODs including non-streamable and optional LODs */
-	virtual int32 GetNumMipsForStreaming() const
-	{
-		STREAMABLERENDERASSET_NODEFAULT(GetNumMipsForStreaming);
-		return -1;
-	}
-
-	/** Returns the number of LODs in this asset that are not able to be streamed */
-	virtual int32 GetNumNonStreamingMips() const
-	{
-		STREAMABLERENDERASSET_NODEFAULT(GetNumNonStreamingMips);
-		return -1;
-	}
-
-	virtual int32 CalcNumOptionalMips() const
-	{
-		STREAMABLERENDERASSET_NODEFAULT(CalcNumOptionalMips);
-		return -1;
+		return 0;
 	}
 
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const
@@ -63,49 +56,14 @@ public:
 		return false;
 	}
 
-	virtual bool IsReadyForStreaming() const
-	{
-		STREAMABLERENDERASSET_NODEFAULT(IsReadyForStreaming);
-		return false;
-	}
+	/** Tries to cancel a pending LOD change request. Requests cannot be canceled if they are in the finalization phase. */
+	ENGINE_API void CancelPendingStreamingRequest();
 
-	/** The number of LODs currently in memory */
-	virtual int32 GetNumResidentMips() const
-	{
-		STREAMABLERENDERASSET_NODEFAULT(GetNumResidentMips);
-		return -1;
-	}
+	/** Whether a stream in / out request is pending. Only one request can exists at anytime for a streamable asset. This also includes the resource initialization! */
+	ENGINE_API bool HasPendingInitOrStreaming(bool bWaitForLODTransition = false) const;
 
-	/** When the asset is being updated from StreamIn() or StreamOut(), returns the number of LODs requested */
-	virtual int32 GetNumRequestedMips() const
-	{
-		STREAMABLERENDERASSET_NODEFAULT(GetNumRequestedMips);
-		return -1;
-	}
-
-	/**
-	* Tries to cancel a pending LOD change request. Requests cannot be canceled if they are in the
-	* finalization phase.
-	*
-	* @param	true if cancelation was successful, false otherwise
-	*/
-	virtual bool CancelPendingMipChangeRequest()
-	{
-		STREAMABLERENDERASSET_NODEFAULT(CancelPendingMipChangeRequest);
-		return false;
-	}
-
-	virtual bool HasPendingUpdate() const
-	{
-		STREAMABLERENDERASSET_NODEFAULT(HasPendingUpdate);
-		return false;
-	}
-
-	virtual bool IsPendingUpdateLocked() const 
-	{ 
-		STREAMABLERENDERASSET_NODEFAULT(IsPendingUpdateLocked);
-		return false;
-	}
+	/** Whether there is a pending update and it is locked within an update step. Used to prevent dealocks in SuspendRenderAssetStreaming(). */
+	bool IsPendingStreamingRequestLocked() const;
 
 	/**
 	* Unload some mips from memory. Only usable if the asset is streamable.
@@ -129,20 +87,6 @@ public:
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio)
 	{
 		STREAMABLERENDERASSET_NODEFAULT(StreamIn);
-		return false;
-	}
-
-	/**
-	* Updates the streaming status of the asset and performs finalization when appropriate. The function returns
-	* true while there are pending requests in flight and updating needs to continue.
-	*
-	* @param bWaitForMipFading	Whether to wait for Mip Fading to complete before finalizing.
-	* @param DeferredTickCBAssets An array of assets that need to have their CBs ticked. Non-null if not on the game thread.
-	* @return					true if there are requests in flight, false otherwise
-	*/
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr)
-	{
-		STREAMABLERENDERASSET_NODEFAULT(UpdateStreamingStatus);
 		return false;
 	}
 
@@ -209,41 +153,53 @@ public:
 	* Returns the cached combined LOD bias based on texture LOD group and LOD bias.
 	* @return	LOD bias
 	*/
-	ENGINE_API int32 GetCachedLODBias() const { return CachedCombinedLODBias; }
-
-	FORCEINLINE void SetCachedNumResidentLODs(uint8 NewVal)
-	{
-#if !(WITH_EDITOR)
-		CachedNumResidentLODs = NewVal;
-#endif
+	ENGINE_API int32 GetCachedLODBias() const 
+	{ 
+		return CachedCombinedLODBias; 
 	}
 
-	FORCEINLINE void SetCachedReadyForStreaming(bool NewVal)
-	{
-#if !(WITH_EDITOR)
-		bCachedReadyForStreaming = NewVal;
-#endif
+	/** Return the streaming state of the render resources. Mirrors the state and lowers cache misses. Cleared if there are no resources. */
+	FORCEINLINE const FStreamableRenderResourceState& GetStreamableResourceState() const 
+	{ 
+		return CachedSRRState; 
 	}
 
-	FORCEINLINE uint8 GetCachedNumResidentLODs() const
-	{
-#if WITH_EDITOR
-		return GetNumResidentMips();
-#else
-		return CachedNumResidentLODs;
-#endif
-	}
+	/** Whether the current asset render resource is streamable from a gamethread timeline.*/
+	FORCEINLINE bool RenderResourceSupportsStreaming() const { return CachedSRRState.bSupportsStreaming && CachedSRRState.MaxNumLODs > CachedSRRState.NumNonStreamingLODs; }
 
-	FORCEINLINE bool GetCachedReadyForStreaming() const
-	{
-#if WITH_EDITOR
-		return IsReadyForStreaming();
-#else
-		return bCachedReadyForStreaming;
-#endif
-	}
+	/** Whether the current asset render resource is streamable from a gamethread timeline.*/
+	FORCEINLINE bool IsStreamable() const { return StreamingIndex != INDEX_NONE; }
+
+	/** Links texture to the texture streaming manager. */
+	ENGINE_API void LinkStreaming();
+	/** Unlinks texture from the texture streaming manager. */
+	ENGINE_API void UnlinkStreaming();
+
+	/** Whether all miplevels of this texture have been fully streamed in, LOD settings permitting. Note that if optional mips are not mounted it will always return false. */
+	ENGINE_API bool IsFullyStreamedIn();
+
+	FORCEINLINE int32 GetStreamingIndex() const { return StreamingIndex; }
+
+	/** Wait for any pending operation (like InitResource and Streaming) to complete. */
+	ENGINE_API void WaitForPendingInitOrStreaming(bool bWaitForLODTransition = false, bool bSendCompletionEvents = false);
+
+	/** Wait for any pending operation and make sure that the asset streamer has performed requested ops on this asset. */
+	ENGINE_API void WaitForStreaming(bool bWaitForLODTransition = false, bool bSendCompletionEvents = false);
+
+	void TickStreaming(bool bSendCompletionEvents = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr);
+
+	virtual EStreamableRenderAssetType GetRenderAssetType() const { return EStreamableRenderAssetType::None; }
+
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 
 protected:
+	
+	// Also returns false if the render resource is non existent, to prevent stalling on an event that will never complete.
+	virtual bool HasPendingRenderResourceInitialization() const { return false; }
+
+	virtual bool HasPendingLODTransition() const { return false; }
+
 	struct FLODStreamingCallbackPayload
 	{
 		UPrimitiveComponent* Component;
@@ -263,6 +219,9 @@ protected:
 
 	TArray<FLODStreamingCallbackPayload> MipChangeCallbacks;
 
+	/** An update structure used to handle streaming strategy. */
+	TRefCountPtr<class FRenderAssetUpdate> PendingUpdate;
+
 	/** WorldSettings timestamp that tells the streamer to force all miplevels to be resident up until that time. */
 	UPROPERTY(transient)
 	double ForceMipLevelsToBeResidentTimestamp;
@@ -275,19 +234,11 @@ public:
 protected:
 	/** FStreamingRenderAsset index used by the texture streaming system. */
 	UPROPERTY(transient, duplicatetransient, NonTransactional)
-	int32 StreamingIndex;
+	int32 StreamingIndex = INDEX_NONE;
 
 	/** Cached combined group and texture LOD bias to use.	*/
 	UPROPERTY(transient)
 	int32 CachedCombinedLODBias;
-
-	/** Cached value of GetNumResidentMips(). Used to reduce cache misses */
-	UPROPERTY(transient)
-	uint8 CachedNumResidentLODs;
-
-	/** Cached value of IsReadyForStreaming(). Used to reduce cache misses */
-	UPROPERTY(transient)
-	uint8 bCachedReadyForStreaming : 1;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelOfDetail, AssetRegistrySearchable, AdvancedDisplay)
@@ -296,10 +247,6 @@ public:
 	/** Global and serialized version of ForceMiplevelsToBeResident.				*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = LevelOfDetail, meta = (DisplayName = "Global Force Resident Mip Levels"), AdvancedDisplay)
 	uint8 bGlobalForceMipLevelsToBeResident : 1;
-
-	/** Whether the texture is currently streamable or not.						*/
-	UPROPERTY(transient, NonTransactional)
-	uint8 bIsStreamable : 1;
 
 	/** Whether some mips might be streamed soon. If false, the texture is not planned resolution will be stable. */
 	UPROPERTY(transient, NonTransactional)
@@ -317,6 +264,9 @@ protected:
 	/** Whether to use the extra cinematic quality mip-levels, when we're forcing mip-levels to be resident. */
 	UPROPERTY(transient)
 	uint8 bUseCinematicMipLevels : 1;
+
+	/** Gamethread coherent state of the resource. Updated whenever graphic resources would from enqueued render commands. */
+	FStreamableRenderResourceState CachedSRRState;
 
 	friend struct FRenderAssetStreamingManager;
 	friend struct FStreamingRenderAsset;

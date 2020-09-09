@@ -9,7 +9,9 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "StaticParameterSet.h"
 #include "Factories/MaterialFactoryNew.h"
+#include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Factories/TextureFactory.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Input/Reply.h"
@@ -17,6 +19,7 @@
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -24,6 +27,7 @@
 #include "SlateOptMacros.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/GCObject.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -56,6 +60,7 @@
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "AssetRegistryModule.h"
+#include "AssetToolsModule.h"
 #include "UnrealEd/Private/GeomFitUtils.h"
 #include "SpeedTreeWind.h"
 #include "StaticMeshAttributes.h"
@@ -65,7 +70,8 @@
 
 THIRD_PARTY_INCLUDES_START
 #include "Core/Core.h"
-#include "TreeReader.h"
+#include "TreeReader8.h"
+#include "TreeReader9.h"
 THIRD_PARTY_INCLUDES_END
 
 #endif // WITH_SPEEDTREE
@@ -77,6 +83,8 @@ THIRD_PARTY_INCLUDES_END
 #include "IDetailsView.h"
 
 #include "SpeedTreeImportData.h"
+
+using namespace SpeedTreeDataBuffer;
 
 #define LOCTEXT_NAMESPACE "SpeedTreeImportFactory"
 
@@ -280,7 +288,13 @@ USpeedTreeImportFactory::USpeedTreeImportFactory(const FObjectInitializer& Objec
 #if WITH_SPEEDTREE
 	Formats.Add(TEXT("srt;SpeedTree"));
 	Formats.Add(TEXT("st;SpeedTree v8"));
+	Formats.Add(TEXT("st9;SpeedTree v9"));
 #endif
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> MasterMaterialFinder(TEXT("/SpeedTreeImporter/SpeedTree9/SpeedTreeMaster"));
+	MasterMaterial = MasterMaterialFinder.Object;
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> MasterBillboardMaterialFinder(TEXT("/SpeedTreeImporter/SpeedTree9/SpeedTreeBillboardMaster"));
+	MasterBillboardMaterial = MasterBillboardMaterialFinder.Object;
 }
 
 FText USpeedTreeImportFactory::GetDisplayName() const
@@ -310,7 +324,7 @@ bool USpeedTreeImportFactory::FactoryCanImport(const FString& Filename)
 	}
 	else if (FPaths::GetExtension(Filename) == TEXT("st"))
 	{
-		// SpeedTree8 files should begin with the token "SpeedTree___"
+		// GameEngine8 files should begin with the token "SpeedTree___"
 		TArray<uint8> FileData;
 
 		FFileHelper::LoadFileToArray(FileData, *Filename);
@@ -331,6 +345,33 @@ bool USpeedTreeImportFactory::FactoryCanImport(const FString& Filename)
 						  FileData[11] == '_');
 		}
 	}
+	else if (FPaths::GetExtension(Filename) == TEXT("st9"))
+	{
+		// GameEngine8 files should begin with the token "SpeedTree___"
+		TArray<uint8> FileData;
+
+		FFileHelper::LoadFileToArray(FileData, *Filename);
+
+		if (FileData.Num() > 16)
+		{
+			bCanImport = (FileData[0] == 'S' &&
+						  FileData[1] == 'p' &&
+						  FileData[2] == 'e' &&
+						  FileData[3] == 'e' &&
+						  FileData[4] == 'd' &&
+						  FileData[5] == 'T' &&
+  						  FileData[6] == 'r' &&
+						  FileData[7] == 'e' &&
+						  FileData[8] == 'e' &&
+						  FileData[9] == '9' &&
+						  FileData[10] == '_' &&
+						  FileData[11] == '_' &&
+						  FileData[12] == '_' &&
+						  FileData[13] == '_' &&
+						  FileData[14] == '_' &&
+						  FileData[15] == '_');
+		}
+}
 
 #else	// WITH_SPEEDTREE
 	bCanImport = Super::FactoryCanImport(Filename);
@@ -353,11 +394,9 @@ UClass* USpeedTreeImportFactory::ResolveSupportedClass()
 
 UTexture* CreateSpeedTreeMaterialTexture(UObject* Parent,const FString& Filename, bool bNormalMap, bool bMasks, TSet<UPackage*>& LoadedPackages, FSpeedTreeImportContext& ImportContext)
 {
-	UTexture* UnrealTexture = NULL;
-
 	if (Filename.IsEmpty( ))
 	{
-		return UnrealTexture;
+		return nullptr;
 	}
 
 	if (UTexture** Texture = ImportContext.ImportedTextures.Find(Filename))
@@ -366,34 +405,33 @@ UTexture* CreateSpeedTreeMaterialTexture(UObject* Parent,const FString& Filename
 		return *Texture;
 	}
 
+	// set where to place the materials
 	FString Extension = FPaths::GetExtension(Filename).ToLower();
-	FString TextureName = FPaths::GetBaseFilename(Filename) + TEXT("_Tex");
-	TextureName = ObjectTools::SanitizeObjectName(TextureName);
+	FString TextureName = ObjectTools::SanitizeObjectName(Filename) + TEXT("_Tex");
+	FString BasePackageName = FPackageName::GetLongPackagePath(Parent->GetOutermost()->GetName()) / TextureName;
+	BasePackageName = UPackageTools::SanitizePackageName(BasePackageName);
 
-	// set where to place the textures
-	FString NewPackageName = FPackageName::GetLongPackagePath(Parent->GetOutermost()->GetName()) + TEXT("/") + TextureName;
-	UPackage* Package = UPackageTools::FindOrCreatePackageForAssetType(FName(*NewPackageName), UTexture2D::StaticClass());
-	check(Package);
-	NewPackageName = Package->GetFullName();
-	TextureName = FPaths::GetBaseFilename(NewPackageName, true);
-
-#if 0
-	// find existing texture
-	UnrealTexture = FindObject<UTexture>(Package, *TextureName);
-	if (UnrealTexture != NULL)
+	UTexture* ExistingTexture = nullptr;
+	UPackage* Package = nullptr;
 	{
-		if (!LoadedPackages.Contains(Package))
-		{
-			LoadedPackages.Add(Package);
-			if (!FReimportManager::Instance()->Reimport(UnrealTexture, true))
-			{
-				UE_LOG(LogSpeedTreeImport, Warning, TEXT("Manual texture reimport and recompression may be needed for %s"), *TextureName);
-			}
-		}
-
-		return UnrealTexture;
+		FString ObjectPath = BasePackageName + TEXT(".") + TextureName;
+		ExistingTexture = LoadObject<UTexture>(nullptr, *ObjectPath, nullptr, LOAD_Quiet | LOAD_NoWarn);
 	}
-#endif
+
+	if (ExistingTexture)
+	{
+		Package = ExistingTexture->GetOutermost();
+	}
+	else
+	{
+		const FString Suffix(TEXT(""));
+
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		FString FinalPackageName;
+		AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, TextureName);
+
+		Package = CreatePackage(nullptr, *FinalPackageName);
+	}
 
 	// try opening from absolute path
 	FString FilenamePath = FPaths::GetPath(UFactory::GetCurrentFilename()) + "/" + Filename;
@@ -401,51 +439,49 @@ UTexture* CreateSpeedTreeMaterialTexture(UObject* Parent,const FString& Filename
 	if (!(FFileHelper::LoadFileToArray(TextureData, *FilenamePath) && TextureData.Num() > 0))
 	{
 		UE_LOG(LogSpeedTreeImport, Warning, TEXT("Unable to find Texture file %s"), *FilenamePath);
+		return nullptr;
 	}
-	else
-	{
-		auto TextureFact = NewObject<UTextureFactory>();
-		TextureFact->AddToRoot();
-		TextureFact->SuppressImportOverwriteDialog();
 
-		if (bNormalMap)
-		{
-			TextureFact->LODGroup = TEXTUREGROUP_WorldNormalMap;
-			TextureFact->CompressionSettings = TC_Normalmap;
-		}
+	auto TextureFact = NewObject<UTextureFactory>();
+	TextureFact->AddToRoot();
+	TextureFact->SuppressImportOverwriteDialog();
+
+	if (bNormalMap)
+	{
+		TextureFact->LODGroup = TEXTUREGROUP_WorldNormalMap;
+		TextureFact->CompressionSettings = TC_Normalmap;
+	}
 		
+	if (bMasks)
+	{
+		TextureFact->CompressionSettings = TC_Masks;
+	}
+
+	const uint8* PtrTexture = TextureData.GetData();
+	UTexture* Texture = (UTexture*)TextureFact->FactoryCreateBinary(UTexture2D::StaticClass(), Package, *TextureName, RF_Standalone|RF_Public, NULL, *Extension, PtrTexture, PtrTexture + TextureData.Num(), GWarn);
+	if (Texture != NULL)
+	{
 		if (bMasks)
 		{
-			TextureFact->CompressionSettings = TC_Masks;
-
+			Texture->SRGB = false;
+			Texture->CompressionSettings = TC_Masks;
 		}
+		Texture->AssetImportData->Update(FilenamePath);
 
-		const uint8* PtrTexture = TextureData.GetData();
-		UnrealTexture = (UTexture*)TextureFact->FactoryCreateBinary(UTexture2D::StaticClass(), Package, *TextureName, RF_Standalone|RF_Public, NULL, *Extension, PtrTexture, PtrTexture + TextureData.Num(), GWarn);
-		if (UnrealTexture != NULL)
-		{
-			if (bMasks)
-			{
-				UnrealTexture->SRGB = false;
-				UnrealTexture->CompressionSettings = TC_Masks;
-			}
-			UnrealTexture->AssetImportData->Update(FilenamePath);
+		// Notify the asset registry
+		FAssetRegistryModule::AssetCreated(Texture);
 
-			// Notify the asset registry
-			FAssetRegistryModule::AssetCreated(UnrealTexture);
-
-			// Set the dirty flag so this package will get saved later
-			Package->SetDirtyFlag(true);
-			LoadedPackages.Add(Package);
-		}
-
-		TextureFact->RemoveFromRoot();
+		// Set the dirty flag so this package will get saved later
+		Package->SetDirtyFlag(true);
+		LoadedPackages.Add(Package);
 	}
 
-	// Keep track of the created textures
-	ImportContext.ImportedTextures.Add(Filename, UnrealTexture);
+	Texture->RemoveFromRoot();
 
-	return UnrealTexture;
+	// Keep track of the created textures
+	ImportContext.ImportedTextures.Add(Filename, Texture);
+
+	return Texture;
 }
 
 void LayoutMaterial(UMaterialInterface* MaterialInterface, bool bOffsetOddColumns = false)
@@ -891,7 +927,7 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 	return UnrealMaterial;
 }
 
-UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFullName, SpeedTree8::CMaterial& SpeedTreeMaterial, TSharedPtr<SSpeedTreeImportOptions> Options, ESpeedTreeWindType WindType, ESpeedTreeGeometryType GeomType, TSet<UPackage*>& LoadedPackages, bool bCrossfadeLOD, FSpeedTreeImportContext& ImportContext)
+UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFullName, GameEngine8::CMaterial& SpeedTreeMaterial, TSharedPtr<SSpeedTreeImportOptions> Options, ESpeedTreeWindType WindType, ESpeedTreeGeometryType GeomType, TSet<UPackage*>& LoadedPackages, bool bCrossfadeLOD, FSpeedTreeImportContext& ImportContext)
 {
 	// Make sure we have a parent
 	if (!Options->SpeedTreeImportData->MakeMaterialsCheck || !ensure(Parent))
@@ -977,7 +1013,7 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 		if (SpeedTreeMaterial.Maps()[0].Path().IsEmpty())
 		{
 			UMaterialExpressionConstant3Vector* ColorExpression = NewObject<UMaterialExpressionConstant3Vector>(UnrealMaterial);
-			SpeedTree8::Vec4 Color = SpeedTreeMaterial.Maps()[0].Color();
+			GameEngine8::Vec4 Color = SpeedTreeMaterial.Maps()[0].Color();
 			ColorExpression->Constant = FLinearColor(FColor(Color.x * 255, Color.y * 255, Color.z * 255));
 			UnrealMaterial->Expressions.Add(ColorExpression);
 			UnrealMaterial->BaseColor.Expression = ColorExpression;
@@ -1006,7 +1042,7 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 				TextureExpression->SamplerType = SAMPLERTYPE_Color;
 				UnrealMaterial->Expressions.Add(TextureExpression);
 				UnrealMaterial->BaseColor.Expression = TextureExpression;
-				
+
 				if (VertexColor == NULL)
 				{
 					UMaterialFunction* BillboardCrossfadeFunction = LoadObject<UMaterialFunction>(NULL, TEXT("/Engine/Functions/Engine_MaterialFunctions01/SpeedTree/SpeedTreeCrossfadeBillboard.SpeedTreeCrossfadeBillboard"), NULL, LOAD_None, NULL);
@@ -1053,7 +1089,7 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 			}
 		}
 	}
-	
+
 	// normal map and roughness
 	if (SpeedTreeMaterial.Maps().Count() > 1 && SpeedTreeMaterial.Maps()[1].Used())
 	{
@@ -1129,7 +1165,7 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 		if (SpeedTreeMaterial.Maps()[2].Path().IsEmpty())
 		{
 			UMaterialExpressionConstant3Vector* ColorExpression = NewObject<UMaterialExpressionConstant3Vector>(UnrealMaterial);
-			SpeedTree8::Vec4 Color = SpeedTreeMaterial.Maps()[2].Color();
+			GameEngine8::Vec4 Color = SpeedTreeMaterial.Maps()[2].Color();
 			ColorExpression->Constant = FLinearColor(FColor(Color.x * 255, Color.y * 255, Color.z * 255));
 			UnrealMaterial->Expressions.Add(ColorExpression);
 			UnrealMaterial->SubsurfaceColor.Expression = ColorExpression;
@@ -1174,6 +1210,231 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 	UnrealMaterial->PostEditChange();
 
 	return UnrealMaterial;
+}
+
+
+UMaterialInterface* CreateSpeedTreeMaterial9(UObject* Parent, FString MaterialFullName, GameEngine9::CMaterial& SpeedTreeMaterial, UMaterialInterface* MasterMaterial, GameEngine9::CWindConfigSDK Wind, bool bHandleCameraFacing, int32 BillboardCount, TSet<UPackage*>& LoadedPackages, FSpeedTreeImportContext& ImportContext)
+{
+	// Make sure we have a parent
+	if ((MasterMaterial == NULL) || !ensure(Parent))
+	{
+		return UMaterial::GetDefaultMaterial(MD_Surface);
+	}
+
+	if (UMaterialInterface** Material = ImportContext.ImportedMaterials.Find(MaterialFullName))
+	{
+		// The material was already imported
+		return *Material;
+	}
+
+	// set where to place the materials
+	FString FixedMaterialName = ObjectTools::SanitizeObjectName(MaterialFullName);
+	FString BasePackageName = FPackageName::GetLongPackagePath(Parent->GetOutermost()->GetName()) / FixedMaterialName;
+	BasePackageName = UPackageTools::SanitizePackageName(BasePackageName);
+
+	UMaterialInterface* ExistingMaterial = nullptr;
+	UPackage* Package = nullptr;
+	{
+		FString ObjectPath = BasePackageName + TEXT(".") + FixedMaterialName;
+		ExistingMaterial = LoadObject<UMaterialInterface>(nullptr, *ObjectPath, nullptr, LOAD_Quiet | LOAD_NoWarn);
+	}
+
+	if (ExistingMaterial)
+	{
+		Package = ExistingMaterial->GetOutermost();
+	}
+	else
+	{
+		const FString Suffix(TEXT(""));
+
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		FString FinalPackageName;
+		AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, FixedMaterialName);
+
+		Package = CreatePackage(nullptr, *FinalPackageName);
+	}
+
+	// does not override existing materials
+	if (ExistingMaterial != nullptr)
+	{
+		// Keep track of the processed materials
+		ImportContext.ImportedMaterials.Add(MaterialFullName, ExistingMaterial);
+
+		// touch the textures anyway to make sure they reload if necessary
+		if (SpeedTreeMaterial.Maps().Count() > 0 && SpeedTreeMaterial.Maps()[0].Used() && !SpeedTreeMaterial.Maps()[0].Path().IsEmpty())
+		{
+			UTexture* DiffuseTexture = CreateSpeedTreeMaterialTexture(Parent, ANSI_TO_TCHAR(SpeedTreeMaterial.Maps()[0].Path().Data()), false, false, LoadedPackages, ImportContext);
+		}
+
+		if (SpeedTreeMaterial.Maps().Count() > 1 && SpeedTreeMaterial.Maps()[1].Used() && !SpeedTreeMaterial.Maps()[1].Path().IsEmpty())
+		{
+			UTexture* NormalTexture = CreateSpeedTreeMaterialTexture(Parent, ANSI_TO_TCHAR(SpeedTreeMaterial.Maps()[1].Path().Data()), false, false, LoadedPackages, ImportContext);
+		}
+
+		if (SpeedTreeMaterial.Maps().Count() > 2 && SpeedTreeMaterial.Maps()[2].Used() && !SpeedTreeMaterial.Maps()[2].Path().IsEmpty())
+		{
+			UTexture* SubsurfaceTexture = CreateSpeedTreeMaterialTexture(Parent, ANSI_TO_TCHAR(SpeedTreeMaterial.Maps()[2].Path().Data()), false, false, LoadedPackages, ImportContext);
+		}
+
+		return ExistingMaterial;
+	}
+
+	// create a material instance
+	auto MaterialFactory = NewObject<UMaterialInstanceConstantFactoryNew>();
+	UMaterialInstanceConstant* UnrealMaterialInstance = (UMaterialInstanceConstant*)MaterialFactory->FactoryCreateNew(UMaterialInstanceConstant::StaticClass(), Package, *FixedMaterialName, RF_Standalone | RF_Public, NULL, GWarn);
+	FAssetRegistryModule::AssetCreated(UnrealMaterialInstance);
+	UnrealMaterialInstance->SetParentEditorOnly(MasterMaterial);
+	UnrealMaterialInstance->ClearParameterValuesEditorOnly();
+	Package->SetDirtyFlag(true);
+	UnrealMaterialInstance->PreEditChange(NULL);
+	UnrealMaterialInstance->PostEditChange();
+
+	// Keep track of the processed materials
+	ImportContext.ImportedMaterials.Add(MaterialFullName, UnrealMaterialInstance);
+
+	// base material property overrides
+	if (UnrealMaterialInstance->IsTwoSided() != SpeedTreeMaterial.TwoSided())
+	{
+		UnrealMaterialInstance->BasePropertyOverrides.bOverride_TwoSided = true;
+		UnrealMaterialInstance->BasePropertyOverrides.TwoSided = SpeedTreeMaterial.TwoSided();
+	}
+	EMaterialShadingModel WantedShadingModel = ((SpeedTreeMaterial.TwoSided() || SpeedTreeMaterial.Billboard()) ? MSM_TwoSidedFoliage : MSM_DefaultLit);
+	if (!UnrealMaterialInstance->ShadingModels.HasShadingModel(WantedShadingModel))
+	{
+		UnrealMaterialInstance->BasePropertyOverrides.bOverride_ShadingModel = true;
+		UnrealMaterialInstance->BasePropertyOverrides.ShadingModel = WantedShadingModel;
+	}
+
+	// material static setup
+	FStaticParameterSet StaticParameters;
+	UnrealMaterialInstance->GetStaticParameterValues(StaticParameters);
+	for (FStaticSwitchParameter& SwitchParameter : StaticParameters.StaticSwitchParameters)
+	{
+		if (SwitchParameter.ParameterInfo.Name == FName(TEXT("SharedEnable")))
+		{
+			SwitchParameter.Value = Wind.DoShared();
+			SwitchParameter.bOverride = true;
+		}
+		else if (SwitchParameter.ParameterInfo.Name == FName(TEXT("Branch1Enable")))
+		{
+			SwitchParameter.Value = Wind.DoBranch1();
+			SwitchParameter.bOverride = true;
+		}
+		else if (SwitchParameter.ParameterInfo.Name == FName(TEXT("Branch2Enable")))
+		{
+			SwitchParameter.Value = Wind.DoBranch2();
+			SwitchParameter.bOverride = true;
+		}
+		else if (SwitchParameter.ParameterInfo.Name == FName(TEXT("RippleEnable")))
+		{
+			SwitchParameter.Value = Wind.DoRipple();
+			SwitchParameter.bOverride = true;
+		}
+		else if (SwitchParameter.ParameterInfo.Name == FName(TEXT("RippleShimmerEnable")))
+		{
+			SwitchParameter.Value = Wind.DoShimmer();
+			SwitchParameter.bOverride = true;
+		}
+		else if (SwitchParameter.ParameterInfo.Name == FName(TEXT("FlipBacksideNormals")))
+		{
+			SwitchParameter.Value = SpeedTreeMaterial.FlipNormalsOnBackside();
+			SwitchParameter.bOverride = true;
+		}
+		else if (SwitchParameter.ParameterInfo.Name == FName(TEXT("HandleCameraFacing")))
+		{
+			SwitchParameter.Value = bHandleCameraFacing;
+			SwitchParameter.bOverride = true;
+		}
+		else if (SwitchParameter.ParameterInfo.Name == FName(TEXT("HasBranch2Data_Internal")))
+		{
+			SwitchParameter.Value = Wind.DoBranch2();
+			SwitchParameter.bOverride = true;
+		}
+	}
+	UnrealMaterialInstance->UpdateStaticPermutation(StaticParameters);
+
+	// set wind values
+	int32 WindCurveIndex = FMath::Clamp<int32>(static_cast<int32>(Wind.Shared().Bend().Count() * Wind.Common().CurrentStrength()), 0, static_cast<int32>(Wind.Shared().Bend().Count()) - 1);
+	#define SET_ST_PARAM(a) UnrealMaterialInstance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(#a), Wind.a());
+	#define SET_ST_SUB_PARAM(a, b) UnrealMaterialInstance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(#a#b), Wind.a().b());
+	#define SET_ST_INDEXED_PARAM(a, b) UnrealMaterialInstance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(#a#b), Wind.a().b()[WindCurveIndex]);
+
+	SET_ST_INDEXED_PARAM(Shared, Bend);
+	SET_ST_INDEXED_PARAM(Shared, Oscillation);
+	SET_ST_INDEXED_PARAM(Shared, Speed);
+	SET_ST_INDEXED_PARAM(Shared, Turbulence);
+	SET_ST_INDEXED_PARAM(Shared, Flexibility);
+	//SET_ST_SUB_PARAM(Shared, Independence);
+	SET_ST_PARAM(SharedStartHeight);
+	UnrealMaterialInstance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo("SharedIndependence"), 0.01f);
+
+	SET_ST_INDEXED_PARAM(Branch1, Bend);
+	SET_ST_INDEXED_PARAM(Branch1, Oscillation);
+	SET_ST_INDEXED_PARAM(Branch1, Speed);
+	SET_ST_INDEXED_PARAM(Branch1, Turbulence);
+	SET_ST_INDEXED_PARAM(Branch1, Flexibility);
+	SET_ST_SUB_PARAM(Branch1, Independence);
+	SET_ST_PARAM(Branch1StretchLimit);
+
+	SET_ST_INDEXED_PARAM(Branch2, Bend);
+	SET_ST_INDEXED_PARAM(Branch2, Oscillation);
+	SET_ST_INDEXED_PARAM(Branch2, Speed);
+	SET_ST_INDEXED_PARAM(Branch2, Turbulence);
+	SET_ST_INDEXED_PARAM(Branch2, Flexibility);
+	SET_ST_SUB_PARAM(Branch2, Independence);
+	SET_ST_PARAM(Branch2StretchLimit);
+
+	SET_ST_INDEXED_PARAM(Ripple, Planar);
+	SET_ST_INDEXED_PARAM(Ripple, Directional);
+	SET_ST_INDEXED_PARAM(Ripple, Speed);
+	SET_ST_INDEXED_PARAM(Ripple, Flexibility);
+	SET_ST_SUB_PARAM(Ripple, Shimmer);
+	SET_ST_SUB_PARAM(Ripple, Independence);
+
+	UnrealMaterialInstance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo("BillboardCount"), BillboardCount);
+
+	// set textures
+	if (SpeedTreeMaterial.Maps().Count() > 0 && SpeedTreeMaterial.Maps()[0].Used() && !SpeedTreeMaterial.Maps()[0].Path().IsEmpty())
+	{
+		UTexture* Texture = CreateSpeedTreeMaterialTexture(Parent, ANSI_TO_TCHAR(SpeedTreeMaterial.Maps()[0].Path().Data()), false, false, LoadedPackages, ImportContext);
+		if (Texture)
+		{
+			// this helps prevent mipmapping from eating away tiny leaves
+			Texture->AdjustMinAlpha = 0.05f;
+
+			UnrealMaterialInstance->SetTextureParameterValueEditorOnly(FMaterialParameterInfo("ColorOpacity"), Texture);
+		}
+	}
+
+	if (SpeedTreeMaterial.Maps().Count() > 1 && SpeedTreeMaterial.Maps()[1].Used() && !SpeedTreeMaterial.Maps()[1].Path().IsEmpty())
+	{
+		UTexture* Texture = CreateSpeedTreeMaterialTexture(Parent, ANSI_TO_TCHAR(SpeedTreeMaterial.Maps()[1].Path().Data()), false, false, LoadedPackages, ImportContext);
+		if (Texture)
+		{
+			Texture->SRGB = false;
+
+			UnrealMaterialInstance->SetTextureParameterValueEditorOnly(FMaterialParameterInfo("NormalRoughness"), Texture);
+		}
+	}
+
+	if (SpeedTreeMaterial.Maps().Count() > 2 && SpeedTreeMaterial.Maps()[2].Used() && !SpeedTreeMaterial.Maps()[2].Path().IsEmpty())
+	{
+		UTexture* Texture = CreateSpeedTreeMaterialTexture(Parent, ANSI_TO_TCHAR(SpeedTreeMaterial.Maps()[2].Path().Data()), false, false, LoadedPackages, ImportContext);
+		if (Texture)
+		{
+			UnrealMaterialInstance->SetTextureParameterValueEditorOnly(FMaterialParameterInfo("Subsurface"), Texture);
+		}
+	}
+
+	// make sure that any static meshes, etc using this material will stop using the FMaterialResource of the original
+	// material, and will use the new FMaterialResource created when we make a new UMaterial in place
+	FGlobalComponentReregisterContext RecreateComponents;
+
+	// let the material update itself if necessary
+	UnrealMaterialInstance->PreEditChange(NULL);
+	UnrealMaterialInstance->PostEditChange();
+
+	return UnrealMaterialInstance;
 }
 
 static void CopySpeedTreeWind7(const SpeedTree::CWind* Wind, TSharedPtr<FSpeedTreeWind> SpeedTreeWind)
@@ -1253,7 +1514,7 @@ static void CopySpeedTreeWind7(const SpeedTree::CWind* Wind, TSharedPtr<FSpeedTr
 	#undef COPY_CURVE
 }
 
-static void CopySpeedTreeWind8(const SpeedTree8::SWindConfig* Wind, TSharedPtr<FSpeedTreeWind> SpeedTreeWind)
+static void CopySpeedTreeWind8(const GameEngine8::SWindConfig* Wind, TSharedPtr<FSpeedTreeWind> SpeedTreeWind)
 {
 	FSpeedTreeWind::SParams NewParams;
 
@@ -1362,7 +1623,7 @@ static void MakeBodyFromCollisionObjects7(UStaticMesh* StaticMesh, const SpeedTr
 	RefreshCollisionChange(*StaticMesh);
 }
 
-static void MakeBodyFromCollisionObjects8(UStaticMesh* StaticMesh, SpeedTree8::DataBuffer::CTableArray<SpeedTree8::CCollisionObject> aObjects)
+static void MakeBodyFromCollisionObjects8(UStaticMesh* StaticMesh, SpeedTreeDataBuffer::CTableArray<GameEngine8::CCollisionObject> aObjects)
 {
 	if (aObjects.Count() > 0)
 	{
@@ -1375,7 +1636,7 @@ static void MakeBodyFromCollisionObjects8(UStaticMesh* StaticMesh, SpeedTree8::D
 
 		for (uint32 CollisionObjectIndex = 0; CollisionObjectIndex < aObjects.Count(); ++CollisionObjectIndex)
 		{
-			SpeedTree8::CCollisionObject CollisionObject = aObjects[CollisionObjectIndex];
+			GameEngine8::CCollisionObject CollisionObject = aObjects[CollisionObjectIndex];
 			const FVector Pos1(CollisionObject.Position().x, CollisionObject.Position().y, CollisionObject.Position().z);
 			const FVector Pos2(CollisionObject.Position2().x, CollisionObject.Position2().y, CollisionObject.Position2().z);
 
@@ -1401,6 +1662,50 @@ static void MakeBodyFromCollisionObjects8(UStaticMesh* StaticMesh, SpeedTree8::D
 			}
 		}
 		
+		StaticMesh->BodySetup->InvalidatePhysicsData();
+		RefreshCollisionChange(*StaticMesh);
+	}
+}
+
+static void MakeBodyFromCollisionObjects9(UStaticMesh* StaticMesh, SpeedTreeDataBuffer::CTableArray<GameEngine9::CCollisionObject> aObjects)
+{
+	if (aObjects.Count() > 0)
+	{
+		StaticMesh->CreateBodySetup();
+		StaticMesh->BodySetup->ClearPhysicsMeshes();
+		StaticMesh->BodySetup->RemoveSimpleCollision();
+		StaticMesh->BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+
+		FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
+
+		for (uint32 CollisionObjectIndex = 0; CollisionObjectIndex < aObjects.Count(); ++CollisionObjectIndex)
+		{
+			GameEngine9::CCollisionObject CollisionObject = aObjects[CollisionObjectIndex];
+			const FVector Pos1(CollisionObject.Position().x, CollisionObject.Position().y, CollisionObject.Position().z);
+			const FVector Pos2(CollisionObject.Position2().x, CollisionObject.Position2().y, CollisionObject.Position2().z);
+
+			if (Pos1 == Pos2)
+			{
+				// sphere object
+				FKSphereElem SphereElem;
+				SphereElem.Radius = CollisionObject.Radius();
+				SphereElem.Center = Pos1;
+				AggGeo.SphereElems.Add(SphereElem);
+			}
+			else
+			{
+				// capsule/sphyll object
+				FKSphylElem SphylElem;
+				SphylElem.Radius = CollisionObject.Radius();
+				FVector UpDir = Pos2 - Pos1;
+				SphylElem.Length = UpDir.Size();
+				if (SphylElem.Length != 0.0f)
+					UpDir /= SphylElem.Length;
+				SphylElem.SetTransform(FTransform(FQuat::FindBetween(FVector(0.0f, 0.0f, 1.0f), UpDir), (Pos1 + Pos2) * 0.5f));
+				AggGeo.SphylElems.Add(SphylElem);
+			}
+		}
+
 		StaticMesh->BodySetup->InvalidatePhysicsData();
 		RefreshCollisionChange(*StaticMesh);
 	}
@@ -2092,7 +2397,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 
 	UStaticMesh* StaticMesh = NULL;
 
-	SpeedTree8::CTree SpeedTree;
+	GameEngine8::CTree SpeedTree;
 	if (!SpeedTree.LoadFromData(Buffer, BufferEnd - Buffer))
 	{
 		UE_LOG(LogSpeedTreeImport, Error, TEXT("Not a SpeedTree file"));
@@ -2183,17 +2488,17 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 		// set up SpeedTree wind data
 		if (!StaticMesh->SpeedTreeWind.IsValid())
 			StaticMesh->SpeedTreeWind = TSharedPtr<FSpeedTreeWind>(new FSpeedTreeWind);
-		const SpeedTree8::SWindConfig* Wind = &(SpeedTree.Wind());
+		const GameEngine8::SWindConfig* Wind = &(SpeedTree.Wind());
 		CopySpeedTreeWind8(Wind, StaticMesh->SpeedTreeWind);
 
 		ESpeedTreeWindType WindType = STW_None;
 		switch (Wind->m_ePreset)
 		{
-		case SpeedTree8::SWindConfig::WIND_PRESET_FASTEST:	WindType = STW_Fastest; break;
-		case SpeedTree8::SWindConfig::WIND_PRESET_FAST:		WindType = STW_Fast; break;
-		case SpeedTree8::SWindConfig::WIND_PRESET_BETTER:	WindType = STW_Better; break;
-		case SpeedTree8::SWindConfig::WIND_PRESET_BEST:		WindType = STW_BestPlus; break;
-		case SpeedTree8::SWindConfig::WIND_PRESET_PALM:		WindType = STW_Palm; break;
+		case GameEngine8::SWindConfig::WIND_PRESET_FASTEST:	WindType = STW_Fastest; break;
+		case GameEngine8::SWindConfig::WIND_PRESET_FAST:		WindType = STW_Fast; break;
+		case GameEngine8::SWindConfig::WIND_PRESET_BETTER:	WindType = STW_Better; break;
+		case GameEngine8::SWindConfig::WIND_PRESET_BEST:		WindType = STW_BestPlus; break;
+		case GameEngine8::SWindConfig::WIND_PRESET_PALM:		WindType = STW_Palm; break;
 		default: break;
 		};
 
@@ -2209,7 +2514,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 		// make geometry LODs
 		for (uint32 LODIndex = 0; LODIndex < SpeedTree.Lods().Count(); ++LODIndex)
 		{
-			SpeedTree8::CLod LOD = SpeedTree.Lods()[LODIndex];
+			GameEngine8::CLod LOD = SpeedTree.Lods()[LODIndex];
 			
 			FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 			FStaticMeshAttributes Attributes(*MeshDescription);
@@ -2229,7 +2534,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 
 			for (uint32 VertexIndex = 0; VertexIndex < LOD.Vertices().Count(); ++VertexIndex)
 			{
-				const SpeedTree8::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
+				const GameEngine8::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
 				FVector vPosition = FVector(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y, Vertex.m_vAnchor.z) + FVector(Vertex.m_vOffset.x, Vertex.m_vOffset.y, Vertex.m_vOffset.z);
 				FVertexID VertexID = MeshDescription->CreateVertex();
 				VertexPositions[VertexID] = FVector(vPosition);
@@ -2241,7 +2546,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 
 			for (uint32 DrawCallIndex = 0; DrawCallIndex < LOD.DrawCalls().Count(); ++DrawCallIndex)
 			{
-				const SpeedTree8::SDrawCall& DrawCall = LOD.DrawCalls()[DrawCallIndex]; //-V758
+				const GameEngine8::SDrawCall& DrawCall = LOD.DrawCalls()[DrawCallIndex]; //-V758
 
 				// find correct material/geometry combo
 				FIntPoint MaterialKey(DrawCall.m_uiMaterialIndex, DrawCall.m_eWindGeometryType);
@@ -2249,7 +2554,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 				{
 					ESpeedTreeGeometryType GeomType;
 					FString GeomString;
-					#define HANDLE_WIND_TYPE(a) case SpeedTree8::a: GeomType = STG_##a; GeomString = "_"#a; break
+					#define HANDLE_WIND_TYPE(a) case GameEngine8::a: GeomType = STG_##a; GeomString = "_"#a; break
 					switch (DrawCall.m_eWindGeometryType)
 					{
 					HANDLE_WIND_TYPE(Frond);
@@ -2260,7 +2565,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 					HANDLE_WIND_TYPE(Branch);
 					};
 
-					SpeedTree8::CMaterial SpeedTreeMaterial = SpeedTree.Materials()[DrawCall.m_uiMaterialIndex];
+					GameEngine8::CMaterial SpeedTreeMaterial = SpeedTree.Materials()[DrawCall.m_uiMaterialIndex];
 					FString MaterialName = FString(SpeedTreeMaterial.Name().Data());
 					MaterialName.InsertAt(MaterialName.Len() - 4, GeomString);
 					UMaterialInterface* Material = CreateSpeedTreeMaterial8(InParent, MaterialName, SpeedTreeMaterial, Options, WindType, GeomType, LoadedPackages, bCrossfadeLOD, ImportContext);
@@ -2294,7 +2599,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 					for (int32 Corner = 0; Corner < 3; ++Corner)
 					{
 						int32 VertexIndex = LOD.Indices()[DrawCall.m_uiIndexStart + TriangleIndex * 3 + (2 - Corner)];
-						const SpeedTree8::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
+						const GameEngine8::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
 
 						FVertexID VertexID(VertexIndex);
 						const FVertexInstanceID& VertexInstanceID = MeshDescription->CreateVertexInstance(VertexID);
@@ -2309,7 +2614,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 						VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
 						
 						// ao and branch blend in vertex color
-						if (DrawCall.m_eWindGeometryType != SpeedTree8::Billboard)
+						if (DrawCall.m_eWindGeometryType != GameEngine8::Billboard)
 						{
 							uint8 AO = Vertex.m_fAmbientOcclusion * 255.0f;
 							VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(FColor(AO, AO, AO, Vertex.m_fBlendWeight * 255)));
@@ -2335,7 +2640,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 						// lightmap
 						VertexInstanceUVs.Set(VertexInstanceID, 1, FVector2D(Vertex.m_vLightmapTexCoord.x, Vertex.m_vLightmapTexCoord.y));
 
-						if (DrawCall.m_eWindGeometryType == SpeedTree8::Billboard)
+						if (DrawCall.m_eWindGeometryType == GameEngine8::Billboard)
 						{
 							VertexInstanceUVs.Set(VertexInstanceID, 2, FVector2D((Vertex.m_vNormal.z > 0.5f) ? 1.0f : 0.0f, 0.0f));
 						}
@@ -2351,7 +2656,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 							VertexInstanceUVs.Set(VertexInstanceID, 4, FVector2D(vLodPosition[2], 0.0f));
 
 							// other
-							if (DrawCall.m_eWindGeometryType == SpeedTree8::Branch)
+							if (DrawCall.m_eWindGeometryType == GameEngine8::Branch)
 							{
 								// detail (not used in v8)
 								VertexInstanceUVs.Set(VertexInstanceID, 5, FVector2D(0.0f, 0.0f));
@@ -2363,7 +2668,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 								// keep alignment
 								VertexInstanceUVs.Set(VertexInstanceID, 7, FVector2D(0.0f, 0.0f));
 							}
-							else if (DrawCall.m_eWindGeometryType == SpeedTree8::Frond)
+							else if (DrawCall.m_eWindGeometryType == GameEngine8::Frond)
 							{
 								// frond wind
 								VertexInstanceUVs.Set(VertexInstanceID, 5, FVector2D(Vertex.m_vWindNonBranch.x, Vertex.m_vWindNonBranch.y));
@@ -2372,7 +2677,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 								// keep alignment
 								VertexInstanceUVs.Set(VertexInstanceID, 7, FVector2D(0.0f, 0.0f));
 							}
-							else if (DrawCall.m_eWindGeometryType == SpeedTree8::Leaf || DrawCall.m_eWindGeometryType == SpeedTree8::FacingLeaf)
+							else if (DrawCall.m_eWindGeometryType == GameEngine8::Leaf || DrawCall.m_eWindGeometryType == GameEngine8::FacingLeaf)
 							{
 								// anchor
 								VertexInstanceUVs.Set(VertexInstanceID, 4, FVector2D(VertexInstanceUVs.Get(VertexInstanceID, 4).X, Vertex.m_vAnchor.x));
@@ -2426,10 +2731,317 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 	return StaticMesh;
 }
 
+UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn, bool& bOutOperationCanceled)
+{
+	if (InParent == nullptr)
+	{
+		return nullptr;
+	}
+
+	GEditor->SelectNone(false, false);
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, Type);
+
+	FString MeshName = ObjectTools::SanitizeObjectName(InName.ToString());
+	FString BasePackageName = FPackageName::GetLongPackagePath(InParent->GetOutermost()->GetName()) / MeshName;
+	BasePackageName = UPackageTools::SanitizePackageName(BasePackageName);
+
+	UStaticMesh* ExistingMesh = nullptr;
+	UPackage* Package = nullptr;
+	// First check if the asset already exists.
+	{
+		FString ObjectPath = BasePackageName + TEXT(".") + MeshName;
+		ExistingMesh = LoadObject<UStaticMesh>(nullptr, *ObjectPath, nullptr, LOAD_Quiet | LOAD_NoWarn);
+	}
+
+	if (ExistingMesh)
+	{
+		Package = ExistingMesh->GetOutermost();
+	}
+	else
+	{
+		const FString Suffix(TEXT(""));
+
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		FString FinalPackageName;
+		AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, MeshName);
+
+		Package = CreatePackage(nullptr, *FinalPackageName);
+	}
+
+	USpeedTreeImportData* ExistingImportData = nullptr;
+	if (ExistingMesh)
+	{
+		//Grab the existing asset data to fill correctly the option with the original import value
+		ExistingImportData = Cast<USpeedTreeImportData>(ExistingMesh->AssetImportData);
+	}
+
+	UStaticMesh* StaticMesh = nullptr;
+
+	GameEngine9::CTree SpeedTree;
+	if (!SpeedTree.LoadFromData(Buffer, BufferEnd - Buffer))
+	{
+		UE_LOG(LogSpeedTreeImport, Error, TEXT("Not a SpeedTree file"));
+	}
+	else
+	{
+		LoadedPackages.Empty();
+
+		FSpeedTreeImportContext ImportContext;
+
+		// clear out old mesh
+		TArray<FStaticMaterial> OldMaterials;
+		FGlobalComponentReregisterContext RecreateComponents;
+		if (ExistingMesh)
+		{
+			OldMaterials = ExistingMesh->StaticMaterials;
+			for (int32 i = 0; i < OldMaterials.Num(); ++i)
+			{
+				if (OldMaterials[i].MaterialInterface != UMaterial::GetDefaultMaterial(MD_Surface))
+				{
+					OldMaterials[i].MaterialInterface->PreEditChange(NULL);
+					OldMaterials[i].MaterialInterface->PostEditChange();
+				}
+			}
+
+			// Free any RHI resources for existing mesh before we re-create in place.
+			ExistingMesh->PreEditChange(NULL);
+
+			StaticMesh = ExistingMesh;
+		}
+		else
+		{
+			StaticMesh = NewObject<UStaticMesh>(Package, FName(*MeshName), Flags | RF_Public);
+		}
+
+		// Copy the speed tree import asset from the option windows
+		if (StaticMesh->AssetImportData == nullptr || !StaticMesh->AssetImportData->IsA(USpeedTreeImportData::StaticClass()))
+		{
+			StaticMesh->AssetImportData = NewObject<USpeedTreeImportData>(StaticMesh, NAME_None);
+		}
+		StaticMesh->AssetImportData->Update(UFactory::GetCurrentFilename());
+
+		// clear out any old data
+		StaticMesh->GetSectionInfoMap().Clear();
+		StaticMesh->StaticMaterials.Empty();
+		if (StaticMesh->GetNumSourceModels() != SpeedTree.Lods().Count())
+		{
+			StaticMesh->SetNumSourceModels(0);
+			float Denominator = 1.0f / FMath::Max(1.0f, SpeedTree.Lods().Count() - 1.0f);
+
+			for (uint32 LODIndex = 0; LODIndex < SpeedTree.Lods().Count(); ++LODIndex)
+			{
+				FStaticMeshSourceModel& LODModel = StaticMesh->AddSourceModel();
+				LODModel.BuildSettings.SrcLightmapIndex = 1;
+				LODModel.BuildSettings.DstLightmapIndex = 1;
+				LODModel.BuildSettings.bRecomputeNormals = false;
+				LODModel.BuildSettings.bRecomputeTangents = false;
+				LODModel.BuildSettings.bRemoveDegenerates = true;
+				LODModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
+				LODModel.BuildSettings.bUseFullPrecisionUVs = false;
+				LODModel.BuildSettings.bGenerateLightmapUVs = false;
+				LODModel.ScreenSize = FMath::Lerp(1.0f, 0.25f, LODIndex * Denominator);
+			}
+		}
+
+		// materials
+		TMap<int32, int32> MaterialMap;
+
+		// gui info
+		StaticMesh->bAutoComputeLODScreenSize = false;
+		StaticMesh->bRequiresLODDistanceConversion = false;
+	
+		// VB setup info	
+		bool bHasBranch2Data = SpeedTree.Wind().DoBranch2( );
+		bool bHasFacingData = false;
+		for (uint32 LODIndex = 0; LODIndex < SpeedTree.Lods().Count(); ++LODIndex)
+		{
+			GameEngine9::CLod LOD = SpeedTree.Lods()[LODIndex];
+			for (uint32 DrawCallIndex = 0; DrawCallIndex < LOD.DrawCalls().Count(); ++DrawCallIndex)
+			{
+				const GameEngine9::SDrawCall& DrawCall = LOD.DrawCalls()[DrawCallIndex]; //-V758
+				bHasFacingData |= DrawCall.m_bContainsFacingGeometry;
+			}
+		}
+		
+		uint32 NumUVs = 4;
+		if (bHasBranch2Data)
+		{
+			NumUVs += 2;
+		}
+		if (bHasFacingData)
+		{
+			NumUVs += 2;
+		}
+
+		// Lightmap data
+		StaticMesh->LightingGuid = FGuid::NewGuid();
+		StaticMesh->LightMapResolution = SpeedTree.LightmapSize();
+		StaticMesh->LightMapCoordinateIndex = (NumUVs - 1);
+
+		// make geometry LODs
+		for (uint32 LODIndex = 0; LODIndex < SpeedTree.Lods().Count(); ++LODIndex)
+		{
+			GameEngine9::CLod LOD = SpeedTree.Lods()[LODIndex];
+
+			FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
+			FStaticMeshAttributes Attributes(*MeshDescription);
+
+			TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+			TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
+			TEdgeAttributesRef<float> EdgeCreaseSharpnesses = Attributes.GetEdgeCreaseSharpnesses();
+			TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
+			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+			TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
+			TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+
+			VertexInstanceUVs.SetNumIndices(NumUVs);
+
+			for (int32 MatIndex = 0; MatIndex < StaticMesh->StaticMaterials.Num(); ++MatIndex)
+			{
+				const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
+				PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[MatIndex].ImportedMaterialSlotName;
+			}
+
+			for (uint32 VertexIndex = 0; VertexIndex < LOD.Vertices().Count(); ++VertexIndex)
+			{
+				const GameEngine9::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
+				FVector vPosition = FVector(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y, Vertex.m_vAnchor.z) + FVector(Vertex.m_vOffset.x, Vertex.m_vOffset.y, Vertex.m_vOffset.z);
+				FVertexID VertexID = MeshDescription->CreateVertex();
+				VertexPositions[VertexID] = FVector(vPosition);
+			}
+
+			for (uint32 DrawCallIndex = 0; DrawCallIndex < LOD.DrawCalls().Count(); ++DrawCallIndex)
+			{
+				const GameEngine9::SDrawCall& DrawCall = LOD.DrawCalls()[DrawCallIndex]; //-V758
+
+				// find correct material
+				if (!MaterialMap.Contains(DrawCall.m_uiMaterialIndex))
+				{
+					// you could pick different master materials based on SpeedTree.TexturePacker()
+					bool bBillboard = (SpeedTree.BillboardInfo().LastLodIsBillboard() && (LODIndex == (SpeedTree.Lods().Count() - 1)));
+					UMaterialInterface* Master = (bBillboard ? MasterBillboardMaterial : MasterMaterial);
+
+					GameEngine9::CMaterial SpeedTreeMaterial = SpeedTree.Materials()[DrawCall.m_uiMaterialIndex];
+					FString MaterialName = FString(SpeedTreeMaterial.Name().Data());
+					UMaterialInterface* Material = CreateSpeedTreeMaterial9(InParent, MaterialName, SpeedTreeMaterial, Master, SpeedTree.Wind(), bHasFacingData, SpeedTree.BillboardInfo().SideViewCount(), LoadedPackages, ImportContext);
+					MaterialMap.Add(DrawCall.m_uiMaterialIndex, StaticMesh->StaticMaterials.Num());
+					int32 AddedMaterialIndex = StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
+					const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
+					PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[AddedMaterialIndex].ImportedMaterialSlotName;
+				}
+				const int32 MaterialIndex = MaterialMap[DrawCall.m_uiMaterialIndex];
+				const FPolygonGroupID CurrentPolygonGroupID(MaterialIndex);
+
+				FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, DrawCallIndex);
+				Info.MaterialIndex = MaterialIndex;
+				StaticMesh->GetSectionInfoMap().Set(LODIndex, DrawCallIndex, Info);
+
+				int32 TriangleCount = DrawCall.m_uiIndexCount / 3;
+				for (int32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
+				{
+					TArray<FVertexInstanceID> CornerVertexInstanceIDs;
+					CornerVertexInstanceIDs.SetNum(3);
+					FVertexID CornerVertexIDs[3];
+					for (int32 Corner = 0; Corner < 3; ++Corner)
+					{
+						int32 VertexIndex = LOD.Indices()[DrawCall.m_uiIndexStart + TriangleIndex * 3 + (2 - Corner)];
+						const GameEngine9::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
+
+						FVertexID VertexID(VertexIndex);
+						const FVertexInstanceID& VertexInstanceID = MeshDescription->CreateVertexInstance(VertexID);
+						CornerVertexInstanceIDs[Corner] = VertexInstanceID;
+						CornerVertexIDs[Corner] = VertexID;
+
+						// tangents
+						FVector TangentX(Vertex.m_vTangent.x, Vertex.m_vTangent.y, Vertex.m_vTangent.z);
+						FVector TangentY(-Vertex.m_vBinormal.x, -Vertex.m_vBinormal.y, -Vertex.m_vBinormal.z);
+						FVector TangentZ(Vertex.m_vNormal.x, Vertex.m_vNormal.y, Vertex.m_vNormal.z);
+
+						VertexInstanceTangents[VertexInstanceID] = TangentX;
+						VertexInstanceNormals[VertexInstanceID] = TangentZ;
+						VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
+
+						// color and branch blend in vertex color
+						VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(FColor(Vertex.m_vColor.x * 255, Vertex.m_vColor.y * 255, Vertex.m_vColor.z * 255, Vertex.m_fBlendWeight * 255)));
+
+						// Texcoord setup:
+						// 0		Diffuse
+						// 1		Branch1Pos, Branch1Dir
+						// 2		Branch1Weight, RippleWeight
+
+						// If Branch2 is available
+						// 3		Branch2Pos, Branch2Dir
+						// 4		Branch2Weight, <Unused>
+
+						// If camera-facing geom is available
+						// 3/5		Anchor XY
+						// 4/6		Anchor Z, FacingFlag
+
+						// 3/5/7	Lightmap UV
+
+						// diffuse
+						int32 CurrentUV = 0;
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vTexCoord.x, Vertex.m_vTexCoord.y));
+
+						// branch1 / ripple
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind1.x, Vertex.m_vBranchWind1.y));
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind1.z, Vertex.m_fRippleWeight));
+
+						// branch 2
+						if (bHasBranch2Data)
+						{
+							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind2.x, Vertex.m_vBranchWind2.y));
+							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind2.z, 0.0f));
+						}
+
+						// camera-facing
+						if (bHasFacingData)
+						{
+							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y));
+							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vAnchor.z, Vertex.m_bCameraFacing ? 1.0f : 0.0f));
+						}
+
+						// lightmap
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vLightmapTexCoord.x, Vertex.m_vLightmapTexCoord.y));
+					}
+
+					// Insert a polygon into the mesh
+					MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs);
+				}
+			}
+
+			//Save the created mesh
+			StaticMesh->CommitMeshDescription(LODIndex);
+		}
+
+		// replace materials if they've been switched out
+		if (OldMaterials.Num() == StaticMesh->StaticMaterials.Num())
+		{
+			StaticMesh->StaticMaterials = OldMaterials;
+		}
+
+		//Set the Imported version before calling the build
+		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
+		StaticMesh->Build();
+
+		// collision objects
+		MakeBodyFromCollisionObjects9(StaticMesh, SpeedTree.CollisionObjects());
+	}
+
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, StaticMesh);
+
+	return StaticMesh;
+}
 
 UObject* USpeedTreeImportFactory::FactoryCreateBinary(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
-	if (FCString::Stricmp(Type, TEXT("ST")) == 0)
+	if (FCString::Stricmp(Type, TEXT("ST9")) == 0)
+	{
+		return FactoryCreateBinary9(InClass, InParent, InName, Flags, Context, Type, Buffer, BufferEnd, Warn, bOutOperationCanceled);
+	}
+	else if (FCString::Stricmp(Type, TEXT("ST")) == 0)
 	{
 		return FactoryCreateBinary8(InClass, InParent, InName, Flags, Context, Type, Buffer, BufferEnd, Warn, bOutOperationCanceled);
 	}

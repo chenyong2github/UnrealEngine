@@ -15,7 +15,7 @@ class FTexture2DStreamIn_DDC_AsyncReallocate : public FTexture2DStreamIn_DDC
 {
 public:
 
-	FTexture2DStreamIn_DDC_AsyncReallocate(UTexture2D* InTexture, int32 InRequestedMips);
+	FTexture2DStreamIn_DDC_AsyncReallocate(UTexture2D* InTexture);
 
 protected:
 

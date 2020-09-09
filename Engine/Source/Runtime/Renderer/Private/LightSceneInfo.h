@@ -319,6 +319,9 @@ public:
 
 	// FRenderResource interface.
 	virtual void ReleaseRHI();
+
+	// Update the mobile movable point light uniform buffer before it is used for mobile base pass rendering.
+	void ConditionalUpdateMobileMovablePointLightUniformBuffer(const class FSceneRenderer* SceneRenderer);
 };
 
 /** Defines how the light is stored in the scene's light octree. */

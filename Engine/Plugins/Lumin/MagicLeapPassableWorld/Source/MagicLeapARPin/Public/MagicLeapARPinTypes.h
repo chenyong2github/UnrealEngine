@@ -28,10 +28,35 @@ enum class EMagicLeapPassableWorldError : uint8
 	PrivilegeRequestPending,
 	/** The MagicLeapARPin module is waiting for the startup of other services. */
 	StartupPending,
+	/** User has not enabled shared world in settings. */
+	SharedWorldNotEnabled,
 	/** The MagicLeapARPin module or this particular function is not implemented in the current platform. */
 	NotImplemented,
 	/** Pin ID not found in environment */
 	PinNotFound
+};
+
+UENUM(BlueprintType)
+enum class EMagicLeapARPinType : uint8
+{
+	/**
+		Pin is available only in the current headpose session and is local to the device.
+		It cannot be shared with other users and will not persist across device reboots.
+		It can later be promoted to a SingleUserMultiSession type.
+	*/
+	SingleUserSingleSession,
+
+	/**
+		Pin is available across multiple headpose sessions and is local to the device.
+		It cannot be shared with other users but will persist across device reboots.
+	*/
+	SingleUserMultiSession,
+
+	/**
+		Pin is available across multiple users and headpose sessions. and can be shared with other
+		users in the same physical environment and will persist across device reboots.
+	*/
+	MultiUserMultiSession
 };
 
 /** Modes for automatically pinning content to real-world. */
@@ -66,6 +91,33 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "ContentPersistence|MagicLeap")
 	FTransform PinTransform;
+
+	UPROPERTY(VisibleAnywhere, Category = "ContentPersistence|MagicLeap")
+	bool bShouldPinActor;
+};
+
+/** A struct based container for a set of strings because UProperties cannot have nested containers. */
+USTRUCT(BlueprintType)
+struct MAGICLEAPARPIN_API FMagicLeapARPinObjectIdList
+{
+	GENERATED_BODY()
+
+public:
+	/** List of object ids (of MagicLeapARPinComponent) associated with a give PinID. */
+	UPROPERTY(VisibleAnywhere, Category = "ContentPersistence|MagicLeap")
+	TSet<FString> ObjectIdList;
+};
+
+/** Master list of all MagicLeapARPinComponents saved by this app. */
+UCLASS(ClassGroup = MagicLeap, BlueprintType, Blueprintable)
+class MAGICLEAPARPIN_API UMagicLeapARPinContentBindings : public USaveGame
+{
+	GENERATED_BODY()
+
+public:
+	/** Map of a PinID and all object ids (of MagicLeapARPinComponent) saved by this app. */
+	UPROPERTY(VisibleAnywhere, Category = "ContentPersistence|MagicLeap")
+	TMap<FGuid, FMagicLeapARPinObjectIdList> AllContentBindings;
 };
 
 /** Current state of a MagicLeapARPin */
@@ -91,11 +143,45 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ContentPersistence|MagicLeap")
 	float TranslationError;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ContentPersistence|MagicLeap")
+	EMagicLeapARPinType PinType;
+
 public:	
 	FMagicLeapARPinState();
 	FMagicLeapARPinState(float InConfidence, float InValidRadius, float InRotationError, float InTranslationError);
 
 	FString ToString() const;
+};
+
+/** This represents a collection of filters and modifiers used by to curate the ARPins search. */
+USTRUCT(BlueprintType)
+struct MAGICLEAPARPIN_API FMagicLeapARPinQuery
+{
+	GENERATED_BODY()
+
+public:
+	/** Types of Pins to look for */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ContentPersistence|MagicLeap")
+	TSet<EMagicLeapARPinType> Types;
+
+	/** Upper bound number of expected results. The implementation may return less entries than requested. Set to -1 for all available. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ContentPersistence|MagicLeap")
+	int32 MaxResults;
+
+	/** Center query point from where the nearest neighbours will be calculated. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ContentPersistence|MagicLeap")
+	FVector TargetPoint;
+
+	/** Return only entries within radius of the sphere from TargetPoint. Set to 0 for unbounded results. Filtering by distance will incur a performance penalty. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ContentPersistence|MagicLeap")
+	float Radius;
+
+	/** Indicate if the result set should be sorted by distance from TargetPoint. Sorting by istance will incur a performance penalty. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ContentPersistence|MagicLeap")
+	bool bSorted;
+
+public:
+	FMagicLeapARPinQuery();
 };
 
 /**
@@ -115,3 +201,6 @@ DECLARE_DYNAMIC_DELEGATE_ThreeParams(FMagicLeapARPinUpdatedDelegate, const TArra
  * @param Deleted List of ARPin IDs deleted
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMagicLeapARPinUpdatedMultiDelegate, const TArray<FGuid>&, Added, const TArray<FGuid>&, Updated, const TArray<FGuid>&, Deleted);
+
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FMagicLeapContentBindingFoundDelegate, const FGuid&, PinId, const TSet<FString>&, PinnedObjectIds);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMagicLeapContentBindingFoundMultiDelegate, const FGuid&, PinId, const TSet<FString>&, PinnedObjectIds);

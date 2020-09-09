@@ -11,17 +11,17 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_media_cea608_caption.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_media_ccparser, MLResult, MLMediaCCParserCreate)
-#define MLMediaCCParserCreate ::MLSDK_API::MLMediaCCParserCreateShim
+#define MLMediaCCParserCreate ::LUMIN_MLSDK_API::MLMediaCCParserCreateShim
 CREATE_FUNCTION_SHIM(ml_media_ccparser, MLResult, MLMediaCCParserGetDisplayable)
-#define MLMediaCCParserGetDisplayable ::MLSDK_API::MLMediaCCParserGetDisplayableShim
+#define MLMediaCCParserGetDisplayable ::LUMIN_MLSDK_API::MLMediaCCParserGetDisplayableShim
 CREATE_FUNCTION_SHIM(ml_media_ccparser, MLResult, MLMediaCCParserReleaseSegment)
-#define MLMediaCCParserReleaseSegment ::MLSDK_API::MLMediaCCParserReleaseSegmentShim
+#define MLMediaCCParserReleaseSegment ::LUMIN_MLSDK_API::MLMediaCCParserReleaseSegmentShim
 CREATE_FUNCTION_SHIM(ml_media_ccparser, MLResult, MLMediaCCParserDestroy)
-#define MLMediaCCParserDestroy ::MLSDK_API::MLMediaCCParserDestroyShim
+#define MLMediaCCParserDestroy ::LUMIN_MLSDK_API::MLMediaCCParserDestroyShim
 
 }
 

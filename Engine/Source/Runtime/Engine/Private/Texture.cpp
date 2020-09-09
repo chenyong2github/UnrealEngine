@@ -22,6 +22,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Engine/TextureLODSettings.h"
 #include "RenderUtils.h"
+#include "Rendering/StreamableTextureResource.h"
 
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
@@ -108,8 +109,11 @@ void UTexture::ReleaseResource()
 {
 	if (Resource)
 	{
-		UTexture2D* Texture2D = Cast<UTexture2D>(this);
-		check( !Texture2D  || !Texture2D->HasPendingUpdate() );
+		UnlinkStreaming();
+		// When using PlatformData, the resource shouldn't be released before it is initialized to prevent threading issues
+		// where the platform data could be updated at the same time InitRHI is reading it on the renderthread.
+		check(!GetRunningPlatformData() || !HasPendingInitOrStreaming());
+		CachedSRRState.Clear();
 
 		// Free the resource.
 		BeginReleaseResource(Resource);
@@ -131,10 +135,30 @@ void UTexture::UpdateResource()
 	{
 		// Create a new texture resource.
 		Resource = CreateResource();
-		if( Resource )
+
+		if (Resource)
 		{
 			LLM_SCOPE(ELLMTag::Textures);
+
+			if (FStreamableTextureResource* StreamableResource = Resource->GetStreamableTextureResource())
+			{
+				// State the gamethread coherent resource state.
+				CachedSRRState = StreamableResource->GetPostInitState();
+				if (CachedSRRState.IsValid())
+				{
+					// Cache the pending InitRHI flag.
+					CachedSRRState.bHasPendingInitHint = true;
+				}
+			}
+
+			// Init the texture reference, which needs to be set from a render command, since TextureReference.TextureReferenceRHI is gamethread coherent.
+			ENQUEUE_RENDER_COMMAND(SetTextureReference)([this](FRHICommandListImmediate& RHICmdList)
+			{
+				Resource->SetTextureReference(TextureReference.TextureReferenceRHI);
+			});
 			BeginInitResource(Resource);
+			// Now that the resource is ready for streaming, bind it to the streamer.
+			LinkStreaming();
 		}
 	}
 }
@@ -406,56 +430,45 @@ void UTexture::PostLoad()
 	}
 }
 
+void UTexture::BeginFinalReleaseResource()
+{
+	check(!bAsyncResourceReleaseHasBeenStarted);
+	// Send the rendering thread a release message for the texture's resource.
+	if (Resource)
+	{
+		BeginReleaseResource(Resource);
+	}
+	if (TextureReference.IsInitialized_GameThread())
+	{
+		TextureReference.BeginRelease_GameThread();
+	}
+	ReleaseFence.BeginFence();
+	// Keep track that we already kicked off the async release.
+	bAsyncResourceReleaseHasBeenStarted = true;
+}
+
+
 void UTexture::BeginDestroy()
 {
 	Super::BeginDestroy();
-	if( !UpdateStreamingStatus() && (Resource || TextureReference.IsInitialized_GameThread()) )
+
+	if (!HasPendingInitOrStreaming())
 	{
-		// Send the rendering thread a release message for the texture's resource.
-		if (Resource)
-		{
-			BeginReleaseResource(Resource);
-		}
-		if (TextureReference.IsInitialized_GameThread())
-		{
-			TextureReference.BeginRelease_GameThread();
-		}
-		ReleaseFence.BeginFence();
-		// Keep track that we already kicked off the async release.
-		bAsyncResourceReleaseHasBeenStarted = true;
+		BeginFinalReleaseResource();
 	}
 }
 
 bool UTexture::IsReadyForFinishDestroy()
 {
-	bool bReadyForFinishDestroy = false;
-	// Check whether super class is ready and whether we have any pending streaming requests in flight.
-	if( Super::IsReadyForFinishDestroy() && !UpdateStreamingStatus() )
+	if (!Super::IsReadyForFinishDestroy())
 	{
-		// Kick off async resource release if we haven't already.
-		if( !bAsyncResourceReleaseHasBeenStarted && (Resource || TextureReference.IsInitialized_GameThread()) )
-		{
-			// Send the rendering thread a release message for the texture's resource.
-			if (Resource)
-			{
-				BeginReleaseResource(Resource);
-			}
-			if (TextureReference.IsInitialized_GameThread())
-			{
-				TextureReference.BeginRelease_GameThread();
-			}
-			ReleaseFence.BeginFence();
-			// Keep track that we already kicked off the async release.
-			bAsyncResourceReleaseHasBeenStarted = true;
-		}
-
-		// Only allow FinishDestroy to be called once the texture resource has finished its rendering thread cleanup.
-		if( !bAsyncResourceReleaseHasBeenStarted || ReleaseFence.IsFenceComplete() )
-		{
-			bReadyForFinishDestroy = true;
-		}
+		return false;
 	}
-	return bReadyForFinishDestroy;
+	if (!bAsyncResourceReleaseHasBeenStarted)
+	{
+		BeginFinalReleaseResource();
+	}
+	return ReleaseFence.IsFenceComplete();
 }
 
 void UTexture::FinishDestroy()
@@ -516,6 +529,75 @@ void UTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	Super::GetAssetRegistryTags(OutTags);
 }
 #endif
+
+FIoFilenameHash UTexture::GetMipIoFilenameHash(const int32 MipIndex) const
+{
+	FTexturePlatformData** PlatformData = const_cast<UTexture*>(this)->GetRunningPlatformData();
+	if (PlatformData && *PlatformData)
+	{
+		const TIndirectArray<struct FTexture2DMipMap>& PlatformMips = (*PlatformData)->Mips;
+		if (PlatformMips.IsValidIndex(MipIndex))
+		{
+			return PlatformMips[MipIndex].BulkData.GetIoFilenameHash();
+		}
+	}
+	return INVALID_IO_FILENAME_HASH;
+}
+
+bool UTexture::DoesMipDataExist(const int32 MipIndex) const
+{
+	FTexturePlatformData** PlatformData = const_cast<UTexture*>(this)->GetRunningPlatformData();
+	if (PlatformData && *PlatformData)
+	{
+		const TIndirectArray<struct FTexture2DMipMap>& PlatformMips = (*PlatformData)->Mips;
+		if (PlatformMips.IsValidIndex(MipIndex))
+		{
+			return PlatformMips[MipIndex].BulkData.DoesExist();
+		}
+	}
+	return false;
+}
+
+bool UTexture::HasPendingRenderResourceInitialization() const
+{
+	return Resource && !Resource->IsInitialized();
+}
+
+bool UTexture::HasPendingLODTransition() const
+{
+	return Resource && Resource->MipBiasFade.IsFading();
+}
+
+float UTexture::GetLastRenderTimeForStreaming() const
+{
+	float LastRenderTime = -FLT_MAX;
+	if (Resource)
+	{
+		// The last render time is the last time the resource was directly bound or the last
+		// time the texture reference was cached in a resource table, whichever was later.
+		LastRenderTime = FMath::Max<double>(Resource->LastRenderTime,TextureReference.GetLastRenderTime());
+	}
+	return LastRenderTime;
+}
+
+void UTexture::InvalidateLastRenderTimeForStreaming()
+{
+	if (Resource)
+	{
+		Resource->LastRenderTime = -FLT_MAX;
+	}
+	TextureReference.InvalidateLastRenderTime();
+}
+
+
+bool UTexture::ShouldMipLevelsBeForcedResident() const
+{
+	if (LODGroup == TEXTUREGROUP_Skybox || Super::ShouldMipLevelsBeForcedResident())
+	{
+		return true;
+	}
+	return false;
+}
 
 float UTexture::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale)
 {
@@ -579,7 +661,6 @@ void UTexture::PostCDOContruct()
 {
 	GetPixelFormatEnum();
 }
-
 
 bool UTexture::ForceUpdateTextureStreaming()
 {
@@ -650,6 +731,68 @@ const TArray<UAssetUserData*>* UTexture::GetAssetUserDataArray() const
 	return &AssetUserData;
 }
 
+FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount, int32 MaxMipCount) const
+{
+	const int32 NumMips = MaxMipCount > 0 ? MaxMipCount : FMath::Min3<int32>(PlatformData->Mips.Num(), GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
+	const int32 NumOfNonOptionalMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonOptionalMips());
+	const int32 NumOfNonStreamingMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonStreamingMips());
+
+	bool bMakeStreamble = false;
+	int32 NumRequestedMips = 0;
+
+#if PLATFORM_SUPPORTS_TEXTURE_STREAMING
+	if (!NeverStream && 
+		NumOfNonStreamingMips < NumMips && 
+		LODGroup != TEXTUREGROUP_UI && 
+		bAllowStreaming &&
+		PlatformData->CanBeLoaded())
+	{
+		bMakeStreamble  = true;
+	}
+#endif
+
+	if (bMakeStreamble && IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::Texture))
+	{
+		NumRequestedMips = NumOfNonStreamingMips;
+	}
+	else
+	{
+		// Ensure NumMipsInTail is within valid range to safeguard on the above expressions. 
+		const int32 NumMipsInTail = FMath::Clamp<int32>(PlatformData->GetNumMipsInTail(), 1, NumMips);
+
+		// Bias is not allowed to shrink the mip count bellow NumMipsInTail.
+		// Also, don't rely on optional mips 
+		if (NumMips - GetCachedLODBias() <= NumMipsInTail)
+		{
+			NumRequestedMips = NumMipsInTail;
+		}
+		else if (NumMips > NumOfNonOptionalMips && !DoesMipDataExist(PlatformData->Mips.Num() - NumMips))
+		{
+			NumRequestedMips = FMath::Min<int32>(NumOfNonOptionalMips - GetCachedLODBias(), NumOfNonOptionalMips);
+			NumRequestedMips = FMath::Max<int32>(NumMipsInTail, NumRequestedMips);
+		}
+		else
+		{
+			NumRequestedMips = FMath::Min<int32>(NumMips - GetCachedLODBias(), NumMips);
+		}
+	}
+
+	if (NumRequestedMips < MinRequestMipCount && MinRequestMipCount < NumMips)
+	{
+		NumRequestedMips = MinRequestMipCount;
+	}
+
+	FStreamableRenderResourceState PostInitState;
+	PostInitState.bSupportsStreaming = bMakeStreamble;
+	PostInitState.NumNonStreamingLODs = (uint8)NumOfNonStreamingMips;
+	PostInitState.NumNonOptionalLODs = (uint8)NumOfNonOptionalMips;
+	PostInitState.MaxNumLODs = (uint8)NumMips;
+	PostInitState.AssetLODBias = (uint8)(PlatformData->Mips.Num() - NumMips);
+	PostInitState.NumResidentLODs = (uint8)NumRequestedMips;
+	PostInitState.NumRequestedLODs = (uint8)NumRequestedMips;
+
+	return PostInitState;
+}
 
 /*------------------------------------------------------------------------------
 	Texture source data.
@@ -1346,7 +1489,8 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		|| (Texture->LODGroup == TEXTUREGROUP_ColorLookupTable)	// Textures in certain LOD groups should remain uncompressed.
 		|| (Texture->LODGroup == TEXTUREGROUP_Bokeh)
 		|| (Texture->LODGroup == TEXTUREGROUP_IESLightProfile)
-		|| (Texture->GetMaterialType() == MCT_VolumeTexture && !bSupportCompressedVolumeTexture);
+		|| (Texture->GetMaterialType() == MCT_VolumeTexture && !bSupportCompressedVolumeTexture)
+		|| FormatSettings.CompressionSettings == TC_ReflectionCapture;
 
 	if (!bNoCompression && Texture->PowerOfTwoMode == ETexturePowerOfTwoSetting::None)
 	{

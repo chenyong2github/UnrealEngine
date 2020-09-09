@@ -16,7 +16,7 @@ struct FVisualizeShadingModelInputs
 	FScreenPassTexture SceneColor;
 
 	// [Required] The scene textures used to visualize shading models.
-	const FSceneTextureParameters* SceneTextures = nullptr;
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = nullptr;
 };
 
 FScreenPassTexture AddVisualizeShadingModelPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeShadingModelInputs& Inputs);

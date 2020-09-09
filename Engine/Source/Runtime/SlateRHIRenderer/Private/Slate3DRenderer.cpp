@@ -125,7 +125,7 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 
 	// Set render target and clear.
 	FTexture2DRHIRef RTTextureRHI = Context.RenderTarget->GetRenderTargetTexture();
-	InRHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RTTextureRHI);
+	InRHICmdList.Transition(FRHITransitionInfo(RTTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
 	
 	FRHIRenderPassInfo RPInfo(RTTextureRHI, ERenderTargetActions::Load_Store);
 	if (Context.bClearTarget)

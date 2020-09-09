@@ -260,6 +260,8 @@ class ENGINE_API UConsole
 
 	virtual bool ConsoleActive() const;
 
+	void InvalidateAutocomplete();
+
 	/** Delegate for registering hot-reloaded classes that have been added  */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FRegisterConsoleAutoCompleteEntries, TArray<FAutoCompleteCommand>&);
 	static FRegisterConsoleAutoCompleteEntries RegisterConsoleAutoCompleteEntries;

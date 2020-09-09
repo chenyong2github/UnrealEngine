@@ -1389,12 +1389,22 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 		break;
 	case APP_CMD_PAUSE:
 	{
-		bIsResumed = false;
 		/**
 		 * Command from main thread: the app's activity has been paused.
 		 */
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Case APP_CMD_PAUSE"));
 		UE_LOG(LogAndroid, Log, TEXT("Case APP_CMD_PAUSE"));
+
+		// Ignore pause command for Oculus if the window hasn't been initialized to prevent halting initial load
+		// if the headset is not active
+		if (!bHasWindow && FAndroidMisc::IsStandaloneStereoOnlyDevice())
+		{
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Oculus: Ignoring APP_CMD_PAUSE command before APP_CMD_INIT_WINDOW"));
+			UE_LOG(LogAndroid, Log, TEXT("Oculus: Ignoring APP_CMD_PAUSE command before APP_CMD_INIT_WINDOW"));
+			break;
+		}
+
+		bIsResumed = false;
 		FAppEventManager::GetInstance()->EnqueueAppEvent(APP_EVENT_STATE_ON_PAUSE);
 
 		bool bAllowReboot = true;

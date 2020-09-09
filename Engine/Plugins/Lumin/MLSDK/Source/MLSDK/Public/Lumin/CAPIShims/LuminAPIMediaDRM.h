@@ -11,77 +11,77 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_media_drm.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMByteArrayAllocate)
-#define MLMediaDRMByteArrayAllocate ::MLSDK_API::MLMediaDRMByteArrayAllocateShim
+#define MLMediaDRMByteArrayAllocate ::LUMIN_MLSDK_API::MLMediaDRMByteArrayAllocateShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMByteArrayAllocAndCopy)
-#define MLMediaDRMByteArrayAllocAndCopy ::MLSDK_API::MLMediaDRMByteArrayAllocAndCopyShim
+#define MLMediaDRMByteArrayAllocAndCopy ::LUMIN_MLSDK_API::MLMediaDRMByteArrayAllocAndCopyShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMKeyValueArrayAllocate)
-#define MLMediaDRMKeyValueArrayAllocate ::MLSDK_API::MLMediaDRMKeyValueArrayAllocateShim
+#define MLMediaDRMKeyValueArrayAllocate ::LUMIN_MLSDK_API::MLMediaDRMKeyValueArrayAllocateShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMCreate)
-#define MLMediaDRMCreate ::MLSDK_API::MLMediaDRMCreateShim
+#define MLMediaDRMCreate ::LUMIN_MLSDK_API::MLMediaDRMCreateShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMRelease)
-#define MLMediaDRMRelease ::MLSDK_API::MLMediaDRMReleaseShim
+#define MLMediaDRMRelease ::LUMIN_MLSDK_API::MLMediaDRMReleaseShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMByteArrayRelease)
-#define MLMediaDRMByteArrayRelease ::MLSDK_API::MLMediaDRMByteArrayReleaseShim
+#define MLMediaDRMByteArrayRelease ::LUMIN_MLSDK_API::MLMediaDRMByteArrayReleaseShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMByteArrayListRelease)
-#define MLMediaDRMByteArrayListRelease ::MLSDK_API::MLMediaDRMByteArrayListReleaseShim
+#define MLMediaDRMByteArrayListRelease ::LUMIN_MLSDK_API::MLMediaDRMByteArrayListReleaseShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMKeyValueArrayRelease)
-#define MLMediaDRMKeyValueArrayRelease ::MLSDK_API::MLMediaDRMKeyValueArrayReleaseShim
+#define MLMediaDRMKeyValueArrayRelease ::LUMIN_MLSDK_API::MLMediaDRMKeyValueArrayReleaseShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMRequestMessageRelease)
-#define MLMediaDRMRequestMessageRelease ::MLSDK_API::MLMediaDRMRequestMessageReleaseShim
+#define MLMediaDRMRequestMessageRelease ::LUMIN_MLSDK_API::MLMediaDRMRequestMessageReleaseShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMKeyValueArrayAdd)
-#define MLMediaDRMKeyValueArrayAdd ::MLSDK_API::MLMediaDRMKeyValueArrayAddShim
+#define MLMediaDRMKeyValueArrayAdd ::LUMIN_MLSDK_API::MLMediaDRMKeyValueArrayAddShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMIsCryptoSchemeSupported)
-#define MLMediaDRMIsCryptoSchemeSupported ::MLSDK_API::MLMediaDRMIsCryptoSchemeSupportedShim
+#define MLMediaDRMIsCryptoSchemeSupported ::LUMIN_MLSDK_API::MLMediaDRMIsCryptoSchemeSupportedShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMSetOnEventListener)
-#define MLMediaDRMSetOnEventListener ::MLSDK_API::MLMediaDRMSetOnEventListenerShim
+#define MLMediaDRMSetOnEventListener ::LUMIN_MLSDK_API::MLMediaDRMSetOnEventListenerShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMOpenSession)
-#define MLMediaDRMOpenSession ::MLSDK_API::MLMediaDRMOpenSessionShim
+#define MLMediaDRMOpenSession ::LUMIN_MLSDK_API::MLMediaDRMOpenSessionShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMCloseSession)
-#define MLMediaDRMCloseSession ::MLSDK_API::MLMediaDRMCloseSessionShim
+#define MLMediaDRMCloseSession ::LUMIN_MLSDK_API::MLMediaDRMCloseSessionShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMGetKeyRequest)
-#define MLMediaDRMGetKeyRequest ::MLSDK_API::MLMediaDRMGetKeyRequestShim
+#define MLMediaDRMGetKeyRequest ::LUMIN_MLSDK_API::MLMediaDRMGetKeyRequestShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMProvideKeyResponse)
-#define MLMediaDRMProvideKeyResponse ::MLSDK_API::MLMediaDRMProvideKeyResponseShim
+#define MLMediaDRMProvideKeyResponse ::LUMIN_MLSDK_API::MLMediaDRMProvideKeyResponseShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMRestoreKeys)
-#define MLMediaDRMRestoreKeys ::MLSDK_API::MLMediaDRMRestoreKeysShim
+#define MLMediaDRMRestoreKeys ::LUMIN_MLSDK_API::MLMediaDRMRestoreKeysShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMRemoveKeys)
-#define MLMediaDRMRemoveKeys ::MLSDK_API::MLMediaDRMRemoveKeysShim
+#define MLMediaDRMRemoveKeys ::LUMIN_MLSDK_API::MLMediaDRMRemoveKeysShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMQueryKeyStatus)
-#define MLMediaDRMQueryKeyStatus ::MLSDK_API::MLMediaDRMQueryKeyStatusShim
+#define MLMediaDRMQueryKeyStatus ::LUMIN_MLSDK_API::MLMediaDRMQueryKeyStatusShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMGetProvisionRequest)
-#define MLMediaDRMGetProvisionRequest ::MLSDK_API::MLMediaDRMGetProvisionRequestShim
+#define MLMediaDRMGetProvisionRequest ::LUMIN_MLSDK_API::MLMediaDRMGetProvisionRequestShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMProvideProvisionResponse)
-#define MLMediaDRMProvideProvisionResponse ::MLSDK_API::MLMediaDRMProvideProvisionResponseShim
+#define MLMediaDRMProvideProvisionResponse ::LUMIN_MLSDK_API::MLMediaDRMProvideProvisionResponseShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMGetSecureStops)
-#define MLMediaDRMGetSecureStops ::MLSDK_API::MLMediaDRMGetSecureStopsShim
+#define MLMediaDRMGetSecureStops ::LUMIN_MLSDK_API::MLMediaDRMGetSecureStopsShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMGetSecureStop)
-#define MLMediaDRMGetSecureStop ::MLSDK_API::MLMediaDRMGetSecureStopShim
+#define MLMediaDRMGetSecureStop ::LUMIN_MLSDK_API::MLMediaDRMGetSecureStopShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMReleaseSecureStops)
-#define MLMediaDRMReleaseSecureStops ::MLSDK_API::MLMediaDRMReleaseSecureStopsShim
+#define MLMediaDRMReleaseSecureStops ::LUMIN_MLSDK_API::MLMediaDRMReleaseSecureStopsShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMReleaseAllSecureStops)
-#define MLMediaDRMReleaseAllSecureStops ::MLSDK_API::MLMediaDRMReleaseAllSecureStopsShim
+#define MLMediaDRMReleaseAllSecureStops ::LUMIN_MLSDK_API::MLMediaDRMReleaseAllSecureStopsShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMGetPropertyString)
-#define MLMediaDRMGetPropertyString ::MLSDK_API::MLMediaDRMGetPropertyStringShim
+#define MLMediaDRMGetPropertyString ::LUMIN_MLSDK_API::MLMediaDRMGetPropertyStringShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMGetPropertyByteArray)
-#define MLMediaDRMGetPropertyByteArray ::MLSDK_API::MLMediaDRMGetPropertyByteArrayShim
+#define MLMediaDRMGetPropertyByteArray ::LUMIN_MLSDK_API::MLMediaDRMGetPropertyByteArrayShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMSetPropertyString)
-#define MLMediaDRMSetPropertyString ::MLSDK_API::MLMediaDRMSetPropertyStringShim
+#define MLMediaDRMSetPropertyString ::LUMIN_MLSDK_API::MLMediaDRMSetPropertyStringShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMSetPropertyByteArray)
-#define MLMediaDRMSetPropertyByteArray ::MLSDK_API::MLMediaDRMSetPropertyByteArrayShim
+#define MLMediaDRMSetPropertyByteArray ::LUMIN_MLSDK_API::MLMediaDRMSetPropertyByteArrayShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMEncrypt)
-#define MLMediaDRMEncrypt ::MLSDK_API::MLMediaDRMEncryptShim
+#define MLMediaDRMEncrypt ::LUMIN_MLSDK_API::MLMediaDRMEncryptShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMDecrypt)
-#define MLMediaDRMDecrypt ::MLSDK_API::MLMediaDRMDecryptShim
+#define MLMediaDRMDecrypt ::LUMIN_MLSDK_API::MLMediaDRMDecryptShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMSign)
-#define MLMediaDRMSign ::MLSDK_API::MLMediaDRMSignShim
+#define MLMediaDRMSign ::LUMIN_MLSDK_API::MLMediaDRMSignShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMVerify)
-#define MLMediaDRMVerify ::MLSDK_API::MLMediaDRMVerifyShim
+#define MLMediaDRMVerify ::LUMIN_MLSDK_API::MLMediaDRMVerifyShim
 CREATE_FUNCTION_SHIM(ml_mediadrm, MLResult, MLMediaDRMSignRSA)
-#define MLMediaDRMSignRSA ::MLSDK_API::MLMediaDRMSignRSAShim
+#define MLMediaDRMSignRSA ::LUMIN_MLSDK_API::MLMediaDRMSignRSAShim
 
 }
 

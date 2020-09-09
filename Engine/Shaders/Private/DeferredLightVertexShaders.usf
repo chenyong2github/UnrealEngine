@@ -28,7 +28,7 @@ void DirectionalVertexMain(
 }
 #endif
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && SHADER_RADIAL_LIGHT == 1
+#if SHADER_RADIAL_LIGHT == 1
 /** Vertex shader for rendering a point or spot light using approximate bounding geometry. */
 void RadialVertexMain(
 	in uint InVertexId : SV_VertexID,

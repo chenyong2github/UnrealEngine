@@ -38,17 +38,9 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardCompletionDelegate(NSArray* players,
     bool bTriggeredReadRequest = false;
 
     GKLeaderboard* LeaderboardRequest = nil;
-#ifdef __IPHONE_8_0
 	if ([GKLeaderboard instancesRespondToSelector:@selector(initWithPlayers:)] == YES)
 	{
         LeaderboardRequest = [[GKLeaderboard alloc] initWithPlayers:players];
-    }
-    else
-#endif
-    {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-        LeaderboardRequest = [[GKLeaderboard alloc] initWithPlayerIDs:players];
-#endif
     }
     if (LeaderboardRequest != nil)
     {
@@ -59,17 +51,9 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardCompletionDelegate(NSArray* players,
         
         LeaderboardRequest.playerScope = GKLeaderboardPlayerScopeGlobal;
         LeaderboardRequest.timeScope = GKLeaderboardTimeScopeToday;
-#ifdef __IPHONE_7_0
         if ([LeaderboardRequest respondsToSelector:@selector(identifier)] == YES)
         {
             LeaderboardRequest.identifier = Category;
-        }
-        else
-#endif
-        {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-            LeaderboardRequest.category = Category;
-#endif
         }
         LeaderboardRequest.range = NSMakeRange(1,10);
         
@@ -88,17 +72,9 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardCompletionDelegate(NSArray* players,
                     {
                         FString PlayerIDString;
                             
-#ifdef __IPHONE_8_0
 						if ([score respondsToSelector:@selector(player)] == YES)
 						{
 							PlayerIDString = FString(FOnlineSubsystemIOS::GetPlayerId(score.player));
-                        }
-                        else
-#endif
-                        {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-                            PlayerIDString = FString(score.playerID);
-#endif
                         }
                             
                         UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("----------------------------------------------------------------"));
@@ -196,7 +172,6 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboards(const TArray< TSharedRef<const FUn
 		}
 
 		// Kick off a game center read request for the list of users
-#ifdef __IPHONE_8_0
 		if ([GKLeaderboard instancesRespondToSelector:@selector(initWithPlayers:)] == YES)
 		{
             [GKPlayer loadPlayersForIdentifiers:FriendIds withCompletionHandler:^(NSArray *players, NSError *Error)
@@ -211,13 +186,8 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboards(const TArray< TSharedRef<const FUn
              }];
         }
         else
-#endif
         {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-            return ReadLeaderboardCompletionDelegate(FriendIds, InReadObject);
-#else
 			return false;
-#endif
         }
 	}
 
@@ -288,20 +258,14 @@ bool FOnlineLeaderboardsIOS::WriteLeaderboards(const FName& SessionName, const F
 
 		// Create a leaderboard score object which should be posted to the [Category] leaderboard.
         GKScore* Score = nil;
-#ifdef __IPHONE_7_0
 		if ([GKScore instancesRespondToSelector:@selector(initWithLeaderboardIdentifier:)] == YES)
 		{
             Score = [[GKScore alloc] initWithLeaderboardIdentifier:Category];
         }
         else
-#endif
         {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-            Score = [[GKScore alloc] initWithCategory:Category];
-#else
 			UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("FOnlineLeaderboardsIOS::WriteLeaderboards(Leaderboard: %s) Could not intiialize score"), *LeaderboardName);
 			return false;
-#endif
         }
         
 		Score.context = 0;

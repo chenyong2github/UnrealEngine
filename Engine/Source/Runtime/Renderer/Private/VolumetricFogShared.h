@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	VolumetricFogShared.h
-=============================================================================*/
-
 #pragma once
 
 #include "RHIDefinitions.h"
@@ -11,7 +7,7 @@
 #include "SceneRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVoxelizeVolumePassUniformParameters, )
-	SHADER_PARAMETER_STRUCT(FSceneTexturesUniformParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER(FMatrix, ViewToVolumeClip)
 	SHADER_PARAMETER(FVector4, FrameJitterOffset0)
 	SHADER_PARAMETER_STRUCT(FVolumetricFogGlobalData, VolumetricFog)
@@ -36,15 +32,10 @@ struct FVolumetricFogIntegrationParameterData
 	FRDGTextureUAV* LightScatteringUAV;
 };
 
-/**  */
 class FVolumetricFogIntegrationParameters
 {
 	DECLARE_TYPE_LAYOUT(FVolumetricFogIntegrationParameters, NonVirtual);
 public:
-
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
-	{
-	}
 
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -117,19 +108,17 @@ public:
 	}
 
 private:
-	
-		LAYOUT_FIELD(FRWShaderParameter, VBufferA)
-		LAYOUT_FIELD(FRWShaderParameter, VBufferB)
-		LAYOUT_FIELD(FRWShaderParameter, LightScattering)
-		LAYOUT_FIELD(FRWShaderParameter, IntegratedLightScattering)
-		LAYOUT_FIELD(FShaderResourceParameter, IntegratedLightScatteringSampler)
-		LAYOUT_FIELD(FShaderUniformBufferParameter, VolumetricFogData)
-		LAYOUT_FIELD(FShaderParameter, UnjitteredClipToTranslatedWorld)
-		LAYOUT_FIELD(FShaderParameter, UnjitteredPrevWorldToClip)
-		LAYOUT_FIELD(FShaderParameter, FrameJitterOffsets)
-		LAYOUT_FIELD(FShaderParameter, HistoryWeight)
-		LAYOUT_FIELD(FShaderParameter, HistoryMissSuperSampleCount)
-	
+	LAYOUT_FIELD(FRWShaderParameter, VBufferA)
+	LAYOUT_FIELD(FRWShaderParameter, VBufferB)
+	LAYOUT_FIELD(FRWShaderParameter, LightScattering)
+	LAYOUT_FIELD(FRWShaderParameter, IntegratedLightScattering)
+	LAYOUT_FIELD(FShaderResourceParameter, IntegratedLightScatteringSampler)
+	LAYOUT_FIELD(FShaderUniformBufferParameter, VolumetricFogData)
+	LAYOUT_FIELD(FShaderParameter, UnjitteredClipToTranslatedWorld)
+	LAYOUT_FIELD(FShaderParameter, UnjitteredPrevWorldToClip)
+	LAYOUT_FIELD(FShaderParameter, FrameJitterOffsets)
+	LAYOUT_FIELD(FShaderParameter, HistoryWeight)
+	LAYOUT_FIELD(FShaderParameter, HistoryMissSuperSampleCount)
 };
 
 inline int32 ComputeZSliceFromDepth(float SceneDepth, FVector GridZParams)

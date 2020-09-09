@@ -12,7 +12,7 @@ Texture2DStreamIn_DDC.cpp: Stream in helper for 2D textures loading DDC files.
 
 #if WITH_EDITORONLY_DATA
 
-int32 GStreamingUseAsyncRequestsForDDC = 0;
+int32 GStreamingUseAsyncRequestsForDDC = 1;
 static FAutoConsoleVariableRef CVarStreamingDDCPendingSleep(
 	TEXT("r.Streaming.UseAsyncRequestsForDDC"),
 	GStreamingUseAsyncRequestsForDDC,
@@ -93,11 +93,10 @@ void PurgeAbandonedDDCHandles()
 // ********* FTexture2DStreamIn_DDC *********
 // ******************************************
 
-FTexture2DStreamIn_DDC::FTexture2DStreamIn_DDC(UTexture2D* InTexture, int32 InRequestedMips)
-	: FTexture2DStreamIn(InTexture, InRequestedMips)
-	, bDDCIsInvalid(false)
+FTexture2DStreamIn_DDC::FTexture2DStreamIn_DDC(UTexture2D* InTexture)
+	: FTexture2DStreamIn(InTexture)
 {
-	DDCHandles.AddZeroed(InTexture->GetNumMips());
+	DDCHandles.AddZeroed(ResourceState.MaxNumLODs);
 }
 
 FTexture2DStreamIn_DDC::~FTexture2DStreamIn_DDC()
@@ -118,13 +117,9 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 {
 	if (Context.Texture && Context.Resource)
 	{
-		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-		const FTexture2DRHIRef Texture2DRHI = Context.Resource->GetTexture2DRHI();
-
-		for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip && !IsCancelled(); ++MipIndex)
+		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 		{
-			const FTexture2DMipMap& MipMap = OwnerMips[MipIndex];
+			const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
 			if (!MipMap.DerivedDataKey.IsEmpty())
 			{
 				check(!DDCHandles[MipIndex]);
@@ -149,21 +144,13 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 
 bool FTexture2DStreamIn_DDC::DoPoolDDCRequests(const FContext& Context) 
 {
-	if (Context.Texture && Context.Resource)
+	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 	{
-		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-		for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip && !IsCancelled(); ++MipIndex)
+		const uint32 Handle = DDCHandles[MipIndex];
+		if (Handle && !GetDerivedDataCacheRef().PollAsynchronousCompletion(Handle))
 		{
-			const uint32 Handle = DDCHandles[MipIndex];
-			if (Handle && !GetDerivedDataCacheRef().PollAsynchronousCompletion(Handle))
-			{
-				return false;
-			}
+			return false;
 		}
-	}
-	else
-	{
-		MarkAsCancelled();
 	}
 	return true;
 }
@@ -172,14 +159,9 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 {
 	if (Context.Texture && Context.Resource)
 	{
-		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-		const FTexture2DRHIRef Texture2DRHI = Context.Resource->GetTexture2DRHI();
-
-		for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip && !IsCancelled(); ++MipIndex)
+		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 		{
-			const FTexture2DMipMap& MipMap = OwnerMips[MipIndex];
-
+			const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
 			check(MipData[MipIndex]);
 
 			if (!MipMap.DerivedDataKey.IsEmpty())
@@ -201,7 +183,7 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 
 				if (bDDCValid)				
 				{
-					const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Texture2DRHI->GetFormat(), 0);
+					const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
 					FMemoryReader Ar(DerivedMipData, true);
 
 					int32 MipSize = 0;
@@ -215,14 +197,12 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 					{
 						UE_LOG(LogTexture, Error, TEXT("DDC mip size (%d) not as expected."), MipIndex);
 						MarkAsCancelled();
-						bDDCIsInvalid = true;
 					}
 				}
 				else
 				{
 					// UE_LOG(LogTexture, Warning, TEXT("Failed to stream mip data from the derived data cache for %s. Streaming mips will be recached."), Context.Texture->GetPathName() );
 					MarkAsCancelled();
-					bDDCIsInvalid = true;
 				}
 			}
 			else

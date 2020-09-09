@@ -80,7 +80,7 @@ namespace UnrealBuildTool
 		/// This is the minimum SDK version we support.
 		/// </summary>
 		static uint MinimumSDKVersionMajor = 0;
-		static uint MinimumSDKVersionMinor = 23;
+		static uint MinimumSDKVersionMinor = 24;
 
 		/// <summary>
 		/// Gets a string defining the minimum required sdk version.
@@ -276,7 +276,7 @@ namespace UnrealBuildTool
 			LinkEnvironment.SystemLibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lib/lumin"));
 			LinkEnvironment.SystemLibraryPaths.Add(DirectoryReference.Combine(MLSDKDir, "lumin/stl/libc++/lib"));
 
-			LinkEnvironment.SystemLibraries.Add("GLESv2");
+			LinkEnvironment.SystemLibraries.Add("GLESv3");
 			LinkEnvironment.SystemLibraries.Add("EGL");
 
 			LinkEnvironment.SystemLibraries.Add("ml_lifecycle");

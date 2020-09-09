@@ -1081,7 +1081,7 @@ public:
 			check(SizeZ > 0);
 			UE_LOG(LogVectorField,Verbose,TEXT("InitRHI for 0x%016x %dx%dx%d"),(PTRINT)this,SizeX,SizeY,SizeZ);
 
-			uint32 TexCreateFlags = 0;
+			ETextureCreateFlags TexCreateFlags = TexCreate_None;
 			if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 			{
 				TexCreateFlags = TexCreate_ShaderResource | TexCreate_UAV;
@@ -1171,7 +1171,7 @@ public:
 				NoiseVolumeTextureRHI = AnimatedVectorField->NoiseField->Resource->VolumeTextureRHI;
 			}
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VolumeTextureUAV);
+			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 			RHICmdList.SetComputeShader(CompositeCS.GetComputeShader());
 			CompositeCS->SetOutput(RHICmdList, VolumeTextureUAV);
 			/// ?
@@ -1187,7 +1187,7 @@ public:
 				SizeY / THREADS_PER_AXIS,
 				SizeZ / THREADS_PER_AXIS );
 			CompositeCS->UnbindBuffers(RHICmdList);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, VolumeTextureUAV);
+			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
 		}
 	}
 

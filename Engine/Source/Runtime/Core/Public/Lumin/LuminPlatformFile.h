@@ -32,7 +32,7 @@ public:
 	using IPhysicalPlatformFile::IterateDirectoryStat;
 
 	virtual bool FileExists(const TCHAR* Filename) override;
-	bool FileExists(const TCHAR* Filename, FString& OutLuminPath);
+	bool FileExistsWithPath(const TCHAR* Filename, FString& OutLuminPath);
 	virtual int64 FileSize(const TCHAR* Filename) override;
 	virtual bool DeleteFile(const TCHAR* Filename) override;
 	virtual bool IsReadOnly(const TCHAR* Filename) override;

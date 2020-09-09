@@ -38,12 +38,15 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 	}
 
 	HoloSpace = HolographicSpace::CreateForCoreWindow(CoreWindow::GetForCurrentThread());
-	HMD->SetHolographicSpace(HoloSpace);
-	id =
+	if (HoloSpace != nullptr)
 	{
-		HoloSpace->PrimaryAdapterId.LowPart,
-		HoloSpace->PrimaryAdapterId.HighPart
-	};
+		HMD->SetHolographicSpace(HoloSpace);
+		id =
+		{
+			HoloSpace->PrimaryAdapterId.LowPart,
+			HoloSpace->PrimaryAdapterId.HighPart
+		};
+	}
 
 #endif
 

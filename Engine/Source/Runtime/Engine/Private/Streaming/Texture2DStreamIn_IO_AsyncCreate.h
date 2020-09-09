@@ -13,7 +13,7 @@ class FTexture2DStreamIn_IO_AsyncCreate : public FTexture2DStreamIn_IO
 {
 public:
 
-	FTexture2DStreamIn_IO_AsyncCreate(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest);
+	FTexture2DStreamIn_IO_AsyncCreate(UTexture2D* InTexture, bool InPrioritizedIORequest);
 
 protected:
 

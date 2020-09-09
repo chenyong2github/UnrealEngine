@@ -11,10 +11,13 @@ Texture2DStreamOut_AsyncReallocate.cpp: Definitions of classes used for texture.
 // ******* Update Steps *******
 // ****************************
 
-FTexture2DStreamOut_AsyncReallocate::FTexture2DStreamOut_AsyncReallocate(UTexture2D* InTexture, int32 InRequestedMips)
-	: FTexture2DUpdate(InTexture, InRequestedMips) 
+FTexture2DStreamOut_AsyncReallocate::FTexture2DStreamOut_AsyncReallocate(UTexture2D* InTexture)
+	: FTexture2DUpdate(InTexture) 
 {
-	ensure(InRequestedMips < InTexture->GetNumResidentMips());
+	if (!ensure(ResourceState.NumRequestedLODs < ResourceState.NumResidentLODs))
+	{
+		bIsCancelled = true;
+	}
 
 	PushTask(FContext(InTexture, TT_None), TT_Render, SRA_UPDATE_CALLBACK(AsyncReallocate), TT_None, nullptr);
 }

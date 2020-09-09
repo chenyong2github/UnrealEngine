@@ -163,10 +163,10 @@ FScreenPassTexture AddDeviceEncodingOnlyPass(FRDGBuilder& GraphBuilder, const FV
 	{
 		FRDGTextureDesc OutputDesc = Inputs.SceneColor.Texture->Desc;
 		OutputDesc.Reset();
-		OutputDesc.TargetableFlags |= View.bUseComputePasses ? TexCreate_UAV : TexCreate_RenderTargetable;
 		// RGB is the color in LDR, A is the luminance for PostprocessAA
 		OutputDesc.Format = Inputs.bOutputInHDR ? GRHIHDRDisplayOutputFormat : PF_B8G8R8A8;
 		OutputDesc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 0));
+		OutputDesc.Flags |= View.bUseComputePasses ? TexCreate_UAV : TexCreate_RenderTargetable;
 		OutputDesc.Flags |= GFastVRamConfig.Tonemap;
 
 		const FDeviceEncodingOnlyOutputDeviceParameters OutputDeviceParameters = GetDeviceEncodingOnlyOutputDeviceParameters(*View.Family);
@@ -219,7 +219,7 @@ FScreenPassTexture AddDeviceEncodingOnlyPass(FRDGBuilder& GraphBuilder, const FV
 	DesktopPermutationVector.Set<DeviceEncodingOnlyPermutation::FDeviceEncodingOnlyOutputDeviceDim>(EDeviceEncodingOnlyOutputDevice(CommonParameters.OutputDevice.OutputDevice));
 
 	// Override output might not support UAVs.
-	const bool bComputePass = (Output.Texture->Desc.TargetableFlags & TexCreate_UAV) == TexCreate_UAV ? View.bUseComputePasses : false;
+	const bool bComputePass = (Output.Texture->Desc.Flags & TexCreate_UAV) == TexCreate_UAV ? View.bUseComputePasses : false;
 
 	if (bComputePass)
 	{
@@ -264,8 +264,8 @@ FScreenPassTexture AddDeviceEncodingOnlyPass(FRDGBuilder& GraphBuilder, const FV
 			OutputViewport,
 			SceneColorViewport,
 			FScreenPassPipelineState(VertexShader, PixelShader, BlendState, DepthStencilState),
-			DrawFlags,
 			PassParameters,
+			DrawFlags,
 			[PixelShader, PassParameters](FRHICommandList& RHICmdList)
 			{
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);

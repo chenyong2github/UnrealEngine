@@ -6,11 +6,13 @@
 
 #pragma once 
 
-// Enable to store file & line of every mem & resource allocation
-#define VULKAN_MEMORY_TRACK_FILE_LINE	0
 
-// Enable to save the callstack for every mem and resource allocation
-#define VULKAN_MEMORY_TRACK_CALLSTACK	0
+//enable to store FILE/LINE, and optionally a stacktrace via r.vulkan.backtrace
+#if !UE_BUILD_SHIPPING
+#define VULKAN_MEMORY_TRACK 1
+#else
+#define VULKAN_MEMORY_TRACK 0
+#endif
 
 
 #define VULKAN_MEMORY_LOW_PRIORITY 0.f
@@ -69,6 +71,12 @@ TSet<Type*> TVulkanTrackBase<Type>::Objects;
 #endif
 
 
+struct FVulkanTrackInfo
+{
+	FVulkanTrackInfo();
+	void* Data;
+	int32 SizeOrLine; //negative indicates a stack trace, Positive line number
+};
 
 enum class EDelayAcquireImageType
 {
@@ -79,21 +87,62 @@ enum class EDelayAcquireImageType
 
 extern EDelayAcquireImageType GVulkanDelayAcquireImage;
 
+extern int32 GVulkanUseBufferBinning;
+
 namespace VulkanRHI
 {
-	static uint32 GetMaxSize(class FBufferAllocation* Allocation);
 	class FFenceManager;
+	class FDeviceMemoryManager;					// Manager of low level vulkan memory allocations
+	class FDeviceMemoryAllocation;				// A single low level allocation
+	class FVulkanSubresourceAllocator;			// handles suballocation of one allocation into many
+	class FVulkanResourceHeap;					// has multiple suballocators. On resource heap per memory type
+	class FMemoryManager;						// entry point for everything. Contains all heaps. has a small allocator for small stuff.
+	struct FRange;								// Helper class for suballocation (this is effectively the allocator implementation)
+	class FVulkanAllocation;					// External handle to any allocation handled by FMemoryManager
+	struct FVulkanAllocationInternal;			// Internal representation mirroring vulkan allocation
+	struct FResourceHeapStats;
 
-	extern int32 GVulkanUseBufferBinning;
+
 
 	enum
 	{
-#if PLATFORM_ANDROID || PLATFORM_LUMIN
 		NUM_FRAMES_TO_WAIT_BEFORE_RELEASING_TO_OS = 3,
-#else
-		NUM_FRAMES_TO_WAIT_BEFORE_RELEASING_TO_OS = 10,
-#endif
 	};
+
+	enum EVulkanAllocationType : uint8 {
+		EVulkanAllocationEmpty,
+		EVulkanAllocationPooledBuffer,
+		EVulkanAllocationBuffer,
+		EVulkanAllocationImage,
+		EVulkanAllocationImageDedicated,
+	};
+
+	enum EVulkanAllocationMetaType : uint8
+	{
+		EVulkanAllocationMetaUnknown,
+		EVulkanAllocationMetaUniformBuffer,
+		EVulkanAllocationMetaMultiBuffer,
+		EVulkanAllocationMetaRingBuffer,
+		EVulkanAllocationMetaFrameTempBuffer,
+		EVulkanAllocationMetaImageRenderTarget,
+		EVulkanAllocationMetaImageOther,
+		EVulkanAllocationMetaBufferUAV,
+		EVulkanAllocationMetaBufferStaging,
+		EVulkanAllocationMetaBufferOther,
+		EVulkanAllocationMetaSize,
+	};
+	enum EVulkanAllocationFlags
+	{
+		VulkanAllocationFlagsMapped = 0x1,
+		VulkanAllocationFlagsCanEvict= 0x2,
+	};
+
+	enum class EType
+	{
+		Image,
+		Buffer,
+	};
+
 
 	// Custom ref counting
 	class FRefCount
@@ -174,11 +223,6 @@ namespace VulkanRHI
 			, bIsCached(0)
 			, bFreedBySystem(false)
 			, bDedicatedMemory(0)
-#if VULKAN_MEMORY_TRACK_FILE_LINE
-			, File(nullptr)
-			, Line(0)
-			, UID(0)
-#endif
 		{
 		}
 
@@ -237,15 +281,10 @@ namespace VulkanRHI
 		uint32 bDedicatedMemory : 1;
 		uint32 : 0;
 
-#if VULKAN_MEMORY_TRACK_FILE_LINE
-		const char* File;
-		uint32 Line;
-		uint32 UID;
+
+#if VULKAN_MEMORY_TRACK
+		FVulkanTrackInfo Track;
 #endif
-#if VULKAN_MEMORY_TRACK_CALLSTACK
-		FString Callstack;
-#endif
-		// Only owner can delete!
 		~FDeviceMemoryAllocation();
 
 		friend class FDeviceMemoryManager;
@@ -262,6 +301,8 @@ namespace VulkanRHI
 
 		void Deinit();
 
+		uint32 GetEvictedMemoryProperties();
+
 		inline bool HasUnifiedMemory() const
 		{
 			return bHasUnifiedMemory;
@@ -273,76 +314,30 @@ namespace VulkanRHI
 		}
 
 		bool SupportsMemoryType(VkMemoryPropertyFlags Properties) const;
+		void GetHostMemoryStatus(uint64* Allocated, uint64* Total) const;
+		bool IsHostMemory(uint32 MemoryTypeIndex) const;
 
-		//#todo-rco: Might need to revisit based on https://gitlab.khronos.org/vulkan/vulkan/merge_requests/1165
-		inline VkResult GetMemoryTypeFromProperties(uint32 TypeBits, VkMemoryPropertyFlags Properties, uint32* OutTypeIndex)
-		{
-			// Search memtypes to find first index with those properties
-			for (uint32 i = 0; i < MemoryProperties.memoryTypeCount && TypeBits; i++)
-			{
-				if ((TypeBits & 1) == 1)
-				{
-					// Type is available, does it match user properties?
-					if ((MemoryProperties.memoryTypes[i].propertyFlags & Properties) == Properties)
-					{
-						*OutTypeIndex = i;
-						return VK_SUCCESS;
-					}
-				}
-				TypeBits >>= 1;
-			}
-
-			// No memory types matched, return failure
-			return VK_ERROR_FEATURE_NOT_PRESENT;
-		}
-
-		inline VkResult GetMemoryTypeFromPropertiesExcluding(uint32 TypeBits, VkMemoryPropertyFlags Properties, uint32 ExcludeTypeIndex, uint32* OutTypeIndex)
-		{
-			// Search memtypes to find first index with those properties
-			for (uint32 i = 0; i < MemoryProperties.memoryTypeCount && TypeBits; i++)
-			{
-				if ((TypeBits & 1) == 1)
-				{
-					// Type is available, does it match user properties?
-					if ((MemoryProperties.memoryTypes[i].propertyFlags & Properties) == Properties && ExcludeTypeIndex != i)
-					{
-						*OutTypeIndex = i;
-						return VK_SUCCESS;
-					}
-				}
-				TypeBits >>= 1;
-			}
-
-			// No memory types matched, return failure
-			return VK_ERROR_FEATURE_NOT_PRESENT;
-		}
-
-		inline const VkPhysicalDeviceMemoryProperties& GetMemoryProperties() const
-		{
-			return MemoryProperties;
-		}
+		VkResult GetMemoryTypeFromProperties(uint32 TypeBits, VkMemoryPropertyFlags Properties, uint32* OutTypeIndex);
+		VkResult GetMemoryTypeFromPropertiesExcluding(uint32 TypeBits, VkMemoryPropertyFlags Properties, uint32 ExcludeTypeIndex, uint32* OutTypeIndex);
+		const VkPhysicalDeviceMemoryProperties& GetMemoryProperties() const;
 
 
 		// bCanFail means an allocation failing is not a fatal error, just returns nullptr
 		FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeIndex, void* DedicatedAllocateInfo, float Priority, const char* File, uint32 Line);
-
-		inline FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeBits, VkMemoryPropertyFlags MemoryPropertyFlags, void* DedicatedAllocateInfo, float Priority, const char* File, uint32 Line)
-		{
-			uint32 MemoryTypeIndex = ~0;
-			VERIFYVULKANRESULT(this->GetMemoryTypeFromProperties(MemoryTypeBits, MemoryPropertyFlags, &MemoryTypeIndex));
-			return Alloc(bCanFail, AllocationSize, MemoryTypeIndex, DedicatedAllocateInfo, Priority, File, Line);
-		}
+		FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeBits, VkMemoryPropertyFlags MemoryPropertyFlags, void* DedicatedAllocateInfo, float Priority, const char* File, uint32 Line);
 
 		// Sets the Allocation to nullptr
 		void Free(FDeviceMemoryAllocation*& Allocation);
 
-#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
-		void DumpMemory();
-#endif
-
 		uint64 GetTotalMemory(bool bGPU) const;
-
+		VkDeviceSize GetBaseHeapSize(uint32 HeapIndex) const;
+		uint32 GetDefaultPageSize(uint32 HeapIndex, EType Type, uint32 OverridePageSize);
+		uint32 GetHeapIndex(uint32 MemoryTypeIndex);
 	protected:
+		friend class FMemoryManager;
+		void GetMemoryDump(TArray<FResourceHeapStats>& OutDeviceHeapsStats);
+		void DumpMemory();
+
 		VkPhysicalDeviceMemoryProperties MemoryProperties;
 		VkDevice DeviceHandle;
 		bool bHasUnifiedMemory;
@@ -366,105 +361,11 @@ namespace VulkanRHI
 		};
 
 		TArray<FHeapInfo> HeapInfos;
+		int32 PrimaryHostHeap; // memory usage of this heap will decide when to evict.
+
+
 		void SetupAndPrintMemInfo();
 	};
-
-	class FOldResourceHeap;
-	class FOldResourceHeapPage;
-	class FResourceHeapManager;
-
-	// A sub allocation for a specific memory type
-	class FOldResourceAllocation : public FRefCount
-	{
-	public:
-		FOldResourceAllocation(FOldResourceHeapPage* InOwner, FDeviceMemoryAllocation* InDeviceMemoryAllocation,
-			uint32 InRequestedSize, uint32 InAlignedOffset,
-			uint32 InAllocationSize, uint32 InAllocationOffset, const char* InFile, uint32 InLine);
-
-		virtual ~FOldResourceAllocation();
-
-		inline uint32 GetSize() const
-		{
-			return RequestedSize;
-		}
-
-		inline uint32 GetAllocationSize()
-		{
-			return AllocationSize;
-		}
-
-		inline uint32 GetOffset() const
-		{
-			return AlignedOffset;
-		}
-
-		inline VkDeviceMemory GetHandle() const
-		{
-			return DeviceMemoryAllocation->GetHandle();
-		}
-
-		inline void* GetMappedPointer()
-		{
-			check(DeviceMemoryAllocation->CanBeMapped());
-			check(DeviceMemoryAllocation->IsMapped());
-			return (uint8*)DeviceMemoryAllocation->GetMappedPointer() + AlignedOffset;
-		}
-
-		inline uint32 GetMemoryTypeIndex() const
-		{
-			return DeviceMemoryAllocation->GetMemoryTypeIndex();
-		}
-
-		inline void FlushMappedMemory()
-		{
-			DeviceMemoryAllocation->FlushMappedMemory(AllocationOffset, AllocationSize);
-		}
-
-		inline void InvalidateMappedMemory()
-		{
-			DeviceMemoryAllocation->InvalidateMappedMemory(AllocationOffset, AllocationSize);
-		}
-
-		void BindBuffer(FVulkanDevice* Device, VkBuffer Buffer);
-		void BindImage(FVulkanDevice* Device, VkImage Image);
-
-#if VULKAN_USE_LLM
-		void SetLLMTrackerID(uint64 InTrackerID) { LLMTrackerID = InTrackerID; }
-		uint64 GetLLMTrackerID() { return LLMTrackerID; }
-#endif
-
-	private:
-		FOldResourceHeapPage* Owner;
-
-		// Total size of allocation
-		uint32 AllocationSize;
-
-		// Original offset of allocation
-		uint32 AllocationOffset;
-
-		// Requested size
-		uint32 RequestedSize;
-
-		// Requested alignment offset
-		uint32 AlignedOffset;
-
-		FDeviceMemoryAllocation* DeviceMemoryAllocation;
-
-#if VULKAN_MEMORY_TRACK_FILE_LINE
-		const char* File;
-		uint32 Line;
-#endif
-#if VULKAN_MEMORY_TRACK_CALLSTACK
-		FString Callstack;
-#endif
-
-#if VULKAN_USE_LLM
-		uint64 LLMTrackerID;
-#endif
-
-		friend class FOldResourceHeapPage;
-	};
-
 	struct FRange
 	{
 		uint32 Offset;
@@ -493,167 +394,109 @@ namespace VulkanRHI
 		static int32 Add(TArray<FRange>& Ranges, const FRange& Item);
 	};
 
-	// One device allocation that is shared amongst different resources
-	class FOldResourceHeapPage
+
+	// Holds a reference to -any- vulkan gpu allocation
+	// !Intentionally not reference counted
+	// !User must call Free exactly once
+	class FVulkanAllocation
 	{
 	public:
-		FOldResourceHeapPage(FOldResourceHeap* InOwner, FDeviceMemoryAllocation* InDeviceMemoryAllocation, uint32 InID);
-		~FOldResourceHeapPage();
-
-		FOldResourceAllocation* TryAllocate(uint32 Size, uint32 Alignment, const char* File, uint32 Line);
-
-		FOldResourceAllocation* Allocate(uint32 Size, uint32 Alignment, const char* File, uint32 Line)
+		enum
 		{
-			FOldResourceAllocation* ResourceAllocation = TryAllocate(Size, Alignment, File, Line);
-			check(ResourceAllocation);
-			return ResourceAllocation;
-		}
+			ALLOCATOR_INDEX_BITS = 13,
+			ALLOCATION_INDEX_BITS = 32-ALLOCATOR_INDEX_BITS,
+		};
+		FVulkanAllocation();
+		~FVulkanAllocation();
+		void Init(EVulkanAllocationType Type, EVulkanAllocationMetaType MetaType, uint64 Handle, uint32 InSize, uint32 AlignedOffset, uint32 AllocatorIndex, uint32 AllocationIndex, uint32 BufferId);
+		void Free(FVulkanDevice& Device);
+		void Swap(FVulkanAllocation& Other);
+		void Reference(const FVulkanAllocation& Other); //point to other, but don't take ownership
+		bool HasAllocation();
 
-		void ReleaseAllocation(FOldResourceAllocation* Allocation);
+		void Disown(); //disown & own should be used if ownership is transferred.
+		void Own();
+		bool IsValid() const;
+		
+		
+		EVulkanAllocationType Type = EVulkanAllocationEmpty;
+		EVulkanAllocationMetaType MetaType = EVulkanAllocationMetaUnknown;
+		uint8 bHasOwnership = 0;
 
-		inline FOldResourceHeap* GetOwner()
-		{
-			return Owner;
-		}
+		uint32 Size = 0;
+		uint32 Offset = 0;
+		uint32 AllocatorIndex : ALLOCATOR_INDEX_BITS; 
+		uint32 AllocationIndex : ALLOCATION_INDEX_BITS;
+		int32 HandleId = 0;		
+		uint64 VulkanHandle = 0;
 
-		inline uint32 GetID() const
-		{
-			return ID;
-		}
-
-	protected:
-		FOldResourceHeap* Owner;
-		FDeviceMemoryAllocation* DeviceMemoryAllocation;
-		TArray<FOldResourceAllocation*>  ResourceAllocations;
-		uint32 MaxSize;
-		uint32 UsedSize;
-		int32 PeakNumAllocations;
-		uint32 FrameFreed;
-		uint32 ID;
-
-		bool JoinFreeBlocks();
-
-		TArray<FRange> FreeList;
-		friend class FOldResourceHeap;
+		//helper functions
+		void* GetMappedPointer(FVulkanDevice* Device);
+		void FlushMappedMemory(FVulkanDevice* Device);
+		void InvalidateMappedMemory(FVulkanDevice* Device);
+		VkBuffer GetBufferHandle() const;
+		uint32 GetBufferAlignment(FVulkanDevice* Device) const;
+		VkDeviceMemory GetDeviceMemoryHandle(FVulkanDevice* Device) const;
+		FVulkanSubresourceAllocator* GetSubresourceAllocator(FVulkanDevice* Device) const;
+		void BindBuffer(FVulkanDevice* Device, VkBuffer Buffer);
+		void BindImage(FVulkanDevice* Device, VkImage Image);
 	};
 
-	class FBufferAllocation;
 
-	// This holds the information for a SubAllocation (a range); does NOT hold any information about what the object type is
-	class FResourceSuballocation : public FRefCount
+
+	struct FVulkanAllocationInternal
 	{
-	public:
-		FResourceSuballocation(uint32 InRequestedSize, uint32 InAlignedOffset,
-			uint32 InAllocationSize, uint32 InAllocationOffset)
-			: RequestedSize(InRequestedSize)
-			, AlignedOffset(InAlignedOffset)
-			, AllocationSize(InAllocationSize)
-			, AllocationOffset(InAllocationOffset)
+		enum
 		{
-		}
+			EUNUSED,
+			EALLOCATED,
+			EFREED,
+			EFREEPENDING,
+		};
 
-		inline uint32 GetOffset() const
-		{
-			return AlignedOffset;
-		}
+		int State = EUNUSED;
+		void Init(const FVulkanAllocation& Alloc, void* InAllocationOwner, uint32 AllocationOffset, uint32 AllocationSize);
 
-		inline uint32 GetSize() const
-		{
-			return RequestedSize;
-		}
+		EVulkanAllocationType Type = EVulkanAllocationEmpty;
+		EVulkanAllocationMetaType MetaType = EVulkanAllocationMetaUnknown;
 
-#if VULKAN_USE_LLM
-		void SetLLMTrackerID(uint64 InTrackerID) { LLMTrackerID = InTrackerID; }
-		uint64 GetLLMTrackerID() { return LLMTrackerID; }
-#endif
-	protected:
-		uint32 RequestedSize;
-		uint32 AlignedOffset;
-		uint32 AllocationSize;
-		uint32 AllocationOffset;
-#if VULKAN_MEMORY_TRACK_FILE_LINE
-		const char* File;
-		uint32 Line;
-#endif
-#if VULKAN_MEMORY_TRACK_CALLSTACK
-		FString Callstack;
+		uint32 Size = 0;
+		uint32 AllocationSize = 0;
+		uint32 AllocationOffset = 0;
+		void* AllocationOwner = 0;
+
+		int32 NextFree = -1;
+
+#if VULKAN_MEMORY_TRACK
+		FVulkanTrackInfo Track;
 #endif
 #if VULKAN_USE_LLM
 		uint64 LLMTrackerID;
-#endif
-#if VULKAN_MEMORY_TRACK_CALLSTACK || VULKAN_MEMORY_TRACK_FILE_LINE
-		friend class FSubresourceAllocator;
+		void SetLLMTrackerID(uint64 InTrackerID) { LLMTrackerID = InTrackerID; }
+		uint64 GetLLMTrackerID() { return LLMTrackerID; }
 #endif
 	};
 
-	// Suballocation of a VkBuffer
-	class FBufferSuballocation : public FResourceSuballocation
+
+
+	class FVulkanSubresourceAllocator
 	{
+		friend class FMemoryManager;
+		friend class FVulkanResourceHeap;
 	public:
-		FBufferSuballocation(FBufferAllocation* InOwner, VkBuffer InHandle,
-			uint32 InRequestedSize, uint32 InAlignedOffset,
-			uint32 InAllocationSize, uint32 InAllocationOffset)
-			: FResourceSuballocation(InRequestedSize, InAlignedOffset, InAllocationSize, InAllocationOffset)
-			, Owner(InOwner)
-			, Handle(InHandle)
-		{
-			uint32 Size = GetMaxSize(InOwner);
-			check(InAlignedOffset <= Size);
-			check(InAllocationOffset + InAllocationSize <= Size);
-			check(InAlignedOffset + InRequestedSize <= Size);
-		}
-
-		virtual ~FBufferSuballocation();
-
-		inline VkBuffer GetHandle() const
-		{
-			return Handle;
-		}
-
-		inline FBufferAllocation* GetBufferAllocation()
-		{
-			return Owner;
-		}
-
-		// Returns the pointer to the mapped data for this SubAllocation, not the full buffer!
-		void* GetMappedPointer();
-
-		void Flush();
-
-	protected:
-		friend class FBufferAllocation;
-		FBufferAllocation* Owner;
-		VkBuffer Handle;
-	};
-
-	// Generically mantains/manages sub-allocations; doesn't know what the object type is
-	class FSubresourceAllocator
-	{
-	public:
-		FSubresourceAllocator(FResourceHeapManager* InOwner, FDeviceMemoryAllocation* InDeviceMemoryAllocation,
+		FVulkanSubresourceAllocator(EVulkanAllocationType InType, FMemoryManager* InOwner, uint8 InSubResourceAllocatorFlags, FDeviceMemoryAllocation* InDeviceMemoryAllocation,
 			uint32 InMemoryTypeIndex, VkMemoryPropertyFlags InMemoryPropertyFlags,
-			uint32 InAlignment)
-			: Owner(InOwner)
-			, MemoryTypeIndex(InMemoryTypeIndex)
-			, MemoryPropertyFlags(InMemoryPropertyFlags)
-			, MemoryAllocation(InDeviceMemoryAllocation)
-			, Alignment(InAlignment)
-			, FrameFreed(0)
-			, UsedSize(0)
-		{
-			MaxSize = InDeviceMemoryAllocation->GetSize();
-			FRange FullRange;
-			FullRange.Offset = 0;
-			FullRange.Size = MaxSize;
-			FreeList.Add(FullRange);
-		}
+			uint32 InAlignment, VkBuffer InBuffer, uint32 InBufferId, VkBufferUsageFlags InBufferUsageFlags, int32 InPoolSizeIndex);
 
-		virtual ~FSubresourceAllocator() {}
 
-		virtual FResourceSuballocation* CreateSubAllocation(uint32 Size, uint32 AlignedOffset, uint32 AllocatedSize, uint32 AllocatedOffset) = 0;
-		virtual void Destroy(FVulkanDevice* Device) = 0;
+		FVulkanSubresourceAllocator(EVulkanAllocationType InType, FMemoryManager* InOwner, uint8 InSubResourceAllocatorFlags, FDeviceMemoryAllocation* InDeviceMemoryAllocation,
+			uint32 InMemoryTypeIndex, uint32 BufferId = 0xffffffff);
 
-		FResourceSuballocation* TryAllocate(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line);
+		~FVulkanSubresourceAllocator();
+
+		void Destroy(FVulkanDevice* Device);
+		bool TryAllocate2(FVulkanAllocation& OutAllocation, void* Owner, uint32 InSize, uint32 InAlignment, EVulkanAllocationMetaType InMetaType, const char* File, uint32 Line);
+		void Free(FVulkanAllocation& Allocation);
 
 		inline uint32 GetAlignment() const
 		{
@@ -666,9 +509,37 @@ namespace VulkanRHI
 		}
 
 		void Flush(VkDeviceSize Offset, VkDeviceSize AllocationSize);
+		void Invalidate(VkDeviceSize Offset, VkDeviceSize AllocationSize);
 		uint32 GetMaxSize() const { return MaxSize; }
+
+		inline uint32 GetHandleId() const
+		{
+			return BufferId;
+		}
+		FDeviceMemoryAllocation* GetMemoryAllocation()
+		{
+			return MemoryAllocation;
+		}
+		EVulkanAllocationType GetType(){ return Type; }
+
+		TArrayView<uint32> GetMemoryUsed();
+		uint32 GetNumSubAllocations();
+		
+		uint8 GetSubresourceAllocatorFlags()
+		{ 
+			return SubresourceAllocatorFlags; 
+		}
+
 	protected:
-		FResourceHeapManager* Owner;
+		uint64 EvictToHost(FVulkanDevice& Device);
+		void SetFreePending(FVulkanAllocation& Allocation);
+		void FreeInternalData(int32 Index);
+		int32 AllocateInternalData();
+
+		uint32 MemoryUsed[EVulkanAllocationMetaSize];
+
+		EVulkanAllocationType Type;
+		FMemoryManager* Owner;
 		uint32 MemoryTypeIndex;
 		VkMemoryPropertyFlags MemoryPropertyFlags;
 		FDeviceMemoryAllocation* MemoryAllocation;
@@ -676,80 +547,51 @@ namespace VulkanRHI
 		uint32 Alignment;
 		uint32 FrameFreed;
 		int64 UsedSize;
-		static FCriticalSection CS;
-
-		// List of free ranges
-		TArray<FRange> FreeList;
-
-		// Active sub-allocations
-		TArray<FResourceSuballocation*> Suballocations;
-		bool JoinFreeBlocks();
-	};
-
-	// Manages/maintains sub-allocations of a VkBuffer; assumes it was created elsewhere, but it does destroy it
-	class FBufferAllocation : public FSubresourceAllocator
-	{
-	public:
-		FBufferAllocation(FResourceHeapManager* InOwner, FDeviceMemoryAllocation* InDeviceMemoryAllocation,
-			uint32 InMemoryTypeIndex, VkMemoryPropertyFlags InMemoryPropertyFlags,
-			uint32 InAlignment, VkBuffer InBuffer, uint32 InBufferId, VkBufferUsageFlags InBufferUsageFlags, int32 InPoolSizeIndex)
-			: FSubresourceAllocator(InOwner, InDeviceMemoryAllocation, InMemoryTypeIndex, InMemoryPropertyFlags, InAlignment)
-			, BufferUsageFlags(InBufferUsageFlags)
-			, Buffer(InBuffer)
-			, BufferId(InBufferId)
-			, PoolSizeIndex(InPoolSizeIndex)
-		{
-		}
-
-		virtual ~FBufferAllocation()
-		{
-			check(Buffer == VK_NULL_HANDLE);
-		}
-
-		virtual FResourceSuballocation* CreateSubAllocation(uint32 Size, uint32 AlignedOffset, uint32 AllocatedSize, uint32 AllocatedOffset) override
-		{
-			return new FBufferSuballocation(this, Buffer, Size, AlignedOffset, AllocatedSize, AllocatedOffset);// , File, Line);
-		}
-		virtual void Destroy(FVulkanDevice* Device) override;
-
-		void Release(FBufferSuballocation* Suballocation);
-
-		inline VkBuffer GetHandle() const
-		{
-			return Buffer;
-		}
-
-		inline uint32 GetHandleId() const
-		{
-			return BufferId;
-		}
-
-	protected:
 		VkBufferUsageFlags BufferUsageFlags;
 		VkBuffer Buffer;
 		uint32 BufferId;
-		int32 PoolSizeIndex;
-		friend class FResourceHeapManager;
+		int32 PoolSizeIndex;		
+		uint32 AllocatorIndex;
+		uint8 SubresourceAllocatorFlags;
+		bool bIsEvicting = false;
+
+		uint32 NumSubAllocations = 0;
+		uint32 AllocCalls = 0;
+		uint32 FreeCalls = 0;
+
+		// List of free ranges
+		TArray<FRange> FreeList;
+		bool JoinFreeBlocks();
+		uint32 GetAllocatorIndex()
+		{
+			return AllocatorIndex;
+		}
+
+
+#if VULKAN_MEMORY_TRACK
+		FVulkanTrackInfo Track;
+#endif
+		TArray<FVulkanAllocationInternal> InternalData;
+		int32 InternalFreeList= -1;
+		FCriticalSection CS;
+
 	};
+
 
 	// A set of Device Allocations (Heap Pages) for a specific memory type. This handles pooling allocations inside memory pages to avoid
 	// doing allocations directly off the device's heaps
-	class FOldResourceHeap
+	class FVulkanResourceHeap
 	{
 	public:
-		enum class EType
-		{
-			Image,
-			Buffer,
-		};
-		FOldResourceHeap(FResourceHeapManager* InOwner, uint32 InMemoryTypeIndex, uint32 InPageSize);
-		~FOldResourceHeap();
+		FVulkanResourceHeap(FMemoryManager* InOwner, uint32 InMemoryTypeIndex, uint32 InOverridePageSize = 0);
+		~FVulkanResourceHeap();
 
-		void FreePage(FOldResourceHeapPage* InPage);
+		void FreePage(FVulkanSubresourceAllocator* InPage);
+		void ReleasePage(FVulkanSubresourceAllocator* InPage);
 
 		void ReleaseFreedPages(bool bImmediately);
 
-		inline FResourceHeapManager* GetOwner()
+		inline FMemoryManager* GetOwner()
 		{
 			return Owner;
 		}
@@ -769,171 +611,91 @@ namespace VulkanRHI
 			return MemoryTypeIndex;
 		}
 
-#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
-		void DumpMemory();
-#endif
+		uint64 EvictOne(FVulkanDevice& Device);
+		void DumpMemory(FResourceHeapStats& Stats);
 
 	protected:
-		FResourceHeapManager* Owner;
-		uint32 MemoryTypeIndex;
+		uint32 GetPageSize();
+		FMemoryManager* Owner;
+		uint16 MemoryTypeIndex;
+		uint16 HeapIndex;
 
 		bool bIsHostCachedSupported;
 		bool bIsLazilyAllocatedSupported;
 
-#if VULKAN_FREEPAGE_FOR_TYPE
-		uint32 DefaultPageSizeForImage;
-		uint32 DefaultPageSizeForBuffer;
-#endif
-		uint32 DefaultPageSize;
+		uint32 OverridePageSize;
 
 		uint32 PeakPageSize;
 		uint64 UsedMemory;
 		uint32 PageIDCounter;
 
-		TArray<FOldResourceHeapPage*> UsedBufferPages;
-		TArray<FOldResourceHeapPage*> UsedImagePages;
+		TArray<FVulkanSubresourceAllocator*> UsedBufferPages;
+		TArray<FVulkanSubresourceAllocator*> UsedImagePages;
 
-#if VULKAN_FREEPAGE_FOR_TYPE
-		TArray<FOldResourceHeapPage*> FreeBufferPages;
-		TArray<FOldResourceHeapPage*> FreeImagePages;
-#else
-		TArray<FOldResourceHeapPage*> FreePages;
-#endif
+		TArray<FVulkanSubresourceAllocator*> FreeImagePages;
+		TArray<FVulkanSubresourceAllocator*> FreePages; //buffer pages when split, when r.Vulkan.FreePageForType i 0, both image and buffer pages.
 
-		FOldResourceAllocation* AllocateResource(EType Type, uint32 Size, uint32 Alignment, bool bMapAllocation, bool bForceSeparateAllocation, const char* File, uint32 Line);
+		TArray<FVulkanSubresourceAllocator*> UsedDedicatedImagePages;
 
-#if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
-		TArray<FOldResourceHeapPage*> UsedDedicatedImagePages;
-		TArray<FOldResourceHeapPage*> FreeDedicatedImagePages;
+		bool AllocateResource(FVulkanAllocation& OutAllocation, void* AllocationOwner, EType Type, uint32 Size, uint32 Alignment, bool bMapAllocation, bool bForceSeparateAllocation, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line);
+		bool AllocateDedicatedImage(FVulkanAllocation& OutAllocation, void* AllocationOwner, VkImage Image, uint32 Size, uint32 Alignment, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line);
 
-		FOldResourceAllocation* AllocateDedicatedImage(VkImage Image, uint32 Size, uint32 Alignment, const char* File, uint32 Line);
-#endif
-
-
-		friend class FResourceHeapManager;
+		friend class FMemoryManager;
 	};
-	static inline uint32 GetMaxSize(FBufferAllocation* Allocation)
+
+	enum EVulkanFreeFlags
 	{
-		return Allocation->GetMaxSize();
-	}
+		EVulkanFreeFlag_None = 0x0,
+		EVulkanFreeFlag_DontDefer = 0x1,
+	};
+
 
 	// Manages heaps and their interactions
-	class FResourceHeapManager : public FDeviceChild
+	class FMemoryManager : public FDeviceChild
 	{
+		friend class FVulkanAllocation;
 	public:
-		FResourceHeapManager(FVulkanDevice* InDevice);
-		~FResourceHeapManager();
+
+		FMemoryManager(FVulkanDevice* InDevice);
+		~FMemoryManager();
 
 		void Init();
 		void Deinit();
 
-		// Returns a sub-allocation, as there can be space inside a previously allocated VkBuffer to be reused; to release a sub allocation, just delete the pointer
-		FBufferSuballocation* AllocateBuffer(uint32 Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryPropertyFlags MemoryPropertyFlags, const char* File, uint32 Line);
 
-		// Release a whole allocation; this is only called from within a FBufferAllocation
-		void ReleaseBuffer(FBufferAllocation* BufferAllocation);
+		void FreeVulkanAllocation(FVulkanAllocation& Allocation, EVulkanFreeFlags FreeFlags = EVulkanFreeFlag_None);
+		void FreeVulkanAllocationPooledBuffer(FVulkanAllocation& Allocation);
+		void FreeVulkanAllocationBuffer(FVulkanAllocation& Allocation);
+		void FreeVulkanAllocationImage(FVulkanAllocation& Allocation);
+		void FreeVulkanAllocationImageDedicated(FVulkanAllocation& Allocation);
 
-#if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
-		FOldResourceAllocation* AllocateDedicatedImageMemory(VkImage Image, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, const char* File, uint32 Line);
-#endif
+		
+		bool AllocateBufferPooled(FVulkanAllocation& Allocation, void* AllocationOwner, uint32 Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line);
+		bool AllocateImageMemory(FVulkanAllocation& Allocation, void* AllocationOwner, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line);
+		bool AllocateBufferMemory(FVulkanAllocation& Allocation, void* AllocationOwner, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line);
+		bool AllocateDedicatedImageMemory(FVulkanAllocation& Allocation, void* AllocationOwner, VkImage Image, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line);
 
-		inline FOldResourceAllocation* AllocateImageMemory(const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, const char* File, uint32 Line)
-		{
-			bool bMapped = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-			uint32 TypeIndex = 0;
-			if (DeviceMemoryManager->GetMemoryTypeFromProperties(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, &TypeIndex) != VK_SUCCESS)
-			{
-				if ((MemoryPropertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) == VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)
-				{
-					// If lazy allocations are not supported, we can fall back to real allocations.
-					MemoryPropertyFlags = MemoryPropertyFlags & ~VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
-					VERIFYVULKANRESULT(DeviceMemoryManager->GetMemoryTypeFromProperties(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, &TypeIndex));
-				}
-				else
-				{
-					UE_LOG(LogVulkanRHI, Fatal, TEXT("Cannot find memory type for MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"), (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
-				}
-			}
-			if (!ResourceTypeHeaps[TypeIndex])
-			{
-				UE_LOG(LogVulkanRHI, Fatal, TEXT("Missing memory type index %d, MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"), TypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
-			}
-			const bool bForceSeparateAllocation = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) == VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
-			FOldResourceAllocation* Allocation = ResourceTypeHeaps[TypeIndex]->AllocateResource(FOldResourceHeap::EType::Image, MemoryReqs.size, MemoryReqs.alignment, bMapped, bForceSeparateAllocation, File, Line);
-			if (!Allocation)
-			{
-				VERIFYVULKANRESULT(DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, TypeIndex, &TypeIndex));
-				bMapped = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-				Allocation = ResourceTypeHeaps[TypeIndex]->AllocateResource(FOldResourceHeap::EType::Image, MemoryReqs.size, MemoryReqs.alignment, bMapped, bForceSeparateAllocation, File, Line);
-			}
-			return Allocation;
-		}
+		void RegisterSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
+		void UnregisterSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
+		void ReleaseSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
 
-		inline FOldResourceAllocation* AllocateBufferMemory(const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, const char* File, uint32 Line)
-		{
-			uint32 TypeIndex = 0;
-			VkResult Result = DeviceMemoryManager->GetMemoryTypeFromProperties(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, &TypeIndex);
-			bool bMapped = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-			if ((Result != VK_SUCCESS) || !ResourceTypeHeaps[TypeIndex])
-			{
-				if ((MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) == VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
-				{
-					// Try non-cached flag
-					MemoryPropertyFlags = MemoryPropertyFlags & ~VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-				}
-
-				if ((MemoryPropertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) == VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)
-				{
-					// Try non-lazy flag
-					MemoryPropertyFlags = MemoryPropertyFlags & ~VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
-				}
-
-				// Try another heap type
-				uint32 OriginalTypeIndex = TypeIndex;
-				if (DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, (Result == VK_SUCCESS) ? TypeIndex : (uint32)-1, &TypeIndex) != VK_SUCCESS)
-				{
-					UE_LOG(LogVulkanRHI, Fatal, TEXT("Unable to find alternate type for index %d, MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"),
-						OriginalTypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
-				}
-
-				if (!ResourceTypeHeaps[TypeIndex])
-				{
-#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
-					DumpMemory();
-#endif
-					UE_LOG(LogVulkanRHI, Fatal, TEXT("Missing memory type index %d (originally requested %d), MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"), TypeIndex, OriginalTypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
-				}
-			}
-
-			FOldResourceAllocation* Allocation = ResourceTypeHeaps[TypeIndex]->AllocateResource(FOldResourceHeap::EType::Buffer, MemoryReqs.size, MemoryReqs.alignment, bMapped, false, File, Line); //-V595
-			if (!Allocation)
-			{
-				// Try another memory type if the allocation failed
-				VERIFYVULKANRESULT(DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, TypeIndex, &TypeIndex));
-				bMapped = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-				if (!ResourceTypeHeaps[TypeIndex])
-				{
-					UE_LOG(LogVulkanRHI, Fatal, TEXT("Missing memory type index %d, MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"), TypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
-				}
-				Allocation = ResourceTypeHeaps[TypeIndex]->AllocateResource(FOldResourceHeap::EType::Buffer, MemoryReqs.size, MemoryReqs.alignment, bMapped, false, File, Line);
-			}
-			return Allocation;
-		}
 
 		void ReleaseFreedPages();
-
-#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 		void DumpMemory();
-#endif
-		
-		FBufferSuballocation* AllocUniformBuffer(uint32 Size, const void* Contents);
-		void ReleaseUniformBuffer(FBufferSuballocation* UBAlloc);
+
+
+		void AllocUniformBuffer(FVulkanAllocation& OutAllocation, uint32 Size, const void* Contents);
+		void FreeUniformBuffer(FVulkanAllocation& InAllocation);
+
+		void HandleOOM(bool bCanResume = false, VkResult Result = VK_SUCCESS, uint64 AllocationSize = 0, uint32 MemoryTypeIndex = 0);
+		bool UpdateEvictThreshold(bool bLog);
+
 
 		void* Hotfix = nullptr;
 
 	protected:
 		FDeviceMemoryManager* DeviceMemoryManager;
-		TArray<FOldResourceHeap*> ResourceTypeHeaps;
+		TArray<FVulkanResourceHeap*> ResourceTypeHeaps;
 
 		enum
 		{
@@ -1001,14 +763,24 @@ namespace VulkanRHI
 			return PoolSize;
 		}
 
-		TArray<FBufferAllocation*> UsedBufferAllocations[(int32)EPoolSizes::SizesCount + 1];
-		TArray<FBufferAllocation*> FreeBufferAllocations[(int32)EPoolSizes::SizesCount + 1];
+		TArray<FVulkanSubresourceAllocator*> UsedBufferAllocations[(int32)EPoolSizes::SizesCount + 1];
+		TArray<FVulkanSubresourceAllocator*> FreeBufferAllocations[(int32)EPoolSizes::SizesCount + 1];
+		TArray<FVulkanSubresourceAllocator*> AllBufferAllocations;
+		PTRINT AllBufferAllocationsFreeListHead = (PTRINT)-1;
 
+		uint64 PendingEvictBytes = 0;
+		bool bIsEvicting = false;
+		bool bWantEviction = false;
+
+
+		friend FVulkanSubresourceAllocator* GetSubresourceAllocator(FVulkanDevice* Device, const FVulkanAllocation& Allocation);
+		friend class FVulkanResourceHeap;
+	
 		void ReleaseFreedResources(bool bImmediately);
 		void DestroyResourceAllocations();
 		struct FUBPendingFree
 		{
-			FBufferSuballocation* Allocation = nullptr;
+			FVulkanAllocation Allocation;
 			uint64 Frame = 0;
 		};
 
@@ -1026,50 +798,22 @@ namespace VulkanRHI
 	class FStagingBuffer : public FRefCount
 	{
 	public:
-		FStagingBuffer()
-			: ResourceAllocation(nullptr)
-			, Buffer(VK_NULL_HANDLE)
-			, MemoryReadFlags(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-			, BufferSize(0)
-		{
-		}
+		FStagingBuffer(FVulkanDevice* InDevice);
+		VkBuffer GetHandle() const;
+		void* GetMappedPointer();
+		uint32 GetSize() const;
+		VkDeviceMemory GetDeviceMemoryHandle() const;
+		void FlushMappedMemory();
+		void InvalidateMappedMemory();
 
-		VkBuffer GetHandle() const
-		{
-			return Buffer;
-		}
-
-		inline void* GetMappedPointer()
-		{
-			return ResourceAllocation->GetMappedPointer();
-		}
-
-		inline uint32 GetSize() const
-		{
-			return BufferSize;
-		}
-
-		inline VkDeviceMemory GetDeviceMemoryHandle() const
-		{
-			return ResourceAllocation->GetHandle();
-		}
-
-		inline void FlushMappedMemory()
-		{
-			ResourceAllocation->FlushMappedMemory();
-		}
-
-		inline void InvalidateMappedMemory()
-		{
-			ResourceAllocation->InvalidateMappedMemory();
-		}
-
-#if VULKAN_MEMORY_TRACK_CALLSTACK
-		FString Callstack;
+#if VULKAN_MEMORY_TRACK
+		FVulkanTrackInfo Track;
 #endif
 
 	protected:
-		TRefCountPtr<FOldResourceAllocation> ResourceAllocation;
+		FVulkanDevice* Device;
+		FVulkanAllocation Allocation;
+
 		VkBuffer Buffer;
 		VkMemoryPropertyFlagBits MemoryReadFlags;
 		uint32 BufferSize;
@@ -1077,7 +821,7 @@ namespace VulkanRHI
 		// Owner maintains lifetime
 		virtual ~FStagingBuffer();
 
-		void Destroy(FVulkanDevice* Device);
+		void Destroy();
 
 		friend class FStagingManager;
 	};
@@ -1107,11 +851,12 @@ namespace VulkanRHI
 
 		void ProcessPendingFree(bool bImmediately, bool bFreeToOS);
 
-#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+
+		void GetMemoryDump(FResourceHeapStats& Stats);
 		void DumpMemory();
-#endif
 
 	protected:
+		friend class FMemoryManager;
 		struct FPendingItemsPerCmdBuffer
 		{
 			FVulkanCmdBuffer* CmdBuffer;
@@ -1248,79 +993,6 @@ namespace VulkanRHI
 		VkEvent Handle;
 	};
 
-	class FDeferredDeletionQueue : public FDeviceChild
-	{
-		//typedef TPair<FRefCountedObject*, uint64> FFencedObject;
-		//FThreadsafeQueue<FFencedObject> DeferredReleaseQueue;
-
-	public:
-		FDeferredDeletionQueue(FVulkanDevice* InDevice);
-		~FDeferredDeletionQueue();
-
-		enum class EType
-		{
-			RenderPass,
-			Buffer,
-			BufferView,
-			Image,
-			ImageView,
-			Pipeline,
-			PipelineLayout,
-			Framebuffer,
-			DescriptorSetLayout,
-			Sampler,
-			Semaphore,
-			ShaderModule,
-			Event,
-			ResourceAllocation,
-		};
-
-		template <typename T>
-		inline void EnqueueResource(EType Type, T Handle)
-		{
-			static_assert(sizeof(T) <= sizeof(uint64), "Vulkan resource handle type size too large.");
-			EnqueueGenericResource(Type, (uint64)Handle);
-		}
-		void EnqueueResourceAllocation(TRefCountPtr<VulkanRHI::FOldResourceAllocation> ResourceAllocation);
-
-		void ReleaseResources(bool bDeleteImmediately = false);
-
-		inline void Clear()
-		{
-			ReleaseResources(true);
-		}
-
-		void OnCmdBufferDeleted(FVulkanCmdBuffer* CmdBuffer);
-/*
-		class FVulkanAsyncDeletionWorker : public FVulkanDeviceChild, FNonAbandonableTask
-		{
-		public:
-			FVulkanAsyncDeletionWorker(FVulkanDevice* InDevice, FThreadsafeQueue<FFencedObject>* DeletionQueue);
-
-			void DoWork();
-
-		private:
-			TQueue<FFencedObject> Queue;
-		};
-*/
-	private:
-		//TQueue<FAsyncTask<FVulkanAsyncDeletionWorker>*> DeleteTasks;
-
-		void EnqueueGenericResource(EType Type, uint64 Handle);
-
-		struct FEntry
-		{
-			EType StructureType;
-			uint32 FrameNumber;
-			uint64 FenceCounter;
-			FVulkanCmdBuffer* CmdBuffer;
-
-			uint64 Handle;
-			TRefCountPtr<VulkanRHI::FOldResourceAllocation> ResourceAllocation;
-		};
-		FCriticalSection CS;
-		TArray<FEntry> Entries;
-	};
 
 	// Simple tape allocation per frame for a VkBuffer, used for Volatile allocations
 	class FTempFrameAllocationBuffer : public FDeviceChild
@@ -1337,46 +1009,21 @@ namespace VulkanRHI
 
 		struct FTempAllocInfo
 		{
-			void* Data;
+			FVulkanAllocation Allocation;
+			void* Data = 0;
+			uint32 CurrentOffset = 0;
+			uint32 Size = 0;
+			uint32 LockCounter = 0;
 
-			FBufferSuballocation* BufferSuballocation;
-
-			// Offset into the locked area
-			uint32 CurrentOffset;
-
-			// Size of Allocation
-			uint32 Size;
-
-			// Simple counter used for the SRVs to know a new one is required
-			uint32 LockCounter;
-
-			FTempAllocInfo()
-				: Data(nullptr)
-				, BufferSuballocation(nullptr)
-				, CurrentOffset(0)
-				, Size(0)
-				, LockCounter(0)
+			uint32 GetBindOffset()
 			{
+				checkNoEntry();
+				return 0;
 			}
 
-			inline FBufferAllocation* GetBufferAllocation() const
-			{
-				return BufferSuballocation->GetBufferAllocation();
-			}
-
-			inline uint32 GetBindOffset() const
-			{
-				return BufferSuballocation->GetOffset() + CurrentOffset;
-			}
-
-			inline VkBuffer GetHandle() const
-			{
-				return BufferSuballocation->GetHandle();
-			}
 		};
 
 		void Alloc(uint32 InSize, uint32 InAlignment, FTempAllocInfo& OutInfo);
-
 		void Reset();
 
 	protected:
@@ -1389,309 +1036,21 @@ namespace VulkanRHI
 
 		struct FFrameEntry
 		{
-			TRefCountPtr<FBufferSuballocation> BufferSuballocation;
-			TArray<TRefCountPtr<FBufferSuballocation>> PendingDeletionList;
+			FVulkanAllocation Allocation;
+			TArray<FVulkanAllocation> PendingDeletionList;
 			uint8* MappedData = nullptr;
 			uint8* CurrentData = nullptr;
 			uint32 Size = 0;
 			uint32 PeakUsed = 0;
 
 			void InitBuffer(FVulkanDevice* InDevice, uint32 InSize);
-			void Reset();
+			void Reset(FVulkanDevice* Device);
 			bool TryAlloc(uint32 InSize, uint32 InAlignment, FTempAllocInfo& OutInfo);
 		};
 		FFrameEntry Entries[NUM_BUFFERS];
 		FCriticalSection CS;
 
 		friend class FVulkanCommandListContext;
-	};
-
-	inline void* FBufferSuballocation::GetMappedPointer()
-	{
-		return (uint8*)Owner->GetMappedPointer() + AlignedOffset;
-	}
-
-	enum class EImageLayoutBarrier
-	{
-		Undefined,
-		TransferDest,
-		ColorAttachment,
-		DepthStencilAttachment,
-		TransferSource,
-		Present,
-		PixelShaderRead,
-		PixelDepthStencilRead,
-		ComputeGeneralRW,
-		PixelGeneralRW,
-#if VULKAN_SUPPORTS_MAINTENANCE_LAYER2
-		DepthReadStencilAttachment,
-#endif
-	};
-
-	inline EImageLayoutBarrier GetImageLayoutFromVulkanLayout(VkImageLayout Layout)
-	{
-		switch (Layout)
-		{
-		case VK_IMAGE_LAYOUT_UNDEFINED:
-			return EImageLayoutBarrier::Undefined;
-
-		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-			return EImageLayoutBarrier::TransferDest;
-
-		case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-			return EImageLayoutBarrier::ColorAttachment;
-
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-			return EImageLayoutBarrier::DepthStencilAttachment;
-
-#if VULKAN_SUPPORTS_MAINTENANCE_LAYER2
-		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR:
-			return EImageLayoutBarrier::DepthReadStencilAttachment;
-#endif
-		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-			return EImageLayoutBarrier::TransferSource;
-
-		case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-			return EImageLayoutBarrier::Present;
-
-		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-			//#todo-rco: Not necessarily right...
-			return EImageLayoutBarrier::PixelShaderRead;
-
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-			return EImageLayoutBarrier::PixelDepthStencilRead;
-
-		case VK_IMAGE_LAYOUT_GENERAL:
-			return EImageLayoutBarrier::PixelGeneralRW;
-
-		default:
-			checkf(0, TEXT("Unknown VkImageLayout %d"), (int32)Layout);
-			break;
-		}
-
-		return EImageLayoutBarrier::Undefined;
-	}
-
-	inline VkPipelineStageFlags GetImageBarrierFlags(EImageLayoutBarrier Target, VkAccessFlags& AccessFlags, VkImageLayout& Layout)
-	{
-		VkPipelineStageFlags StageFlags = (VkPipelineStageFlags)0;
-		switch (Target)
-		{
-		case EImageLayoutBarrier::Undefined:
-			AccessFlags = 0;
-			StageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			Layout = VK_IMAGE_LAYOUT_UNDEFINED;
-			break;
-
-		case EImageLayoutBarrier::TransferDest:
-			AccessFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
-			StageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			Layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			break;
-
-		case EImageLayoutBarrier::ColorAttachment:
-			AccessFlags = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			StageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			break;
-
-		case EImageLayoutBarrier::DepthStencilAttachment:
-			AccessFlags = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-			StageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-			Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			break;
-
-#if VULKAN_SUPPORTS_MAINTENANCE_LAYER2
-		case EImageLayoutBarrier::DepthReadStencilAttachment:
-			AccessFlags = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-			StageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-			Layout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR;
-			break;
-#endif
-
-		case EImageLayoutBarrier::TransferSource:
-			AccessFlags = VK_ACCESS_TRANSFER_READ_BIT;
-			StageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			Layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-			break;
-
-		case EImageLayoutBarrier::Present:
-			AccessFlags = 0;
-			StageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			Layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-			break;
-
-		case EImageLayoutBarrier::PixelShaderRead:
-			AccessFlags = VK_ACCESS_SHADER_READ_BIT;
-			StageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			Layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			break;
-
-		case EImageLayoutBarrier::PixelDepthStencilRead:
-			AccessFlags = VK_ACCESS_SHADER_READ_BIT;
-			StageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-			break;
-
-		case EImageLayoutBarrier::ComputeGeneralRW:
-			AccessFlags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-			StageFlags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-			Layout = VK_IMAGE_LAYOUT_GENERAL;
-			break;
-
-		case EImageLayoutBarrier::PixelGeneralRW:
-			AccessFlags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-			StageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			Layout = VK_IMAGE_LAYOUT_GENERAL;
-			break;
-
-		default:
-			checkf(0, TEXT("Unknown ImageLayoutBarrier %d"), (int32)Target);
-			break;
-		}
-
-		return StageFlags;
-	}
-
-	inline VkImageLayout GetImageLayout(EImageLayoutBarrier Target)
-	{
-		VkAccessFlags Flags;
-		VkImageLayout Layout;
-		GetImageBarrierFlags(Target, Flags, Layout);
-		return Layout;
-	}
-
-	inline void SetImageBarrierInfo(EImageLayoutBarrier Source, EImageLayoutBarrier Dest, VkImageMemoryBarrier& InOutBarrier, VkPipelineStageFlags& InOutSourceStage, VkPipelineStageFlags& InOutDestStage)
-	{
-		InOutSourceStage |= GetImageBarrierFlags(Source, InOutBarrier.srcAccessMask, InOutBarrier.oldLayout);
-		InOutDestStage |= GetImageBarrierFlags(Dest, InOutBarrier.dstAccessMask, InOutBarrier.newLayout);
-	}
-
-	void ImagePipelineBarrier(VkCommandBuffer CmdBuffer, VkImage Image, EImageLayoutBarrier SourceTransition, EImageLayoutBarrier DestTransition, const VkImageSubresourceRange& SubresourceRange);
-
-	inline VkImageSubresourceRange SetupImageSubresourceRange(VkImageAspectFlags Aspect = VK_IMAGE_ASPECT_COLOR_BIT, uint32 StartMip = 0)
-	{
-		VkImageSubresourceRange Range;
-		FMemory::Memzero(Range);
-		Range.aspectMask = Aspect;
-		Range.baseMipLevel = StartMip;
-		Range.levelCount = 1;
-		Range.baseArrayLayer = 0;
-		Range.layerCount = 1;
-		return Range;
-	}
-
-	inline VkImageMemoryBarrier SetupImageMemoryBarrier(VkImage Image, VkImageAspectFlags Aspect, uint32 NumMips = 1)
-	{
-		VkImageMemoryBarrier Barrier;
-		ZeroVulkanStruct(Barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
-		Barrier.image = Image;
-		Barrier.subresourceRange.aspectMask = Aspect;
-		Barrier.subresourceRange.levelCount = NumMips;
-		Barrier.subresourceRange.layerCount = 1;
-		Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		return Barrier;
-	}
-
-	struct FPendingBarrier
-	{
-	protected:
-		VkPipelineStageFlags SourceStage = 0;
-		VkPipelineStageFlags DestStage = 0;
-		TArray<VkImageMemoryBarrier> ImageBarriers;
-		TArray<VkBufferMemoryBarrier> BufferBarriers;
-
-		void InnerExecute(FVulkanCmdBuffer* CmdBuffer, bool bEnsure);
-
-	public:
-		inline int32 NumImageBarriers() const
-		{
-			return ImageBarriers.Num();
-		}
-
-		inline int32 NumBufferBarriers() const
-		{
-			return BufferBarriers.Num();
-		}
-
-		inline void ResetStages()
-		{
-			SourceStage = 0;
-			DestStage = 0;
-		}
-
-		inline int32 AddImageBarrier(VkImage Image, VkImageAspectFlags Aspect, uint32 NumMips, uint32 NumLayers = 1)
-		{
-			int32 Index = ImageBarriers.AddZeroed();
-			VkImageMemoryBarrier& Barrier = ImageBarriers[Index];
-			Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-			Barrier.image = Image;
-			Barrier.subresourceRange.aspectMask = Aspect;
-			Barrier.subresourceRange.levelCount = NumMips;
-			Barrier.subresourceRange.layerCount = NumLayers;
-			Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-			return Index;
-		}
-
-		inline void SetTransition(int32 BarrierIndex, EImageLayoutBarrier Source, EImageLayoutBarrier Dest)
-		{
-			VkImageMemoryBarrier& Barrier = ImageBarriers[BarrierIndex];
-
-			if (FVulkanPlatform::RequiresPresentLayoutFix() && GVulkanDelayAcquireImage != EDelayAcquireImageType::DelayAcquire)
-			{
-				VkPipelineStageFlags NewSourceStage = GetImageBarrierFlags(Source, Barrier.srcAccessMask, Barrier.oldLayout);;
-				VkPipelineStageFlags NewDestStage = GetImageBarrierFlags(Dest, Barrier.dstAccessMask, Barrier.newLayout);
-
-				// special handling for VK_IMAGE_LAYOUT_PRESENT_SRC_KHR (otherwise Mali devices flicker)
-				if (Source == EImageLayoutBarrier::Present)
-				{
-					NewSourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-					NewDestStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-				}
-				else if (Dest == EImageLayoutBarrier::Present)
-				{
-					NewSourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-					NewDestStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-				}
-
-				SourceStage |= NewSourceStage;
-				DestStage |= NewDestStage;
-			}
-			else
-			{
-				SourceStage |= GetImageBarrierFlags(Source, Barrier.srcAccessMask, Barrier.oldLayout);
-				DestStage |= GetImageBarrierFlags(Dest, Barrier.dstAccessMask, Barrier.newLayout);
-			}
-		}
-
-		inline void AddStages(uint32_t sourceStages, uint32_t destStages)
-		{
-			SourceStage |= sourceStages;
-			DestStage |= destStages;
-		}
-
-		// This is only valid while no other ImageBarriers are added/removed
-		inline VkImageSubresourceRange& GetSubresource(int32 BarrierIndex)
-		{
-			return ImageBarriers[BarrierIndex].subresourceRange;
-		}
-
-		inline VkImageLayout GetDestLayout(int32 BarrierIndex)
-		{
-			return ImageBarriers[BarrierIndex].newLayout;
-		}
-
-		// Actually Insert the cmd in cmdbuffer 
-		void Execute(FVulkanCmdBuffer* CmdBuffer, bool bEnsure = true)
-		{
-			if (ImageBarriers.Num() > 0 || BufferBarriers.Num() > 0)
-			{
-				InnerExecute(CmdBuffer, bEnsure);
-			}
-		}
 	};
 
 	class VULKANRHI_API FSemaphore : public FRefCount
@@ -1729,6 +1088,11 @@ struct FVulkanCustomMemManager
 	static VKAPI_ATTR void InternalFreeNotification(void* pUserData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope);
 
 	FVulkanCustomMemManager();
+
+	enum
+	{
+		VK_SYSTEM_ALLOCATION_SCOPE_RANGE_SIZE = 5,
+	};
 
 	struct FType
 	{

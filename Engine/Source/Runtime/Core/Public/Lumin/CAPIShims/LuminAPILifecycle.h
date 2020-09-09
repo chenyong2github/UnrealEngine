@@ -10,33 +10,33 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_lifecycle.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_DEPRECATED_MSG_SHIM(ml_lifecycle, MLResult, MLLifecycleInit, "Replaced by MLLifecycleInitEx.")
-#define MLLifecycleInit ::MLSDK_API::MLLifecycleInitShim
+#define MLLifecycleInit ::LUMIN_MLSDK_API::MLLifecycleInitShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleGetSelfInfo)
-#define MLLifecycleGetSelfInfo ::MLSDK_API::MLLifecycleGetSelfInfoShim
+#define MLLifecycleGetSelfInfo ::LUMIN_MLSDK_API::MLLifecycleGetSelfInfoShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleFreeSelfInfo)
-#define MLLifecycleFreeSelfInfo ::MLSDK_API::MLLifecycleFreeSelfInfoShim
+#define MLLifecycleFreeSelfInfo ::LUMIN_MLSDK_API::MLLifecycleFreeSelfInfoShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleGetInitArgList)
-#define MLLifecycleGetInitArgList ::MLSDK_API::MLLifecycleGetInitArgListShim
+#define MLLifecycleGetInitArgList ::LUMIN_MLSDK_API::MLLifecycleGetInitArgListShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleGetInitArgListLength)
-#define MLLifecycleGetInitArgListLength ::MLSDK_API::MLLifecycleGetInitArgListLengthShim
+#define MLLifecycleGetInitArgListLength ::LUMIN_MLSDK_API::MLLifecycleGetInitArgListLengthShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleGetInitArgByIndex)
-#define MLLifecycleGetInitArgByIndex ::MLSDK_API::MLLifecycleGetInitArgByIndexShim
+#define MLLifecycleGetInitArgByIndex ::LUMIN_MLSDK_API::MLLifecycleGetInitArgByIndexShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleGetInitArgUri)
-#define MLLifecycleGetInitArgUri ::MLSDK_API::MLLifecycleGetInitArgUriShim
+#define MLLifecycleGetInitArgUri ::LUMIN_MLSDK_API::MLLifecycleGetInitArgUriShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleGetFileInfoListLength)
-#define MLLifecycleGetFileInfoListLength ::MLSDK_API::MLLifecycleGetFileInfoListLengthShim
+#define MLLifecycleGetFileInfoListLength ::LUMIN_MLSDK_API::MLLifecycleGetFileInfoListLengthShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleGetFileInfoByIndex)
-#define MLLifecycleGetFileInfoByIndex ::MLSDK_API::MLLifecycleGetFileInfoByIndexShim
+#define MLLifecycleGetFileInfoByIndex ::LUMIN_MLSDK_API::MLLifecycleGetFileInfoByIndexShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleFreeInitArgList)
-#define MLLifecycleFreeInitArgList ::MLSDK_API::MLLifecycleFreeInitArgListShim
+#define MLLifecycleFreeInitArgList ::LUMIN_MLSDK_API::MLLifecycleFreeInitArgListShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleSetReadyIndication)
-#define MLLifecycleSetReadyIndication ::MLSDK_API::MLLifecycleSetReadyIndicationShim
+#define MLLifecycleSetReadyIndication ::LUMIN_MLSDK_API::MLLifecycleSetReadyIndicationShim
 CREATE_FUNCTION_SHIM(ml_lifecycle, MLResult, MLLifecycleInitEx)
-#define MLLifecycleInitEx ::MLSDK_API::MLLifecycleInitExShim
+#define MLLifecycleInitEx ::LUMIN_MLSDK_API::MLLifecycleInitExShim
 
 }
 

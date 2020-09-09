@@ -13,7 +13,7 @@ class FTexture2DStreamOut_Virtual : public FTexture2DUpdate
 {
 public:
 
-	FTexture2DStreamOut_Virtual(UTexture2D* InTexture, int32 InRequestedMips);
+	FTexture2DStreamOut_Virtual(UTexture2D* InTexture);
 
 protected:
 

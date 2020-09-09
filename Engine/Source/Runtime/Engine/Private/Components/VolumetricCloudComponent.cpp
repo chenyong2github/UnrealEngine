@@ -144,7 +144,7 @@ AVolumetricCloud::AVolumetricCloud(const FObjectInitializer& ObjectInitializer)
 			FName ID_VolumetricCloud;
 			FText NAME_VolumetricCloud;
 			FConstructorStatics()
-				: VolumetricCloudTextureObject(TEXT("/Engine/EditorResources/S_SkyAtmosphere"))
+				: VolumetricCloudTextureObject(TEXT("/Engine/EditorResources/S_VolumetricCloud"))
 				, ID_VolumetricCloud(TEXT("Fog"))
 				, NAME_VolumetricCloud(NSLOCTEXT("SpriteCategory", "Fog", "Fog"))
 			{

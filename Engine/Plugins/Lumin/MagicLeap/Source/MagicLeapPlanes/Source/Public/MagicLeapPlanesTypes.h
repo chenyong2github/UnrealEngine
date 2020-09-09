@@ -50,7 +50,7 @@ enum class EMagicLeapPlaneQueryType : uint8
 
 /** Represents a plane returned from the ML-API. */
 USTRUCT(BlueprintType)
-struct FMagicLeapPlaneResult
+struct MAGICLEAPPLANES_API FMagicLeapPlaneResult
 {
 	GENERATED_BODY()
 
@@ -86,7 +86,7 @@ public:
 
 /** Type used to represent a plane query. */
 USTRUCT(BlueprintType)
-struct FMagicLeapPlanesQuery
+struct MAGICLEAPPLANES_API FMagicLeapPlanesQuery
 {
 	GENERATED_BODY()
 
@@ -168,7 +168,7 @@ struct FMagicLeapPlanesQuery
 };
 
 USTRUCT(BlueprintType)
-struct FMagicLeapPolygon
+struct MAGICLEAPPLANES_API FMagicLeapPolygon
 {
 	GENERATED_BODY()
 
@@ -179,7 +179,7 @@ struct FMagicLeapPolygon
 
 /** Coplanar connected line segments representing the outer boundary of an N-sided polygon. */
 USTRUCT(BlueprintType)
-struct FMagicLeapPlaneBoundary
+struct MAGICLEAPPLANES_API FMagicLeapPlaneBoundary
 {
 	GENERATED_BODY()
 
@@ -194,7 +194,7 @@ struct FMagicLeapPlaneBoundary
 
 /** Represents multiple regions on a 2D plane. */
 USTRUCT(BlueprintType)
-struct FMagicLeapPlaneBoundaries
+struct MAGICLEAPPLANES_API FMagicLeapPlaneBoundaries
 {
 	GENERATED_BODY()
 

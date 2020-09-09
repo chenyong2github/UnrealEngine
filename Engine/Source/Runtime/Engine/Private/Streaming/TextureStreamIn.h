@@ -26,7 +26,7 @@ class FTextureStreamIn : public TRenderAssetUpdate<FTextureUpdateContext>
 {
 public:
 
-	FTextureStreamIn(UTexture* InTexture, int32 InRequestedMips, FTextureMipAllocator* InMipAllocator, FTextureMipDataProvider* InCustomMipDataProvider, FTextureMipDataProvider* InDefaultMipDataProvider);
+	FTextureStreamIn(const UTexture* InTexture, FTextureMipAllocator* InMipAllocator, FTextureMipDataProvider* InCustomMipDataProvider, FTextureMipDataProvider* InDefaultMipDataProvider);
 	~FTextureStreamIn();
 
 	// Route FTextureMipDataProvider::Init()
@@ -55,10 +55,7 @@ public:
 
 protected:
 
-	// The current first mip. Used in InitContext()
-	int32 CurrentFirstMip = INDEX_NONE;
-
-	// The first mip to be processed for DoGetMipData(). Starts at PendingFirstMip and goes up to CurrentFirstMip.
+	// The first mip to be processed for DoGetMipData(). Starts at PendingFirstLODIdx and goes up to CurrentFirstLODIdx.
 	int32 StartingMipIndex = INDEX_NONE;
 
 	TUniquePtr<FTextureMipAllocator> MipAllocator;
@@ -66,9 +63,6 @@ protected:
 
 	FTextureUpdateSyncOptions SyncOptions;
 	FTextureMipInfoArray MipInfos;
-
-	// Set additional context parameters (like CurrentFirstMipIndex) so that they become accessible to FTextureMipAllocator and FTextureMipDataProvider.
-	void InitContext(FContext& Context) const final override;
 
 	// The actual implementation of the update steps which redirect to FTextureMipAllocator and FTextureMipDataProvider.
 	void DoInitMipDataProviders(const FContext& Context);

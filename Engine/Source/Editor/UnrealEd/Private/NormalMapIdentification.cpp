@@ -432,25 +432,19 @@ public:
 		{
 			if ( Texture2D->CompressionSettings == TC_Normalmap )
 			{
-				// Must wait until the texture is done with previous operations before
-				// changing settings and getting it to rebuild.
-				if ( !Texture2D->IsReadyForStreaming() || Texture2D->HasPendingUpdate() )
+				// Must wait until the texture is done with previous operations before changing settings and getting it to rebuild.
+				Texture2D->WaitForPendingInitOrStreaming();
+
+				Texture2D->SetFlags(RF_Transactional);
+				Texture2D->Modify();
+				Texture2D->PreEditChange(NULL);
 				{
-					Texture2D->WaitForStreaming();
+					Texture2D->CompressionSettings = TC_Default;
+					Texture2D->SRGB = true;
+					Texture2D->LODGroup = TEXTUREGROUP_World;
 				}
 
-				{
-					Texture2D->SetFlags(RF_Transactional);
-					Texture2D->Modify();
-					Texture2D->PreEditChange(NULL);
-					{
-						Texture2D->CompressionSettings = TC_Default;
-						Texture2D->SRGB = true;
-						Texture2D->LODGroup = TEXTUREGROUP_World;
-					}
-
-					Texture2D->PostEditChange();
-				}
+				Texture2D->PostEditChange();
 			}
 		}
 

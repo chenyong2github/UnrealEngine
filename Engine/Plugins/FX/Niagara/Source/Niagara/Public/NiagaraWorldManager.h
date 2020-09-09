@@ -47,7 +47,7 @@ public:
 	FRHITexture2D* GetSceneDepthTexture() { return SceneDepthTexture; }
 	FRHITexture2D* GetSceneNormalTexture() { return SceneNormalTexture; }
 	FRHIUniformBuffer* GetViewUniformBuffer() { return ViewUniformBuffer; }
-	TUniformBufferRef<FSceneTexturesUniformParameters> GetSceneTextureUniformParameters() { return SceneTexturesUniformParams; }
+	TUniformBufferRef<FSceneTextureUniformParameters> GetSceneTextureUniformParameters() { return SceneTexturesUniformParams; }
 
 	virtual void InitDynamicRHI() override;
 
@@ -58,7 +58,7 @@ private:
 	FRHITexture2D* SceneNormalTexture;
 	FRHIUniformBuffer* ViewUniformBuffer;
 
-	TUniformBufferRef<FSceneTexturesUniformParameters> SceneTexturesUniformParams;
+	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
 	FPostOpaqueRenderDelegate PostOpaqueDelegate;
 };
 

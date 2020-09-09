@@ -6,6 +6,7 @@
 #include "WindowsMixedRealityStatics.h"
 #include "WindowsMixedRealityInteropUtility.h"
 #include "Misc/Parse.h"
+#include "WindowsMixedRealitySpatialInputFunctionLibrary.h"
 #include "WindowsMixedRealitySpatialInputTypes.h"
 #include "WindowsMixedRealityAvailability.h"
 
@@ -23,10 +24,15 @@ namespace WindowsMixedReality
 		: MessageHandler(InMessageHandler)
 	{
 		InitializeSpatialInput();
+
+		FWindowsMixedRealityStatics::ConfigureGesturesHandle = FWindowsMixedRealityStatics::OnConfigureGesturesDelegate.AddRaw(this, &FWindowsMixedRealitySpatialInput::OnConfigureGestures);
 	}
 
 	FWindowsMixedRealitySpatialInput::~FWindowsMixedRealitySpatialInput()
 	{
+		FWindowsMixedRealityStatics::OnConfigureGesturesDelegate.Remove(FWindowsMixedRealityStatics::ConfigureGesturesHandle);
+		FWindowsMixedRealityStatics::ConfigureGesturesHandle.Reset();
+
 		UninitializeSpatialInput();
 	}
 
@@ -471,6 +477,17 @@ namespace WindowsMixedReality
 		}
 
 		return false;
+	}
+
+	void FWindowsMixedRealitySpatialInput::OnConfigureGestures(const FXRGestureConfig& InGestureConfig, bool& bSuccess)
+	{
+		bSuccess = UWindowsMixedRealitySpatialInputFunctionLibrary::CaptureGestures(
+			InGestureConfig.bTap,
+			InGestureConfig.bHold,
+			(ESpatialInputAxisGestureType)InGestureConfig.AxisGesture,
+			InGestureConfig.bNavigationAxisX,
+			InGestureConfig.bNavigationAxisY,
+			InGestureConfig.bNavigationAxisZ);
 	}
 
 	bool FWindowsMixedRealitySpatialInput::CaptureGestures(uint32 capturingSet)

@@ -65,28 +65,8 @@ struct FOpenGLVertexDeclarationKey
 				case VET_Short2:		SetupGLElement(GLElement, GL_SHORT,			2,			false,	false); break;
 				case VET_Short4:		SetupGLElement(GLElement, GL_SHORT,			4,			false,	false); break;
 				case VET_Short2N:		SetupGLElement(GLElement, GL_SHORT,			2,			true,	true); break;
-				case VET_Half2:
-					if (FOpenGL::SupportsVertexHalfFloat())
-					{
-						SetupGLElement(GLElement, FOpenGL::GetVertexHalfFloatFormat(), 2, false, true);
-					}
-					else
-					{
-						// @todo-mobile: Use shorts?
-						SetupGLElement(GLElement, GL_SHORT, 2, false, true);
-					}
-					break;
-				case VET_Half4:
-					if (FOpenGL::SupportsVertexHalfFloat())
-					{
-						SetupGLElement(GLElement, FOpenGL::GetVertexHalfFloatFormat(), 4, false, true);
-					}
-					else
-					{
-						// @todo-mobile: Use shorts?
-						SetupGLElement(GLElement, GL_SHORT, 4, false, true);
-					}
-					break;
+				case VET_Half2:			SetupGLElement(GLElement, GL_HALF_FLOAT,	2,			false,	true); break;
+				case VET_Half4:			SetupGLElement(GLElement, GL_HALF_FLOAT,	4,			false,	true); break;
 				case VET_Short4N:		SetupGLElement(GLElement, GL_SHORT,			4,			true,	true); break;
 				case VET_UShort2:		SetupGLElement(GLElement, GL_UNSIGNED_SHORT, 2, false, false); break;
 				case VET_UShort4:		SetupGLElement(GLElement, GL_UNSIGNED_SHORT, 4, false, false); break;

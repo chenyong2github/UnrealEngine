@@ -772,29 +772,9 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 	FSimpleDelegate OnUpdateOSVersionWarning = FSimpleDelegate::CreateSP(this, &FIOSTargetSettingsCustomization::UpdateOSVersionWarning);
 	FSimpleDelegate OnEnableMetalMRT = FSimpleDelegate::CreateSP(this, &FIOSTargetSettingsCustomization::UpdateMetalMRTWarning);
 
-/*	GLES2PropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bSupportsOpenGLES2));
-	GLES2PropertyHandle->SetOnPropertyValueChanged(OnUpdateShaderStandardWarning);
-	RenderCategory.AddProperty(GLES2PropertyHandle);
-
-	MinOSPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MinimumiOSVersion));
+	/* MinOSPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MinimumiOSVersion));
 	MinOSPropertyHandle->SetOnPropertyValueChanged(OnUpdateShaderStandardWarning);
 	OSInfoCategory.AddProperty(MinOSPropertyHandle);*/
-
-	DevArmV7PropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bDevForArmV7));
-	DevArmV7PropertyHandle->SetOnPropertyValueChanged(OnUpdateOSVersionWarning);
-	BuildCategory.AddProperty(DevArmV7PropertyHandle);
-
-	DevArmV7sPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bDevForArmV7S));
-	DevArmV7sPropertyHandle->SetOnPropertyValueChanged(OnUpdateOSVersionWarning);
-	BuildCategory.AddProperty(DevArmV7sPropertyHandle);
-
-	ShipArmV7PropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bShipForArmV7));
-	ShipArmV7PropertyHandle->SetOnPropertyValueChanged(OnUpdateOSVersionWarning);
-	BuildCategory.AddProperty(ShipArmV7PropertyHandle);
-
-	ShipArmV7sPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bShipForArmV7S));
-	ShipArmV7sPropertyHandle->SetOnPropertyValueChanged(OnUpdateOSVersionWarning);
-	BuildCategory.AddProperty(ShipArmV7sPropertyHandle);
 
 	SETUP_PLIST_PROP(BundleDisplayName, BundleCategory);
 	SETUP_PLIST_PROP(BundleName, BundleCategory);
@@ -1905,22 +1885,6 @@ void FIOSTargetSettingsCustomization::UpdateMetalMRTWarning()
 
 void FIOSTargetSettingsCustomization::UpdateGLVersionWarning()
 {
-	bool bEnabled = false;
-	GLES2PropertyHandle->GetValue(bEnabled);
-
-	FText Message;
-	Message = LOCTEXT("GLES2Deprecation", "GLES2 will no longer be supported in 4.17.");
-
-	// Update the UI
-	if (bEnabled)
-	{
-		GLVersionWarningTextBox->SetError(Message);
-	}
-	else
-	{
-		GLVersionWarningTextBox->SetError(TEXT(""));
-	}
-
 	UpdateShaderStandardWarning();
 }
 
@@ -1928,13 +1892,6 @@ void FIOSTargetSettingsCustomization::SetMinVersion(int32 Value)
 {
 	FPropertyAccess::Result Res = MinOSPropertyHandle->SetValue((uint8)Value);
 	check(Res == FPropertyAccess::Success);
-}
-
-void FIOSTargetSettingsCustomization::HandleGLES2CheckBoxCheckStateChanged(ECheckBoxState NewState)
-{
-	GLES2PropertyHandle->SetValue(NewState == ECheckBoxState::Checked ? true : false);
-
-	UpdateGLVersionWarning();
 }
 
 //////////////////////////////////////////////////////////////////////////

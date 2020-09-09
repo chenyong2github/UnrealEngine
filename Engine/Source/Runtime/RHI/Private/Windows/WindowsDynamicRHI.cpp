@@ -163,7 +163,8 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 		}
 
-		if (!UE_BUILD_SHIPPING)
+		bool bForceES31 = FParse::Param(FCommandLine::Get(), TEXT("featureleveles31"));
+		if (!bForceES31 && !UE_BUILD_SHIPPING)
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "OpenGLDeprecated", "Warning: OpenGL is deprecated, please use a different RHI."));
 		}

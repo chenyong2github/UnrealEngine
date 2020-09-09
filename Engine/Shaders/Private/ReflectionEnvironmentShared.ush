@@ -23,7 +23,7 @@ half ComputeReflectionCaptureMipFromRoughness(half Roughness, half CubemapMaxMip
 	// Heuristic that maps roughness to mip level
 	// This is done in a way such that a certain mip level will always have the same roughness, regardless of how many mips are in the texture
 	// Using more mips in the cubemap just allows sharper reflections to be supported
-	half LevelFrom1x1 = REFLECTION_CAPTURE_ROUGHEST_MIP - REFLECTION_CAPTURE_ROUGHNESS_MIP_SCALE * log2(Roughness);
+	half LevelFrom1x1 = REFLECTION_CAPTURE_ROUGHEST_MIP - REFLECTION_CAPTURE_ROUGHNESS_MIP_SCALE * log2(max(Roughness, 0.001));
 	return CubemapMaxMip - 1 - LevelFrom1x1;
 }
 

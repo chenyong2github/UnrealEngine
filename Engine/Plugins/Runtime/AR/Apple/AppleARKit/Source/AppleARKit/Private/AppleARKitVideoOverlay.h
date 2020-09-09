@@ -17,6 +17,13 @@ class UARTextureCameraImage;
 class UMaterialInstanceDynamic;
 class UAppleARKitOcclusionTexture;
 
+enum class EARKitOcclusionType : uint8
+{
+	None,
+	PersonSegmentation,
+	SceneDepth
+};
+
 /** Helper class to ensure the ARKit camera material is cooked. */
 UCLASS()
 class UARKitCameraOverlayMaterialLoader : public UObject
@@ -32,7 +39,13 @@ public:
 	
 	UPROPERTY()
 	UMaterialInterface* MatteOcclusionOverlayMaterial;
-
+	
+	UPROPERTY()
+	UMaterialInterface* SceneDepthOcclusionMaterial;
+	
+	UPROPERTY()
+	UMaterialInterface* SceneDepthColorationMaterial;
+	
 	UARKitCameraOverlayMaterialLoader()
 	{
 		static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultOverlayMaterialRef(*OverlayMaterialPath);
@@ -43,15 +56,22 @@ public:
 		
 		static ConstructorHelpers::FObjectFinder<UMaterialInterface> MatteOcclusionOverlayMaterialRef(*MatteOcclusionOverlayMaterialPath);
 		MatteOcclusionOverlayMaterial = MatteOcclusionOverlayMaterialRef.Object;
+		
+		static ConstructorHelpers::FObjectFinder<UMaterialInterface> SceneDepthOcclusionMaterialRef(*SceneDepthOcclusionMaterialPath);
+		SceneDepthOcclusionMaterial = SceneDepthOcclusionMaterialRef.Object;
+		
+		static ConstructorHelpers::FObjectFinder<UMaterialInterface> SceneDepthColorationMaterialRef(*SceneDepthColorationMaterialPath);
+		SceneDepthColorationMaterial = SceneDepthColorationMaterialRef.Object;
 	}
 	
 	static const FString OverlayMaterialPath;
 	static const FString DepthOcclusionOverlayMaterialPath;
 	static const FString MatteOcclusionOverlayMaterialPath;
+	static const FString SceneDepthOcclusionMaterialPath;
+	static const FString SceneDepthColorationMaterialPath;
 };
 
-class FAppleARKitVideoOverlay
-	: public FGCObject
+class FAppleARKitVideoOverlay : public FGCObject
 {
 public:
 	FAppleARKitVideoOverlay();
@@ -59,29 +79,33 @@ public:
 
 	void SetCameraTexture(UARTextureCameraImage* InCameraImage);
 
-	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, const float WorldToMeterScale);
+	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const float WorldToMeterScale);
 	bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation);
 
 	void SetOverlayTexture(UARTextureCameraImage* InCameraImage);
-	void SetEnablePersonOcclusion(bool bEnable);
+	void SetOcclusionType(EARKitOcclusionType InOcclusionType);
+	
+	void UpdateSceneDepthTextures(UTexture* SceneDepthTexture, UTexture* DepthConfidenceTexture);
+	
+	UAppleARKitOcclusionTexture* GetOcclusionMatteTexture() const { return OcclusionMatteTexture; }
+	UAppleARKitOcclusionTexture* GetOcclusionDepthTexture() const { return OcclusionDepthTexture; }
 
 private:
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	//~ FGCObject
 	
-	void RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion);
+	void RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion);
 	void UpdateOcclusionTextures(const FAppleARKitFrame& Frame);
+	void UpdateVideoTextures(const FAppleARKitFrame& Frame);
+	
+	void UpdateDebugOverlay();
 
-	UMaterialInstanceDynamic* MID_CameraOverlay;
-
-	// Cache UV offset to be used by GetPassthroughCameraUVs_RenderThread
-	FVector2D UVOffset;
-
-	FVertexBufferRHIRef OverlayVertexBufferRHI[2];
+	// 0 for landscape, 1 for portrait
+	FVertexBufferRHIRef OverlayVertexBufferRHI;
 	FIndexBufferRHIRef IndexBufferRHI;
 	
-	bool bEnablePersonOcclusion = false;
+	EARKitOcclusionType OcclusionType = EARKitOcclusionType::None;
 	
 #if SUPPORTS_ARKIT_3_0
 	ARMatteGenerator* MatteGenerator = nullptr;
@@ -89,8 +113,19 @@ private:
 #endif
 	
 	bool bOcclusionDepthTextureRecentlyUpdated = false;
-	UAppleARKitOcclusionTexture* OcclusionMatteTexture = nullptr;
-	UAppleARKitOcclusionTexture* OcclusionDepthTexture = nullptr;
+	
+	UMaterialInstanceDynamic* MID_CameraOverlay = nullptr;
 	UMaterialInstanceDynamic* MID_DepthOcclusionOverlay = nullptr;
 	UMaterialInstanceDynamic* MID_MatteOcclusionOverlay = nullptr;
+	UMaterialInstanceDynamic* MID_SceneDepthOcclusion = nullptr;
+	UMaterialInstanceDynamic* MID_SceneDepthColoration = nullptr;
+	
+	UAppleARKitOcclusionTexture* OcclusionMatteTexture = nullptr;
+	UAppleARKitOcclusionTexture* OcclusionDepthTexture = nullptr;
+	UARTextureCameraImage* CameraTexture = nullptr;
+	UTexture* SceneDepthTexture = nullptr;
+	UTexture* SceneDepthConfidenceTexture = nullptr;
+	
+	// 0: landscape, 1: portrait
+	FVector2D UVOffsets[2] = { FVector2D::ZeroVector, FVector2D::ZeroVector };
 };

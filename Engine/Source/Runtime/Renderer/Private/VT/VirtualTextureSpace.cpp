@@ -297,9 +297,24 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 				CopyInfo.Size.Y = FMath::Min(Desc.Extent.Y, SrcDesc.Extent.Y);
 				CopyInfo.Size.Z = 1;
 				CopyInfo.NumMips = FMath::Min(Desc.NumMips, SrcDesc.NumMips);
-				RHICmdList.CopyTexture(TextureEntry.RenderTarget->GetRenderTargetItem().ShaderResourceTexture,
-					RenderTarget->GetRenderTargetItem().TargetableTexture,
-					CopyInfo);
+
+				FRHITexture* SrcTexture = TextureEntry.RenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+				FRHITexture* DstTexture = RenderTarget->GetRenderTargetItem().TargetableTexture;
+
+				FRHITransitionInfo TransitionsBefore[] = {
+					FRHITransitionInfo(SrcTexture, ERHIAccess::EReadable, ERHIAccess::CopySrc),
+					FRHITransitionInfo(DstTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest)
+				};
+				RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
+
+				RHICmdList.CopyTexture(SrcTexture, DstTexture, CopyInfo);
+
+				FRHITransitionInfo TransitionsAfter[] = {
+					FRHITransitionInfo(SrcTexture, ERHIAccess::CopySrc, ERHIAccess::SRVGraphics | ERHIAccess::SRVCompute),
+					FRHITransitionInfo(DstTexture, ERHIAccess::CopyDest, ERHIAccess::SRVGraphics | ERHIAccess::SRVCompute)
+				};
+				RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
+
 				GRenderTargetPool.FreeUnusedResource(TextureEntry.RenderTarget);
 			}
 
@@ -311,7 +326,7 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 }
 
 
-void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHICommandList& RHICmdList)
+void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHICommandListImmediate& RHICmdList)
 {
 	static TArray<FPageTableUpdate> ExpandedUpdates[VIRTUALTEXTURE_SPACE_MAXLAYERS][16];
 
@@ -397,13 +412,13 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 		RHIUnlockVertexBuffer(UpdateBuffer);
 	}
 
-	TArray<FRHITexture*, SceneRenderingAllocator> TexturesToTransition;
+	TArray<FRHITransitionInfo, SceneRenderingAllocator> TexturesToTransition;
 	TexturesToTransition.SetNumUninitialized(GetNumPageTableTextures());
 	for (int32 i = 0; i < TexturesToTransition.Num(); ++i)
 	{
-		TexturesToTransition[i] = PageTable[i].RenderTarget->GetRenderTargetItem().TargetableTexture;
+		TexturesToTransition[i] = FRHITransitionInfo(PageTable[i].RenderTarget->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV);
 	}
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, TexturesToTransition.GetData(), TexturesToTransition.Num());
+	RHICmdList.Transition(MakeArrayView(TexturesToTransition.GetData(), TexturesToTransition.Num()));
 
 	// Draw
 	SCOPED_DRAW_EVENT(RHICmdList, PageTableUpdate);

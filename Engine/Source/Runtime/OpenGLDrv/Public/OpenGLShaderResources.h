@@ -100,25 +100,21 @@ struct FOpenGLShaderBindings
 	TArray<CrossCompiler::FPackedArrayInfo>			PackedGlobalArrays;
 	TArray<FOpenGLShaderVarying>					InputVaryings;
 	TArray<FOpenGLShaderVarying>					OutputVaryings;
-	FOpenGLShaderResourceTable				ShaderResourceTable;
+	FOpenGLShaderResourceTable						ShaderResourceTable;
 
 	uint16	InOutMask;
 	uint8	NumSamplers;
 	uint8	NumUniformBuffers;
 	uint8	NumUAVs;
 	bool	bFlattenUB;
-	uint8	VertexAttributeRemap[16];
-	uint8	VertexRemappedMask;
 
 	FOpenGLShaderBindings() :
 		InOutMask(0),
 		NumSamplers(0),
 		NumUniformBuffers(0),
 		NumUAVs(0),
-		bFlattenUB(false),
-		VertexRemappedMask(0)
+		bFlattenUB(false)
 	{
-		FMemory::Memset(VertexAttributeRemap, 0xFF);
 	}
 
 	friend bool operator==( const FOpenGLShaderBindings &A, const FOpenGLShaderBindings& B)
@@ -207,11 +203,6 @@ inline FArchive& operator<<(FArchive& Ar, FOpenGLShaderBindings& Bindings)
 	Ar << Bindings.NumUniformBuffers;
 	Ar << Bindings.NumUAVs;
 	Ar << Bindings.bFlattenUB;
-	for (uint32 i = 0; i < UE_ARRAY_COUNT(Bindings.VertexAttributeRemap); i++)
-	{
-		Ar << Bindings.VertexAttributeRemap[i];
-	}
-	Ar << Bindings.VertexRemappedMask;
 	return Ar;
 }
 

@@ -651,6 +651,11 @@ public:
 	ENGINE_API void Cache(const ITargetPlatform* TargetPlatform, UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings);
 #endif // #if WITH_EDITORONLY_DATA
 
+	/** Count the number of LODs that are inlined and not streamable. Starting from the last LOD and stopping at the first non inlined LOD. */
+	int32 GetNumNonStreamingLODs() const;
+	/** Count the number of LODs that not optional and guarantied to be installed. Starting from the last LOD and stopping at the first optional LOD. */
+	int32 GetNumNonOptionalLODs() const;
+
 	/** Serialization. */
 	void Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCooked);
 
@@ -951,7 +956,7 @@ public:
 	{ 
 		const bool bAllowStaticLighting = FReadOnlyCVARCache::Get().bAllowStaticLighting;
 		const bool bIsStaticInstance = !bDynamicRayTracingGeometry;
-		return bIsStaticInstance && IsStaticPathAvailable() && !HasViewDependentDPG() && !(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting());
+		return bIsStaticInstance && !HasViewDependentDPG() && !(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting());
 	}
 #endif // RHI_RAYTRACING
 

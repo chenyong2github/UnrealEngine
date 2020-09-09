@@ -43,9 +43,19 @@ FShowFlagMenuCommands::FShowFlagMenuCommands()
 {
 }
 
+void FShowFlagMenuCommands::UpdateCustomShowFlags() const
+{
+	if (GetShowFlagMenuItems().Num() != ShowFlagCommands.Num())
+	{
+		const_cast<FShowFlagMenuCommands*>(this)->CreateShowFlagCommands();
+	}
+}
+
 void FShowFlagMenuCommands::BuildShowFlagsMenu(UToolMenu* Menu, const FShowFlagFilter& Filter) const
 {
 	check(bCommandsInitialised);
+
+	UpdateCustomShowFlags();
 
 	const FShowFlagFilter::FGroupedShowFlagIndices& FlagIndices = Filter.GetFilteredIndices();
 	if ( FlagIndices.TotalIndices() < 1 )
@@ -64,6 +74,7 @@ void FShowFlagMenuCommands::BuildShowFlagsMenu(UToolMenu* Menu, const FShowFlagF
 		CreateSubMenuIfRequired(Section, Filter, SFG_Developer, "SFG_Developer", LOCTEXT("DeveloperShowFlagsMenu", "Developer"), LOCTEXT("DeveloperShowFlagsMenu_ToolTip", "Developer show flags"));
 		CreateSubMenuIfRequired(Section, Filter, SFG_Visualize, "SFG_Visualize", LOCTEXT("VisualizeShowFlagsMenu", "Visualize"), LOCTEXT("VisualizeShowFlagsMenu_ToolTip", "Visualize show flags"));
 		CreateSubMenuIfRequired(Section, Filter, SFG_Advanced, "SFG_Advanced", LOCTEXT("AdvancedShowFlagsMenu", "Advanced"), LOCTEXT("AdvancedShowFlagsMenu_ToolTip", "Advanced show flags"));
+		CreateSubMenuIfRequired(Section, Filter, SFG_Custom, "SFG_Custom", LOCTEXT("CustomShowFlagsMenu", "Custom"), LOCTEXT("CustomShowFlagsMenu_ToolTip", "Custom show flags"));
 	}
 }
 
@@ -140,11 +151,30 @@ void FShowFlagMenuCommands::RegisterCommands()
 
 void FShowFlagMenuCommands::CreateShowFlagCommands()
 {
+	TBitArray<> ExistingCommands;
+
+	int32 MaxIndex = 0;
+	for (const FShowFlagCommand& Command : ShowFlagCommands)
+	{
+		MaxIndex = FMath::Max(MaxIndex, (int32)Command.FlagIndex);
+	}
+
+	ExistingCommands.Init(false, MaxIndex + 1);
+	for (const FShowFlagCommand& Command : ShowFlagCommands)
+	{
+		ExistingCommands[Command.FlagIndex] = true;
+	}
+
 	const TArray<FShowFlagData>& AllShowFlags = GetShowFlagMenuItems();
 
 	for (int32 ShowFlagIndex = 0; ShowFlagIndex < AllShowFlags.Num(); ++ShowFlagIndex)
 	{
 		const FShowFlagData& ShowFlag = AllShowFlags[ShowFlagIndex];
+		if ((int32)ShowFlag.EngineShowFlagIndex < ExistingCommands.Num() && ExistingCommands[ShowFlag.EngineShowFlagIndex])
+		{
+			continue;
+		}
+
 		const FText LocalizedName = GetLocalizedShowFlagName(ShowFlag);
 
 		//@todo Slate: The show flags system does not support descriptions currently
@@ -175,6 +205,8 @@ void FShowFlagMenuCommands::BindCommands(FUICommandList& CommandList, const TSha
 {
 	check(bCommandsInitialised);
 	check(Client.IsValid());
+
+	UpdateCustomShowFlags();
 
 	for (int32 ArrayIndex = 0; ArrayIndex < ShowFlagCommands.Num(); ++ArrayIndex)
 	{

@@ -12,8 +12,8 @@ Texture2DMipDataProvider_IO.cpp : Implementation of FTextureMipDataProvider usin
 #include "Misc/Paths.h"
 #include "Streaming/TextureStreamingHelpers.h"
 
-FTexture2DMipDataProvider_IO::FTexture2DMipDataProvider_IO(bool InPrioritizedIORequest)
-	: FTextureMipDataProvider(ETickState::Init, ETickThread::Async)
+FTexture2DMipDataProvider_IO::FTexture2DMipDataProvider_IO(const UTexture* InTexture, bool InPrioritizedIORequest)
+	: FTextureMipDataProvider(InTexture, ETickState::Init, ETickThread::Async)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
 {
 }
@@ -25,14 +25,11 @@ FTexture2DMipDataProvider_IO::~FTexture2DMipDataProvider_IO()
 
 void FTexture2DMipDataProvider_IO::Init(const FTextureUpdateContext& Context, const FTextureUpdateSyncOptions& SyncOptions)
 {
-	UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Texture2D->GetPlatformMips();
-
 	int32 CurrentFileIndex = INDEX_NONE;
 
-	for (int32 MipIndex = Context.PendingFirstMipIndex; MipIndex < Context.CurrentFirstMipIndex; ++MipIndex)
+	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 	{
-		const FTexture2DMipMap& OwnerMip = OwnerMips[MipIndex];
+		const FTexture2DMipMap& OwnerMip = *Context.MipsView[MipIndex];
 		if (OwnerMip.BulkData.IsStoredCompressedOnDisk())
 		{
 			// Compression at the package level is no longer supported
@@ -91,17 +88,14 @@ int32 FTexture2DMipDataProvider_IO::GetMips(
 	const FTextureMipInfoArray& MipInfos, 
 	const FTextureUpdateSyncOptions& SyncOptions)
 {
-	UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Texture2D->GetPlatformMips();
-
 	SetAsyncFileCallback(SyncOptions);
 	check(SyncOptions.Counter && !IORequests.Num());
 	
-	IORequests.AddDefaulted(Context.CurrentFirstMipIndex);
+	IORequests.AddDefaulted(CurrentFirstLODIdx);
 
 	for (FFileInfo& FileInfo : FileInfos)
 	{
-		while (StartingMipIndex >= FileInfo.FirstMipIndex && StartingMipIndex <= FileInfo.LastMipIndex && StartingMipIndex < Context.CurrentFirstMipIndex)
+		while (StartingMipIndex >= FileInfo.FirstMipIndex && StartingMipIndex <= FileInfo.LastMipIndex && StartingMipIndex < CurrentFirstLODIdx)
 		{
 			if (!MipInfos.IsValidIndex(StartingMipIndex))
 			{
@@ -118,7 +112,7 @@ int32 FTexture2DMipDataProvider_IO::GetMips(
 				}
 			}
 
-			const FTexture2DMipMap& OwnerMip = OwnerMips[StartingMipIndex];
+			const FTexture2DMipMap& OwnerMip = *Context.MipsView[StartingMipIndex];
 			// If Data size is specified check compatibility for safety
 			if (MipInfo.DataSize && OwnerMip.BulkData.GetBulkDataSize() > MipInfo.DataSize)
 			{

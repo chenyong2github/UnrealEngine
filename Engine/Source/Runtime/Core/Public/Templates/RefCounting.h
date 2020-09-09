@@ -170,10 +170,17 @@ public:
 		}
 	}
 
-	FORCEINLINE TRefCountPtr(TRefCountPtr&& Copy)
+	FORCEINLINE TRefCountPtr(TRefCountPtr&& Move)
 	{
-		Reference = Copy.Reference;
-		Copy.Reference = nullptr;
+		Reference = Move.Reference;
+		Move.Reference = nullptr;
+	}
+
+	template<typename MoveReferencedType>
+	explicit TRefCountPtr(TRefCountPtr<MoveReferencedType>&& Move)
+	{
+		Reference = static_cast<ReferencedType*>(Move.GetReference());
+		Move.Reference = nullptr;
 	}
 
 	~TRefCountPtr()
@@ -299,6 +306,9 @@ public:
 private:
 
 	ReferencedType* Reference;
+
+	template <typename OtherType>
+	friend class TRefCountPtr;
 };
 
 ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename T>, TRefCountPtr<T>, void*);

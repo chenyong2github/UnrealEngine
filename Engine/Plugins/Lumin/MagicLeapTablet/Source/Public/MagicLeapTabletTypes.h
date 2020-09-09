@@ -51,7 +51,7 @@ enum class EMagicLeapInputTabletDeviceStateMask : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FMagicLeapInputTabletDeviceState
+struct MAGICLEAPTABLET_API FMagicLeapInputTabletDeviceState
 {
 	GENERATED_BODY();
 	/** Version of this structure. */
