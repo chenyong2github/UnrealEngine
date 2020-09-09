@@ -165,10 +165,22 @@ namespace ImmediatePhysics_Chaos
 #if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 		if (ActorType == EActorType::DynamicActor)
 		{
+			// Whether each shape contributes to mass
+			// @todo(chaos): it would be easier if ComputeMassProperties knew how to extract this info. Maybe it should be a flag in PerShapeData
+			TArray<bool> bContributesToMass;
+			bContributesToMass.Reserve(Shapes.Num());
+			for (int32 ShapeIndex = 0; ShapeIndex < Shapes.Num(); ++ShapeIndex)
+			{
+				const TUniquePtr<FPerShapeData>& Shape = Shapes[ShapeIndex];
+				const FKShapeElem* ShapeElem = FChaosUserData::Get<FKShapeElem>(Shape->GetUserData());
+				bool bHasMass = ShapeElem && ShapeElem->GetContributeToMass();
+				bContributesToMass.Add(bHasMass);
+			}
+
 			// bInertaScaleIncludeMass = true is to match legacy physics behaviour. This will scale the inertia by the change in mass (density x volumescale) 
 			// as well as the dimension change even though we don't actually change the mass.
 			const bool bInertaScaleIncludeMass = true;
-			TMassProperties<float, 3> MassProperties = BodyUtils::ComputeMassProperties(BodyInstance, Shapes, FTransform::Identity, bInertaScaleIncludeMass);
+			TMassProperties<float, 3> MassProperties = BodyUtils::ComputeMassProperties(BodyInstance, Shapes, bContributesToMass, FTransform::Identity, bInertaScaleIncludeMass);
 			OutMass = MassProperties.Mass;
 			OutInertia = MassProperties.InertiaTensor.GetDiagonal();
 			OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass);
