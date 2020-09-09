@@ -408,6 +408,9 @@ public:
 	/** Returns TRUE if the thread is done with it's work. */
 	bool IsComplete() const;
 
+	/** Returns TRUE if Stop() was called while work is still pending. */
+	bool WasStopped() const;
+
 	/**
 	 * Appends the items filtered through the search filter to the passed array
 	 *
@@ -443,9 +446,6 @@ public:
 	/** Prevents searching while other threads are pulling search results */
 	FCriticalSection SearchCriticalSection;
 
-	/** > 0 if we've been asked to abort work in progress at the next opportunity */
-	FThreadSafeCounter StopTaskCounter;
-
 	/** Filtered (ImaginaryDataFilter) list of imaginary data results that met the search requirements. Must be declared as thread-safe since imaginary data is a shared resource. */
 	TArray<FImaginaryFiBDataSharedPtr> FilteredImaginaryResults;
 
@@ -458,6 +458,9 @@ public:
 private:
 	/** Unique identifier for this search (used with benchmarking) */
 	int32 SearchId;
+
+	/** > 0 if we've been asked to abort work in progress at the next opportunity */
+	FThreadSafeCounter StopTaskCounter;
 };
 
 ////////////////////////////////////
@@ -729,7 +732,7 @@ protected:
 
 		FActiveSearchQuery()
 			:NextIndex(0)
-			, SearchCount(0)
+			,SearchCount(0)
 		{
 		}
 	};
@@ -740,7 +743,7 @@ protected:
 	FActiveSearchQueryPtr FindSearchQuery(const class FStreamSearch* InSearchOriginator) const;
 
 	/** Returns the next pending search data for the given query and advances the index to the next entry */
-	FSearchData GetNextSearchDataForQuery(FActiveSearchQueryPtr InSearchQueryPtr, bool bCheckDeferredList);
+	FSearchData GetNextSearchDataForQuery(const FStreamSearch* InSearchOriginator, FActiveSearchQueryPtr InSearchQueryPtr, bool bCheckDeferredList);
 
 	/** If searches are paused, blocks the calling thread until searching is resumed */
 	void BlockSearchQueryIfPaused();
