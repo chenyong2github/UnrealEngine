@@ -89,7 +89,7 @@ namespace AutomationTool
 				Log.TraceVerbose("{0} ver. {1}", Version.ProductName, Version.ProductVersion);
 
 				// Don't allow simultaneous execution of AT (in the same branch)
-				ReturnCode = InternalUtils.RunSingleInstance(() => MainProc(Arguments, StartupListener));
+				ReturnCode = InternalUtils.RunSingleInstance(Arguments, () => MainProc(Arguments, StartupListener));
 			}
 			catch (AutomationException Ex)
 			{
