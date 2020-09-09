@@ -20,6 +20,8 @@
 
 void SStandaloneAssetEditorToolkitHost::Construct( const SStandaloneAssetEditorToolkitHost::FArguments& InArgs, const TSharedPtr<FTabManager>& InTabManager, const FName InitAppName )
 {
+	ToolbarSlot = nullptr;
+
 	EditorCloseRequest = InArgs._OnRequestClose;
 	AppName = InitAppName;
 
@@ -167,6 +169,10 @@ void SStandaloneAssetEditorToolkitHost::RestoreFromLayout( const TSharedRef<FTab
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, 2.0f))
+		.AutoHeight()
+		.Expose(ToolbarSlot)
+		+ SVerticalBox::Slot()
 		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
 		.FillHeight(1.0f)
 		[
@@ -214,6 +220,24 @@ void SStandaloneAssetEditorToolkitHost::GenerateMenus(bool bForceCreateMenu)
 void SStandaloneAssetEditorToolkitHost::SetMenuOverlay( TSharedRef<SWidget> NewOverlay )
 {
 	MenuOverlayWidgetContent->SetContent(NewOverlay);
+}
+
+void SStandaloneAssetEditorToolkitHost::SetToolbar(TSharedPtr<SWidget> Toolbar)
+{
+	if (Toolbar)
+	{
+		(*ToolbarSlot)
+		[
+			Toolbar.ToSharedRef()
+		];
+	}
+	else
+	{
+		(*ToolbarSlot)
+		[
+			SNullWidget::NullWidget
+		];
+	}
 }
 
 FEditorModeTools& SStandaloneAssetEditorToolkitHost::GetEditorModeManager() const

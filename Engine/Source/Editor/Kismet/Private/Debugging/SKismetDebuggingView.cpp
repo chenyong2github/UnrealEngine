@@ -1066,7 +1066,7 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 	static const FName ToolbarName = "Kismet.DebuggingViewToolBar";
 	if (!UToolMenus::Get()->IsMenuRegistered(ToolbarName))
 	{
-		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(ToolbarName, NAME_None, EMultiBoxType::ToolBar);
+		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(ToolbarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
 
 		{
 			FToolMenuSection& Section = ToolBar->AddSection("Debug");

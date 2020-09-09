@@ -42,6 +42,9 @@ TSharedPtr<FExtensibilityManager> FAssetEditorToolkit::SharedToolBarExtensibilit
 
 const FName FAssetEditorToolkit::ToolbarTabId( TEXT( "AssetEditorToolkit_Toolbar" ) );
 
+const FName FAssetEditorToolkit::DefaultAssetEditorToolBarName("AssetEditor.DefaultToolBar");
+const FName FAssetEditorToolkit::DefaultAssetEditorSlimToolBarName("AssetEditor.DefaultSlimToolBar");
+
 FAssetEditorToolkit::FAssetEditorToolkit()
 	: GCEditingObjects(*this)
 	, bCheckDirtyOnAssetSave(false)
@@ -267,6 +270,11 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 	else
 	{
 		Toolbar = SNullWidget::NullWidget;
+	}
+
+	if (NewStandaloneHost && !UsesCustomToolbarPlacement())
+	{
+		NewStandaloneHost->SetToolbar(Toolbar);
 	}
 
 	// Create our mode manager and set it's toolkit host
@@ -1024,18 +1032,18 @@ FName FAssetEditorToolkit::GetToolMenuToolbarName() const
 
 FName FAssetEditorToolkit::GetToolMenuToolbarName(FName& OutParentName) const
 {
-	static const FName DefaultToolbarName = "AssetEditor.DefaultToolBar";
-	OutParentName = DefaultToolbarName;
+	OutParentName = UsesCustomToolbarPlacement() ? DefaultAssetEditorToolBarName : DefaultAssetEditorSlimToolBarName;
+
 	return *(TEXT("AssetEditor.") + GetToolMenuAppName().ToString() + TEXT(".ToolBar"));
 }
 
-void FAssetEditorToolkit::RegisterDefaultToolBar()
+void FAssetEditorToolkit::RegisterDefaultToolBar(bool bCustomToolbarPlacement)
 {
-	static const FName DefaultToolBarName("AssetEditor.DefaultToolBar");
+	FName DefaultToolBarName = bCustomToolbarPlacement ? DefaultAssetEditorToolBarName : DefaultAssetEditorSlimToolBarName;
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	if (!ToolMenus->IsMenuRegistered(DefaultToolBarName))
 	{
-		UToolMenu* ToolbarBuilder = ToolMenus->RegisterMenu(DefaultToolBarName, NAME_None, EMultiBoxType::ToolBar);
+		UToolMenu* ToolbarBuilder = ToolMenus->RegisterMenu(DefaultToolBarName, NAME_None, bCustomToolbarPlacement ? EMultiBoxType::ToolBar : EMultiBoxType::SlimHorizontalToolBar);
 		{
 			FToolMenuSection& Section = ToolbarBuilder->AddSection("Asset");
 			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FAssetEditorCommonCommands::Get().SaveAsset));
@@ -1053,7 +1061,7 @@ void FAssetEditorToolkit::GenerateToolbar()
 {
 	TSharedPtr<FExtender> Extender = FExtender::Combine(ToolbarExtenders);
 
-	RegisterDefaultToolBar();
+	RegisterDefaultToolBar(UsesCustomToolbarPlacement());
 
 	FName ParentToolbarName;
 	const FName ToolBarName = GetToolMenuToolbarName(ParentToolbarName);
@@ -1061,7 +1069,7 @@ void FAssetEditorToolkit::GenerateToolbar()
 	UToolMenu* FoundMenu = ToolMenus->FindMenu(ToolBarName);
 	if (!FoundMenu || !FoundMenu->IsRegistered())
 	{
-		FoundMenu = ToolMenus->RegisterMenu(ToolBarName, ParentToolbarName, EMultiBoxType::ToolBar);
+		FoundMenu = ToolMenus->RegisterMenu(ToolBarName, ParentToolbarName, UsesCustomToolbarPlacement() ? EMultiBoxType::ToolBar : EMultiBoxType::SlimHorizontalToolBar);
 	}
 
 	FToolMenuContext MenuContext(GetToolkitCommands(), Extender);
@@ -1100,16 +1108,9 @@ void FAssetEditorToolkit::GenerateToolbar()
 	Toolbar = 
 		SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
-		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.VAlign(VAlign_Bottom)
-			[
-				ToolBarWidget
-			]
+			ToolBarWidget
 		]
 		+SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
@@ -1135,7 +1136,8 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 {
 	RemoveAllToolbarWidgets();
 
-	StandaloneHost.Pin()->GenerateMenus(false);
+	TSharedPtr<SStandaloneAssetEditorToolkitHost> HostPinned = StandaloneHost.Pin();
+	HostPinned->GenerateMenus(false);
 
 	if (Toolbar != SNullWidget::NullWidget)
 	{
@@ -1143,6 +1145,12 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 	}
 
 	PostRegenerateMenusAndToolbars();
+
+	if (!UsesCustomToolbarPlacement())
+	{
+		HostPinned->SetToolbar(Toolbar);
+	}
+
 }
 
 

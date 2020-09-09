@@ -195,6 +195,7 @@ public:
 public:
 	//~ Begin FAssetEditorToolkit Interface
 	virtual bool OnRequestClose() override;
+	virtual bool UsesCustomToolbarPlacement() const override { return false; }
 	// End of FAssetEditorToolkit 
 
 	//~ Begin IToolkit Interface

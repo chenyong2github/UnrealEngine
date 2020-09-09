@@ -22,7 +22,7 @@ public:
 
 private:
 	/* Create the hotkey display widget */
-	TSharedRef<SWidget> CreateHotkeyDisplayWidget(const FSlateFontInfo& NameFont, const TSharedPtr<const FInputChord> HotkeyChord);
+	TSharedRef<SWidget> CreateHotkeyDisplayWidget(const TSharedPtr<const FInputChord> HotkeyChord);
 
 	virtual FText GetItemTooltip() const override;
 };

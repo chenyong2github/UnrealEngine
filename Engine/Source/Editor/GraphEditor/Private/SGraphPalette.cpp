@@ -20,8 +20,6 @@
 
 void SGraphPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetForActionData* const InCreateData)
 {
-	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
-
 	check(InCreateData->Action.IsValid());
 
 	TSharedPtr<FEdGraphSchemaAction> GraphAction = InCreateData->Action;
@@ -34,7 +32,7 @@ void SGraphPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetForActi
 	bool bIsReadOnly = false;
 
 	TSharedRef<SWidget> IconWidget = CreateIconWidget( IconToolTip, IconBrush, IconColor );
-	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget( NameFont, InCreateData, bIsReadOnly );
+	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget(InCreateData, bIsReadOnly );
 
 	// Create the actual widget
 	this->ChildSlot
@@ -116,7 +114,7 @@ TSharedRef<SWidget> SGraphPaletteItem::CreateIconWidget(const FText& IconToolTip
 		IDocumentation::Get()->CreateToolTip(IconToolTip, NULL, DocLink, DocExcerpt));
 }
 
-TSharedRef<SWidget> SGraphPaletteItem::CreateTextSlotWidget( const FSlateFontInfo& NameFont, FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bIsReadOnly )
+TSharedRef<SWidget> SGraphPaletteItem::CreateTextSlotWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bIsReadOnly )
 {
 	TSharedPtr< SWidget > DisplayWidget;
 
@@ -135,7 +133,6 @@ TSharedRef<SWidget> SGraphPaletteItem::CreateTextSlotWidget( const FSlateFontInf
 	InlineRenameWidget =
 		SAssignNew(DisplayWidget, SInlineEditableTextBlock)
 		.Text(this, &SGraphPaletteItem::GetDisplayText)
-		.Font(NameFont)
 		.HighlightText(InCreateData->HighlightText)
 		.ToolTipText(this, &SGraphPaletteItem::GetItemTooltip)
 		.OnTextCommitted(this, &SGraphPaletteItem::OnNameTextCommitted)

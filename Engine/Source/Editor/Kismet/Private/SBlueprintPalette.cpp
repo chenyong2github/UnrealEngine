@@ -812,30 +812,23 @@ public:
 			bShouldHaveAVisibilityToggle = bIsBlueprintVariable && (!bIsComponentVar || FBlueprintEditorUtils::IsVariableCreatedByBlueprint(BlueprintObj, VariableObjProp));
 		}
 
-		this->ChildSlot[
+		this->ChildSlot
+		[
 			SNew(SBorder)
-				.Padding( 0.0f )
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-				.ColorAndOpacity(this, &SPaletteItemVisibilityToggle::GetVisibilityToggleColor)
+			.Padding(0.0f)
+			.BorderImage(FStyleDefaults::GetNoBrush())
+			.Visibility(bShouldHaveAVisibilityToggle ? EVisibility::Visible : EVisibility::Collapsed)
+			//.ForegroundColor(this, &SPaletteItemVisibilityToggle::GetVisibilityToggleColor)
 			[
-				SNew( SCheckBox )
-					.ToolTipText(this, &SPaletteItemVisibilityToggle::GetVisibilityToggleToolTip)
-					.Visibility(bShouldHaveAVisibilityToggle ? EVisibility::Visible : EVisibility::Collapsed)
-					.OnCheckStateChanged(this, &SPaletteItemVisibilityToggle::OnVisibilityToggleFlipped)
-					.IsChecked(this, &SPaletteItemVisibilityToggle::GetVisibilityToggleState)
-					// a style using the normal checkbox images but with the toggle button layout
-					.Style( FEditorStyle::Get(), "CheckboxLookToggleButtonCheckbox")	
+				SNew(SCheckBox)
+				.ToolTipText(this, &SPaletteItemVisibilityToggle::GetVisibilityToggleToolTip)
+				.OnCheckStateChanged(this, &SPaletteItemVisibilityToggle::OnVisibilityToggleFlipped)
+				.IsChecked(this, &SPaletteItemVisibilityToggle::GetVisibilityToggleState)
+				.Style(FAppStyle::Get(), "TransparentCheckBox")
 				[
-					SNew( SVerticalBox )
-					+SVerticalBox::Slot()
-						.AutoHeight()
-						.VAlign( VAlign_Center )
-						.HAlign( HAlign_Center )
-					[
-						SNew( SImage )
-							.Image( this, &SPaletteItemVisibilityToggle::GetVisibilityIcon )
-							.ColorAndOpacity( FLinearColor::Black )
-					]
+					SNew(SImage)
+					.Image(this, &SPaletteItemVisibilityToggle::GetVisibilityIcon)
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
 		];
@@ -909,11 +902,11 @@ private:
 	 * 
 	 * @return A color denoting the item's visibility and tootip status.
 	 */
-	FLinearColor GetVisibilityToggleColor() const 
+	FSlateColor GetVisibilityToggleColor() const 
 	{
 		if ( GetVisibilityToggleState() != ECheckBoxState::Checked )
 		{
-			return FColor(64, 64, 64).ReinterpretAsLinear();
+			return FSlateColor::UseForeground();
 		}
 		else
 		{
@@ -924,11 +917,13 @@ private:
 
 			if ( !Result.IsEmpty() )
 			{
-				return FColor(130, 219, 119).ReinterpretAsLinear(); //pastel green when tooltip exists
+				static const FName TooltipExistsColor("Colors.AccentGreen");
+				return FAppStyle::Get().GetSlateColor(TooltipExistsColor);
 			}
 			else
 			{
-				return FColor(215, 219, 119).ReinterpretAsLinear(); //pastel yellow if no tooltip to alert designer 
+				static const FName TooltipDoesntExistColor("Colors.AccentYellow");
+				return FAppStyle::Get().GetSlateColor(TooltipDoesntExistColor);
 			}
 		}
 	}
@@ -1057,8 +1052,7 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 		TagMeta.FriendlyName = GraphAction->GetMenuDescription().ToString();
 	}
 	// construct the text widget
-	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
-	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget( NameFont, InCreateData, bIsReadOnly );
+	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget(InCreateData, bIsReadOnly );
 	
 	// Will set the icon of this property to be a Pin Type selector. 
 	auto GenerateVariableSettings = [&](FProperty* VariableProp)
@@ -1163,6 +1157,18 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 
 	ActionBox.Get().AddSlot()
 		.AutoWidth()
+		.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0f))
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SPaletteItemVisibilityToggle, ActionPtr, InBlueprintEditor, InBlueprint)
+			.IsEnabled(bIsEditingEnabled)
+		];
+
+
+	ActionBox.Get().AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
 		[
 			IconWidget
 		];
@@ -1195,15 +1201,6 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 			NameSlotWidget
 		];
 
-	ActionBox.Get().AddSlot()
-		.AutoWidth()
-		.Padding(FMargin(3.0f, 0.0f))
-		.VAlign(VAlign_Center)
-		[
-			SNew(SPaletteItemVisibilityToggle, ActionPtr, InBlueprintEditor, InBlueprint)
-			.IsEnabled(bIsEditingEnabled)
-		];
-
 	// Now, create the actual widget
 	ChildSlot
 	[
@@ -1226,7 +1223,7 @@ void SBlueprintPaletteItem::OnDragEnter(const FGeometry& MyGeometry, const FDrag
 *******************************************************************************/
 
 //------------------------------------------------------------------------------
-TSharedRef<SWidget> SBlueprintPaletteItem::CreateTextSlotWidget(const FSlateFontInfo& NameFont, FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bIsReadOnlyIn)
+TSharedRef<SWidget> SBlueprintPaletteItem::CreateTextSlotWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bIsReadOnlyIn)
 {
 	FName const ActionTypeId = InCreateData->Action->GetTypeId();
 
@@ -1276,7 +1273,6 @@ TSharedRef<SWidget> SBlueprintPaletteItem::CreateTextSlotWidget(const FSlateFont
 		[
 			SAssignNew(EditableTextElement, SInlineEditableTextBlock)
 				.Text(this, &SBlueprintPaletteItem::GetDisplayText)
-				.Font(NameFont)
 				.HighlightText(InCreateData->HighlightText)
 				.ToolTip(ToolTipWidget)
 				.OnVerifyTextChanged(OnVerifyTextChanged)

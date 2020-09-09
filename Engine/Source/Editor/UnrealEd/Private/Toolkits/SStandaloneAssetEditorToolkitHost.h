@@ -82,6 +82,11 @@ public:
 	 */
 	void SetMenuOverlay( TSharedRef<SWidget> NewOverlay );
 
+	/**
+	 * Sets the contents of the toolbar in this asset editor
+	 */
+	void SetToolbar(TSharedPtr<SWidget> Toolbar);
+
 	virtual FEditorModeTools& GetEditorModeManager() const override;
 
 private:
@@ -115,6 +120,8 @@ private:
 
 	/** The menu extenders to populate the main toolkit host menu with */
 	TArray< TSharedPtr<FExtender> > MenuExtenders;
+
+	SVerticalBox::FSlot* ToolbarSlot;
 };
 
 

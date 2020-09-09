@@ -104,7 +104,7 @@ class SBehaviorTreeBlackboardItem : public SGraphPaletteItem
 		GetPaletteItemIcon(GraphAction, IconBrush);
 
 		TSharedRef<SWidget> IconWidget = CreateIconWidget( GraphAction->GetTooltipDescription(), IconBrush, FLinearColor::White );
-		TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget( NameFont, InCreateData, BlackboardEntryAction->bIsInherited );
+		TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget(InCreateData, BlackboardEntryAction->bIsInherited );
 		TSharedRef<SWidget> DebugSlotWidget = CreateDebugSlotWidget( NameFont );
 
 		// Create the actual widget
@@ -151,7 +151,7 @@ private:
 		}
 	}
 
-	virtual TSharedRef<SWidget> CreateTextSlotWidget( const FSlateFontInfo& NameFont, FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bInIsReadOnly ) override
+	virtual TSharedRef<SWidget> CreateTextSlotWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bInIsReadOnly ) override
 	{
 		check(InCreateData);
 
@@ -169,7 +169,6 @@ private:
 		InlineRenameWidget =
 			SAssignNew(DisplayWidget, SInlineEditableTextBlock)
 			.Text(this, &SBehaviorTreeBlackboardItem::GetDisplayText)
-			.Font(NameFont)
 			.HighlightText(InCreateData->HighlightText)
 			.ToolTipText(this, &SBehaviorTreeBlackboardItem::GetItemTooltip)
 			.OnTextCommitted(this, &SBehaviorTreeBlackboardItem::OnNameTextCommitted)

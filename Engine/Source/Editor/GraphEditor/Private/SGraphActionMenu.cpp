@@ -110,7 +110,7 @@ namespace ContextMenuConsoleVariables
 //////////////////////////////////////////////////////////////////////////
 
 template<typename ItemType>
-class SCategoryHeaderTableRow : public STableRow < ItemType >
+class SCategoryHeaderTableRow : public STableRow<ItemType>
 {
 public:
 	SLATE_BEGIN_ARGS(SCategoryHeaderTableRow)
@@ -121,25 +121,23 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 	{
 		STableRow<ItemType>::ChildSlot
-		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 2.0f, .0f, 0.0f)
 		[
 			SAssignNew(ContentBorder, SBorder)
 			.BorderImage(this, &SCategoryHeaderTableRow::GetBackgroundImage)
-			.Padding(FMargin(0.0f, 3.0f))
-			.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
+			.Padding(FMargin(3.0f, 5.0f))
 			[
 				SNew(SHorizontalBox)
-
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
-				.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+				.Padding(5.0f)
 				.AutoWidth()
 				[
 					SNew(SExpanderArrow, STableRow< ItemType >::SharedThis(this))
 				]
-
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
+				.AutoWidth()
 				[
 					InArgs._Content.Widget
 				]
@@ -158,11 +156,11 @@ public:
 	{
 		if ( STableRow<ItemType>::IsHovered() )
 		{
-			return STableRow<ItemType>::IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+			return FAppStyle::Get().GetBrush("Brushes.Secondary");
 		}
 		else
 		{
-			return STableRow<ItemType>::IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+			return FAppStyle::Get().GetBrush("Brushes.Header");
 		}
 	}
 
@@ -181,6 +179,18 @@ public:
 		return nullptr;
 	}
 
+	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+	{
+		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+		{
+			STableRow<ItemType>::ToggleExpansion();
+			return FReply::Handled();
+		}
+		else
+		{
+			return FReply::Unhandled();
+		}
+	}
 private:
 	TSharedPtr<SBorder> ContentBorder;
 };
@@ -1181,10 +1191,7 @@ TSharedRef<ITableRow> SGraphActionMenu::MakeWidget( TSharedPtr<FGraphActionNode>
 	}
 	else
 	{
-		const FTableRowStyle* Style = bUseSectionStyling ? &FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.DarkRow") : &FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
-
 		TableRow = SNew(STableRow< TSharedPtr<FGraphActionNode> >, OwnerTable)
-			.Style(Style)
 			.OnDragDetected(this, &SGraphActionMenu::OnItemDragDetected)
 			.ShowSelection(!InItem->IsSeparator());
 	}
@@ -1286,8 +1293,9 @@ TSharedRef<ITableRow> SGraphActionMenu::MakeWidget( TSharedPtr<FGraphActionNode>
 			[
 				SNew(SRichTextBlock)
 				.Text(SectionTitle)
+				.TransformPolicy(ETextTransformPolicy::ToUpper)
 				.DecoratorStyleSet(&FEditorStyle::Get())
-				.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			]
 
 			+ SHorizontalBox::Slot()

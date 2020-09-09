@@ -29,7 +29,7 @@ public:
 		: _ComboBoxStyle(&FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox"))
 		, _ButtonStyle(nullptr)
 		, _ColorAndOpacity( FSlateColor::UseForeground() )
-		, _ContentPadding(FMargin(4.0, 2.0))
+		, _ContentPadding(_ComboBoxStyle->ContentPadding)
 		, _OnGetTextLabelForItem()
 		{}
 

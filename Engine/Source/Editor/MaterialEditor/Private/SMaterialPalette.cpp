@@ -20,8 +20,6 @@
 
 void SMaterialPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetForActionData* const InCreateData)
 {
-	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
-
 	check(InCreateData->Action.IsValid());
 
 	TSharedPtr<FEdGraphSchemaAction> GraphAction = InCreateData->Action;
@@ -50,8 +48,8 @@ void SMaterialPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetForA
 	bool bIsReadOnly = false;
 
 	TSharedRef<SWidget> IconWidget = CreateIconWidget( IconToolTip, IconBrush, IconColor );
-	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget( NameFont, InCreateData, bIsReadOnly );
-	TSharedRef<SWidget> HotkeyDisplayWidget = CreateHotkeyDisplayWidget( NameFont, HotkeyChord );
+	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget(InCreateData, bIsReadOnly );
+	TSharedRef<SWidget> HotkeyDisplayWidget = CreateHotkeyDisplayWidget(HotkeyChord );
 
 	// Create the actual widget
 	this->ChildSlot
@@ -81,7 +79,7 @@ void SMaterialPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetForA
 	];
 }
 
-TSharedRef<SWidget> SMaterialPaletteItem::CreateHotkeyDisplayWidget(const FSlateFontInfo& NameFont, const TSharedPtr<const FInputChord> HotkeyChord)
+TSharedRef<SWidget> SMaterialPaletteItem::CreateHotkeyDisplayWidget(const TSharedPtr<const FInputChord> HotkeyChord)
 {
 	FText HotkeyText;
 	if (HotkeyChord.IsValid())
@@ -89,8 +87,7 @@ TSharedRef<SWidget> SMaterialPaletteItem::CreateHotkeyDisplayWidget(const FSlate
 		HotkeyText = HotkeyChord->GetInputText();
 	}
 	return SNew(STextBlock)
-		.Text(HotkeyText)
-		.Font(NameFont);
+		.Text(HotkeyText);
 }
 
 FText SMaterialPaletteItem::GetItemTooltip() const
