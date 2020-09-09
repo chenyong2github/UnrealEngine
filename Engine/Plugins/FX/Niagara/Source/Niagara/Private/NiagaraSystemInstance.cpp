@@ -1681,6 +1681,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 		{
 			CurrentEmitterParameters.EmitterNumParticles = Emitter->GetNumParticles();
 			CurrentEmitterParameters.EmitterTotalSpawnedParticles = Emitter->GetTotalSpawnedParticles();
+			CurrentEmitterParameters.EmitterRandomSeed = Emitter->GetCachedEmitter()->RandomSeed;
+			CurrentEmitterParameters.EmitterInstanceSeed = Emitter->GetInstanceSeed();
 			const FNiagaraEmitterScalabilitySettings& ScalabilitySettings = Emitter->GetScalabilitySettings();
 			CurrentEmitterParameters.EmitterSpawnCountScale = ScalabilitySettings.bScaleSpawnCount ? ScalabilitySettings.SpawnCountScale : 1.0f;
 			++GatheredInstanceParameters.NumAlive;
