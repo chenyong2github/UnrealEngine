@@ -39,7 +39,7 @@ import { TestReconsider } from './tests/test-reconsider'
 import { TestEdgeReconsider } from './tests/test-edge-reconsider'
 import { TestTerminal } from './tests/test-terminal'
 
-import { CrossBotTest, CrossBotTest2 } from './tests/cross-bot'
+import { CrossBotTest, CrossBotTest2, /*ComplexCrossBot, ComplexCrossBot2, ComplexCrossBot3*/ } from './tests/cross-bot'
 
 const P4_USERS: [string, string][] = [
 	['testuser1', 'RoboMerge TestUser1'],
@@ -52,13 +52,20 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 	const rootClient = await getRootDataClient(p4, 'RoboMergeData_BranchMaps')
 
 	const botNames = ['ft1', 'ft2', 'ft3', 'ft4']
-	let branches: RobomergeBranchSpec[][] = [[], [], [], []]
-	let edges: EdgeProperties[][] = [[], [], [], []]
+	const branches: RobomergeBranchSpec[][] = [[], [], [], []]
+	const edges: EdgeProperties[][] = [[], [], [], []]
+	const macros: {[name:string]: string[]}[] = [{}, {}, {}, {}]
 	let groupIndex = 0
+	for (const test of tests) {
+		test.botName = botNames[groupIndex].toUpperCase()
+		groupIndex = (groupIndex + 1) % botNames.length
+	}
+
+	groupIndex = 0
 	for (const test of tests) {
 		branches[groupIndex] = [...branches[groupIndex], ...test.getBranches()]
 		edges[groupIndex] = [...edges[groupIndex], ...test.getEdges()]
-		test.botName = botNames[groupIndex].toUpperCase()
+		macros[groupIndex] = {...macros[groupIndex], ...test.getMacros()}
 		groupIndex = (groupIndex + 1) % botNames.length
 	}
 
@@ -66,13 +73,13 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 
 	await Promise.all([
 		P4Util.addFile(rootClient, 'ft1.branchmap.json', JSON.stringify({...settings, branches: branches[0],
-																edges: edges[0], slackChannel: 'ft1', alias: 'ft1-alias'})),
+													edges: edges[0], macros: macros[0], slackChannel: 'ft1', alias: 'ft1-alias'})),
 		P4Util.addFile(rootClient, 'ft2.branchmap.json', JSON.stringify({...settings, branches: branches[1],
-																edges: edges[1], slackChannel: 'ft2', alias: 'ft2-alias'})),
+													edges: edges[1], macros: macros[1], slackChannel: 'ft2', alias: 'ft2-alias'})),
 		P4Util.addFile(rootClient, 'ft3.branchmap.json', JSON.stringify({...settings, branches: branches[2],
-																edges: edges[2], slackChannel: 'ft3', alias: 'ft3-alias'})),
+													edges: edges[2], macros: macros[2], slackChannel: 'ft3', alias: 'ft3-alias'})),
 		P4Util.addFile(rootClient, 'ft4.branchmap.json', JSON.stringify({...settings, branches: branches[3],
-																edges: edges[3], slackChannel: 'ft4', alias: 'ft4-alias'}))
+													edges: edges[3], macros: macros[3], slackChannel: 'ft4', alias: 'ft4-alias'}))
 	])
 
 	await rootClient.submit('Adding branchspecs')
@@ -95,10 +102,19 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 async function verifyWrapper(test: FunctionalTest) {
 	try {
 		await test.verify()
+		if (!test.allowSyntaxErrors()) {
+			for (const branch of test.getBranches()) {
+				// console.log(test.botName, branch.name)
+				const branchState = await FunctionalTest.getBranchState(test.botName, branch.name)
+				// console.log(branchState)
+				if (branchState.is_blocked) {
+					throw new Error(branchState.blockage.message)
+				}
+			}
+		}
 	}
 	catch (e) {
-		// log some RoboMerge state
-		test.error('Failed to verify: ' + e.toString())
+		test.error('Failed to verify: ' + e.toString().split('\n')[0])
 		throw e
 	}
 }
@@ -148,12 +164,15 @@ async function go() {
 
 		new BlockAssets(p4),
 		new TestTerminal(p4),
-
-		// these two must be consecutive
-		new CrossBotTest(p4), 
-		new CrossBotTest2(p4), 
-
 		new TestGate(p4),
+
+		// these must be consecutive
+		new CrossBotTest(p4), 
+		new CrossBotTest2(p4), // 35
+
+		// new ComplexCrossBot(p4), 
+		// new ComplexCrossBot2(p4), 
+		// new ComplexCrossBot3(p4), 
 
 	]
 
@@ -180,7 +199,7 @@ async function go() {
 	///////////////////////
 	// TESTS TO RUN 
 
-	const tests = /*/[availableTests[10]]/*/availableTests/**/
+	const tests = /*/[availableTests[32]]/*/availableTests/**/
 
 	//
 	///////////////////////

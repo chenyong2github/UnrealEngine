@@ -49,7 +49,15 @@ export function makeTargetName(bot: BotName, nodeName: string) {
 	return `${bot}:${nodeName.toLowerCase()}` as TargetName
 }
 
-function makeStream(depotPath: string) {
+function makeBranchId(arg: string | Branch) {
+	let depotPath: string
+	if ((arg as Branch).rootPath) {
+		depotPath = (arg as Branch).rootPath.replace('/...', '')
+	}
+	else {
+		depotPath = arg as string
+	}
+
 	if (!depotPath.match(/^\/\/[\w-.][\/\w-.]*$/)) {
 		throw new Error('Invalid stream path: ' + depotPath)
 	}
@@ -65,14 +73,14 @@ export class Graph {
 
 	private undecoratedAliases = new Map<string, Node[]>()
 
-	findOrCreateStreamNode(depotPath: string) {
-		const stream = makeStream(depotPath)
-		return setDefault(this.streamNodes, stream, new Node(stream))
+	findOrCreateStreamNode(depotPath: string | Branch) {
+		const branchId = makeBranchId(depotPath)
+		return setDefault(this.streamNodes, branchId, new Node(branchId))
 	}
 
-	findNodeForStream(depotPath: string) {
-		const stream = makeStream(depotPath)
-		return this.streamNodes.get(stream)
+	findNodeForStream(depotPath: string | Branch) {
+		const branchId = makeBranchId(depotPath)
+		return this.streamNodes.get(branchId)
 	}
 
 	findNodeByAlias(alias: string, logger: ContextualLogger) {
@@ -268,12 +276,11 @@ export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) 
 	const branchNodes = new Map<Branch, Node>()
 
 	// excluding subpath bots for now
-	const streamBranches = branchGraph.branches.filter(x => x.stream && x.rootPath === x.stream + '/...')
-	for (const branch of streamBranches) {
+	for (const branch of branchGraph.branches) {
 		if (!branch.bot) {
 			throw new Error(`branch ${branch.name} not running!`) // fine, but try again later
 		}
-		const branchNode = graph.findOrCreateStreamNode(branch.stream!)
+		const branchNode = graph.findOrCreateStreamNode(branch)
 		branchNodes.set(branch, branchNode)
 		graph.addNameForNode(branchNode, makeTargetName(botname, branch.name))
 
@@ -282,7 +289,7 @@ export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) 
 		}
 	}
 
-	for (const branch of streamBranches) {
+	for (const branch of branchGraph.branches) {
 		const sourceNode = branchNodes.get(branch)!
 		for (const target of branch.flowsTo) {
 			const flags = new Set<EdgeFlag>()

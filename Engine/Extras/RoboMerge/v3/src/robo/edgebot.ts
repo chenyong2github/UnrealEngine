@@ -347,7 +347,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		}
 
 		if (this.isTerminal) {
-			description += '#robomerge #ignore'
+			description += '#robomerge #ignore\n'
 		}
 
 		if (info.overriddenCommand) {
@@ -390,11 +390,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			target.mergeMode === 'skip' ? '-' :
 			target.mergeMode === 'null' ? '!' : '') + target.branch.name)
 		if (flags || target.furtherMerges.length !== 0) {
-			if (this.incognitoMode) {
-				// should have been caught in _processCl
-				throw new Error('Invalid options for incognito mode')
-			}
-			description += `#ROBOMERGE[${this.graphBotName}]: ${furtherMergeCommands.join(' ')}${flags}\n`
+			const botname = (this.incognitoMode && this.sourceNode.branchGraph.config.alias) || this.graphBotName
+			description += `#ROBOMERGE[${botname}]: ${furtherMergeCommands.join(' ')}${flags}\n`
 		}
 
 		if (convertIntegratesToEdits) {
