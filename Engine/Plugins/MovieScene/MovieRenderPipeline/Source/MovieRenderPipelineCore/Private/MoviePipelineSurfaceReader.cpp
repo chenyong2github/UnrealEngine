@@ -15,12 +15,13 @@
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_SurfaceReadback"), STAT_MoviePipeline_SurfaceReadback, STATGROUP_MoviePipeline);
 
-FMoviePipelineSurfaceReader::FMoviePipelineSurfaceReader(EPixelFormat InPixelFormat, FIntPoint InSurfaceSize)
+FMoviePipelineSurfaceReader::FMoviePipelineSurfaceReader(EPixelFormat InPixelFormat, FIntPoint InSurfaceSize, bool bInInvertAlpha)
 {
 	AvailableEvent = nullptr;
 	ReadbackTexture = nullptr;
 	PixelFormat = InPixelFormat;
 	bQueuedForCapture = false;
+	bInvertAlpha = bInInvertAlpha;
 	
 	Resize(InSurfaceSize.X, InSurfaceSize.Y);
 }
@@ -126,17 +127,26 @@ void FMoviePipelineSurfaceReader::ResolveSampleToReadbackTexture_RenderThread(co
 
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 		TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
-		TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
+		if (bInvertAlpha)
+		{
+			TShaderMapRef<FScreenPSInvertAlpha> PixelShader(ShaderMap);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+			// Bind the SourceSurfaceSample to our texture sampler with a point sample (since the resolutions match).
+			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
+		}
+		else
+		{
+			TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
+		}
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-		// Bind the SourceSurfaceSample to our texture sampler with a point sample (since the resolutions match).
-		PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
 
 		RendererModule->DrawRectangle(
 			RHICmdList,
@@ -238,7 +248,7 @@ void FMoviePipelineSurfaceReader::CopyReadbackTexture_RenderThread(TUniqueFuncti
 	}
 }
 
-FMoviePipelineSurfaceQueue::FMoviePipelineSurfaceQueue(FIntPoint InSurfaceSize, EPixelFormat InPixelFormat, uint32 InNumSurfaces)
+FMoviePipelineSurfaceQueue::FMoviePipelineSurfaceQueue(FIntPoint InSurfaceSize, EPixelFormat InPixelFormat, uint32 InNumSurfaces, bool bInInvertAlpha)
 {
 	// TargetSize = InSurfaceSize;
 	CurrentFrameIndex = 0;
@@ -248,7 +258,7 @@ FMoviePipelineSurfaceQueue::FMoviePipelineSurfaceQueue(FIntPoint InSurfaceSize, 
 	Surfaces.Reserve(InNumSurfaces);
 	for (uint32 Index = 0; Index < InNumSurfaces; Index++)
 	{
-		Surfaces.Emplace(InPixelFormat, InSurfaceSize);
+		Surfaces.Emplace(InPixelFormat, InSurfaceSize, bInInvertAlpha);
 	}
 
 	FrameResolveLatency = 1;
