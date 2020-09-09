@@ -7,6 +7,8 @@
 #include "NiagaraCommon.h"
 #include "NiagaraCustomVersion.h"
 
+#include "ObjectTools.h"
+
 const FNiagaraEmitterHandle FNiagaraEmitterHandle::InvalidHandle;
 
 FNiagaraEmitterHandle::FNiagaraEmitterHandle() 
@@ -56,16 +58,11 @@ FName FNiagaraEmitterHandle::GetName() const
 
 void FNiagaraEmitterHandle::SetName(FName InName, UNiagaraSystem& InOwnerSystem)
 {
-	if (InName == Name)
+	FName SanitizedName = *ObjectTools::SanitizeObjectName(InName.ToString());
+	if (SanitizedName == Name)
 	{
 		return;
 	}
-
-	FString TempNameString = InName.ToString();
-	TempNameString.ReplaceInline(TEXT(" "), TEXT("_"));
-	TempNameString.ReplaceInline(TEXT("\t"), TEXT("_"));
-	TempNameString.ReplaceInline(TEXT("."), TEXT("_"));
-	InName = *TempNameString;
 
 	TSet<FName> OtherEmitterNames;
 	for (const FNiagaraEmitterHandle& OtherEmitterHandle : InOwnerSystem.GetEmitterHandles())
@@ -75,7 +72,7 @@ void FNiagaraEmitterHandle::SetName(FName InName, UNiagaraSystem& InOwnerSystem)
 			OtherEmitterNames.Add(OtherEmitterHandle.GetName());
 		}
 	}
-	FName UniqueName = FNiagaraUtilities::GetUniqueName(InName, OtherEmitterNames);
+	FName UniqueName = FNiagaraUtilities::GetUniqueName(SanitizedName, OtherEmitterNames);
 
 	Name = UniqueName;
 	if (Instance->SetUniqueEmitterName(Name.ToString()))
@@ -188,6 +185,17 @@ void FNiagaraEmitterHandle::ConditionalPostLoad(int32 NiagaraCustomVersion)
 			if (Instance->IsSynchronizedWithParent() == false)
 			{
 				Instance->MergeChangesFromParent();
+			}
+		}
+
+		FText Reason;
+		if (Instance->GetFName().IsValidObjectName(Reason) == false)
+		{
+			UNiagaraSystem* OwningSystem = Instance->GetTypedOuter<UNiagaraSystem>();
+			if (OwningSystem != nullptr)
+			{
+				// If the name isn't a valid object name, set the name again so that it will be properly sanitized.
+				SetName(Name, *OwningSystem);
 			}
 		}
 	}
