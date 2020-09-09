@@ -50,6 +50,9 @@ struct FNiagaraEmitterCompiledData
 	FNiagaraVariable EmitterRandomSeedVar;
 
 	UPROPERTY()
+	FNiagaraVariable EmitterInstanceSeedVar;
+
+	UPROPERTY()
 	FNiagaraVariable EmitterTotalSpawnedParticlesVar;
 
 	/** Per-Emitter DataSet Data. */

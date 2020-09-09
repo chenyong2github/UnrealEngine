@@ -528,6 +528,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 {
 	EmitterAge = 0;
 	TickCount = 0;
+	InstanceSeed = FGenericPlatformMath::Rand();
 	CachedBounds.Init();
 
 	if (MinOverallocation > 100 && GbNiagaraShowAllocationWarnings)
@@ -1277,6 +1278,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		EmitterParameters.EmitterTotalSpawnedParticles = TotalSpawnedParticles;
 		EmitterParameters.EmitterAge = EmitterAge;
 		EmitterParameters.EmitterRandomSeed = CachedEmitter->RandomSeed;
+		EmitterParameters.EmitterInstanceSeed = InstanceSeed;
 	}
 
 	/* GPU simulation -  we just create an FNiagaraComputeExecutionContext, queue it, and let the batcher take care of the rest
