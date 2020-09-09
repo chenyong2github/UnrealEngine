@@ -370,6 +370,11 @@ public:
 	virtual FSceneOutlinerItemSelection GetSelection() const { return FSceneOutlinerItemSelection(*OutlinerTreeView); }
 
 	/**
+	 * Returns the parent tree item for a given item if it exists, nullptr otherwise.
+	 */
+	FSceneOutlinerTreeItemPtr FindParent(const ISceneOutlinerTreeItem& InItem) const;
+
+	/**
 		* Add a folder to the selection of the scene outliner
 		* @param FolderName The name of the folder to add to selection
 		*/

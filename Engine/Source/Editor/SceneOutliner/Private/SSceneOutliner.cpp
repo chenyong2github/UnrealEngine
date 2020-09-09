@@ -1039,31 +1039,22 @@ void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 	{
 		struct FFilterRoot : public FSceneOutlinerFilter 
 		{
-			FFilterRoot(TFunctionRef<bool(const ISceneOutlinerTreeItem&)> InFindParent) 
+			FFilterRoot(const SSceneOutliner& InSceneOutliner) 
 				: FSceneOutlinerFilter(FSceneOutlinerFilter::EDefaultBehaviour::Pass) 
-				, FindParent(InFindParent)
+				, SceneOutliner(InSceneOutliner)
 			{}
 			virtual bool PassesFilter(const ISceneOutlinerTreeItem& Item) const override
 			{
+				FSceneOutlinerTreeItemPtr Parent = SceneOutliner.FindParent(Item);
 				// if item has no parent, it is a root item and should be filtered out
-				if (!FindParent(Item))
+				if (!Parent.IsValid())
 				{
 					return false;
 				}
 				return DefaultBehaviour == FSceneOutlinerFilter::EDefaultBehaviour::Pass;
 			}
 
-			TFunctionRef<bool(const ISceneOutlinerTreeItem&)> FindParent;
-		};
-
-		auto FindParent = [this](const ISceneOutlinerTreeItem& Item)
-		{
-			FSceneOutlinerTreeItemPtr Parent = Mode->GetHierarchy()->FindParent(Item, TreeItemMap);
-			if (!Parent)
-			{
-				Parent = Mode->GetHierarchy()->FindParent(Item, PendingTreeItemMap);
-			}
-			return Parent.IsValid();
+			const SSceneOutliner& SceneOutliner;
 		};
 
 		// Filter in/out root items according to whether it is valid to move to/from the root
@@ -1071,7 +1062,7 @@ void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 		const bool bMoveToRootValid = Mode->ValidateDrop(FFolderTreeItem(NAME_None), DraggedObjects).IsValid();
 		if (!bMoveToRootValid)
 		{
-			MiniSceneOutlinerInitOptions.Filters->Add(MakeShared<FFilterRoot>(FindParent));
+			MiniSceneOutlinerInitOptions.Filters->Add(MakeShared<FFilterRoot>(*this));
 		}
 	}
 
@@ -1939,6 +1930,16 @@ void SSceneOutliner::OnDropPayload(ISceneOutlinerTreeItem& DropTarget, const FSc
 FReply SSceneOutliner::OnDragOverItem(const FDragDropEvent& Event, const ISceneOutlinerTreeItem& Item) const 
 { 
 	return Mode->OnDragOverItem(Event, Item); 
+}
+
+FSceneOutlinerTreeItemPtr SSceneOutliner::FindParent(const ISceneOutlinerTreeItem& InItem) const
+{
+	FSceneOutlinerTreeItemPtr Parent = Mode->GetHierarchy()->FindParent(InItem, TreeItemMap);
+	if (!Parent.IsValid())
+	{
+		Parent = Mode->GetHierarchy()->FindParent(InItem, PendingTreeItemMap);
+	}
+	return Parent;
 }
 
 #undef LOCTEXT_NAMESPACE
