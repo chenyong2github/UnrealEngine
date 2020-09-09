@@ -44,6 +44,7 @@ public:
 	UE_DEPRECATED(4.20, "Please use GetCurrentTime instead.")
 	double GetTimeCursorPosition() const { return GetCurrentTime().AsSeconds(); }
 
+	void SetCurrentTime(float InTime) { TimeCursorPosition = AnimationResolution.AsFrameTime(InTime); }
 	FQualifiedFrameTime GetCurrentTime() const { return FQualifiedFrameTime(TimeCursorPosition, AnimationResolution); }
 
 	/** @return The current animation being played */
