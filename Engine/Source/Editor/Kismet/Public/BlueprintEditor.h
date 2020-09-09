@@ -195,7 +195,7 @@ public:
 public:
 	//~ Begin FAssetEditorToolkit Interface
 	virtual bool OnRequestClose() override;
-	virtual bool UsesCustomToolbarPlacement() const override { return false; }
+	virtual bool UsesCustomToolbarPlacement() const override { return bUsesCustomToolbar; }
 	// End of FAssetEditorToolkit 
 
 	//~ Begin IToolkit Interface
@@ -1427,6 +1427,8 @@ private:
 
 	/** Handle to the registered OnActiveTabChanged delegate */
 	FDelegateHandle OnActiveTabChangedDelegateHandle;
+
+	bool bUsesCustomToolbar;
 
 	// Allow derived editors to add command mappings 
 	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList) {}

@@ -1569,6 +1569,8 @@ FBlueprintEditor::FBlueprintEditor()
 	AnalyticsStats.NodeKeymapCreateCount = 0;
 	AnalyticsStats.NodePasteCreateCount = 0;
 
+	bUsesCustomToolbar = true;
+
 	UEditorEngine* Editor = (UEditorEngine*)GEngine;
 	if (Editor != nullptr)
 	{
@@ -1959,6 +1961,9 @@ void FBlueprintEditor::InitBlueprintEditor(
 	{
 		// Flag the blueprint as having been opened
 		Blueprint->bIsNewlyCreated = false;
+
+		// @todo reskin, this is temp for now.  Only the base blueprint editor has had a toolbar treatment as part of the reskin.  All other derived types of BP editors need to use their custom toolbars for now.
+		bUsesCustomToolbar &= (Blueprint->GetClass() != UBlueprint::StaticClass());
 
 		Objects.Add( Blueprint );
 	}
