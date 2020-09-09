@@ -7,8 +7,6 @@
 #include "NiagaraCommon.h"
 #include "NiagaraCustomVersion.h"
 
-#include "ObjectTools.h"
-
 const FNiagaraEmitterHandle FNiagaraEmitterHandle::InvalidHandle;
 
 FNiagaraEmitterHandle::FNiagaraEmitterHandle() 
@@ -58,7 +56,18 @@ FName FNiagaraEmitterHandle::GetName() const
 
 void FNiagaraEmitterHandle::SetName(FName InName, UNiagaraSystem& InOwnerSystem)
 {
-	FName SanitizedName = *ObjectTools::SanitizeObjectName(InName.ToString());
+	FName SanitizedName;
+	{
+		FString InNameStr = InName.ToString();
+		const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
+		while (*InvalidChar)
+		{
+			InNameStr.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
+			++InvalidChar;
+		}
+		SanitizedName = FName(*InNameStr);
+	}
+	
 	if (SanitizedName == Name)
 	{
 		return;
