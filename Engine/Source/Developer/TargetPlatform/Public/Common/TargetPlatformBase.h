@@ -376,6 +376,9 @@ public:
 
 		case ETargetPlatformFeatures::LumenGI:
 			return TPlatformProperties::SupportsLumenGI();
+
+		case ETargetPlatformFeatures::HardwareLZDecompression:
+			return TPlatformProperties::SupportsHardwareLZDecompression();
 		}
 
 		return false;

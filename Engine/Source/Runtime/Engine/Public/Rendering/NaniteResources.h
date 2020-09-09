@@ -27,6 +27,7 @@
 #define MAX_CLUSTER_VERTICES					256
 #define MAX_CLUSTER_INDICES						( MAX_CLUSTER_TRIANGLES * 3 )
 #define MAX_NANITE_UVS							4														// must match define in NaniteDataDecode.ush
+#define NUM_ROOT_PAGES							1u														// Should probably be made a per-resource option
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteDataDecode.ush
 
@@ -182,6 +183,7 @@ struct FPageStreamingState
 {
 	uint32			BulkOffset;
 	uint32			BulkSize;
+	uint32			PageUncompressedSize;
 	uint32			DependenciesStart;
 	uint32			DependenciesNum;
 };
@@ -286,12 +288,15 @@ public:
 
 struct FResources
 {
+	// Persistent State
 	TArray< uint8 >					RootClusterPage;		// Root page is loaded on resource load, so we always have something to draw.
 	FByteBulkData					StreamableClusterPages;	// Remaining pages are streamed on demand.
 	TArray< FPackedHierarchyNode >	HierarchyNodes;
 	TArray< FPageStreamingState >	PageStreamingStates;
 	TArray< uint32 >				PageDependencies;
+	bool	bLZCompressed			= false;
 
+	// Runtime State
 	uint32	RuntimeResourceID		= 0xFFFFFFFFu;
 	int32	HierarchyOffset			= INDEX_NONE;
 	int32	RootPageIndex			= INDEX_NONE;
@@ -300,6 +305,8 @@ struct FResources
 	ENGINE_API void ReleaseResources();
 
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
+
+	ENGINE_API void DecompressPages();
 };
 
 class FSceneProxyBase : public FPrimitiveSceneProxy

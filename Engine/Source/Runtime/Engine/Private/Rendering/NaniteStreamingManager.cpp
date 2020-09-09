@@ -12,6 +12,7 @@
 #include "RenderGraphUtils.h"
 #include "Logging/LogMacros.h"
 #include "Async/ParallelFor.h"
+#include "Misc/Compression.h"
 
 #define MAX_STREAMING_PAGES_BITS			12u
 #define MAX_STREAMING_PAGES					(1u << MAX_STREAMING_PAGES_BITS)
@@ -219,6 +220,9 @@ public:
 
 	uint8* Add_GetRef(uint32 PageSize, uint32 DstPageOffset)
 	{
+		check(IsAligned(PageSize, 4));
+		check(IsAligned(DstPageOffset, 4));
+
 		check(NextPageIndex < MaxPages);
 		check(NextPageOffset + PageSize <= MaxPageBytes);
 
@@ -338,6 +342,11 @@ FStreamingManager::FStreamingManager() :
 		PendingPages[i].MemoryPtr = PendingPageStagingMemory.GetData() + i * CLUSTER_PAGE_DISK_SIZE;
 	}
 #endif
+
+	if (!FPlatformProperties::SupportsHardwareLZDecompression())
+	{
+		PendingPageStagingMemoryLZ.SetNumUninitialized( MAX_INSTALLS_PER_UPDATE * CLUSTER_PAGE_DISK_SIZE );
+	}
 
 	RequestsHashTable	= new FRequestsHashTable();
 	PageUploader		= new FStreamingPageUploader();
@@ -695,6 +704,20 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 	}
 }
 
+static void DecompressPage(uint8* Dst, uint8* Tmp, uint32 DstSize, const uint8* Src, uint32 SrcSize, bool bLZCompressed)
+{
+	check(bLZCompressed == !FPlatformProperties::SupportsHardwareLZDecompression());
+	if (bLZCompressed)
+	{
+		verify(FCompression::UncompressMemory(NAME_LZ4, Tmp, DstSize, Src, SrcSize));	// Decompress to cached memory (Tmp) to avoid decompressing directly to WC memory on some platforms.
+		FMemory::Memcpy(Dst, Tmp, DstSize);												// TODO: Figure out how to avoid this copy on platforms that dont require it.
+	}
+	else
+	{
+		FMemory::Memcpy(Dst, Src, SrcSize);
+	}
+}
+
 void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 {
 	LLM_SCOPE(ELLMTag::Nanite);
@@ -709,9 +732,12 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 	{
 		FPendingPage* PendingPage = nullptr;
 		uint8* Dst = nullptr;
+		uint32 DstSize = 0;
+		uint8* Tmp = nullptr;
 		
 		const uint8* Src = nullptr;
 		uint32 SrcSize = 0;
+		bool bLZCompressed;
 	};
 
 #if WITH_EDITOR
@@ -811,6 +837,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 		// Must be processed in PendingPages order so FFixupChunks are loaded when we need them.
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(InstallReadyPages);
+			uint32 NumInstalledPages = 0;
 			for (uint32 i = 0; i < NumReadyPages; i++)
 			{
 				uint32 LastPendingPageIndex = (StartPendingPageIndex + i) % MaxPendingPages;
@@ -867,11 +894,17 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				FMemory::Memcpy(FixupChunk->Data, PendingPage.MemoryPtr + sizeof(FFixupChunk::Header), FixupChunkSize - sizeof(FFixupChunk::Header));
 				UploadTask.Src = PendingPage.MemoryPtr + FixupChunkSize;
 #endif
-
+				uint32 PageOffset = PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
 				uint32 DataSize = PageStreamingState.BulkSize - FixupChunkSize;
+				check(NumInstalledPages < MAX_INSTALLS_PER_UPDATE);
+
 				UploadTask.SrcSize = DataSize;
 				UploadTask.PendingPage = &PendingPage;
-				UploadTask.Dst = PageUploader->Add_GetRef(DataSize, PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
+				UploadTask.Dst = PageUploader->Add_GetRef(PageStreamingState.PageUncompressedSize, PageOffset);
+				UploadTask.DstSize = PageStreamingState.PageUncompressedSize;
+				UploadTask.Tmp = PendingPageStagingMemoryLZ.GetData() + NumInstalledPages * CLUSTER_PAGE_DISK_SIZE;
+				UploadTask.bLZCompressed = (*Resources)->bLZCompressed;
+				NumInstalledPages++;
 
 				// Update page headers
 				uint32 NumPageClusters = FixupChunk->Header.NumClusters;
@@ -892,9 +925,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(CopyPageTask);
 		const FUploadTask& Task = UploadTasks[i];
-		check(Task.Dst);
-
-		FMemory::Memcpy(Task.Dst, Task.Src, Task.SrcSize);
+		
+		DecompressPage(Task.Dst, Task.Tmp, Task.DstSize, Task.Src, Task.SrcSize, Task.bLZCompressed);
 
 #if !WITH_EDITOR
 		if (Task.PendingPage->AsyncRequest)
@@ -908,7 +940,6 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 		else
 		{
 			check(Task.PendingPage->Request.Status().IsCompleted());
-			FMemory::Memcpy(Task.Dst, Task.Src, Task.SrcSize);
 		}
 #endif
 	});
@@ -1003,18 +1034,13 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 	Hierarchy.UploadBuffer.Init( Hierarchy.TotalUpload, sizeof( FPackedHierarchyNode ), false, TEXT("FStreamingManagerHierarchyUpload"));
 	
 	// Calculate total requires size
-	uint32 TotalDiskSize = 0;
+	uint32 TotalUncompressedSize = 0;
 	for(uint32 i = 0; i < NumPendingAdds; i++)
 	{
-		FResources* Resources = PendingAdds[i];
-		
-		uint8* Ptr = Resources->RootClusterPage.GetData();
-		FFixupChunk& FixupChunk = *(FFixupChunk*)Ptr;
-		uint32 FixupChunkSize = FixupChunk.GetSize();
-		uint32 DiskSize = Resources->PageStreamingStates[0].BulkSize - FixupChunkSize;
-		TotalDiskSize += DiskSize;
+		TotalUncompressedSize += PendingAdds[i]->PageStreamingStates[0].PageUncompressedSize;
 	}
-	PageUploader->Init(NumPendingAdds, TotalDiskSize);
+
+	PageUploader->Init(NumPendingAdds, TotalUncompressedSize);
 
 	for( FResources* Resources : PendingAdds )
 	{
@@ -1024,9 +1050,13 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 		uint32 FixupChunkSize = FixupChunk.GetSize();
 		uint32 NumClusters = FixupChunk.Header.NumClusters;
 
-		uint32 PageDiskSize = Resources->PageStreamingStates[0].BulkSize - FixupChunkSize;
-		uint8* Dst = PageUploader->Add_GetRef(PageDiskSize, GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
-		FMemory::Memcpy(Dst, Ptr + FixupChunkSize, PageDiskSize);
+		const FPageStreamingState& PageStreamingState = Resources->PageStreamingStates[0];
+		uint32 PageDiskSize = PageStreamingState.BulkSize - FixupChunkSize;
+		uint32 PageOffset = GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
+		uint8* Dst = PageUploader->Add_GetRef(PageStreamingState.PageUncompressedSize, PageOffset);
+		
+		DecompressPage(Dst, PendingPageStagingMemoryLZ.GetData(), PageStreamingState.PageUncompressedSize, Ptr + FixupChunkSize, PageDiskSize, Resources->bLZCompressed);
+
 
 		ClusterPageHeaders.UploadBuffer.Add(GPUPageIndex, &NumClusters);
 
@@ -1179,6 +1209,7 @@ void FStreamingManager::BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 	AsyncState.NumReadyPages = DetermineReadyPages();
 	if (AsyncState.NumReadyPages > 0)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AllocBuffers);
 		// Prepare buffers for upload
 		PageUploader->Init(MAX_INSTALLS_PER_UPDATE, MAX_INSTALLS_PER_UPDATE * CLUSTER_PAGE_DISK_SIZE);
 		ClusterFixupUploadBuffer.Init(MAX_INSTALLS_PER_UPDATE * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
@@ -1208,6 +1239,7 @@ void FStreamingManager::BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 	// Lock buffer
 	if (AsyncState.LatestReadbackBuffer)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LockBuffer);
 		AsyncState.LatestReadbackBufferPtr = (const uint32*)AsyncState.LatestReadbackBuffer->Lock(MAX_STREAMING_REQUESTS * sizeof(uint32) * 3);
 	}
 

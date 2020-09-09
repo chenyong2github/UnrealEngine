@@ -189,6 +189,7 @@ private:
 #if !WITH_EDITOR
 	TArray< uint8 >							PendingPageStagingMemory;
 #endif
+	TArray< uint8 >							PendingPageStagingMemoryLZ;
 
 	FRequestsHashTable*						RequestsHashTable;
 	FStreamingPageUploader*					PageUploader;

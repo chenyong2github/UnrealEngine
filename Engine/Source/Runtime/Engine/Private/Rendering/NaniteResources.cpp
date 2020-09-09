@@ -19,6 +19,7 @@
 #include "RenderGraphUtils.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "AI/Navigation/NavCollisionBase.h"
+#include "Misc/Compression.h"
 
 DEFINE_GPU_STAT(NaniteDebug);
 DEFINE_GPU_STAT(NaniteEditor);
@@ -62,6 +63,7 @@ FArchive& operator<<( FArchive& Ar, FPageStreamingState& PageStreamingState )
 {
 	Ar << PageStreamingState.BulkOffset;
 	Ar << PageStreamingState.BulkSize;
+	Ar << PageStreamingState.PageUncompressedSize;
 	Ar << PageStreamingState.DependenciesStart;
 	Ar << PageStreamingState.DependenciesNum;
 	return Ar;
@@ -127,7 +129,62 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		Ar << HierarchyNodes;
 		Ar << PageStreamingStates;
 		Ar << PageDependencies;
+		Ar << bLZCompressed;
 	}
+}
+
+void FResources::DecompressPages()
+{
+	if (!bLZCompressed)
+		return;
+
+	// Decompress root and streaming pages
+	const uint32 NumPages = PageStreamingStates.Num();
+	
+	uint32 NewSizes[2] = {};
+	TArray<uint8> OldRootData = RootClusterPage;
+
+	uint8* StreamingDataPtr = (uint8*)StreamableClusterPages.Lock(LOCK_READ_WRITE);
+	TArray<uint8> OldStreamingData(StreamingDataPtr, StreamableClusterPages.GetBulkDataSize());
+
+	// Calculate new root and streaming buffer sizes
+	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
+	{
+		const bool bIsRootPage = PageIndex < NUM_ROOT_PAGES;
+		const FPageStreamingState& State = PageStreamingStates[PageIndex];
+		const TArray<uint8>& OldData = bIsRootPage ? OldRootData : OldStreamingData;
+		const FFixupChunk& FixupChunk = *(const FFixupChunk*)(OldData.GetData() + State.BulkOffset);
+		NewSizes[bIsRootPage] += FixupChunk.GetSize() + State.PageUncompressedSize;
+	}
+
+	StreamingDataPtr = (uint8*)StreamableClusterPages.Realloc(NewSizes[0]);
+	RootClusterPage.SetNumUninitialized(NewSizes[1]);
+
+	// Decompress data
+	uint32 UncompressedOffsets[2] = {};
+	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
+	{
+		const bool bIsRootPage = PageIndex < NUM_ROOT_PAGES;
+		const TArray<uint8>& OldData = bIsRootPage ? OldRootData : OldStreamingData;
+
+		FPageStreamingState& State = PageStreamingStates[PageIndex];
+		const FFixupChunk& FixupChunk = *(const FFixupChunk*)(OldData.GetData() + State.BulkOffset);
+		const uint32 FixupChunkSize = FixupChunk.GetSize();
+
+		uint8* DstPtr = bIsRootPage ? RootClusterPage.GetData() : StreamingDataPtr;
+		FMemory::Memcpy(DstPtr + UncompressedOffsets[bIsRootPage], &FixupChunk, FixupChunkSize);
+
+		verify(FCompression::UncompressMemory(NAME_LZ4, DstPtr + UncompressedOffsets[bIsRootPage] + FixupChunkSize, State.PageUncompressedSize, OldData.GetData() + State.BulkOffset + FixupChunkSize, State.BulkSize - FixupChunkSize));
+		State.BulkSize = FixupChunkSize + State.PageUncompressedSize;
+		State.BulkOffset = UncompressedOffsets[bIsRootPage];
+		UncompressedOffsets[bIsRootPage] += State.BulkSize;
+	}
+	check(UncompressedOffsets[0] == NewSizes[0]);
+	check(UncompressedOffsets[1] == NewSizes[1]);
+
+	StreamableClusterPages.Unlock();
+	StreamableClusterPages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+	bLZCompressed = false;
 }
 
 class FVertexFactory : public ::FVertexFactory

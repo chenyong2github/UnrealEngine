@@ -271,6 +271,11 @@ struct FGenericPlatformProperties
 		return true;
 	}
 
+	static FORCEINLINE bool SupportsHardwareLZDecompression()
+	{
+		return false;
+	}
+
 	/**
 	 * Gets whether user settings should override the resolution or not
 	 */

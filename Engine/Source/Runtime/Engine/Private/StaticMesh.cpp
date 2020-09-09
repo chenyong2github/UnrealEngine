@@ -4727,6 +4727,15 @@ void UStaticMesh::Serialize(FArchive& Ar)
 		else if (Ar.IsSaving())
 		{		
 			FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, Ar.CookingTarget());
+
+			// HACK/TODO: Decompress data on platforms that already support LZ decompression in hardware.
+			// Meshes are ALWAYS cooked on the host platform, so just including compression in the DDC key would double cook times for platforms with hardware LZ.
+			// Needs to be revisited when new resource system lands.
+			if (Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HardwareLZDecompression))
+			{
+				PlatformRenderData.NaniteResources.DecompressPages();
+			}
+
 			PlatformRenderData.Serialize(Ar, this, bCooked);
 
 			FStaticMeshOccluderData::SerializeCooked(Ar, this);

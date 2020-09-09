@@ -97,6 +97,9 @@ enum class ETargetPlatformFeatures
 
 	/** Lumen Global Illumination. */
 	LumenGI,
+
+	/** The platform supports hardware LZ decompression */
+	HardwareLZDecompression,
 };
 
 enum class EPlatformAuthentication

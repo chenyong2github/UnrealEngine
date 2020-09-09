@@ -13,12 +13,13 @@
 #include "MeshSimplify.h"
 #include "DisjointSet.h"
 #include "Async/ParallelFor.h"
+#include "Misc/Compression.h"
 
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("11D0F6D6-68DA-401F-B438-8F9013E6DC25")
+#define NANITE_DERIVEDDATA_VER TEXT("11D0F6D6-68DA-401F-B438-8F9013E20000")
 
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
@@ -30,7 +31,6 @@
 #define INVALID_PART_INDEX				0xFFFFFFFFu
 #define INVALID_GROUP_INDEX				0xFFFFFFFFu
 #define INVALID_PAGE_INDEX				0xFFFFFFFFu
-#define NUM_ROOT_PAGES					1u	// Should probably be made a per-resource option
 
 namespace Nanite
 {
@@ -1510,6 +1510,8 @@ static void WritePages(	FResources& Resources,
 {
 	check(Resources.PageStreamingStates.Num() == 0);
 
+	const bool bLZCompress = true;
+
 	TArray< uint8 > StreamableBulkData;
 	
 	const uint32 NumPages = Pages.Num();
@@ -1603,10 +1605,15 @@ static void WritePages(	FResources& Resources,
 	}
 
 	// Process pages
-	TArray< TArray<uint8> > PageDatas;
-	PageDatas.SetNum(NumPages);
+	struct FPageResult
+	{
+		TArray<uint8> Data;
+		uint32 UncompressedSize;
+	};
+	TArray< FPageResult > PageResults;
+	PageResults.SetNum(NumPages);
 
-	ParallelFor(NumPages, [&Pages, &Groups, &Parts, &Clusters, &EncodingInfos, &FixupChunks, &PageDatas, NumTexCoords](int32 PageIndex)
+	ParallelFor(NumPages, [&Pages, &Groups, &Parts, &Clusters, &EncodingInfos, &FixupChunks, &PageResults, NumTexCoords, bLZCompress](int32 PageIndex)
 	{
 		const FPage& Page = Pages[PageIndex];
 		FFixupChunk& FixupChunk = FixupChunks[PageIndex];
@@ -1730,9 +1737,9 @@ static void WritePages(	FResources& Resources,
 		}
 
 		// Begin page
-		TArray<uint8>& PageData = PageDatas[PageIndex];
-		PageData.SetNum(CLUSTER_PAGE_DISK_SIZE);
-		FBlockPointer PagePointer(PageData.GetData(), PageData.Num());
+		FPageResult& PageResult = PageResults[PageIndex];
+		PageResult.Data.SetNum(CLUSTER_PAGE_DISK_SIZE);
+		FBlockPointer PagePointer(PageResult.Data.GetData(), PageResult.Data.Num());
 
 		// Disk header
 		FPageDiskHeader* PageDiskHeader = PagePointer.Advance<FPageDiskHeader>(1);
@@ -1866,10 +1873,28 @@ static void WritePages(	FResources& Resources,
 			}
 			FMemory::Memcpy(AttribData, CombinedAttributeData.GetData(), CombinedAttributeData.Num()* CombinedAttributeData.GetTypeSize());
 		}
-		PageData.SetNum(PagePointer.Offset(), false);
+
+		if (bLZCompress)
+		{
+			TArray<uint8> DataCopy(PageResult.Data.GetData(), PagePointer.Offset());
+			PageResult.UncompressedSize = DataCopy.Num();
+			
+			int32 CompressedSize = PageResult.Data.Num();
+			verify(FCompression::CompressMemory(NAME_LZ4, PageResult.Data.GetData(), CompressedSize, DataCopy.GetData(), DataCopy.Num()));
+
+			PageResult.Data.SetNum(CompressedSize, false);
+		}
+		else
+		{
+			PageResult.Data.SetNum(PagePointer.Offset(), false);
+			PageResult.UncompressedSize = PageResult.Data.Num();
+		}
 	});
 
 	// Write pages
+	uint32 TotalUncompressedSize = 0;
+	uint32 TotalCompressedSize = 0;
+	uint32 TotalFixupSize = 0;
 	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
 	{
 		const FPage& Page = Pages[PageIndex];
@@ -1885,19 +1910,24 @@ static void WritePages(	FResources& Resources,
 		check(FixupChunk.Header.NumHierachyFixups < MAX_CLUSTERS_PER_PAGE);
 		check(FixupChunk.Header.NumClusterFixups < MAX_CLUSTERS_PER_PAGE);
 		BulkData.Append((uint8*)&FixupChunk, FixupChunkSize);
+		TotalFixupSize += FixupChunkSize;
 
 		// Copy page to BulkData
-		TArray<uint8>& PageData = PageDatas[PageIndex];
+		TArray<uint8>& PageData = PageResults[PageIndex].Data;
 		BulkData.Append(PageData.GetData(), PageData.Num());
+		TotalUncompressedSize += PageResults[PageIndex].UncompressedSize;
+		TotalCompressedSize += PageData.Num();
 
 		PageStreamingState.BulkSize = BulkData.Num() - PageStreamingState.BulkOffset;
+		PageStreamingState.PageUncompressedSize = PageResults[PageIndex].UncompressedSize;
 	}
 
 	uint32 TotalDiskSize = Resources.RootClusterPage.Num() + StreamableBulkData.Num();
 	UE_LOG(LogStaticMesh, Log, TEXT("WritePages:"), NumPages);
 	UE_LOG(LogStaticMesh, Log, TEXT("  %d pages written."), NumPages);
 	UE_LOG(LogStaticMesh, Log, TEXT("  GPU size: %d bytes. %.3f bytes per page. %.3f%% utilization."), TotalGPUSize, TotalGPUSize / float(NumPages), TotalGPUSize / (float(NumPages) * CLUSTER_PAGE_GPU_SIZE) * 100.0f);
-	UE_LOG(LogStaticMesh, Log, TEXT("  Uncompressed disk size: %d bytes. %.3f bytes per page."), TotalDiskSize, TotalDiskSize/ float(NumPages));
+	UE_LOG(LogStaticMesh, Log, TEXT("  Uncompressed page data: %d bytes. Compressed page data: %d bytes. Fixup data: %d bytes."), TotalUncompressedSize, TotalCompressedSize, TotalFixupSize);
+	UE_LOG(LogStaticMesh, Log, TEXT("  Total disk size: %d bytes. %.3f bytes per page."), TotalDiskSize, TotalDiskSize/ float(NumPages));
 
 	// Store PageData
 	Resources.StreamableClusterPages.Lock(LOCK_READ_WRITE);
@@ -1905,6 +1935,7 @@ static void WritePages(	FResources& Resources,
 	FMemory::Memcpy(Ptr, StreamableBulkData.GetData(), StreamableBulkData.Num());
 	Resources.StreamableClusterPages.Unlock();
 	Resources.StreamableClusterPages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+	Resources.bLZCompressed = bLZCompress;
 }
 
 static FSphere CombineBoundingSpheres( const FSphere& SphereA, const FSphere& SphereB )
