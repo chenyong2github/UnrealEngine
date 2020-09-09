@@ -395,8 +395,8 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 
 	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
 
-	GlobalMinPitch = FMath::Clamp(AudioSettings->GlobalMinPitchScale, 0.0001f, 4.0f);
-	GlobalMaxPitch = FMath::Clamp(AudioSettings->GlobalMaxPitchScale, 0.0001f, 4.0f);
+	GlobalMinPitch = FMath::Max(AudioSettings->GlobalMinPitchScale, 0.0001f);
+	GlobalMaxPitch = FMath::Max(AudioSettings->GlobalMaxPitchScale, 0.0001f);
 	bAllowCenterChannel3DPanning = AudioSettings->bAllowCenterChannel3DPanning;
 	bAllowPlayWhenSilent = AudioSettings->bAllowPlayWhenSilent;
 	DefaultReverbSendLevel = AudioSettings->DefaultReverbSendLevel_DEPRECATED;
