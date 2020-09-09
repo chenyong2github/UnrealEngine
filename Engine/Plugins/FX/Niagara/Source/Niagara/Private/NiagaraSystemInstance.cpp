@@ -649,6 +649,7 @@ void FNiagaraSystemInstance::Complete()
 	if (!bPooled)
 	{
 		UnbindParameters(true);
+		SystemSimulation = nullptr;
 	}
 
 	bPendingSpawn = false;
@@ -1965,7 +1966,7 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
-
+	
 	FNiagaraCrashReporterScope CRScope(this);
 
 	UNiagaraSystem* System = GetSystem();
