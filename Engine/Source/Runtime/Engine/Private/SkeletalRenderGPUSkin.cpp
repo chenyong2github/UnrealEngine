@@ -1690,7 +1690,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::InitResources(uint32 Ve
 	}
 
 	// If we have a vertex color override buffer (and it's the right size) use it
-	if (CompLODInfo->OverrideVertexColors &&
+	if (CompLODInfo && CompLODInfo->OverrideVertexColors &&
 		CompLODInfo->OverrideVertexColors->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
 	{
 		MeshObjectColorBuffer = CompLODInfo->OverrideVertexColors;
