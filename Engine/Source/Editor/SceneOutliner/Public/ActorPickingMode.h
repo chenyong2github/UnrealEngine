@@ -17,6 +17,9 @@ public:
 	virtual void OnFilterTextCommited(FSceneOutlinerItemSelection& Selection, ETextCommit::Type CommitType) override;
 
 	virtual void CreateViewContent(FMenuBuilder& MenuBuilder) override;
+
+	// Don't synchronize world selection
+	virtual void SynchronizeSelection() override {};
 public:
 	virtual bool ShowViewButton() const override { return true; }
 private:
