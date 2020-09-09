@@ -253,6 +253,9 @@ public:
 	/** Updates all selected emitter's fixed bounds with their current dynamic bounds. */
 	void UpdateEmitterFixedBounds();
 
+	/** Clear the captures stats for all the emitters in the current system. */
+	void ClearEmitterStats();
+
 	/** Isolates the supplied emitters.  This will remove all other emitters from isolation. */
 	NIAGARAEDITOR_API void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
 
@@ -327,6 +330,8 @@ public:
 
 	/** Wrapper to set bPendingMessagesChanged after calling a delegate off of a message link. */
 	void ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate);
+
+	ENiagaraStatEvaluationType StatEvaluationType = ENiagaraStatEvaluationType::Average;
 
 private:
 

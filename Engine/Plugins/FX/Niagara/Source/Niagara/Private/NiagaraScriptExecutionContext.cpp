@@ -6,7 +6,6 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraWorldManager.h"
-#include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGPUInstanceCountManager.h"
@@ -27,6 +26,14 @@ static FAutoConsoleVariableRef CVarNiagaraExecVMScripts(
 	GbExecVMScripts,
 	TEXT("If > 0 VM scripts will be executed, otherwise they won't, useful for looking at the bytecode for a crashing compiled script. \n"),
 	ECVF_Default
+);
+
+static int32 GbMaxStatRecordedFrames = 120;
+static FAutoConsoleVariableRef CVarDetailedVMScriptStats(
+    TEXT("fx.Niagara.MaxStatRecordedFrames"),
+    GbMaxStatRecordedFrames,
+    TEXT("The number of frames recorded for the stat performance display of VectorVM scripts. \n"),
+    ECVF_Default
 );
 
 FNiagaraScriptExecutionContextBase::FNiagaraScriptExecutionContextBase()
@@ -98,6 +105,51 @@ void FNiagaraScriptExecutionContextBase::BindData(int32 Index, FNiagaraDataBuffe
 	}
 }
 
+#if STATS
+
+FStatExecutionTimer::FStatExecutionTimer()
+{
+	AccumulatedCycles = TSimpleRingBuffer<uint64>(GbMaxStatRecordedFrames);
+}
+
+void FNiagaraScriptExecutionContextBase::CreateStatScopeData()
+{
+	StatScopeData.Empty();
+	for (const TStatId& StatId : Script->GetStatScopeIDs())
+	{
+		StatScopeData.Add(FStatScopeData(StatId));
+	}
+}
+
+TMap<TStatIdData const*, float> FNiagaraScriptExecutionContextBase::ReportStats()
+{
+	TMap<TStatIdData const*, float> CapturedData;
+
+	// Process recorded times
+	for (FStatScopeData& ScopeData : StatScopeData)
+	{
+		uint64 ExecCycles = ScopeData.ExecutionCycleCount.exchange(0);
+		if (ExecCycles > 0)
+		{
+			ExecutionTimings.FindOrAdd(ScopeData.StatId.GetRawPointer()).AccumulatedCycles.WriteNewElementUninitialized() = ExecCycles;
+		}
+	}
+	
+	for (auto& Entry : ExecutionTimings)
+	{
+		// accumulate times from previous frames
+		int32 ValueCount = Entry.Value.AccumulatedCycles.Num();
+		float Sum = 0;
+		for (int32 i = 0; i < ValueCount; i++)
+		{
+			Sum += Entry.Value.AccumulatedCycles(i);
+		}
+		CapturedData.Add(Entry.Key, ValueCount == 0 ? 0 : Sum / ValueCount);
+	}
+	return CapturedData;
+}
+#endif
+
 bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable)
 {
 	if (NumInstances == 0)
@@ -110,6 +162,9 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 
 	if (GbExecVMScripts != 0)
 	{
+#if STATS
+		CreateStatScopeData();
+#endif
 		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
 		VectorVM::Exec(
 			ExecData.ByteCode.GetData(),
@@ -123,7 +178,7 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 			UserPtrTable.GetData(),
 			NumInstances
 #if STATS
-			, Script->GetStatScopeIDs()
+			, MakeArrayView(StatScopeData)
 #elif ENABLE_STATNAMEDEVENTS
 			, Script->GetStatNamedEvents()
 #endif
