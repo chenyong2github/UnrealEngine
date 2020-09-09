@@ -185,6 +185,10 @@ namespace BuildGraph.Tasks
 			return FindTagNamesFromFilespec(Parameters.Files);
 		}
 
+		/// <summary>
+		/// Finds the tags which are produced by this task
+		/// </summary>
+		/// <returns>The tag names which are produced by this task</returns>
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			return new string[] { };
