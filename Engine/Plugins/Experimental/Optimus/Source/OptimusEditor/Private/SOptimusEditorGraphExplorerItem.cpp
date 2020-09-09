@@ -202,7 +202,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidg
 	}
 }
 
-TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(const FSlateFontInfo& NameFont, FCreateWidgetForActionData* const InCreateData, TAttribute<bool> InbIsReadOnly)
+TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> InbIsReadOnly)
 {
 	FOnVerifyTextChanged OnVerifyTextChanged;
 	FOnTextCommitted OnTextCommitted;
@@ -226,7 +226,6 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(const F
 
 	TSharedPtr<SInlineEditableTextBlock> EditableTextElement = SNew(SInlineEditableTextBlock)
 	    .Text(this, &SOptimusEditorGraphEplorerItem::GetDisplayText)
-	    .Font(NameFont)
 	    .HighlightText(InCreateData->HighlightText)
 	    // .ToolTip(ToolTipWidget)
 	    .OnVerifyTextChanged(OnVerifyTextChanged)

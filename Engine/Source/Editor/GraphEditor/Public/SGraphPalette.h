@@ -42,6 +42,12 @@ protected:
 	/** Create an icon type widget */
 	TSharedRef<SWidget> CreateIconWidget(const FText& IconToolTip, const FSlateBrush* IconBrush, const FSlateColor& IconColor);
 
+	UE_DEPRECATED(5.0, "CreateTextSlotWidget that takes a font parameter is deprecated")
+	virtual TSharedRef<SWidget> CreateTextSlotWidget(const FSlateFontInfo& NameFont, FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bIsReadOnly)
+	{
+		return CreateTextSlotWidget(InCreateData, bIsReadOnly);
+	}
+
 	/* Create the text widget */
 	virtual TSharedRef<SWidget> CreateTextSlotWidget( FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bIsReadOnly );
 
