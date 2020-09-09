@@ -727,14 +727,6 @@ public:
 	{
 		return Compiler->GetVolumeSampleConservativeDensity();
 	}
-	{
-		return Compiler->GetCloudSampleNormAltitudeInLayer();
-	}
-
-	virtual int32 GetVolumeSampleConservativeDensity() override
-	{
-		return Compiler->GetVolumeSampleConservativeDensity();
-	}
 	
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override
 	{

@@ -6964,25 +6964,6 @@ int32 FHLSLMaterialTranslator::GetVolumeSampleConservativeDensity()
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
 }
 
-{
-	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionCloudSampleAltitude(Parameters)"));
-}
-
-int32 FHLSLMaterialTranslator::GetCloudSampleAltitudeInLayer()
-{
-	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionCloudSampleAltitudeInLayer(Parameters)"));
-}
-
-int32 FHLSLMaterialTranslator::GetCloudSampleNormAltitudeInLayer()
-{
-	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionCloudSampleNormAltitudeInLayer(Parameters)"));
-}
-
-int32 FHLSLMaterialTranslator::GetVolumeSampleConservativeDensity()
-{
-	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
-}
-
 int32 FHLSLMaterialTranslator::CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type)
 {
 	check(OutputIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
