@@ -203,7 +203,7 @@ PyObject* FPyMethodWithClosureDef::Call(FPyMethodWithClosureDef* InDef, PyObject
 
 FPyCFunctionWithClosureObject* FPyCFunctionWithClosureObject::New(FPyMethodWithClosureDef* InMethod, PyObject* InSelf, PyObject* InModule)
 {
-	FPyCFunctionWithClosureObject* Self = PyCFunctionWithClosureObjectFreeList->Pop();
+	FPyCFunctionWithClosureObject* Self = PyCFunctionWithClosureObjectFreeList ? PyCFunctionWithClosureObjectFreeList->Pop() : nullptr;
 	if (!Self)
 	{
 		Self = PyObject_GC_New(FPyCFunctionWithClosureObject, &PyCFunctionWithClosureType);
@@ -237,7 +237,7 @@ void FPyCFunctionWithClosureObject::Free(FPyCFunctionWithClosureObject* InSelf)
 	Py_XDECREF(InSelf->ModuleAttr);
 	InSelf->ModuleAttr = nullptr;
 
-	if (!PyCFunctionWithClosureObjectFreeList->Push(InSelf))
+	if (!PyCFunctionWithClosureObjectFreeList || !PyCFunctionWithClosureObjectFreeList->Push(InSelf))
 	{
 		PyObject_GC_Del(InSelf);
 	}
