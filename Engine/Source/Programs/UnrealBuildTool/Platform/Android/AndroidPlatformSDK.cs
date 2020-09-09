@@ -11,9 +11,13 @@ namespace UnrealBuildTool
 {
 	class AndroidPlatformSDK : UEBuildPlatformSDK
 	{
-		public override string GetDesiredVersion()
+		public override string GetRequiredSDKString()
 		{
 			return "-23";
+		}
+		public override string GetDesiredVersion()
+		{
+			return "r21b";
 		}
 
 		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
@@ -114,11 +118,6 @@ namespace UnrealBuildTool
 		protected override bool PlatformSupportsAutoSDKs()
 		{
 			return true;
-		}
-
-		public override string GetRequiredSDKString()
-		{
-			return GetDesiredVersion();
 		}
 
 		protected override String GetRequiredScriptVersionString()
