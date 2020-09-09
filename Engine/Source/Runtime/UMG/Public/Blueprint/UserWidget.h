@@ -1006,6 +1006,15 @@ public:
 	float GetAnimationCurrentTime(const UWidgetAnimation* InAnimation) const;
 
 	/**
+	 * Sets the current time of the animation in this widget. Does not change state.
+	 * 
+	 * @param The name of the animation to get the current time for
+	 * @param The current time of the animation.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface|Animation")
+	void SetAnimationCurrentTime(const UWidgetAnimation* InAnimation, float InTime);
+
+	/**
 	 * Gets whether an animation is currently playing on this widget.
 	 * 
 	 * @param InAnimation The animation to check the playback status of
