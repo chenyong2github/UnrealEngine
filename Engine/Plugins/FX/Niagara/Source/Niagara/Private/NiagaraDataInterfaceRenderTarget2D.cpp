@@ -65,8 +65,9 @@ public:
 			if (Context.IsOutputStage && ProxyData->UAV.IsValid())
 			{
 				OutputUAV = ProxyData->UAV;
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProxyData->RenderTargetToCopyTo);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, OutputUAV);
+				// FIXME: this transition needs to happen in FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage so it doesn't break up the overlap group,
+				// but for some reason it stops working if I move it in there.
+				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
 			}
 			else
 			{
@@ -83,11 +84,10 @@ public:
 			FNiagaraDataInterfaceProxyRenderTarget2DProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTarget2DProxy*>(Context.DataInterface);
 			FRenderTarget2DRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 			OutputParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
-			FRHIUnorderedAccessView* OutputUAV = nullptr;
 			if (ProxyData)
 			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->RenderTargetToCopyTo);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutputUAV);
+				// FIXME: move to FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage, same as for the transition in Set() above.
+				RHICmdList.Transition(FRHITransitionInfo(ProxyData->UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 			}
 		}
 	}
