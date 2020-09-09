@@ -7,17 +7,17 @@
 #include "Common.ush"
 #include "SceneTexturesCommon.ush"
 
-#define DOWNSAMPLE_DEPTH_FILTER_POINT 0
-#define DOWNSAMPLE_DEPTH_FILTER_MAX 1
+// This must match EDownsampleDepthFilter
+#define DOWNSAMPLE_DEPTH_FILTER_POINT		0
+#define DOWNSAMPLE_DEPTH_FILTER_MAX			1
+#define DOWNSAMPLE_DEPTH_FILTER_CBMINMAX	2
 
 Texture2D<float> DepthTexture;
 float4 SourceTexelOffsets01;
 float4 SourceTexelOffsets23;
 float2 SourceMaxUV;
-//MERGE Seb
-//float2 DestinationResolution;
-//uint DepthDownsampleMode; // This must match EDepthDownsampleMode
-uint Filter;
+float2 DestinationResolution;
+uint DownsampleDepthFilter;
 
 float GetDepth(float2 UV)
 {
@@ -31,9 +31,7 @@ void Main(
 {
 	float Depth = 0;
 
-	//MERGE Seb - introduced local to get things to compile
-	const uint DepthDownsampleMode = 0;
-	if (DepthDownsampleMode < 2)
+	if (DownsampleDepthFilter < DOWNSAMPLE_DEPTH_FILTER_CBMINMAX)
 	{
 		// Lookup the four view space Z's of the full resolution pixels corresponding to this low resolution pixel
 		float ViewSpaceZ0 = GetDepth(UV.xy + SourceTexelOffsets01.xy);
@@ -45,20 +43,18 @@ void Main(
 
 		// Max depth shrinks the silhouettes around foreground objects and is conservative for depth testing
 		// Sample 0 has consistent error, use whichever one is requested for this downsample
-		float Depth = Filter == DOWNSAMPLE_DEPTH_FILTER_MAX ? MaxDepth : ViewSpaceZ0;
+		Depth = DownsampleDepthFilter == DOWNSAMPLE_DEPTH_FILTER_MAX ? MaxDepth : ViewSpaceZ0;
 	}
-	else
+	else // DownsampleDepthFilter == DOWNSAMPLE_DEPTH_FILTER_CBMINMAX
 	{
 		// Lookup the four view space Z's of the full resolution pixels corresponding to this low resolution pixel
-		float ViewSpaceZ0 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5 * float2(-1, -1));
-		float ViewSpaceZ1 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5 * float2(-1, 1));
-		float ViewSpaceZ2 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5 * float2(1, -1));
-		float ViewSpaceZ3 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5 * float2(1, 1));
+		float ViewSpaceZ0 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2(-1,-1));
+		float ViewSpaceZ1 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2(-1, 1));
+		float ViewSpaceZ2 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2( 1,-1));
+		float ViewSpaceZ3 = GetDepth(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2( 1, 1));
 
-		float MaxDepth = max(max(ViewSpaceZ0, ViewSpaceZ1), max(ViewSpaceZ2, ViewSpaceZ3));
+		const float MaxDepth = max(max(ViewSpaceZ0, ViewSpaceZ1), max(ViewSpaceZ2, ViewSpaceZ3));
 
-		//MERGE Seb - introdiced local to get things compile
-		const float2 DestinationResolution = float2(1.0f, 1.0f);
 		const float2 Resolution = uint2(DestinationResolution * View.BufferSizeAndInvSize.xy * View.ViewSizeAndInvSize.zw); // need to clamp to respect ratios
 		const uint2 PixelPos = uint2(UV.xy * Resolution);
 

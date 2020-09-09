@@ -156,7 +156,8 @@ public:
 		SHADER_PARAMETER(FVector4, SourceTexelOffsets01)
 		SHADER_PARAMETER(FVector4, SourceTexelOffsets23)
 		SHADER_PARAMETER(FVector2D, SourceMaxUV)
-		SHADER_PARAMETER(uint32, Filter)
+		SHADER_PARAMETER(FVector2D, DestinationResolution)
+		SHADER_PARAMETER(uint32, DownsampleDepthFilter)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -173,7 +174,7 @@ void AddDownsampleDepthPass(
 	const FViewInfo& View,
 	FScreenPassTexture Input,
 	FScreenPassRenderTarget Output,
-	EDownsampleDepthFilter Filter)
+	EDownsampleDepthFilter DownsampleDepthFilter)
 {
 	const FScreenPassTextureViewport InputViewport(Input);
 	const FScreenPassTextureViewport OutputViewport(Output);
@@ -187,10 +188,26 @@ void AddDownsampleDepthPass(
 	PassParameters->SourceTexelOffsets01 = FVector4(0.0f, 0.0f, 1.0f / OutputViewport.Extent.X, 0.0f);
 	PassParameters->SourceTexelOffsets23 = FVector4(0.0f, 1.0f / OutputViewport.Extent.Y, 1.0f / OutputViewport.Extent.X, 1.0f / OutputViewport.Extent.Y);
 	PassParameters->SourceMaxUV = FVector2D((View.ViewRect.Max.X - 0.5f) / InputViewport.Extent.X, (View.ViewRect.Max.Y - 0.5f) / InputViewport.Extent.Y);
-	PassParameters->Filter = (uint32)Filter;
+	PassParameters->DownsampleDepthFilter = (uint32)DownsampleDepthFilter;
+
+	const int32 DownsampledSizeX = OutputViewport.Rect.Width();
+	const int32 DownsampledSizeY = OutputViewport.Rect.Height();
+	PassParameters->DestinationResolution = FVector2D(DownsampledSizeX, DownsampledSizeY);
+
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Output.Texture, Output.LoadAction, Output.LoadAction, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 	FRHIDepthStencilState* DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DownsampleDepth"), View, OutputViewport, InputViewport, VertexShader, PixelShader, DepthStencilState, PassParameters);
+	auto GetDownsampleDepthPassName = [](EDownsampleDepthFilter DownsampleDepthFilter)
+	{
+		switch (DownsampleDepthFilter)
+		{
+		case EDownsampleDepthFilter::Point:						return RDG_EVENT_NAME("DownsampleDepth-Point");
+		case EDownsampleDepthFilter::Max:						return RDG_EVENT_NAME("DownsampleDepth-Max");
+		case EDownsampleDepthFilter::Checkerboard:				return RDG_EVENT_NAME("DownsampleDepth-CheckerMinMax");
+		default:												return RDG_EVENT_NAME("MissingName");
+		}
+	};
+
+	AddDrawScreenPass(GraphBuilder, GetDownsampleDepthPassName(DownsampleDepthFilter), View, OutputViewport, InputViewport, VertexShader, PixelShader, DepthStencilState, PassParameters);
 }
