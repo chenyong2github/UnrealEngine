@@ -10,7 +10,7 @@ namespace UnrealBuildTool
 {
 	internal class MicrosoftPlatformSDK : UEBuildPlatformSDK
 	{
-		public override string GetDesiredVersion()
+		public override string GetMainVersion()
 		{
 			// the current and previous versions of the SDK (technically, NX Add-On), with appended NEX version, we support
 			return "10.0.18632";

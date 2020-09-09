@@ -12,7 +12,7 @@ namespace UnrealBuildTool
 {
 	internal class ApplePlatformSDK : UEBuildPlatformSDK
 	{
-		public override string GetDesiredVersion()
+		public override string GetMainVersion()
 		{
 			return "11.5";
 		}

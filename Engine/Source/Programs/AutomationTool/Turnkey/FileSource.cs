@@ -277,7 +277,7 @@ namespace Turnkey
 				if (Type == SourceType.AutoSdk)
 				{
 					UInt64 AutoSdkVersion;
-					if (SDK.TryConvertVersionToInt(SDK.GetDesiredVersion(), out AutoSdkVersion))
+					if (SDK.TryConvertVersionToInt(SDK.GetMainVersion(), out AutoSdkVersion))
 					{
 						Best = Sdks.FirstOrDefault(x => { UInt64 IntVer; return SDK.TryConvertVersionToInt(x.Version, out IntVer) && IntVer == AutoSdkVersion; });
 					}

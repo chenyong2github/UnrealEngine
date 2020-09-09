@@ -100,16 +100,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns the respective platform sdk version string
-		/// </summary>
-		/// <param name="Platform">The target platform to query</param>
-		public static string GetRequiredSDKString(UnrealTargetPlatform Platform)
-		{
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform, false);
-			return BuildPlatform.GetRequiredSDKString();
-		}
-
-		/// <summary>
 		/// Check whether the given platform supports XGE
 		/// </summary>
 		/// <param name="Platform">Platform to check</param>

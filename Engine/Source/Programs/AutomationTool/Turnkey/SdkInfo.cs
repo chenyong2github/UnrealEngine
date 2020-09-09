@@ -61,7 +61,7 @@ namespace Turnkey
 					foreach (DirectoryInfo Dir in PlatformDir.EnumerateDirectories())
 					{
 						// check for valid version number (auto SDK must match version exactly)
-						if (string.Compare(Dir.Name, SDK.GetRequiredSDKString()) == 0)
+						if (string.Compare(Dir.Name, SDK.GetAutoSDKDirectoryForMasterVersion()) == 0)
 						{
 							// make sure it actually has buits in it
 							if (File.Exists(Path.Combine(Dir.FullName, "setup.bat")))

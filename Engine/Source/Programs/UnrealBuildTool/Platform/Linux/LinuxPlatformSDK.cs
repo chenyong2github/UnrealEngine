@@ -10,7 +10,7 @@ namespace UnrealBuildTool
 {
 	class LinuxPlatformSDK : UEBuildPlatformSDK
 	{
-		public override string GetDesiredVersion()
+		public override string GetMainVersion()
 		{
 			return "v16_clang-9.0.1-centos7";
 		}
@@ -114,29 +114,20 @@ namespace UnrealBuildTool
 			string SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
 			if (!String.IsNullOrEmpty(SDKRoot))
 			{
-				string AutoSDKPath = Path.Combine(SDKRoot, "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName, GetDesiredVersion(), LinuxPlatform.DefaultHostArchitecture);
+				string AutoSDKPath = Path.Combine(SDKRoot, "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName, GetAutoSDKDirectoryForMasterVersion(), LinuxPlatform.DefaultHostArchitecture);
 				if (DirectoryReference.Exists(new DirectoryReference(AutoSDKPath)))
 				{
 					return AutoSDKPath;
 				}
 			}
 
-			string InTreeSDKPath = Path.Combine(LinuxPlatformSDK.GetInTreeSDKRoot().FullName, GetDesiredVersion(), LinuxPlatform.DefaultHostArchitecture);
+			string InTreeSDKPath = Path.Combine(LinuxPlatformSDK.GetInTreeSDKRoot().FullName, GetMainVersion(), LinuxPlatform.DefaultHostArchitecture);
 			if (DirectoryReference.Exists(new DirectoryReference(InTreeSDKPath)))
 			{
 				return InTreeSDKPath;
 			}
 
 			return null;
-		}
-
-		/// <summary>
-		/// Returns SDK string as required by the platform
-		/// </summary>
-		/// <returns>Valid SDK string</returns>
-		public override string GetRequiredSDKString()
-		{
-			return GetDesiredVersion();
 		}
 
 		protected override String GetRequiredScriptVersionString()
@@ -209,7 +200,7 @@ namespace UnrealBuildTool
 				DirectoryReference InTreeSDKVersionRoot = GetInTreeSDKRoot();
 				if (InTreeSDKVersionRoot != null)
 				{
-					DirectoryReference InTreeSDKVersionPath = DirectoryReference.Combine(InTreeSDKVersionRoot, GetDesiredVersion());
+					DirectoryReference InTreeSDKVersionPath = DirectoryReference.Combine(InTreeSDKVersionRoot, GetMainVersion());
 					if (DirectoryReference.Exists(InTreeSDKVersionPath))
 					{
 						MultiArchRoot = InTreeSDKVersionPath.FullName;

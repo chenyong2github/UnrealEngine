@@ -121,7 +121,7 @@ namespace Tools.DotNETCommon
 			if (PlatformSupportsAutoSDKs())
 			{
 				// we don't need ask the platform for the installed version because we know the AutoSDK version has to match the DesiredVersion if it was setup properly
-				//AutoSDKVersion = (HasRequiredAutoSDKInstalled() == SDKStatus.Valid) ? GetDesiredVersion() : null;
+				//AutoSDKVersion = (HasRequiredAutoSDKInstalled() == SDKStatus.Valid) ? GetMainVersion() : null;
 				AutoSDKVersion = GetInstalledSDKVersion();
 			}
 			else
@@ -162,10 +162,27 @@ namespace Tools.DotNETCommon
 		/// Return the SDK version that the platform wants to use (AutoSDK dir must match this, full SDKs can be in a valid range)
 		/// </summary>
 		/// <returns></returns>
-		public virtual string GetDesiredVersion()
+		public abstract string GetMainVersion();
+
+		/// <summary>
+		/// Gets the valid string range of Sdk versions. TryConvertVersionToInt() will need to succeed to make this usable for range checks
+		/// </summary>
+		/// <param name="MinVersion">Smallest version allowed</param>
+		/// <param name="MaxVersion">Largest version allowed (inclusive)</param>
+		/// <returns>True if the versions are valid, false if the platform is unable to convert its versions into an integer</returns>
+		public abstract void GetValidVersionRange(out string MinVersion, out string MaxVersion);
+
+		/// <summary>
+		/// For a platform that doesn't use properly named AutoSDK directories, the directory name may not be convertible to an integer,
+		/// and IsVersionValid checks could fail when checking AutoSDK version for an exact match. GetMainVersion() would return the 
+		/// proper, integer-convertible version number of the SDK inside of the directory returned by GetAutoSDKDirectoryForMasterVersion()
+		/// </summary>
+		/// <returns></returns>
+		public virtual string GetAutoSDKDirectoryForMasterVersion()
 		{
-			return GetRequiredSDKString();
+			return GetMainVersion();
 		}
+
 
 		/// <summary>
 		/// Gets the valid (integer) range of Sdk versions. Must be an integer to easily check a range vs a particular version
@@ -188,19 +205,6 @@ namespace Tools.DotNETCommon
 			return false;
 		}
 
-		/// <summary>
-		/// Gets the valid string range of Sdk versions. TryConvertVersionToInt() will need to succeed to make this usable for range checks
-		/// </summary>
-		/// <param name="MinVersion">Smallest version allowed</param>
-		/// <param name="MaxVersion">Largest version allowed (inclusive)</param>
-		/// <returns>True if the versions are valid, false if the platform is unable to convert its versions into an integer</returns>
-		public virtual void GetValidVersionRange(out string MinVersion, out string MaxVersion)
-		{
-			// @todo turnkey make this abstract?
-			// by default, use GetDesiredVersion() to min and max
-			MinVersion = MaxVersion = GetDesiredVersion();
-		}
-
 		// Let platform override behavior to determine if a version is a valid (useful for non-numeric versions)
 		public virtual bool IsVersionValidInternal(string Version, bool bForAutoSDK)
 		{
@@ -218,7 +222,7 @@ namespace Tools.DotNETCommon
 			}
 
 			UInt64 DesiredVersion;
-			if (!TryConvertVersionToInt(GetDesiredVersion(), out DesiredVersion))
+			if (!TryConvertVersionToInt(GetMainVersion(), out DesiredVersion))
 			{
 				return false;
 			}
@@ -361,15 +365,6 @@ namespace Tools.DotNETCommon
 		protected bool IsAutoSDKSafe()
 		{
 			return !IsAutoSDKDestructive() || !HasAnyManualInstall();
-		}
-
-		/// <summary>
-		/// Returns SDK string as required by the platform
-		/// </summary>
-		/// <returns>Valid SDK string</returns>
-		public virtual string GetRequiredSDKString()
-		{
-			return "";
 		}
 
 		/// <summary>
@@ -525,7 +520,7 @@ namespace Tools.DotNETCommon
 		{
 			if (PlatformSupportsAutoSDKs() && HasAutoSDKSystemEnabled())
 			{
-				String InstalledSDKVersionString = GetRequiredSDKString();
+				String InstalledSDKVersionString = GetAutoSDKDirectoryForMasterVersion();
 				String PlatformSDKRoot = GetPathToPlatformAutoSDKs();
                 if (!Directory.Exists(PlatformSDKRoot))
                 {
@@ -877,7 +872,7 @@ namespace Tools.DotNETCommon
 					bool bEnvVarFileExists = File.Exists(EnvVarFile);
 
 					string CurrentSDKString;
-					if (bEnvVarFileExists && GetCurrentlyInstalledSDKString(AutoSDKRoot, out CurrentSDKString) && CurrentSDKString == GetRequiredSDKString() && bScriptVersionMatches)
+					if (bEnvVarFileExists && GetCurrentlyInstalledSDKString(AutoSDKRoot, out CurrentSDKString) && CurrentSDKString == GetAutoSDKDirectoryForMasterVersion() && bScriptVersionMatches)
 					{
 						return SDKStatus.Valid;
 					}
@@ -985,22 +980,22 @@ namespace Tools.DotNETCommon
 					// delete Manifest file to avoid multiple uninstalls
 					InvalidateCurrentlyInstalledAutoSDK();
 
-					if (!RunAutoSDKHooks(AutoSDKRoot, GetRequiredSDKString(), SDKHookType.Install, false))
+					if (!RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMasterVersion(), SDKHookType.Install, false))
 					{
-						Log.TraceLog("Failed to install required SDK {0}.  Attemping to uninstall", GetRequiredSDKString());
-						RunAutoSDKHooks(AutoSDKRoot, GetRequiredSDKString(), SDKHookType.Uninstall, false);
+						Log.TraceLog("Failed to install required SDK {0}.  Attemping to uninstall", GetAutoSDKDirectoryForMasterVersion());
+						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMasterVersion(), SDKHookType.Uninstall, false);
 						return;
 					}
 
 					string EnvVarFile = Path.Combine(AutoSDKRoot, SDKEnvironmentVarsFile);
 					if (!File.Exists(EnvVarFile))
 					{
-						Log.TraceLog("Installation of required SDK {0}.  Did not generate Environment file {1}", GetRequiredSDKString(), EnvVarFile);
-						RunAutoSDKHooks(AutoSDKRoot, GetRequiredSDKString(), SDKHookType.Uninstall, false);
+						Log.TraceLog("Installation of required SDK {0}.  Did not generate Environment file {1}", GetAutoSDKDirectoryForMasterVersion(), EnvVarFile);
+						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMasterVersion(), SDKHookType.Uninstall, false);
 						return;
 					}
 
-					SetCurrentlyInstalledAutoSDKString(GetRequiredSDKString());
+					SetCurrentlyInstalledAutoSDKString(GetAutoSDKDirectoryForMasterVersion());
 					SetLastRunAutoSDKScriptVersion(GetRequiredScriptVersionString());
 				}
 
@@ -1032,7 +1027,7 @@ namespace Tools.DotNETCommon
 			// load environment variables from current SDK
 			if (!SetupEnvironmentFromAutoSDK(PlatformSDKRoot))
 			{
-				Log.TraceLog("Failed to load environment from required SDK {0}", GetRequiredSDKString());
+				Log.TraceLog("Failed to load environment from required SDK {0}", GetAutoSDKDirectoryForMasterVersion());
 				InvalidateCurrentlyInstalledAutoSDK();
 				return SDKStatus.Invalid;
 			}

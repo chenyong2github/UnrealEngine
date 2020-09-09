@@ -11,17 +11,15 @@ namespace UnrealBuildTool
 	class LuminPlatformSDK : UEBuildPlatformSDK
 	{
 
-		public override string GetDesiredVersion()
+		public override string GetMainVersion()
 		{
 			return "0.23";
 		}
 
-		// not needed just returning GetDesiredVersion()
-		// 		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
-		// 		{
-		// 			MinVersion = "0.23";
-		// 			MaxVersion = "0.23";
-		// 		}
+ 		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+		{
+			MinVersion = MaxVersion = GetMainVersion();
+		}
 
 
 		public override string GetInstalledSDKVersion()
@@ -84,11 +82,6 @@ namespace UnrealBuildTool
 		protected override bool PlatformSupportsAutoSDKs()
 		{
 			return true;
-		}
-
-		public override string GetRequiredSDKString()
-		{
-			return GetDesiredVersion();
 		}
 
 		protected override String GetRequiredScriptVersionString()
