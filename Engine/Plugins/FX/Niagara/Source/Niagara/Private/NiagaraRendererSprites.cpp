@@ -295,6 +295,10 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 		check(SourceMode <= ENiagaraRendererSourceDataMode::Emitter);
 	}
 
+	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
+	bool bCustomAlignmentSet = false;
+	bool bCustomFacingSet = false;
+
 	if (bSetAnyBoundVars && DynamicDataSprites)
 	{
 		for (int32 i = 0; i < ENiagaraSpriteVFLayout::Type::Num; i++)
@@ -320,24 +324,30 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 					break;
 				case ENiagaraSpriteVFLayout::Type::Facing:
 					memcpy(&PerViewUniformParameters.DefaultFacing, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector));
+					bCustomFacingSet = true;
 					break;
 				case ENiagaraSpriteVFLayout::Type::Alignment:
 					memcpy(&PerViewUniformParameters.DefaultAlignment, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector));
+					bCustomAlignmentSet = true;
 					break;
 				case ENiagaraSpriteVFLayout::Type::SubImage:
 					memcpy(&PerViewUniformParameters.DefaultSubImage, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(float));
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialParam0:
 					memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter0, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					PerViewUniformParameters.MaterialParamValidMask |= 0x1;
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialParam1:
 					memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter1, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					PerViewUniformParameters.MaterialParamValidMask |= 0x2;
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialParam2:
 					memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter2, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					PerViewUniformParameters.MaterialParamValidMask |= 0x4;
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialParam3:
 					memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter3, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					PerViewUniformParameters.MaterialParamValidMask |= 0x8;
 					break;
 				case ENiagaraSpriteVFLayout::Type::CameraOffset:
 					memcpy(&PerViewUniformParameters.DefaultCamOffset, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(float));
@@ -360,20 +370,19 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	}
 
 	PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
-	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 
 	{
 		ENiagaraSpriteFacingMode ActualFacingMode = FacingMode;
 		ENiagaraSpriteAlignment ActualAlignmentMode = Alignment;
 
 		const int32 FacingOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? PerViewUniformParameters.FacingDataOffset : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Facing];
-		if (FacingOffset == -1 && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector)
+		if (FacingOffset == INDEX_NONE && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector && !bCustomFacingSet)
 		{
 			ActualFacingMode = ENiagaraSpriteFacingMode::FaceCamera;
 		}
 
 		const int32 AlignmentOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? PerViewUniformParameters.AlignmentDataOffset : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Alignment];
-		if (AlignmentOffset == -1 && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
+		if (AlignmentOffset == INDEX_NONE && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment && !bCustomAlignmentSet)
 		{
 			ActualAlignmentMode = ENiagaraSpriteAlignment::Unaligned;
 		}
@@ -572,14 +581,18 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 
 	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
 	{
-		const int32 FacingOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset() : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Facing];
-		if (FacingOffset == -1 && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector )
+		int32 FacingOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset() : INDEX_NONE;
+		if (FacingOffset == INDEX_NONE)
+			FacingOffset = VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Facing];
+		if (FacingOffset == INDEX_NONE && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector )
 		{
 			ActualFacingMode = ENiagaraSpriteFacingMode::FaceCamera;
 		}
 
-		const int32 AlignmentOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset() : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Alignment];
-		if (AlignmentOffset == -1 && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
+		int32 AlignmentOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset() : INDEX_NONE;
+		if (AlignmentOffset == INDEX_NONE)
+			AlignmentOffset = VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Alignment];
+		if (AlignmentOffset == INDEX_NONE && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
 		{
 			ActualAlignmentMode = ENiagaraSpriteAlignment::Unaligned;
 		}
