@@ -1373,6 +1373,13 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 						if(Visualizer.IsValid())
 						{
 							VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
+
+							// If there is an undo/redo operation in progress, the edited component may be restored
+							// so set the active component visualizer accordingly.
+							if (GIsTransacting && Visualizer->GetEditedComponent() == Comp)
+							{
+								ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, Visualizer);
+							}
 						}
 					}
 				}
