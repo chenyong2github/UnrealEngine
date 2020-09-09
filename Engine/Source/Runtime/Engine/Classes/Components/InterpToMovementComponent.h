@@ -188,6 +188,7 @@ class ENGINE_API UInterpToMovementComponent : public UMovementComponent
 	TArray<FInterpControlPoint> ControlPoints;
 		
 	/* Add a control point that represents a position. */
+	UFUNCTION(BlueprintCallable, Category = "Control")
 	virtual void AddControlPointPosition(FVector Pos, bool bPositionIsRelative = true);
 	
 	/* Reset to start. Sets time to zero and direction to 1.  */
@@ -199,6 +200,7 @@ class ENGINE_API UInterpToMovementComponent : public UMovementComponent
 	void FinaliseControlPoints();
 
 	/* Clear the control points array and set to stopped. */
+	UFUNCTION(BlueprintCallable, Category = "Control")
 	void ResetControlPoints();
 
 #if WITH_EDITOR
