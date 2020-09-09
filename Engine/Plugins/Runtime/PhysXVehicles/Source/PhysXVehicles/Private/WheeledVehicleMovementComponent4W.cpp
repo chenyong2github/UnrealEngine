@@ -5,6 +5,8 @@
 
 #include "PhysXPublic.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UWheeledVehicleMovementComponent4W::UWheeledVehicleMovementComponent4W(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 #if PHYSICS_INTERFACE_PHYSX
@@ -425,3 +427,4 @@ void UWheeledVehicleMovementComponent4W::ComputeConstants()
 	MaxEngineRPM = EngineSetup.MaxRPM;
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

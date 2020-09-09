@@ -10,8 +10,10 @@
 #include "WheeledVehicleMovementComponent.h"
 #include "SimpleWheeledVehicleMovementComponent.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UCLASS(ClassGroup = (Physics), meta = (BlueprintSpawnableComponent), hidecategories = (PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
-class PHYSXVEHICLES_API USimpleWheeledVehicleMovementComponent : public UWheeledVehicleMovementComponent
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the UChaosWheeledVehicleMovementComponent from the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API USimpleWheeledVehicleMovementComponent : public UWheeledVehicleMovementComponent
 {
 	GENERATED_BODY()
 public:
@@ -36,3 +38,6 @@ protected:
 
 #endif // WITH_PHYSX
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

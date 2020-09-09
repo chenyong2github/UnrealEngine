@@ -6,6 +6,8 @@
 #include "WheeledVehicleMovementComponent.h"
 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /////////////////////////////////////////////////////
 // FAnimNode_WheelHandler
 
@@ -133,3 +135,5 @@ void FAnimNode_WheelHandler::Initialize_AnyThread(const FAnimationInitializeCont
 {
 	AnimInstanceProxy = (FVehicleAnimInstanceProxy*)Context.AnimInstanceProxy;	//TODO: This is cached for now because we need it in eval bone transforms.
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
