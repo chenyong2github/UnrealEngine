@@ -48,6 +48,11 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleBounds_SetFixedBounds;
 	TSharedPtr<FUICommandInfo> SaveThumbnailImage;
 
+	TSharedPtr<FUICommandInfo> ToggleStatPerformance;
+	TSharedPtr<FUICommandInfo> ClearStatPerformance;
+	TSharedPtr<FUICommandInfo> ToggleStatPerformanceTypeAvg;
+	TSharedPtr<FUICommandInfo> ToggleStatPerformanceTypeMax;
+	
 	TSharedPtr<FUICommandInfo> ToggleAutoPlay;
 	TSharedPtr<FUICommandInfo> ToggleResetSimulationOnChange;
 	TSharedPtr<FUICommandInfo> ToggleResimulateOnChangeWhilePaused;

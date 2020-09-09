@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEmitterInstance.h"
-#include "Engine/Engine.h"
-#include "Materials/Material.h"
-#include "VectorVM.h"
 #include "NiagaraStats.h"
 #include "NiagaraConstants.h"
 #include "NiagaraRenderer.h"
@@ -12,7 +9,6 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraScriptExecutionContext.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraComponentSettings.h"
@@ -975,6 +971,14 @@ void FNiagaraEmitterInstance::PostTick()
 			CachedBounds = CachedEmitter->FixedBounds;
 		}
 	}
+
+#if STATS
+	if (UNiagaraEmitter* Emitter = GetCachedEmitter())
+	{
+		Emitter->AddStatCapture(TTuple<uint64, ENiagaraScriptUsage>((uint64)this, ENiagaraScriptUsage::ParticleSpawnScript), GetSpawnExecutionContext().ReportStats());
+		Emitter->AddStatCapture(TTuple<uint64, ENiagaraScriptUsage>((uint64)this, ENiagaraScriptUsage::ParticleUpdateScript), GetUpdateExecutionContext().ReportStats());
+	}
+#endif
 }
 
 bool FNiagaraEmitterInstance::HandleCompletion(bool bForce)

@@ -9,17 +9,14 @@
 #include "NiagaraObjectSelection.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraScriptInputCollectionViewModel.h"
-#include "NiagaraScriptOutputCollectionViewModel.h"
 #include "Widgets/SNiagaraScriptGraph.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
-#include "SNiagaraParameterCollection.h"
 #include "UObject/Package.h"
 #include "Widgets/SNiagaraParameterMapView.h"
 #include "Widgets/SNiagaraParameterPanel.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSystem.h"
 #include "BusyCursor.h"
-#include "EngineGlobals.h"
 #include "Misc/FeedbackContext.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
@@ -29,7 +26,6 @@
 #include "NiagaraGraph.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraNodeOutput.h"
-#include "NiagaraModule.h"
 
 #include "Modules/ModuleManager.h"
 
@@ -37,7 +33,6 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Misc/MessageDialog.h"
-#include "Customizations/NiagaraScriptDetails.h"
 #include "PropertyEditorModule.h"
 
 #include "Developer/MessageLog/Public/IMessageLogListing.h"
@@ -45,7 +40,6 @@
 #include "Developer/MessageLog/Public/MessageLogModule.h"
 
 #include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
-#include "NiagaraMessageManager.h"
 #include "NiagaraStandaloneScriptViewModel.h"
 #include "NiagaraMessageLogViewModel.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
