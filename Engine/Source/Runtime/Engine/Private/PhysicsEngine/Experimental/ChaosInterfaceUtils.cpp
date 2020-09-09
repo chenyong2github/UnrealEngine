@@ -459,21 +459,26 @@ namespace ChaosInterface
 		OutProperties.CenterOfMass = TotalCenterOfMass;
 	}
 
-	void CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const Chaos::FShapesArray& InShapes, float InDensityKGPerCM)
+	void CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, float InDensityKGPerCM)
 	{
 		float TotalMass = 0.f;
 		Chaos::FVec3 TotalCenterOfMass(0.f);
 		TArray< Chaos::TMassProperties<float, 3> > MassPropertiesList;
-		for (const TUniquePtr<Chaos::FPerShapeData>& Shape : InShapes)
+		for (int32 ShapeIndex = 0; ShapeIndex < InShapes.Num(); ++ShapeIndex)
 		{
-			if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
+			const TUniquePtr<Chaos::FPerShapeData>& Shape = InShapes[ShapeIndex];
+			const bool bHassMass = (ShapeIndex < bContributesToMass.Num())? bContributesToMass[ShapeIndex] : true;
+			if (bHassMass)
 			{
-				Chaos::TMassProperties<float, 3> MassProperties;
-				if (CalculateMassPropertiesOfImplicitType(MassProperties, FTransform::Identity, ImplicitObject, InDensityKGPerCM))
+				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
 				{
-					MassPropertiesList.Add(MassProperties);
-					TotalMass += MassProperties.Mass;
-					TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
+					Chaos::TMassProperties<float, 3> MassProperties;
+					if (CalculateMassPropertiesOfImplicitType(MassProperties, FTransform::Identity, ImplicitObject, InDensityKGPerCM))
+					{
+						MassPropertiesList.Add(MassProperties);
+						TotalMass += MassProperties.Mass;
+						TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
+					}
 				}
 			}
 		}
