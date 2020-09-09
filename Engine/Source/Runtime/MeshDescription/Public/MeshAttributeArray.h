@@ -132,6 +132,18 @@ public:
 		}
 	}
 
+	void SetNum(const int32 ElementCount, const AttributeType& Default)
+	{
+		if (Container.Num() >= ElementCount)
+		{
+			Container.SetNum(ElementCount);
+		}
+		else
+		{
+			Initialize(ElementCount, Default);
+		}
+	}
+
 	uint32 GetHash(uint32 Crc = 0) const
 	{
 		return FCrc::MemCrc32(Container.GetData(), Container.Num() * sizeof(AttributeType), Crc);
@@ -306,6 +318,7 @@ public:
 	virtual void Insert(const int32 Index) = 0;
 	virtual void Remove(const int32 Index) = 0;
 	virtual void Initialize(const int32 Count) = 0;
+	virtual void SetNumElements(const int32 Count) = 0;
 	virtual uint32 GetHash() const = 0;
 	virtual void Serialize(FArchive& Ar) = 0;
 	virtual void Remap(const TSparseArray<int32>& IndexRemap) = 0;
@@ -415,6 +428,16 @@ public:
 		for (TMeshAttributeArrayBase<AttributeType>& ArrayForChannel : ArrayForChannels)
 		{
 			ArrayForChannel.Initialize(Count, DefaultValue);
+		}
+	}
+
+	/** Sets the number of elements to the exact number provided, preserving existing elements if the number is bigger */
+	virtual void SetNumElements(const int32 Count) override
+	{
+		NumElements = Count;
+		for (TMeshAttributeArrayBase<AttributeType>& ArrayForChannel : ArrayForChannels)
+		{
+			ArrayForChannel.SetNum(Count, DefaultValue);
 		}
 	}
 
@@ -1196,6 +1219,22 @@ public:
 		{
 			MapEntry.Value->Initialize(Count);
 		}
+	}
+
+	/** Sets all attributes to have the given number of elements, preserving existing values and filling extra elements with the default value */
+	void SetNumElements(const int32 Count)
+	{
+		NumElements = Count;
+		for (auto& MapEntry : Map)
+		{
+			MapEntry.Value->SetNumElements(Count);
+		}
+	}
+
+	/** Gets the number of elements in the attribute set */
+	int32 GetNumElements() const
+	{
+		return NumElements;
 	}
 
 	/** Applies the given remapping to the attributes set */

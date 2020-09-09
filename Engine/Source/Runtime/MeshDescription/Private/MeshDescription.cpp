@@ -328,9 +328,38 @@ struct FMeshPolygonGroup_Legacy
 };
 
 
+template <typename T>
+void FixAttributesSize(int32 ExpectedNum, TAttributesSet<T>& AttributesSet)
+{
+	// Ensure that the attribute set is the same size as the mesh element array they describe
+	// If there are extra elements, and they are not set to trivial defaults, this is an error.
+	bool bAllDefault = true;
+	AttributesSet.ForEach([ExpectedNum, &bAllDefault](const FName AttributeName, auto AttributesConstRef)
+		{
+			if (bAllDefault)
+			{
+				for (int32 Channel = 0; Channel < AttributesConstRef.GetNumChannels(); Channel++)
+				{
+					for (int32 Index = ExpectedNum; Index < AttributesConstRef.GetNumElements(); Index++)
+					{
+						if (AttributesConstRef.Get(T(Index), Channel) != AttributesConstRef.GetDefaultValue())
+						{
+							bAllDefault = false;
+							break;
+						}
+					}
+				}
+			}
+		}
+	);
+
+	check(bAllDefault);	// If this fires, something is very wrong with the legacy asset
+	AttributesSet.SetNumElements(ExpectedNum);
+}
+
 void FMeshDescription::SerializeLegacy(FArchive& Ar)
 {
-	TMeshElementArray<FMeshVertex_Legacy, FVertexID> VertexArray;
+	TMeshElementArray<FMeshVertex_Legacy, FVertexID> VertexArray; 
 	TMeshElementArray<FMeshVertexInstance_Legacy, FVertexInstanceID> VertexInstanceArray;
 	TMeshElementArray<FMeshEdge_Legacy, FEdgeID> EdgeArray;
 	TMeshElementArray<FMeshTriangle_Legacy, FTriangleID> TriangleArray;
@@ -356,11 +385,19 @@ void FMeshDescription::SerializeLegacy(FArchive& Ar)
 	Ar << PolygonAttributesSet;
 	Ar << PolygonGroupAttributesSet;
 
+	FixAttributesSize(VertexArray.GetArraySize(), VertexAttributesSet);
+	FixAttributesSize(VertexInstanceArray.GetArraySize(), VertexInstanceAttributesSet);
+	FixAttributesSize(EdgeArray.GetArraySize(), EdgeAttributesSet);
+	FixAttributesSize(PolygonArray.GetArraySize(), PolygonAttributesSet);
+	FixAttributesSize(PolygonGroupArray.GetArraySize(), PolygonGroupAttributesSet);
+
 	// Serialize new triangle arrays since version MeshDescriptionTriangles
 	if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::MeshDescriptionTriangles)
 	{
 		Ar << TriangleArray;
 		Ar << TriangleAttributesSet;
+
+		FixAttributesSize(TriangleArray.GetArraySize(), TriangleAttributesSet);
 	}
 
 	// Convert the old style element arrays into the new format
