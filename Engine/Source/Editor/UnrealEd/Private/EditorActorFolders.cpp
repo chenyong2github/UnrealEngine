@@ -176,10 +176,6 @@ void FActorFolders::OnActorFolderChanged(const AActor* InActor, FName OldPath)
 	{
 		OnFolderCreate.Broadcast(*World, NewPath);
 	}
-	else
-	{
-		Transaction.Cancel();
-	}
 }
 
 void FActorFolders::RebuildFolderListForWorld(UWorld& InWorld)
@@ -417,10 +413,6 @@ void FActorFolders::CreateFolder(UWorld& InWorld, FName Path)
 	if (AddFolderToWorld(InWorld, Path))
 	{
 		OnFolderCreate.Broadcast(InWorld, Path);
-	}
-	else
-	{
-		Transaction.Cancel();
 	}
 }
 
