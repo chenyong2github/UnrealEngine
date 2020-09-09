@@ -1527,7 +1527,7 @@ void SLevelEditor::RefreshEditorModeCommands()
 				Commands.EditorModeCommands[CommandIndex],
 				FExecuteAction::CreateStatic( &SLevelEditor::ToggleEditorMode, Mode.ID ),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP( GetEditorModeManager().AsShared(), &FEditorModeTools::IsModeActive, Mode.ID ));
+				FIsActionChecked::CreateStatic( &SLevelEditor::IsModeActive, Mode.ID ));
 		}
 
 		CommandIndex++;

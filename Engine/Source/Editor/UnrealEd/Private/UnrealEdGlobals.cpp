@@ -46,7 +46,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogUnrealEd, Log, All);
  */
 namespace Internal
 {
-	static TSharedPtr<FEditorModeTools> GetGlobalModeManager()
+	static TSharedPtr<FEditorModeTools>& GetGlobalModeManager()
 	{
 		static TSharedPtr<FEditorModeTools> EditorModeToolsSingleton = MakeShared<FEditorModeTools>();
 		return EditorModeToolsSingleton;
