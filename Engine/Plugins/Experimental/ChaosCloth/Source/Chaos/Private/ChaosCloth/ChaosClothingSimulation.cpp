@@ -318,6 +318,12 @@ void FClothingSimulation::GetSimulationData(
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothGetSimulationData);
 
+	if (!Cloths.Num() || !InOwnerComponent)
+	{
+		OutData.Reset();
+		return;
+	}
+
 	// Reset map when new cloths have appeared
 	if (OutData.Num() != Cloths.Num())
 	{
@@ -332,6 +338,12 @@ void FClothingSimulation::GetSimulationData(
 	{
 		const int32 AssetIndex = Cloth->GetGroupId();
 		FClothSimulData& Data = OutData.FindOrAdd(AssetIndex);
+
+		if (Cloth->GetLODIndex(Solver.Get()) == INDEX_NONE || Cloth->GetOffset(Solver.Get()) == INDEX_NONE)
+		{
+			Data.Reset();
+			continue;
+		}
 
 		// Output data in component space
 		Data.ComponentRelativeTransform = FTransform::Identity;
