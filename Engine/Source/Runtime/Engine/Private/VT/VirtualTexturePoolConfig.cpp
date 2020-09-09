@@ -29,7 +29,7 @@ void UVirtualTexturePoolConfig::FindPoolConfig(TEnumAsByte<EPixelFormat> const* 
 			if (bAllFormatsMatch)
 			{
 				OutConfig = Config;
-				const float Scale = Config.bAllowSizeScale ? VirtualTextureScalability::GetPoolSizeScale() : 1.f;
+				const float Scale = Config.bAllowSizeScale ? VirtualTextureScalability::GetPoolSizeScale(Config.ScalabilityGroup) : 1.f;
 				OutConfig.SizeInMegabyte = (int32)(Scale * (float)OutConfig.SizeInMegabyte);
 				return;
 			}

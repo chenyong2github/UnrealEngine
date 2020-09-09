@@ -135,7 +135,7 @@ namespace VirtualHeightfieldMesh
 		URuntimeVirtualTexture const* VirtualTexture = InComponent->GetVirtualTexture();
 
 		FVTProducerDescription VTDesc;
-		VirtualTexture->GetProducerDescription(VTDesc, Transform);
+		VirtualTexture->GetProducerDescription(VTDesc, URuntimeVirtualTexture::FInitSettings(), Transform);
 
 		const int32 TileSize = VTDesc.TileSize;
 		const int32 MaxLevel = VTDesc.MaxLevel;

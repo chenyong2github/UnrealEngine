@@ -8,6 +8,7 @@
 #include "VT/RuntimeVirtualTextureProducer.h"
 #include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureBuilder.h"
+#include "VT/VirtualTextureScalability.h"
 
 int32 FRuntimeVirtualTextureSceneProxy::ProducerIdGenerator = 1;
 
@@ -23,13 +24,16 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		// We will need the SceneIndex to determine which primitives should render to this Producer.
 		ProducerId = ProducerIdGenerator++;
 
+		URuntimeVirtualTexture::FInitSettings InitSettings;
+		InitSettings.TileCountBias = InComponent->IsScalable() ? VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias(InComponent->GetScalabilityGroup()) : 0;
+
 		VirtualTexture = InComponent->GetVirtualTexture();
 		Transform = InComponent->GetComponentTransform();
 		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		// The producer description is calculated using the transform to determine the aspect ratio
 		FVTProducerDescription Desc;
-		VirtualTexture->GetProducerDescription(Desc, Transform);
+		VirtualTexture->GetProducerDescription(Desc, InitSettings, Transform);
 		VirtualTextureSize = FIntPoint(Desc.BlockWidthInTiles * Desc.TileSize, Desc.BlockHeightInTiles * Desc.TileSize);
 		// We only need to dirty flush up to the producer description MaxLevel which accounts for the RemoveLowMips
 		MaxDirtyLevel = Desc.MaxLevel;
@@ -53,7 +57,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		}
 
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
-		VirtualTexture->Initialize(Producer, Transform, Bounds);
+		VirtualTexture->Initialize(Producer, InitSettings, Transform, Bounds);
 	}
 }
 
