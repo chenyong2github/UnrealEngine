@@ -22,8 +22,15 @@ export class SyntaxErrorOnUnknownBranch extends SimpleMainAndReleaseTestBase {
 		.then(() => P4Util.submit(releaseClient, 'Edit with command\n#robomerge somebranch'))
 	}
 
+// @todo add code to fix syntax error and retry, make sure unblocks and updates source node Slack message
+// latter is probably only broken in case where there's also an edge blockage
+
 	async verify() {
 		return this.ensureBlocked('Release')
+	}
+
+	allowSyntaxErrors() {
+		return true
 	}
 
 	private mainClient: P4Client

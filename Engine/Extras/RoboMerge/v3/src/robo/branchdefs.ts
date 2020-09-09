@@ -17,7 +17,7 @@ export interface BotConfig {
 	slackChannel: string
 	reportToBuildHealth: boolean
 	mirrorPath: string[]
-	alias: string // alias if we need to make name of bot in commands
+	alias: string // alias if we need to mask name of bot in commands
 	emailDomainWhitelist: string[]
 
 	macros: { [name: string]: string[] }
