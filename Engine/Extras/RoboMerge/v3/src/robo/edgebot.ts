@@ -17,6 +17,7 @@ import { Context } from "./settings";
 import { SlackMessageStyles } from "./slack";
 import { BlockagePauseInfo } from "./state-interfaces";
 import { EdgeOptions } from "./branchdefs";
+import { getIntegrationOwner } from "./targets";
 
 function matchPrefix(a: string, b: string) {
 	const len = Math.min(a.length, b.length)
@@ -271,7 +272,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 	private async handlePostIntegrationFailure(failure: Failure, pending: PendingChange) {
 		const logMessage = `Post-integration failure while integrating CL ${pending.change.cl} to ${this.branch.name}`
 
-		const owner = EdgeBotImpl.getIntegrationOwner(pending) || pending.change.author
+		const owner = getIntegrationOwner(pending) || pending.change.author
 
 		if (pending.change.isManual) {
 			const shelfMsg = `${owner}, please merge this change by hand.\nMore info at ${this.sourceNode.getBotUrl()}\n\n` + failure.description
@@ -327,9 +328,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		}
 		description += '\n\n' // description has been trimmed
 
-
 		// if the owner is specifically overridden (can be by reconsider, resolver or manual tag)
-		const overriddenOwner = EdgeBotImpl.getIntegrationOwner(this.branch, info.owner)
+		const overriddenOwner = getIntegrationOwner(this.branch, info.owner)
 
 		let authorTag = info.authorTag
 		if (overriddenOwner) {
@@ -353,6 +353,9 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		if (info.overriddenCommand) {
 			// probably no need to remove #s, but feels safer
 			description += `#ROBOMERGE-COMMAND: ${info.overriddenCommand.replace(/#/g, '_')}\n`
+		}
+		if (info.macros.length > 0) {
+			description += `#ROBOMERGE-COMMAND: ${info.macros.join(', ')}\n`	
 		}
 		let source = info.source
 		if (this.incognitoMode) {
@@ -425,7 +428,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		let desc = target.description! // target.description always ends in newline
 
 		if (target.flags.has('review')) {
-			const owner = EdgeBotImpl.getIntegrationOwner(this.targetBranch, info.owner) || info.author
+			const owner = getIntegrationOwner(this.targetBranch, info.owner) || info.author
 			desc += `#CodeReview: ${owner}\n`
 		}
 
@@ -582,12 +585,6 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		// do a resolve with P4
 		this._log_action(`Resolving CL ${pending.change.cl} against ${this.targetBranch.name}`)
 		let detail: ResolveResultDetail = 'detailed'
-		const maxFilesPerIntegration = this.sourceNode.maxFilesPerIntegration
-		if (maxFilesPerIntegration > 0 && pending.change.numFiles >= maxFilesPerIntegration) {
-			// avoid the expensive detailed query if we're dealing with a lot of files
-			// could make a lower limit for this
-			detail = 'quick'
-		}
 		const result = await this.performResolve(pending.newCl, pending.action.mergeMode, detail)
 		if (pending.action.flags.has('manual') || pending.change.forceCreateAShelf) {
 			// the user requested manual merge
@@ -723,7 +720,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 	private async shelveChangelist(pending: PendingChange, reason?: string) {
 		const changenum = pending.newCl
-		const owner = EdgeBotImpl.getIntegrationOwner(pending) || pending.change.author
+		const owner = getIntegrationOwner(pending) || pending.change.author
 		this._log_action(`Shelving CL ${changenum} (change owned by ${owner})`)
 
 		// code review any recipients
