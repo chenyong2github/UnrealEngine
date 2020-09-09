@@ -8,6 +8,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSettings.h"
+#include "SystemSettings.h"
 
 #if WITH_EDITOR
 #include "PlatformInfo.h"
@@ -53,6 +54,8 @@ static FAutoConsoleVariableRef CVarNiagaraQualityLevel(
 // On cooked builds only the profiles for that cooked platform will be available
 TWeakObjectPtr<UDeviceProfile> GNiagaraPlatformOverride;
 
+static int32 GNiagaraBackupQualityLevel = INDEX_NONE;
+
 static FAutoConsoleCommand GCmdSetNiagaraPlatformOverride(
 	TEXT("fx.Niagara.SetOverridePlatformName"),
 	TEXT("Sets which platform we should override with, no args means reset to default"),
@@ -62,6 +65,11 @@ static FAutoConsoleCommand GCmdSetNiagaraPlatformOverride(
 			GNiagaraPlatformOverride.Reset();
 			if (Args.Num() == 0)
 			{
+				if (GNiagaraBackupQualityLevel != INDEX_NONE)
+				{
+					OnSetCVarFromIniEntry(*GDeviceProfilesIni, NiagaraQualityLevelName, *LexToString(GNiagaraBackupQualityLevel), ECVF_SetByMask);
+				}
+				GNiagaraBackupQualityLevel = INDEX_NONE;
 				UE_LOG(LogNiagara, Warning, TEXT("Niagara Clearing Override DeviceProfile"));
 			}
 			else
@@ -78,23 +86,27 @@ static FAutoConsoleCommand GCmdSetNiagaraPlatformOverride(
 					}
 				}
 
+
 				if (GNiagaraPlatformOverride.IsValid())
 				{
+					//Save the previous QL state the first time we enter a preview.
+					if (GNiagaraBackupQualityLevel == INDEX_NONE)
+					{
+						GNiagaraBackupQualityLevel = GNiagaraQualityLevel;
+					}
+
+					UDeviceProfile* OverrideDP = GNiagaraPlatformOverride.Get();
+					check(OverrideDP);
+					int32 DPQL = FNiagaraPlatformSet::QualityLevelFromMask(FNiagaraPlatformSet::GetEffectQualityMaskForDeviceProfile(OverrideDP));
+					
+					OnSetCVarFromIniEntry(*GDeviceProfilesIni, NiagaraQualityLevelName, *LexToString(DPQL), ECVF_SetByMask);
+
 					UE_LOG(LogNiagara, Warning, TEXT("Niagara Setting Override DeviceProfile '%s'"), *Args[0]);
 				}
 				else
 				{
 					UE_LOG(LogNiagara, Warning, TEXT("Niagara Failed to Find Override DeviceProfile '%s'"), *Args[0]);
 				}
-			}
-
-			FNiagaraPlatformSet::InvalidateCachedData();
-
-			for (TObjectIterator<UNiagaraSystem> It; It; ++It)
-			{
-				UNiagaraSystem* System = *It;
-				check(System);
-				System->OnQualityLevelChanged();
 			}
 		}
 	)
