@@ -2204,7 +2204,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled())
 	{
 		// The checkerboarded half resolution depth texture will be needed.
-		UpdateHalfResDepthSurfaceCheckerboardMinMax(GraphBuilder);
+		UpdateHalfResDepthSurfaceCheckerboardMinMax(GraphBuilder, SceneDepthTexture.Resolve);
 	}
 
 	if (bShouldRenderVolumetricCloud)
@@ -2617,26 +2617,27 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 }
 
 /** Updates the downsized depth buffer with the current full resolution depth buffer. */
-void FDeferredShadingSceneRenderer::UpdateHalfResDepthSurfaceCheckerboardMinMax(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::UpdateHalfResDepthSurfaceCheckerboardMinMax(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	const uint32 DownscaleFactor = 2;
+	const FIntPoint SmallDepthExtent = GetDownscaledExtent(SceneDepthTexture->Desc.Extent, DownscaleFactor);
+	const FRDGTextureDesc SmallDepthDesc = FRDGTextureDesc::Create2D(SmallDepthExtent, PF_DepthStencil, FClearValueBinding::None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
+	FRDGTextureRef SmallDepthTexture = GraphBuilder.CreateTexture(SmallDepthDesc, TEXT("HalfResDepthSurfaceCheckerboardMinMax"));
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	for (FViewInfo& View : Views)
 	{
-		FViewInfo& View = Views[ViewIndex];
-		SCOPED_GPU_MASK(GraphBuilder.RHICmdList, View.GPUMask);
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-		const uint32 DownsampleFactor = 2;
-		FIntPoint BufferSizeXY = SceneContext.GetBufferSizeXY();
-		FIntPoint HalfResBufferSizeXY(FMath::Max<uint32>(BufferSizeXY.X / DownsampleFactor, 1), FMath::Max<uint32>(BufferSizeXY.Y / DownsampleFactor, 1));
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(HalfResBufferSizeXY, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, View.HalfResDepthSurfaceCheckerboardMinMax, TEXT("HalfResDepthSurfaceCheckerboardMinMax"), ERenderTargetTransience::Transient);
-
-		const FScreenPassTexture SceneDepth(GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ), View.ViewRect);
-		const FScreenPassRenderTarget SmallDepth(GraphBuilder.RegisterExternalTexture(View.HalfResDepthSurfaceCheckerboardMinMax), GetDownscaledRect(View.ViewRect, DownsampleFactor), ERenderTargetLoadAction::ELoad);
+		const FScreenPassTexture SceneDepth(SceneDepthTexture, View.ViewRect);
+		const FScreenPassRenderTarget SmallDepth(SmallDepthTexture, GetDownscaledRect(View.ViewRect, DownscaleFactor), View.DecayLoadAction(ERenderTargetLoadAction::ENoAction));
 		AddDownsampleDepthPass(GraphBuilder, View, SceneDepth, SmallDepth, EDownsampleDepthFilter::Checkerboard);
+	}
 
-		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().TargetableTexture->GetTexture2D(), ERHIAccess::Unknown, ERHIAccess::EReadable));
+	TRefCountPtr<IPooledRenderTarget> SmallDepthTarget;
+	ConvertToUntrackedExternalTexture(GraphBuilder, SmallDepthTexture, SmallDepthTarget, ERHIAccess::SRVMask);
+	for (FViewInfo& View : Views)
+	{
+		View.HalfResDepthSurfaceCheckerboardMinMax = SmallDepthTarget;
 	}
 }
 
