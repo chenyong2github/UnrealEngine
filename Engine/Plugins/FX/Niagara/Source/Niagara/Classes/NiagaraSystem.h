@@ -445,6 +445,7 @@ public:
 #endif
 	UNiagaraEffectType* GetEffectType()const;
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings() { return CurrentScalabilitySettings; }
+	FORCEINLINE bool NeedsSortedSignificanceCull()const{ return bNeedsSortedSignificanceCull; }
 	
 	void OnQualityLevelChanged();
 
@@ -467,6 +468,11 @@ public:
 	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 	const FGuid& GetAssetGuid() const {return AssetGuid;};
 #endif
+
+	FORCEINLINE void RegisterActiveInstance();
+	FORCEINLINE void UnregisterActiveInstance();
+	FORCEINLINE int32& GetActiveInstancesCount() { return ActiveInstances; }
+	FORCEINLINE int32& GetActiveInstancesTempCount() { return ActiveInstancesTemp; }
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -505,13 +511,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "System")
 	UNiagaraEffectType* EffectType;
 
-	UPROPERTY(EditAnywhere, Category = "System", meta=(InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Scalability")
 	bool bOverrideScalabilitySettings;
 
 	UPROPERTY()
 	TArray<FNiagaraSystemScalabilityOverride> ScalabilityOverrides_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, Category = "System", meta = (EditCondition="bOverrideScalabilitySettings"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition="bOverrideScalabilitySettings"))
 	FNiagaraSystemScalabilityOverrides SystemScalabilityOverrides;
 
 	/** Handles to the emitter this System will simulate. */
@@ -623,6 +629,7 @@ protected:
 
 	uint32 bHasDIsWithPostSimulateTick : 1;
 	uint32 bHasAnyGPUEmitters : 1;
+	uint32 bNeedsSortedSignificanceCull : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the System asset. */
@@ -631,6 +638,15 @@ protected:
 
 	FGuid AssetGuid;
 #endif
+
+	/** Total active instances of this system. */
+	int32 ActiveInstances;
+
+	/** 
+	Temp working value used by the scalability manager when tracking sorted instance count culling. 
+	Systems who are tracking their instance culling separately need an easily accessible working value.
+	*/
+	int32 ActiveInstancesTemp;
 };
 
 extern int32 GEnableNiagaraRuntimeCycleCounts;
@@ -641,4 +657,14 @@ FORCEINLINE int32* UNiagaraSystem::GetCycleCounter(bool bGameThread, bool bConcu
 		return EffectType->GetCycleCounter(bGameThread, bConcurrent);
 	}
 	return nullptr;
+}
+
+FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
+{
+	++ActiveInstances;
+}
+
+FORCEINLINE void UNiagaraSystem::UnregisterActiveInstance()
+{
+	--ActiveInstances;
 }
