@@ -60,7 +60,7 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 			const int32 ControlIndex = ControlHierarchy.GetIndex(ControlName);
 			if (IsControlActive[ControlIndex])
 			{
-				FTransform Transform = ControlHierarchy[ControlIndex].GetValue(ERigControlValueType::Current).Get<FTransform>();
+				FTransform Transform = ControlHierarchy[ControlIndex].GetValue(ERigControlValueType::Current).Get<FEulerTransform>().ToFTransform();
 				switch (ApplyMode)
 				{
 					case EControlRigFKRigExecuteMode::Replace:
@@ -89,17 +89,17 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 				float CurveValue = ControlHierarchy[ControlIndex].GetValue(ERigControlValueType::Current).Get<float>();
 				switch (ApplyMode)
 				{
-					case EControlRigFKRigExecuteMode::Replace:
-					{
-						CurveContainer.SetValue(Curve.Index, CurveValue);
-						break;
-					}
-					case EControlRigFKRigExecuteMode::Additive:
-					{
-						float PreviousValue = CurveContainer.GetValue(Curve.Index);
-						CurveContainer.SetValue(Curve.Index, PreviousValue + CurveValue);
-						break;
-					}
+				case EControlRigFKRigExecuteMode::Replace:
+				{
+					CurveContainer.SetValue(Curve.Index, CurveValue);
+					break;
+				}
+				case EControlRigFKRigExecuteMode::Additive:
+				{
+					float PreviousValue = CurveContainer.GetValue(Curve.Index);
+					CurveContainer.SetValue(Curve.Index, PreviousValue + CurveValue);
+					break;
+				}
 				}
 			}
 		}
@@ -118,7 +118,8 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 			const int32 ControlIndex = ControlHierarchy.GetIndex(ControlName);
 			if (IsControlActive[ControlIndex])
 			{
-				SetControlValue<FTransform>(ControlName, BoneHierarchy.GetLocalTransform(Bone.Index));
+				FEulerTransform EulerTransform(BoneHierarchy.GetLocalTransform(Bone.Index));
+				SetControlValue<FEulerTransform>(ControlName, EulerTransform);
 			}
 		}
 
@@ -153,11 +154,11 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	// execute init
 	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
 }
-TArray<FName> UFKControlRig::GetControlNames() 
+TArray<FName> UFKControlRig::GetControlNames()
 {
 	FRigHierarchyContainer* Container = GetHierarchy();
 	TArray<FName> Names;
-	for (FRigControl& Control:  Container->ControlHierarchy)
+	for (FRigControl& Control : Container->ControlHierarchy)
 	{
 		Names.Add(Control.Name);
 	}
@@ -207,7 +208,7 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 			CurveContainer.Add(NameArray[Index]);
 		}
 	}
-	
+
 	if (IsControlActive.Num() != (BoneHierarchy.Num() + CurveContainer.Num()))
 	{
 		IsControlActive.SetNum(BoneHierarchy.Num() + CurveContainer.Num());
@@ -242,7 +243,7 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 			Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Global, ParentName);
 		}
 
-		FRigControl& RigControl = Container->ControlHierarchy.Add(ControlName, ERigControlType::Transform,NAME_None,SpaceName); // NAME_None, LocalTransform);//SpaceName);  LocalTransform);
+		FRigControl& RigControl = Container->ControlHierarchy.Add(ControlName, ERigControlType::EulerTransform, NAME_None, SpaceName); // NAME_None, LocalTransform);//SpaceName);  LocalTransform);
 		RigControl.DisplayName = BoneName;
 		RigControl.SetValueFromTransform(LocalTransform, ERigControlValueType::Initial);
 	}
@@ -287,13 +288,13 @@ void UFKControlRig::ToggleApplyMode()
 		FRigControlHierarchy& ControlHierarchy = GetControlHierarchy();
 		FTransform ZeroScale = FTransform::Identity;
 		ZeroScale.SetScale3D(FVector::ZeroVector);
-
+		FEulerTransform EulerZero(ZeroScale);
 		for (int32 ControlIndex = 0; ControlIndex < ControlHierarchy.Num(); ControlIndex++)
 		{
 			const FRigControl& ControlToChange = ControlHierarchy[ControlIndex];
-			if (ControlToChange.ControlType == ERigControlType::Transform)
+			if (ControlToChange.ControlType == ERigControlType::EulerTransform)
 			{
-				SetControlValue<FTransform>(ControlToChange.Name, ZeroScale, true, Context);
+				SetControlValue<FEulerTransform>(ControlToChange.Name, EulerZero, true, Context);
 			}
 			else if (ControlToChange.ControlType == ERigControlType::Float)
 			{
@@ -310,13 +311,13 @@ void UFKControlRig::ToggleApplyMode()
 		for (int32 ControlIndex = 0; ControlIndex < ControlHierarchy.Num(); ControlIndex++)
 		{
 			const FRigControl& ControlToChange = ControlHierarchy[ControlIndex];
-			if (ControlToChange.ControlType == ERigControlType::Transform)
+			if (ControlToChange.ControlType == ERigControlType::EulerTransform)
 			{
 				const FRigControl* Control = FindControl(ControlToChange.Name);
 				if (Control)
 				{
-					FTransform InitValue = Control->InitialValue.Get<FTransform>();
-					SetControlValue<FTransform>(ControlToChange.Name, InitValue, true, Context);
+					FEulerTransform InitValue = Control->InitialValue.Get<FEulerTransform>();
+					SetControlValue<FEulerTransform>(ControlToChange.Name, InitValue, true, Context);
 				}
 			}
 			else if (ControlToChange.ControlType == ERigControlType::Float)

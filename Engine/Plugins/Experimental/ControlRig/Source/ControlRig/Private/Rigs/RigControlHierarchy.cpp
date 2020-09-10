@@ -445,11 +445,12 @@ void FRigControl::SetValueFromTransform(const FTransform& InTransform, ERigContr
 			FEulerTransform NewTransform(InTransform);
 			FEulerTransform CurrentEulerTransform = GetValue(InValueType).Get<FEulerTransform>();
 
+			FTransform CurrentFTransform = CurrentEulerTransform.ToFTransform();
+			FTransform Diff = InTransform.GetRelativeTransform(CurrentFTransform);
+			FRotator DeltaRot = Diff.GetRotation().Rotator();
+
 			FRotator CurrentRotWind, CurrentRotRem;
 			CurrentEulerTransform.Rotation.GetWindingAndRemainder(CurrentRotWind, CurrentRotRem);
-			//Get Diff
-			const FRotator NewRotator = FRotator(InTransform.GetRotation());
-			FRotator DeltaRot = NewRotator - CurrentRotRem;
 			DeltaRot.Normalize();
 			//Add Diff
 			NewTransform.Rotation = CurrentEulerTransform.Rotation + DeltaRot;
