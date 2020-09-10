@@ -132,8 +132,10 @@ public:
 				bOkToExit = bOkToExit && FGlobalTabmanager::Get()->CanCloseManager(TabsToIgnore);
 			}
 
-			// Prompt for save and quit only if we did not launch a gameless rocket exe or are in demo mode
-			if ( FApp::HasProjectName() && !GIsDemoMode )
+
+			IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+			// Prompt for save and quit only if we did not launch a gameless rocket exe or are in demo mode or we are asking for a close to recreate the Default Main Frame
+			if ( FApp::HasProjectName() && !GIsDemoMode && !MainFrameModule.IsRecreatingDefaultMainFrame())
 			{
 				// Prompt the user to save packages/maps.
 				bool bHadPackagesToSave = false;

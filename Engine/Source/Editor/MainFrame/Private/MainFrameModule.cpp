@@ -286,6 +286,9 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 
 void FMainFrameModule::RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE)
 {
+	check(!bRecreatingDefaultMainFrame);
+	TGuardValue<bool> GuardRecreatingDefaultMainFrame(bRecreatingDefaultMainFrame, true);
+
 	// Clean previous default main frame
 	if (IsWindowInitialized())
 	{
@@ -296,6 +299,11 @@ void FMainFrameModule::RecreateDefaultMainFrame(const bool bStartImmersive, cons
 	}
 	// (Re-)create default main frame
 	CreateDefaultMainFrame(bStartImmersive, bStartPIE);
+}
+
+bool FMainFrameModule::IsRecreatingDefaultMainFrame() const
+{
+	return bRecreatingDefaultMainFrame;
 }
 
 
@@ -494,6 +502,7 @@ void FMainFrameModule::SetApplicationTitleOverride(const FText& NewOverriddenApp
 void FMainFrameModule::StartupModule( )
 {
 	bDelayedShowMainFrame = false;
+	bRecreatingDefaultMainFrame = false;
 
 	MRUFavoritesList = NULL;
 

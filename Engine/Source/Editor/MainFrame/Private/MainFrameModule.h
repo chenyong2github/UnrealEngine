@@ -24,6 +24,7 @@ public:
 
 	virtual void CreateDefaultMainFrame( const bool bStartImmersive, const bool bStartPIE ) override;
 	virtual void RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE) override;
+	virtual bool IsRecreatingDefaultMainFrame() const override;
 	virtual TSharedRef<SWidget> MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const override;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -227,4 +228,7 @@ private:
 
 	// Allow delaying when to show main frame's window
 	bool bDelayedShowMainFrame;
+
+	// Is recreating Default Main Frame
+	bool bRecreatingDefaultMainFrame;
 };
