@@ -656,13 +656,16 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
 	DetailsView->SetObject(nullptr);
-	UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
 	ActiveToolName = FText::GetEmpty();
 	ModeHeaderArea->SetVisibility(EVisibility::Visible);
 	ModeHeaderArea->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
 	ClearNotification();
 	ClearWarning();
-	CurTool->OnPropertySetsModified.RemoveAll(this);
+	UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	if ( CurTool )
+	{
+		CurTool->OnPropertySetsModified.RemoveAll(this);
+	}
 }
 
 void FModelingToolsEditorModeToolkit::UpdateShowWarnings()
