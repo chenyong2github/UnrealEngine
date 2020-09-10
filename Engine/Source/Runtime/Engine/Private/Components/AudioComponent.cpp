@@ -1375,7 +1375,7 @@ void UAudioComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 	}
 }
 
-void UAudioComponent::SetBusSendffectInternal(USoundSourceBus* InSourceBus, UAudioBus* InAudioBus, float SendLevel, EBusSendType InBusSendType)
+void UAudioComponent::SetBusSendEffectInternal(USoundSourceBus* InSourceBus, UAudioBus* InAudioBus, float SendLevel, EBusSendType InBusSendType)
 {
 	if (FAudioDevice* AudioDevice = GetAudioDevice())
 	{
@@ -1398,22 +1398,22 @@ void UAudioComponent::SetBusSendffectInternal(USoundSourceBus* InSourceBus, UAud
 
 void UAudioComponent::SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel)
 {
-	SetBusSendffectInternal(SoundSourceBus, nullptr, SourceBusSendLevel, EBusSendType::PreEffect);
+	SetBusSendEffectInternal(SoundSourceBus, nullptr, SourceBusSendLevel, EBusSendType::PreEffect);
 }
 
-void UAudioComponent::SetSourceBusSendPostEffect(USoundSourceBus * SoundSourceBus, float SourceBusSendLevel)
+void UAudioComponent::SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel)
 {
-	SetBusSendffectInternal(SoundSourceBus, nullptr, SourceBusSendLevel, EBusSendType::PostEffect);
+	SetBusSendEffectInternal(SoundSourceBus, nullptr, SourceBusSendLevel, EBusSendType::PostEffect);
 }
 
 void UAudioComponent::SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel)
 {
-	SetBusSendffectInternal(nullptr, AudioBus, AudioBusSendLevel, EBusSendType::PreEffect);
+	SetBusSendEffectInternal(nullptr, AudioBus, AudioBusSendLevel, EBusSendType::PreEffect);
 }
 
 void UAudioComponent::SetAudioBusSendPostEffect(UAudioBus* AudioBus, float AudioBusSendLevel)
 {
-	SetBusSendffectInternal(nullptr, AudioBus, AudioBusSendLevel, EBusSendType::PostEffect);
+	SetBusSendEffectInternal(nullptr, AudioBus, AudioBusSendLevel, EBusSendType::PostEffect);
 }
 
 void UAudioComponent::SetLowPassFilterEnabled(bool InLowPassFilterEnabled)
