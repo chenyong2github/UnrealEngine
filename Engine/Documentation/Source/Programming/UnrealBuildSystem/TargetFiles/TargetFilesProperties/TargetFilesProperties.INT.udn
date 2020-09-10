@@ -128,6 +128,8 @@ $ bUseLauncherChecks (Boolean): Whether to check that the process was launched t
 
 $ bUseChecksInShipping (Boolean): Whether to turn on checks (asserts) for test/shipping builds.
 
+$ bUseEstimatedUtcNow (Boolean): Whether to use the EstimatedUtcNow or PlatformUtcNow.  EstimatedUtcNow is appropriate in cases where PlatformUtcNow can be slow.
+
 $ bCompileFreeType (Boolean): True if we need FreeType support.
 
 $ bCompileForSize (Boolean): True if we want to favor optimizing size over speed.

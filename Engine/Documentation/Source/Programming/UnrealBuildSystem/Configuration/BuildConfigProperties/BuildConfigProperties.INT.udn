@@ -151,6 +151,8 @@ $ bAllowHybridExecutor : Whether the hybrid executor will be used (a remote exec
 
 $ bAllowXGE : Whether XGE may be used.
 
+$ bAllowFASTBuild : Whether FASTBuild may be used.
+
 $ bAllowSNDBS : Whether SN-DBS may be used.
 
 $ bUseUBTMakefiles : Enables support for very fast iterative builds by caching target data. Turning this on causes Unreal Build Tool to emit 'UBT Makefiles' for targets when they are built the first time. Subsequent builds will load these Makefiles and begin outdatedness checking and build invocation very quickly. The caveat is that if source files are added or removed to the project, UBT will need to gather information about those in order for your build to complete successfully. Currently, you must run the project file generator after adding/removing source files to tell UBT to re-gather this information. 
@@ -242,6 +244,26 @@ $ bStopCompilationAfterErrors : When enabled, will stop compiling targets after 
 $ bAllowOverVpn : When set to false, XGE will not be When enabled, XGE will stop compiling targets after a compile error occurs.  Recommended, as it saves computing resources for others.
 
 $ VpnSubnets : List of subnets containing IP addresses assigned by VPN
+
+### FASTBuild
+
+$ FBuildExecutablePath : Used to specify the location of fbuild.exe if the distributed binary isn't being used
+
+$ bEnableDistribution : Controls network build distribution
+
+$ FBuildBrokeragePath : Used to specify the location of the brokerage. If null, FASTBuild will fall back to checking FASTBUILD_BROKERAGE_PATH
+
+$ bEnableCaching : Controls whether to use caching at all. CachePath and FASTCacheMode are only relevant if this is enabled.
+
+$ CacheMode : Cache access mode - only relevant if bEnableCaching is true;
+
+$ FBuildCachePath : Used to specify the location of the cache. If null, FASTBuild will fall back to checking FASTBUILD_CACHE_PATH
+
+$ bForceRemote : Whether to force remote
+
+$ bStopOnError : Whether to stop on error
+
+$ MsvcCRTRedistVersion : Which MSVC CRT Redist version to use
 
 ### CLionGenerator
 
