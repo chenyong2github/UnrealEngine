@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CADInterfacesModule.h"
 
+#include "CoreTechTypes.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -25,9 +26,43 @@ ICADInterfacesModule& ICADInterfacesModule::Get()
 	return FModuleManager::LoadModuleChecked< FCADInterfacesModule >(CADINTERFACES_MODULE_NAME);
 }
 
-bool ICADInterfacesModule::IsAvailable()
+ECADInterfaceAvailability CADInterfaceAvailability = ECADInterfaceAvailability::Unknown;
+
+ECADInterfaceAvailability ICADInterfacesModule::IsAvailable()
 {
-	return FModuleManager::Get().IsModuleLoaded(CADINTERFACES_MODULE_NAME);
+	if (CADInterfaceAvailability != ECADInterfaceAvailability::Unknown)
+	{
+		return CADInterfaceAvailability;
+	}
+
+	if (!FModuleManager::Get().IsModuleLoaded(CADINTERFACES_MODULE_NAME))
+	{
+		UE_LOG(CADInterfaces, Error, TEXT("Failed to load CADInterfaces module. Plug-in will not be functional."));
+		CADInterfaceAvailability = ECADInterfaceAvailability::Unavailable;
+		return CADInterfaceAvailability;
+	}
+
+	double MetricUnit = 0.001;
+	CT_IO_ERROR InitalizationStatus = CADLibrary::CTKIO_InitializeKernel(MetricUnit);
+	if (InitalizationStatus == IO_OK || InitalizationStatus == IO_ERROR_ALREADY_INITIALIZED)
+	{
+		CADInterfaceAvailability = ECADInterfaceAvailability::Available;
+	}
+	else
+	{
+		switch (InitalizationStatus)
+		{
+		case IO_ERROR_LICENSE:
+			UE_LOG(CADInterfaces, Error, TEXT("CoreTech dll license is missing. Plug - in will not be functional."));
+			break;
+		case IO_ERROR_NOT_INITIALIZED:
+		default:
+			UE_LOG(CADInterfaces, Error, TEXT("CoreTech dll is not initialize. Plug - in will not be functional."));
+			break;
+		}
+		CADInterfaceAvailability = ECADInterfaceAvailability::Unavailable;
+	}
+	return CADInterfaceAvailability;
 }
 
 void FCADInterfacesModule::StartupModule()
