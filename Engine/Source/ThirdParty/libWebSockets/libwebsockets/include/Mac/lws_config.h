@@ -6,7 +6,7 @@
 	#endif
 #endif
 
-#define LWS_INSTALL_DATADIR "/usr/local/share"
+#define LWS_INSTALL_DATADIR "/tmp/libWebSockets/Deploy/Release/share"
 
 #define LWS_ROLE_H1
 #define LWS_ROLE_WS
@@ -71,7 +71,7 @@
 /* #undef LWS_WITH_LIBEVENT */
 
 /* Build with support for ipv6 */
-#define LWS_WITH_IPV6
+/* #undef LWS_WITH_IPV6 */
 
 /* Build with support for UNIX domain socket */
 /* #undef LWS_WITH_UNIX_SOCK */
@@ -109,7 +109,6 @@
 #define LWS_HAVE_SSL_CTX_get0_certificate
 
 /* #undef LWS_HAVE_UV_VERSION_H */
-/* #undef LWS_HAVE_NEW_UV_VERSION_H */
 #define LWS_HAVE_PTHREAD_H
 
 /* CGI apis */
