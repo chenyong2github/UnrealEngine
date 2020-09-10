@@ -120,7 +120,7 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FImportParametersCommand& Imp
 void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskCommand)
 {
 	const CADLibrary::FFileDescription& FileToProcess = RunTaskCommand.JobFileDescription;
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("Process %s"), *FileToProcess.Name);
+	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("Process %s %s"), *FileToProcess.Name, *FileToProcess.Configuration);
 
 	FCompletedTaskCommand CompletedTask;
 #ifdef CAD_INTERFACE
@@ -139,6 +139,6 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 #endif // CAD_INTERFACE
 	CommandIO.SendCommand(CompletedTask, Config::SendCommandTimeout_s);
 
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s"), *FileToProcess.Name);
+	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s %s saved in %s"), *FileToProcess.Name, *FileToProcess.Configuration, *CompletedTask.GeomFileName);
 }
 
