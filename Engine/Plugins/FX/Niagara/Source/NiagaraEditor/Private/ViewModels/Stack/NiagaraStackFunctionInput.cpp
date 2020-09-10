@@ -1078,7 +1078,8 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 			{
 				UNiagaraNodeFunctionCall* ModuleToCheck = Cast<UNiagaraNodeFunctionCall>(StackGroups[i].EndNode);
 				FNiagaraParameterMapHistoryBuilder Builder;
-				ModuleToCheck->BuildParameterMapHistory(Builder, false);
+				FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(GetEmitterViewModel()->GetEmitter(), OutputNode, ModuleToCheck, Builder, false);
+
 
 				if (Builder.Histories.Num() == 1)
 				{

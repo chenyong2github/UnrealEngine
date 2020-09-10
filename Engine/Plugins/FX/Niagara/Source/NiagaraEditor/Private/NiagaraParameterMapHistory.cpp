@@ -277,6 +277,7 @@ FName FNiagaraParameterMapHistory::ResolveEmitterAlias(const FName& InName, cons
 }
 
 
+
 FString FNiagaraParameterMapHistory::MakeSafeNamespaceString(const FString& InStr)
 {
 	FString  Sanitized = FHlslNiagaraTranslator::GetSanitizedSymbolName(InStr);
@@ -549,9 +550,9 @@ FNiagaraVariable FNiagaraParameterMapHistory::GetSourceForPreviousValue(const FN
 	return Var;
 }
 
-bool FNiagaraParameterMapHistory::IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, const UNiagaraScript* InScript, bool bAllowDataInterfaces) const
+bool FNiagaraParameterMapHistory::IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, const UNiagaraScript* InScript,  bool bAllowDataInterfaces) const
 {
-	return IsPrimaryDataSetOutput(InVar, InScript->GetUsage(), bAllowDataInterfaces);
+	return IsPrimaryDataSetOutput(InVar, InScript->GetUsage(),  bAllowDataInterfaces);
 }
 
 bool FNiagaraParameterMapHistory::IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, ENiagaraScriptUsage Usage, bool bAllowDataInterfaces) const
@@ -970,6 +971,19 @@ void FNiagaraParameterMapHistoryBuilder::EndTranslation(const FString& EmitterUn
 	EmitterNameContextStack.Reset();
 }
 
+void FNiagaraParameterMapHistoryBuilder::BeginUsage(ENiagaraScriptUsage InUsage, FName InStageName)
+{
+	RelevantScriptUsageContext.Push(InUsage);
+	ScriptUsageContextNameStack.Push(InStageName);
+	BuildCurrentAliases();
+}
+
+void FNiagaraParameterMapHistoryBuilder::EndUsage()
+{
+	RelevantScriptUsageContext.Pop();
+	ScriptUsageContextNameStack.Pop();
+}
+
 const UNiagaraNode* FNiagaraParameterMapHistoryBuilder::GetCallingContext() const
 {
 	if (CallingContext.Num() == 0)
@@ -1113,7 +1127,9 @@ bool FNiagaraParameterMapHistoryBuilder::IsInEncounteredEmitterNamespace(FNiagar
 */
 FNiagaraVariable FNiagaraParameterMapHistoryBuilder::ResolveAliases(const FNiagaraVariable& InVar) const
 {
-	return FNiagaraParameterMapHistory::ResolveAliases(InVar, AliasMap, TEXT("."));
+	FNiagaraVariable Var = FNiagaraParameterMapHistory::ResolveAliases(InVar, AliasMap, TEXT("."));
+	//ensure(!Var.IsInNameSpace(FNiagaraConstants::StackContextNamespace));
+	return Var;
 }
 
 void FNiagaraParameterMapHistoryBuilder::RegisterNodeVisitation(const UEdGraphNode* Node)
@@ -1461,6 +1477,54 @@ void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 	if (Callstack.Len() > 0)
 	{
 		AliasMap.Add(TEXT("Emitter"), Callstack.ToString());
+	}
+
+	Callstack.Empty();
+	for (int32 i = 0; i < RelevantScriptUsageContext.Num(); i++)
+	{
+		switch (RelevantScriptUsageContext[i])
+		{
+			/** The script defines a function for use in modules. */
+		case ENiagaraScriptUsage::Function:
+		case ENiagaraScriptUsage::Module:
+		case ENiagaraScriptUsage::DynamicInput:
+			break;
+		case ENiagaraScriptUsage::ParticleSpawnScript:
+		case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+		case ENiagaraScriptUsage::ParticleUpdateScript:
+		case ENiagaraScriptUsage::ParticleEventScript:
+			Callstack = TEXT("Particles");
+			break;
+		case ENiagaraScriptUsage::ParticleSimulationStageScript:
+			{
+				if (ScriptUsageContextNameStack.Num() == 0 || ScriptUsageContextNameStack.Last() == NAME_None)
+					Callstack = TEXT("Particles");
+				else
+					Callstack = ScriptUsageContextNameStack.Last().ToString();
+			}
+			break;
+		case ENiagaraScriptUsage::ParticleGPUComputeScript:
+			Callstack = TEXT("Particles");
+			break;
+		case ENiagaraScriptUsage::EmitterSpawnScript:
+		case ENiagaraScriptUsage::EmitterUpdateScript:
+			Callstack = TEXT("Emitter");
+			{
+				FString* EmitterAliasStr = AliasMap.Find(TEXT("Emitter"));
+				if (EmitterAliasStr)
+					Callstack = *EmitterAliasStr;
+			}
+			break;
+		case ENiagaraScriptUsage::SystemSpawnScript:
+		case ENiagaraScriptUsage::SystemUpdateScript:
+			Callstack = TEXT("System");
+			break;
+		}
+	}
+
+	if (!Callstack.IsEmpty())
+	{
+		AliasMap.Add(TEXT("StackContext"), Callstack);
 	}
 }
 

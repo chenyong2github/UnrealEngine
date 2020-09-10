@@ -40,7 +40,10 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 
-	UTextureRenderTarget2D* TargetTexture = nullptr;
+	UTextureRenderTarget2D* TargetTexture = nullptr;	
+	TArray<FNiagaraVariableBase> Vars;
+	TArray<uint32> Offsets;
+
 };
 
 struct FGrid2DCollectionRWInstanceData_RenderThread
@@ -55,7 +58,10 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	FGrid2DBuffer* CurrentData = nullptr;
 	FGrid2DBuffer* DestinationData = nullptr;
 
-	FTextureRHIRef RenderTargetToCopyTo;
+	FTextureRHIRef RenderTargetToCopyTo; 
+	TArray<int32> AttributeIndices;
+	TArray<FName> Vars;
+	TArray<uint32> Offsets;
 
 	void BeginSimulate(FRHICommandList& RHICmdList);
 	void EndSimulate(FRHICommandList& RHICmdList);
@@ -75,6 +81,7 @@ struct FNiagaraDataInterfaceProxyGrid2DCollectionProxy : public FNiagaraDataInte
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
+
 };
 
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Grid2D Collection", Experimental), Blueprintable, BlueprintType)
@@ -145,12 +152,46 @@ public:
 	static const FString OutputGridName;
 	static const FString SamplerName;
 
+	static const FName ClearCellFunctionName;
+	static const FName CopyPreviousToCurrentForCellFunctionName;
+
 	static const FName SetValueFunctionName;
 	static const FName GetValueFunctionName;
 	static const FName SampleGridFunctionName;
 
+	static const FName SetVector4ValueFunctionName;
+	static const FName GetVector4ValueFunctionName;
+	static const FName SampleGridVector4FunctionName;
+
+	static const FName SetVector3ValueFunctionName;
+	static const FName GetVector3ValueFunctionName;
+	static const FName SampleGridVector3FunctionName;
+
+	static const FName SetVector2ValueFunctionName;
+	static const FName GetVector2ValueFunctionName;
+	static const FName SampleGridVector2FunctionName;
+
+	static const FName SetFloatValueFunctionName;
+	static const FName GetFloatValueFunctionName;
+	static const FName SampleGridFloatFunctionName;
+
+#if WITH_EDITOR
+	virtual bool SupportsSetupAndTeardownHLSL() const { return true; }
+	virtual bool GenerateSetupHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, bool bSpawnOnly, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const;
+	virtual bool GenerateTeardownHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, bool bSpawnOnly, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const;
+	virtual bool SupportsIterationSourceNamespaceAttributesHLSL() const override { return true; }
+	virtual bool GenerateIterationSourceNamespaceReadAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bInSetToDefaults, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const override;
+	virtual bool GenerateIterationSourceNamespaceWriteAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const override;
+#endif
 
 protected:
+	void WriteSetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+	void WriteGetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+	void WriteSampleHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+	const TCHAR* TypeDefinitionToHLSLTypeString(const FNiagaraTypeDefinition& InDef) const;
+	FName TypeDefinitionToGetFunctionName(const FNiagaraTypeDefinition& InDef) const;
+	FName TypeDefinitionToSetFunctionName(const FNiagaraTypeDefinition& InDef) const;
+
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
