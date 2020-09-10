@@ -446,7 +446,7 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 		bTrackingEvents |= bIsDefaultContext && Device->GetGPUProfiler().bTrackingEvents;
 
 #if D3D12_SUBMISSION_GAP_RECORDER
-		if (GEnableGapRecorder)
+		if (GEnableGapRecorder && !GTriggerGPUProfile)
 		{
 			Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
 			GGapRecorderActiveOnBeginFrame = true;

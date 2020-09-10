@@ -284,11 +284,8 @@ public:
 	/** Get the start/end timestamps of all tracked command lists obtained from this manager */
 	void SortTimingResults();
 
-	/** Called back by commandlists when they are closed */
-	void AddCommandListTimingPair(int32 StartTimeQueryIdx, int32 EndTimeQueryIdx);
-
-	/** Resolve all commandlist start/end timestamp queries and get results. This method is blocking by default */
-	void FlushPendingTimingPairs(bool block = true);
+	/** Resolve all commandlist start/end timestamp queries and get results. Results will be 2-frame old if bWait is false */
+	void FlushPendingTimingPairs(bool bWait);
 
 	TArray<uint64> &GetStartTimestamps() { return CmdListStartTimestamps; }
 	TArray<uint64> &GetEndTimestamps() { return CmdListEndTimestamps; }
@@ -346,9 +343,7 @@ protected:
 	TRefCountPtr<FD3D12Resource> BreadCrumbResource;
 	
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	FCriticalSection CmdListTimingCS;
-	TArray<FCmdListExecTime> PrevPendingTimingPairs;
-	TArray<FCmdListExecTime> PendingTimingPairs;
+	uint64 CmdListTimingQueryBatchTokens[2];
 	TArray<FResolvedCmdListExecTime> ResolvedTimingPairs;
 #endif
 
