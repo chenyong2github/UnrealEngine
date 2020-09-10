@@ -56,7 +56,7 @@ public:
 	FDatasmithOpenNurbsOptions Options;
 
 #if WITH_EDITOR
-	bool CanEditChange(const FProperty* InProperty) const;
+	bool CanEditChange(const FProperty* InProperty);
 #endif //WITH_EDITOR
 
 };
