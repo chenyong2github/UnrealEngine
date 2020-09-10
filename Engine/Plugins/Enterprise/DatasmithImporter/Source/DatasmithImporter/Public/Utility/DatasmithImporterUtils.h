@@ -450,16 +450,12 @@ inline UTexture* FDatasmithImporterUtils::FindAsset< UTexture >( const FDatasmit
 			// Check if the AssetsMap is already tracking our asset
 			if ( AssetsMap && AssetsMap->Contains( ObjectPathName ) )
 			{
-				UTexture* Texture = (*AssetsMap)[ FName( ObjectPathName ) ].LoadSynchronous();
-				ensure( Texture );
-				return Texture;
+				return (*AssetsMap)[ FName( ObjectPathName ) ].LoadSynchronous();
 			}
 			else
 			{
 				UPackage* FinalPackage = FDatasmithFindAssetTypeHelper< UTexture >::GetFinalPackage( AssetsContext );
-				UTexture* Texture = FindObject< UTexture >( FinalPackage, ObjectPathName );
-				ensure( Texture );
-				return Texture;
+				return FindObject< UTexture >( FinalPackage, ObjectPathName );
 			}
 		}
 	}

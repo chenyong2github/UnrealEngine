@@ -65,6 +65,13 @@ void Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread, con
 			}
 		}
 	}
+
+	if (!AsyncHelper->RootObjectCompletionEvent->IsComplete())
+	{
+		AsyncHelper->RootObject.SetValue(nullptr);
+		AsyncHelper->RootObjectCompletionEvent->DispatchSubsequents();
+	}
+
 	//Release the async helper
 	AsyncHelper = nullptr;
 	InterchangeManager->ReleaseAsyncHelper(WeakAsyncHelper);
