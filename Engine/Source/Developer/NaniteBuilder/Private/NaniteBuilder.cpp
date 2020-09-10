@@ -19,8 +19,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("11D0F6D6-68DA-401F-B438-8F9013E20000")
-
+#define NANITE_DERIVEDDATA_VER TEXT("13D0F6D6-68DA-401F-B438-8F9013E6DC45")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -4252,14 +4251,14 @@ static bool BuildNaniteData(
 	uint32 ReduceTime = FPlatformTime::Cycles();
 	UE_LOG(LogStaticMesh, Log, TEXT("Reduce [%.2fs]"), FPlatformTime::ToMilliseconds(ReduceTime - Time0) / 1000.0f);
 
+	const int32 MinTriCount = 8000; // Temporary fix: make sure that resulting mesh is detailed enough for SDF and bounds computation
+
 	// Replace original static mesh data with coarse representation.
-	const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f;
+	const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f && Indexes.Num() / 3 > MinTriCount;
 	if (bUseCoarseRepresentation)
 	{
-		const uint32 CoarseStartTime = FPlatformTime::Cycles();
-		
 		const int32 OldTriangleCount = Indexes.Num() / 3;
-		const int32 MinTriCount = 8000; // Temporary fix: make sure that resulting mesh is detailed enough for SDF and bounds computation
+		const uint32 CoarseStartTime = FPlatformTime::Cycles();
 		int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
 
 		bool bCoarseCreated = false;
