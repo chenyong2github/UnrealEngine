@@ -45,7 +45,16 @@ public:
 		, InitialNum(InElementHandles.Num())
 		, Index(InIndex)
 	{
-		AdvanceIterator();
+		// Walk to the first valid element
+		while (Index < ElementHandles.Num())
+		{
+			TypedElementList_Private::GetElement(Registry, ElementHandles[Index], Element);
+			if (Element)
+			{
+				break;
+			}
+			++Index;
+		}
 	}
 
 	FORCEINLINE const TTypedElement<BaseInterfaceType>& operator*() const
@@ -53,9 +62,17 @@ public:
 		return Element;
 	}
 
-	FORCEINLINE TTypedElementListInterfaceIterator& operator++()
+	TTypedElementListInterfaceIterator& operator++()
 	{
-		AdvanceIterator();
+		// Walk to the next valid element
+		while (++Index < ElementHandles.Num())
+		{
+			TypedElementList_Private::GetElement(Registry, ElementHandles[Index], Element);
+			if (Element)
+			{
+				break;
+			}
+		}
 		return *this;
 	}
 
@@ -65,18 +82,6 @@ private:
 	const int32 InitialNum;
 	int32 Index;
 	TTypedElement<BaseInterfaceType> Element;
-
-	void AdvanceIterator()
-	{
-		while (Index < ElementHandles.Num())
-		{
-			TypedElementList_Private::GetElement(Registry, ElementHandles[Index++], Element);
-			if (Element)
-			{
-				break;
-			}
-		}
-	}
 
 	FORCEINLINE friend bool operator!=(const TTypedElementListInterfaceIterator& Lhs, const TTypedElementListInterfaceIterator& Rhs)
 	{
