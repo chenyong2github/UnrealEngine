@@ -11,9 +11,11 @@
 #include "WebRemoteControlSettings.h"
 #include "RemoteControlRequest.h"
 
+#if WITH_EDITOR
 // Settings
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
+#endif
 
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"
@@ -167,7 +169,9 @@ static TAutoConsoleVariable<int32> CVarWebControlEnableExperimentalRoutes(TEXT("
 
 void FWebRemoteControlModule::StartupModule()
 {
+#if WITH_EDITOR
 	RegisterSettings();
+#endif
 
 	WebSocketRouter = MakeShared<FWebsocketMessageRouter>();
 
@@ -189,7 +193,9 @@ void FWebRemoteControlModule::ShutdownModule()
 	StopHttpServer();
 	StopWebSocketServer();
 	UnregisterConsoleCommands();
+#if WITH_EDITOR
 	UnregisterSettings();
+#endif
 }
 
 void FWebRemoteControlModule::RegisterRoute(const FRemoteControlRoute& Route)
@@ -514,6 +520,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	return true;
 }
 
+#if WITH_EDITOR
 void FWebRemoteControlModule::RegisterSettings()
 {
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
@@ -554,6 +561,7 @@ bool FWebRemoteControlModule::OnSettingsModified()
 
 	return true;
 }
+#endif
 
 #undef LOCTEXT_NAMESPACE /* WebRemoteControl */
 
