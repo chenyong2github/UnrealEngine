@@ -188,6 +188,14 @@ void UMultiLineEditableTextBox::SetTextStyle(const FTextBlockStyle& InTextStyle)
 	}
 }
 
+void UMultiLineEditableTextBox::SetForegroundColor(FLinearColor color)
+{
+	if(MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetForegroundColor(color);
+	}
+}
+
 void UMultiLineEditableTextBox::HandleOnTextChanged(const FText& InText)
 {
 	OnTextChanged.Broadcast(InText);

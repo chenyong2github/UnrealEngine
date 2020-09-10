@@ -137,6 +137,15 @@ void UEditableTextBox::SetHintText(FText InText)
 	}
 }
 
+void UEditableTextBox::SetForegroundColor(FLinearColor color)
+{
+	WidgetStyle.ForegroundColor = color;
+	if ( MyEditableTextBlock.IsValid() )
+	{
+		MyEditableTextBlock->SetForegroundColor(color);
+	}
+}
+
 void UEditableTextBox::SetError(FText InError)
 {
 	if ( MyEditableTextBlock.IsValid() )

@@ -123,9 +123,11 @@ public:
 	UFUNCTION(BlueprintSetter)
 	void SetTextStyle(const FTextBlockStyle& InTextStyle);
 
+	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetForegroundColor (Multi-Line Text Box)"))
+	void SetForegroundColor(FLinearColor color);
+
 	//TODO UMG Add Set ReadOnlyForegroundColor
 	//TODO UMG Add Set BackgroundColor
-	//TODO UMG Add Set ForegroundColor
 	//TODO UMG Add Set Font
 
 public:

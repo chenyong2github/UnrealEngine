@@ -99,7 +99,7 @@ void SConstraintCanvas::ArrangeLayeredChildren(const FGeometry& AllottedGeometry
 			SlotOrder.Add(Order);
 		}
 
-		SlotOrder.Sort(FSortSlotsByZOrder());
+		SlotOrder.StableSort(FSortSlotsByZOrder());
 		float LastZOrder = -FLT_MAX;
 
 		// Arrange the children now in their proper z-order.

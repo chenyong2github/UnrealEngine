@@ -183,6 +183,9 @@ public:
 	UFUNCTION(BlueprintSetter)
 	void SetJustification(ETextJustify::Type InJustification);
 
+	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetForegroundColor (Text Box)"))
+	void SetForegroundColor(FLinearColor color);
+
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
