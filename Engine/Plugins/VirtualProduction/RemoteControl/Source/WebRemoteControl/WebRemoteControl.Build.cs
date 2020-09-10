@@ -18,9 +18,17 @@ public class WebRemoteControl : ModuleRules
 				"HTTPServer",
 				"RemoteControl",
 				"Serialization",
-				"Settings",
 				"WebSocketNetworking"
 			}
         );
-    }
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"Settings",
+				}
+			);
+		}
+	}
 }
