@@ -13,6 +13,28 @@ class UMovieSceneFolder;
 class UMovieSceneSection;
 class UMovieSceneTrack;
 
+USTRUCT(BlueprintType)
+struct FSequencerChannelProxy
+{
+	GENERATED_BODY()
+
+	FSequencerChannelProxy()
+		: Section(nullptr)
+	{}
+
+	FSequencerChannelProxy(const FName& InChannelName, UMovieSceneSection* InSection)
+		: ChannelName(InChannelName)
+		, Section(InSection)
+	{}
+
+	UPROPERTY(BlueprintReadWrite, Category=Channel)
+	FName ChannelName;
+
+	UPROPERTY(BlueprintReadWrite, Category=Channel)
+	UMovieSceneSection* Section;
+};
+
+
 UCLASS()
 class LEVELSEQUENCEEDITOR_API ULevelSequenceEditorBlueprintLibrary : public UBlueprintFunctionLibrary
 {
@@ -80,6 +102,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
 	static TArray<UMovieSceneSection*> GetSelectedSections();
 
+	/** Gets the currently selected channels. */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static TArray<FSequencerChannelProxy> GetSelectedChannels();
+
 	/** Gets the currently selected folders. */
 	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
 	static TArray<UMovieSceneFolder*> GetSelectedFolders();
@@ -95,6 +121,10 @@ public:
 	/** Select sections */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static void SelectSections(const TArray<UMovieSceneSection*>& Sections);
+
+	/** Select channels */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SelectChannels(const TArray<FSequencerChannelProxy>& Channels);
 
 	/** Select folders */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
