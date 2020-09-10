@@ -189,6 +189,7 @@ IMPLEMENT_GLOBAL_SHADER(FMobileDOFRecombinePS, "/Engine/Private/PostProcessDOF.u
 FScreenPassTexture AddMobileDofRecombinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileDofRecombineInputs& Inputs)
 {
 	FRDGTextureDesc DofRecombineDesc = Inputs.SceneColor.Texture->Desc;
+	DofRecombineDesc.Reset();
 
 	const FIntPoint& BufferSize = Inputs.SceneColor.Texture->Desc.Extent;
 
