@@ -72,7 +72,8 @@ void UWorldPartitionEditorCell::PostEditUndo()
 
 	if (bWasLoaded != bLoaded)
 	{
-		GetWorldPartition()->UpdateLoadingEditorCell(this, bLoaded);
+		bLoaded = bWasLoaded;
+		GetWorldPartition()->UpdateLoadingEditorCell(this, !bLoaded);
 	}
 }
 #endif

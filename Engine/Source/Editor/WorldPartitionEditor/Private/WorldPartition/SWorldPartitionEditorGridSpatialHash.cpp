@@ -24,6 +24,8 @@
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
+TAutoConsoleVariable<bool> CVarDebugDrawOctree(TEXT("wp.Editor.DebugDrawOctree"), false, TEXT("Whether to debug draw the World Partition octree"), ECVF_Default);
+
 SWorldPartitionEditorGridSpatialHash::SWorldPartitionEditorGridSpatialHash()
 {
 }
@@ -84,7 +86,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 	// Shadow whole grid area
 	{
 		FSlateColorBrush ShadowBrush(FLinearColor::Black);
-		FLinearColor ShadowColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.25f));
+		FLinearColor ShadowColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
 
 		FPaintGeometry GridGeometry = AllottedGeometry.ToPaintGeometry(
 			WorldToScreen.TransformPoint(FVector2D(VisibleGridRectWorld.Min)),
@@ -122,78 +124,101 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		);
 	}
 
+	struct FCellDesc2D
 	{
-		// Flatten cells in 2D
-		struct FCellDesc2D
-		{
-			FCellDesc2D()
-				: Bounds(ForceInitToZero)
-				, bSelected(false)
-				, bLoaded(false)
-				, bEmpty(true)
-			{}
+		FCellDesc2D()
+			: Bounds(ForceInitToZero)
+		{}
 
-			FBox2D Bounds;
-			bool bSelected : 1;
-			bool bLoaded : 1;
-			bool bEmpty : 1;
-		};
+		FBox2D Bounds;
+	};
 
+	// Draw shadowed regions
+	{
 		TMap<uint32, FCellDesc2D> UniqueCells2D;
-		WorldPartition->EditorHash->ForEachIntersectingCell(VisibleGridRectWorld, [&](UWorldPartitionEditorCell* Cell)
+		EditorSpatialHash->ForEachIntersectingUnloadedRegion(VisibleGridRectWorld, [&](const UWorldPartitionEditorSpatialHash::FCellCoord& CellCoord)
 		{
-			// Compute a hash of the 2D bounds, snapped to centimeters
+			FBox CellBounds = EditorSpatialHash->GetCellBounds(CellCoord);
+			CellBounds = CellBounds.Overlap(EditorSpatialHash->Bounds);
+
 			FHashBuilder HashBuilder;
-			HashBuilder << FMath::RoundToInt(Cell->Bounds.Min.X) 
-						<< FMath::RoundToInt(Cell->Bounds.Min.Y) 
-						<< FMath::RoundToInt(Cell->Bounds.Max.X) 
-						<< FMath::RoundToInt(Cell->Bounds.Max.Y);
+			HashBuilder << CellCoord.X << CellCoord.Y << CellCoord.Level;
 			uint32 CellHash2D = HashBuilder.GetHash();
 
 			FCellDesc2D& CellDesc2D = UniqueCells2D.Add(CellHash2D);
+			CellDesc2D.Bounds = FBox2D(FVector2D(CellBounds.Min), FVector2D(CellBounds.Max));
+		});
 
-			CellDesc2D.Bounds = FBox2D(FVector2D(Cell->Bounds.Min), FVector2D(Cell->Bounds.Max));
-			CellDesc2D.bSelected |= SelectedCells.Contains(Cell);
-			CellDesc2D.bLoaded |= Cell->bLoaded;
-			CellDesc2D.bEmpty &= !Cell->Actors.Num();
+		const bool bDebugDrawOctree = CVarDebugDrawOctree.GetValueOnAnyThread();
+
+		for(auto& UniqueCell: UniqueCells2D)
+		{
+			const FCellDesc2D& Cell = UniqueCell.Value;
+
+			FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
+				WorldToScreen.TransformPoint(Cell.Bounds.Min),
+				WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
+			);
+
+			FSlateColorBrush CellBrush(FLinearColor::White);
+			FLinearColor CellColor(0, 0, 0, 0.5f);
+
+			if (bDebugDrawOctree)
+			{
+				CellColor = FLinearColor::MakeFromHSV8((uint8)UniqueCell.Key, 255, 255);
+			}
+			
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				++LayerId,
+				CellGeometry,
+				&CellBrush,
+				ESlateDrawEffect::None,
+				CellColor
+			);
+		}
+	}
+
+	// Draw selected cells
+	if (SelectedCells.Num())
+	{
+		TMap<uint32, FCellDesc2D> UniqueCells2D;
+		WorldPartition->EditorHash->ForEachIntersectingCell(VisibleGridRectWorld, [&](UWorldPartitionEditorCell* Cell)
+		{
+			if (SelectedCells.Contains(Cell))
+			{
+				UWorldPartitionEditorSpatialHash::FCellCoord CellCoord = EditorSpatialHash->GetCellCoords(Cell->Bounds.GetCenter(), 0);
+
+				FHashBuilder HashBuilder;
+				HashBuilder << CellCoord.X << CellCoord.Y;
+				uint32 CellHash2D = HashBuilder.GetHash();
+
+				FCellDesc2D& CellDesc2D = UniqueCells2D.Add(CellHash2D);
+
+				CellDesc2D.Bounds = FBox2D(FVector2D(Cell->Bounds.Min), FVector2D(Cell->Bounds.Max));
+			}
 		});
 
 		for(auto& UniqueCell: UniqueCells2D)
 		{
 			const FCellDesc2D& Cell = UniqueCell.Value;
 
-			if (!Cell.bLoaded || Cell.bEmpty || Cell.bSelected)
-			{
-				FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
-					WorldToScreen.TransformPoint(Cell.Bounds.Min),
-					WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
-				);
+			FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
+				WorldToScreen.TransformPoint(Cell.Bounds.Min),
+				WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
+			);
 
-				FLinearColor CellColor;
-				if(Cell.bEmpty)
-				{
-					CellColor = FLinearColor(0, 0, 0, 1.0f);
-				}
-				else if (Cell.bSelected)
-				{
-					CellColor = FLinearColor(1, 1, 1, 0.25f);
-				}
-				else // !Cell.bLoaded
-				{
-					 CellColor = FLinearColor(0, 0, 0, 0.5f);
-				}
+			FSlateColorBrush CellBrush(FLinearColor::White);
+			FLinearColor CellColor(1, 1, 1, 0.25f);
 
-				FSlateColorBrush CellBrush(FLinearColor::White);
-
-				FSlateDrawElement::MakeBox(
-					OutDrawElements,
-					++LayerId,
-					CellGeometry,
-					&CellBrush,
-					ESlateDrawEffect::None,
-					CellColor
-				);
-			}
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				++LayerId,
+				CellGeometry,
+				&CellBrush,
+				ESlateDrawEffect::None,
+				CellColor
+			);
 		}
 	}
 

@@ -903,7 +903,19 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 		}
 	}
 
-	Cell->bLoaded = bShouldBeLoaded;
+	if (Cell->bLoaded != bShouldBeLoaded)
+	{
+		Cell->bLoaded = bShouldBeLoaded;
+
+		if (Cell->bLoaded)
+		{
+			EditorHash->OnCellLoaded(Cell);
+		}
+		else
+		{
+			EditorHash->OnCellUnloaded(Cell);
+		}
+	}
 }
 
 void UWorldPartition::CreateLayers(const TSet<FName>& LayerNames)
