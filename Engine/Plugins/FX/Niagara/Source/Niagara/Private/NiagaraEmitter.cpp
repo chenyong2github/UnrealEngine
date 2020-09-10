@@ -1492,6 +1492,7 @@ void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& 
 	{
 		if (Renderer)
 		{
+			Renderer->Modify(false);
 			Renderer->RenameEmitter(*InOldName, this);
 		}
 	}
