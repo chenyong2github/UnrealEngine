@@ -154,8 +154,8 @@ private:
  * A simple linear query allocator.
  * Never resolve or cleanup until results are explicitly requested.
  * Begin/EndQuery are thread-safe but other methods are not. Make sure no thread may
- * call Begin/EndQuery before calling FlushAndGetResults.
- * Only used in ProfileGPU to hold command list start/end timestamp queries currently
+ * call Begin/EndQuery before calling ResolveAndGetResults.
+ * Only used by ProfileGPU and FD3D12SubmissionGapRecorder to hold command list start/end timestamp queries currently
  */
 class FD3D12LinearQueryHeap final : public FD3D12DeviceChild, public FD3D12SingleNodeGPUObject
 {
@@ -166,7 +166,7 @@ public:
 		HS_Closed
 	};
 
-	FD3D12LinearQueryHeap(class FD3D12Device* InParent, D3D12_QUERY_HEAP_TYPE InHeapType, int32 GrowCount);
+	FD3D12LinearQueryHeap(class FD3D12Device* InParent, D3D12_QUERY_HEAP_TYPE InHeapType, int32 InChunkSize);
 	~FD3D12LinearQueryHeap();
 
 	/**
@@ -183,37 +183,26 @@ public:
 	*/
 	int32 EndQuery(FD3D12CommandListHandle CmdListHandle);
 
-	/** Get results of all allocated queries and reset */
-	void FlushAndGetResults(TArray<uint64>& QueryResults, bool bReleaseResources = true, bool bBlockOnResults = true);
+	/**
+	* Resolve new queries and get results for a query batch
+	* @param QueryResults - results of the query batch
+	* @param Token - a token that identifies the query batch to get results from. Ignored if bWait is true
+	* @param bWait - whether to wait for the current resolve and its results
+	* @return a new token of the query batch that has just been resolved. INDEX_NONE if bWait is true
+	*/
+	uint64 ResolveAndGetResults(TArray<uint64>& QueryResults, uint64 Token, bool bWait);
 
-	struct FStoredQuery
+	int32 GetNextFreeIdx() const
 	{
-		FD3D12CommandListHandle Handle;
-		TRefCountPtr<FD3D12Resource> RBuffer;
-		uint64 StoredCLGeneration;
-		int32 NResults;
-	};
-
-	TArray<FStoredQuery> PendingQueries;
-
-	void StoreQuery(FD3D12CommandListHandle Handle, TRefCountPtr<FD3D12Resource> ResultBuffer, int32 NumResults);
-
-	void ResolveOutstandingQueries(TArray<uint64>& QueryResults, bool bReleaseResources);
-
-	volatile int32 GetNextFreeIdx() const { return NextFreeIdx; }
-	void SetNextFreeIdx(volatile int32 val) { NextFreeIdx = val; }
+		return HeadSlot.Load(EMemoryOrder::Relaxed) - TailSlot;
+	}
 
 private:
-	struct FChunk
-	{
-		TRefCountPtr<ID3D12QueryHeap> QueryHeap;
-		FD3D12ResidencyHandle QueryHeapResidencyHandle;
-	};
-
 	static D3D12_QUERY_TYPE HeapTypeToQueryType(D3D12_QUERY_HEAP_TYPE HeapType);
 
-	/** Release all allocated query */
-	void Reset();
+	void GetQueryBatchResults(TArray<uint64>& QueryResults, uint64 Token);
+
+	uint64 StoreQueryBatch(FD3D12CommandListHandle Handle, TRefCountPtr<FD3D12Resource> ResultBuffer, int32 Offset, int32 NumResults);
 
 	/** Returns an index to the allocated heap slot */
 	int32 AllocateQueryHeapSlot();
@@ -230,19 +219,35 @@ private:
 	/** Release all allocated query heaps and detach them from residency manager */
 	void ReleaseResources();
 
-	/** This allocator can allocate up to (MaxNumChunks * GrowNumQueries) queries before a manual flush is needed */
-	static constexpr int32 MaxNumChunks = 8;
+	struct FChunk
+	{
+		TRefCountPtr<ID3D12QueryHeap> QueryHeap;
+		FD3D12ResidencyHandle QueryHeapResidencyHandle;
+	};
+
+	struct FQueryBatch
+	{
+		FD3D12CommandListHandle Handle;
+		TRefCountPtr<FD3D12Resource> RBuffer;
+		uint64 StoredCLGeneration;
+		uint64 Token;
+		int32 Offset;
+		int32 NResults;
+	};
+
 	/** Size in bytes of a single query result */
 	static constexpr SIZE_T ResultSize = sizeof(uint64);
 
 	const D3D12_QUERY_HEAP_TYPE QueryHeapType;
 	const D3D12_QUERY_TYPE QueryType;
-	const int32 GrowNumQueries;
+	const int32 ChunkSize;
 	const int32 SlotToHeapIdxShift;
+	TAtomic<int32> HeadSlot;
+	int32 TailSlot;
+	int32 MaxNumQueries;
 	EHeapState HeapState;
-	volatile int32 NextFreeIdx;
-	volatile int32 CurMaxNumQueries;
-	volatile int32 NextChunkIdx;
-	FChunk AllocatedChunks[MaxNumChunks];
+	uint64 NextToken;
+	TArray<FChunk, TInlineAllocator<2>> AllocatedChunks;
+	TArray<FQueryBatch, TInlineAllocator<2>> PendingQueryBatches;
 	FCriticalSection CS;
 };
