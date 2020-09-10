@@ -589,10 +589,6 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
 	const DXGI_FORMAT PlatformRenderTargetFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
 	
-	// Determine the MSAA settings to use for the texture.
-	D3D11_DSV_DIMENSION DepthStencilViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	D3D11_RTV_DIMENSION RenderTargetViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	D3D11_SRV_DIMENSION ShaderResourceViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	uint32 CPUAccessFlags = 0;
 	D3D11_USAGE TextureUsage = D3D11_USAGE_DEFAULT;
 	bool bCreateShaderResource = true;
@@ -609,11 +605,10 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		ActualMSAAQuality = 0;
 	}
 
-	if(ActualMSAACount > 1)
+	const bool bIsMultisampled = ActualMSAACount > 1;
+
+	if (bIsMultisampled)
 	{
-		DepthStencilViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
-		RenderTargetViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
-		ShaderResourceViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
 		bPooledTexture = false;
 	}
 
@@ -830,12 +825,23 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 					for (uint32 SliceIndex = 0; SliceIndex < TextureDesc.ArraySize; SliceIndex++)
 					{
 						D3D11_RENDER_TARGET_VIEW_DESC RTVDesc;
-						FMemory::Memzero(&RTVDesc,sizeof(RTVDesc));
+						FMemory::Memzero(RTVDesc);
+
 						RTVDesc.Format = PlatformRenderTargetFormat;
-						RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-						RTVDesc.Texture2DArray.FirstArraySlice = SliceIndex;
-						RTVDesc.Texture2DArray.ArraySize = 1;
-						RTVDesc.Texture2DArray.MipSlice = MipIndex;
+
+						if (bIsMultisampled)
+						{
+							RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+							RTVDesc.Texture2DMSArray.FirstArraySlice = SliceIndex;
+							RTVDesc.Texture2DMSArray.ArraySize = 1;
+						}
+						else
+						{
+							RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+							RTVDesc.Texture2DArray.FirstArraySlice = SliceIndex;
+							RTVDesc.Texture2DArray.ArraySize = 1;
+							RTVDesc.Texture2DArray.MipSlice = MipIndex;
+						}
 
 						TRefCountPtr<ID3D11RenderTargetView> RenderTargetView;
 						VERIFYD3D11RESULT_EX(Direct3DDevice->CreateRenderTargetView(TextureResource,&RTVDesc,RenderTargetView.GetInitReference()), Direct3DDevice);
@@ -845,19 +851,38 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 				else
 				{
 					D3D11_RENDER_TARGET_VIEW_DESC RTVDesc;
-					FMemory::Memzero(&RTVDesc,sizeof(RTVDesc));
+					FMemory::Memzero(RTVDesc);
+
 					RTVDesc.Format = PlatformRenderTargetFormat;
+
 					if (bTextureArray || bCubeTexture)
 					{
-						RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-						RTVDesc.Texture2DArray.FirstArraySlice = 0;
-						RTVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
-						RTVDesc.Texture2DArray.MipSlice = MipIndex;
+						if (bIsMultisampled)
+						{
+							RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+							RTVDesc.Texture2DMSArray.FirstArraySlice = 0;
+							RTVDesc.Texture2DMSArray.ArraySize = TextureDesc.ArraySize;
+						}
+						else
+						{
+							RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+							RTVDesc.Texture2DArray.FirstArraySlice = 0;
+							RTVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+							RTVDesc.Texture2DArray.MipSlice = MipIndex;
+						}
 					}
 					else
 					{
-						RTVDesc.ViewDimension = RenderTargetViewDimension;
-						RTVDesc.Texture2D.MipSlice = MipIndex;
+						if (bIsMultisampled)
+						{
+							RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
+							// Nothing to set
+						}
+						else
+						{
+							RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+							RTVDesc.Texture2D.MipSlice = MipIndex;
+						}
 					}
 
 					TRefCountPtr<ID3D11RenderTargetView> RenderTargetView;
@@ -867,23 +892,42 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 			}
 		}
 	
-		if(bCreateDSV)
+		if (bCreateDSV)
 		{
 			// Create a depth-stencil-view for the texture.
 			D3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc;
-			FMemory::Memzero(&DSVDesc,sizeof(DSVDesc));
+			FMemory::Memzero(DSVDesc);
+
 			DSVDesc.Format = FindDepthStencilDXGIFormat(PlatformResourceFormat);
-			if(bTextureArray || bCubeTexture)
+
+			if (bTextureArray || bCubeTexture)
 			{
-				DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
-				DSVDesc.Texture2DArray.FirstArraySlice = 0;
-				DSVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
-				DSVDesc.Texture2DArray.MipSlice = 0;
+				if (bIsMultisampled)
+				{
+					DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY;
+					DSVDesc.Texture2DMSArray.FirstArraySlice = 0;
+					DSVDesc.Texture2DMSArray.ArraySize = TextureDesc.ArraySize;
+				}
+				else
+				{
+					DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+					DSVDesc.Texture2DArray.FirstArraySlice = 0;
+					DSVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+					DSVDesc.Texture2DArray.MipSlice = 0;
+				}
 			}
 			else
 			{
-				DSVDesc.ViewDimension = DepthStencilViewDimension;
-				DSVDesc.Texture2D.MipSlice = 0;
+				if (bIsMultisampled)
+				{
+					DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+					// Nothing to set
+				}
+				else
+				{
+					DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+					DSVDesc.Texture2D.MipSlice = 0;
+				}
 			}
 
 			for (uint32 AccessType = 0; AccessType < FExclusiveDepthStencil::MaxIndex; ++AccessType)
@@ -910,6 +954,8 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	{
 		{
 			D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
+			FMemory::Memzero(SRVDesc);
+
 			SRVDesc.Format = PlatformShaderResourceFormat;
 
 			if (bCubeTexture && bTextureArray)
@@ -928,17 +974,34 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 			}
 			else if(bTextureArray)
 			{
-				SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-				SRVDesc.Texture2DArray.MostDetailedMip = 0;
-				SRVDesc.Texture2DArray.MipLevels = NumMips;
-				SRVDesc.Texture2DArray.FirstArraySlice = 0;
-				SRVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+				if (bIsMultisampled)
+				{
+					SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
+					SRVDesc.Texture2DMSArray.FirstArraySlice = 0;
+					SRVDesc.Texture2DMSArray.ArraySize = TextureDesc.ArraySize;
+				}
+				else
+				{
+					SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+					SRVDesc.Texture2DArray.MostDetailedMip = 0;
+					SRVDesc.Texture2DArray.MipLevels = NumMips;
+					SRVDesc.Texture2DArray.FirstArraySlice = 0;
+					SRVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+				}
 			}
 			else
 			{
-				SRVDesc.ViewDimension = ShaderResourceViewDimension;
-				SRVDesc.Texture2D.MostDetailedMip = 0;
-				SRVDesc.Texture2D.MipLevels = NumMips;
+				if (bIsMultisampled)
+				{
+					SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+					// Nothing to set
+				}
+				else
+				{
+					SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+					SRVDesc.Texture2D.MostDetailedMip = 0;
+					SRVDesc.Texture2D.MipLevels = NumMips;
+				}
 			}
 			VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(TextureResource,&SRVDesc,ShaderResourceView.GetInitReference()), Direct3DDevice);
 		}
@@ -2219,17 +2282,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
 	const DXGI_FORMAT PlatformRenderTargetFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
 
-	// Determine the MSAA settings to use for the texture.
-	D3D11_DSV_DIMENSION DepthStencilViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	D3D11_RTV_DIMENSION RenderTargetViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	D3D11_SRV_DIMENSION ShaderResourceViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-
-	if(TextureDesc.SampleDesc.Count > 1)
-	{
-		DepthStencilViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
-		RenderTargetViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
-		ShaderResourceViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
-	}
+	const bool bIsMultisampled = TextureDesc.SampleDesc.Count > 1;
 
 	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
 	TArray<TRefCountPtr<ID3D11RenderTargetView> > RenderTargetViews;
@@ -2249,12 +2302,23 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 				for (uint32 SliceIndex = 0; SliceIndex < TextureDesc.ArraySize; SliceIndex++)
 				{
 					D3D11_RENDER_TARGET_VIEW_DESC RTVDesc;
-					FMemory::Memzero(&RTVDesc,sizeof(RTVDesc));
+					FMemory::Memzero(RTVDesc);
+
 					RTVDesc.Format = PlatformRenderTargetFormat;
-					RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-					RTVDesc.Texture2DArray.FirstArraySlice = SliceIndex;
-					RTVDesc.Texture2DArray.ArraySize = 1;
-					RTVDesc.Texture2DArray.MipSlice = MipIndex;
+
+					if (bIsMultisampled)
+					{
+						RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+						RTVDesc.Texture2DMSArray.FirstArraySlice = SliceIndex;
+						RTVDesc.Texture2DMSArray.ArraySize = 1;
+					}
+					else
+					{
+						RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+						RTVDesc.Texture2DArray.FirstArraySlice = SliceIndex;
+						RTVDesc.Texture2DArray.ArraySize = 1;
+						RTVDesc.Texture2DArray.MipSlice = MipIndex;
+					}
 
 					TRefCountPtr<ID3D11RenderTargetView> RenderTargetView;
 					VERIFYD3D11RESULT_EX(Direct3DDevice->CreateRenderTargetView(TextureResource,&RTVDesc,RenderTargetView.GetInitReference()), Direct3DDevice);
@@ -2264,19 +2328,38 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 			else
 			{
 				D3D11_RENDER_TARGET_VIEW_DESC RTVDesc;
-				FMemory::Memzero(&RTVDesc,sizeof(RTVDesc));
+				FMemory::Memzero(RTVDesc);
+
 				RTVDesc.Format = PlatformRenderTargetFormat;
+
 				if (bTextureArray || bCubeTexture)
 				{
-					RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-					RTVDesc.Texture2DArray.FirstArraySlice = 0;
-					RTVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
-					RTVDesc.Texture2DArray.MipSlice = MipIndex;
+					if (bIsMultisampled)
+					{
+						RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+						RTVDesc.Texture2DMSArray.FirstArraySlice = 0;
+						RTVDesc.Texture2DMSArray.ArraySize = TextureDesc.ArraySize;
+					}
+					else
+					{
+						RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+						RTVDesc.Texture2DArray.FirstArraySlice = 0;
+						RTVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+						RTVDesc.Texture2DArray.MipSlice = MipIndex;
+					}
 				}
 				else
 				{
-					RTVDesc.ViewDimension = RenderTargetViewDimension;
-					RTVDesc.Texture2D.MipSlice = MipIndex;
+					if (bIsMultisampled)
+					{
+						RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
+						// Nothing to set
+					}
+					else
+					{
+						RTVDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+						RTVDesc.Texture2D.MipSlice = MipIndex;
+					}
 				}
 
 				TRefCountPtr<ID3D11RenderTargetView> RenderTargetView;
@@ -2290,19 +2373,38 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 	{
 		// Create a depth-stencil-view for the texture.
 		D3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc;
-		FMemory::Memzero(&DSVDesc,sizeof(DSVDesc));
+		FMemory::Memzero(DSVDesc);
+
 		DSVDesc.Format = FindDepthStencilDXGIFormat(PlatformResourceFormat);
-		if(bTextureArray || bCubeTexture)
+
+		if (bTextureArray || bCubeTexture)
 		{
-			DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
-			DSVDesc.Texture2DArray.FirstArraySlice = 0;
-			DSVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
-			DSVDesc.Texture2DArray.MipSlice = 0;
+			if (bIsMultisampled)
+			{
+				DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY;
+				DSVDesc.Texture2DMSArray.FirstArraySlice = 0;
+				DSVDesc.Texture2DMSArray.ArraySize = TextureDesc.ArraySize;
+			}
+			else
+			{
+				DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+				DSVDesc.Texture2DArray.FirstArraySlice = 0;
+				DSVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+				DSVDesc.Texture2DArray.MipSlice = 0;
+			}
 		}
 		else
 		{
-			DSVDesc.ViewDimension = DepthStencilViewDimension;
-			DSVDesc.Texture2D.MipSlice = 0;
+			if (bIsMultisampled)
+			{
+				DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+				// Nothing to set
+			}
+			else
+			{
+				DSVDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+				DSVDesc.Texture2D.MipSlice = 0;
+			}
 		}
 
 		for (uint32 AccessType = 0; AccessType < FExclusiveDepthStencil::MaxIndex; ++AccessType)
@@ -2327,6 +2429,8 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 	{
 		{
 			D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
+			FMemory::Memzero(SRVDesc);
+
 			SRVDesc.Format = PlatformShaderResourceFormat;
 
 			if (bCubeTexture && bTextureArray)
@@ -2337,25 +2441,42 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 				SRVDesc.TextureCubeArray.First2DArrayFace = 0;
 				SRVDesc.TextureCubeArray.NumCubes = TextureDesc.ArraySize / 6;
 			}
-			else if(bCubeTexture)
+			else if (bCubeTexture)
 			{
 				SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
 				SRVDesc.TextureCube.MostDetailedMip = 0;
 				SRVDesc.TextureCube.MipLevels = TextureDesc.MipLevels;
 			}
-			else if(bTextureArray)
+			else if (bTextureArray)
 			{
-				SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-				SRVDesc.Texture2DArray.MostDetailedMip = 0;
-				SRVDesc.Texture2DArray.MipLevels = TextureDesc.MipLevels;
-				SRVDesc.Texture2DArray.FirstArraySlice = 0;
-				SRVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+				if (bIsMultisampled)
+				{
+					SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
+					SRVDesc.Texture2DMSArray.FirstArraySlice = 0;
+					SRVDesc.Texture2DMSArray.ArraySize = TextureDesc.ArraySize;
+				}
+				else
+				{
+					SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+					SRVDesc.Texture2DArray.MostDetailedMip = 0;
+					SRVDesc.Texture2DArray.MipLevels = TextureDesc.MipLevels;
+					SRVDesc.Texture2DArray.FirstArraySlice = 0;
+					SRVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+				}
 			}
-			else
+			else 
 			{
-				SRVDesc.ViewDimension = ShaderResourceViewDimension;
-				SRVDesc.Texture2D.MostDetailedMip = 0;
-				SRVDesc.Texture2D.MipLevels = TextureDesc.MipLevels;
+				if (bIsMultisampled)
+				{
+					SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+					// Nothing to set
+				}
+				else
+				{
+					SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+					SRVDesc.Texture2D.MostDetailedMip = 0;
+					SRVDesc.Texture2D.MipLevels = TextureDesc.MipLevels;
+				}
 			}
 			VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(TextureResource,&SRVDesc,ShaderResourceView.GetInitReference()), Direct3DDevice);
 		}
