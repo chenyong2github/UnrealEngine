@@ -153,7 +153,7 @@ namespace Cook
 	FPlatformData* FPlatformManager::GetPlatformData(FPlatformId Platform)
 	{
 		const bool bIsSchedulerThread = IsSchedulerThread();
-		checkf(bIsSchedulerThread || IsInPlatformsLock(), TEXT("Returning FPlatformData outside of the function scope on non-scheduler threads is only allowed when inside a ReadLockPlatforms scope."));
+		checkf(bIsSchedulerThread || IsInPlatformsLock(), TEXT("Reading FPlatformData on non-scheduler threads is only allowed when inside a ReadLockPlatforms scope."));
 		FPlatformData** Existing = PlatformDatas.Find(Platform);
 		return Existing ? *Existing : nullptr;
 	}
@@ -161,7 +161,7 @@ namespace Cook
 	FPlatformData* FPlatformManager::GetPlatformDataByName(FName PlatformName)
 	{
 		const bool bIsSchedulerThread = IsSchedulerThread();
-		checkf(bIsSchedulerThread || IsInPlatformsLock(), TEXT("Returning FPlatformData outside of the function scope on non-scheduler threads is only allowed when inside a ReadLockPlatforms scope."));
+		checkf(bIsSchedulerThread || IsInPlatformsLock(), TEXT("Reading FPlatformData on non-scheduler threads is only allowed when inside a ReadLockPlatforms scope."));
 		FPlatformData** Existing = PlatformDatasByName.Find(PlatformName);
 		return Existing ? *Existing : nullptr;
 	}

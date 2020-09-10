@@ -7883,8 +7883,11 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						const bool bSucceededSavePackage = (SaveResult == ESavePackageResult::Success || SaveResult == ESavePackageResult::GenerateStub || SaveResult == ESavePackageResult::ReplaceCompletely);
 						if (bSucceededSavePackage)
 						{
-							FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
-							UpdateAssetRegistryPackageData(Generator, Package->GetFName(), SaveResult);
+							{
+								UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(PlatformManager->ReadLockPlatforms());
+								FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
+								UpdateAssetRegistryPackageData(Generator, Package->GetFName(), SaveResult);
+							}
 
 							FPlatformAtomics::InterlockedIncrement(&ParallelSavedPackages);
 						}
