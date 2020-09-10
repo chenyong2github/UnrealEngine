@@ -6972,15 +6972,17 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
 
 			Selection.AddToSelection(NodesToSelect);
+			Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
 		}
 	}
-	else
+	else if (NodesToSelect.Num() > 0)
 	{
 		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : NodesToSelect)
 		{
 			Selection.RemoveFromSelection(DisplayNode);
 			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
 		}
+		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
 	}
 }
 
@@ -7031,14 +7033,74 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 			NodesToSelect.Add(DisplayNode);
 		}
 		Selection.AddToSelection(NodesToSelect);
+		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
 	}
-	else
+	else if (Nodes.Num() > 0)
 	{
 		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : Nodes)
 		{
 			Selection.RemoveFromSelection(DisplayNode);
 			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
 		}
+		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+	}
+}
+
+void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FName>& InChannelNames, bool bSelectParentInstead, bool bSelect)
+{
+	TSet<TSharedRef<FSequencerDisplayNode>> Nodes;
+	TArray<TSharedRef<FSequencerDisplayNode>> NodesToSelect;
+
+	TOptional<FSectionHandle> SectionHandle = NodeTree->GetSectionHandle(Section);
+	if (SectionHandle.IsSet())
+	{
+		TSharedRef<FSequencerTrackNode> TrackNode = SectionHandle->GetTrackNode();
+		TArray<TSharedRef<FSequencerSectionKeyAreaNode>> KeyAreaNodes;
+		TrackNode->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
+		for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
+		{
+			for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
+			{
+				FMovieSceneChannelHandle ThisChannel = KeyArea->GetChannel();
+
+				const FMovieSceneChannelMetaData* MetaData = ThisChannel.GetMetaData();
+
+				if (MetaData && InChannelNames.Contains(MetaData->Name))
+				{
+					if (bSelectParentInstead || bSelect == false)
+					{
+						Nodes.Add(KeyAreaNode->GetParent()->AsShared());
+					}
+					if (!bSelectParentInstead || bSelect == false)
+					{
+						Nodes.Add(KeyAreaNode);
+					}
+				}
+			}
+		}
+	}
+	
+	if (bSelect)
+	{
+		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : Nodes)
+		{
+			if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->GetType() == ESequencerNode::Track && !DisplayNode->GetParent()->IsExpanded())
+			{
+				DisplayNode->GetParent()->SetExpansionState(true);
+			}
+			NodesToSelect.Add(DisplayNode);
+		}
+		Selection.AddToSelection(NodesToSelect);
+		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
+	}
+	else if (Nodes.Num() > 0)
+	{
+		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : Nodes)
+		{
+			Selection.RemoveFromSelection(DisplayNode);
+			Selection.RemoveFromNodesWithSelectedKeysOrSections(DisplayNode);
+		}
+		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
 	}
 }
 
