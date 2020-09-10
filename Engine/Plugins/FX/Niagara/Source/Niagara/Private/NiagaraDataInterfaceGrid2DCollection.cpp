@@ -1040,7 +1040,39 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SampleGridFunctionName)
 	{
-		
+		static const TCHAR* FormatBounds = TEXT(R"(
+				void {FunctionName}(float In_UnitX, float In_UnitY, int In_AttributeIndex, out float Out_Val)
+				{
+					int TileIndexX = In_AttributeIndex % {NumTiles}.x;
+					int TileIndexY = In_AttributeIndex / {NumTiles}.x;
+					float2 UV =
+					{
+						In_UnitX / {NumTiles}.x + 1.0*TileIndexX/{NumTiles}.x,
+						In_UnitY / {NumTiles}.y + 1.0*TileIndexY/{NumTiles}.y
+					};
+					float2 TileMin =
+					{
+						(TileIndexX * {NumCellsName}.x + 0.5) / ({NumTiles}.x * {NumCellsName}.x),
+						(TileIndexY * {NumCellsName}.y + 0.5) / ({NumTiles}.y * {NumCellsName}.y),
+					};
+					float2 TileMax =
+					{
+						((TileIndexX + 1) * {NumCellsName}.x - 0.5) / ({NumTiles}.x * {NumCellsName}.x),
+						((TileIndexY + 1) * {NumCellsName}.y - 0.5) / ({NumTiles}.y * {NumCellsName}.y),
+					};
+					UV = clamp(UV, TileMin, TileMax);
+				
+					Out_Val = {Grid}.SampleLevel({SamplerName}, UV, 0);
+				}
+			)");
+		TMap<FString, FStringFormatArg> ArgsBounds = {
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
+			{TEXT("Grid"), GridName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("SamplerName"),    SamplerName + ParamInfo.DataInterfaceHLSLSymbol },
+			{TEXT("NumTiles"),    NumTilesName + ParamInfo.DataInterfaceHLSLSymbol},
+			{TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
+		};
+		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
 	return false;
@@ -1188,6 +1220,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	int32 NumAttribChannelsFound = 0;
 	for (auto EmitterInst : SystemInstance->GetEmitters())
 	{
+		if (EmitterInst->GetGPUContext() == nullptr)
+			continue;
 		const FNiagaraVariableBase* FoundVar = EmitterInst->GetGPUContext()->CombinedParamStore.FindVariable(this);
 		if (FoundVar && EmitterInst->GetCachedEmitter() && EmitterInst->IsAllowedToExecute())
 		{
