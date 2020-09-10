@@ -228,6 +228,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	AnimationObject->SetRawNumberOfFrame(0);
 
 	RecordedCurves.Reset();
+	RecordedTimes.Empty();
 	UIDToArrayIndexLUT = nullptr;
 
 	USkeleton* AnimSkeleton = AnimationObject->GetSkeleton();
@@ -435,6 +436,87 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 	return NULL;
 }
 
+void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate)
+{
+	int32 NumFrames = LastFrame  + 1;
+	if (RecordedTimes.Num() != NumFrames)
+	{
+		return;
+	}
+
+	TArray<int32> Hours, Minutes, Seconds, Frames;
+	TArray<float> SubFrames;
+	TArray<float> Times;
+
+	Hours.Reserve(RecordedTimes.Num());
+	Minutes.Reserve(RecordedTimes.Num());
+	Seconds.Reserve(RecordedTimes.Num());
+	Frames.Reserve(RecordedTimes.Num());
+	SubFrames.Reserve(RecordedTimes.Num());
+	Times.Reserve(RecordedTimes.Num());
+
+	for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
+	{
+		const float TimeToRecord = FrameIndex*IntervalTime;
+
+		FQualifiedFrameTime RecordedTime = RecordedTimes[FrameIndex];
+		FTimecode Timecode = FTimecode::FromFrameNumber(RecordedTime.Time.FrameNumber, RecordedTime.Rate);
+		
+		Hours.Add(Timecode.Hours);
+		Minutes.Add(Timecode.Minutes);
+		Seconds.Add(Timecode.Seconds);
+		Frames.Add(Timecode.Frames);
+
+		float SubFrame = RecordedTime.Time.GetSubFrame();
+		SubFrames.Add(SubFrame);
+
+		Times.Add(TimeToRecord);
+	}
+
+	Hours.Shrink();
+	Minutes.Shrink();
+	Seconds.Shrink();
+	Frames.Shrink();
+	SubFrames.Shrink();
+	Times.Shrink();
+	
+	USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
+
+	const USkinnedMeshComponent* const MasterPoseComponentInst = SkeletalMeshComponent->MasterPoseComponent.Get();
+	const TArray<FTransform>* SpaceBases;
+	if (MasterPoseComponentInst)
+	{
+		SpaceBases = &MasterPoseComponentInst->GetComponentSpaceTransforms();
+	}
+	else
+	{
+		SpaceBases = &SkeletalMeshComponent->GetComponentSpaceTransforms();
+	}
+
+	// String is not animatable, just add 1 slate at the first key time
+	TArray<FString> Slates(&Slate, 1);
+	TArray<float> SlateTimes(&Times[0], 1);
+
+	for (int32 BoneIndex = 0; BoneIndex < SpaceBases->Num(); ++BoneIndex)
+	{
+		// verify if this bone exists in skeleton
+		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkeletalMeshComponent->MasterPoseComponent != nullptr ? SkeletalMeshComponent->MasterPoseComponent->SkeletalMesh : SkeletalMeshComponent->SkeletalMesh, BoneIndex);
+		if (BoneTreeIndex != INDEX_NONE)
+		{
+			// add tracks for the bone existing
+			FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
+			
+			AnimSequence->Stub_AddBoneIntegerCustomAttribute(BoneTreeName, FName(*HoursName), Times, Hours);
+			AnimSequence->Stub_AddBoneIntegerCustomAttribute(BoneTreeName, FName(*MinutesName), Times, Minutes);
+			AnimSequence->Stub_AddBoneIntegerCustomAttribute(BoneTreeName, FName(*SecondsName), Times, Seconds);
+			AnimSequence->Stub_AddBoneIntegerCustomAttribute(BoneTreeName, FName(*FramesName), Times, Frames);
+			AnimSequence->Stub_AddBoneFloatCustomAttribute(BoneTreeName, FName(*SubFramesName), Times, SubFrames);
+
+			AnimSequence->Stub_AddBoneStringCustomAttribute(BoneTreeName, FName(*SlateName), SlateTimes, Slates);
+		}
+	}
+}
+
 void FAnimationRecorder::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	if (AnimationObject)
@@ -638,6 +720,10 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 				}
 			}
 		}
+
+		TOptional<FQualifiedFrameTime> CurrentTime = FApp::GetCurrentFrameTime();
+		RecordedTimes.Add(CurrentTime.IsSet() ? CurrentTime.GetValue() : FQualifiedFrameTime());
+
 		if (AnimationSerializer)
 		{
 			AnimationSerializer->WriteFrameData(AnimationSerializer->FramesWritten, SerializedAnimation);
@@ -890,6 +976,15 @@ void FAnimRecorderInstance::FinishRecording(bool bShowMessage)
 		SkelComp->VisibilityBasedAnimTickOption = CachedVisibilityBasedAnimTickOption;
 	}
 }
+
+void FAnimRecorderInstance::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate)
+{
+	if (Recorder.IsValid())
+	{
+		Recorder->ProcessRecordedTimes(AnimSequence, SkeletalMeshComponent, HoursName, MinutesName, SecondsName, FramesName, SubFramesName, SlateName, Slate);
+	}
+}
+
 
 bool FAnimationRecorderManager::RecordAnimation(USkeletalMeshComponent* Component, const FString& AssetPath, const FString& AssetName, const FAnimationRecordingSettings& Settings)
 {

@@ -39,6 +39,7 @@
 
 #include "MovieSceneTakeTrack.h"
 #include "MovieSceneTakeSection.h"
+#include "MovieSceneTakeSettings.h"
 
 DEFINE_LOG_CATEGORY(ActorSerialization);
 
@@ -609,8 +610,6 @@ void UTakeRecorderActorSource::StopRecording(ULevelSequence* InSequence)
 	
 	ActorSerializer.Close();
 }
-PRAGMA_DISABLE_OPTIMIZATION
-
 
 void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 {
@@ -717,8 +716,6 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 	}
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
-
 TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InMasterSequence)
 {
 	FTakeRecorderParameters Parameters;
@@ -731,7 +728,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 	// We need to do some post-processing tasks on the Track Recorders (such as animation motion source fixup) so we do this now before finalizing
 	{
 		SlowTask.EnterProgressFrame(0.1f, LOCTEXT("PostProcessingTrackRecorder", "Post Processing Track Recorders"));
-		PostProcessTrackRecorders();
+		PostProcessTrackRecorders(InSequence);
 	}
 
 	// Finalize each Section Recorder and allow it to write data into the Level Sequence.
@@ -792,8 +789,25 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 	return AddedActorSources;
 }
 
-void UTakeRecorderActorSource::PostProcessTrackRecorders()
+void UTakeRecorderActorSource::PostProcessTrackRecorders(ULevelSequence* InSequence)
 {
+	FTakeRecorderParameters Parameters;
+	Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
+	Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
+
+	FString HoursName = GetDefault<UMovieSceneTakeSettings>()->HoursName;
+	FString MinutesName = GetDefault<UMovieSceneTakeSettings>()->MinutesName;
+	FString SecondsName = GetDefault<UMovieSceneTakeSettings>()->SecondsName;
+	FString FramesName = GetDefault<UMovieSceneTakeSettings>()->FramesName;
+	FString SubFramesName = GetDefault<UMovieSceneTakeSettings>()->SubFramesName;
+	FString SlateName = GetDefault<UMovieSceneTakeSettings>()->SlateName;
+				
+	FString Slate;
+	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+	{
+		Slate = FString::Printf(TEXT("%s_%d"), *TakeMetaData->GetSlate(), TakeMetaData->GetTakeNumber());
+	}
+
 	// We want to look at all Animation Track recorders and remove root motion if the transform
 	// for that component is being recorded. We copy the animation out of the Animation Track
 	// so that we accurately capture the original motion.
@@ -832,9 +846,19 @@ void UTakeRecorderActorSource::PostProcessTrackRecorders()
 	// Remove root motion on all other animation track recorders
 	for (UMovieSceneTrackRecorder* TrackRecorder : TrackRecorders)
 	{
-		if (TrackRecorder->IsA<UMovieSceneAnimationTrackRecorder>() && TrackRecorder != FirstAnimationRecorder)
+		if (TrackRecorder->IsA<UMovieSceneAnimationTrackRecorder>())
 		{
-			Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder)->RemoveRootMotion();
+			UMovieSceneAnimationTrackRecorder* AnimationTrackRecorder = Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder);
+			
+			if (TrackRecorder != FirstAnimationRecorder)
+			{
+				AnimationTrackRecorder->RemoveRootMotion();
+			}
+			
+			if (Parameters.Project.bRecordTimecode)
+			{
+				AnimationTrackRecorder->ProcessRecordedTimes(HoursName, MinutesName, SecondsName, FramesName, SubFramesName, SlateName, Slate);
+			}
 		}
 	}
 }

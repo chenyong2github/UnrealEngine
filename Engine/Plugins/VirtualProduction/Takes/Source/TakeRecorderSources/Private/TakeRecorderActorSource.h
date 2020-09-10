@@ -193,7 +193,7 @@ protected:
 	void CleanExistingDataFromSequence(const FGuid& ForGuid, ULevelSequence& InSequence);
 
 	/** Called as part of PostRecording before Track Recorders are finalized. Calls PostProcessTrackRecordersImpl afterwards for any other post processing you wish to do before Track recorders are finalized. */
-	void PostProcessTrackRecorders();
+	void PostProcessTrackRecorders(ULevelSequence* InSequence);
 
 	/** 
 	* Ensure that the Object Template this recording is recording into has the specified component. Used to initialize dynamically added components that don't exist in the CDO.
