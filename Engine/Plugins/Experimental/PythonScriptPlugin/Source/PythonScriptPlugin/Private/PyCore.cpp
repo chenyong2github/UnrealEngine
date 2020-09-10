@@ -1707,6 +1707,11 @@ PyObject* CreateLocalizedTextFromStringTable(PyObject* InSelf, PyObject* InArgs)
 	return PyConversion::Pythonize(FText::FromStringTable(Id, Key));
 }
 
+PyObject* IsEditor()
+{
+	return PyConversion::Pythonize(GIsEditor);
+}
+
 PyObject* RegisterPythonShutdownCallback(PyObject* InSelf, PyObject* InArgs)
 {
 	PyObject* PyObj = nullptr;
@@ -1781,6 +1786,7 @@ PyMethodDef PyCoreMethods[] = {
 	{ "unregister_python_shutdown_callback", PyCFunctionCast(&UnregisterPythonShutdownCallback), METH_VARARGS, "x.unregister_python_shutdown_callback(handle) -> None -- unregister the given handle from a previous call to register_python_shutdown_callback"},
 	{ "NSLOCTEXT", PyCFunctionCast(&CreateLocalizedText), METH_VARARGS, "x.NSLOCTEXT(ns, key, source) -> Text -- create a localized Text from the given namespace, key, and source string" },
 	{ "LOCTABLE", PyCFunctionCast(&CreateLocalizedTextFromStringTable), METH_VARARGS, "x.LOCTABLE(id, key) -> Text -- get a localized Text from the given string table id and key" },
+	{ "is_editor", PyCFunctionCast(&IsEditor), METH_NOARGS, "x.is_editor() -> Bool -- tells if the editor is running or not" },
 	{ nullptr, nullptr, 0, nullptr }
 };
 
