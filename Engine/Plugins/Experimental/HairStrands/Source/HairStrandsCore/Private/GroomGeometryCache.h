@@ -15,7 +15,7 @@
 FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry::Section& In);
 
 void BuildCacheGeometry(
-	FRHICommandListImmediate& RHICmdList, 
+	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap, 
 	USkeletalMeshComponent* SkeletalMeshComponent, 
 	FCachedGeometry& CachedGeometry);

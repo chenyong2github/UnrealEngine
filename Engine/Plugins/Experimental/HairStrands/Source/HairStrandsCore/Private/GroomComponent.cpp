@@ -1468,12 +1468,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			// The lifetime of 'TransferredPositions' needs to encompass RunProjection
 			TArray<FRWBuffer> TransferredPositions;
 			
+			FRDGBuilder GraphBuilder(RHICmdList);
 			FHairStrandsProjectionMeshData SourceMeshData;
 			if (FSkeletalMeshRenderData* SourceRenderData = InSourceSkeletalMesh ? InSourceSkeletalMesh->GetResourceForRendering() : nullptr)
 			{
 				SourceMeshData = ExtractMeshData(SourceRenderData);
 				FGroomBindingBuilder::TransferMesh(
-					RHICmdList,
+					GraphBuilder,
 					SourceMeshData,
 					TargetMeshData,
 					TransferredPositions);
@@ -1497,12 +1498,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 				// The offset is based on the center of the skeletal mesh (which is computed based on the physics capsules/boxes/...)
 				FGroomBindingBuilder::ProjectStrands(
-					RHICmdList,
+					GraphBuilder,
 					HairLocalToWorld,
 					TargetMeshData,
 					HairGroupInstance->Strands.RestRootResource,
 					HairGroupInstance->Guides.RestRootResource);
 			}
+			GraphBuilder.Execute();
 
 		}
 

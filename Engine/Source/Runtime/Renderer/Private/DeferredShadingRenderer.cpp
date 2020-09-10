@@ -1675,26 +1675,30 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
 
 	FHairStrandsBookmarkParameters HairStrandsBookmarkParameters;
-	if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
 	{
-		HairStrandsBookmarkParameters = CreateHairStrandsBookmarkParameters(Views[0]);
-		RunHairStrandsBookmark(RHICmdList, EHairStrandsBookmark::ProcessTasks, HairStrandsBookmarkParameters);
-	}
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("HairStrandsCullingAndInterpolation(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
+		if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
+		{
+			HairStrandsBookmarkParameters = CreateHairStrandsBookmarkParameters(Views[0]);
+			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessTasks, HairStrandsBookmarkParameters);
+		}
 
-	// Interpolation needs to happen after the skin cache run as there is a dependency 
-	// on the skin cache output.
-	const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0) && !ViewFamily.bWorldIsPaused;
-	if (bRunHairStrands)
-	{
-		RunHairStrandsBookmark(RHICmdList, EHairStrandsBookmark::ProcessGatherCluster, HairStrandsBookmarkParameters);
+		// Interpolation needs to happen after the skin cache run as there is a dependency 
+		// on the skin cache output.
+		const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0) && !ViewFamily.bWorldIsPaused;
+		if (bRunHairStrands)
+		{
+			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGatherCluster, HairStrandsBookmarkParameters);
 
-		FHairCullingParams CullingParams;
-		CullingParams.bCullingProcessSkipped = false;
-		CullingParams.bShadowViewMode = false;
-		//MERGE Zach to fix/port
-		//ComputeHairStrandsClustersCulling(RHICmdList, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
+			FHairCullingParams CullingParams;
+			CullingParams.bCullingProcessSkipped = false;
+			CullingParams.bShadowViewMode = false;
+			//MERGE Zach to fix/port
+			ComputeHairStrandsClustersCulling(GraphBuilder, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
 
-		RunHairStrandsBookmark(RHICmdList, EHairStrandsBookmark::ProcessStrandsInterpolation, HairStrandsBookmarkParameters);
+			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessStrandsInterpolation, HairStrandsBookmarkParameters);
+		}
+		GraphBuilder.Execute();
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());

@@ -49,41 +49,31 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, )
 	SHADER_PARAMETER(float, DepthBiasScale_Environment)
 	SHADER_PARAMETER(float, SteppingScale)
 	SHADER_PARAMETER(float, HairCoveragePixelRadiusAtDepth1) 
-	SHADER_PARAMETER_SRV(Buffer<uint>, PageIndexBuffer)
-	SHADER_PARAMETER_SRV(Buffer<uint>, PageIndexCoordBuffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer<FPackedVirtualVoxelNodeDesc>, NodeDescBuffer) // Packed into 2 x uint4
-	SHADER_PARAMETER_TEXTURE(Texture2D<float>, HairCoverageLUT)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexCoordBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedVirtualVoxelNodeDesc>, NodeDescBuffer) // Packed into 2 x uint4
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HairCoverageLUT)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HairCoverageSampler)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualVoxelParameters, RENDERER_API)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualVoxelCommonParameters, Common)
-	SHADER_PARAMETER_TEXTURE(Texture3D<uint>, PageTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, PageTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 struct FVirtualVoxelResources
 {
 	FVirtualVoxelParameters	Parameters;
-	TUniformBufferRef<FVirtualVoxelParameters> UniformBuffer;
+	TRDGUniformBufferRef<FVirtualVoxelParameters> UniformBuffer;
+	FRDGTextureRef PageTexture = nullptr;
+	FRDGBufferRef PageIndexBuffer = nullptr;
+	FRDGBufferRef NodeDescBuffer = nullptr;
+	FRDGBufferRef PageIndexCoordBuffer = nullptr;
+	FRDGBufferRef IndirectArgsBuffer = nullptr;
+	FRDGBufferRef PageIndexGlobalCounter = nullptr;
+	FRDGBufferRef VoxelizationViewInfoBuffer = nullptr;
 
-	TRefCountPtr<IPooledRenderTarget>	PageTexture;
-
-	TRefCountPtr<FRDGPooledBuffer>		PageIndexBuffer;
-	FShaderResourceViewRHIRef			PageIndexBufferSRV = nullptr;
-
-	TRefCountPtr<FRDGPooledBuffer>		NodeDescBuffer;
-	FShaderResourceViewRHIRef			NodeDescBufferSRV = nullptr;
-
-	TRefCountPtr<FRDGPooledBuffer>		PageIndexCoordBuffer;
-	FShaderResourceViewRHIRef			PageIndexCoordBufferSRV = nullptr;
-
-	TRefCountPtr<FRDGPooledBuffer>		IndirectArgsBuffer;
-
-	TRefCountPtr<FRDGPooledBuffer>		PageIndexGlobalCounter;
-
-	TRefCountPtr<FRDGPooledBuffer>		VoxelizationViewInfoBuffer;
-
-	const bool IsValid() const { return UniformBuffer.IsValid(); }
+	const bool IsValid() const { return UniformBuffer != nullptr; }
 };
 
 /// Global enable/disable for hair voxelization

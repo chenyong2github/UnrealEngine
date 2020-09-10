@@ -16,12 +16,12 @@
 //  2) when hair simulation is enabled/disabled (i.e., toggle/change) 
 //     we reset to deform buffer to rest state)
 void ResetHairStrandsInterpolation(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	struct FHairGroupInstance* Instance,
 	int32 LODIndex);
 
 void ComputeHairStrandsInterpolation(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const struct FShaderDrawDebugData* DebugShaderData,
 	struct FHairGroupInstance* Instance,
 	int32 LODIndex,

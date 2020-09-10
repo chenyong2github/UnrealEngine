@@ -45,11 +45,9 @@ struct FDeepShadowResources
 	FIntPoint AtlasSlotResolution;
 	bool bIsGPUDriven = false;
 
-	TRefCountPtr<IPooledRenderTarget> DepthAtlasTexture;
-	TRefCountPtr<IPooledRenderTarget> LayersAtlasTexture;
-
-	TRefCountPtr<FRDGPooledBuffer> DeepShadowWorldToLightTransforms;
-	TRefCountPtr<FRHIShaderResourceView> DeepShadowWorldToLightTransformsSRV;
+	FRDGTextureRef DepthAtlasTexture = nullptr;
+	FRDGTextureRef LayersAtlasTexture = nullptr;
+	FRDGBufferRef DeepShadowWorldToLightTransforms = nullptr;
 };
 
 /// Store all deep shadows infos for a given view

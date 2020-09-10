@@ -63,7 +63,7 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 }
 
  void BuildCacheGeometry(
-	FRHICommandListImmediate& RHICmdList, 
+	 FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap, 
 	USkeletalMeshComponent* SkeletalMeshComponent, 
 	FCachedGeometry& CachedGeometry)
@@ -79,8 +79,6 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 		TArray<FVector4> BoneMatrices;
 		BuildBoneMatrices(SkeletalMeshComponent, LODData, LODIndex, MatrixOffsets, BoneMatrices);
 
-		FRDGBuilder GraphBuilder(RHICmdList); // #hair_todo: bubble up
-
 		FRDGBufferRef DeformedPositionsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float),
 			LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("HairStrandsSkinnedDeformedPositions"));
 
@@ -94,8 +92,7 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 
 		ConvertToExternalBuffer(GraphBuilder, DeformedPositionsBuffer, CachedGeometry.DeformedPositionBuffer);
 
-		GraphBuilder.Execute();
-
+		// TODO
 		CachedGeometry.DeformedPositionsSRV = RHICreateShaderResourceView(CachedGeometry.DeformedPositionBuffer->GetVertexBufferRHI(), sizeof(float), PF_R32_FLOAT);
 
 		for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
