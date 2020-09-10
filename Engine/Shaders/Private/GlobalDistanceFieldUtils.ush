@@ -56,12 +56,12 @@ struct FGlobalSDFTraceResult
 	float HitTime;
 	uint HitClipmapIndex;
 	uint TotalStepsTaken;
-
-	bool IsHit()
-	{ 
-		return HitTime >= 0.0f;
-	}
 };
+
+bool GlobalSDFTraceResultIsHit(FGlobalSDFTraceResult TraceResult)
+{ 
+	return TraceResult.HitTime >= 0.0f;
+}
 
 FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInput)
 {

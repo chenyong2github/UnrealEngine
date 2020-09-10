@@ -203,7 +203,7 @@ void LumenCardDirectLightingPS(
 								FGlobalSDFTraceResult SDFResult = RayTraceGlobalDistanceField(TraceInput);
 
 								//@todo - approximate cone trace from SDF for antialiasing
-								ShadowFactor *= SDFResult.IsHit() ? 0.0f : 1.0f;
+								ShadowFactor *= GlobalSDFTraceResultIsHit(SDFResult) ? 0.0f : 1.0f;
 							}
 							#endif
 						}

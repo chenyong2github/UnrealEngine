@@ -113,7 +113,7 @@ void VisualizeMeshDistanceFieldCS(
 	FGlobalSDFTraceResult SDFTraceResult = RayTraceGlobalDistanceField(TraceInput);
 
 	float3 Result = saturate(SDFTraceResult.TotalStepsTaken / 400.0f);
-	if (!SDFTraceResult.IsHit())
+	if (!GlobalSDFTraceResultIsHit(SDFTraceResult))
 	{
 		Result.xy *= 0.25f;
 	}

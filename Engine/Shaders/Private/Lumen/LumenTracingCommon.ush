@@ -1239,7 +1239,7 @@ void ConeTraceVoxels(
 
 	float4 LightingAndAlpha = float4(0, 0, 0, 1);
 
-	if (SDFTraceResult.IsHit())
+	if (GlobalSDFTraceResultIsHit(SDFTraceResult))
 	{
 		float3 SampleWorldPosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * SDFTraceResult.HitTime;
 
@@ -1293,7 +1293,7 @@ void ConeTraceVoxels(
 	#endif
 	OutResult.Transparency = LightingAndAlpha.a;
 	OutResult.NumSteps = SDFTraceResult.TotalStepsTaken;
-	OutResult.OpaqueHitDistance = SDFTraceResult.IsHit() ? SDFTraceResult.HitTime : TraceInput.MaxTraceDistance;
+	OutResult.OpaqueHitDistance = GlobalSDFTraceResultIsHit(SDFTraceResult) ? SDFTraceResult.HitTime : TraceInput.MaxTraceDistance;
 }
 
 #endif
