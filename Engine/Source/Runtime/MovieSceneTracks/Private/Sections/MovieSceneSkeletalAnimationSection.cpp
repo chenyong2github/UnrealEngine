@@ -299,6 +299,32 @@ float UMovieSceneSkeletalAnimationSection::GetTotalWeightValue(FFrameTime InTime
 	return ManualWeight *  EvaluateEasing(InTime);
 }
 
+void UMovieSceneSkeletalAnimationSection::SetRange(const TRange<FFrameNumber>& NewRange)
+{
+	UMovieSceneSection::SetRange(NewRange);
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+}
+void UMovieSceneSkeletalAnimationSection::SetStartFrame(TRangeBound<FFrameNumber> NewStartFrame)
+{
+	UMovieSceneSection::SetStartFrame(NewStartFrame);
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+
+}
+void UMovieSceneSkeletalAnimationSection::SetEndFrame(TRangeBound<FFrameNumber> NewEndFrame)
+{
+	UMovieSceneSection::SetEndFrame(NewEndFrame);
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+}
+
 
 #if WITH_EDITOR
 void UMovieSceneSkeletalAnimationSection::PreEditChange(FProperty* PropertyAboutToChange)
@@ -409,7 +435,8 @@ FTransform  UMovieSceneSkeletalAnimationSection::GetOffsetTransform() const
 bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, FTransform& OutTransform, float& OutWeight) const
 {
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
-	if (AnimSequence)
+	FTransform OffsetTransform = GetOffsetTransform();
+	if (AnimSequence && AnimSequence->bForceRootLock == false)
 	{
 		float ManualWeight = 1.f;
 		Params.Weight.Evaluate(CurrentTime, ManualWeight);
@@ -417,11 +444,12 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 
 		float CurrentTimeSeconds = MapTimeToAnimation(CurrentTime, FrameRate);
 		OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds,nullptr);
-		FTransform OffsetTransform = GetOffsetTransform();
 		OutTransform = OutTransform * OffsetTransform;
 		return true;
 	}
-	return false;
+	//for safety always return true for now
+	OutTransform = OffsetTransform;
+	return true;
 }
 
 void UMovieSceneSkeletalAnimationSection::FindBestBlendPoint(USkeletalMeshComponent* SkelMeshComp)
