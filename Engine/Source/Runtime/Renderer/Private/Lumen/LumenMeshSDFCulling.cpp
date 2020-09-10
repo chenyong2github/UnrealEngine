@@ -368,6 +368,10 @@ void CullMeshSDFObjectsForView(
 			PassParameters,
 			FIntVector(GroupSize, 1, 1));
 	}
+	else
+	{
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Context.ObjectIndexBuffer, PF_R32_UINT), 0);
+	}
 }
 
 // Compact list of {ObjectIndex, GridCellIndex} into a continuos array
