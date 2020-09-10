@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
 #include "FastUpdate/WidgetUpdateFlags.h"
