@@ -14,6 +14,7 @@ namespace Trace { class IAnalysisSession; }
 class FAnimationSharedData;
 class IInsightsManager;
 class ITableRow;
+class ITimingEvent;
 class STableViewBase;
 class STextBlock;
 

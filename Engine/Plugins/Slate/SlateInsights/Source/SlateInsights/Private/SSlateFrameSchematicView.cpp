@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSlateFrameSchematicView.h"
+#include "SlateProvider.h"
 #include "SSlateTraceFlags.h"
 
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Insights/ITimingViewSession.h"
+#include "Insights/ViewModels/ITimingEvent.h"
 #include "Widgets/InvalidateWidgetReason.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
