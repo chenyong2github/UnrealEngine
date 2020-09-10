@@ -588,6 +588,17 @@ float UUserWidget::GetAnimationCurrentTime(const UWidgetAnimation* InAnimation) 
 	return 0;
 }
 
+void UUserWidget::SetAnimationCurrentTime(const UWidgetAnimation* InAnimation, float InTime)
+{
+	if (InAnimation)
+	{
+		if (UUMGSequencePlayer* FoundPlayer = GetSequencePlayer(InAnimation))
+		{
+			FoundPlayer->SetCurrentTime(InTime);
+		}
+	}
+}
+
 bool UUserWidget::IsAnimationPlaying(const UWidgetAnimation* InAnimation) const
 {
 	if (InAnimation)
