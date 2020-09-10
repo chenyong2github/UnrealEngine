@@ -10,8 +10,10 @@
 #include "DirectLink/SceneIndex.h"
 #include "IDatasmithSceneElements.h"
 
+#if WITH_EDITOR
 #include "DesktopPlatformModule.h"
 #include "IDesktopPlatform.h"
+#endif
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
@@ -93,6 +95,7 @@ void UDatasmithRuntimeLibrary::LoadDatasmithSceneFromExplorer(ADatasmithRuntimeA
 
 	if (GEngine && GEngine->GameViewport)
 	{
+#if WITH_EDITOR
 		TArray<FString> OutFileNames;
 
 		void* ParentWindowHandle = GEngine->GameViewport->GetWindow()->GetNativeWindow()->GetOSWindowHandle();
@@ -108,6 +111,7 @@ void UDatasmithRuntimeLibrary::LoadDatasmithSceneFromExplorer(ADatasmithRuntimeA
 		{
 			LoadDatasmithScene( DatasmithRuntimeActor, OutFileNames[0]);
 		}
+#endif
 	}
 }
 
