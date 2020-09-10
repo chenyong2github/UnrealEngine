@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
+#include "RenderGraphResources.h"
 
 namespace LumenRadianceCache
 {
