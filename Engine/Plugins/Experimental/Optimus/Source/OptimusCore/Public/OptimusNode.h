@@ -14,6 +14,7 @@ enum class EOptimusNodePinDirection : uint8;
 class UOptimusActionStack;
 class UOptimusNodeGraph;
 class UOptimusNodePin;
+struct FOptimusDataTypeRef;
 
 // FIXME: This should really be a part of Array.h
 template<typename T, typename Allocator>
@@ -28,7 +29,7 @@ static inline uint32 GetTypeHash(const TArray<T, Allocator>& A)
 }
 
 
-UCLASS(abstract)
+UCLASS(Abstract)
 class OPTIMUSCORE_API UOptimusNode : public UObject
 {
 	GENERATED_BODY()
@@ -39,12 +40,15 @@ public:
 		static const FName Deformers;
 		static const FName Events;
 		static const FName Meshes;
+		static const FName Resources;
+		static const FName Variables;
 	};
 
 	struct PropertyMeta
 	{
 		static const FName Input;
 		static const FName Output;
+		static const FName Resource;
 	};
 public:
 	UOptimusNode();
@@ -81,8 +85,9 @@ public:
 
 	/// @brief Set a new position of the node in the graph UI.
 	/// @param InPosition The coordinates of the new position.
+	/// @param bInNotify The call will notify interested parties about the position change.
 	/// @return true if the position setting was successful (i.e. the coordinates are valid).
-	bool SetGraphPositionDirect(const FVector2D &InPosition);
+	bool SetGraphPositionDirect(const FVector2D &InPosition, bool bInNotify = true);
 
 	/// @brief Returns the absolute path of the node. This can be passed to the root
 	/// IOptimusNodeGraphCollectionOwner object to resolve to a node object.
@@ -113,6 +118,10 @@ public:
 	/// @return List of all classes that derive from UOptimusNodeBase.
 	static TArray<UClass*> GetAllNodeClasses();
 
+	/// Called just after the node is created, either via direct creation or deletion undo.
+	/// By default it creates the pins representing connectable properties.
+	void PostCreateNode();
+
 protected:
 	friend class UOptimusNodeGraph;
 	friend class UOptimusNodePin;
@@ -124,13 +133,21 @@ protected:
 	UPROPERTY()
 	FVector2D GraphPosition;
 
+	virtual void CreatePins();
+
+	UOptimusNodePin* CreatePinFromDataType(
+		FName InName,
+		FOptimusDataTypeRef InDataType,
+	    UOptimusNodePin* InParentPin,
+	    EOptimusNodePinDirection InDirection);
+
 private:
 	void Notify(
 		EOptimusGraphNotifyType InNotifyType
 	);
 
 	void CreatePinsFromStructLayout(
-		UStruct *InStruct, 
+		const UStruct *InStruct, 
 		UOptimusNodePin *InParentPin = nullptr
 		);
 
@@ -143,7 +160,8 @@ private:
 	UPROPERTY()
 	FText DisplayName;
 
-	// The list of pins. These are not persisted but are instead always constructed on creation.
+	// The list of pins. 
+	UPROPERTY()
 	TArray<UOptimusNodePin *> Pins;
 
 	/// Cached pin lookups

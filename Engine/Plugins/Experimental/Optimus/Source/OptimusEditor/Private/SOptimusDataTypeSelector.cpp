@@ -27,7 +27,7 @@ void SOptimusDataTypeSelector::Construct(const FArguments& InArgs)
 	CurrentDataType = InArgs._CurrentDataType;
 	ViewType = InArgs._ViewType;
 	bViewOnly = InArgs._bViewOnly;
-	TypeMask = InArgs._TypeMask;
+	UsageMask = InArgs._UsageMask;
 	OnDataTypeChanged = InArgs._OnDataTypeChanged;
 
 	
@@ -113,7 +113,7 @@ const FSlateBrush* SOptimusDataTypeSelector::GetTypeIconImage(FOptimusDataTypeHa
 	{
 		FEdGraphPinType PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(InDataType);
 
-		return UOptimusEditorGraphSchema::GetPinTypeIcon(PinType);
+		return UOptimusEditorGraphSchema::GetIconFromPinType(PinType);
 	}
 	else
 	{
@@ -140,7 +140,7 @@ FText SOptimusDataTypeSelector::GetTypeDescription(FOptimusDataTypeHandle InData
 {
 	if (InDataType.IsValid())
 	{
-		const UObject *TypeObject = InDataType->PinSubCategory.Get();
+		const UObject *TypeObject = InDataType->TypeObject.Get();
 
 		if (TypeObject)
 		{
@@ -155,7 +155,7 @@ FText SOptimusDataTypeSelector::GetTypeDescription(FOptimusDataTypeHandle InData
 		}
 		else
 		{
-			return UEdGraphSchema_K2::GetCategoryText(InDataType->PinCategory, true);
+			return UEdGraphSchema_K2::GetCategoryText(InDataType->TypeCategory, true);
 		}
 	}
 	else
@@ -183,7 +183,7 @@ TSharedRef<SWidget> SOptimusDataTypeSelector::GetMenuContent()
 	FOptimusDataTypeHandle SelectedItem;
 	for (FOptimusDataTypeHandle DataType : FOptimusDataTypeRegistry::Get().GetAllTypes())
 	{
-		if (TypeMask == EOptimusDataTypeFlags::None || EnumHasAnyFlags(DataType->Flags, TypeMask))
+		if (UsageMask == EOptimusDataTypeUsageFlags::Node || EnumHasAnyFlags(DataType->UsageFlags, UsageMask))
 		{
 			AllDataTypeItems.Add(DataType);
 			if (DataType == CurrentDataType.Get())

@@ -139,24 +139,6 @@ bool FOptimusNodeGraphAction_RemoveGraph::Undo(IOptimusNodeGraphCollectionOwner*
 }
 
 
-FOptimusNodeGraphAction_AddNode::FOptimusNodeGraphAction_AddNode(
-	UOptimusNodeGraph* InGraph, 
-	const UClass* InNodeClass,
-	const FVector2D& InPosition
-)
-{
-	if (ensure(InGraph != nullptr) && ensure(InNodeClass != nullptr))
-	{ 
-		GraphPath = InGraph->GetGraphPath();
-		NodeClassPath = InNodeClass->GetPathName();
-		GraphPosition = InPosition;
-
-		// FIXME: Prettier name.
-		SetTitlef(TEXT("Add Node"));
-	}
-}
-
-
 // ---- Rename graph
 
 FOptimusNodeGraphAction_RenameGraph::FOptimusNodeGraphAction_RenameGraph(UOptimusNodeGraph* InGraph, FName InNewName)
@@ -205,6 +187,23 @@ bool FOptimusNodeGraphAction_RenameGraph::Undo(IOptimusNodeGraphCollectionOwner*
 
 // ---- Add node
 
+FOptimusNodeGraphAction_AddNode::FOptimusNodeGraphAction_AddNode(
+    UOptimusNodeGraph* InGraph,
+    const UClass* InNodeClass,
+    TFunction<bool(UOptimusNode*)> InConfigureNodeFunc)
+{
+	if (ensure(InGraph != nullptr) && ensure(InNodeClass != nullptr))
+	{
+		GraphPath = InGraph->GetGraphPath();
+		NodeClassPath = InNodeClass->GetPathName();
+		ConfigureNodeFunc = InConfigureNodeFunc;
+
+		// FIXME: Prettier name.
+		SetTitlef(TEXT("Add Node"));
+	}
+}
+
+
 UOptimusNode* FOptimusNodeGraphAction_AddNode::GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const
 {
 	return InRoot->ResolveNodePath(NodePath);
@@ -224,7 +223,7 @@ bool FOptimusNodeGraphAction_AddNode::Do(IOptimusNodeGraphCollectionOwner* InRoo
 		return false;
 	}
 
-	UOptimusNode* Node = Graph->AddNodeDirect(NodeClass, NodeName, &GraphPosition);
+	UOptimusNode* Node = Graph->CreateNodeDirect(NodeClass, NodeName, ConfigureNodeFunc);
 	if (!Node)
 	{
 		return false;
@@ -324,6 +323,8 @@ bool FOptimusNodeGraphAction_RemoveNode::Undo(IOptimusNodeGraphCollectionOwner* 
 			NodeArchive, /* bInLoadIfFindFails=*/ true);
 		Node->SerializeScriptProperties(NodeProxyArchive);
 	}
+
+	Node->PostCreateNode();
 
 	return Graph->AddNodeDirect(Node);
 }

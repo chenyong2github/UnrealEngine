@@ -9,8 +9,12 @@
 #include "OptimusActionStack.h"
 #include "Actions/OptimusNodeActions.h"
 #include "Actions/OptimusNodeGraphActions.h"
+#include "Nodes/OptimusNode_GetResource.h"
+#include "Nodes/OptimusNode_GetVariable.h"
+#include "Nodes/OptimusNode_SetResource.h"
 
 #include "Containers/Queue.h"
+#include "Templates/Function.h"
 #include "UObject/Package.h"
 
 FString UOptimusNodeGraph::GetGraphPath() const
@@ -50,7 +54,74 @@ UOptimusNode* UOptimusNodeGraph::AddNode(
 	const FVector2D& InPosition
 	)
 {
-	FOptimusNodeGraphAction_AddNode *AddNodeAction = new FOptimusNodeGraphAction_AddNode(this, InNodeClass, InPosition);
+	FOptimusNodeGraphAction_AddNode *AddNodeAction = new FOptimusNodeGraphAction_AddNode(
+		this, InNodeClass, 
+		[InPosition](UOptimusNode *InNode) { 
+			return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false); 
+		});
+	if (!GetActionStack()->RunAction(AddNodeAction))
+	{
+		return nullptr;
+	}
+
+	return AddNodeAction->GetNode(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
+UOptimusNode* UOptimusNodeGraph::AddResourceGetNode(
+	UOptimusResourceDescription* InResourceDesc, 
+	const FVector2D& InPosition
+	)
+{
+	FOptimusNodeGraphAction_AddNode* AddNodeAction = new FOptimusNodeGraphAction_AddNode(
+	    this, UOptimusNode_GetResource::StaticClass(),
+	    [InResourceDesc, InPosition](UOptimusNode* InNode) { 
+			Cast<UOptimusNode_GetResource>(InNode)->SetResourceDescription(InResourceDesc);
+			return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false); 
+		});
+
+	if (!GetActionStack()->RunAction(AddNodeAction))
+	{
+		return nullptr;
+	}
+
+	return AddNodeAction->GetNode(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
+UOptimusNode* UOptimusNodeGraph::AddResourceSetNode(
+	UOptimusResourceDescription* InResourceDesc, 
+	const FVector2D& InPosition
+	)
+{
+	FOptimusNodeGraphAction_AddNode* AddNodeAction = new FOptimusNodeGraphAction_AddNode(
+	    this, UOptimusNode_SetResource::StaticClass(),
+	    [InResourceDesc, InPosition](UOptimusNode* InNode) {
+		    Cast<UOptimusNode_SetResource>(InNode)->SetResourceDescription(InResourceDesc);
+		    return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false);
+	    });
+
+	if (!GetActionStack()->RunAction(AddNodeAction))
+	{
+		return nullptr;
+	}
+
+	return AddNodeAction->GetNode(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
+UOptimusNode* UOptimusNodeGraph::AddVariableGetNode(
+	UOptimusVariableDescription* InVariableDesc, 
+	const FVector2D& InPosition
+	)
+{
+	FOptimusNodeGraphAction_AddNode* AddNodeAction = new FOptimusNodeGraphAction_AddNode(
+	    this, UOptimusNode_GetVariable::StaticClass(),
+	    [InVariableDesc, InPosition](UOptimusNode* InNode) {
+		    Cast<UOptimusNode_GetVariable>(InNode)->SetVariableDescription(InVariableDesc);
+		    return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false);
+	    });
+
 	if (!GetActionStack()->RunAction(AddNodeAction))
 	{
 		return nullptr;
@@ -225,19 +296,25 @@ bool UOptimusNodeGraph::RemoveAllLinks(UOptimusNodePin* InNodePin)
 }
 
 
-UOptimusNode* UOptimusNodeGraph::AddNodeDirect(
+UOptimusNode* UOptimusNodeGraph::CreateNodeDirect(
 	const UClass* InNodeClass,
-	FName InName /* = NAME_None */,
-	const FVector2D* InPosition /* = nullptr */
+	FName InName,
+	TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
 )
 {
 	check(InNodeClass->IsChildOf(UOptimusNode::StaticClass()));
 
 	UOptimusNode* NewNode = NewObject<UOptimusNode>(this, InNodeClass, InName, RF_Transactional);
-	if (InPosition)
+
+	// Configure the node as needed.
+	if (InConfigureNodeFunc && !InConfigureNodeFunc(NewNode))
 	{
-		NewNode->GraphPosition = *InPosition;
+		NewNode->Rename(nullptr, GetTransientPackage());
+		NewNode->MarkPendingKill();
+		return nullptr;
 	}
+
+	NewNode->PostCreateNode();
 
 	AddNodeDirect(NewNode);
 

@@ -30,7 +30,8 @@ public:
 
 
 	static FEdGraphPinType GetPinTypeFromDataType(FOptimusDataTypeHandle InDataType);
-	static const FSlateBrush *GetPinTypeIcon(const FEdGraphPinType& InPinType);
+	static const FSlateBrush *GetIconFromPinType(const FEdGraphPinType& InPinType);
+	static FLinearColor GetColorFromPinType(const FEdGraphPinType& InPinType);
 
 	// UEdGraphSchema overrides
 	bool TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const;

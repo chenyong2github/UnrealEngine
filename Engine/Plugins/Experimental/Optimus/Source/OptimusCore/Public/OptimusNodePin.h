@@ -93,9 +93,9 @@ protected:
 	friend class UOptimusNode;
 
 	// Initialize the pin data from the given direction and property.
-	bool InitializeFromProperty(
+	void SetDirectionAndDataType(
 		EOptimusNodePinDirection InDirection, 
-		const FProperty* InProperty
+		FOptimusDataTypeRef InDataTypeRef
 		);
 
 	void AddSubPin(

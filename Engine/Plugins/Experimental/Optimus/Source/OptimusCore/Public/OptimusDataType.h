@@ -11,21 +11,25 @@
 #include "OptimusDataType.generated.h"
 
 
+/** These flags govern how the data type can be used */
 UENUM(meta = (Bitflags))
-enum class EOptimusDataTypeFlags : uint32
+enum class EOptimusDataTypeUsageFlags : uint8
 {
-	None				= 0,
-	UseInResource		= 1 << 0,		// This type can be used in a resource
-	UseInVariable		= 1 << 1,		// This type can be used in a variable
+	Node				= 0,
+	Resource			= 1 << 0,		/** This type can be used in a resource */
+	Variable			= 1 << 1,		/** This type can be used in a variable */
+};
+ENUM_CLASS_FLAGS(EOptimusDataTypeUsageFlags)
 
-	ShowElements		= 1 << 8,		// If a struct type, show the struct elements.
 
-	UserFlagsMask		= 0x0000FFFF,
-
-	// The following flags are ignored at registration time and set internally.
-	IsStructType		= 1 << 16,		// This is a UScriptStruct-based type.
-
-	InternalFlagsMask	= 0xFFFF0000,
+/** These flags are for indicating type behaviour */
+UENUM(meta = (Bitflags))
+enum class EOptimusDataTypeFlags : uint8
+{
+	None = 0,
+	
+	IsStructType		= 1 << 0,		/** This is a UScriptStruct-based type. */
+	ShowElements		= 1 << 1,		/** If a struct type, show the struct elements. */
 };
 ENUM_CLASS_FLAGS(EOptimusDataTypeFlags)
 
@@ -48,10 +52,10 @@ struct FOptimusDataType
 	FShaderValueTypeHandle ShaderValueType;
 
 	UPROPERTY()
-	FName PinCategory;
+	FName TypeCategory;
 
 	UPROPERTY()
-	TWeakObjectPtr<UObject> PinSubCategory;
+	TWeakObjectPtr<UObject> TypeObject;
 
 	UPROPERTY()
 	bool bHasCustomPinColor = false;
@@ -60,7 +64,10 @@ struct FOptimusDataType
 	FLinearColor CustomPinColor;
 	
 	UPROPERTY()
-	EOptimusDataTypeFlags Flags;
+	EOptimusDataTypeUsageFlags UsageFlags = EOptimusDataTypeUsageFlags::Node;
+
+	UPROPERTY()
+	EOptimusDataTypeFlags TypeFlags = EOptimusDataTypeFlags::None;
 };
 
 

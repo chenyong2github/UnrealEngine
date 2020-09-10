@@ -36,7 +36,7 @@ public:
 		[
 			SNew(SOptimusDataTypeSelector)
 			.CurrentDataType(this, &SResourceDataTypeSelectorHelper::OnGetDataType)
-			.TypeMask(EOptimusDataTypeFlags::UseInResource)
+			.UsageMask(EOptimusDataTypeUsageFlags::Resource)
 			.ViewType(SOptimusDataTypeSelector::EViewType::IconOnly)
 			.bViewOnly(bInIsReadOnly.Get())			// FIXME: May be dynamic.
 			.OnDataTypeChanged(this, &SResourceDataTypeSelectorHelper::OnDataTypeChanged)
@@ -79,7 +79,7 @@ public:
 		ChildSlot
 		    [SNew(SOptimusDataTypeSelector)
 		            .CurrentDataType(this, &SVariableDataTypeSelectorHelper::OnGetDataType)
-		            .TypeMask(EOptimusDataTypeFlags::UseInVariable)
+		            .UsageMask(EOptimusDataTypeUsageFlags::Variable)
 		            .ViewType(SOptimusDataTypeSelector::EViewType::IconOnly)
 		            .bViewOnly(bInIsReadOnly.Get()) // FIXME: May be dynamic.
 		            .OnDataTypeChanged(this, &SVariableDataTypeSelectorHelper::OnDataTypeChanged)];
@@ -202,7 +202,10 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidg
 	}
 }
 
-TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> InbIsReadOnly)
+TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(
+	FCreateWidgetForActionData* const InCreateData, 
+	TAttribute<bool> InbIsReadOnly
+	)
 {
 	FOnVerifyTextChanged OnVerifyTextChanged;
 	FOnTextCommitted OnTextCommitted;

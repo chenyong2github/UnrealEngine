@@ -6,6 +6,7 @@
 #include "OptimusEditorGraphSchema.h"
 #include "OptimusEditorGraphSchemaActions.h"
 #include "SOptimusEditorGraphExplorerItem.h"
+#include "SOptimusEditorGraphExplorerActions.h"
 
 #include "IOptimusNodeGraphCollectionOwner.h"
 #include "OptimusDeformer.h"
@@ -347,12 +348,40 @@ void SOptimusEditorGraphExplorer::CollectStaticSections(TArray<int32>& StaticSec
 
 FReply SOptimusEditorGraphExplorer::OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent)
 {
-    return FReply::Unhandled();
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (!Editor.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	TSharedPtr<FEdGraphSchemaAction> Action(InActions.Num() > 0 ? InActions[0] : nullptr);
+	if (!Action.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
+	{
+		FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
+		UOptimusVariableDescription* VariableDesc = Editor->GetDeformer()->ResolveVariable(VariableAction->VariableName);
+
+		return FReply::Handled().BeginDragDrop(FOptimusEditorGraphDragAction_Variable::New(Action, VariableDesc));
+	}
+	else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
+	{
+		FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
+		UOptimusResourceDescription* ResourceDesc = Editor->GetDeformer()->ResolveResource(ResourceAction->ResourceName);
+
+		return FReply::Handled().BeginDragDrop(FOptimusEditorGraphDragAction_Resource::New(Action, ResourceDesc));
+	}
+
+	return FReply::Unhandled();
 }
 
 
 FReply SOptimusEditorGraphExplorer::OnCategoryDragged(const FText& InCategory, const FPointerEvent& MouseEvent)
 {
+	// There's no dragging of categories.
 	return FReply::Unhandled();
 }
 

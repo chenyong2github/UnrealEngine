@@ -127,8 +127,8 @@ public:
 	FOptimusNodeGraphAction_AddNode(
 		UOptimusNodeGraph* InGraph,
 		const UClass* InNodeClass,
-		const FVector2D& InPosition
-	);
+		TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
+		);
 
 	/// Called to retrieve the node that was created by DoImpl after it has been called.
 	UOptimusNode* GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;
@@ -144,8 +144,9 @@ private:
 	// The class path of the node to add.
 	FString NodeClassPath;
 
-	// THe position the node should be added at in the graph.
-	FVector2D GraphPosition;
+	// An optional function called to configure the node after it gets created, but before it
+	// gets added to the graph.
+	TFunction<bool(UOptimusNode*)> ConfigureNodeFunc;
 
 	// The path of the newly added node or the node to remove.
 	FString NodePath;

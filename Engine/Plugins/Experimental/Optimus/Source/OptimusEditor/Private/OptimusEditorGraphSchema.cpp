@@ -180,9 +180,9 @@ FEdGraphPinType UOptimusEditorGraphSchema::GetPinTypeFromDataType(
 		// Set the categories as defined by the registered data type. We hijack the PinSubCategory
 		// so that we can query back to the registry for whether the pin color should come out of the
 		// K2 schema or the registered custom color.
-		PinType.PinCategory = InDataType->PinCategory;
+		PinType.PinCategory = InDataType->TypeCategory;
 		PinType.PinSubCategory = InDataType->TypeName;
-		PinType.PinSubCategoryObject = InDataType->PinSubCategory;
+		PinType.PinSubCategoryObject = InDataType->TypeObject;
 	}
 
 	return PinType;
@@ -194,22 +194,11 @@ FLinearColor UOptimusEditorGraphSchema::GetPinTypeColor(
 	const FEdGraphPinType& InPinType
 	) const
 {
-	// Use the PinSubCategory value to resolve the type. It's set in 
-	// UOptimusEditorGraphSchema::GetPinTypeFromDataType.
-	FOptimusDataTypeHandle DataType = FOptimusDataTypeRegistry::Get().FindType(InPinType.PinSubCategory);
-	
-	// If the data type has custom color, use that. Otherwise fall back on the K2 schema
-	// since we want to be compatible with known types (which also have preferences for them).
-	if (DataType.IsValid() && DataType->bHasCustomPinColor)
-	{
-		return DataType->CustomPinColor;
-	}
-
-	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(InPinType);
+	return GetColorFromPinType(InPinType);
 }
 
 
-const FSlateBrush* UOptimusEditorGraphSchema::GetPinTypeIcon(
+const FSlateBrush* UOptimusEditorGraphSchema::GetIconFromPinType(
 	const FEdGraphPinType& InPinType
 	)
 {
@@ -229,6 +218,21 @@ const FSlateBrush* UOptimusEditorGraphSchema::GetPinTypeIcon(
 }
 
 
+FLinearColor UOptimusEditorGraphSchema::GetColorFromPinType(const FEdGraphPinType& InPinType)
+{
+	// Use the PinSubCategory value to resolve the type. It's set in
+	// UOptimusEditorGraphSchema::GetPinTypeFromDataType.
+	FOptimusDataTypeHandle DataType = FOptimusDataTypeRegistry::Get().FindType(InPinType.PinSubCategory);
+
+	// If the data type has custom color, use that. Otherwise fall back on the K2 schema
+	// since we want to be compatible with known types (which also have preferences for them).
+	if (DataType.IsValid() && DataType->bHasCustomPinColor)
+	{
+		return DataType->CustomPinColor;
+	}
+
+	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(InPinType);
+}
 
 
 void UOptimusEditorGraphSchema::TrySetDefaultValue(

@@ -27,15 +27,15 @@ void FOptimusDataTypeRefCustomization::CustomizeHeader(
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
-	EOptimusDataTypeFlags TypeMask = EOptimusDataTypeFlags::None;
+	EOptimusDataTypeUsageFlags UsageMask = EOptimusDataTypeUsageFlags::Node;
 	
 	if (InPropertyHandle->HasMetaData(FName(TEXT("UseInResource"))))
 	{
-		TypeMask |= EOptimusDataTypeFlags::UseInResource;
+		UsageMask |= EOptimusDataTypeUsageFlags::Resource;
 	}
 	if (InPropertyHandle->HasMetaData(FName(TEXT("UseInVariable"))))
 	{
-		TypeMask |= EOptimusDataTypeFlags::UseInVariable;
+		UsageMask |= EOptimusDataTypeUsageFlags::Variable;
 	}
 
 	TypeNameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDataTypeRef, TypeName));
@@ -49,7 +49,7 @@ void FOptimusDataTypeRefCustomization::CustomizeHeader(
 	[
 		SNew(SOptimusDataTypeSelector)
 		.CurrentDataType(this, &FOptimusDataTypeRefCustomization::GetCurrentDataType)
-		.TypeMask(TypeMask)
+		.UsageMask(UsageMask)
 		.Font(InCustomizationUtils.GetRegularFont())
 		.OnDataTypeChanged(this, &FOptimusDataTypeRefCustomization::OnDataTypeChanged)
 	];

@@ -26,7 +26,7 @@ public:
 	    FShaderValueTypeHandle InShaderValueType,
 	    FName InPinCategory,
 	    TOptional<FLinearColor> InPinColor,
-	    EOptimusDataTypeFlags InFlags
+	    EOptimusDataTypeUsageFlags InUsageFlags
 	);
 
 	// Register a complex type that has corresponding types on both the UE and HLSL side.
@@ -34,14 +34,16 @@ public:
 	    UScriptStruct *InStructType,
 	    FShaderValueTypeHandle InShaderValueType,
 		TOptional<FLinearColor> InPinColor,
-	    EOptimusDataTypeFlags InFlags
+		bool bInShowElements,
+	    EOptimusDataTypeUsageFlags InUsageFlags
 		);
 
 	// Register a complex type that has only has correspondence on the UE side.
 	OPTIMUSCORE_API bool RegisterType(
 	    UClass* InClassType,
 	    TOptional<FLinearColor> InPinColor,
-	    EOptimusDataTypeFlags InFlags);
+	    EOptimusDataTypeUsageFlags InUsageFlags
+		);
 
 	// Register a type that only has correspondence on the HLSL side. 
 	// Presence of the EOptimusDataTypeFlags::UseInVariable results in an error.
@@ -51,7 +53,7 @@ public:
 	    FName InPinCategory,
 	    UObject* InPinSubCategory,
 		FLinearColor InPinColor,
-	    EOptimusDataTypeFlags InFlags
+	    EOptimusDataTypeUsageFlags InUsageFlags
 		);
 
 	/** Returns all registered types */

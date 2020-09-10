@@ -16,6 +16,7 @@ class UOptimusNodeGraph;
 class UOptimusNodeLink;
 class UOptimusNodePin;
 enum class EOptimusNodePinDirection : uint8;
+template<typename T> class TFunction;
 
 UENUM()
 enum class EOptimusNodeGraphType
@@ -61,6 +62,21 @@ public:
 	);
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* AddResourceGetNode(
+	    UOptimusResourceDescription *InResourceDesc,
+	    const FVector2D& InPosition);
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* AddResourceSetNode(
+	    UOptimusResourceDescription* InResourceDesc,
+	    const FVector2D& InPosition);
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* AddVariableGetNode(
+	    UOptimusVariableDescription* InVariableDesc,
+	    const FVector2D& InPosition);
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool RemoveNode(
 		UOptimusNode* InNode
 	);
@@ -91,10 +107,10 @@ public:
 #endif
 
 	// Direct edit functions. Used by the actions.
-	UOptimusNode* AddNodeDirect(
+	UOptimusNode* CreateNodeDirect(
 		const UClass* InNodeClass,
-		FName InName = NAME_None,
-		const FVector2D * InPosition = nullptr
+		FName InName,
+	    TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
 		);
 
 	bool AddNodeDirect(

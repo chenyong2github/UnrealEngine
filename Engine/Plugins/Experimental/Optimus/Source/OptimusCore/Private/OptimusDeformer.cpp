@@ -99,7 +99,7 @@ UOptimusVariableDescription* UOptimusDeformer::AddVariable(
 
 	// Is this data type compatible with resources?
 	FOptimusDataTypeHandle DataType = InDataTypeRef.Resolve();
-	if (!DataType.IsValid() || !EnumHasAnyFlags(DataType->Flags, EOptimusDataTypeFlags::UseInVariable))
+	if (!DataType.IsValid() || !EnumHasAnyFlags(DataType->UsageFlags, EOptimusDataTypeUsageFlags::Variable))
 	{
 		UE_LOG(LogOptimusCore, Error, TEXT("Invalid data type for variables."));
 		return nullptr;
@@ -296,7 +296,7 @@ UOptimusResourceDescription* UOptimusDeformer::AddResource(
 
 	// Is this data type compatible with resources?
 	FOptimusDataTypeHandle DataType = InDataTypeRef.Resolve();
-	if (!DataType.IsValid() || !EnumHasAnyFlags(DataType->Flags, EOptimusDataTypeFlags::UseInResource))
+	if (!DataType.IsValid() || !EnumHasAnyFlags(DataType->UsageFlags, EOptimusDataTypeUsageFlags::Resource))
 	{
 		UE_LOG(LogOptimusCore, Error, TEXT("Invalid data type for resources."));
 		return nullptr;

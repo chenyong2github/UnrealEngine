@@ -4,8 +4,10 @@
 
 #include "OptimusDataType.h"
 
+#include "EditorStyleSet.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+
 
 template<typename T> class SListView;
 class ITableRow;
@@ -35,13 +37,13 @@ public:
 	SLATE_BEGIN_ARGS( SOptimusDataTypeSelector ) : 
 		_ViewType(EViewType::IconAndText),
 		_bViewOnly(false),
-		_TypeMask(EOptimusDataTypeFlags::None), 
+		_UsageMask(EOptimusDataTypeUsageFlags::Node), 
 		_Font(FEditorStyle::GetFontStyle(TEXT("NormalFont")))
 		{}
 		SLATE_ATTRIBUTE( FOptimusDataTypeHandle, CurrentDataType )
 		SLATE_ARGUMENT( EViewType, ViewType )
 		SLATE_ARGUMENT( bool, bViewOnly )
-		SLATE_ARGUMENT( EOptimusDataTypeFlags, TypeMask)
+		SLATE_ARGUMENT( EOptimusDataTypeUsageFlags, UsageMask)
 	    SLATE_ATTRIBUTE(FSlateFontInfo, Font)
 	    SLATE_EVENT(FOnDataTypeChanged, OnDataTypeChanged)
 	SLATE_END_ARGS()
@@ -73,7 +75,7 @@ private:
 	TAttribute<FOptimusDataTypeHandle> CurrentDataType;
 	EViewType ViewType;
 	bool bViewOnly;
-	EOptimusDataTypeFlags TypeMask;
+	EOptimusDataTypeUsageFlags UsageMask;
 	FOnDataTypeChanged OnDataTypeChanged;
 
 	TSharedPtr<SComboButton> TypeComboButton;

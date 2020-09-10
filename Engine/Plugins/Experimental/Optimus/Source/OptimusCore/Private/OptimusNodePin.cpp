@@ -8,7 +8,6 @@
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
-#include "OptimusDataTypeRegistry.h"
 
 #include "UObject/Package.h"
 
@@ -154,10 +153,10 @@ FProperty* UOptimusNodePin::GetPropertyFromPin() const
 FString UOptimusNodePin::GetValueAsString() const
 {
 	UObject *NodeObject = GetNode();
-	const FProperty *Property = GetPropertyFromPin();
-
 	FString ValueString;
-	if (ensure(Property))
+
+	// We can have pins with no underlying properties (e.g. Get/Set Resource nodes).
+	if (const FProperty *Property = GetPropertyFromPin())
 	{
 		const uint8 *NodeData = Property->ContainerPtrToValuePtr<const uint8>(NodeObject);
 		Property->ExportTextItem(ValueString, NodeData, nullptr, NodeObject, PPF_None);
@@ -272,26 +271,13 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 }
 
 
-bool UOptimusNodePin::InitializeFromProperty(
+void UOptimusNodePin::SetDirectionAndDataType(
 	EOptimusNodePinDirection InDirection, 
-	const FProperty *InProperty
+	FOptimusDataTypeRef InDataTypeRef
 	)
 {
-	if (ensure(InProperty))
-	{
-		// Is this a legitimate type for pins?
-		const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
-
-		DataType = Registry.FindType(*InProperty);
-		Direction = InDirection;
-
-		if (!DataType.IsValid())
-		{
-			UE_LOG(LogOptimusCore, Error, TEXT("No registered type found for pin '%s'."), *InProperty->GetName());
-		}
-	}
-
-	return DataType.IsValid();
+	Direction = InDirection;
+	DataType = InDataTypeRef;
 }
 
 

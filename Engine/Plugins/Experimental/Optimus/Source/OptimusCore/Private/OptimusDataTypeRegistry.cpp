@@ -19,57 +19,62 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	// NOTE: The pin categories should match the PC_* ones in EdGraphSchema_K2.cpp for the 
 	// fundamental types.
 	// FIXME: Turn this into an array and separate out to own file.
+	const bool bShowElements = true;
+	const bool bHideElements = false;
+
 
 	// bool -> bool
 	Registry.RegisterType(
 	    *FBoolProperty::StaticClass(),
 	    FShaderValueType::Get(EShaderFundamentalType::Bool),
 	    FName(TEXT("bool")), {},
-	    EOptimusDataTypeFlags::UseInResource | EOptimusDataTypeFlags::UseInVariable);
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// int -> int
 	Registry.RegisterType(
 	    *FIntProperty::StaticClass(),
 	    FShaderValueType::Get(EShaderFundamentalType::Int),
 	    FName(TEXT("int")), {}, 
-	    EOptimusDataTypeFlags::UseInResource | EOptimusDataTypeFlags::UseInVariable);
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// float -> float
 	Registry.RegisterType(
 	    *FFloatProperty::StaticClass(),
 	    FShaderValueType::Get(EShaderFundamentalType::Float),
 	    FName(TEXT("float")), {}, 
-	    EOptimusDataTypeFlags::UseInResource | EOptimusDataTypeFlags::UseInVariable);
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// FVector -> float3
 	Registry.RegisterType(
 		TBaseStructure<FVector>::Get(),
 	    FShaderValueType::Get(EShaderFundamentalType::Float, 3),
 		{},
-	    EOptimusDataTypeFlags::UseInResource | EOptimusDataTypeFlags::UseInVariable | EOptimusDataTypeFlags::ShowElements);
+		bShowElements,
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// FLinearColor -> float4
 	Registry.RegisterType(
 	    TBaseStructure<FLinearColor>::Get(),
 	    FShaderValueType::Get(EShaderFundamentalType::Float, 4),
 	    {},
-	    EOptimusDataTypeFlags::UseInResource | EOptimusDataTypeFlags::UseInVariable | EOptimusDataTypeFlags::ShowElements);
+	    bShowElements,
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// FRotator -> float3x3
 	Registry.RegisterType(
 	    TBaseStructure<FRotator>::Get(),
 	    FShaderValueType::Get(EShaderFundamentalType::Float, 3, 3),
 	    {},
-	    EOptimusDataTypeFlags::UseInResource | EOptimusDataTypeFlags::UseInVariable);
+	    bShowElements,
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// FTransform -> float4x4
-	/*
 	Registry.RegisterType(
 	    TBaseStructure<FTransform>::Get(),
 	    FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4),
 	    {},
-	    EOptimusDataTypeFlags::UseInResource | EOptimusDataTypeFlags::UseInVariable);
-	*/
+	    bHideElements,
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	Registry.RegisterType(
 	    TBaseStructure<FTransform>::Get(),
@@ -78,7 +83,8 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 			 {FName("scl"), FShaderValueType::Get(EShaderFundamentalType::Float, 3)},
 			 {FName("rot"), FShaderValueType::Get(EShaderFundamentalType::Float, 4)}}),
 	    {},
-	    EOptimusDataTypeFlags::UseInResource | EOptimusDataTypeFlags::UseInVariable);
+	    bShowElements,
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// String types
 	Registry.RegisterType(
@@ -86,35 +92,35 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    FShaderValueTypeHandle(),
 	    FName(TEXT("name")), 
 		{},
-	    EOptimusDataTypeFlags::UseInVariable);
+	    EOptimusDataTypeUsageFlags::Variable);
 
 	Registry.RegisterType(
 	    *FStrProperty::StaticClass(),
 	    FShaderValueTypeHandle(),
 	    FName(TEXT("string")),
 	    {},
-	    EOptimusDataTypeFlags::UseInVariable);
+	    EOptimusDataTypeUsageFlags::Variable);
 
 	// UObject types
 	Registry.RegisterType(
 		USkeletalMesh::StaticClass(),
 	    FLinearColor::White,
-	    EOptimusDataTypeFlags::UseInVariable);
+	    EOptimusDataTypeUsageFlags::Variable);
 
 	Registry.RegisterType(
 	    UOptimusType_MeshAttribute::StaticClass(),
 	    FLinearColor(0.4f, 0.4f, 0.8f, 1.0f),
-	    EOptimusDataTypeFlags::None);
+	    EOptimusDataTypeUsageFlags::Node);
 
 	Registry.RegisterType(
 	    UOptimusType_MeshSkinWeights::StaticClass(),
 	    FLinearColor(0.4f, 0.8f, 0.8f, 1.0f),
-	    EOptimusDataTypeFlags::None);
+	    EOptimusDataTypeUsageFlags::Node);
 
 	Registry.RegisterType(
 	    USkeleton::StaticClass(),
 	    FLinearColor(0.4f, 0.8f, 0.4f, 1.0f),
-	    EOptimusDataTypeFlags::None);
+	    EOptimusDataTypeUsageFlags::Node);
 }
 
 
@@ -158,22 +164,19 @@ bool FOptimusDataTypeRegistry::RegisterType(
 	FShaderValueTypeHandle InShaderValueType,
 	FName InPinCategory,
 	TOptional<FLinearColor> InPinColor,
-	EOptimusDataTypeFlags InFlags
+	EOptimusDataTypeUsageFlags InUsageFlags
 	)
 {
-	InFlags &= EOptimusDataTypeFlags::UserFlagsMask;
-	InFlags &= ~EOptimusDataTypeFlags::ShowElements;
-
 	return RegisterType(InFieldType.GetFName(), [&](FOptimusDataType& InDataType) {
 		InDataType.TypeName = InFieldType.GetFName();
 		InDataType.ShaderValueType = InShaderValueType;
-		InDataType.PinCategory = InPinCategory;
+		InDataType.TypeCategory = InPinCategory;
 		if (InPinColor.IsSet())
 		{
 			InDataType.bHasCustomPinColor = true;
 			InDataType.CustomPinColor = *InPinColor;
 		}
-		InDataType.Flags = InFlags;
+		InDataType.UsageFlags = InUsageFlags;
 	});
 }
 
@@ -182,13 +185,14 @@ bool FOptimusDataTypeRegistry::RegisterType(
     UScriptStruct *InStructType,
     FShaderValueTypeHandle InShaderValueType,
     TOptional<FLinearColor> InPinColor,
-    EOptimusDataTypeFlags InFlags
+    bool bInShowElements,
+    EOptimusDataTypeUsageFlags InUsageFlags
 	)
 {
 	if (ensure(InStructType))
 	{
 		// If showing elements, the sub-elements have to be registered already.
-		if (EnumHasAnyFlags(InFlags, EOptimusDataTypeFlags::ShowElements))
+		if (bInShowElements)
 		{
 			for (const FProperty* Property : TFieldRange<FProperty>(InStructType))
 			{
@@ -206,14 +210,19 @@ bool FOptimusDataTypeRegistry::RegisterType(
 		return RegisterType(TypeName, [&](FOptimusDataType& InDataType) {
 			InDataType.TypeName = TypeName;
 			InDataType.ShaderValueType = InShaderValueType;
-			InDataType.PinCategory = FName(TEXT("struct"));
-			InDataType.PinSubCategory = InStructType;
+			InDataType.TypeCategory = FName(TEXT("struct"));
+			InDataType.TypeObject = InStructType;
 			if (InPinColor.IsSet())
 			{
 				InDataType.bHasCustomPinColor = true;
 				InDataType.CustomPinColor = *InPinColor;
 			}
-			InDataType.Flags = InFlags | EOptimusDataTypeFlags::IsStructType;
+			InDataType.UsageFlags = InUsageFlags;
+			InDataType.TypeFlags |= EOptimusDataTypeFlags::IsStructType;
+			if (bInShowElements)
+			{
+				InDataType.TypeFlags |= EOptimusDataTypeFlags::ShowElements;
+			}
 		});
 	}
 	else
@@ -226,25 +235,24 @@ bool FOptimusDataTypeRegistry::RegisterType(
 bool FOptimusDataTypeRegistry::RegisterType(
 	UClass* InClassType, 
     TOptional<FLinearColor> InPinColor,
-	EOptimusDataTypeFlags InFlags)
+	EOptimusDataTypeUsageFlags InUsageFlags
+	)
 {
 	if (ensure(InClassType))
 	{
-		InFlags &= ~EOptimusDataTypeFlags::ShowElements;
-
 		FName TypeName(*FString::Printf(TEXT("U%s"), *InClassType->GetName()));
 
 		return RegisterType(TypeName, [&](FOptimusDataType& InDataType) {
 				InDataType.TypeName = TypeName;
-				InDataType.PinCategory = FName(TEXT("object"));
-				InDataType.PinSubCategory = InClassType;
+				InDataType.TypeCategory = FName(TEXT("object"));
+				InDataType.TypeObject = InClassType;
 				InDataType.bHasCustomPinColor = true;
 			    if (InPinColor.IsSet())
 			    {
 				    InDataType.bHasCustomPinColor = true;
 				    InDataType.CustomPinColor = *InPinColor;
 			    }
-				InDataType.Flags = InFlags;
+				InDataType.UsageFlags = InUsageFlags;
 			});
 	}
 	else
@@ -259,25 +267,23 @@ bool FOptimusDataTypeRegistry::RegisterType(
     FName InPinCategory,
     UObject* InPinSubCategory,
     FLinearColor InPinColor,
-    EOptimusDataTypeFlags InFlags
+    EOptimusDataTypeUsageFlags InUsageFlags
 	)
 {
-	if (EnumHasAnyFlags(InFlags, EOptimusDataTypeFlags::UseInVariable))
+	if (EnumHasAnyFlags(InUsageFlags, EOptimusDataTypeUsageFlags::Variable))
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Can't register '%s' for use in variables with no native type."), *InTypeName.ToString());
+		UE_LOG(LogOptimusCore, Error, TEXT("Can't register '%s' for use in variables when there is no associated native type."), *InTypeName.ToString());
 		return false;
 	}
-
-	InFlags &= ~EOptimusDataTypeFlags::ShowElements;
 
 	return RegisterType(InTypeName, [&](FOptimusDataType& InDataType) {
 		InDataType.TypeName = InTypeName;
 		InDataType.ShaderValueType = InShaderValueType;
-		InDataType.PinCategory = InPinCategory;
-		InDataType.PinSubCategory = InPinSubCategory;
+		InDataType.TypeCategory = InPinCategory;
+		InDataType.TypeObject = InPinSubCategory;
 		InDataType.bHasCustomPinColor = true;
 		InDataType.CustomPinColor = InPinColor;
-		InDataType.Flags = InFlags;
+		InDataType.UsageFlags = InUsageFlags;
 	});
 }
 

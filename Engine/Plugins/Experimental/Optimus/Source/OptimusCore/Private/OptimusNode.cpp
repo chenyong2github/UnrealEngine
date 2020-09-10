@@ -5,6 +5,7 @@
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
 #include "OptimusCoreModule.h"
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
@@ -20,6 +21,8 @@ const FName UOptimusNode::CategoryName::Attributes("Attributes");
 const FName UOptimusNode::CategoryName::Events("Events");
 const FName UOptimusNode::CategoryName::Meshes("Meshes");
 const FName UOptimusNode::CategoryName::Deformers("Deformers");
+const FName UOptimusNode::CategoryName::Resources("Resources");
+const FName UOptimusNode::CategoryName::Variables("Variables");
 
 const FName UOptimusNode::PropertyMeta::Input("Input");
 const FName UOptimusNode::PropertyMeta::Output("Output");
@@ -31,11 +34,6 @@ TArray<UClass*> UOptimusNode::CachedNodesClasses;
 
 UOptimusNode::UOptimusNode()
 {
-	// Construct the pins that will represent the input/outputs for this node.
-	if (!(GetFlags() & RF_ClassDefaultObject))
-	{
-		CreatePinsFromStructLayout(GetClass(), nullptr);
-	}
 }
 
 
@@ -87,7 +85,10 @@ bool UOptimusNode::SetGraphPosition(const FVector2D& InPosition)
 }
 
 
-bool UOptimusNode::SetGraphPositionDirect(const FVector2D& InPosition)
+bool UOptimusNode::SetGraphPositionDirect(
+	const FVector2D& InPosition,
+	bool bInNotify
+	)
 {
 	if (InPosition.ContainsNaN() || InPosition.Equals(GraphPosition))
 	{
@@ -96,7 +97,10 @@ bool UOptimusNode::SetGraphPositionDirect(const FVector2D& InPosition)
 
 	GraphPosition = InPosition;
 
-	Notify(EOptimusGraphNotifyType::NodePositionChanged);
+	if (bInNotify)
+	{
+		Notify(EOptimusGraphNotifyType::NodePositionChanged);
+	}
 
 	return true;
 }
@@ -209,6 +213,14 @@ TArray<UClass*> UOptimusNode::GetAllNodeClasses()
 }
 
 
+void UOptimusNode::PostCreateNode()
+{
+	CachedPinLookup.Empty();
+	Pins.Empty();
+	CreatePins();
+}
+
+
 void UOptimusNode::Notify(EOptimusGraphNotifyType InNotifyType)
 {
 	UOptimusNodeGraph *Graph = Cast<UOptimusNodeGraph>(GetOuter());
@@ -220,8 +232,49 @@ void UOptimusNode::Notify(EOptimusGraphNotifyType InNotifyType)
 }
 
 
+
+void UOptimusNode::CreatePins()
+{
+	CreatePinsFromStructLayout(GetClass(), nullptr);
+}
+
+
+UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
+	FName InName,
+	FOptimusDataTypeRef InDataType, 
+	UOptimusNodePin* InParentPin, 
+	EOptimusNodePinDirection InDirection
+	)
+{
+	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
+	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName, RF_Public | RF_Transactional);
+
+	Pin->SetDirectionAndDataType(InDirection, InDataType);
+
+	if (InParentPin)
+	{
+		InParentPin->AddSubPin(Pin);
+	}
+	else
+	{
+		Pins.Add(Pin);
+	}
+
+	// Add sub-pins, if the registered type is set to show them.
+	if (EnumHasAnyFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
+	{
+		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InDataType->TypeObject))
+		{
+			CreatePinsFromStructLayout(Struct, Pin);
+		}
+	}
+
+	return Pin;
+}
+
+
 void UOptimusNode::CreatePinsFromStructLayout(
-	UStruct* InStruct, 
+	const UStruct* InStruct, 
 	UOptimusNodePin* InParentPin
 	)
 {
@@ -256,35 +309,23 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 	EOptimusNodePinDirection InDirection
 	)
 {
-	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
-	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InProperty->GetFName(), RF_Public| RF_Transactional);
-
-	if (!ensure(Pin->InitializeFromProperty(InDirection, InProperty)))
+	if (!ensure(InProperty))
 	{
-		Pin->Rename(nullptr, GetTransientPackage());
-		Pin->MarkPendingKill();
 		return nullptr;
 	}
 
-	if (InParentPin)
+	// Is this a legitimate type for pins?
+	const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
+
+	FOptimusDataTypeHandle DataType = Registry.FindType(*InProperty);
+
+	if (!DataType.IsValid())
 	{
-		InParentPin->AddSubPin(Pin);
-	}
-	else
-	{
-		Pins.Add(Pin);
+		UE_LOG(LogOptimusCore, Error, TEXT("No registered type found for pin '%s'."), *InProperty->GetName());
+		return nullptr;
 	}
 
-	// Add sub-pins, if the registered type is set to show them.
-	if (EnumHasAnyFlags(Pin->GetDataType()->Flags, EOptimusDataTypeFlags::ShowElements))
-	{
-		if (const FStructProperty* StructProperty = CastField<const FStructProperty>(InProperty))
-		{
-			CreatePinsFromStructLayout(StructProperty->Struct, Pin);
-		}
-	}
-
-	return Pin;
+	return CreatePinFromDataType(InProperty->GetFName(), DataType, InParentPin, InDirection);
 }
 
 UOptimusActionStack* UOptimusNode::GetActionStack() const
