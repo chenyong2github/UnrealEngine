@@ -26,7 +26,7 @@
 // FActorPaletteViewportClient
 
 FActorPaletteViewportClient::FActorPaletteViewportClient(int32 InTabIndex)
-	: FEditorViewportClient(new FAssetEditorModeManager(), nullptr, nullptr)
+	: FEditorViewportClient(nullptr, nullptr, nullptr)
 	, TabIndex(InTabIndex)
 {
 	SetViewModes(VMI_Lit, VMI_Lit);

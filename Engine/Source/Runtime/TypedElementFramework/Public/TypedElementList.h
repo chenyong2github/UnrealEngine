@@ -260,7 +260,7 @@ public:
 	template <typename BaseInterfaceType>
 	FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const FTypedElementHandle& InElementHandle) const
 	{
-		return TypedElementList_Private::GetElement<BaseInterfaceType>(Registry, InElementHandle);
+		return TypedElementList_Private::GetElement<BaseInterfaceType>(Registry.Get(), InElementHandle);
 	}
 
 	/**
@@ -269,7 +269,7 @@ public:
 	template <typename BaseInterfaceType>
 	FORCEINLINE void GetElement(const FTypedElementHandle& InElementHandle, TTypedElement<BaseInterfaceType>& OutElement) const
 	{
-		TypedElementList_Private::GetElement(Registry, InElementHandle, OutElement);
+		TypedElementList_Private::GetElement(Registry.Get(), InElementHandle, OutElement);
 	}
 
 	/**
@@ -512,7 +512,7 @@ public:
 	template <typename BaseInterfaceType>
 	FORCEINLINE TypedElementList_Private::TTypedElementListInterfaceIteratorProxy<BaseInterfaceType> InterateInterface() const
 	{
-		return TypedElementList_Private::TTypedElementListInterfaceIteratorProxy<BaseInterfaceType>(Registry, ElementHandles);
+		return TypedElementList_Private::TTypedElementListInterfaceIteratorProxy<BaseInterfaceType>(Registry.Get(), ElementHandles);
 	}
 
 	/**
@@ -553,7 +553,10 @@ private:
 
 	void NoteListChanged(const EChangeType InChangeType, const FTypedElementHandle& InElementHandle = FTypedElementHandle());
 
-	UTypedElementRegistry* Registry = nullptr;
+	/**
+	 * Element registry this element list is associated with.
+	 */
+	TWeakObjectPtr<UTypedElementRegistry> Registry;
 
 	/**
 	 * Set of combined ID values that are currently present in this element list.
@@ -568,7 +571,7 @@ private:
 	TArray<FTypedElementHandle> ElementHandles;
 
 	/**
-	 * Delegate that is invoked whenever this element list has been changed
+	 * Delegate that is invoked whenever this element list has been changed.
 	 */
 	FOnChanged OnChangedDelegate;
 

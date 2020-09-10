@@ -45,7 +45,7 @@ public:
  *****************************************************************************/
 
 FCompositingViewportClient::FCompositingViewportClient(TWeakObjectPtr<UEditorCompElementContainer> CompElements)
-	: FEditorViewportClient(new FAssetEditorModeManager())
+	: FEditorViewportClient(nullptr)
 	, ElementsContainerPtr(CompElements)
 {
 	SetViewModes(VMI_Unlit, VMI_Unlit);

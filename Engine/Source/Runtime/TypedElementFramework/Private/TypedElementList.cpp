@@ -75,13 +75,16 @@ void FTypedElementListLegacySync::ForceBatchOperationDirty()
 FTypedElementList::FTypedElementList(UTypedElementRegistry* InRegistry)
 	: Registry(InRegistry)
 {
-	Registry->Private_OnElementListCreated(this);
+	InRegistry->Private_OnElementListCreated(this);
 }
 
 FTypedElementList::~FTypedElementList()
 {
 	LegacySync.Reset();
-	Registry->Private_OnElementListDestroyed(this);
+	if (UTypedElementRegistry* RegistryPtr = Registry.Get())
+	{
+		RegistryPtr->Private_OnElementListDestroyed(this);
+	}
 }
 
 FTypedElementListPtr FTypedElementList::Private_CreateElementList(UTypedElementRegistry* InRegistry)
@@ -91,7 +94,7 @@ FTypedElementListPtr FTypedElementList::Private_CreateElementList(UTypedElementR
 
 FTypedElementListPtr FTypedElementList::Clone() const
 {
-	FTypedElementListPtr ClonedElementList = Private_CreateElementList(Registry);
+	FTypedElementListPtr ClonedElementList = Private_CreateElementList(Registry.Get());
 	ClonedElementList->ElementCombinedIds = ElementCombinedIds;
 	ClonedElementList->ElementHandles = ElementHandles;
 	return ClonedElementList;

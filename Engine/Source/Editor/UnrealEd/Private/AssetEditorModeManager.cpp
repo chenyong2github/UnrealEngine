@@ -28,16 +28,21 @@ FAssetEditorModeManager::~FAssetEditorModeManager()
 {
 	SetPreviewScene(nullptr);
 
-	ActorSet->SetElementList(nullptr);
-	ActorSet->RemoveFromRoot();
-	ActorSet = nullptr;
+	// We may be destroyed after the UObject system has already shutdown, 
+	// which would mean that these instances will be garbage
+	if (UObjectInitialized())
+	{
+		ActorSet->SetElementList(nullptr);
+		ActorSet->RemoveFromRoot();
+		ActorSet = nullptr;
 
-	ObjectSet->RemoveFromRoot();
-	ObjectSet = nullptr;
+		ObjectSet->RemoveFromRoot();
+		ObjectSet = nullptr;
 
-	ComponentSet->SetElementList(nullptr);
-	ComponentSet->RemoveFromRoot();
-	ComponentSet = nullptr;
+		ComponentSet->SetElementList(nullptr);
+		ComponentSet->RemoveFromRoot();
+		ComponentSet = nullptr;
+	}
 
 	SelectedElements.Reset();
 }

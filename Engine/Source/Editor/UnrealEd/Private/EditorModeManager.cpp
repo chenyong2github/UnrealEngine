@@ -91,8 +91,13 @@ FEditorModeTools::~FEditorModeTools()
 	DeactivateAllModes();
 	RecycledScriptableModes.Empty();
 
-	InteractiveToolsContext->ShutdownContext();
-	InteractiveToolsContext = nullptr;
+	// We may be destroyed after the UObject system has already shutdown, 
+	// which would mean that this instances will be garbage
+	if (UObjectInitialized())
+	{
+		InteractiveToolsContext->ShutdownContext();
+		InteractiveToolsContext = nullptr;
+	}
 }
 
 void FEditorModeTools::LoadConfig(void)

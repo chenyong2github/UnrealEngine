@@ -728,6 +728,8 @@ void USelection::BeginDestroy()
 {
 	Super::BeginDestroy();
 
+	SelectionStore.Reset();
+
 	if (bOwnsSelectionAnnotation)
 	{
 		delete SelectionAnnotation;
