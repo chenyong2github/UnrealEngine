@@ -78,7 +78,22 @@ namespace Turnkey.Commands
 			if (Choice > 0)
 			{
 				string NewValue = TurnkeyUtils.ReadInput(string.Format("Enter value for {0} [Currently '{1}']", UserSettings[Choice - 1].VariableName, TurnkeyUtils.GetVariableValue(UserSettings[Choice - 1].VariableName)));
-				if (NewValue != "")
+				if (NewValue == "")
+				{
+					int EmptyChoice = TurnkeyUtils.ReadInputInt("Empty response was given - what did you want to do?", new List<string> { "Delete setting", "Set to blank", "Leave existing value alone" }, false);
+					if (EmptyChoice == 0)
+					{
+						TurnkeyUtils.Log("Clearing Settings[{0}].{1}", Choice - 1, UserSettings[Choice - 1].VariableName);
+						TurnkeySettings.SetUserSetting(UserSettings[Choice - 1].VariableName, null);
+						TurnkeySettings.Save();
+					}
+					else
+					{
+						NewValue = EmptyChoice == 1 ? "" : null;
+					}
+				}
+
+				if (NewValue != null)
 				{
 					TurnkeyUtils.Log("Setting Settings[{0}].{1} = {2}", Choice - 1, UserSettings[Choice - 1].VariableName, NewValue);
 					TurnkeySettings.SetUserSetting(UserSettings[Choice - 1].VariableName, NewValue);

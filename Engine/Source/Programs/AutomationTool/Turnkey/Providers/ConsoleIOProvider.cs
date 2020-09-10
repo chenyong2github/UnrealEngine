@@ -66,7 +66,7 @@ namespace Turnkey
 			// go until good choice
 			while (true)
 			{
-				string ChoiceString = ReadInput(FullPrompt, DefaultValue >= 0 ? DefaultValue.ToString() : "", false);
+				string ChoiceString = ReadInput(FullPrompt, DefaultValue >= 0 ? DefaultValue.ToString() : null, false);
 
 				int Choice;
 				if (Int32.TryParse(ChoiceString, out Choice) == false || Choice < 0 || Choice >= Options.Count + (bIsCancellable ? 1 : 0))

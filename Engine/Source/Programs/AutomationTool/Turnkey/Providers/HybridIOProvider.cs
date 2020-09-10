@@ -38,21 +38,21 @@ namespace Turnkey
 			// blank string means user canceled, which goes to stderr
 			if (OSAOutput == "")
 			{
-				return "";
+				return null;
 			}
 
 			// regex the result
 			Match Match = Regex.Match(OSAOutput, "text returned:(.*)$");
 			if (!Match.Success)
 			{
-				return "";
+				return null;
 			}
 
 			// return the text in the dialog box
 			return Match.Groups[1].Value;
 		}
 
-			private string ShowDialog(string Prompt, string Default, bool bIsList)
+		private string ShowDialog(string Prompt, string Default, bool bIsList)
 		{
 			string Result;
 			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac)
@@ -64,7 +64,7 @@ namespace Turnkey
 				Result = Microsoft.VisualBasic.Interaction.InputBox(Prompt, "Turnkey Input", Default);
 			}
 
-			if (Result == "" && bIsList)
+			if (string.IsNullOrEmpty(Result) && bIsList)
 			{
 				return "0";
 			}
@@ -204,7 +204,7 @@ namespace Turnkey
 			// go until good choice
 			while (true)
 			{
-				string ChoiceString = ShowDialog(FullPrompt, DefaultValue >= 0 ? DefaultValue.ToString() : "", true);
+				string ChoiceString = ShowDialog(FullPrompt, DefaultValue >= 0 ? DefaultValue.ToString() : null, true);
 
 				if (ChoiceString == null)
 				{
