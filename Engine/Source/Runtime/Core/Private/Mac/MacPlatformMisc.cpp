@@ -701,71 +701,25 @@ void FMacPlatformMisc::NormalizePath(FString& InPath)
 	}
 }
 
-FMacPlatformMisc::FGPUDescriptor::FGPUDescriptor()
-: RegistryID(0)
-, PCIDevice(0)
-, GPUName(nil)
-, GPUMetalBundle(nil)
-, GPUOpenGLBundle(nil)
-, GPUBundleID(nil)
-, GPUVendorId(0)
-, GPUDeviceId(0)
-, GPUMemoryMB(0)
-, GPUIndex(0)
-, GPUHeadless(false)
+template<typename T>
+FMacPlatformMisc::FGPUDescriptorCommon<T>::~FGPUDescriptorCommon()
 {
-}
-
-FMacPlatformMisc::FGPUDescriptor::FGPUDescriptor(FGPUDescriptor const& Other)
-: RegistryID(0)
-, PCIDevice(0)
-, GPUName(nil)
-, GPUMetalBundle(nil)
-, GPUOpenGLBundle(nil)
-, GPUBundleID(nil)
-, GPUVendorId(0)
-, GPUDeviceId(0)
-, GPUMemoryMB(0)
-, GPUIndex(0)
-, GPUHeadless(false)
-{
-	operator=(Other);
-}
-
-FMacPlatformMisc::FGPUDescriptor::~FGPUDescriptor()
-{
-	if(PCIDevice)
-	{
-		IOObjectRelease((io_registry_entry_t)PCIDevice);
-	}
 	[GPUName release];
 	[GPUMetalBundle release];
 	[GPUOpenGLBundle release];
 	[GPUBundleID release];
 }
 
-FMacPlatformMisc::FGPUDescriptor& FMacPlatformMisc::FGPUDescriptor::operator=(FGPUDescriptor const& Other)
+template<typename T>
+void FMacPlatformMisc::FGPUDescriptorCommon<T>::CopyFrom(FMacPlatformMisc::FGPUDescriptorCommon<T> const& Other)
 {
-	if(this != &Other)
+	if (this != &Other)
 	{
-		RegistryID = Other.RegistryID;
-		
-		if(Other.PCIDevice)
-		{
-			IOObjectRetain((io_registry_entry_t)Other.PCIDevice);
-		}
-		if(PCIDevice)
-		{
-			IOObjectRelease((io_registry_entry_t)PCIDevice);
-		}
-		PCIDevice = Other.PCIDevice;
-		
-		
 		[Other.GPUName retain];
 		[Other.GPUMetalBundle retain];
 		[Other.GPUOpenGLBundle retain];
 		[Other.GPUBundleID retain];
-		
+
 		[GPUName release];
 		[GPUMetalBundle release];
 		[GPUOpenGLBundle release];
@@ -775,21 +729,68 @@ FMacPlatformMisc::FGPUDescriptor& FMacPlatformMisc::FGPUDescriptor::operator=(FG
 		GPUMetalBundle = Other.GPUMetalBundle;
 		GPUOpenGLBundle = Other.GPUOpenGLBundle;
 		GPUBundleID = Other.GPUBundleID;
-		
+
 		GPUVendorId = Other.GPUVendorId;
 		GPUDeviceId = Other.GPUDeviceId;
 		GPUMemoryMB = Other.GPUMemoryMB;
 		GPUIndex = Other.GPUIndex;
 		GPUHeadless = Other.GPUHeadless;
+
+		static_cast<T*>(this)->CopyFromImpl(Other);
 	}
+}
+
+template<typename T>
+FMacPlatformMisc::FGPUDescriptorCommon<T>& FMacPlatformMisc::FGPUDescriptorCommon<T>::operator=(FGPUDescriptorCommon<T> const& Other)
+{
+	CopyFrom(Other);
 	return *this;
 }
 
-TMap<FString, float> FMacPlatformMisc::FGPUDescriptor::GetPerformanceStatistics() const
+template<typename T>
+TMap<FString, float> FMacPlatformMisc::FGPUDescriptorCommon<T>::GetPerformanceStatistics() const
+{
+	return static_cast<T const*>(this)->GetPerformanceStatisticsImpl();
+}
+
+#if PLATFORM_MAC_X86
+FMacPlatformMisc::FGPUDescriptorX86_64::FGPUDescriptorX86_64(FGPUDescriptorX86_64 const& Other)
+{
+	CopyFrom(Other);
+}
+
+FMacPlatformMisc::FGPUDescriptorX86_64::~FGPUDescriptorX86_64()
+{
+	if (PCIDevice)
+	{
+		IOObjectRelease((io_registry_entry_t)PCIDevice);
+	}
+}
+
+void FMacPlatformMisc::FGPUDescriptorX86_64::CopyFromImpl(FGPUDescriptorCommon<FMacPlatformMisc::FGPUDescriptorX86_64> const& Other)
+{
+	FMacPlatformMisc::FGPUDescriptorX86_64 const& ConcreteOther = static_cast<FMacPlatformMisc::FGPUDescriptorX86_64 const&>(Other);
+
+	RegistryID = ConcreteOther.RegistryID;
+
+	if (ConcreteOther.PCIDevice)
+	{
+		IOObjectRetain((io_registry_entry_t)ConcreteOther.PCIDevice);
+	}
+	if(PCIDevice)
+	{
+		IOObjectRelease((io_registry_entry_t)PCIDevice);
+	}
+	PCIDevice = ConcreteOther.PCIDevice;
+}
+
+TMap<FString, float> FMacPlatformMisc::FGPUDescriptorX86_64::GetPerformanceStatisticsImpl() const
 {
 	SCOPED_AUTORELEASE_POOL;
+
 	static CFStringRef PerformanceStatisticsRef = CFSTR("PerformanceStatistics");
 	TMap<FString, float> Data;
+
 	const CFDictionaryRef PerformanceStats = (const CFDictionaryRef)IORegistryEntrySearchCFProperty(PCIDevice, kIOServicePlane, PerformanceStatisticsRef, kCFAllocatorDefault, kIORegistryIterateRecursively);
 	if(PerformanceStats)
 	{
@@ -804,8 +805,33 @@ TMap<FString, float> FMacPlatformMisc::FGPUDescriptor::GetPerformanceStatistics(
 		}
 		CFRelease(PerformanceStats);
 	}
+
 	return Data;
 }
+
+#elif PLATFORM_MAC_ARM64
+FMacPlatformMisc::FGPUDescriptorARM64::FGPUDescriptorARM64(FGPUDescriptorARM64 const& Other)
+{
+	CopyFrom(Other);
+}
+
+FMacPlatformMisc::FGPUDescriptorARM64::~FGPUDescriptorARM64()
+{
+}
+
+void FMacPlatformMisc::FGPUDescriptorARM64::CopyFromImpl(FGPUDescriptorCommon<FMacPlatformMisc::FGPUDescriptorARM64> const& Other)
+{
+}
+
+TMap<FString, float> FMacPlatformMisc::FGPUDescriptorARM64::GetPerformanceStatisticsImpl() const
+{
+	return TMap<FString, float>();
+}
+
+#else
+	#error "Undefined Mac platform"
+
+#endif // PLATFORM_MAC_XXXXXX
 
 class FMacPlatformGPUManager
 {
@@ -814,7 +840,8 @@ class FMacPlatformGPUManager
 	TArray<FMacPlatformMisc::FGPUDescriptor> UpdatedGPUs;
 	TAtomic<bool> bRequiresUpdate;
 	
-	void InitialiseDescriptor(FMacPlatformMisc::FGPUDescriptor& Desc, io_registry_entry_t ServiceEntry, CFMutableDictionaryRef ServiceInfo)
+#if PLATFORM_MAC_X86
+	void InitializeDescriptorFromDeviceEntry(FMacPlatformMisc::FGPUDescriptor& Desc, io_registry_entry_t ServiceEntry, CFMutableDictionaryRef ServiceInfo)
 	{
 		IOObjectRetain(ServiceEntry);
 		Desc.PCIDevice = (uint32)ServiceEntry;
@@ -935,6 +962,8 @@ class FMacPlatformGPUManager
 			}
 		}
 	}
+#endif
+    
 public:
 	static FMacPlatformGPUManager& Get()
 	{
@@ -945,7 +974,7 @@ public:
 	FMacPlatformGPUManager()
 	{
 		FScopeLock Lock(&Mutex);
-		
+#if PLATFORM_MAC_X86
 		// Enumerate the GPUs via IOKit to avoid dragging in OpenGL
 		io_iterator_t Iterator;
 		CFMutableDictionaryRef MatchDictionary = IOServiceMatching("IOPCIDevice");
@@ -968,7 +997,7 @@ public:
 						{
 							FMacPlatformMisc::FGPUDescriptor Desc;
 							
-							InitialiseDescriptor(Desc, ServiceEntry, ServiceInfo);
+                            InitializeDescriptorFromDeviceEntry(Desc, ServiceEntry, ServiceInfo);
 							
 							if (Desc.GPUMetalBundle)
 							{
@@ -984,6 +1013,15 @@ public:
 			}
 			IOObjectRelease(Iterator);
 		}
+#else
+		FMacPlatformMisc::FGPUDescriptor Desc;
+		Desc.GPUName = @"Apple";
+		Desc.GPUVendorId = 1;
+		Desc.GPUDeviceId = 1;
+		Desc.GPUMemoryMB = 8192;
+		Desc.GPUIndex = 0;
+		CurrentGPUs.Add(Desc);
+#endif // PLATFORM_MAC_X86
 		UpdatedGPUs = CurrentGPUs;
 	}
 	
@@ -1000,6 +1038,7 @@ public:
 	
 	void Notify(uint64_t DeviceRegistryID, FMacPlatformMisc::EMacGPUNotification Notification)
 	{
+#if PLATFORM_MAC_X86
 		switch (Notification)
 		{
 			case FMacPlatformMisc::EMacGPUNotification::Added:
@@ -1031,7 +1070,7 @@ public:
 											
 											FMacPlatformMisc::FGPUDescriptor Desc;
 											
-											InitialiseDescriptor(Desc, ServiceEntry, ServiceInfo);
+                                            InitializeDescriptorFromDeviceEntry(Desc, ServiceEntry, ServiceInfo);
 											
 											if (Desc.GPUMetalBundle)
 											{
@@ -1085,6 +1124,7 @@ public:
 				break;
 			}
 		}
+#endif // PLATFORM_MAC_X86
 	}
 };
 
@@ -1189,7 +1229,11 @@ FGPUDriverInfo FMacPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescripti
 			bool bGotInternalVersionInfo = false;
 			bool bGotUserVersionInfo = false;
 			bool bGotDate = false;
-			
+
+#if PLATFORM_MAC_ARM64
+            // MAC_ARM_TODO
+
+#else
 			for(uint32 Index = 0; Index < _dyld_image_count(); Index++)
 			{
 				char const* IndexName = _dyld_get_image_name(Index);
@@ -1258,8 +1302,15 @@ FGPUDriverInfo FMacPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescripti
 					}
 				}
 			}
+#endif // PLATFORM_MAC_ARM
+            
+#if PLATFORM_MAC_X86
+            bool bCanPullDriverInfo = !GMacAppInfo.bIsSandboxed;
+#else
+            bool bCanPullDriverInfo = false;
+#endif
 			
-			if(!GMacAppInfo.bIsSandboxed)
+			if(bCanPullDriverInfo)
 			{
 				if(!bGotDate || !bGotInternalVersionInfo || !bGotUserVersionInfo)
 				{
@@ -2242,29 +2293,59 @@ bool FMacPlatformMisc::HasPlatformFeature(const TCHAR* FeatureName)
 {
 	if (FCString::Stricmp(FeatureName, TEXT("Metal")) == 0)
 	{
-		bool bHasMetal = false;
-		
-		if (FModuleManager::Get().ModuleExists(TEXT("MetalRHI")))
-		{
-			// Find out if there are any Metal devices on the system - some Mac's have none
-			void* DLLHandle = FPlatformProcess::GetDllHandle(TEXT("/System/Library/Frameworks/Metal.framework/Metal"));
-			if (DLLHandle)
-			{
-				TArray<FMacPlatformMisc::FGPUDescriptor> const& GPUs = FPlatformMisc::GetGPUDescriptors();
-				for (FMacPlatformMisc::FGPUDescriptor const& GPU : GPUs)
-				{
-					if (GPU.GPUMetalBundle && GPU.GPUMetalBundle.length > 0)
-					{
-						bHasMetal = true;
-						break;
-					}
-				}
-				
-				FPlatformProcess::FreeDllHandle(DLLHandle);
-			}
-		}
+#if PLATFORM_MAC_ARM64
+        return true;
+#else
+        static bool bHasCheckedForMetal = false;
+		static bool bHasMetal = false;
+        
+		if (!bHasCheckedForMetal)
+        {
+            bHasCheckedForMetal = true;
+            if (FModuleManager::Get().ModuleExists(TEXT("MetalRHI")))
+            {
+                // Find out if there are any Metal devices on the system - some Mac's have none
+                void* DLLHandle = FPlatformProcess::GetDllHandle(TEXT("/System/Library/Frameworks/Metal.framework/Metal"));
+                if (DLLHandle)
+                {
+                    TArray<FMacPlatformMisc::FGPUDescriptor> const& GPUs = FPlatformMisc::GetGPUDescriptors();
+                    
+                    if (GPUs.Num() > 0)
+                    {
+                        for (FMacPlatformMisc::FGPUDescriptor const& GPU : GPUs)
+                        {
+                            NSString* GPUName = [GPU.GPUName length] > 0 ? GPU.GPUName : @"Unnamed GPU";
+                            NSString* GPUMetalBundle = [GPU.GPUMetalBundle length] > 0 ? GPU.GPUMetalBundle : @"null";
+                            
+                            UE_LOG(LogMac, Error, TEXT("Checking GPU %s (MetalBundle %s"), *FString(GPUName), *FString(GPUMetalBundle));
 
-		return bHasMetal;
+                            if ([GPU.GPUMetalBundle length] > 0)
+                            {
+                                bHasMetal = true;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        UE_LOG(LogMac, Error, TEXT("No GPUs found!"));
+                    }
+                    
+                    FPlatformProcess::FreeDllHandle(DLLHandle);
+                }
+                else
+                {
+                    UE_LOG(LogMac, Error, TEXT("Could not get handle to Metal.Framework"));
+                }
+            }
+            else
+            {
+                UE_LOG(LogMac, Error, TEXT("No MetalRHI Module"));
+            }
+        }
+        
+        return bHasMetal;
+#endif
 	}
 
 	return FGenericPlatformMisc::HasPlatformFeature(FeatureName);
