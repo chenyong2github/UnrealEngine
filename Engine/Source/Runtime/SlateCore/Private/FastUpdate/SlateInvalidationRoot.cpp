@@ -9,6 +9,7 @@
 #include "Input/HittestGrid.h"
 #include "Layout/Children.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Trace/SlateTrace.h"
 #include "Types/ReflectionMetadata.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
@@ -123,6 +124,7 @@ void FSlateInvalidationRoot::InvalidateChildOrder(const SWidget* Investigator)
 
 		FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::ChildOrder);
 #endif
+		UE_TRACE_SLATE_ROOT_CHILDORDER_INVALIDATED(InvalidationRootWidget, Investigator);
 	}
 }
 
@@ -183,6 +185,7 @@ void FSlateInvalidationRoot::InvalidateRoot(const SWidget* Investigator)
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::Root);
 #endif
+	UE_TRACE_SLATE_ROOT_INVALIDATED(InvalidationRootWidget, Investigator);
 }
 
 FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSlateInvalidationContext& Context)
@@ -699,6 +702,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 #if WITH_SLATE_DEBUGGING
 					FSlateDebugging::BroadcastWidgetInvalidate(WidgetProxy.Widget, nullptr, EInvalidateWidgetReason::Layout);
 #endif
+					UE_TRACE_SLATE_WIDGET_INVALIDATED(WidgetProxy.Widget, nullptr, EInvalidateWidgetReason::Layout);
 				}
 
 #if SLATE_CSV_TRACKER
