@@ -122,8 +122,6 @@ public:
 	void LoadEditorCells(const TArray<UWorldPartitionEditorCell*>& Cells);
 	void UnloadEditorCells(const TArray<UWorldPartitionEditorCell*>& Cells);
 
-	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
-	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UpdateActorDesc(AActor* InActor);
 	bool IsPreCooked() const { return bIsPreCooked; }
 	void SetIsPreCooked(bool bInIsPreCooked) { bIsPreCooked = bInIsPreCooked; }
@@ -139,15 +137,14 @@ public:
 		TSet<FGuid>			Actors;
 		EActorGridPlacement	GridPlacement;
 		FName				RuntimeGrid;
+		FBox				Bounds;
 
 		FActorCluster(const FWorldPartitionActorDesc* ActorDesc);
 		void Add(const FActorCluster& ActorCluster);
 	};
 
-	TArray<FActorCluster> CreateActorClusters() const;
-	TArray<FActorCluster> CreateActorClusters(const TSet<FGuid>& InActors) const;
-	FBox GetActorClusterBounds(const FActorCluster& ActorCluster) const;
-
+	const TSet<FActorCluster*>& GetActorClusters() const;
+	const FActorCluster* GetClusterForActor(const FGuid& InActorGuid) const;
 	// public interface-
 #endif
 
@@ -234,9 +231,20 @@ private:
 #if WITH_EDITOR
 	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded);
 	void CreateLayers(const TSet<FName>& LayerNames);
-	void CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* ActorDesc, TMap<FGuid, FActorCluster*>& ActorToActorCluster, TSet<FActorCluster*>& ActorClustersSet) const;
 
 	void RefreshLoadedCells();
+
+	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
+	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
+
+	void AddToClusters(const FWorldPartitionActorDesc* ActorDesc);
+	void RemoveFromClusters(const FWorldPartitionActorDesc* ActorDesc);
+
+	void AddToPartition(FWorldPartitionActorDesc* ActorDesc);
+	void RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, bool bRemoveDescriptorFromArray = true);
+
+	TMap<FGuid, UWorldPartition::FActorCluster*> ActorToActorCluster;
+	TSet<UWorldPartition::FActorCluster*> ActorClustersSet;
 #endif
 
 	UWorldPartitionStreamingPolicy* GetStreamingPolicy() const;

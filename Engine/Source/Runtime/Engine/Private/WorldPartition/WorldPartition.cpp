@@ -302,7 +302,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		{
 			for (const auto& Pair : Actors)
 			{
-				HashActorDesc(Pair.Value.Get());
+				AddToPartition(Pair.Value.Get());
 			}
 
 			CreateLayers(AllLayersNames);
@@ -388,6 +388,10 @@ void UWorldPartition::Uninitialize()
 		}
 
 		EditorHash = nullptr;
+
+		for (FActorCluster* ActorCluster : ActorClustersSet) { delete ActorCluster; }
+		ActorClustersSet.Empty();
+		ActorToActorCluster.Empty();
 #endif		
 
 		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
@@ -498,9 +502,9 @@ void UWorldPartition::UpdateActorDesc(AActor* InActor)
 			
 			if (NewDesc->GetHash() != ActorDescPtr->Get()->GetHash())
 			{
-				UnhashActorDesc(ActorDescPtr->Get());
+				RemoveFromPartition(ActorDescPtr->Get(), false);
 				*ActorDescPtr = MoveTemp(NewDesc);
-				HashActorDesc(ActorDescPtr->Get());
+				AddToPartition(ActorDescPtr->Get());
 			}
 		}
 	}
@@ -584,14 +588,14 @@ FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid)
 	return ActorDescObj != nullptr ? ActorDescObj->Get() : nullptr;
 }
 
-void UWorldPartition::CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* ActorDesc, TMap<FGuid, UWorldPartition::FActorCluster*>& ActorToActorCluster, TSet<UWorldPartition::FActorCluster*>& ActorClustersSet) const
+void UWorldPartition::AddToClusters(const FWorldPartitionActorDesc* ActorDesc)
 {
-	FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorGuid);
+	FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorDesc->GetGuid());
 	if (!ActorCluster)
 	{
 		ActorCluster = new FActorCluster(ActorDesc);
 		ActorClustersSet.Add(ActorCluster);
-		ActorToActorCluster.Add(ActorGuid, ActorCluster);
+		ActorToActorCluster.Add(ActorDesc->GetGuid(), ActorCluster);
 	}
 
 	// Don't include references from editor-only actors
@@ -632,46 +636,32 @@ void UWorldPartition::CreateActorCluster(const FGuid& ActorGuid, const FWorldPar
 	}
 }
 
-TArray<UWorldPartition::FActorCluster> UWorldPartition::CreateActorClusters() const
+void UWorldPartition::RemoveFromClusters(const FWorldPartitionActorDesc* ActorDesc)
 {
-	TMap<FGuid, FActorCluster*> ActorToActorCluster;
-	TSet<FActorCluster*> ActorClustersSet;
+	FActorCluster* ActorCluster = ActorToActorCluster.FindChecked(ActorDesc->GetGuid());
 
-	for (const auto& Pair : Actors)
+	// Break up this cluster and reinsert all actors
+	ActorClustersSet.Remove(ActorCluster);
+
+	for (const FGuid& Guid : ActorCluster->Actors)
 	{
-		const FGuid& ActorGuid = Pair.Key;
-		const FWorldPartitionActorDesc* ActorDesc = Pair.Value.Get();
-		CreateActorCluster(ActorGuid, ActorDesc, ActorToActorCluster, ActorClustersSet);
+		ActorToActorCluster[Guid] = nullptr;
 	}
 
-	TArray<FActorCluster> ActorClusters;
-	ActorClusters.Reserve(ActorClustersSet.Num());
-	Algo::Transform(ActorClustersSet, ActorClusters, [](FActorCluster* ActorCluster) { return MoveTemp(*ActorCluster); });
-	for (FActorCluster* ActorCluster : ActorClustersSet) { delete ActorCluster; }
-	return ActorClusters;
-}
+	ActorToActorCluster.Remove(ActorDesc->GetGuid());
 
-TArray<UWorldPartition::FActorCluster> UWorldPartition::CreateActorClusters(const TSet<FGuid>& InActors) const
-{
-	TMap<FGuid, FActorCluster*> ActorToActorCluster;
-	TSet<FActorCluster*> ActorClustersSet;
-
-	for (const FGuid& ActorGuid: InActors)
+	for (const FGuid& Guid : ActorCluster->Actors)
 	{
-		const FWorldPartitionActorDesc* ActorDesc = GetActorDesc(ActorGuid);
-		CreateActorCluster(ActorGuid, ActorDesc, ActorToActorCluster, ActorClustersSet);
+		AddToClusters(GetActorDesc(Guid));
 	}
 
-	TArray<FActorCluster> ActorClusters;
-	ActorClusters.Reserve(ActorClustersSet.Num());
-	Algo::Transform(ActorClustersSet, ActorClusters, [](FActorCluster* ActorCluster) { return MoveTemp(*ActorCluster); });
-	for (FActorCluster* ActorCluster : ActorClustersSet) { delete ActorCluster; }
-	return ActorClusters;
+	delete ActorCluster;
 }
 
 UWorldPartition::FActorCluster::FActorCluster(const FWorldPartitionActorDesc* ActorDesc)
 	: GridPlacement(ActorDesc->GetGridPlacement())
 	, RuntimeGrid(ActorDesc->GetRuntimeGrid())
+	, Bounds(ActorDesc->GetBounds())
 {
 	check(GridPlacement != EActorGridPlacement::None);
 	Actors.Add(ActorDesc->GetGuid());
@@ -684,6 +674,9 @@ void UWorldPartition::FActorCluster::Add(const UWorldPartition::FActorCluster& A
 
 	// Merge RuntimeGrid
 	RuntimeGrid = RuntimeGrid == ActorCluster.RuntimeGrid ? RuntimeGrid : NAME_None;
+
+	// Merge Bounds
+	Bounds += ActorCluster.Bounds;
 
 	// Merge GridPlacement
 	// If currently None, will always stay None
@@ -711,15 +704,14 @@ void UWorldPartition::FActorCluster::Add(const UWorldPartition::FActorCluster& A
 	}
 }
 
-FBox UWorldPartition::GetActorClusterBounds(const FActorCluster& ActorCluster) const
+const TSet<UWorldPartition::FActorCluster*>& UWorldPartition::GetActorClusters() const
 {
-	FBox Bounds(ForceInit);
-	for (const FGuid& ActorGuid : ActorCluster.Actors)
-	{
-		const FWorldPartitionActorDesc* ActorDesc = GetActorDesc(ActorGuid);
-		Bounds += ActorDesc->GetBounds();
-	}
-	return Bounds;
+	return ActorClustersSet;
+}
+
+const UWorldPartition::FActorCluster* UWorldPartition::GetClusterForActor(const FGuid& InActorGuid) const
+{
+	return ActorToActorCluster.FindRef(InActorGuid);
 }
 
 void UWorldPartition::RefreshLoadedCells()
@@ -1032,7 +1024,7 @@ void UWorldPartition::OnActorAdded(AActor* InActor)
 			// old one before adding the new one.
 			check(GIsReinstancing);
 
-			UnhashActorDesc(ActorDescPtr->Get());
+			RemoveFromPartition(ActorDescPtr->Get(), false);
 
 			TUniquePtr<FWorldPartitionActorDesc> NewDesc(GetActorDescFactory(InActor)->Create(InActor));
 			*ActorDescPtr = MoveTemp(NewDesc);
@@ -1046,7 +1038,7 @@ void UWorldPartition::OnActorAdded(AActor* InActor)
 			ActorDescPtr = &Actors.Add(InActor->GetActorGuid(), TUniquePtr<FWorldPartitionActorDesc>(NewDesc));
 		}
 
-		HashActorDesc(ActorDescPtr->Get());
+		AddToPartition(ActorDescPtr->Get());
 	}
 }
 
@@ -1071,12 +1063,7 @@ void UWorldPartition::OnActorDeleted(AActor* InActor)
 				// Validate that this actor is already removed from the level
 				verify(InActor->GetLevel()->Actors.Find(InActor) == INDEX_NONE);
 
-				// Unhash this actor from the editor hash
-				UnhashActorDesc(ActorDesc);
-				check(!ActorDesc->GetLoadedRefCount());
-
-				// Remove this actor descriptor
-				Actors.Remove(ActorDesc->GetGuid());
+				RemoveFromPartition(ActorDesc);
 			}
 		}
 	}
@@ -1098,8 +1085,7 @@ void UWorldPartition::OnActorOuterChanged(AActor* InActor, UObject* InOldOuter)
 	{
 		if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(InActor->GetActorGuid()))
 		{
-			UnhashActorDesc(ActorDesc);
-			Actors.Remove(ActorDesc->GetGuid());
+			RemoveFromPartition(ActorDesc);
 		}
 	}
 }
@@ -1120,6 +1106,28 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 
 	check(!ActorDesc->GetLoadedRefCount());
 }
+
+void UWorldPartition::AddToPartition(FWorldPartitionActorDesc* ActorDesc)
+{
+	AddToClusters(ActorDesc);
+
+	HashActorDesc(ActorDesc);	
+}
+
+void UWorldPartition::RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, bool bRemoveDescriptorFromArray)
+{
+	// Unhash this actor from the editor hash
+	UnhashActorDesc(ActorDesc);
+
+	RemoveFromClusters(ActorDesc);
+
+	// Remove this actor descriptor
+	if (bRemoveDescriptorFromArray)
+	{
+		Actors.Remove(ActorDesc->GetGuid());
+	}
+}
+
 #endif
 
 void UWorldPartition::Serialize(FArchive& Ar)

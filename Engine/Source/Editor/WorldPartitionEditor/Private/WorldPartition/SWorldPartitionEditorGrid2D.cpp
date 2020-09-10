@@ -397,38 +397,24 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 
 	if (bShowActorClusters)
 	{
-		int32 AllActorsHash = 0;
-		for (const auto& Pair : WorldPartition->Actors)
-		{
-			const FWorldPartitionActorDesc* ActorDesc = Pair.Value.Get();
-			AllActorsHash ^= ActorDesc->GetHash();
-		}
-	
-		static uint32 AllActorsCurrentHash = 0;
-		if (AllActorsHash != AllActorsCurrentHash)
-		{
-			ActorClusters = WorldPartition->CreateActorClusters();
-			AllActorsCurrentHash = AllActorsHash;
-		}
-
-		for (const UWorldPartition::FActorCluster& ActorCluster : ActorClusters)
+		for (const UWorldPartition::FActorCluster* ActorCluster : WorldPartition->GetActorClusters())
 		{
 			if (bShowActors)
 			{
-				ActorClustersToShow.Add(&ActorCluster);
+				ActorClustersToShow.Add(ActorCluster);
 			}
 			else
 			{
 				bool bShowClusterActors = false;
 
-				for (const FGuid& ActorGuid: ActorCluster.Actors)
+				for (const FGuid& ActorGuid: ActorCluster->Actors)
 				{
 					FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid);
 					check(ActorDesc);
 
 					if (ActorDesc->Tag == FWorldPartitionActorDesc::GlobalTag)
 					{
-						ActorClustersToShow.Add(&ActorCluster);
+						ActorClustersToShow.Add(ActorCluster);
 						bShowClusterActors = true;
 						break;
 					}
@@ -436,7 +422,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 
 				if (bShowClusterActors)
 				{
-					for (const FGuid& ActorGuid: ActorCluster.Actors)
+					for (const FGuid& ActorGuid: ActorCluster->Actors)
 					{
 						FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid);
 						check(ActorDesc);
@@ -471,10 +457,8 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 		{
 			if ((ActorCluster->Actors.Num() > 1) && (ActorCluster->GridPlacement != EActorGridPlacement::AlwaysLoaded))
 			{
-				FBox ActorBounds = WorldPartition->GetActorClusterBounds(*ActorCluster);
-
 				FVector Origin, Extent;
-				ActorBounds.GetCenterAndExtents(Origin, Extent);
+				ActorCluster->Bounds.GetCenterAndExtents(Origin, Extent);
 
 				FVector2D TopLeftW = FVector2D(Origin - Extent);
 				FVector2D BottomRightW = FVector2D(Origin + Extent);
