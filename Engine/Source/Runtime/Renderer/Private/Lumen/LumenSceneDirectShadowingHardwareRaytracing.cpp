@@ -19,11 +19,11 @@
 #include "BuiltInRayTracingShaders.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 
-int32 GLumenDirectLightingHardwareRaytracing = 1;
+int32 GLumenDirectLightingHardwareRaytracing = 0;
 FAutoConsoleVariableRef CVarLumenDirectLightingRTXEnabled(
 	TEXT("r.Lumen.DirectLighting.HardwareRayTracing"),
 	GLumenDirectLightingHardwareRaytracing,
-	TEXT("Enable RTX for direct lighting. On by default (1)"),
+	TEXT("Enable RTX for direct lighting."),
 	ECVF_RenderThreadSafe
 );
 
