@@ -20,10 +20,7 @@ struct FVertexFactoryInput
 
 struct FVertexFactoryInterpolantsVSToPS
 {
-	// First row of the tangent to world matrix
-	float3	TangentToWorld0	: TANGENTTOWORLD0;
-	// Last row of the tangent to world matrix in xyz
-	float4	TangentToWorld2	: TANGENTTOWORLD2;
+	TANGENTTOWORLD_INTERPOLATOR_BLOCK
 
 	float4	TexCoord			: TEXCOORD2;
 
@@ -208,7 +205,8 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	float3x3 TangentToLocal = CalcTangentBasis(Input);
 	float3x3 TangentToWorld = mul(TangentToLocal, GetLocalToWorld3x3());
 
-	Interpolants.TangentToWorld0 = TangentToWorld[0];
+	Interpolants.TangentToWorld0.xyz = TangentToWorld[0];
+	Interpolants.TangentToWorld0.w = 0;
 	Interpolants.TangentToWorld2 = float4(TangentToWorld[2], sign(determinant(TangentToLocal)));
 
 #if INSTANCED_STEREO
