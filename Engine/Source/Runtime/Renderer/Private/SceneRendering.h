@@ -1939,7 +1939,7 @@ protected:
 	/** Process the volumetric render target, generating the high resolution version.*/
 	void ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder);
 	/** Compose the volumetric render target over the scene.*/
-	void ComposeVolumetricRenderTargetOverScene(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthResolveTexture);
+	void ComposeVolumetricRenderTargetOverScene(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthResolveTexture, bool bShouldRenderSingleLayerWater, const FSceneWithoutWaterTextures& WaterPassData);
 	/** Compose the volumetric render target over the scene from a view under water, in the water render target.*/
 	void ComposeVolumetricRenderTargetOverSceneUnderWater(FRDGBuilder& GraphBuilder, const FSceneWithoutWaterTextures& WaterPassData);
 
