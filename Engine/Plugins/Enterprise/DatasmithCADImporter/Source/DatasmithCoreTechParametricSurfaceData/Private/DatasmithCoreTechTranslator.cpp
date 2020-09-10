@@ -6,6 +6,12 @@
 
 void FDatasmithCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
+	FString Extension = GetSource().GetSourceFileExtension();
+	if (Extension == "cgr" || Extension == "3dxml")
+	{
+		return;
+	}
+
 	Options.Add(GetCommonTessellationOptionsPtr());
 }
 
