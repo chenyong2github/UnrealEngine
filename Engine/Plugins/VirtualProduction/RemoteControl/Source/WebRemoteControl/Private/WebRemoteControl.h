@@ -101,10 +101,12 @@ private:
 	bool HandleObjectCallRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleObjectPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
+#if WITH_EDITOR
 	//~ Settings
 	void RegisterSettings();
 	void UnregisterSettings();
 	bool OnSettingsModified();
+#endif
 
 	/** Console commands handles. */
 	TArray<TUniquePtr<FAutoConsoleCommand>> ConsoleCommands;
