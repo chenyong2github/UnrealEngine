@@ -472,7 +472,11 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		check( TrackEditorDelegates[DelegateIndex].IsBound() );
 		// Tools may exist in other modules, call a delegate that will create one for us 
 		TSharedRef<ISequencerTrackEditor> TrackEditor = TrackEditorDelegates[DelegateIndex].Execute( SharedThis( this ) );
-		TrackEditors.Add( TrackEditor );
+
+		if (TrackEditor->SupportsSequence(GetFocusedMovieSceneSequence()))
+		{
+			TrackEditors.Add( TrackEditor );
+		}
 	}
 
 	for (int32 DelegateIndex = 0; DelegateIndex < EditorObjectBindingDelegates.Num(); ++DelegateIndex)

@@ -111,7 +111,8 @@ void FFadeTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 
 bool FFadeTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return (InSequence != nullptr) && (InSequence->GetClass()->GetName() == TEXT("LevelSequence"));
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneFadeTrack::StaticClass()) : ETrackSupport::NotSupported;
+	return TrackSupported == ETrackSupport::Supported;
 }
 
 bool FFadeTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const

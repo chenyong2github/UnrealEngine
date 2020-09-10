@@ -43,7 +43,8 @@ void FSlomoTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 
 bool FSlomoTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return (InSequence != nullptr) && (InSequence->GetClass()->GetName() == TEXT("LevelSequence"));
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneSlomoTrack::StaticClass()) : ETrackSupport::NotSupported;
+	return TrackSupported == ETrackSupport::Supported;
 }
 
 bool FSlomoTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const

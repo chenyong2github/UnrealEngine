@@ -237,11 +237,8 @@ bool FEventTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
 
 bool  FEventTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	static UClass* LevelSequenceClass = FindObject<UClass>(ANY_PACKAGE, TEXT("LevelSequence"), true);
-	static UClass* WidgetAnimationClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WidgetAnimation"), true);
-	return InSequence != nullptr &&
-		((LevelSequenceClass != nullptr && InSequence->GetClass()->IsChildOf(LevelSequenceClass)) ||
-		(WidgetAnimationClass != nullptr && InSequence->GetClass()->IsChildOf(WidgetAnimationClass)));
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneEventTrack::StaticClass()) : ETrackSupport::NotSupported;
+	return TrackSupported == ETrackSupport::Supported;
 }
 
 const FSlateBrush* FEventTrackEditor::GetIconBrush() const
