@@ -4,7 +4,7 @@
 	ReflectionEnvironmentComputeShaders - functionality to apply local cubemaps.
 =============================================================================*/
 
-#include "HairStrandsVoxelPageCommonStruct.ush"
+#include "HairStrandsVoxelPageCommonStruct.ush" 
 
 #include "../Common.ush"
 #include "HairStrandsCommon.ush"

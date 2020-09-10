@@ -1662,7 +1662,7 @@ namespace GroomBinding_GPU
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main entry (GPU path)
-static void InternalBuildBinding_GPU(FRHICommandListImmediate& RHICmdList, UGroomBindingAsset* BindingAsset)
+static void InternalBuildBinding_GPU(FRDGBuilder& GraphBuilder, UGroomBindingAsset* BindingAsset)
 {
 	if (!BindingAsset ||
 		!BindingAsset->Groom ||
@@ -1727,22 +1727,26 @@ static void InternalBuildBinding_GPU(FRHICommandListImmediate& RHICmdList, UGroo
 
 	// Create mapping between the source & target using their UV
 	// The lifetime of 'TransferredPositions' needs to encompass RunProjection
-	TArray<FRWBuffer> TransferredPositions;
+	struct FTransferData
+	{
+		TArray<FRWBuffer> TransferredPositions;
+	};
+	FTransferData* TransferData = new FTransferData();
 
 	if (FSkeletalMeshRenderData* SourceRenderData = SourceSkeletalMesh ? SourceSkeletalMesh->GetResourceForRendering() : nullptr)
 	{
 		FHairStrandsProjectionMeshData SourceMeshData = ExtractMeshData(SourceRenderData);
 		FGroomBindingBuilder::TransferMesh(
-			RHICmdList,
+			GraphBuilder,
 			SourceMeshData,
 			TargetMeshData,
-			TransferredPositions);
+			TransferData->TransferredPositions);
 
 		for (uint32 LODIndex = 0; LODIndex < LODCount; ++LODIndex)
 		{
 			for (FHairStrandsProjectionMeshData::Section& Section : TargetMeshData.LODs[LODIndex].Sections)
 			{
-				Section.PositionBuffer = TransferredPositions[LODIndex].SRV;
+				Section.PositionBuffer = TransferData->TransferredPositions[LODIndex].SRV;
 			}
 		}
 	}
@@ -1750,15 +1754,22 @@ static void InternalBuildBinding_GPU(FRHICommandListImmediate& RHICmdList, UGroo
 	for (const UGroomBindingAsset::FHairGroupResource& GroupResources : OutHairGroupResources)
 	{
 		FGroomBindingBuilder::ProjectStrands(
-			RHICmdList,
+			GraphBuilder,
 			FTransform::Identity,
 			TargetMeshData,
 			GroupResources.RenRootResources,
 			GroupResources.SimRootResources);
 	}
 
-	GroomBinding_GPU::ComputeInterpolationWeights(BindingAsset, TargetRenderData, TransferredPositions);
-	BindingAsset->QueryStatus = UGroomBindingAsset::EQueryStatus::Completed;
+	// Readback the data
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("GroomBinding_Readback"),
+		ERDGPassFlags::None,
+		[BindingAsset, TargetRenderData, TransferData](FRHICommandList& RHICmdList)
+		{
+			GroomBinding_GPU::ComputeInterpolationWeights(BindingAsset, TargetRenderData, TransferData->TransferredPositions);
+			BindingAsset->QueryStatus = UGroomBindingAsset::EQueryStatus::Completed;
+		});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1774,14 +1785,14 @@ bool HasHairStrandsBindigQueries()
 	return !GBindingQueries.IsEmpty();
 }
 
-void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap)
+void RunHairStrandsBindingQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap)
 {
 	FBindingQuery Q;
 	while (GBindingQueries.Dequeue(Q))
 	{
 		if (Q.Asset)
 		{
-			InternalBuildBinding_GPU(RHICmdList, Q.Asset);
+			InternalBuildBinding_GPU(GraphBuilder, Q.Asset);
 		}
 	}
 }
@@ -1803,7 +1814,7 @@ void FGroomBindingBuilder::BuildBinding(UGroomBindingAsset* BindingAsset, bool b
 // Immediate version
 
 void FGroomBindingBuilder::TransferMesh(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FHairStrandsProjectionMeshData& SourceMeshData,
 	const FHairStrandsProjectionMeshData& TargetMeshData,
 	TArray<FRWBuffer>& OutTransferedPositions)
@@ -1812,7 +1823,6 @@ void FGroomBindingBuilder::TransferMesh(
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	FBufferTransitionQueue TransitionQueue;
-	FRDGBuilder GraphBuilder(RHICmdList);
 
 	const uint32 LODCount = TargetMeshData.LODs.Num();
 	OutTransferedPositions.SetNum(LODCount);
@@ -1824,12 +1834,11 @@ void FGroomBindingBuilder::TransferMesh(
 		::TransferMesh(GraphBuilder, ShaderMap, LODIndex, SourceMeshData, TargetMeshData, OutTransferedPositions[LODIndex], TransitionQueue);
 	}
 
-	GraphBuilder.Execute();
-	TransitBufferToReadable(RHICmdList, TransitionQueue);
+	TransitBufferToReadable(GraphBuilder, TransitionQueue);
 }
 
 void FGroomBindingBuilder::ProjectStrands(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FTransform& LocalToWorld,
 	const FHairStrandsProjectionMeshData& TargetMeshData,
 	FHairStrandsRestRootResource* InRenRestRootResources,
@@ -1840,9 +1849,8 @@ void FGroomBindingBuilder::ProjectStrands(
 
 	FBufferTransitionQueue TransitionQueue;
 
-	auto Project = [&RHICmdList, ShaderMap, &TargetMeshData, LocalToWorld, &TransitionQueue](FHairStrandsRestRootResource* RestRootResources)
+	auto Project = [&GraphBuilder, ShaderMap, &TargetMeshData, LocalToWorld, &TransitionQueue](FHairStrandsRestRootResource* RestRootResources)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
 		for (FHairStrandsRestRootResource::FLOD& LODData : RestRootResources->LODs)
 		{
 			const uint32 LODIndex = LODData.LODIndex;
@@ -1864,13 +1872,12 @@ void FGroomBindingBuilder::ProjectStrands(
 				nullptr,
 				TransitionQueue);
 		}
-		GraphBuilder.Execute();
 	};
 
 	Project(InRenRestRootResources);
 	Project(InSimRestRootResources);
 
-	TransitBufferToReadable(RHICmdList, TransitionQueue);
+	TransitBufferToReadable(GraphBuilder, TransitionQueue);
 }
 
 #undef LOCTEXT_NAMESPACE

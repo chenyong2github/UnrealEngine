@@ -17,14 +17,14 @@ struct HAIRSTRANDSCORE_API FGroomBindingBuilder
 	// Transfer mesh vertex position from a source mesh on to a target mesh.
 	// The topology of the two meshes can be different, but they need to shader the same UV layout
 	static void TransferMesh(
-		FRHICommandListImmediate& RHICmdList,
+		FRDGBuilder& GraphBuilder,
 		const FHairStrandsProjectionMeshData& SourceMeshData,
 		const FHairStrandsProjectionMeshData& TargetMeshData,
 		TArray<FRWBuffer>& TransferredLODsPositions);
 
 	// Project strands roots onto a mesh and compute closest triangle ID & barycentric
 	static void ProjectStrands(
-		FRHICommandListImmediate& RHICmdList,
+		FRDGBuilder& GraphBuilder,
 		const FTransform& LocalToWorld,
 		const FHairStrandsProjectionMeshData& TargetMeshData,
 		struct FHairStrandsRestRootResource* RenRestRootResources,

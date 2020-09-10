@@ -27,7 +27,7 @@
 struct FHairMacroGroupAABBData
 {
 	uint32 MacroGroupCount = 0;
-	TRefCountPtr<FRDGPooledBuffer>	MacroGroupAABBsBuffer;
+	FRDGBufferRef MacroGroupAABBsBuffer = nullptr;
 };
 
 /// Hair macro group infos

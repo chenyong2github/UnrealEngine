@@ -136,7 +136,7 @@ class FHairScatterPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffusionInputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FVirtualVoxelParameters, VirtualVoxel)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -160,7 +160,7 @@ static FRDGTextureRef AddScatterPass(
 		return nullptr;
 
 	const FIntPoint Resolution = OutSceneColorTexture->Desc.Extent;
-	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder.RHICmdList, View);
+	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
 
 	float PixelRadiusAtDepth1 = 0;
 	{
@@ -184,8 +184,8 @@ static FRDGTextureRef AddScatterPass(
 	Parameters->VisibilityNodeData = GraphBuilder.CreateSRV(InVisibilityNodeData);
 	Parameters->CategorizationTexture = InCategorizationTexture;
 	Parameters->DiffusionInputTexture = InDiffusionInput;
-	Parameters->HairLUTTexture = GraphBuilder.RegisterExternalTexture(InHairLUT.Textures[HairLUTType_DualScattering], TEXT("HairLUTTexture"));
-	Parameters->HairEnergyLUTTexture = GraphBuilder.RegisterExternalTexture(InHairLUT.Textures[HairLUTType_MeanEnergy], TEXT("HairEnergyLUTTexture"));
+	Parameters->HairLUTTexture = InHairLUT.Textures[HairLUTType_DualScattering];
+	Parameters->HairEnergyLUTTexture = InHairLUT.Textures[HairLUTType_MeanEnergy];
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->VirtualVoxel = VoxelResources.UniformBuffer;
@@ -274,14 +274,10 @@ void AddHairDiffusionPass(
 	if (!bIsEnabled)
 		return;
 
-	FRDGTextureRef NodedIndex = GraphBuilder.RegisterExternalTexture(VisibilityData.NodeIndex, TEXT("HairNodeIndex"));
-	FRDGBufferRef  NodedData = GraphBuilder.RegisterExternalBuffer(VisibilityData.NodeData, TEXT("HairNodeData"));
-	FRDGTextureRef CategorisationTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.CategorizationTexture, TEXT("HairVisibilityCategorizationTexture"));
-
 	FRDGTextureRef DiffusionInput = AddPreScatterComposePass(
 		GraphBuilder,
 		View,
-		CategorisationTexture,
+		VisibilityData.CategorizationTexture,
 		OutLightSampleTexture);
 
 	for (uint32 DiffusionPassIt = 0; DiffusionPassIt < DiffusionPassCount; ++DiffusionPassIt)
@@ -290,9 +286,9 @@ void AddHairDiffusionPass(
 			GraphBuilder,
 			View,
 			VoxelResources,
-			NodedIndex,
-			NodedData,
-			CategorisationTexture,
+			VisibilityData.NodeIndex,
+			VisibilityData.NodeData,
+			VisibilityData.CategorizationTexture,
 			DiffusionInput,
 			OutLightSampleTexture);
 

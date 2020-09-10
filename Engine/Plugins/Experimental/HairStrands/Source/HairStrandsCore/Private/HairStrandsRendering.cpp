@@ -1017,11 +1017,16 @@ void RegisterClusterData(FHairGroupInstance* Instance, FHairStrandClusterData* I
 	HairGroupCluster.LODIndex = Instance->HairGroupPublicData->GetLODIndex();
 	HairGroupCluster.bVisible = Instance->HairGroupPublicData->GetLODVisibility();
 
+	// These buffer are create during the culling pass
+	// HairGroupCluster.ClusterIdBuffer = nullptr;
+	// HairGroupCluster.ClusterIndexOffsetBuffer = nullptr;
+	// HairGroupCluster.ClusterIndexCountBuffer = nullptr;
+
 	HairGroupCluster.HairGroupPublicPtr->ClusterDataIndex = ClusterDataGroupIndex;
 }
 
 void ComputeHairStrandsInterpolation(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FShaderDrawDebugData* ShaderDrawData,
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex,
@@ -1053,8 +1058,8 @@ void ComputeHairStrandsInterpolation(
 	Instance->HairGroupPublicData->VFInput.Meshes	= FHairGroupPublicData::FVertexFactoryInput::FMeshes();
 
 	DECLARE_GPU_STAT(HairStrandsInterpolationCluster);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolationCluster);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolationCluster);
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsInterpolationCluster");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsInterpolationCluster);
 
 	// Debug mode:
 	// * None	: Display hair normally
@@ -1068,7 +1073,6 @@ void ComputeHairStrandsInterpolation(
 	if (DeformationType != EDeformationType::RestStrands && DeformationType != EDeformationType::Simulation)
 	{
 		FBufferTransitionQueue TransitionQueue;
-		FRDGBuilder GraphBuilder(RHICmdList);
 		AddDeformSimHairStrandsPass(
 			GraphBuilder,
 			DeformationType,
@@ -1083,14 +1087,12 @@ void ComputeHairStrandsInterpolation(
 			Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),
 			TransitionQueue,
 			Instance->Guides.bHasGlobalInterpolation);
-		GraphBuilder.Execute();
-		TransitBufferToReadable(RHICmdList, TransitionQueue);
+		TransitBufferToReadable(GraphBuilder, TransitionQueue);
 	}
 
 	if (DebugMode == EHairStrandsDebugMode::SimHairStrands)
 	{
 		FBufferTransitionQueue TransitionQueue;
-		FRDGBuilder GraphBuilder(RHICmdList);
 		AddHairTangentPass(
 			GraphBuilder,
 			Instance->Guides.RestResource->GetVertexCount(),
@@ -1115,14 +1117,12 @@ void ComputeHairStrandsInterpolation(
 		Instance->HairGroupPublicData->VFInput.Strands.bUseStableRasterization	= Instance->Strands.Modifier.bUseStableRasterization;
 		Instance->HairGroupPublicData->VFInput.Strands.bScatterSceneLighting	= Instance->Strands.Modifier.bScatterSceneLighting;
 
-		GraphBuilder.Execute();
-		TransitBufferToReadable(RHICmdList, TransitionQueue);
+		TransitBufferToReadable(GraphBuilder, TransitionQueue);
 	}
 	else if (Instance->GeometryType == EHairGeometryType::Strands)
 	{
 		{
 			FBufferTransitionQueue TransitionQueue;
-			FRDGBuilder GraphBuilder(RHICmdList);
 			check(InClusterData);
 				 
 			const uint32 VertexCount = Instance->Strands.RestResource->GetVertexCount();
@@ -1139,7 +1139,6 @@ void ComputeHairStrandsInterpolation(
 				Instance->HairGroupPublicData->GetClusterAABBBuffer().UAV,
 				Instance->HairGroupPublicData->GetGroupAABBBuffer().UAV,
 				TransitionQueue);
-			GraphBuilder.Execute();
 			//TransitBufferToReadable(RHICmdList, TransitionQueue);
 		}
 
@@ -1148,7 +1147,6 @@ void ComputeHairStrandsInterpolation(
 		const float MaxOutHairRadius = OutHairRadius * FMath::Max(1.f, FMath::Max(Instance->Strands.Modifier.HairRootScale, Instance->Strands.Modifier.HairTipScale));
 		{
 			FBufferTransitionQueue TransitionQueue;
-			FRDGBuilder GraphBuilder(RHICmdList);
 			{
 				FHairScaleAndClipDesc ScaleAndClipDesc;
 				ScaleAndClipDesc.bEnable				= true;
@@ -1192,13 +1190,11 @@ void ComputeHairStrandsInterpolation(
 					Instance->Strands.InterpolationResource->SimRootPointIndexBuffer.SRV);
 
 			}
-			GraphBuilder.Execute();
-			TransitBufferToReadable(RHICmdList, TransitionQueue);
+			TransitBufferToReadable(GraphBuilder, TransitionQueue);
 		}
 
 		{		
 			FBufferTransitionQueue TransitionQueue;
-			FRDGBuilder GraphBuilder(RHICmdList);
 
 			assert(Instance->HairGroupPublicPtr->ClusterDataIndex > 0);
 			FHairStrandClusterData::FHairGroup& HairGroupCluster =  InClusterData->HairGroups[Instance->HairGroupPublicData->ClusterDataIndex];
@@ -1213,13 +1209,11 @@ void ComputeHairStrandsInterpolation(
 					Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV,
 					TransitionQueue);
 			}
-			GraphBuilder.Execute();
-			TransitBufferToReadable(RHICmdList, TransitionQueue);
+			TransitBufferToReadable(GraphBuilder, TransitionQueue);
 		}
 
 		{
 			FBufferTransitionQueue TransitionQueue;
-			FRDGBuilder GraphBuilder(RHICmdList);
 
 			AddHairTangentPass(
 				GraphBuilder,
@@ -1229,8 +1223,7 @@ void ComputeHairStrandsInterpolation(
 				Instance->Strands.DeformedResource->TangentBuffer.UAV,// Output.RenderTangentBuffer->UAV,
 				TransitionQueue);
 
-			GraphBuilder.Execute();
-			TransitBufferToReadable(RHICmdList, TransitionQueue);
+			TransitBufferToReadable(GraphBuilder, TransitionQueue);
 		}
 
 		#if RHI_RAYTRACING
@@ -1288,7 +1281,6 @@ void ComputeHairStrandsInterpolation(
 		{
 			FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[HairLODIndex];
 			FBufferTransitionQueue TransitionQueue;
-			FRDGBuilder GraphBuilder(RHICmdList);
 			{
 				FHairScaleAndClipDesc ScaleAndClipDesc;
 				ScaleAndClipDesc.bEnable = false;
@@ -1332,23 +1324,20 @@ void ComputeHairStrandsInterpolation(
 					LOD.Guides.InterpolationResource->SimRootPointIndexBuffer.SRV);
 
 			}
-			GraphBuilder.Execute();
-			TransitBufferToReadable(RHICmdList, TransitionQueue);
+			TransitBufferToReadable(GraphBuilder, TransitionQueue);
 		}
 
 		// Deform cards geometry
 		if (bIsCardsValid)
 		{
 			FBufferTransitionQueue TransitionQueue;
-			FRDGBuilder GraphBuilder(RHICmdList);
 		
 			AddHairCardsDeformationPass(
 				GraphBuilder,
 				Instance,
 				TransitionQueue);
 		
-			GraphBuilder.Execute();
-			TransitBufferToReadable(RHICmdList, TransitionQueue);
+			TransitBufferToReadable(GraphBuilder, TransitionQueue);
 		}
 	}
 	else if (Instance->GeometryType == EHairGeometryType::Meshes)
@@ -1362,18 +1351,17 @@ void ComputeHairStrandsInterpolation(
 }
 
 void ResetHairStrandsInterpolation(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex)
 {
 	if (!Instance || (Instance && Instance->Guides.bIsSimulationEnable)) return;
 
 	DECLARE_GPU_STAT(HairStrandsResetInterpolation);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsResetInterpolation);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsResetInterpolation);
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsResetInterpolation");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsResetInterpolation);
 
 	FBufferTransitionQueue TransitionQueue;
-	FRDGBuilder GraphBuilder(RHICmdList);
 	AddDeformSimHairStrandsPass(
 		GraphBuilder,
 		EDeformationType::OffsetGuide,
@@ -1388,6 +1376,5 @@ void ResetHairStrandsInterpolation(
 		Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current), 
 		TransitionQueue,
 		Instance->Guides.bHasGlobalInterpolation);
-	GraphBuilder.Execute();
-	TransitBufferToReadable(RHICmdList, TransitionQueue);
+	TransitBufferToReadable(GraphBuilder, TransitionQueue);
 }

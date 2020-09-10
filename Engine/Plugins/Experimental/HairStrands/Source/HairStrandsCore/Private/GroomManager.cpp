@@ -81,7 +81,7 @@ void UnregisterHairStrands(uint32 ComponentId)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void RunHairStrandsInterpolation(
-	FRHICommandListImmediate& RHICmdList, 
+	FRDGBuilder& GraphBuilder,
 	EWorldType::Type WorldType, 
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -92,8 +92,8 @@ void RunHairStrandsInterpolation(
 	check(IsInRenderingThread());
 
 	DECLARE_GPU_STAT(HairStrandsInterpolationGrouped);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolationGrouped);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolationGrouped);
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsInterpolationGrouped");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsInterpolationGrouped);
 
 	// Update dynamic mesh triangles
 	for (FHairGroupInstance* Instance : GHairManager.Instances)
@@ -115,7 +115,7 @@ void RunHairStrandsInterpolation(
 			{
 				//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
 				// Actual populate the cache with only the needed part basd on the groom projection data. At the moment it recompute everything ...
-				BuildCacheGeometry(RHICmdList, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
+				BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
 			}
 		}
 		if (CachedGeometry.Sections.Num() == 0)
@@ -132,8 +132,6 @@ void RunHairStrandsInterpolation(
 		}
 
 		FBufferTransitionQueue TransitionQueue;
-
-		FRDGBuilder GraphBuilder(RHICmdList);
 
 		Instance->Debug.MeshLODIndex = FrameLODIndex;
 		if (0 <= FrameLODIndex)
@@ -192,8 +190,7 @@ void RunHairStrandsInterpolation(
 			}
 		}
 
-		GraphBuilder.Execute();
-		TransitBufferToReadable(RHICmdList, TransitionQueue);
+		TransitBufferToReadable(GraphBuilder, TransitionQueue);
 	}
 
 	// Reset deformation
@@ -204,7 +201,7 @@ void RunHairStrandsInterpolation(
 			if (Instance->WorldType != WorldType)
 				continue;
 
-			ResetHairStrandsInterpolation(RHICmdList, Instance, Instance->Debug.MeshLODIndex);
+			ResetHairStrandsInterpolation(GraphBuilder, Instance, Instance->Debug.MeshLODIndex);
 		}
 	}
 
@@ -217,7 +214,7 @@ void RunHairStrandsInterpolation(
 				continue;
 
 			ComputeHairStrandsInterpolation(
-				RHICmdList, 
+				GraphBuilder,
 				ShaderDrawData, 
 				Instance,
 				Instance->Debug.MeshLODIndex,
@@ -241,44 +238,44 @@ static void RunHairStrandsGatherCluster(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 bool HasHairStrandsFolliculeMaskQueries();
-void RunHairStrandsFolliculeMaskQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap);
+void RunHairStrandsFolliculeMaskQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
 
 bool HasHairStrandsTexturesQueries();
-void RunHairStrandsTexturesQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData);
+void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData);
 
 bool HasHairStrandsBindigQueries();
-void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap);
+void RunHairStrandsBindingQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
 
 bool HasHairCardsAtlasQueries();
-void RunHairCardsAtlasQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData);
+void RunHairCardsAtlasQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData);
 
-static void RunHairStrandsProcess(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData)
+static void RunHairStrandsProcess(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData)
 {
 	if (HasHairStrandsTexturesQueries())
 	{
-		RunHairStrandsTexturesQueries(RHICmdList, ShaderMap, DebugShaderData);
+		RunHairStrandsTexturesQueries(GraphBuilder, ShaderMap, DebugShaderData);
 	}
 
 	if (HasHairStrandsFolliculeMaskQueries())
 	{
-		RunHairStrandsFolliculeMaskQueries(RHICmdList, ShaderMap);
+		RunHairStrandsFolliculeMaskQueries(GraphBuilder, ShaderMap);
 	}
 
 	if (HasHairStrandsBindigQueries())
 	{
-		RunHairStrandsBindingQueries(RHICmdList, ShaderMap);
+		RunHairStrandsBindingQueries(GraphBuilder, ShaderMap);
 	}
 
 	if (HasHairCardsAtlasQueries())
 	{
-		RunHairCardsAtlasQueries(RHICmdList, ShaderMap, DebugShaderData);
+		RunHairCardsAtlasQueries(GraphBuilder, ShaderMap, DebugShaderData);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void RunHairStrandsDebug(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	EWorldType::Type WorldType,
 	const FSceneView& View,
@@ -293,7 +290,7 @@ void RunHairStrandsDebug(
 // HairStrands Bookmark API
 
 void ProcessHairStrandsBookmark(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	EHairStrandsBookmark Bookmark,
 	FHairStrandsBookmarkParameters& Parameters)
 {
@@ -307,13 +304,13 @@ void ProcessHairStrandsBookmark(
 
 		if (bHasHairStardsnProcess)
 		{
-			RunHairStrandsProcess(RHICmdList, Parameters.ShaderMap, Parameters.DebugShaderData);
+			RunHairStrandsProcess(GraphBuilder, Parameters.ShaderMap, Parameters.DebugShaderData);
 		}
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessGuideInterpolation)
 	{
 		RunHairStrandsInterpolation(
-			RHICmdList,
+			GraphBuilder,
 			Parameters.WorldType,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
@@ -330,7 +327,7 @@ void ProcessHairStrandsBookmark(
 	else if (Bookmark == EHairStrandsBookmark::ProcessStrandsInterpolation)
 	{
 		RunHairStrandsInterpolation(
-			RHICmdList,
+			GraphBuilder,
 			Parameters.WorldType,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
@@ -341,7 +338,7 @@ void ProcessHairStrandsBookmark(
 	else if (Bookmark == EHairStrandsBookmark::ProcessDebug)
 	{
 		RunHairStrandsDebug(
-			RHICmdList,
+			GraphBuilder,
 			Parameters.ShaderMap,
 			Parameters.WorldType,
 			*Parameters.View,

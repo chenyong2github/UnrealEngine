@@ -222,8 +222,6 @@ void RenderHairStrandsDeepShadows(
 
 		Resources.bIsGPUDriven = GDeepShadowGPUDriven > 0;
 		{
-			FRDGBufferRef MacroGroupAABB = GraphBuilder.RegisterExternalBuffer(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer, TEXT("HairInstanceGroupAABBs"));
-
 			check(TotalAtlasSlotIndex < FDeepShadowResources::MaxAtlasSlotCount);
 
 			// Allocate and create projection matrix and Min radius
@@ -244,7 +242,7 @@ void RenderHairStrandsDeepShadows(
 			Parameters->SlotResolution = Resources.AtlasSlotResolution;
 			Parameters->SlotIndexCount = Resources.TotalAtlasSlotCount;
 			Parameters->MacroGroupCount = MacroGroupDatas.Datas.Num();
-			Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupAABB, PF_R32_SINT);
+			Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 			Parameters->OutShadowViewInfoBuffer = GraphBuilder.CreateUAV(DeepShadowViewInfoBuffer);
 			Parameters->OutShadowWorldToLightTransformBuffer = GraphBuilder.CreateUAV(DeepShadowWorldToLightBuffer);
 
@@ -335,14 +333,8 @@ void RenderHairStrandsDeepShadows(
 				bClear = false;
 			}
 		}
-
-		ConvertToExternalTexture(GraphBuilder, FrontDepthAtlasTexture, Resources.DepthAtlasTexture);
-		ConvertToExternalTexture(GraphBuilder, DeepShadowLayersAtlasTexture, Resources.LayersAtlasTexture);
-		ConvertToExternalBuffer(GraphBuilder, DeepShadowWorldToLightBuffer, Resources.DeepShadowWorldToLightTransforms);
-
-		if (Resources.DeepShadowWorldToLightTransforms)
-		{
-			Resources.DeepShadowWorldToLightTransformsSRV = RHICreateShaderResourceView(Resources.DeepShadowWorldToLightTransforms->GetStructuredBufferRHI());
-		}
+		Resources.DepthAtlasTexture = FrontDepthAtlasTexture;
+		Resources.LayersAtlasTexture = DeepShadowLayersAtlasTexture;
+		Resources.DeepShadowWorldToLightTransforms = DeepShadowWorldToLightBuffer;
 	}
 }
