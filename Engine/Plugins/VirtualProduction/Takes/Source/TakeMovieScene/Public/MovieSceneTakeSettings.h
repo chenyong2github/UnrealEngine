@@ -20,27 +20,27 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	/** Hours text */
+	/** Hours Name */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
-	FText HoursText;
+	FString HoursName;
 
-	/** Minutes text */
+	/** Minutes Name */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
-	FText MinutesText;
+	FString MinutesName;
 
-	/** Seconds text */
+	/** Seconds Name */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
-	FText SecondsText;
+	FString SecondsName;
 
-	/** Frames text */
+	/** Frames Name */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
-	FText FramesText;
+	FString FramesName;
 
-	/** SubFrames text */
+	/** SubFrames Name */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
-	FText SubFramesText;
+	FString SubFramesName;
 
-	/** Slate text */
+	/** Slate Name */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
-	FText SlateText;
+	FString SlateName;
 };
