@@ -157,8 +157,9 @@ export interface Branch extends BranchBase {
 }
 
 export interface Target {
-	branch: Branch
+	branchName: string
 	mergeMode: string
+	otherBot?: string
 }
 
 export type MergeMode = 'safe' | 'normal' | 'null' | 'clobber' | 'skip'
