@@ -15,7 +15,7 @@
 
 	<!-- List of file types to be stripped and signed for different platforms -->
 	<Property Name="Win64StripFilter" Value="*.pdb"/>
-	<Property Name="Win64StripExceptions" Value="Engine\Binaries\Win64\UE4Editor*.pdb;Engine\Plugins\...\Binaries\Win64\UE4Editor*.pdb"/>
+	<Property Name="Win64StripExceptions" Value="Engine\Binaries\Win64\UE5Editor*.pdb;Engine\Plugins\...\Binaries\Win64\UE5Editor*.pdb"/>
 	<Property Name="MacStripFilter" Value="*.a;"/>
 	<Property Name="AndroidStripFilter" Value="*.a;*.so"/>
 	<Property Name="IOSStripFilter" Value="*.a;"/>
@@ -108,7 +108,7 @@
 
 		<!-- Source code -->
 		Engine/Source/UE4Game.Target.cs
-		Engine/Source/UE4Editor.Target.cs
+		Engine/Source/UE5Editor.Target.cs
 
 		<!-- Starter content -->
 		Samples/StarterContent/Content/...

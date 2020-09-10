@@ -509,7 +509,7 @@ bool FLinuxPlatformInstallation::LaunchEditor(const FString& RootDirName, const 
 	FString FileName;
 	if (ExplicitFileName.IsEmpty())
 	{
-		FileName = RootDirName / TEXT("Engine/Binaries/Linux/UE4Editor");
+		FileName = RootDirName / TEXT("Engine/Binaries/Linux/UE5Editor");
 	}
 	else
 	{

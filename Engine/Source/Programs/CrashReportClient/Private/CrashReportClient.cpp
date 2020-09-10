@@ -120,7 +120,7 @@ FReply FCrashReportClient::SubmitAndRestart()
 	if (bRunFromLauncher)
 	{
 		// Hacky check to see if this is the editor. Not attempting to relaunch the editor using the Launcher because there is no way to pass the project via OpenLauncher()
-		if (!FPaths::GetCleanFilename(CrashedAppPath).StartsWith(TEXT("UE4Editor")))
+		if (!FPaths::GetCleanFilename(CrashedAppPath).StartsWith(TEXT("UE5Editor")))
 		{
 			// We'll restart Launcher-run processes by having the installed Launcher handle it
 			ILauncherPlatform* LauncherPlatform = FLauncherPlatformModule::Get();

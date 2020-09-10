@@ -416,7 +416,7 @@ namespace UnrealBuildTool
 			IDictionary<MasterProjectFolder, Guid> Guids = new Dictionary<MasterProjectFolder, Guid>();
 			foreach (MasterProjectFolder Folder in RootFolder.SubFolders)
 			{
-				GenerateProjectFolderGuids("UE4", Folder, Guids);
+				GenerateProjectFolderGuids("UE5", Folder, Guids);
 			}
 			return Guids;
 		}

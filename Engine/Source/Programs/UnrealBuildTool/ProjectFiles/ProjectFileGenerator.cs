@@ -324,7 +324,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Name of the UE4 engine project that contains all of the engine code, config files and other files
 		/// </summary>
-		public const string EngineProjectFileNameBase = "UE4";
+		public const string EngineProjectFileNameBase = "UE5";
 
 		/// <summary>
 		/// Name of the UE4 enterprise project that contains all of the enterprise code, config files and other files
@@ -363,7 +363,7 @@ namespace UnrealBuildTool
 		/// Name of the master project file -- for example, the base file name for the Visual Studio solution file, or the Xcode project file on Mac.
 		/// </summary>
 		[XmlConfigFile]
-		protected string MasterProjectName = "UE4";
+		protected string MasterProjectName = "UE5";
 
 		/// <summary>
 		/// If true, sets the master project name according to the name of the folder it is in.

@@ -965,7 +965,7 @@ namespace UnrealBuildTool
 							{
 								if (Target.Type == TargetRules.TargetType.Editor)
 								{
-									if (InProject.Name != "UE4")
+									if (InProject.Name != "UE5")
 									{
 										if (bForeignProject)
 										{
@@ -1238,7 +1238,7 @@ namespace UnrealBuildTool
 					// This is also known as ${workspaceRoot}
 					WorkspaceFile.BeginObject();
 					{
-						string ProjectName = bForeignProject ? GameProjectName : "UE4";
+						string ProjectName = bForeignProject ? GameProjectName : "UE5";
 						WorkspaceFile.AddField("name", ProjectName);
 						WorkspaceFile.AddField("path", ".");
 					}
@@ -1249,7 +1249,7 @@ namespace UnrealBuildTool
 					{
 						WorkspaceFile.BeginObject();
 						{
-							WorkspaceFile.AddField("name", "UE4");
+							WorkspaceFile.AddField("name", "UE5");
 							WorkspaceFile.AddField("path", MakeUnquotedPathString(UnrealBuildTool.RootDirectory, EPathType.Absolute));
 						}
 						WorkspaceFile.EndObject();
@@ -1287,7 +1287,7 @@ namespace UnrealBuildTool
 
 			WorkspaceFile.EndRootObject();
 
-			string WorkspaceName = bForeignProject ? GameProjectName : "UE4";
+			string WorkspaceName = bForeignProject ? GameProjectName : "UE5";
 			WorkspaceFile.Write(FileReference.Combine(MasterProjectPath, WorkspaceName + ".code-workspace"));
 		}
 

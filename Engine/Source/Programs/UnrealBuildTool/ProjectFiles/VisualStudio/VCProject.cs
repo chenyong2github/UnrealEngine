@@ -1566,7 +1566,14 @@ namespace UnrealBuildTool
 					string BaseExeName = TargetName;
 					if (!bShouldCompileMonolithic && TargetRulesObject.Type != TargetType.Program && TargetRulesObject.BuildEnvironment != TargetBuildEnvironment.Unique)
 					{
-						BaseExeName = "UE4" + TargetRulesObject.Type.ToString();
+						if (TargetRulesObject.Type == TargetType.Editor)
+						{
+							BaseExeName = "UE5Editor";
+						}
+						else
+						{
+							BaseExeName = "UE4" + TargetRulesObject.Type.ToString();
+						}
 					}
 
 					// Make the output file path
@@ -1709,7 +1716,7 @@ namespace UnrealBuildTool
 								DebugOptions += UProjectPath;
 								DebugOptions += " -skipcompile";
 							}
-							else if (TargetRulesObject.Type == TargetType.Editor && ProjectName != "UE4")
+							else if (TargetRulesObject.Type == TargetType.Editor && ProjectName != ProjectFileGenerator.EngineProjectFileNameBase)
 							{
 								DebugOptions += ProjectName;
 							}

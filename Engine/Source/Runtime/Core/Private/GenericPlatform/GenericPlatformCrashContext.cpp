@@ -735,14 +735,14 @@ void FGenericCrashContext::AddPortableCallStackHash() const
 	const TCHAR* ExeName = FPlatformProcess::ExecutableName();
 
 	// We dont want this to be thrown into an FString as it will alloc memory
-	const TCHAR* UE4EditorName = TEXT("UE4Editor");
+	const TCHAR* UE4EditorName = TEXT("UE5Editor");
 
 	FSHA1 Sha;
 	FSHAHash Hash;
 
 	for (TArray<FCrashStackFrame>::TConstIterator It(CallStack); It; ++It)
 	{
-		// If we are our own module or our module contains UE4Editor we assume we own these. We cannot depend on offsets of system libs
+		// If we are our own module or our module contains UE5Editor we assume we own these. We cannot depend on offsets of system libs
 		// as they may have different versions
 		if (It->ModuleName == ExeName || It->ModuleName.Contains(UE4EditorName))
 		{

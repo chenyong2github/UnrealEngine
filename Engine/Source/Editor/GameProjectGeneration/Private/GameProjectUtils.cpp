@@ -4109,7 +4109,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 		const FString GameModuleName = FApp::GetProjectName();
 		check(ModuleInfo.ModuleName == GameModuleName);
 
-		// Because this project previously didn't have any code, the UBT target name will just be UE4Editor. Now that we've
+		// Because this project previously didn't have any code, the UBT target name will just be UE5Editor. Now that we've
 		// added some code, the target name will be changed to match the editor target for the new source. 
 		FString NewUBTTargetName = GameModuleName + TEXT("Editor");
 		FPlatformMisc::SetUBTTargetName(*NewUBTTargetName);

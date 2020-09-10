@@ -541,7 +541,7 @@ namespace Gauntlet
 
 			if (TargetType.UsesEditor())
 			{
-				string ExeFileName = "UE4Editor";
+				string ExeFileName = "UE5Editor";
 				if (TargetConfiguration != UnrealTargetConfiguration.Development)
 				{
 					ExeFileName += string.Format("-{0}-{1}", TargetPlatform.ToString(), TargetConfiguration.ToString());

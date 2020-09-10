@@ -794,7 +794,7 @@ namespace AutomationTool
 								int YcIndex = ElementParams.IndexOf(" /Yc\"");
 								if (YcIndex >= 0)
 								{
-									// /Fp&quot;D:\BuildFarm\buildmachine_++depot+UE4\Engine\Intermediate\BuildData\Win64\UE4Editor\Development\SharedPCHs\CoreUObject.h.pch&quot
+									// /Fp&quot;D:\BuildFarm\buildmachine_++depot+UE4\Engine\Intermediate\BuildData\Win64\UE5Editor\Development\SharedPCHs\CoreUObject.h.pch&quot
 									string Fp = " /Fp\"";
 									int FpIndex = ElementParams.IndexOf(Fp, YcIndex);
 									if (FpIndex >= 0)
@@ -803,7 +803,7 @@ namespace AutomationTool
 										if (EndIndex >= 0)
 										{
 											string PCHFileName = ElementParams.Substring(FpIndex + Fp.Length, EndIndex - FpIndex - Fp.Length);
-											if (PCHFileName.Contains(@"\SharedPCHs\") && PCHFileName.Contains(@"\UE4Editor\"))
+											if (PCHFileName.Contains(@"\SharedPCHs\") && PCHFileName.Contains(@"\UE5Editor\"))
 											{
 												Key = "SharedEditorPCH$ " + PCHFileName;
 												CommandUtils.LogLog("Hack: detected Shared PCH, which will use a different key {0}", Key);

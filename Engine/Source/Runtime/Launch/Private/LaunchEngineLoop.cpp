@@ -1698,7 +1698,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			// We did not find a non-suffixed folder and we DID find the suffixed one.
 			// The engine MUST be launched with <GameName>Game.
 			const FText GameNameText = FText::FromString(FApp::GetProjectName());
-			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("RequiresGamePrefix", "Error: UE4Editor does not append 'Game' to the passed in game name.\nYou must use the full name.\nYou specified '{0}', use '{0}Game'."), GameNameText));
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("RequiresGamePrefix", "Error: UE5Editor does not append 'Game' to the passed in game name.\nYou must use the full name.\nYou specified '{0}', use '{0}Game'."), GameNameText));
 			return 1;
 		}
 	}
@@ -1810,9 +1810,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	bool bIsNotEditor = false;
 
 	// This isn't necessarily pretty, but many requests have been made to allow
-	//   UE4Editor.exe <GAMENAME> -game <map>
+	//   UE5Editor.exe <GAMENAME> -game <map>
 	// or
-	//   UE4Editor.exe <GAMENAME> -game 127.0.0.0
+	//   UE5Editor.exe <GAMENAME> -game 127.0.0.0
 	// We don't want to remove the -game from the commandline just yet in case
 	// we need it for something later. So, just move it to the end for now...
 	const bool bFirstTokenIsGame = (Token == TEXT("-GAME"));
@@ -5257,7 +5257,7 @@ bool LaunchCorrectEditorExecutable(const FString& EditorTargetFileName)
 	FString LaunchExecutableName;
 	if(EditorTargetFileName.Len() == 0)
 	{
-		LaunchExecutableName = FPlatformProcess::GenerateApplicationPath(TEXT("UE4Editor"), FApp::GetBuildConfiguration());
+		LaunchExecutableName = FPlatformProcess::GenerateApplicationPath(TEXT("UE5Editor"), FApp::GetBuildConfiguration());
 	}
 	else
 	{

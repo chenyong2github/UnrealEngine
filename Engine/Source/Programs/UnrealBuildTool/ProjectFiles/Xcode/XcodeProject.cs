@@ -1494,7 +1494,11 @@ namespace UnrealBuildTool
 											if (!bShouldCompileMonolithic && ProjectTarget.TargetRules.Type != TargetType.Program)
 											{
 												// Figure out what the compiled binary will be called so that we can point the IDE to the correct file
-												if (ProjectTarget.TargetRules.Type != TargetType.Game)
+												if (ProjectTarget.TargetRules.Type == TargetType.Editor)
+												{
+													ExeName = "UE5Editor";
+												}
+												else if (ProjectTarget.TargetRules.Type != TargetType.Game)
 												{
 													ExeName = "UE4" + ProjectTarget.TargetRules.Type.ToString();
 												}

@@ -98,7 +98,7 @@ namespace BuildGraph.Tasks
 			{
 				string[] Maps = (Parameters.Maps == null)? null : Parameters.Maps.Split(new char[]{ '+' });
 				string Arguments = (Parameters.Versioned ? "" : "-Unversioned ") + "-LogCmds=\"LogSavePackage Warning\" " + Parameters.Arguments;
-				CommandUtils.CookCommandlet(ProjectFile, "UE4Editor-Cmd.exe", Maps, null, null, null, Parameters.Platform, Arguments);
+				CommandUtils.CookCommandlet(ProjectFile, "UE5Editor-Cmd.exe", Maps, null, null, null, Parameters.Platform, Arguments);
 			}
 
 			// Find all the cooked files

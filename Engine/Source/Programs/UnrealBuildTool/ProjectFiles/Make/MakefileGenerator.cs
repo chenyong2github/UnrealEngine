@@ -127,8 +127,8 @@ namespace UnrealBuildTool
 			MakefileContent.Append("\n\n" + BuildCommand + ProjectBuildCommand + "\n" +
 				"all: StandardSet\n\n" +
 				"RequiredTools: CrashReportClient-Linux-Shipping CrashReportClientEditor-Linux-Shipping ShaderCompileWorker UnrealLightmass\n\n" +
-				"StandardSet: RequiredTools UnrealFrontend UE4Editor UnrealInsights\n\n" +
-				"DebugSet: RequiredTools UnrealFrontend-Linux-Debug UE4Editor-Linux-Debug\n\n"
+				"StandardSet: RequiredTools UnrealFrontend UE5Editor UnrealInsights\n\n" +
+				"DebugSet: RequiredTools UnrealFrontend-Linux-Debug UE5Editor-Linux-Debug\n\n"
 			);
 
 			foreach (ProjectFile Project in GeneratedProjectFiles)

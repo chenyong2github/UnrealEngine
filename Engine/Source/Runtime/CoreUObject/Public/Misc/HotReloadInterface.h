@@ -27,7 +27,7 @@ enum class ERecompileModuleFlags : uint8
 	// Report failure if UHT-generated code changes as a result of the recompile
 	FailIfGeneratedCodeChanges = 0x02,
 
-	// Even if this is not code-based project compile with game project as the target for UBT (do not use UE4Editor target)
+	// Even if this is not code-based project compile with game project as the target for UBT (do not use UE5Editor target)
 	ForceCodeProject = 0x04,
 };
 ENUM_CLASS_FLAGS(ERecompileModuleFlags)

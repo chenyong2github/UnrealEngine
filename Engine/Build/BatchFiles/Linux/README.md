@@ -80,7 +80,7 @@ GenerateProjectFiles.sh produces a number of "project" files, including Makefile
 project in your favorite IDE and qmake project file. Both QtCreator and KDevelop 4.6+ are known to handle the project well 
 (although the latter takes about 3-4 GB of resident RAM to load the project).
 
-The targets match the name of the resulting binary, e.g. UE4Editor-Linux-Debug or UE4Game. You can build them
+The targets match the name of the resulting binary, e.g. UE5Editor-Linux-Debug or UE4Game. You can build them
 by just typing make <target> in the engine's root folder.
 
 4.8 and later versions have simplified building the editor by providing makefile targets "StandardSet" and "DebugSet", the former
@@ -90,28 +90,28 @@ being the default. You can now just type
 
 to build the editor. Alternatively, build the following targets:
 
-    make CrashReportClient ShaderCompileWorker UnrealLightmass UnrealPak UE4Editor
+    make CrashReportClient ShaderCompileWorker UnrealLightmass UnrealPak UE5Editor
 
 If you intend to develop the editor, you can build a debug configuration of it:
 
-    make UE4Editor-Linux-Debug
+    make UE5Editor-Linux-Debug
 
 (note that it will still use development ShaderCompileWorker / UnrealLightmass). This
 configuration runs much slower.
 
 If you want to rebuild the editor from scatch, you can use
 
-    make UE4Editor ARGS="-clean" && make UE4Editor
+    make UE5Editor ARGS="-clean" && make UE5Editor
 
 In order to run it:
 
     cd Engine/Binaries/Linux/
-    ./UE4Editor
+    ./UE5Editor
 
 Or, if you want to start it with a specific project:
 
     cd Engine/Binaries/Linux/
-    ./UE4Editor "~/Documents/Unreal Projects/MyProject/MyProject.uproject"
+    ./UE5Editor "~/Documents/Unreal Projects/MyProject/MyProject.uproject"
     
 You can also append -game if you want to run the project as a game (you can also do that from the running editor).
 

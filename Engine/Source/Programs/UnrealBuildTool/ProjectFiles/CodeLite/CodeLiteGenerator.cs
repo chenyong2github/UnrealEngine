@@ -190,7 +190,7 @@ namespace UnrealBuildTool
 							if (ProjectName.Equals("UE4Client") ||
 								ProjectName.Equals("UE4Server") ||
 								ProjectName.Equals("UE4Game") ||
-								ProjectName.Equals("UE4Editor"))
+								ProjectName.Equals("UE5Editor"))
 							{
 								if (CodeLiteWorkspaceTargetEngine == null)
 								{

@@ -315,7 +315,7 @@ void FDataprepEditor::CleanUpTemporaryDirectories()
 					if(!bDeleteDirectories)
 					{
 						const FString ApplicationName = FPlatformProcess::GetApplicationName( ProcessID );
-						bDeleteDirectories = !ApplicationName.StartsWith(TEXT("UE4Editor"));
+						bDeleteDirectories = !ApplicationName.StartsWith(TEXT("UE5Editor"));
 					}
 
 					if(bDeleteDirectories)

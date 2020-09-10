@@ -97,7 +97,7 @@ if [ -z "$1" ]; then
   # build editor targets, roughly ascending by build time
   Run BuildTarget ShaderCompileWorker
   Run BuildTarget UnrealFrontend
-  Run BuildTarget UE4Editor
+  Run BuildTarget UE5Editor
   popd >> /dev/null
 
 else

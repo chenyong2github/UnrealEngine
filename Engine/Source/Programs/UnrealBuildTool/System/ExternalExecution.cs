@@ -1166,7 +1166,7 @@ namespace UnrealBuildTool
 
 					Progress.Write(1, 3);
 
-					string ActualTargetName = String.IsNullOrEmpty(TargetName) ? "UE4" : TargetName;
+					string ActualTargetName = String.IsNullOrEmpty(TargetName) ? "UE5" : TargetName;
 					Log.TraceInformation("Parsing headers for {0}", ActualTargetName);
 
 					FileReference HeaderToolPath = GetHeaderToolPath(HeaderToolReceipt);

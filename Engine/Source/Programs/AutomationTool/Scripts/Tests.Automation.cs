@@ -683,7 +683,7 @@ class TestTestFarm : BuildCommand
 	{
 		LogInformation("*********************** TestTestFarm");
 
-		string Exe = CombinePaths(CmdEnv.LocalRoot, "Engine", "Binaries", "Win64", "UE4Editor.exe");
+		string Exe = CombinePaths(CmdEnv.LocalRoot, "Engine", "Binaries", "Win64", "UE5Editor.exe");
 		string ClientLogFile = CombinePaths(CmdEnv.LogFolder, "HoverGameRun");
 		string CmdLine = " ../../../Samples/HoverShip/HoverShip.uproject -game -log -abslog=" + ClientLogFile;
 
@@ -793,7 +793,7 @@ class TestLog : BuildCommand
 		PushDir(CombinePaths(CmdEnv.LocalRoot, @"Engine/Binaries/Win64/"));
 		//		string GameServerExe = CombinePaths(CmdEnv.LocalRoot, @"ShooterGame/Binaries/Win64/ShooterGameServer.exe");
 		//		string GameExe = CombinePaths(CmdEnv.LocalRoot, @"ShooterGame/Binaries/Win64/ShooterGame.exe");
-		string EditorExe = CombinePaths(CmdEnv.LocalRoot, @"Engine/Binaries/Win64/UE4Editor.exe");
+		string EditorExe = CombinePaths(CmdEnv.LocalRoot, @"Engine/Binaries/Win64/UE5Editor.exe");
 
 		string ServerLogFile = CombinePaths(CmdEnv.LogFolder, "Server.log");
 
@@ -873,7 +873,7 @@ class TestOSSCommands : BuildCommand
 {
 	public override void ExecuteBuild()
 	{
-		string Exe = CombinePaths(CmdEnv.LocalRoot, "Engine", "Binaries", "Win64", "UE4Editor.exe");
+		string Exe = CombinePaths(CmdEnv.LocalRoot, "Engine", "Binaries", "Win64", "UE5Editor.exe");
 		string CmdLine = "qagame automation-osscommands -game -log -logcmds=" + "\"" + "global none, logonline verbose, loghttp log, LogBlueprintUserMessages log" + "\"";
 		string ClientLogFile = CombinePaths(CmdEnv.LogFolder, String.Format("QALog_{0:yyyy-MM-dd_hh-mm-ss-tt}.txt", DateTime.Now));
 		string LogDirectory = CombinePaths(CmdEnv.LocalRoot, "Saved", "Logs");
@@ -1266,7 +1266,7 @@ class TestKillAll : BuildCommand
 	{
 		LogInformation("*********************** TestKillAll");
 
-		string Exe = CombinePaths(CmdEnv.LocalRoot, "Engine", "Binaries", "Win64", "UE4Editor.exe");
+		string Exe = CombinePaths(CmdEnv.LocalRoot, "Engine", "Binaries", "Win64", "UE5Editor.exe");
 		string ClientLogFile = CombinePaths(CmdEnv.LogFolder, "HoverGameRun");
 		string CmdLine = " ../../../Samples/Sandbox/HoverShip/HoverShip.uproject -game -log -abslog=" + ClientLogFile;
 
@@ -1294,7 +1294,7 @@ class TestStopProcess : BuildCommand
 	{
 		LogInformation("*********************** TestStopProcess");
 
-		string Exe = CombinePaths(CmdEnv.LocalRoot, "Engine", "Binaries", "Win64", "UE4Editor.exe");
+		string Exe = CombinePaths(CmdEnv.LocalRoot, "Engine", "Binaries", "Win64", "UE5Editor.exe");
 		string ClientLogFile = CombinePaths(CmdEnv.LogFolder, "HoverGameRun");
 		string CmdLine = " ../../../Samples/Sandbox/HoverShip/HoverShip.uproject -game -log -ddc=noshared -abslog=" + ClientLogFile;
 
@@ -1328,7 +1328,7 @@ class LookForOverlappingBuildProducts : BuildCommand
 			throw new AutomationException("Source path not found, please use -source=Path");
 		}
 		var Objs = new HashSet<string>( StringComparer.InvariantCultureIgnoreCase );
-//    /Fo&quot;D:\BuildFarm\buildmachine_++depot+UE4\Engine\Intermediate\Build\Win64\UE4Editor\Development\Projects\Module.Projects.cpp.obj&quot;
+//    /Fo&quot;D:\BuildFarm\buildmachine_++depot+UE4\Engine\Intermediate\Build\Win64\UE5Editor\Development\Projects\Module.Projects.cpp.obj&quot;
 		var FileText = ReadAllText(SourcePath);
 		string Start = "/Fo&quot;";
 		string End = "&quot;";

@@ -62,7 +62,7 @@ namespace AutomationTool.Benchmark
 			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
 			{
 				// will throw an exception if it fails
-				CommandUtils.RunCommandlet(ProjectFile, "UE4Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} ", CookPlatformName));
+				CommandUtils.RunCommandlet(ProjectFile, "UE5Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} ", CookPlatformName));
 			}
 
 			base.PerformPrequisites();
@@ -106,7 +106,7 @@ namespace AutomationTool.Benchmark
 			}
 
 			// will throw an exception if it fails
-			CommandUtils.RunCommandlet(ProjectFile, "UE4Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} {1}", CookPlatformName, ExtraArgs));
+			CommandUtils.RunCommandlet(ProjectFile, "UE5Editor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} {1}", CookPlatformName, ExtraArgs));
 
 			return true;
 		}

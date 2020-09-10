@@ -161,7 +161,7 @@ public:
 		}
 		else if (TargetType == EBuildTargetType::Editor)
 		{
-			ExecutablePath /= TEXT("UE4Editor");
+			ExecutablePath /= TEXT("UE5Editor");
 		}
 
 		if (BuildConfiguration != EBuildConfiguration::Development)

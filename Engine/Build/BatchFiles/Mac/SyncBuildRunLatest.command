@@ -36,13 +36,13 @@
 project=$1
 changelist=$2
 
-if pgrep -x "UE4Editor" > /dev/null
+if pgrep -x "UE5Editor" > /dev/null
 then
-    echo "UE4Editor already running, please close all UE4Editor processes..."
-    #killall -9 "UE4Editor"
+    echo "UE5Editor already running, please close all UE5Editor processes..."
+    #killall -9 "UE5Editor"
     exit 1
 else
-    echo "No UE4Editor processes running."
+    echo "No UE5Editor processes running."
 fi
 
 if [ ! -f ../../../Build/BatchFiles/Mac/SyncBuildRunLatest.command ]; then
@@ -135,13 +135,13 @@ fi
 echo changelist="$changelist"
 echo $latest_change_string
 
-if pgrep -x "UE4Editor" > /dev/null
+if pgrep -x "UE5Editor" > /dev/null
 then
-    echo "UE4Editor already running, please close all UE4Editor processes..."
+    echo "UE5Editor already running, please close all UE5Editor processes..."
     exit 1
-    #killall -9 "UE4Editor"
+    #killall -9 "UE5Editor"
 else
-    echo "No UE4Editor processes running."
+    echo "No UE5Editor processes running."
 fi
 
 echo $ue4_root_directory_local
@@ -157,6 +157,6 @@ else
   exit 1
 fi
 
-open -a "$ue4_root_directory_local"Engine/Binaries/Mac/UE4Editor.app --args "$project"
+open -a "$ue4_root_directory_local"Engine/Binaries/Mac/UE5Editor.app --args "$project"
 
 exit
