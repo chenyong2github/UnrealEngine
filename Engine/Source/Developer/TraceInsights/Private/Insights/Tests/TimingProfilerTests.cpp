@@ -31,6 +31,7 @@ void FTimingProfilerTests::RunEnumerateBenchmark(const FEnumerateTestParams& InP
 		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 
 		SessionTime = Session->GetDurationSeconds();
+		OutCheckValues.SessionDuration = SessionTime;
 
 		const double TimeIncrement = SessionTime / static_cast<double>(InParams.NumEnumerations);
 

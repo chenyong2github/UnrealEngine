@@ -21,6 +21,8 @@ public:
 		uint64 EventCount = 0;
 		uint32 SumDepth = 0;
 		uint32 SumTimerIndex = 0;
+		double SessionDuration = 0;
+
 		double EnumerationDuration = 0;
 	};
 
