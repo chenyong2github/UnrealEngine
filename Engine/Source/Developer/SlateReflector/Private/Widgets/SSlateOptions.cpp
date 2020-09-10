@@ -20,6 +20,53 @@
 
 void SSlateOptions::Construct( const FArguments& InArgs )
 {
+	struct Local
+	{
+		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, const FSlateIcon& Icon, const FText& Label, const TCHAR* ConsoleVariable)
+		{
+			IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(ConsoleVariable);
+			if (CVar)
+			{
+				FTextBuilder TooltipText;
+				TooltipText.AppendLine(FString(CVar->GetHelp()));
+				TooltipText.AppendLine(FString(ConsoleVariable));
+
+				ToolbarBuilder.AddToolBarButton(
+					FUIAction(
+						FExecuteAction::CreateLambda([CVar]() { CVar->Set(!CVar->GetBool(), EConsoleVariableFlags::ECVF_SetByCode); }),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateLambda([CVar]() { return CVar->GetBool() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					),
+					NAME_None,
+					Label,
+					TooltipText.ToText(),
+					Icon,
+					EUserInterfaceActionType::ToggleButton
+				);
+			}
+		}
+
+		static void FillToolbar(FToolBarBuilder& ToolbarBuilder)
+		{
+			FSlateIcon Icon(FWidgetReflectorStyle::GetStyleSetName(), "Icon.Empty");
+
+			ToolbarBuilder.BeginSection("Flags");
+			{
+#if WITH_SLATE_DEBUGGING
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("EnableWidgetCaching", "Widget Caching"), TEXT("Slate.EnableInvalidationPanels"));
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("InvalidationDebugging", "Invalidation Debugging"), TEXT("Slate.InvalidationDebugging"));
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("ShowClipping", "Show Clipping"), TEXT("Slate.ShowClipping"));
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("DebugCulling", "Debug Culling"), TEXT("Slate.DebugCulling"));
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("EnsureAllVisibleWidgetsPaint", "Ensure All Visible Widgets Paint"), TEXT("Slate.EnsureAllVisibleWidgetsPaint"));
+#endif // WITH_SLATE_DEBUGGING
+			}
+			ToolbarBuilder.EndSection();
+		}
+	};
+
+	FToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+	Local::FillToolbar(ToolbarBuilder);
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -62,64 +109,13 @@ void SSlateOptions::Construct( const FArguments& InArgs )
 				.Text(LOCTEXT("Flags", "Flags: "))
 			]
 
-#if WITH_SLATE_DEBUGGING
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(1)
 			.Padding(FMargin(5.0f, 0.0f))
 			[
-				SNew(SCheckBox)
-				.Style(FWidgetReflectorStyle::Get(), "CheckBox")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.ToolTipText(LOCTEXT("EnableWidgetCachingTooltip", "Whether to attempt to cache any widgets through invalidation panels."))
-				.IsChecked_Lambda([]()
-				{
-					return SInvalidationPanel::AreInvalidationPanelsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 
-				})
-				.OnCheckStateChanged_Lambda([&](const ECheckBoxState NewState)
-				{
-					SInvalidationPanel::EnableInvalidationPanels((NewState == ECheckBoxState::Checked) ? true : false);
-				})
-				[
-					SNew(SBox)
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Center)
-					.Padding(FMargin(4.0, 2.0))
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("EnableWidgetCaching", "Widget Caching"))
-					]
-				]
+				ToolbarBuilder.MakeWidget()
 			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(FMargin(5.0f, 0.0f))
-			[
-				SNew(SCheckBox)
-				.Style(FWidgetReflectorStyle::Get(), "CheckBox")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.ToolTipText(LOCTEXT("InvalidationDebuggingTooltip", "Whether to show invalidation debugging visualization."))
-				.IsChecked_Lambda([&]()
-				{
-					return GSlateInvalidationDebugging ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				})
-				.OnCheckStateChanged_Lambda([&](const ECheckBoxState NewState)
-				{
-					GSlateInvalidationDebugging = (NewState == ECheckBoxState::Checked) ? true : false;
-				})
-				[
-					SNew(SBox)
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Center)
-					.Padding(FMargin(4.0, 2.0))
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("InvalidationDebugging", "Invalidation Debugging"))
-					]
-				]
-			]
-#endif //WITH_SLATE_DEBUGGING
 		]
 	];
 }
