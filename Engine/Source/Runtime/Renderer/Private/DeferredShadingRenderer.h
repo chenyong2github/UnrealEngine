@@ -104,7 +104,8 @@ public:
 		FRDGTextureMSAA SceneColorTexture,
 		FRDGTextureMSAA SceneDepthTexture,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		bool bShouldRenderVolumetricCloud);
+		bool bShouldRenderVolumetricCloud,
+		FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
 	
 	void RenderSingleLayerWaterInner(
 		FRDGBuilder& GraphBuilder,
