@@ -37,8 +37,7 @@ LIBFILES=(
 # Build script will be in <lib>/Build/Mac so get that path and drop two folders to leave us
 # in the actual lib folder
 pushd . > /dev/null
-SCRIPT_DIR="`dirname "${BASH_SOURCE[0]}"`"
-RESOLVED_SCRIPT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+SCRIPT_DIR="$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)"
 cd ${SCRIPT_DIR}/${DROP_TO_LIBROOT}
 LIB_ROOT_DIR=${PWD}
 echo Changed to ${LIB_ROOT_DIR}
@@ -79,13 +78,11 @@ BUILD_DIR=$SCRATCH_DIR/build
 # unpack
 
 rm -rf $SCRATCH_DIR
-mkdir -p $SOURCE_DIR
+mkdir -p $SCRATCH_DIR
 
 echo "#######################################"
 echo "# Unpacking the tarballs"
-echo "#   $(cd $(dirname ${TARBALL}) && pwd)/$(basename ${TARBALL})"
-echo "#       -> $SOURCE_DIR"
-tar xjf $TARBALL -C $SOURCE_DIR
+tar xjf $TARBALL -C $SCRATCH_DIR
 
 if [ $? -ne 0 ]; then
 	echo ""
@@ -105,12 +102,12 @@ fi
 
 mkdir -p $BUILD_DIR
 cd $BUILD_DIR
-cp ${RESOLVED_SCRIPT_DIR}/CMakeLists.txt $SOURCE_DIR/CMakeLists.txt
+cp ${SCRIPT_DIR}/CMakeLists.txt $SOURCE_DIR/CMakeLists.txt
 echo "#######################################"
 echo "# Configuring $VER"
-cmake -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" $SOURCE_DIR > $RESOLVED_SCRIPT_DIR/build.log
+cmake -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" $SOURCE_DIR > $SCRIPT_DIR/build.log
 echo "# Building $VER"
-make -j$(get_core_count) webm >> $RESOLVED_SCRIPT_DIR/build.log
+make -j$(get_core_count) webm >> $SCRIPT_DIR/build.log
 if [ $? -ne 0 ]; then
 	echo ""
 	echo "#######################################"
@@ -127,12 +124,12 @@ cp $BUILD_DIR/libwebm.a ${LIB_ROOT_DIR}/${LIB_PATH}
 rm -rf $BUILD_DIR
 mkdir -p $BUILD_DIR
 cd $BUILD_DIR
-cp ${RESOLVED_SCRIPT_DIR}/CMakeLists_Editor.txt $SOURCE_DIR/CMakeLists.txt
+cp ${SCRIPT_DIR}/CMakeLists_Editor.txt $SOURCE_DIR/CMakeLists.txt
 echo "#######################################"
 echo "# Configuring $VER with PIC"
-cmake -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" $SOURCE_DIR > $RESOLVED_SCRIPT_DIR/build-pic.log
+cmake -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}" $SOURCE_DIR > $SCRIPT_DIR/build-pic.log
 echo "# Building $VER with PIC"
-make -j$(get_core_count) webm >> $RESOLVED_SCRIPT_DIR/build-pic.log
+make -j$(get_core_count) webm >> $SCRIPT_DIR/build-pic.log
 
 if [ $? -ne 0 ]; then
 	echo ""
