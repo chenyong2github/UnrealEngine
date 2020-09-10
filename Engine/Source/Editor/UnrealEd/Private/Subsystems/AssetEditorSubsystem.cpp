@@ -57,8 +57,6 @@ void UAssetEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UAssetEditorSubsystem::Deinitialize()
 {
-	UnregisterEditorModes();
-
 	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
 	GEditor->OnEditorClose().RemoveAll(this);
 
@@ -85,6 +83,7 @@ void UAssetEditorSubsystem::OnEditorClose()
 	SaveOpenAssetEditors(true);
 	TGuardValue<bool> GuardOnShutdown(bSavingOnShutdown, true);
 	CloseAllAssetEditors();
+	UnregisterEditorModes();
 }
 
 IAssetEditorInstance* UAssetEditorSubsystem::FindEditorForAsset(UObject* Asset, bool bFocusIfOpen)

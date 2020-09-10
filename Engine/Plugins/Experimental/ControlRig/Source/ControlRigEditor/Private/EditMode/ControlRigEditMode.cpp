@@ -90,9 +90,6 @@ FControlRigEditMode::~FControlRigEditMode()
 {	
 	CommandBindings = nullptr;
 
-	GLevelEditorModeTools().OnWidgetModeChanged().RemoveAll(this);
-	GLevelEditorModeTools().OnCoordSystemChanged().RemoveAll(this);
-
 #if WITH_EDITOR
 	if (GEditor)
 	{
