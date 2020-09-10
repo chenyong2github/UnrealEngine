@@ -1293,7 +1293,11 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 				FCurveEditorTreeItemID CurveEditorTreeItem = NodeTree->FindCurveEditorTreeItem(Node);
 				if (CurveEditorTreeItem != FCurveEditorTreeItemID::Invalid())
 				{
-					CurveEditorTree->SetItemSelection(CurveEditorTreeItem, true);
+					if (!CurveEditorTree->IsItemSelected(CurveEditorTreeItem))
+					{
+						CurveEditorTree->SetItemSelection(CurveEditorTreeItem, true);
+						CurveEditorTree->RequestScrollIntoView(CurveEditorTreeItem);
+					}
 				}
 			}
 			CurveEditor->ResumeBroadcast();
