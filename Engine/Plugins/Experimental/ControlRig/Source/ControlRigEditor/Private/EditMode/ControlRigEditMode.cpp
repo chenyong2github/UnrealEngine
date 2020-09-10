@@ -260,9 +260,6 @@ void FControlRigEditMode::SetObjects_Internal()
 			StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetControlRig(RuntimeControlRig);
 		}
 
-		RuntimeControlRig->DrawInterface = &DrawInterface;
-		InteractionControlRig->DrawInterface = &DrawInterface;
-
 		InteractionControlRig->Hierarchy.OnElementSelected.RemoveAll(this);
 		InteractionControlRig->ControlModified().RemoveAll(this);
 
@@ -482,7 +479,6 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 	UControlRig* ControlRig = GetControlRig(false);
 	if(ControlRig == nullptr)
 	{
-		DrawInterface.Instructions.Reset();
 		return;
 	}
 
@@ -530,7 +526,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				SpaceTransforms.Add(SpaceHierarchy.GetGlobalTransform(Space.Index));
 			}
 
-			DrawInterface.DrawAxes(FTransform::Identity, SpaceTransforms, Settings->AxisScale);
+			GetControlRig(true)->DrawInterface.DrawAxes(FTransform::Identity, SpaceTransforms, Settings->AxisScale);
 		}
 
 		if (Settings->bDisplayAxesOnSelection && Settings->AxisScale > SMALL_NUMBER)
@@ -552,7 +548,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				}
 			}
 		}
-		for (const FControlRigDrawInstruction& Instruction : DrawInterface)
+		for (const FControlRigDrawInstruction& Instruction : GetControlRig(true)->DrawInterface)
 		{
 			if (!Instruction.IsValid())
 			{
@@ -615,7 +611,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 		}
 	}
 
-	DrawInterface.Reset();
+	GetControlRig(true)->DrawInterface.Reset();
 }
 
 bool FControlRigEditMode::InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent)
@@ -2075,8 +2071,8 @@ void FControlRigEditMode::TickGizmo(AControlRigGizmoActor* GizmoActor, const FTr
 			if (FRigControl* Control = ControlRig->FindControl(GizmoActor->ControlName))
 			{
 				GizmoActor->SetGizmoColor(Control->GizmoColor);
-				GizmoActor->SetIsTemporarilyHiddenInEditor(!Control->bGizmoVisible);
-				GizmoActor->SetSelectable(Control->bGizmoVisible);
+				GizmoActor->SetIsTemporarilyHiddenInEditor(!Control->bGizmoVisible || Settings->bHideManipulators);
+				GizmoActor->SetSelectable(Control->bGizmoVisible && !Settings->bHideManipulators);
 			}
 		}
 	}

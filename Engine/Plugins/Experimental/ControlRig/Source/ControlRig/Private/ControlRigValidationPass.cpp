@@ -124,7 +124,7 @@ void UControlRigValidator::SetControlRig(UControlRig* InControlRig)
 		OnControlRigInitialized(ControlRig, EControlRigState::Init, FRigUnit_BeginExecution::EventName);
 		ControlRig->OnInitialized_AnyThread().AddUObject(this, &UControlRigValidator::OnControlRigInitialized);
 		ControlRig->OnExecuted_AnyThread().AddUObject(this, &UControlRigValidator::OnControlRigExecuted);
-		ValidationContext.DrawInterface = ControlRig->DrawInterface;
+		ValidationContext.DrawInterface = &ControlRig->DrawInterface;
 	}
 }
 
