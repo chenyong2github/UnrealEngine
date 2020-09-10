@@ -166,7 +166,6 @@ uint32 FCoreTechFileParser::GetFileHash()
 	uint32 FileHash = GetTypeHash(FileDescription);
 	FileHash = HashCombine(FileHash, GetTypeHash(FileSize));
 	FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
-	FileHash = HashCombine(FileHash, GetTypeHash(ImportParam.StitchingTechnique));
 
 	return FileHash;
 }
