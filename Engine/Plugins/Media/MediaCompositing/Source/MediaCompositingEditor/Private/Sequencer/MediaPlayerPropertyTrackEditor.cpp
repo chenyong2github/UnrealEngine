@@ -15,6 +15,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "MediaSource.h"
+#include "LevelSequence.h"
 
 #include "MediaThumbnailSection.h"
 
@@ -185,7 +186,7 @@ TSharedRef<ISequencerSection> FMediaPlayerPropertyTrackEditor::MakeSectionInterf
 
 bool FMediaPlayerPropertyTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return (InSequence != nullptr) && (InSequence->GetClass()->GetName() == TEXT("LevelSequence"));
+	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
 }
 
 const FSlateBrush* FMediaPlayerPropertyTrackEditor::GetIconBrush() const

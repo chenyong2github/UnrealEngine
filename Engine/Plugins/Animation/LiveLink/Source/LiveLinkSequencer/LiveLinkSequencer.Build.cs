@@ -12,6 +12,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"LevelSequence",
 					"LiveLinkInterface",
 					"MovieScene",
 					"SerializedRecorderInterface",
