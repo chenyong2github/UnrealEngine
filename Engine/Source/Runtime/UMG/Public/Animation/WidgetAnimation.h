@@ -110,6 +110,9 @@ public:
 	virtual void UnbindPossessableObjects(const FGuid& ObjectId) override;
 	virtual void LocateBoundObjects(const FGuid& ObjectId, UObject* Context, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
 	virtual UObject* CreateDirectorInstance(IMovieScenePlayer& Player) override;
+#if WITH_EDITOR
+	virtual ETrackSupport IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const override;
+#endif
 	// ~UMovieSceneAnimation overrides
 
 	//~ Begin UObject Interface. 
