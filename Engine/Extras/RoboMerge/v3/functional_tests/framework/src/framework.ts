@@ -226,7 +226,7 @@ export abstract class FunctionalTest {
 		return `//${depot}/${name}`
 	}
 
-	protected fullBranchName(branch: string) {
+	fullBranchName(branch: string) {
 		return this.testName + P4Util.escapeBranchName(branch)
 	}
 
