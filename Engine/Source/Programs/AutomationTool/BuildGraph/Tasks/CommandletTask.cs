@@ -36,7 +36,7 @@ namespace AutomationTool.Tasks
 		public string Arguments;
 
 		/// <summary>
-		/// The editor executable to use. Defaults to the development UE5Editor executable for the current platform.
+		/// The editor executable to use. Defaults to the development UnrealEditor executable for the current platform.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public FileReference EditorExe;
@@ -93,7 +93,7 @@ namespace AutomationTool.Tasks
 			FileReference EditorExe;
 			if(Parameters.EditorExe == null)
 			{
-                EditorExe = new FileReference(HostPlatform.Current.GetUE4ExePath("UE5Editor-Cmd.exe"));
+                EditorExe = new FileReference(HostPlatform.Current.GetUE4ExePath("UnrealEditor-Cmd.exe"));
 			}
 			else
 			{

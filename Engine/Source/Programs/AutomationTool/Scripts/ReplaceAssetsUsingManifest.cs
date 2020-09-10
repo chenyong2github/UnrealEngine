@@ -17,7 +17,7 @@ public class ReplaceAssetsUsingManifest : BuildCommand
 		// Command parameters - not all required if using existing manifest
 		string ProjectPath = ParseParamValue("ProjectPath");
 		string ManifestFile = ParseParamValue("ManifestFile");
-		string UE4Exe = ParseParamValue("UE4Exe", "UE5Editor-Cmd.exe");
+		string UE4Exe = ParseParamValue("UE4Exe", "UnrealEditor-Cmd.exe");
 		string ReplacedPaths = ParseParamValue("ReplacedPaths", "");
 		string ReplacedClasses = ParseParamValue("ReplacedClasses", "");
 		string ExcludedPaths = ParseParamValue("ExcludedPaths", "");

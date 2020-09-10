@@ -3,9 +3,9 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-public class UE5EditorTarget : TargetRules
+public class UnrealEditorTarget : TargetRules
 {
-	public UE5EditorTarget( TargetInfo Target ) : base(Target)
+	public UnrealEditorTarget( TargetInfo Target ) : base(Target)
 	{
 		Type = TargetType.Editor;
 		BuildEnvironment = TargetBuildEnvironment.Shared;

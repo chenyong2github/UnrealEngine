@@ -701,7 +701,7 @@ UObject* UPackFactory::FactoryCreateBinary
 					}
 					else
 					{
-						// We didn't previously have source, so the UBT target name will be UE5Editor, and attempts to recompile will end up building the wrong target. Now that we have source,
+						// We didn't previously have source, so the UBT target name will be UnrealEditor, and attempts to recompile will end up building the wrong target. Now that we have source,
 						// we need to change the UBT target to be the newly created editor module
 						FPlatformMisc::SetUBTTargetName(*(FString(FApp::GetProjectName()) + TEXT("Editor")));
 

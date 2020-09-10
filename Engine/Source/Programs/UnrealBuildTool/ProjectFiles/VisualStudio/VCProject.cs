@@ -1568,7 +1568,7 @@ namespace UnrealBuildTool
 					{
 						if (TargetRulesObject.Type == TargetType.Editor)
 						{
-							BaseExeName = "UE5Editor";
+							BaseExeName = "UnrealEditor";
 						}
 						else
 						{

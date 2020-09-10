@@ -12,7 +12,7 @@ namespace AutomationTool
 {
 
 	[Help("Opens the specified project.")]
-	[Help("project=<QAGame>", "Project to open. Will search current path and paths in ueprojectdirs. If omitted will open vanilla UE5Editor")]
+	[Help("project=<QAGame>", "Project to open. Will search current path and paths in ueprojectdirs. If omitted will open vanilla UnrealEditor")]
 	class OpenEditor: BuildCommand
 	{
 		// exposed as a property so projects can derive and set this directly
@@ -24,7 +24,7 @@ namespace AutomationTool
 		
 		public override ExitCode Execute()
 		{
-			string EditorPath = HostPlatform.Current.GetUE4ExePath("UE5Editor");
+			string EditorPath = HostPlatform.Current.GetUE4ExePath("UnrealEditor");
 
 			string EditorArgs = "";
 

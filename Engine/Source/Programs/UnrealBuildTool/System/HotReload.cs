@@ -276,7 +276,7 @@ namespace UnrealBuildTool
 			// this code must be able to execute before we create or load module rules DLLs so that hot reload can work with bUseUBTMakefiles
 			if (TargetDesc.Name.EndsWith("Editor", StringComparison.OrdinalIgnoreCase))
 			{
-				string EditorBaseFileName = "UE5Editor";
+				string EditorBaseFileName = "UnrealEditor";
 				if (TargetDesc.Configuration != UnrealTargetConfiguration.Development)
 				{
 					EditorBaseFileName = String.Format("{0}-{1}-{2}", EditorBaseFileName, TargetDesc.Platform, TargetDesc.Configuration);
@@ -667,7 +667,7 @@ namespace UnrealBuildTool
 			int HyphenIdx = FileName.IndexOf('-');
 			if (HyphenIdx == -1)
 			{
-				throw new BuildException("Hot-reloadable files are expected to contain a hyphen, eg. UE5Editor-Core");
+				throw new BuildException("Hot-reloadable files are expected to contain a hyphen, eg. UnrealEditor-Core");
 			}
 
 			int NameEndIdx = HyphenIdx + 1;

@@ -14,7 +14,7 @@ namespace AutomationTool
 	[Help("Builds the specified targets and configurations for the specified project.")]
 	[Help("Example BuildTarget -project=QAGame -target=Editor+Game -platform=PS4+XboxOne -configuration=Development.")]
 	[Help("Note: Editor will only ever build for the current platform in a Development config and required tools will be included")]
-	[Help("project=<QAGame>", "Project to build. Will search current path and paths in ueprojectdirs. If omitted will build vanilla UE5Editor")]
+	[Help("project=<QAGame>", "Project to build. Will search current path and paths in ueprojectdirs. If omitted will build vanilla UnrealEditor")]
 	[Help("platform=PS4+XboxOne", "Platforms to build, join multiple platforms using +")]
 	[Help("configuration=Development+Test", "Configurations to build, join multiple configurations using +")]
 	[Help("target=Editor+Game", "Targets to build, join multiple targets using +")]
@@ -278,7 +278,7 @@ namespace AutomationTool
 	[Help("Builds the editor for the specified project.")]
 	[Help("Example BuildEditor -project=QAGame")]
 	[Help("Note: Editor will only ever build for the current platform in a Development config and required tools will be included")]
-	[Help("project=<QAGame>", "Project to build. Will search current path and paths in ueprojectdirs. If omitted will build vanilla UE5Editor")]
+	[Help("project=<QAGame>", "Project to build. Will search current path and paths in ueprojectdirs. If omitted will build vanilla UnrealEditor")]
 	[Help("notools", "Don't build any tools (UHT, ShaderCompiler, CrashReporter")]
 	class BuildEditor : BuildTarget
 	{

@@ -13,7 +13,7 @@
  * Uses a heavily stripped down game client, with allowances for Slate, and some hacks for enabling proper netcode usage.
  *
  * Usage:
- *	"UE5Editor.exe shootergame -run=NetcodeUnitTest.UnitTestCommandlet"
+ *	"UnrealEditor.exe shootergame -run=NetcodeUnitTest.UnitTestCommandlet"
  *
  * Parameters:
  *	-UnitTest=UnitTestName

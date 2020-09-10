@@ -798,7 +798,7 @@ public partial class Project : CommandUtils
 		}
 		else
 		{
-			ClientApp = CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries", PlatformName, "UE5Editor.exe");
+			ClientApp = CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries", PlatformName, "UnrealEditor.exe");
 			if (!Params.EditorTest)
 			{
 				TempCmdLine += "-game " + Params.MapToRun + " ";
@@ -922,7 +922,7 @@ public partial class Project : CommandUtils
 
 		var SC = DeployContextList[0];
 
-		var ServerApp = CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries/Win64/UE5Editor.exe");
+		var ServerApp = CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries/Win64/UnrealEditor.exe");
 		if (ServerParams.Cook)
 		{
 			List<FileReference> Exes = SC.StageTargetPlatform.GetExecutableNames(SC);
@@ -996,7 +996,7 @@ public partial class Project : CommandUtils
 
 	private static IProcessResult RunCookOnTheFlyServer(FileReference ProjectName, string ServerLogFile, string TargetPlatform, string AdditionalCommandLine)
 	{
-		var ServerApp = HostPlatform.Current.GetUE4ExePath("UE5Editor.exe");
+		var ServerApp = HostPlatform.Current.GetUE4ExePath("UnrealEditor.exe");
 		var Args = String.Format("{0} -run=cook -cookonthefly -unattended -CrashForUAT -log",
 			CommandUtils.MakePathSafeToUseWithCommandLine(ProjectName.FullName));
 		if (!String.IsNullOrEmpty(ServerLogFile))

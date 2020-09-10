@@ -150,93 +150,93 @@
 		<Node Name="Compile UnrealHeaderTool Win64" Requires="Update Version Files">
 			<Compile Target="UnrealHeaderTool" Platform="Win64" Configuration="Development" Arguments="-precompile -allmodules"/>
 		</Node>
-		<Node Name="Compile UE5Editor Win64" Requires="Compile UnrealHeaderTool Win64" Produces="#UE5Editor Win64;#UE5Editor Win64 Unstripped;#UE5Editor Win64 Stripped;#UE5Editor Win64 Unsigned;#UE5Editor Win64 Signed;#UE5Editor Win64 WithExceptions">
-			<Compile Target="UE5Editor" Platform="Win64" Configuration="DebugGame" Tag="#UE5Editor Win64" Arguments="-precompile -allmodules "/>
-			<Compile Target="UE5Editor" Platform="Win64" Configuration="Development" Tag="#UE5Editor Win64" Arguments="-precompile -allmodules"/>
+		<Node Name="Compile UnrealEditor Win64" Requires="Compile UnrealHeaderTool Win64" Produces="#UnrealEditor Win64;#UnrealEditor Win64 Unstripped;#UnrealEditor Win64 Stripped;#UnrealEditor Win64 Unsigned;#UnrealEditor Win64 Signed;#UnrealEditor Win64 WithExceptions">
+			<Compile Target="UnrealEditor" Platform="Win64" Configuration="DebugGame" Tag="#UnrealEditor Win64" Arguments="-precompile -allmodules "/>
+			<Compile Target="UnrealEditor" Platform="Win64" Configuration="Development" Tag="#UnrealEditor Win64" Arguments="-precompile -allmodules"/>
 
 			<Do If="$(EmbedSrcSrvInfo)">
 				<!-- Embed source info into the PDB files. Should be done from this machine to ensure that paths are correct. -->
 				<Log Message="Embedding source file information into PDB files..."/>
 				<Tag Files="Engine/Source/...;Engine/Plugins/..." Filter="*.c;*.h;*.cpp;*.hpp;*.inl" Except="Engine/Source/ThirdParty/..." With="#SourceFiles"/>
-				<SrcSrv BinaryFiles="#UE5Editor Win64" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(Change)"/>
+				<SrcSrv BinaryFiles="#UnrealEditor Win64" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(Change)"/>
 			</Do>
 
-			<Tag Files="#UE5Editor Win64" Filter="$(Win64StripFilter)" Except="$(Win64StripExceptions);$(PluginsExceptions)" With="#UE5Editor Win64 Unstripped"/>
+			<Tag Files="#UnrealEditor Win64" Filter="$(Win64StripFilter)" Except="$(Win64StripExceptions);$(PluginsExceptions)" With="#UnrealEditor Win64 Unstripped"/>
 
 			<Switch>
 				<Case If="'$(WithFullDebugInfo)' == true">
 					<!-- Copy files for local debug builds -->
-					<Copy Files="#UE5Editor Win64 Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
+					<Copy Files="#UnrealEditor Win64 Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
 				</Case>
 				<Default>
 					<!-- Otherwise, strip the files for distribution -->
-					<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Win64" Files="#UE5Editor Win64 Unstripped" Tag="#UE5Editor Win64 Stripped"/>
+					<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Win64" Files="#UnrealEditor Win64 Unstripped" Tag="#UnrealEditor Win64 Stripped"/>
 				</Default>
 			</Switch>
 
 			<Do If="'$(SignExecutables)' == true">
-				<Tag Files="#UE5Editor Win64" Filter="$(WindowsSignFilter)" Except="$(PluginsExceptions)" With="#UE5Editor Win64 Unsigned"/>
-				<Copy Files="#UE5Editor Win64 Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Editor_ToSign_Win64"/>
-				<Sign Files="#Editor_ToSign_Win64" Tag="#UE5Editor Win64 Signed"/>
+				<Tag Files="#UnrealEditor Win64" Filter="$(WindowsSignFilter)" Except="$(PluginsExceptions)" With="#UnrealEditor Win64 Unsigned"/>
+				<Copy Files="#UnrealEditor Win64 Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Editor_ToSign_Win64"/>
+				<Sign Files="#Editor_ToSign_Win64" Tag="#UnrealEditor Win64 Signed"/>
 			</Do>
-			<Tag Files="#UE5Editor Win64" Except="$(PluginsExceptions)" With="#UE5Editor Win64 WithExceptions"/>
+			<Tag Files="#UnrealEditor Win64" Except="$(PluginsExceptions)" With="#UnrealEditor Win64 WithExceptions"/>
 
 		</Node>
 	</Agent>
-	<Aggregate Name="Win64 Editor" Label="Editors/Win64" Requires="Compile UE5Editor Win64" Include="Editor Win64"/>
+	<Aggregate Name="Win64 Editor" Label="Editors/Win64" Requires="Compile UnrealEditor Win64" Include="Editor Win64"/>
 
 	<!-- Base editor and tools for compile on Mac -->
 	<Agent Name="Editor Mac" Type="Mac_Licensee">
 		<Node Name="Compile UnrealHeaderTool Mac" Requires="Update Version Files">
 			<Compile Target="UnrealHeaderTool" Platform="Mac" Configuration="Development" Arguments="-precompile -allmodules"/>
 		</Node>
-		<Node Name="Compile UE5Editor Mac" Requires="Compile UnrealHeaderTool Mac" Produces="#UE5Editor Mac;#UE5Editor Mac Unstripped;#UE5Editor Mac Stripped;#UE5Editor Mac Unsigned;#UE5Editor Mac Signed;#UE5Editor Mac WithExceptions">
-			<Compile Target="UE5Editor" Platform="Mac" Configuration="DebugGame" Tag="#UE5Editor Mac" Arguments="-precompile -allmodules"/>
-			<Compile Target="UE5Editor" Platform="Mac" Configuration="Development" Tag="#UE5Editor Mac" Arguments="-precompile -allmodules"/>
+		<Node Name="Compile UnrealEditor Mac" Requires="Compile UnrealHeaderTool Mac" Produces="#UnrealEditor Mac;#UnrealEditor Mac Unstripped;#UnrealEditor Mac Stripped;#UnrealEditor Mac Unsigned;#UnrealEditor Mac Signed;#UnrealEditor Mac WithExceptions">
+			<Compile Target="UnrealEditor" Platform="Mac" Configuration="DebugGame" Tag="#UnrealEditor Mac" Arguments="-precompile -allmodules"/>
+			<Compile Target="UnrealEditor" Platform="Mac" Configuration="Development" Tag="#UnrealEditor Mac" Arguments="-precompile -allmodules"/>
 
-			<Tag Files="#UE5Editor Mac" Filter="$(MacStripFilter)" Except="$(PluginsExceptions)" With="#UE5Editor Mac Unstripped"/>
+			<Tag Files="#UnrealEditor Mac" Filter="$(MacStripFilter)" Except="$(PluginsExceptions)" With="#UnrealEditor Mac Unstripped"/>
 
 			<Switch>
 				<Case If="'$(WithFullDebugInfo)' == true">
 					<!-- Copy files for local debug builds -->
-					<Copy Files="#UE5Editor Mac Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
+					<Copy Files="#UnrealEditor Mac Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
 				</Case>
 				<Default>
 					<!-- Otherwise, strip the files for distribution -->
-					<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Mac" Files="#UE5Editor Mac Unstripped" Tag="#UE5Editor Mac Stripped"/>
+					<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Mac" Files="#UnrealEditor Mac Unstripped" Tag="#UnrealEditor Mac Stripped"/>
 				</Default>
 			</Switch>
 
 			<Do If="'$(SignExecutables)' == true">
-				<Tag Files="#UE5Editor Mac" Filter="$(MacSignFilter)" Except="$(PluginsExceptions)" With="#UE5Editor Mac Unsigned"/>
-				<Copy Files="#UE5Editor Mac Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Editor_ToSign_Mac"/>
-				<Sign Files="#Editor_ToSign_Mac" Tag="#UE5Editor Mac Signed"/>
+				<Tag Files="#UnrealEditor Mac" Filter="$(MacSignFilter)" Except="$(PluginsExceptions)" With="#UnrealEditor Mac Unsigned"/>
+				<Copy Files="#UnrealEditor Mac Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Editor_ToSign_Mac"/>
+				<Sign Files="#Editor_ToSign_Mac" Tag="#UnrealEditor Mac Signed"/>
 			</Do>
 
-			<Tag Files="#UE5Editor Mac" Except="$(PluginsExceptions)" With="#UE5Editor Mac WithExceptions"/>
+			<Tag Files="#UnrealEditor Mac" Except="$(PluginsExceptions)" With="#UnrealEditor Mac WithExceptions"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="Mac Editor" Label="Editors/Mac" Requires="Compile UE5Editor Mac" Include="Editor Mac"/>
+	<Aggregate Name="Mac Editor" Label="Editors/Mac" Requires="Compile UnrealEditor Mac" Include="Editor Mac"/>
 
 	<!-- Base editor and tools for compile on Linux -->
 	<Agent Name="Editor Linux" Type="Win64_Licensee">
 		<Node Name="Compile UnrealHeaderTool Linux" Requires="Update Version Files">
 			<Compile Target="UnrealHeaderTool" Platform="Linux" Configuration="Development" Arguments="-precompile -allmodules"/>
 		</Node>
-		<Node Name="Compile UE5Editor Linux" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UE5Editor Linux;#UE5Editor Linux Unstripped;#UE5Editor Linux Stripped">
-			<Compile Target="UE5Editor" Platform="Linux" Configuration="DebugGame" Tag="#UE5Editor Linux" Arguments="-precompile -allmodules"/>
-			<Compile Target="UE5Editor" Platform="Linux" Configuration="Development" Tag="#UE5Editor Linux" Arguments="-precompile -allmodules"/>
+		<Node Name="Compile UnrealEditor Linux" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UnrealEditor Linux;#UnrealEditor Linux Unstripped;#UnrealEditor Linux Stripped">
+			<Compile Target="UnrealEditor" Platform="Linux" Configuration="DebugGame" Tag="#UnrealEditor Linux" Arguments="-precompile -allmodules"/>
+			<Compile Target="UnrealEditor" Platform="Linux" Configuration="Development" Tag="#UnrealEditor Linux" Arguments="-precompile -allmodules"/>
 
-			<Tag Files="#UE5Editor Linux" Filter="$(LinuxStripFilter)" With="#UE5Editor Linux Unstripped"/>
+			<Tag Files="#UnrealEditor Linux" Filter="$(LinuxStripFilter)" With="#UnrealEditor Linux Unstripped"/>
 
 			<Switch>
 				<Case If="'$(WithFullDebugInfo)' == true">
 					<!-- Copy files for local debug builds -->
-					<Copy Files="#UE5Editor Linux Unstripped" From="$(RootDir)" To="$(SavedOutput)" Tag="#UE5Editor Linux Stripped"/>
+					<Copy Files="#UnrealEditor Linux Unstripped" From="$(RootDir)" To="$(SavedOutput)" Tag="#UnrealEditor Linux Stripped"/>
 				</Case>
 				<Default>
 					<!-- Otherwise, strip the files for distribution -->
-					<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Linux" Files="#UE5Editor Linux Unstripped" Tag="#UE5Editor Linux Stripped"/>
+					<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Linux" Files="#UnrealEditor Linux Unstripped" Tag="#UnrealEditor Linux Stripped"/>
 				</Default>
 			</Switch>
 		</Node>
@@ -608,7 +608,7 @@
 	</Macro>
 
 	<Agent Name="DDC Group Win64" Type="Win64_Licensee">
-		<Node Name="Build DDC Win64" Requires="#UE5Editor Win64;Build Tools Win64;Build Tools CS" Produces="#CompressedDDCWin64">
+		<Node Name="Build DDC Win64" Requires="#UnrealEditor Win64;Build Tools Win64;Build Tools CS" Produces="#CompressedDDCWin64">
 			<!-- Get our temp dir -->
 			<Property Name="DDCDir" Value="$(RootDir)\LocalBuilds\InstalledDDC"/>
 			<Property Name="SavedDir" Value="$(SavedOutput)\Installed\Win64"/>
@@ -616,7 +616,7 @@
 			<Delete Files="$(DDCDir)\..."/>
 			<!-- Build up a list of files needed to build DDC -->
 			<CsCompile Project="Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" Configuration="Development" Platform="AnyCPU" Tag="#ToCopy" TagReferences="#ToCopy" EnumerateOnly="true"/>
-			<Tag Files="#Compile UnrealHeaderTool Win64;#UE5Editor Win64;#Build Tools Win64" With="#ToCopy"/>
+			<Tag Files="#Compile UnrealHeaderTool Win64;#UnrealEditor Win64;#Build Tools Win64" With="#ToCopy"/>
 			<Tag Files="#ToCopy" Filter="*.target" With="#TargetReceipts"/>
 			<TagReceipt Files="#TargetReceipts" RuntimeDependencies="true" With="#ToCopy"/>
 			<Tag Files="Engine\Binaries\DotNET\Ionic.Zip.Reduced.dll" With="#ToCopy"/>
@@ -646,14 +646,14 @@
 	</Do>
 
 	<Agent Name="DDC Group Mac" Type="Mac">
-		<Node Name="Build DDC Mac" Requires="#UE5Editor Mac;Build Tools Mac;#Build Tools CS Binaries" Produces="#CompressedDDCMac">
+		<Node Name="Build DDC Mac" Requires="#UnrealEditor Mac;Build Tools Mac;#Build Tools CS Binaries" Produces="#CompressedDDCMac">
 			<!-- Get our temp dir -->
 			<Property Name="DDCDir" Value="$(RootDir)/LocalBuilds/InstalledDDC"/>
 			<Property Name="SavedDir" Value="$(SavedOutput)/Installed/Mac"/>
 			<!-- Delete all the old files -->
 			<Delete Files="$(DDCDir)/..."/>
 			<!-- Build up a list of files needed to build DDC -->
-			<Tag Files="#Compile UnrealHeaderTool Mac;#UE5Editor Mac;#Build Tools Mac" With="#ToCopy"/>
+			<Tag Files="#Compile UnrealHeaderTool Mac;#UnrealEditor Mac;#Build Tools Mac" With="#ToCopy"/>
 			<Tag Files="#ToCopy" Filter="*.target" With="#TargetReceipts"/>
 			<TagReceipt Files="#TargetReceipts" RuntimeDependencies="true" With="#ToCopy"/>
 			<Tag Files="Engine/Binaries/DotNET/Ionic.Zip.Reduced.dll" With="#ToCopy"/>
@@ -681,8 +681,8 @@
 
 	<Agent Name="DDC Group Linux" Type="Linux;Win64">
 		<!-- Additionally require the Win64 editor binaries if building on win64 -->
-		<Property Name="DDCLinuxRequires" Value="#UE5Editor Linux;Build Tools Linux;#Build Tools CS Binaries"/>
-		<Property Name="DDCLinuxRequires" Value="$(DDCLinuxRequires);#UE5Editor Win64;#Build Tools Win64" If="'$(HostPlatform)' == 'Win64'"/>
+		<Property Name="DDCLinuxRequires" Value="#UnrealEditor Linux;Build Tools Linux;#Build Tools CS Binaries"/>
+		<Property Name="DDCLinuxRequires" Value="$(DDCLinuxRequires);#UnrealEditor Win64;#Build Tools Win64" If="'$(HostPlatform)' == 'Win64'"/>
 		<Node Name="Build DDC Linux" Requires="$(DDCLinuxRequires)" Produces="#CompressedDDCLinux">
 			<!-- Get our temp dir -->
 			<Property Name="DDCDir" Value="$(RootDir)/LocalBuilds/InstalledDDC"/>
@@ -691,8 +691,8 @@
 			<Delete Files="$(DDCDir)/..."/>
 			<!-- Build up a list of files needed to build DDC -->
 			<CsCompile Project="Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" Configuration="Development" Platform="AnyCPU" Tag="#ToCopy" TagReferences="#ToCopy" EnumerateOnly="true"/>
-			<Tag Files="#Compile UnrealHeaderTool $(HostPlatform);#UE5Editor Linux;#Build Tools Linux" With="#ToCopy"/>
-			<Tag Files="#UE5Editor Win64;#Build Tools Win64" With="#ToCopy" If="'$(HostPlatform)' == 'Win64'"/>
+			<Tag Files="#Compile UnrealHeaderTool $(HostPlatform);#UnrealEditor Linux;#Build Tools Linux" With="#ToCopy"/>
+			<Tag Files="#UnrealEditor Win64;#Build Tools Win64" With="#ToCopy" If="'$(HostPlatform)' == 'Win64'"/>
 			<Tag Files="#ToCopy" Filter="*.target" With="#TargetReceipts"/>
 			<TagReceipt Files="#TargetReceipts" RuntimeDependencies="true" With="#ToCopy"/>
 			<Tag Files="Engine/Content/..." Except="*.psd;*.pdn;*.fbx;*.po" With="#ToCopy"/>
@@ -722,7 +722,7 @@
 			<Do If="$(CompileDatasmithPlugins) == 'True'">
 				<Property Name="DatasmithPlugins" Value="DatasmithCADImporter;DatasmithIFCImporter;DatasmithC4DImporter;AxFImporter;StaticMeshEditorExtension;MDLImporter"/>
 				<ForEach Name="Plugin" Values="$(DatasmithPlugins)">
-					<Compile Target="UE5Editor" Configuration="Development" Platform="Win64" Arguments="-Plugin=&quot;$(RootDir)/Engine/Plugins/Enterprise/$(Plugin)/$(Plugin).uplugin&quot;"/>
+					<Compile Target="UnrealEditor" Configuration="Development" Platform="Win64" Arguments="-Plugin=&quot;$(RootDir)/Engine/Plugins/Enterprise/$(Plugin)/$(Plugin).uplugin&quot;"/>
 					<Tag Files="$(RootDir)/Engine/Plugins/Enterprise/$(Plugin)/Binaries/..." With="#DatasmithPluginBinaries Win64"/>
 				</ForEach>
 			</Do>
@@ -734,7 +734,7 @@
 			<Do If="$(CompileDatasmithPlugins) == 'True'">
 				<Property Name="DatasmithPlugins" Value="DatasmithCADImporter;DatasmithIFCImporter;DatasmithC4DImporter;AxFImporter;StaticMeshEditorExtension;MDLImporter"/>
 				<ForEach Name="Plugin" Values="$(DatasmithPlugins)">
-					<Compile Target="UE5Editor" Configuration="Development" Platform="Mac" Arguments="-Plugin=&quot;$(RootDir)/Engine/Plugins/Enterprise/$(Plugin)/$(Plugin).uplugin&quot;"/>
+					<Compile Target="UnrealEditor" Configuration="Development" Platform="Mac" Arguments="-Plugin=&quot;$(RootDir)/Engine/Plugins/Enterprise/$(Plugin)/$(Plugin).uplugin&quot;"/>
 					<Tag Files="$(RootDir)/Engine/Plugins/Enterprise/$(Plugin)/Binaries/..." With="#DatasmithPluginBinaries Mac"/>
 				</ForEach>
 			</Do>
@@ -743,7 +743,7 @@
 
 	<Agent Name="Installed Build Group Win64" Type="Win64_Licensee">
 		<!-- Build up a list of requirements as some can be optional -->
-		<Property Name="InstalledRequirements" Value="Compile UnrealHeaderTool Win64;#UE5Editor Win64 WithExceptions;#UE5Editor Win64 Unstripped;#UE5Editor Win64 Stripped;#UE5Editor Win64 Unsigned;#UE5Editor Win64 Signed;#Build Tools Win64;#Build Tools CS Binaries;#Rules Assemblies"/>
+		<Property Name="InstalledRequirements" Value="Compile UnrealHeaderTool Win64;#UnrealEditor Win64 WithExceptions;#UnrealEditor Win64 Unstripped;#UnrealEditor Win64 Stripped;#UnrealEditor Win64 Unsigned;#UnrealEditor Win64 Signed;#Build Tools Win64;#Build Tools CS Binaries;#Rules Assemblies"/>
 		<!-- Optional Target Platform requirements -->
 		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
 			<Expand Name="$(Platform)_AddInstalledRequirements"/>
@@ -776,8 +776,8 @@
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Win64" With="#Installed Win64"/>
-			<Tag Files="#UE5Editor Win64 WithExceptions" Except="#UE5Editor Win64 Unstripped;#UE5Editor Win64 Unsigned" With="#Installed Win64"/>
-			<Tag Files="#UE5Editor Win64 Stripped;#UE5Editor Win64 Signed" With="#Saved Output"/>
+			<Tag Files="#UnrealEditor Win64 WithExceptions" Except="#UnrealEditor Win64 Unstripped;#UnrealEditor Win64 Unsigned" With="#Installed Win64"/>
+			<Tag Files="#UnrealEditor Win64 Stripped;#UnrealEditor Win64 Signed" With="#Saved Output"/>
 			<Tag Files="#Build Tools Win64;#Make Feature Packs;#Rules Assemblies" With="#Installed Win64"/>
 			<Tag Files="#DatasmithPluginBinaries Win64" With="#Installed Win64" If="$(CompileDatasmithPlugins)"/>
 
@@ -904,7 +904,7 @@
 
 	<Agent Name="Installed Build Group Mac" Type="Mac_Licensee">
 		<!-- Build up a list of requirements as some can be optional -->
-		<Property Name="FilterRequirements" Value="#Compile UnrealHeaderTool Mac;#UE5Editor Mac WithExceptions;#UE5Editor Mac Unstripped;#UE5Editor Mac Stripped;#UE5Editor Mac Unsigned;#UE5Editor Mac Signed;#Build Tools Mac;#Build Tools CS Binaries;#Rules Assemblies"/>
+		<Property Name="FilterRequirements" Value="#Compile UnrealHeaderTool Mac;#UnrealEditor Mac WithExceptions;#UnrealEditor Mac Unstripped;#UnrealEditor Mac Stripped;#UnrealEditor Mac Unsigned;#UnrealEditor Mac Signed;#Build Tools Mac;#Build Tools CS Binaries;#Rules Assemblies"/>
 
 		<!-- Optional Target Platform requirements -->
 		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UE4Game Mac;#UE4Game Mac Unstripped;#UE4Game Mac Stripped;#UE4Game Mac Unsigned;#UE4Game Mac Signed" If="'$(WithMac)' == true"/>
@@ -932,8 +932,8 @@
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Mac" With="#Installed Mac"/>
-			<Tag Files="#UE5Editor Mac WithExceptions" Except="#UE5Editor Mac Unstripped;#UE5Editor Mac Unsigned" With="#Installed Mac"/>
-			<Tag Files="#UE5Editor Mac Stripped;#UE5Editor Mac Signed" With="#Saved Output"/>
+			<Tag Files="#UnrealEditor Mac WithExceptions" Except="#UnrealEditor Mac Unstripped;#UnrealEditor Mac Unsigned" With="#Installed Mac"/>
+			<Tag Files="#UnrealEditor Mac Stripped;#UnrealEditor Mac Signed" With="#Saved Output"/>
 			<Tag Files="#Build Tools Mac;#Make Feature Packs;#Rules Assemblies" With="#Installed Mac"/>
 			<Tag Files="#DatasmithPluginBinaries Mac" With="#Installed Mac" If="$(CompileDatasmithPlugins)"/>
 
@@ -1034,7 +1034,7 @@
 
 	<Agent Name="Installed Build Group Linux" Type="Win64_Licensee">
 		<!-- Build up a list of requirements as some can be optional -->
-		<Property Name="InstalledRequirements" Value="#Compile UnrealHeaderTool Linux;#UE5Editor Linux;#UE5Editor Linux Unstripped;#UE5Editor Linux Stripped;#Build Tools Linux;#Build Tools CS Binaries;#Rules Assemblies"/>
+		<Property Name="InstalledRequirements" Value="#Compile UnrealHeaderTool Linux;#UnrealEditor Linux;#UnrealEditor Linux Unstripped;#UnrealEditor Linux Stripped;#Build Tools Linux;#Build Tools CS Binaries;#Rules Assemblies"/>
 
 		<!-- Optional Target Platform requirements -->
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped" If="'$(WithLinux)' == true"/>
@@ -1059,8 +1059,8 @@
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Linux" With="#Installed Linux"/>
-			<Tag Files="#UE5Editor Linux" Except="#UE5Editor Linux Unstripped" With="#Installed Linux"/>
-			<Tag Files="#UE5Editor Linux Stripped" With="#Saved Output"/>
+			<Tag Files="#UnrealEditor Linux" Except="#UnrealEditor Linux Unstripped" With="#Installed Linux"/>
+			<Tag Files="#UnrealEditor Linux Stripped" With="#Saved Output"/>
 			<Tag Files="#Build Tools Linux;#Make Feature Packs;#Rules Assemblies" With="#Installed Linux"/>
 
 			<!-- Tag enabled target platforms -->

@@ -808,7 +808,7 @@ namespace UnrealBuildTool
 					BaseTargetName = "UE4Game";
 					break;
 				case TargetType.Editor:
-					BaseTargetName = "UE5Editor";
+					BaseTargetName = "UnrealEditor";
 					break;
 				case TargetType.Client:
 					BaseTargetName = "UE4Client";
@@ -921,7 +921,7 @@ namespace UnrealBuildTool
 		public TargetType TargetType;
 
 		/// <summary>
-		/// The name of the application the target is part of. For targets with bUseSharedBuildEnvironment = true, this is typically the name of the base application, eg. UE5Editor for any game editor.
+		/// The name of the application the target is part of. For targets with bUseSharedBuildEnvironment = true, this is typically the name of the base application, eg. UnrealEditor for any game editor.
 		/// </summary>
 		public string AppName;
 
@@ -1149,7 +1149,7 @@ namespace UnrealBuildTool
 				case TargetType.Server:
 					return "UE4Server";
 				case TargetType.Editor:
-					return "UE5Editor";
+					return "UnrealEditor";
 				default:
 					throw new BuildException("Invalid target type ({0})", (int)Type);
 			}

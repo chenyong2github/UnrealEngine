@@ -111,7 +111,7 @@ class CopySharedCookedBuild : BuildCommand
 				}
 
 				// Get the name of the editor target
-				string EditorTargetName = "UE5Editor";
+				string EditorTargetName = "UnrealEditor";
 				if(bIsProjectFile)
 				{
 					string SourceDirectoryName = Path.Combine(Path.GetDirectoryName(ProjectFileName), "Source");

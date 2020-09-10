@@ -748,7 +748,7 @@ bool UProcessUnitTest::IsBlockingProcessPresent(bool bLogIfFound/*=false*/)
 					TEXT("Recommend generating shaders separately before running unit tests, to avoid bugs and unit test failure."));
 
 			UNIT_LOG(ELogType::StatusImportant,
-					TEXT("One way to do this (takes a long time), is through: UE5Editor-Cmd YourGame -run=DerivedDataCache -fill"));
+					TEXT("One way to do this (takes a long time), is through: UnrealEditor-Cmd YourGame -run=DerivedDataCache -fill"));
 		}
 	}
 

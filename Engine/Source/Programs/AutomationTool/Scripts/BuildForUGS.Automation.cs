@@ -20,7 +20,7 @@ namespace AutomationTool
 			string[] Targets = ParseParamValues("Target");
 			if(Targets.Length == 0)
 			{
-				throw new AutomationException("No targets specified (eg. -Target=\"UE5Editor Win64 Development\")");
+				throw new AutomationException("No targets specified (eg. -Target=\"UnrealEditor Win64 Development\")");
 			}
 
 			// Parse the archive path

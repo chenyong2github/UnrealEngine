@@ -20,7 +20,7 @@ namespace UnrealBuildTool
 		Game,
 
 		/// <summary>
-		/// Uncooked modular editor executable and DLLs (UE5Editor.exe, UE5Editor*.dll, GameName*.dll)
+		/// Uncooked modular editor executable and DLLs (UnrealEditor.exe, UnrealEditor*.dll, GameName*.dll)
 		/// </summary>
 		Editor,
 
@@ -304,7 +304,7 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Build all the plugins that we can find, even if they're not enabled. This is particularly useful for content-only projects,
-		/// where you're building the UE5Editor target but running it with a game that enables a plugin.
+		/// where you're building the UnrealEditor target but running it with a game that enables a plugin.
 		/// </summary>
 		[Obsolete("bBuildAllPlugins has been deprecated. Use bPrecompile to build all modules which are not part of the target.")]
 		public bool bBuildAllPlugins = false;

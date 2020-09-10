@@ -288,7 +288,7 @@ class Localize : BuildCommand
 		// Begin the gather command for each task
 		// These can run in parallel when ParallelGather is enabled
 		{
-			var EditorExe = CombinePaths(CmdEnv.LocalRoot, @"Engine/Binaries/Win64/UE5Editor-Cmd.exe");
+			var EditorExe = CombinePaths(CmdEnv.LocalRoot, @"Engine/Binaries/Win64/UnrealEditor-Cmd.exe");
 
 			// Set the common basic editor arguments
 			var EditorArguments = P4Enabled 
@@ -645,7 +645,7 @@ public class ExportMcpTemplates : BuildCommand
 
 	public static void RunExportTemplates(FileReference ProjectFile, bool bCheckoutAndSubmit, bool bOnlyLoc, bool bbNoRobomerge, string CommandletOverride)
 	{
-		string EditorExe = "UE5Editor.exe";
+		string EditorExe = "UnrealEditor.exe";
 		EditorExe = HostPlatform.Current.GetUE4ExePath(EditorExe);
 
 		string GameBackendFolder = GetGameBackendFolder(ProjectFile);

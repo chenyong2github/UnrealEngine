@@ -218,7 +218,7 @@ bool FWindowsPlatformInstallation::LaunchEditor(const FString &RootDirName, cons
 	FString FileName;
 	if (ExplicitFileName.IsEmpty())
 	{
-		FileName = RootDirName / TEXT("Engine/Binaries/Win64/UE5Editor.exe");
+		FileName = RootDirName / TEXT("Engine/Binaries/Win64/UnrealEditor.exe");
 	}
 	else
 	{

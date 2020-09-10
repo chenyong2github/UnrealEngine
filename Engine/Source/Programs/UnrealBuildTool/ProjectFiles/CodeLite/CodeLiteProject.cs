@@ -55,7 +55,7 @@ namespace UnrealBuildTool
 				GameWorkingDirectory = Path.Combine (Path.GetDirectoryName (OnlyGameProject.FullName), "Binaries", ProjectPlatformName);
 			}
 			//
-			// Build the working directory of the UE5Editor executable.
+			// Build the working directory of the UnrealEditor executable.
 			//
 			string UE4EditorWorkingDirectory = Path.Combine(EngineRootDirectory, "Binaries", ProjectPlatformName);
 
@@ -125,7 +125,7 @@ namespace UnrealBuildTool
 						if (TargetName.Equals("UE4Client") ||
 							TargetName.Equals("UE4Server") ||
 							TargetName.Equals("UE4Game") ||
-							TargetName.Equals("UE5Editor"))
+							TargetName.Equals("UnrealEditor"))
 						{
 							int Idx = UnrealBuildTool.EngineDirectory.FullName.Length;
 							CurrentFilePath = Path.GetDirectoryName(Path.GetFullPath(CurrentFile.Reference.FullName)).Substring(Idx);
@@ -259,7 +259,7 @@ namespace UnrealBuildTool
 						}
 						else if (ProjectTargetType == TargetType.Editor)
 						{
-							ExecutableToRun = "./UE5Editor";
+							ExecutableToRun = "./UnrealEditor";
 							if ((CurConf == UnrealTargetConfiguration.Debug) || 
 								(CurConf == UnrealTargetConfiguration.Shipping) || 
 								(CurConf == UnrealTargetConfiguration.Test))
@@ -287,14 +287,14 @@ namespace UnrealBuildTool
 						}
 						else if (ProjectTargetType == TargetType.Editor)
 						{
-							ExecutableToRun = "./UE5Editor";
+							ExecutableToRun = "./UnrealEditor";
 							if ((CurConf == UnrealTargetConfiguration.Debug) || 
 								(CurConf == UnrealTargetConfiguration.Shipping) || 
 								(CurConf == UnrealTargetConfiguration.Test))
 							{
 								ExecutableToRun += PlatformConfiguration;
 							}
-							ExecutableToRun += ".app/Contents/MacOS/UE5Editor";
+							ExecutableToRun += ".app/Contents/MacOS/UnrealEditor";
 							if ((CurConf != UnrealTargetConfiguration.Development) && (CurConf != UnrealTargetConfiguration.DebugGame))
 							{
 								ExecutableToRun += PlatformConfiguration;
@@ -315,7 +315,7 @@ namespace UnrealBuildTool
 						}
 						else if (ProjectTargetType == TargetType.Editor)
 						{
-							ExecutableToRun = "UE5Editor";
+							ExecutableToRun = "UnrealEditor";
 							if ((CurConf == UnrealTargetConfiguration.Debug) || 
 								(CurConf == UnrealTargetConfiguration.Shipping) || 
 								(CurConf == UnrealTargetConfiguration.Test))
@@ -353,7 +353,7 @@ namespace UnrealBuildTool
 					} 
 					else if (ProjectTargetType == TargetType.Editor) 
 					{
-						if (TargetName != "UE5Editor" && GameProjectFile != "")
+						if (TargetName != "UnrealEditor" && GameProjectFile != "")
 						{
 							string commandArguments = "\"" + GameProjectFile + "\"" + " -game";
 							XAttribute CommandArguments = new XAttribute("CommandArguments", commandArguments);

@@ -13,7 +13,7 @@ namespace UnrealBuildTool
 {
 	/// <summary>
 	/// Cleans build products and intermediates for the target. This deletes files which are named consistently with the target being built
-	/// (e.g. UE5Editor-Foo-Win64-Debug.dll) rather than an actual record of previous build products.
+	/// (e.g. UnrealEditor-Foo-Win64-Debug.dll) rather than an actual record of previous build products.
 	/// </summary>
 	[ToolMode("Clean", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance)]
 	class CleanMode : ToolMode

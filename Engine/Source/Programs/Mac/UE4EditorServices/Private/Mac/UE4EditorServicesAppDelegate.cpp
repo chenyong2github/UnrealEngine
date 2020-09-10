@@ -60,7 +60,7 @@
 	{
 		if (Iter.Key() == EngineAssociation)
 		{
-			FString BundlePath = Iter.Value() / TEXT("Engine/Binaries/Mac/UE5Editor.app");
+			FString BundlePath = Iter.Value() / TEXT("Engine/Binaries/Mac/UnrealEditor.app");
 			return [NSBundle bundleWithPath:BundlePath.GetNSString()];
 		}
 	}
@@ -226,7 +226,7 @@
 	NSString* EnginePath = [self findEngineForUProjectFile:FileURL];
 	if (EnginePath)
 	{
-		NSURL* EditorBundleURL = [NSURL fileURLWithPath:[EnginePath stringByAppendingPathComponent:@"Engine/Binaries/Mac/UE5Editor.app"]];
+		NSURL* EditorBundleURL = [NSURL fileURLWithPath:[EnginePath stringByAppendingPathComponent:@"Engine/Binaries/Mac/UnrealEditor.app"]];
 		if (EditorBundleURL)
 		{
 			NSDictionary* Configuration = [NSDictionary dictionaryWithObject:[NSArray arrayWithObjects:[FileURL path], nil] forKey:NSWorkspaceLaunchConfigurationArguments];
@@ -252,7 +252,7 @@
 		NSString* EnginePath = [self findEngineForUProjectFile:FileURL];
 		if (EnginePath)
 		{
-			NSURL* EditorBundleURL = [NSURL fileURLWithPath:[EnginePath stringByAppendingPathComponent:@"Engine/Binaries/Mac/UE5Editor.app"]];
+			NSURL* EditorBundleURL = [NSURL fileURLWithPath:[EnginePath stringByAppendingPathComponent:@"Engine/Binaries/Mac/UnrealEditor.app"]];
 			if (EditorBundleURL)
 			{
 				NSDictionary* Configuration = [NSDictionary dictionaryWithObject:[NSArray arrayWithObjects:[FileURL path], @"-game", nil] forKey:NSWorkspaceLaunchConfigurationArguments];
@@ -388,7 +388,7 @@
 	else
 	{
 		EditorDescription = @"Binary Build";
-		NSBundle* EditorBundle = [NSBundle bundleWithPath:[EnginePath stringByAppendingPathComponent:@"Engine/Binaries/Mac/UE5Editor.app"]];
+		NSBundle* EditorBundle = [NSBundle bundleWithPath:[EnginePath stringByAppendingPathComponent:@"Engine/Binaries/Mac/UnrealEditor.app"]];
 		if (EditorBundle)
 		{
 			EditorDescription = (NSString*)[[EditorBundle infoDictionary] objectForKey:@"CFBundleVersion"];
@@ -410,7 +410,7 @@
 
 - (BOOL)isAppValidForUProjectFiles:(NSBundle*)AppBundle
 {
-	return AppBundle && ([[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UE5Editor"] || [[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UE4EditorServices"])
+	return AppBundle && ([[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditor"] || [[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UE4EditorServices"])
 					 && [[[AppBundle bundlePath] stringByDeletingLastPathComponent] hasSuffix:@"Engine/Binaries/Mac"]
 					 && [[AppBundle bundlePath] rangeOfString:@".app/Contents/UE4"].location == NSNotFound;
 }

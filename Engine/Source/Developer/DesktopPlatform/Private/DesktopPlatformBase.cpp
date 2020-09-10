@@ -565,10 +565,10 @@ bool FDesktopPlatformBase::CompileGameProject(const FString& RootDir, const FStr
 	// Build the argument list
 	FString Arguments = FString::Printf(TEXT("%s %s"), ModuleManager.GetUBTConfiguration(), FPlatformMisc::GetUBTPlatform());
 
-	// Append the project name if it's a foreign project. Otherwise compile UE5Editor.
+	// Append the project name if it's a foreign project. Otherwise compile UnrealEditor.
 	if ( ProjectFileName.IsEmpty() )
 	{
-		Arguments = TEXT("UE5Editor ") + Arguments;
+		Arguments = TEXT("UnrealEditor ") + Arguments;
 	}
 	else
 	{

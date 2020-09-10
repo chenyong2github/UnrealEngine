@@ -839,7 +839,7 @@ namespace AutomationTool
             this.RunAutomationTest = ParseParamValueIfNotSpecified(Command, RunAutomationTest, "RunAutomationTest");
             this.RunAutomationTests = this.RunAutomationTest != "" || GetParamValueIfNotSpecified(Command, RunAutomationTests, this.RunAutomationTests, "RunAutomationTests");
             this.SkipServer = GetParamValueIfNotSpecified(Command, SkipServer, this.SkipServer, "skipserver");
-			this.UE4Exe = ParseParamValueIfNotSpecified(Command, UE4Exe, "ue4exe", "UE5Editor-Cmd.exe");
+			this.UE4Exe = ParseParamValueIfNotSpecified(Command, UE4Exe, "ue4exe", "UnrealEditor-Cmd.exe");
 			this.Unattended = GetParamValueIfNotSpecified(Command, Unattended, this.Unattended, "unattended");
 			this.DeviceUsername = ParseParamValueIfNotSpecified(Command, DeviceUsername, "deviceuser", String.Empty);
 			this.DevicePassword = ParseParamValueIfNotSpecified(Command, DevicePassword, "devicepass", String.Empty);
@@ -1336,7 +1336,7 @@ namespace AutomationTool
 		[Help("stagingdirectory=Path", "Directory to copy the builds to, i.e. -stagingdirectory=C:\\Stage")]
 		public string StageDirectoryParam;
         
-		[Help("ue4exe=ExecutableName", "Name of the UE4 Editor executable, i.e. -ue4exe=UE5Editor.exe")]
+		[Help("ue4exe=ExecutableName", "Name of the UE4 Editor executable, i.e. -ue4exe=UnrealEditor.exe")]
 		public string UE4Exe;
 
 		/// <summary>
@@ -2052,7 +2052,7 @@ namespace AutomationTool
 			if (!bIsCodeBasedProject)
 			{
 				GameTarget = Client ? "UE4Client" : "UE4Game";
-				EditorTarget = "UE5Editor";
+				EditorTarget = "UnrealEditor";
 				ServerTarget = "UE4Server";
 			}
 			else if (TargetNames.Count > 0)
@@ -2222,7 +2222,7 @@ namespace AutomationTool
 			{
 				if (Properties.bWasGenerated)
 				{
-					EditorTarget = "UE5Editor";
+					EditorTarget = "UnrealEditor";
 				}
 				else
 				{

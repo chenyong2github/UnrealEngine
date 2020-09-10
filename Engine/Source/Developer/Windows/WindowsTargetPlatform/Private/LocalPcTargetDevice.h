@@ -253,7 +253,7 @@ public:
 		}
 		else if (TargetType == EBuildTargetType::Editor)
 		{
-			ExecutablePath /= TEXT("UE5Editor");
+			ExecutablePath /= TEXT("UnrealEditor");
 		}
 
 		if (BuildConfiguration != EBuildConfiguration::Development)
