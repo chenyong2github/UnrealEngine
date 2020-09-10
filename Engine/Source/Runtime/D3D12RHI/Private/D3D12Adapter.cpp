@@ -179,9 +179,6 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	, DefaultContextRedirector(this, true, false)
 	, DefaultAsyncComputeContextRedirector(this, true, true)
 	, FrameCounter(0)
-#if D3D12_SUBMISSION_GAP_RECORDER
-	, CurrentContextIndex(0)
-#endif
 	, DebugFlags(0)
 {
 	FMemory::Memzero(&UploadHeapAllocator, sizeof(UploadHeapAllocator));
@@ -1078,31 +1075,31 @@ void FD3D12Adapter::SubmitGapRecorderTimestamps()
 	if (GEnableGapRecorder && GGapRecorderActiveOnBeginFrame)
 	{
 		FrameCounter++;
-		int32 PreviousContext = 1 - CurrentContextIndex;
 		uint64 TotalSubmitWaitGPUCycles = 0;
 
 		int32 CurrentSlotIdx = Device->GetCmdListExecTimeQueryHeap()->GetNextFreeIdx();
 		SubmissionGapRecorder.SetEndFrameSlotIdx(CurrentSlotIdx);
 
 		TArray<FD3D12CommandListManager::FResolvedCmdListExecTime> TimingPairs;
-		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs, GGapRecorderUseBlockingCall==1);
+		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs, !!GGapRecorderUseBlockingCall);
 
-		StartOfSubmissionTimestamp[CurrentContextIndex].Empty();
-		EndOfSubmissionTimestamp[CurrentContextIndex].Empty();
+		const int32 NumTimingPairs = TimingPairs.Num();
+		StartOfSubmissionTimestamps.Empty(NumTimingPairs);
+		EndOfSubmissionTimestamps.Empty(NumTimingPairs);
 
 		// Convert Timing Pairs to flat arrays would be good to refactor data structures to make this unnecessary
-		for (int32 i = 0; i < TimingPairs.Num(); i++)
+		for (int32 i = 0; i < NumTimingPairs; i++)
 		{
-			StartOfSubmissionTimestamp[CurrentContextIndex].Add(TimingPairs[i].StartTimestamp);
-			EndOfSubmissionTimestamp[CurrentContextIndex].Add(TimingPairs[i].EndTimestamp);
+			StartOfSubmissionTimestamps.Add(TimingPairs[i].StartTimestamp);
+			EndOfSubmissionTimestamps.Add(TimingPairs[i].EndTimestamp);
 		}
 
-		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("EndFrame TimingPairs %d StartOfSubmissionTimestamp %d EndOfSubmissionTimestamp %d"), TimingPairs.Num(), StartOfSubmissionTimestamp[CurrentContextIndex].Num(), EndOfSubmissionTimestamp[CurrentContextIndex].Num());
+		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("EndFrame TimingPairs %d StartOfSubmissionTimestamp %d EndOfSubmissionTimestamp %d"), NumTimingPairs, StartOfSubmissionTimestamps.Num(), EndOfSubmissionTimestamps.Num());
 
 		// Process the timestamp submission gaps for the previous frame
-		if (StartOfSubmissionTimestamp[PreviousContext].Num() > 0 && EndOfSubmissionTimestamp[PreviousContext].Num() > 0)
+		if (NumTimingPairs > 0)
 		{
-			TotalSubmitWaitGPUCycles = SubmissionGapRecorder.SubmitSubmissionTimestampsForFrame(FrameCounter, StartOfSubmissionTimestamp[PreviousContext], EndOfSubmissionTimestamp[PreviousContext]);
+			TotalSubmitWaitGPUCycles = SubmissionGapRecorder.SubmitSubmissionTimestampsForFrame(FrameCounter, StartOfSubmissionTimestamps, EndOfSubmissionTimestamps);
 		}
 
 		double TotalSubmitWaitTimeSeconds = TotalSubmitWaitGPUCycles / (float)FGPUTiming::GetTimingFrequency();
@@ -1121,10 +1118,8 @@ void FD3D12Adapter::SubmitGapRecorderTimestamps()
 			GGPUFrameTime -= TotalSubmitWaitCycles;
 		}
 
-		StartOfSubmissionTimestamp[PreviousContext].Reset();
-		EndOfSubmissionTimestamp[PreviousContext].Reset();
-
-		CurrentContextIndex = 1 - CurrentContextIndex;
+		StartOfSubmissionTimestamps.Reset();
+		EndOfSubmissionTimestamps.Reset();
 
 		GGapRecorderActiveOnBeginFrame = false;
 	}

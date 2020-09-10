@@ -61,13 +61,9 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	, LastCompleteGeneration(0)
 	, IsClosed(false)
 	, bShouldTrackStartEndTime(false)
-	, FrameSubmitted(0)
 	, PendingResourceBarriers()
 	, ResidencySet(nullptr)
 	, CommandListID(GenerateCommandListID())
-#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	, StartTimeQueryIdx(INDEX_NONE)
-#endif
 {
 	VERIFYD3D12RESULT(ParentDevice->GetDevice()->CreateCommandList(GetGPUMask().GetNative(), CommandListType, CommandAllocator, nullptr, IID_PPV_ARGS(CommandList.GetInitReference())));
 	INC_DWORD_STAT(STAT_D3D12NumCommandLists);
@@ -223,20 +219,18 @@ int32 FD3D12CommandListHandle::FD3D12CommandListData::CreateAndInsertTimestampQu
 void FD3D12CommandListHandle::FD3D12CommandListData::StartTrackingCommandListTime()
 {
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	check(!IsClosed && !bShouldTrackStartEndTime && StartTimeQueryIdx == INDEX_NONE);
+	check(!IsClosed && !bShouldTrackStartEndTime);
 	bShouldTrackStartEndTime = true;
-	StartTimeQueryIdx = CreateAndInsertTimestampQuery();
+	CreateAndInsertTimestampQuery();
 #endif
 }
 
 void FD3D12CommandListHandle::FD3D12CommandListData::FinishTrackingCommandListTime()
 {
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	check(!IsClosed && bShouldTrackStartEndTime && StartTimeQueryIdx != INDEX_NONE);
+	check(!IsClosed && bShouldTrackStartEndTime);
 	bShouldTrackStartEndTime = false;
-	const int32 EndTimeQueryIdx = CreateAndInsertTimestampQuery();
-	CommandListManager->AddCommandListTimingPair(StartTimeQueryIdx, EndTimeQueryIdx);
-	StartTimeQueryIdx = INDEX_NONE;
+	CreateAndInsertTimestampQuery();
 #endif
 }
 
