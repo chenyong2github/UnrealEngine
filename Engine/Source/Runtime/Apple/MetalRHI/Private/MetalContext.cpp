@@ -152,6 +152,9 @@ static FAutoConsoleVariableRef CVarMetalDefaultTransferAllocation(
 static ns::AutoReleased<ns::Object<id <NSObject>>> GMetalDeviceObserver;
 static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 {
+#if PLATFORM_MAC_ARM64
+    return mtlpp::Device::CreateSystemDefaultDevice();
+#else
 	SCOPED_AUTORELEASE_POOL;
 	
 	DeviceIndex = 0;
@@ -293,6 +296,7 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 		}
 	}
 	return SelectedDevice;
+#endif // PLATFORM_MAC_ARM64
 }
 
 mtlpp::PrimitiveTopologyClass TranslatePrimitiveTopology(uint32 PrimitiveType)

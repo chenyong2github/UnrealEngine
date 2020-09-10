@@ -91,8 +91,18 @@ void FMacErrorOutputDevice::HandleError()
 	// Dump the error and flush the log.
 	UE_LOG(LogMac, Log, TEXT("=== Critical error: ===") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR, GErrorExceptionDescription);
 	UE_LOG(LogMac, Log, TEXT("%s"), GErrorHist);
-
-	GLog->Flush();
+    
+    GLog->Flush();
+    
+#if PLATFORM_MAC_ARM64
+    // stack dumping seems broken on arm, so for the time being spin so we can dump callstacks
+    // via activity monitor to find broken things.
+    while (true)
+    {
+        FPlatformMisc::LowLevelOutputDebugString(TEXT("Spinning after fatal error.."));
+        FPlatformProcess::Sleep( 1.0 );
+    }
+#endif
 
 	HandleErrorRestoreUI();
 
