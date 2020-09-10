@@ -23,6 +23,7 @@
 #include "UnrealEdMisc.h"
 #include "Classes/EditorStyleSettings.h"
 #include "VREditorInteractor.h"
+#include "Editor/UnrealEd/Classes/Settings/LevelEditorMiscSettings.h"
 
 #define LOCTEXT_NAMESPACE "VREditor"
 
@@ -134,6 +135,7 @@ void FVREditorModeManager::EnableVREditor( const bool bEnable, const bool bForce
 		if( bEnable && ( IsVREditorAvailable() || bForceWithoutHMD ))
 		{
 			UEditorStyleSettings* StyleSettings = GetMutableDefault<UEditorStyleSettings>();
+			ULevelEditorMiscSettings* LevelEditorSettings = GetMutableDefault<ULevelEditorMiscSettings>();
 			const UVRModeSettings* VRModeSettings = GetDefault<UVRModeSettings>();
 			bool bUsingDefaultInteractors = true;
 			if (VRModeSettings)
@@ -146,9 +148,11 @@ void FVREditorModeManager::EnableVREditor( const bool bEnable, const bool bForce
 					bUsingDefaultInteractors = (InteractorClassSoft.Get() == UVREditorInteractor::StaticClass());
 				}
 			}
-			if ( bUsingDefaultInteractors && StyleSettings && !StyleSettings->bEnableLegacyEditorModeUI)
+			if ( bUsingDefaultInteractors && 
+				((StyleSettings && !StyleSettings->bEnableLegacyEditorModeUI)
+					|| (LevelEditorSettings && !LevelEditorSettings->bEnableLegacyMeshPaintMode)))
 			{
-				FSuppressableWarningDialog::FSetupInfo SetupInfo(LOCTEXT("VRModeLegacyModeUIEntry_Message", "VR Mode currently requires that legacy editor mode UI be enabled.  Without this, modes like mesh paint, landscape, and foliage will not function.  Enable Legacy editor mode UI (Requires restart)?"),
+				FSuppressableWarningDialog::FSetupInfo SetupInfo(LOCTEXT("VRModeLegacyModeUIEntry_Message", "VR Mode currently requires that legacy editor mode UI be enabled.  Without this, modes like mesh paint, landscape, and foliage will not function.  Enable Legacy editor mode UI and legacy mesh paint (Requires restart)?"),
 					LOCTEXT("VRModeEntry_Title", "Entering VR Mode - Experimental"), "Warning_VRModeLegacyModeUIEntry", GEditorSettingsIni);
 
 				SetupInfo.ConfirmText = LOCTEXT("VRModeLegacyModeUIEntry_ConfirmText", "Enable and Restart");
@@ -161,6 +165,8 @@ void FVREditorModeManager::EnableVREditor( const bool bEnable, const bool bForce
 				{
 					StyleSettings->bEnableLegacyEditorModeUI = true;
 					StyleSettings->SaveConfig();
+					LevelEditorSettings->bEnableLegacyMeshPaintMode = true;
+					LevelEditorSettings->SaveConfig();
 					FUnrealEdMisc::Get().RestartEditor(true);
 					return;
 				}
