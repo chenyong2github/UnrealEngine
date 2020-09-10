@@ -260,7 +260,7 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionActorDesc* InA
 						bClearParentLoadedChild = !CellNode.HasChildLoadedNodes();
 					}
 
-
+					CellNode.RemoveChildNode(ChildIndex);
 
 					if (CellNode.HasChildNodes())
 					{
