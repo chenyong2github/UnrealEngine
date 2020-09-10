@@ -1282,6 +1282,15 @@ namespace
 		Parser.RequireSymbol(TEXT(')'), ErrorMessageGetter);
 	}
 
+	void SkipAlignasAndDeprecatedMacroIfNecessary(FBaseParser& Parser)
+	{
+		// alignas() can come before or after the deprecation macro.
+		// We can't have both, but the compiler will catch that anyway.
+		SkipAlignasIfNecessary(Parser);
+		SkipDeprecatedMacroIfNecessary(Parser);
+		SkipAlignasIfNecessary(Parser);
+	}
+
 	static const TCHAR* GLayoutMacroNames[] = {
 		TEXT("LAYOUT_ARRAY"),
 		TEXT("LAYOUT_ARRAY_EDITORONLY"),
@@ -1582,13 +1591,14 @@ UEnum* FHeaderParser::CompileEnum()
 
 	if (EnumToken.Matches(TEXT("namespace"), ESearchCase::CaseSensitive))
 	{
-		CppForm       = UEnum::ECppForm::Namespaced;
+		CppForm = UEnum::ECppForm::Namespaced;
+
+		SkipDeprecatedMacroIfNecessary(*this);
+
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
 	else if (EnumToken.Matches(TEXT("enum"), ESearchCase::CaseSensitive))
 	{
-		SkipAlignasIfNecessary(*this);
-
 		if (!GetIdentifier(EnumToken))
 		{
 			FError::Throwf(TEXT("Missing identifier after enum") );
@@ -1596,18 +1606,19 @@ UEnum* FHeaderParser::CompileEnum()
 
 		if (EnumToken.Matches(TEXT("class"), ESearchCase::CaseSensitive) || EnumToken.Matches(TEXT("struct"), ESearchCase::CaseSensitive))
 		{
-			// You can't actually have an alignas() before the class/struct keyword, but this
-			// makes the parsing easier and illegal syntax will be caught by the compiler anyway.
-			SkipAlignasIfNecessary(*this);
-
-			CppForm       = UEnum::ECppForm::EnumClass;
-			bReadEnumName = GetIdentifier(EnumToken);
+			CppForm = UEnum::ECppForm::EnumClass;
 		}
 		else
 		{
-			CppForm       = UEnum::ECppForm::Regular;
-			bReadEnumName = true;
+			// Put whatever token we found back so that we can correctly skip below
+			UngetToken(EnumToken);
+
+			CppForm = UEnum::ECppForm::Regular;
 		}
+
+		SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+
+		bReadEnumName = GetIdentifier(EnumToken);
 	}
 	else
 	{
@@ -1740,7 +1751,7 @@ UEnum* FHeaderParser::CompileEnum()
 			// Now handle the inner true enum portion
 			RequireIdentifier(TEXT("enum"), ESearchCase::CaseSensitive, TEXT("'Enum'"));
 
-			SkipAlignasIfNecessary(*this);
+			SkipAlignasAndDeprecatedMacroIfNecessary(*this);
 
 			FToken InnerEnumToken;
 			if (!GetIdentifier(InnerEnumToken))
@@ -2376,11 +2387,7 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 	// The required API module for this struct, if any
 	FString RequiredAPIMacroIfPresent;
 
-	// alignas() can come before or after the deprecation macro.
-	// We can't have both, but the compiler will catch that anyway.
-	SkipAlignasIfNecessary(*this);
-	SkipDeprecatedMacroIfNecessary(*this);
-	SkipAlignasIfNecessary(*this);
+	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
 
 	// Read the struct name
 	ParseNameWithPotentialAPIMacroPrefix(/*out*/ StructNameInScript, /*out*/ RequiredAPIMacroIfPresent, TEXT("struct"));
@@ -6335,11 +6342,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	// New style files have the class name / extends afterwards
 	RequireIdentifier(TEXT("class"), ESearchCase::CaseSensitive, TEXT("Class declaration"));
 
-	// alignas() can come before or after the deprecation macro.
-	// We can't have both, but the compiler will catch that anyway.
-	SkipAlignasIfNecessary(*this);
-	SkipDeprecatedMacroIfNecessary(*this);
-	SkipAlignasIfNecessary(*this);
+	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
 
 	FString DeclaredClassName;
 	FString RequiredAPIMacroIfPresent;
@@ -9658,11 +9661,7 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 	// Require 'class'
 	RequireIdentifier(TEXT("class"), ESearchCase::CaseSensitive, ErrorMsg);
 
-	// alignas() can come before or after the deprecation macro.
-	// We can't have both, but the compiler will catch that anyway.
-	SkipAlignasIfNecessary(*this);
-	SkipDeprecatedMacroIfNecessary(*this);
-	SkipAlignasIfNecessary(*this);
+	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
 
 	// Read the class name
 	FString RequiredAPIMacroIfPresent;
