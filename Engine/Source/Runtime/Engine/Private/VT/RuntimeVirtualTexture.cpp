@@ -11,7 +11,6 @@
 #include "VT/RuntimeVirtualTextureNotify.h"
 #include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureLevelRedirector.h"
-#include "VT/VirtualTextureScalability.h"
 #include "VT/UploadingVirtualTexture.h"
 
 namespace
@@ -184,7 +183,7 @@ URuntimeVirtualTexture::~URuntimeVirtualTexture()
 	delete Resource;
 }
 
-void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutDesc, FTransform const& VolumeToWorld) const
+void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutDesc, FInitSettings const& InitSettings, FTransform const& VolumeToWorld) const
 {
 	OutDesc.Name = GetFName();
 	OutDesc.Dimensions = 2;
@@ -200,8 +199,7 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 
 	// Apply TileCount bias here.
 	const int32 TileCountBiasFromLodGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(LODGroup).VirtualTextureTileCountBias;
-	const int32 TileCountBiasFromScalability = VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias();
-	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBiasFromLodGroup + TileCountBiasFromScalability);
+	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBiasFromLodGroup + InitSettings.TileCountBias);
 
 	// Set width and height to best match the runtime virtual texture volume's aspect ratio.
 	const FVector VolumeSize = VolumeToWorld.GetScale3D();
@@ -415,7 +413,7 @@ FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index) const
 	return FVector4(ForceInitToZero);
 }
 
-void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld, FBox const& WorldBounds)
+void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FInitSettings const& InitSettings, FTransform const& VolumeToWorld, FBox const& WorldBounds)
 {
 	//todo[vt]: possible issues with precision in large worlds here it might be better to calculate/upload camera space relative transform per frame?
 	WorldToUVTransformParameters[0] = VolumeToWorld.GetTranslation();
@@ -425,7 +423,7 @@ void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform 
 	const float HeightRange = FMath::Max(WorldBounds.Max.Z - WorldBounds.Min.Z, 1.f);
 	WorldHeightUnpackParameter = FVector4(HeightRange, WorldBounds.Min.Z, 0.f, 0.f);
 
-	InitResource(InProducer, VolumeToWorld);
+	InitResource(InProducer, InitSettings, VolumeToWorld);
 }
 
 void URuntimeVirtualTexture::Release()
@@ -433,10 +431,10 @@ void URuntimeVirtualTexture::Release()
 	InitNullResource();
 }
 
-void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer, FTransform const& VolumeToWorld)
+void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer, FInitSettings const& InitSettings, FTransform const& VolumeToWorld)
 {
 	FVTProducerDescription Desc;
-	GetProducerDescription(Desc, VolumeToWorld);
+	GetProducerDescription(Desc, InitSettings, VolumeToWorld);
 	Resource->Init(Desc, InProducer, bSinglePhysicalSpace, bPrivateSpace);
 }
 

@@ -74,7 +74,7 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	const ERuntimeVirtualTextureMaterialType MaterialType = RuntimeVirtualTexture->GetMaterialType();
 
 	FVTProducerDescription VTDesc;
-	RuntimeVirtualTexture->GetProducerDescription(VTDesc, Transform);
+	RuntimeVirtualTexture->GetProducerDescription(VTDesc, URuntimeVirtualTexture::FInitSettings(), Transform);
 	const int32 MaxLevel = (int32)FMath::CeilLogTwo(FMath::Max(VTDesc.BlockWidthInTiles, VTDesc.BlockHeightInTiles));
 
 	ENQUEUE_RENDER_COMMAND(BakeStreamingTextureTileCommand)(
