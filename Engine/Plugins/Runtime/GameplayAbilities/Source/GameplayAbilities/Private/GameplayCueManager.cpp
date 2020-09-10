@@ -16,6 +16,7 @@
 #include "GameplayCueSet.h"
 #include "GameplayCueNotify_Static.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
 #include "Net/DataReplication.h"
 #include "Engine/ActorChannel.h"
 #include "Engine/NetConnection.h"
@@ -230,6 +231,47 @@ void UGameplayCueManager::TranslateGameplayCue(FGameplayTag& Tag, AActor* Target
 #endif
 
 	TranslationManager.TranslateTag(Tag, TargetActor, Parameters);
+}
+
+void UGameplayCueManager::AddGameplayCue_NonReplicated(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters)
+{
+	if (const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Target))
+	{
+		if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
+		{
+			ASC->AddLooseGameplayTag(GameplayCueTag);
+		}
+	}
+
+	if (UGameplayCueManager* GCM = UAbilitySystemGlobals::Get().GetGameplayCueManager())
+	{
+		GCM->HandleGameplayCue(Target, GameplayCueTag, EGameplayCueEvent::OnActive, Parameters);
+		GCM->HandleGameplayCue(Target, GameplayCueTag, EGameplayCueEvent::WhileActive, Parameters);
+	}
+}
+
+void UGameplayCueManager::RemoveGameplayCue_NonReplicated(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters)
+{
+	if (const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Target))
+	{
+		if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
+		{
+			ASC->RemoveLooseGameplayTag(GameplayCueTag);
+		}
+	}
+
+	if (UGameplayCueManager* GCM = UAbilitySystemGlobals::Get().GetGameplayCueManager())
+	{
+		GCM->HandleGameplayCue(Target, GameplayCueTag, EGameplayCueEvent::Removed, Parameters);
+	}
+}
+
+void UGameplayCueManager::ExecuteGameplayCue_NonReplicated(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters)
+{
+	if (UGameplayCueManager* GCM = UAbilitySystemGlobals::Get().GetGameplayCueManager())
+	{
+		GCM->HandleGameplayCue(Target, GameplayCueTag, EGameplayCueEvent::Executed, Parameters);
+	}
 }
 
 void UGameplayCueManager::EndGameplayCuesFor(AActor* TargetActor)

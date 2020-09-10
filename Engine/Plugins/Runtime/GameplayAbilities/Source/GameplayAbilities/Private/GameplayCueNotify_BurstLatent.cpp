@@ -1,0 +1,62 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "GameplayCueNotify_BurstLatent.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
+
+
+const float DefaultBurstLatentLifetime = 5.0f;
+
+
+//////////////////////////////////////////////////////////////////////////
+// AGameplayCueNotify_BurstLatent
+//////////////////////////////////////////////////////////////////////////
+AGameplayCueNotify_BurstLatent::AGameplayCueNotify_BurstLatent()
+{
+	Recycle();
+}
+
+bool AGameplayCueNotify_BurstLatent::Recycle()
+{
+	Super::Recycle();
+
+	BurstSpawnResults.Reset();
+
+	return true;
+}
+
+bool AGameplayCueNotify_BurstLatent::OnExecute_Implementation(AActor* Target, const FGameplayCueParameters& Parameters)
+{
+	UWorld* World = GetWorld();
+
+	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
+	SpawnContext.SetDefaultSpawnCondition(&DefaultSpawnCondition);
+	SpawnContext.SetDefaultPlacementInfo(&DefaultPlacementInfo);
+
+	if (DefaultSpawnCondition.ShouldSpawn(SpawnContext))
+	{
+		BurstEffects.ExecuteEffects(SpawnContext, BurstSpawnResults);
+
+		OnBurst(Target, Parameters, BurstSpawnResults);
+	}
+
+	// Handle GC removal by default. This is a simple default to handle all cases we can currently think of.
+	// If we didn't do this, we'd be relying on every BurstLatent GC manually setting up its removal within BP graphs,
+	// or some inference based on parameters.
+	if (World)
+	{
+		const float Lifetime = FMath::Max<float>(AutoDestroyDelay, DefaultBurstLatentLifetime);
+		World->GetTimerManager().SetTimer(FinishTimerHandle, this, &AGameplayCueNotify_Actor::GameplayCueFinishedCallback, Lifetime);
+	}
+
+	return false;
+}
+
+#if WITH_EDITOR
+EDataValidationResult AGameplayCueNotify_BurstLatent::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	BurstEffects.ValidateAssociatedAssets(this, TEXT("BurstEffects"), ValidationErrors);
+
+	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
+}
+#endif // #if WITH_EDITOR

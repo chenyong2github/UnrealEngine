@@ -158,6 +158,22 @@ class GAMEPLAYABILITIES_API UGameplayCueManager : public UDataAsset
 	/** 3. Actually routes the gameplaycue event to the right place.  */
 	virtual void RouteGameplayCue(AActor* TargetActor, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters, EGameplayCueExecutionOptions Options = EGameplayCueExecutionOptions::Default);
 
+	/** 
+	 *  Convenience methods for invoking non-replicated gameplay cue events. 
+	 * 
+	 *	We want to avoid exposing designers the choice of "is this gameplay cue replicated or non-replicated?".
+	 *	We want to make the decision for them in most cases:
+	 *	- Abilities will always use replicated GameplayCue events because they are not executed on simulated proxies.
+	 *	- Animations always use non-replicated GameplayCue events because they are always executed on simulated proxies.
+	 *	
+	 *  Sometimes it will be useful to give designers both options: in actor classes where there are many possible use cases.
+	 *  Still, we should keep the choice confined to the actor class, and not globally.  E.g., Don't add both choices to the function library
+	 *  since they would appear everywhere. Add the choices to the actor class so they only appear there.
+	 */
+	static void AddGameplayCue_NonReplicated(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters);
+	static void RemoveGameplayCue_NonReplicated(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters);
+	static void ExecuteGameplayCue_NonReplicated(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters);
+
 	// -------------------------------------------------------------
 
 	/** Force any instanced GameplayCueNotifies to stop */
