@@ -14,6 +14,8 @@ namespace CADLibrary
 	// Note: CTKIO_* functions are not functionally useful.
 	// This wrapping allows a correct profiling of the CT API.
 
+	CT_IO_ERROR CTKIO_InitalizationStatus = IO_ERROR_NOT_INITIALIZED;
+
 	CT_IO_ERROR CTKIO_InitializeKernel(double Unit, const TCHAR* EnginePluginsPath)
 	{
 		FString KernelIOPath;
@@ -27,8 +29,15 @@ namespace CADLibrary
 			}
 		}
 
+		// Kernel_IO is already initialized, so it is stopped to be able to restart it with the good unit value
+		if (CTKIO_InitalizationStatus == IO_OK)
+		{
+			CT_KERNEL_IO::ShutdownKernel();
+		}
+
 		CT_STR appName = CoreTechLicenseKey;
-		return CT_KERNEL_IO::InitializeKernel(appName, Unit, 0.00001 / Unit, *KernelIOPath);
+		CTKIO_InitalizationStatus = CT_KERNEL_IO::InitializeKernel(appName, Unit, 0.00001 / Unit, *KernelIOPath);
+		return CTKIO_InitalizationStatus;
 	}
 
 	CT_IO_ERROR CTKIO_ShutdownKernel()
