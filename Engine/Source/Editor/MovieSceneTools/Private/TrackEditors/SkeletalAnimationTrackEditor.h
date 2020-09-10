@@ -146,6 +146,9 @@ public:
 	virtual void SlipSection(FFrameNumber SlipTime) override;
 	virtual void CustomizePropertiesDetailsView(TSharedRef<IDetailsView> DetailsView, const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams) const override;
 	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& InObjectBinding) override;
+	virtual void BeginDilateSection() override;
+	virtual void DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor) override;
+
 
 private:
 	void FindBestBlendSection(FGuid InObjectBinding);

@@ -266,6 +266,15 @@ void FGeometryCacheSection::SlipSection(FFrameNumber SlipTime)
 	ISequencerSection::SlipSection(SlipTime);
 }
 
+void FGeometryCacheSection::BeginDilateSection()
+{
+	Section.PreviousPlayRate = Section.Params.PlayRate; //make sure to cache the play rate
+}
+void FGeometryCacheSection::DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor)
+{
+	Section.Params.PlayRate = Section.PreviousPlayRate / DilationFactor;
+	Section.SetRange(NewRange);
+}
 
 FGeometryCacheTrackEditor::FGeometryCacheTrackEditor(TSharedRef<ISequencer> InSequencer)
 	: FMovieSceneTrackEditor(InSequencer)

@@ -160,6 +160,14 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 			ResizeData.MovieSection = Section;
 			ResizeData.InitialRange = Section->GetRange();
 
+			TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(Section);
+			if (SectionHandle)
+			{
+				//Tell section that may not have keys it's starting to dilate (e.g. skeletal tracks will cache play rate).
+				SectionHandle->GetSectionInterface()->BeginDilateSection();
+				ResizeData.SequencerSection = &SectionHandle->GetSectionInterface().Get();
+			}
+
 			// Add the key times for all keys of all channels on this section
 			FMovieSceneChannelProxy& Proxy = Section->GetChannelProxy();
 			for (const FMovieSceneChannelEntry& Entry : Proxy.GetAllEntries())
@@ -314,12 +322,27 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 
 			if (bDraggingByEnd)
 			{
-				Data.MovieSection->SetRange(TRange<FFrameNumber>(Data.MovieSection->GetRange().GetLowerBound(), TRangeBound<FFrameNumber>::Exclusive(NewPosition)));
+				if (Data.SequencerSection)
+				{
+					Data.SequencerSection->DilateSection(TRange<FFrameNumber>(Data.MovieSection->GetRange().GetLowerBound(), TRangeBound<FFrameNumber>::Exclusive(NewPosition)), DilationFactor);
+				}
+				else
+				{
+					Data.MovieSection->SetRange(TRange<FFrameNumber>(Data.MovieSection->GetRange().GetLowerBound(), TRangeBound<FFrameNumber>::Exclusive(NewPosition)));
+				}
 			}
 			else
 			{
-				Data.MovieSection->SetRange(TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Inclusive(NewPosition), Data.MovieSection->GetRange().GetUpperBound()));
+				if (Data.SequencerSection)
+				{
+					Data.SequencerSection->DilateSection(TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Inclusive(NewPosition), Data.MovieSection->GetRange().GetUpperBound()), DilationFactor);
+				}
+				else
+				{
+					Data.MovieSection->SetRange(TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Inclusive(NewPosition), Data.MovieSection->GetRange().GetUpperBound()));
+				}
 			}
+
 
 			TArray<FFrameNumber> NewFrameNumbers;
 			for (const FPreDragChannelData& ChannelData : Data.Channels)
