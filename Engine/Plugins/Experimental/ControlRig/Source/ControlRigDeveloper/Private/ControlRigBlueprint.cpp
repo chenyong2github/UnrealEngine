@@ -400,7 +400,7 @@ void UControlRigBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 	UControlRig* PreviousRigBeingDebugged = Cast<UControlRig>(GetObjectBeingDebugged());
 	if (PreviousRigBeingDebugged && PreviousRigBeingDebugged != NewObject)
 	{
-		PreviousRigBeingDebugged->DrawInterface = nullptr;
+		PreviousRigBeingDebugged->DrawInterface.Reset();
 		PreviousRigBeingDebugged->ControlRigLog = nullptr;
 	}
 

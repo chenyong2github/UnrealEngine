@@ -8,7 +8,6 @@
 #include "IControlRigObjectBinding.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "Rigs/RigHierarchyContainer.h"
-#include "Drawing/ControlRigDrawInterface.h"
 #include "Units/RigUnitContext.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "UObject/StrongObjectPtr.h"
@@ -193,9 +192,6 @@ protected:
 
 	/** Whether a manipulator actually made a change when transacting */
 	bool bManipulatorMadeChange;
-
-	/** The draw interface to use for the control rig */
-	FControlRigDrawInterface DrawInterface;
 
 	/** Guard value for selection */
 	bool bSelecting;
