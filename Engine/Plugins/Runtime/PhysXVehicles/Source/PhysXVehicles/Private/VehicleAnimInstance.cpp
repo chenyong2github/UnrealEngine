@@ -10,6 +10,8 @@
 #include "WheeledVehicle.h"
 #include "AnimationRuntime.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /////////////////////////////////////////////////////
 // UVehicleAnimInstance
 /////////////////////////////////////////////////////
@@ -100,3 +102,5 @@ void FVehicleAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 		}
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -148,8 +148,10 @@ struct FVehicleTransmissionData
 	float ClutchStrength;
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UCLASS(ClassGroup = (Physics), meta = (BlueprintSpawnableComponent), hidecategories = (PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
-class PHYSXVEHICLES_API UWheeledVehicleMovementComponent4W : public UWheeledVehicleMovementComponent
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the UChaosWheeledVehicleMovementComponent from the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API UWheeledVehicleMovementComponent4W : public UWheeledVehicleMovementComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -201,3 +203,4 @@ protected:
 	void UpdateTransmissionSetup(const FVehicleTransmissionData& NewGearSetup);
 };
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
