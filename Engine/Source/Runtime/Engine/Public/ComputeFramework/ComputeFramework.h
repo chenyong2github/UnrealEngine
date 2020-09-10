@@ -6,6 +6,7 @@ class FComputeKernelShader;
 
 extern ENGINE_API bool SupportsComputeFramework(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform);
 
+struct FPooledRDGBuffer;
 struct FComputeExecutionExternalBufferDesc
 {
 	FName Name;
