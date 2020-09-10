@@ -5,9 +5,9 @@ import { ContextualLogger } from '../common/logger';
 import { PerforceContext } from '../common/perforce';
 import { Branch, BranchGraphInterface } from '../robo/branch-interfaces';
 
-type TargetName = string & { __targetBrand: any }
-type Stream = string & { __streamBrand: any }
-type BotName = string & { __BotNameBrand: any }
+export type TargetName = string & { __targetBrand: any }
+export type Stream = string & { __streamBrand: any }
+export type BotName = string & { __BotNameBrand: any }
 
 type ComputeResult = Map<Edge, Edge[]>
 
@@ -23,7 +23,7 @@ export class Node {
 	}
 
 	get debugName(): string {
-		return this._debugName || (this.stream as string)
+		return this._debugName || this.stream
 	}
 	
 	private _debugName: string | null = null
@@ -31,13 +31,15 @@ export class Node {
 
 type EdgeFlag = 'automatic' | 'general'
 
-export class Edge {
+export class Edge
+{
 	constructor(
 		public source: Node,
 		public target: Node,
 
-		public flags: Set<EdgeFlag>,
+		public targetName: string, // name of target in bot that owns the edge
 
+		public flags: Set<EdgeFlag>,
 
 		public bot: BotName,					// all edges will be bot-specific in practice, although maybe not necessary
 		public sourceAnnotation: any		// type specified by client code, e.g. NodeBot servicing this edge, or just last cl
@@ -64,14 +66,29 @@ function makeBranchId(arg: string | Branch) {
 	return depotPath as Stream
 }
 
+/**
+
+What's the plan for bots with different branchspecs monitoring the same node?
+Doesn't matter: branchspecs are just an edge thing
+Nodes are uniquely identified by their rootPath/streamSubpath
+
+NB: one node in the ubergraph can represent multiple nodebots across bots
+
+ */ 
+
+
 export class Graph {
 	private streamNodes = new Map<Stream, Node>()
 	private targetNames = new Map<TargetName, Node>()
 	private edgesBySource = new Map<Node, Set<Edge>>()
 	private edgesByTarget = new Map<Node, Set<Edge>>()
-	private edgesByBot = new Map<string, Set<Edge>>();
+	private edgesByBot = new Map<string, Set<Edge>>()
 
-	private undecoratedAliases = new Map<string, Node[]>()
+
+	/**
+		Just used to implement 
+	 */
+	branchGraphAliases = new Map<string, BranchGraphInterface>()
 
 	findOrCreateStreamNode(depotPath: string | Branch) {
 		const branchId = makeBranchId(depotPath)
@@ -83,17 +100,9 @@ export class Graph {
 		return this.streamNodes.get(branchId)
 	}
 
-	findNodeByAlias(alias: string, logger: ContextualLogger) {
-		const nodes = this.undecoratedAliases.get(alias.toLowerCase())
-		if (nodes) {
-			if (nodes.length !== 1) {
-				logger.info(`Alias '${alias}' is ambiguous`)
-			}
-			else {
-				return nodes[0]
-			}
-		}
-		return null
+	findNodeForBranch(branch: Branch) {
+		// need to standardise on rootpath/stream subpath (maybe rootpath is right?)
+		return this.findNodeForStream(branch.stream!)
 	}
 
 	addEdge(edge: Edge) {
@@ -102,14 +111,10 @@ export class Graph {
 		setDefault(this.edgesByBot, edge.bot, new Set).add(edge)
 	}
 
-	addNameForNode(node: Node, targetName: TargetName, alias?: string) {
+	addNameForNode(node: Node, targetName: TargetName) {
 		// @todo check name is not already assigned to another node
 		this.targetNames.set(targetName, node)
 		node.offerDebugName(targetName)
-
-		if (alias) {
-			setDefault(this.undecoratedAliases, alias.toLowerCase(), []).push(node)
-		}
 	}
 
 	getNode(name: TargetName) {
@@ -150,6 +155,13 @@ export class Graph {
 		return this.findRouteBetweenImpl([], src, seen, target, flags || [])
 	}
 
+	findAllRoutesBetween(src: Node, target: Node, flags?: EdgeFlag[], skip?: Set<Node>) {
+		const seen = skip || new Set<Node>()
+		seen.add(src)
+		const result: Edge[][] = []
+		this.findAllRoutesBetweenImpl(result, [], src, seen, target, flags || [])
+		return result
+	}
 
 	dump() {
 		const nodeNames = new Map<Node, TargetName[]>()
@@ -188,11 +200,28 @@ export class Graph {
 		return null
 	}
 
+	private findAllRoutesBetweenImpl(completeRoutes: Edge[][], routeSoFar: Edge[], src: Node, seen: Set<Node>, target: Node, flags: EdgeFlag[]) {
+		for (const edge of this.getEdgesBySource(src, ...flags)) {
+			if (!seen.has(edge.target)) {
+				const routePlus = [...routeSoFar, edge]
+				if (edge.target === target) {
+					completeRoutes.push(routePlus)
+					return
+				}
+
+				seen.add(edge.target)
+				this.findAllRoutesBetweenImpl(completeRoutes, routePlus, edge.target, seen, target, flags)
+			}
+		}
+		return null
+	}
+
 	// function called this to match NodeBot function
 	computeImplicitTargets(
 		source: Node,
-		requestedTargets: Map<Node, MergeMode>
-	): {status: Success, merges?: ComputeResult, unreachable?: Node[]} {
+		requestedTargets: Map<Node, MergeMode>,
+		allowedBots?: string[]
+	): {status: Success, integrations?: ComputeResult, unreachable?: Node[]} {
 
 		const targetsToFind = new Set<Node>()
 		const skipNodes = new Set<Node>()
@@ -223,7 +252,12 @@ export class Graph {
 			// flood the graph one step to include all unseen direct flowsTo nodes of one branch
 			let anyUnseen = false
 
-			const flowsTo = this.edgesBySource.get(sourceNode) // here's where we will need to be able to filter by bot
+			let flowsTo: Set<Edge> | Edge[] | undefined = this.edgesBySource.get(sourceNode) // here's where we will need to be able to filter by bot
+			if (flowsTo && allowedBots) {
+				// console.log('before: ', flowsTo)
+				flowsTo = [...flowsTo].filter((e: Edge) => allowedBots.indexOf(e.bot) >= 0)
+				// console.log('after: ', flowsTo)
+			}
 			if (flowsTo && !skipNodes.has(sourceNode)) {
 				for (const edge of flowsTo) {
 					const node = edge.target
@@ -266,11 +300,17 @@ export class Graph {
 			return {status: 'failed', unreachable: [...targetsToFind]}
 		}
 
-		return {status: 'succeeded', merges}
+		return {status: 'succeeded', integrations: merges}
 	}
 }
 
 export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) {
+
+	graph.branchGraphAliases.set(branchGraph.botname.toUpperCase(), branchGraph)
+	if (branchGraph.config.alias) {
+		graph.branchGraphAliases.set(branchGraph.config.alias.toUpperCase(), branchGraph)
+
+	}
 
 	const botname = branchGraph.botname as BotName
 	const branchNodes = new Map<Branch, Node>()
@@ -301,9 +341,10 @@ export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) 
 				flags.add('general')
 			}
 
+			const targetBranch = branchGraph.getBranch(target)!
 			graph.addEdge(new Edge(sourceNode,
-				branchNodes.get(branchGraph.getBranch(target)!)!,
-				flags, botname, branch.bot!
+				branchNodes.get(targetBranch)!,
+				targetBranch.name, flags, botname, branch.bot!
 			))
 		}
 	}
@@ -343,7 +384,7 @@ class Test {
 					flags.add('automatic')
 				}
 
-				this.graph.addEdge(new Edge(fromNode, targetNode, flags, Test.BOT_NAME, {}))
+				this.graph.addEdge(new Edge(fromNode, targetNode, char, flags, Test.BOT_NAME, {}))
 			}
 		}
 	}
@@ -436,6 +477,16 @@ class Test {
 // 	outer()
 // }
 
+//  _______        _       
+// |__   __|      | |      
+//    | | ___  ___| |_ ___ 
+//    | |/ _ \/ __| __/ __|
+//    | |  __/\__ \ |_\__ \
+//    |_|\___||___/\__|___/
+
+// for unit tests!
+
+
 
 export function runTests(parentLogger: ContextualLogger) {
 
@@ -482,7 +533,7 @@ export function runTests(parentLogger: ContextualLogger) {
 
 		const succeeded = result.status === 'succeeded'
 
-		const formattedResult = succeeded ? test.formatTestComputeTargetsResult(result.merges!) : 'failed'
+		const formattedResult = succeeded ? test.formatTestComputeTargetsResult(result.integrations!) : 'failed'
 		if (expected) {
 			if (!succeeded) {
 				expectedOnFail = expected
@@ -517,7 +568,7 @@ const FLAGMAP: {[name: string]: ChangeFlag} = {
 
 // should probably go in NodeBot, although specifically only dealing with string parsing
 
-// gets tricky straight away deailing with commands for other bots
+// gets tricky straight away dealing with commands for other bots
 // will make target names here
 function parseTargetsAndFlagsImpl(tokens: string[], logger: ContextualLogger, forcedMode?: MergeMode) {
 	const flags = new Set<ChangeFlag>()
@@ -737,7 +788,7 @@ const isDefaultBot = arbitraryEdge.flags.has('general')
 			let found = false
 
 		outer:
-			for (const [firstEdge, furtherEdges] of computeResult.merges!) {
+			for (const [firstEdge, furtherEdges] of computeResult.integrations!) {
 				if (firstEdge.target === nonAutoEdge.target) {
 					found = true
 					break

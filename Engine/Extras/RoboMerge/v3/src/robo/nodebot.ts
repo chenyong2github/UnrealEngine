@@ -16,7 +16,7 @@ import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Context } from './settings';
 import { BlockagePauseInfo, PauseState } from './state-interfaces';
 import { newTickJournal, TickJournal } from './tick-journal';
-import { computeTargets, parseDescriptionLines, getIntegrationOwner, getNodeBotFullName, getNodeBotFullNameForLogging } from './targets';
+import { computeTargets, parseDescriptionLines, processOtherBotTargets, getIntegrationOwner, getNodeBotFullName, getNodeBotFullNameForLogging } from './targets';
 import { Graph } from '../new/graph';
 
 /**********************************
@@ -1284,13 +1284,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	 */
 	private async _processAndMergeCl(
 		availableEdges: Map<string, EdgeBot>, change: Change, ignoreEdgePauseState: boolean,
-		optOwnerOverride?: string, optWorkspaceOverride?: RoboWorkspace, optTargetBranch?: Branch | null)
-		: Promise<EdgeMergeResults> {
-			const result = await this._createChangeInfo(change, availableEdges, optOwnerOverride, optWorkspaceOverride, optTargetBranch)
-			if (result.info) {
-				return await this._mergeClViaEdges(availableEdges, result.info, ignoreEdgePauseState)
-			}
-			return { errors: result.errors }
+		optOwnerOverride?: string, optWorkspaceOverride?: RoboWorkspace, optTargetBranch?: Branch | null
+	) : Promise<EdgeMergeResults> {
+		const result = await this._createChangeInfo(change, availableEdges, optOwnerOverride, optWorkspaceOverride, optTargetBranch)
+		if (result.info) {
+			return await this._mergeClViaEdges(availableEdges, result.info, ignoreEdgePauseState)
+		}
+		return { errors: result.errors }
 	}
 
 	private async _createChangeInfo(
@@ -1523,17 +1523,17 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			this.nodeBotLogger
 		)
 
-		// make the end description (without any robomerge tags or 'at' references)
-		const description = parsedLines.descFinal.join('\n').replace(/@/g, '[at]').trim()
-
 		// Author is always CL user
 		const author = (change.user || 'robomerge').toLowerCase()
 
+		let source_cl = change.change
+
+		// make the end description (without any robomerge tags or 'at' references)
+		const description = parsedLines.descFinal.join('\n').replace(/@/g, '[at]').trim()
+
 		// default source to current
-		let source_cl
 		if (!parsedLines.source) {
 			parsedLines.source = `CL ${change.change} in ${this.branch.rootPath}`
-			source_cl = change.change
 		}
 		else {
 			let m = parsedLines.source.match(/^CL (\d+)/)
@@ -1580,10 +1580,23 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 								parsedLines.useDefaultFlow ? this.branch.defaultFlow :
 								this.branch.forceFlowTo
 
-		if (optTargetBranch || (parsedLines.arguments.length + defaultTargets.length) > 0) {
-			computeTargets(this.branch, this.ubergraph, change.change, info, parsedLines.arguments, defaultTargets, this.nodeBotLogger, optTargetBranch)
+		const args = parsedLines.arguments
+		if (optTargetBranch || (args.length + defaultTargets.length) > 0) {
+			console.log(this.branch.upperName, 'here')
+			computeTargets(this.branch, this.ubergraph, change.change, info, args, defaultTargets, this.nodeBotLogger, optTargetBranch)
 		}
 
+		if (!info.errors) {
+			const errors: string[] = []
+			const actions = info.targets || []
+			processOtherBotTargets(parsedLines, this.branch, this.ubergraph, actions, errors)
+			if (actions.length > 0) {
+				info.targets = actions
+			}
+			if (errors.length > 0) {
+				info.errors = errors
+			}
+		}
 		return info
 	}
 
