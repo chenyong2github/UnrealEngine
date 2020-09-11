@@ -57,7 +57,7 @@ void UKismetRenderingLibrary::ClearRenderTarget2D(UObject* WorldContextObject, U
 			DrawClearQuad(RHICmdList, ClearColor);
 			RHICmdList.EndRenderPass();
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTargetResource->GetRenderTargetTexture());
+			RHICmdList.Transition(FRHITransitionInfo(RenderTargetResource->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 		});
 	}
 }
