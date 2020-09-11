@@ -284,7 +284,7 @@ RENDERER_API bool IsHairRayTracingEnabled();
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TArray<FRHIUnorderedAccessView*> FBufferTransitionQueue;
-RENDERER_API void TransitBufferToReadable(FRHICommandListImmediate& RHICmdList, FBufferTransitionQueue& BuffersToTransit);
+RENDERER_API void TransitBufferToReadable(FRDGBuilder& GraphBuilder, FBufferTransitionQueue& BuffersToTransit);
 
 /// Return the hair coverage for a certain hair count and normalized avg hair radius (i.e, [0..1])
 RENDERER_API float GetHairCoverage(uint32 HairCount, float AverageHairRadius);
@@ -325,5 +325,5 @@ struct FHairStrandsBookmarkParameters
 };
 
 typedef void (*THairStrandsParameterFunction)(FHairStrandsBookmarkParameters& Parameters);
-typedef void (*THairStrandsBookmarkFunction)(FRHICommandListImmediate& RHICmdList, EHairStrandsBookmark Bookmark, FHairStrandsBookmarkParameters& Parameters);
+typedef void (*THairStrandsBookmarkFunction)(FRDGBuilder& GraphBuilder, EHairStrandsBookmark Bookmark, FHairStrandsBookmarkParameters& Parameters);
 RENDERER_API void RegisterBookmarkFunction(THairStrandsBookmarkFunction Bookmark, THairStrandsParameterFunction Parameters);

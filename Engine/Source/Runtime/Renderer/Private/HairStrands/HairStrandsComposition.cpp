@@ -64,14 +64,11 @@ static void AddHairVisibilityComposeSamplePass(
 {
 	check(VisibilityData.SampleLightingBuffer);
 
-	FRDGTextureRef SampleLightingBuffer = GraphBuilder.RegisterExternalTexture(VisibilityData.SampleLightingBuffer);
-	FRDGTextureRef NodeCount = GraphBuilder.RegisterExternalTexture(VisibilityData.NodeCount);
-
 	FHairVisibilityComposeSamplePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityComposeSamplePS::FParameters>();
-	Parameters->HairSampleCount = NodeCount;
+	Parameters->HairSampleCount = VisibilityData.NodeCount;
 	Parameters->HairCategorizationTexture = CategorizationTexture;
-	Parameters->HairVisibilityNodeOffsetAndCount = GraphBuilder.RegisterExternalTexture(VisibilityData.NodeIndex);
-	Parameters->HairLightingSampleBuffer = SampleLightingBuffer;
+	Parameters->HairVisibilityNodeOffsetAndCount = VisibilityData.NodeIndex;
+	Parameters->HairLightingSampleBuffer = VisibilityData.SampleLightingBuffer;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
@@ -266,14 +263,7 @@ static void AddHairVisibilityFastResolveMaskPass(
 	const FIntPoint Resolution = OutDepthTexture->Desc.Extent;
 	FRDGTextureRef DummyTexture;
 	{
-		FRDGTextureDesc Desc;
-		Desc.Extent = Resolution;
-		Desc.Depth = 0;
-		Desc.Format = PF_R8G8B8A8;
-		Desc.NumMips = 1;
-		Desc.NumSamples = 1;
-		Desc.Flags = TexCreate_None;
-		Desc.ClearValue = FClearValueBinding(0);
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable);
 		DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairDummyTexture"));
 	}
 
@@ -438,12 +428,10 @@ void RenderHairComposition(
 				const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
 				const FHairStrandsVisibilityData& VisibilityData = HairVisibilityViews.HairDatas[ViewIndex];
 
-				TRefCountPtr<IPooledRenderTarget> CategorisationTexture = VisibilityData.CategorizationTexture;
-				if (!CategorisationTexture)
+				if (!VisibilityData.CategorizationTexture)
 				{
 					continue; // Automatically skip for any view not rendering hair
 				}
-				const FRDGTextureRef RDGCategorisationTexture = CategorisationTexture ? GraphBuilder.RegisterExternalTexture(CategorisationTexture, TEXT("HairVisibilityCategorisationTexture")) : nullptr;
 
 				// todo: rehook the diffusion pass
 				//AddHairDiffusionPass(
@@ -459,26 +447,24 @@ void RenderHairComposition(
 					GraphBuilder,
 					View,
 					VisibilityData,
-					RDGCategorisationTexture,
+					VisibilityData.CategorizationTexture,
 					SceneColorTexture,
 					SceneDepthTexture);
 
 				if (HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture)
 				{
-					FRDGTextureRef RDGHairVisibilityVelocityTexture = GraphBuilder.RegisterExternalTexture(HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture, TEXT("HairVisibilityVelocityTexture"));
 					AddHairVisibilityFastResolveMSAAPass(
 						GraphBuilder,
 						View,
-						RDGHairVisibilityVelocityTexture,
+						HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture,
 						SceneDepthTexture);
 				}
 				else if (HairVisibilityViews.HairDatas[ViewIndex].ResolveMaskTexture)
 				{
-					FRDGTextureRef HairResolveMaskTexture = GraphBuilder.RegisterExternalTexture(HairVisibilityViews.HairDatas[ViewIndex].ResolveMaskTexture, TEXT("HairResolveMaskTexture"));
 					AddHairVisibilityFastResolveMaskPass(
 						GraphBuilder,
 						View,
-						HairResolveMaskTexture,
+						HairVisibilityViews.HairDatas[ViewIndex].ResolveMaskTexture,
 						SceneDepthTexture);
 				}
 
@@ -493,7 +479,7 @@ void RenderHairComposition(
 						AddPatchGbufferDataPass(
 							GraphBuilder,
 							View,
-							RDGCategorisationTexture,
+							VisibilityData.CategorizationTexture,
 							GBufferATexture,
 							GBufferBTexture);
 					}

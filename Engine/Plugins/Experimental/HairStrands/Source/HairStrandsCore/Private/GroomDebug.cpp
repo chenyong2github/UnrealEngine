@@ -92,7 +92,7 @@ namespace GroomDebug
 }
 
 static void GetGroomInterpolationData(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const TArray<FHairGroupInstance*> Instances,
 	const EWorldType::Type WorldType,
 	const EHairStrandsProjectionMeshType MeshType,
@@ -113,7 +113,7 @@ static void GetGroomInterpolationData(
 		{
 			const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
 			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
-			BuildCacheGeometry(RHICmdList, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
+			BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
 		}
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;
@@ -516,7 +516,7 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FVoxelPlainRaymarchingCS, "/Engine/Private/HairStrands/HairCardsVoxel.usf", "MainCS", SF_Compute);
 
 static void AddVoxelPlainRaymarchingPass(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FSceneView& View,
 	const FHairGroupInstance* Instance,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -532,8 +532,6 @@ static void AddVoxelPlainRaymarchingPass(
 	{
 		if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards)
 			return;
-
-		FRDGBuilder GraphBuilder(RHICmdList);
 
 		FSceneTextureParameters SceneTextures;
 		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
@@ -564,7 +562,6 @@ static void AddVoxelPlainRaymarchingPass(
 		TShaderMapRef<FVoxelPlainRaymarchingCS> ComputeShader(View.ShaderMap);
 		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(OutputTexture->Desc.Extent.X, OutputTexture->Desc.Extent.Y, 1), FIntVector(8, 8, 1));
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVoxelPlainRaymarching"), ComputeShader, Parameters, DispatchCount);
-		GraphBuilder.Execute();
 	}
 #endif
 }
@@ -599,7 +596,7 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FDrawDebugCardAtlasCS, "/Engine/Private/HairStrands/HairCardsDebug.usf", "MainCS", SF_Compute);
 
 static void AddDrawDebugCardsAtlasPass(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FSceneView& View,
 	const FHairGroupInstance* Instance,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -618,7 +615,6 @@ static void AddDrawDebugCardsAtlasPass(
 		return;
 	}
 
-	FRDGBuilder GraphBuilder(RHICmdList);
 	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(InOutputTexture, TEXT("SceneColorTexture"));
 	FRDGTextureRef AtlasTexture = nullptr;
 
@@ -650,7 +646,6 @@ static void AddDrawDebugCardsAtlasPass(
 		FIntVector::DivideAndRoundUp(FIntVector(Parameters->OutputResolution.X, Parameters->OutputResolution.Y, 1), FIntVector(8, 8, 1)));
 
 	}
-	GraphBuilder.Execute();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -693,7 +688,7 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FDrawDebugCardGuidesCS, "/Engine/Private/HairStrands/HairCardsDebug.usf", "MainCS", SF_Compute);
 
 static void AddDrawDebugCardsGuidesPass(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FSceneView& View,
 	const FHairGroupInstance* Instance,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -714,8 +709,6 @@ static void AddDrawDebugCardsGuidesPass(
 	}
 
 	const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[HairLODIndex];
-
-	FRDGBuilder GraphBuilder(RHICmdList);
 	
 	TShaderMapRef<FDrawDebugCardGuidesCS> ComputeShader(ShaderMap);
 
@@ -746,21 +739,24 @@ static void AddDrawDebugCardsGuidesPass(
 	const uint32 VertexCount = Parameters->DebugMode <= 2 ? Parameters->RenVertexCount : Parameters->SimVertexCount;
 	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("DrawDebugCardsAtlas"), ComputeShader, Parameters,
 	FIntVector::DivideAndRoundUp(FIntVector(VertexCount, 1, 1), FIntVector(32, 1, 1)));
-
-	GraphBuilder.Execute();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+BEGIN_SHADER_PARAMETER_STRUCT(FHairDebugCanvasParameter, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 void RunHairStrandsDebug(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	EWorldType::Type WorldType,
 	const FSceneView& View,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const TArray<FHairGroupInstance*>& Instances,
-	TRefCountPtr<IPooledRenderTarget>& SceneColor,
+	TRefCountPtr<IPooledRenderTarget>& SceneColorRT,
 	FIntRect Viewport,
 	TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
 {
@@ -768,62 +764,77 @@ void RunHairStrandsDebug(
 
 	if (HairDebugMode == EHairDebugMode::MacroGroups)
 	{
-		const float YStep = 14;
-		float ClusterY = 38;
+		FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneColorRT);
+		FHairDebugCanvasParameter* PassParameters = GraphBuilder.AllocParameters<FHairDebugCanvasParameter>();
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad, 0);
 
-		// Component part of the clusters
-		GroomDebug::FRenderTargetTemp TempRenderTarget(Viewport, (const FTexture2DRHIRef&)SceneColor->GetRenderTargetItem().TargetableTexture);
-		FCanvas Canvas(&TempRenderTarget, NULL, View.Family->CurrentRealTime, View.Family->CurrentWorldTime, View.Family->DeltaWorldTime, View.FeatureLevel);
-
-		float X = 20;
-		float Y = ClusterY;
-		const FLinearColor InactiveColor(0.5, 0.5, 0.5);
-		const FLinearColor DebugColor(1, 1, 0);
-		const FLinearColor DebugGroupColor(0.5f, 0, 0);
-		FString Line;
-
-		Line = FString::Printf(TEXT("----------------------------------------------------------------"));
-		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-
-		Line = FString::Printf(TEXT("Registered hair groups count : %d"), Instances.Num());
-		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-
-		for (FHairGroupInstance* Instance : Instances)
+		const FSceneView* LocalView = &View;
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HairStrandsMeshProjectionMeshDebug"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[LocalView, Viewport, WorldType, Instances, SceneColorRT](FRHICommandListImmediate& RHICmdList)
 		{
-			const bool bIsActive = Instance->WorldType == WorldType;
-			const bool bHasSkinInterpolation = Instance->Strands.RestRootResource != nullptr;
-			const bool bHasBindingAsset = bHasSkinInterpolation && !Instance->Strands.bOwnRootResourceAllocation;
+			const float YStep = 14;
+			float ClusterY = 38;
 
-			Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group:%d/%d | Asset : %s | Skeletal : %s "), 
-				Instance->Debug.ComponentId,
-				ToString(Instance->WorldType), 
-				Instance->Debug.GroupIndex,
-				Instance->Debug.GroupCount, 
-				*Instance->Debug.GroomAssetName, 
-				*Instance->Debug.SkeletalComponentName);
-			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
+			// Component part of the clusters
+			GroomDebug::FRenderTargetTemp TempRenderTarget(Viewport, (const FTexture2DRHIRef&)SceneColorRT->GetRenderTargetItem().TargetableTexture);
+			FCanvas Canvas(&TempRenderTarget, nullptr, LocalView->Family->CurrentRealTime, LocalView->Family->CurrentWorldTime, LocalView->Family->DeltaWorldTime, LocalView->FeatureLevel);
+			Canvas.SetRenderTargetRect(Viewport);
 
-			Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| LOD count : %d"),
-				Instance->Strands.Data->GetNumCurves(),
-				Instance->Strands.Data->GetNumPoints(),
-				Instance->HairGroupPublicData->VFInput.Strands.HairRadius,
-				Instance->HairGroupPublicData->VFInput.Strands.HairLength,
-				bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
-				bHasBindingAsset ? TEXT("True") : TEXT("False"),
-				Instance->Guides.bIsSimulationEnable ? TEXT("True") : TEXT("False"),
-				Instance->Strands.ClusterCullingResource->ClusterLODInfos.Num());
-			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
-		}
+			float X = 20;
+			float Y = ClusterY;
+			const FLinearColor InactiveColor(0.5, 0.5, 0.5);
+			const FLinearColor DebugColor(1, 1, 0);
+			const FLinearColor DebugGroupColor(0.5f, 0, 0);
+			FString Line;
 
-		Canvas.Flush_RenderThread(RHICmdList);
+			Line = FString::Printf(TEXT("----------------------------------------------------------------"));
+			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
 
-		ClusterY = Y;
+			Line = FString::Printf(TEXT("Registered hair groups count : %d"), Instances.Num());
+			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+
+			for (FHairGroupInstance* Instance : Instances)
+			{
+				const bool bIsActive = Instance->WorldType == WorldType;
+				const bool bHasSkinInterpolation = Instance->Strands.RestRootResource != nullptr;
+				const bool bHasBindingAsset = bHasSkinInterpolation && !Instance->Strands.bOwnRootResourceAllocation;
+
+				Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group:%d/%d | Asset : %s | Skeletal : %s "),
+					Instance->Debug.ComponentId,
+					ToString(Instance->WorldType),
+					Instance->Debug.GroupIndex,
+					Instance->Debug.GroupCount,
+					*Instance->Debug.GroomAssetName,
+					*Instance->Debug.SkeletalComponentName);
+				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
+
+				Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| LOD count : %d"),
+					Instance->Strands.Data->GetNumCurves(),
+					Instance->Strands.Data->GetNumPoints(),
+					Instance->HairGroupPublicData->VFInput.Strands.HairRadius,
+					Instance->HairGroupPublicData->VFInput.Strands.HairLength,
+					bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
+					bHasBindingAsset ? TEXT("True") : TEXT("False"),
+					Instance->Guides.bIsSimulationEnable ? TEXT("True") : TEXT("False"),
+					Instance->Strands.ClusterCullingResource->ClusterLODInfos.Num());
+				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
+			}
+
+			const bool bFlush = false;
+			const bool bInsideRenderPass = true;
+			Canvas.Flush_RenderThread(RHICmdList, bFlush, bInsideRenderPass);
+
+			ClusterY = Y;
+		});
 	}
 
 	if (HairDebugMode == EHairDebugMode::MeshProjection)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneColor, TEXT("SceneColorTexture"));
+		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneColorRT, TEXT("SceneColorTexture"));
 		{
 			bool bClearDepth = true;
 			FRDGTextureRef DepthTexture;
@@ -841,10 +852,10 @@ void RunHairStrandsDebug(
 
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)
 			{
-				auto RenderMeshProjection = [&bClearDepth, WorldType, ShaderMap, Viewport, &ViewUniformBuffer, Instances, SkinCache, &SceneColorTexture, &DepthTexture, &RHICmdList](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
+				auto RenderMeshProjection = [&bClearDepth, WorldType, ShaderMap, Viewport, &ViewUniformBuffer, Instances, SkinCache, &SceneColorTexture, &DepthTexture, &GraphBuilder](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
 				{
 					FHairStrandsProjectionMeshData::LOD MeshProjectionLODData;
-					GetGroomInterpolationData(RHICmdList, Instances, WorldType, MeshType, SkinCache, MeshProjectionLODData);
+					GetGroomInterpolationData(GraphBuilder, Instances, WorldType, MeshType, SkinCache, MeshProjectionLODData);
 					for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionLODData.Sections)
 					{
 						AddDebugProjectionMeshPass(LocalGraphBuilder, ShaderMap, Viewport, ViewUniformBuffer, MeshType, bClearDepth, Section, SceneColorTexture, DepthTexture);
@@ -971,14 +982,13 @@ void RunHairStrandsDebug(
 					GHairDebugMeshProjection_Sim_HairDeformedFrames > 0);
 			}
 		}
-		GraphBuilder.Execute();
 	}
 
 	if (GHairCardsVoxelDebug > 0)
 	{
 		for (FHairGroupInstance* Instance : Instances)
 		{
-			AddVoxelPlainRaymarchingPass(RHICmdList, View, Instance, ShaderDrawData, SceneColor);
+			AddVoxelPlainRaymarchingPass(GraphBuilder, View, Instance, ShaderDrawData, SceneColorRT);
 		}
 	}
 
@@ -986,7 +996,7 @@ void RunHairStrandsDebug(
 	{
 		for (FHairGroupInstance* Instance : Instances)
 		{
-			AddDrawDebugCardsAtlasPass(RHICmdList, View, Instance, ShaderDrawData, SceneColor);
+			AddDrawDebugCardsAtlasPass(GraphBuilder, View, Instance, ShaderDrawData, SceneColorRT);
 		}
 	}
 
@@ -995,9 +1005,9 @@ void RunHairStrandsDebug(
 		for (FHairGroupInstance* Instance : Instances)
 		{
 			if (GHairCardsGuidesDebug_Ren > 0)
-				AddDrawDebugCardsGuidesPass(RHICmdList, View, Instance, ShaderDrawData, GHairCardsGuidesDebug_Ren == 1, true);
+				AddDrawDebugCardsGuidesPass(GraphBuilder, View, Instance, ShaderDrawData, GHairCardsGuidesDebug_Ren == 1, true);
 			if (GHairCardsGuidesDebug_Sim > 0)
-				AddDrawDebugCardsGuidesPass(RHICmdList, View, Instance, ShaderDrawData, GHairCardsGuidesDebug_Sim == 1, false);
+				AddDrawDebugCardsGuidesPass(GraphBuilder, View, Instance, ShaderDrawData, GHairCardsGuidesDebug_Sim == 1, false);
 		}
 	}
 }

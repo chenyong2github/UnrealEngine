@@ -186,7 +186,7 @@ static void AddHairCardAtlasTexturePass(
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HairCardsAtlasTexturePS"),
 		ParametersPS,
-		ERDGPassFlags::Raster,
+		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
 		[ParametersPS, VertexShader, PixelShader, InCardsIndexBuffer, VertexCount, PrimitiveCount, AtlasResolution](FRHICommandList& RHICmdList)
 		{
 			FHairCardAtlasTextureVS::FParameters ParametersVS;
@@ -334,7 +334,7 @@ static void AddHairCardAtlasTexturePass(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HairCardsAtlasTexturePS"),
 			ParametersPS,
-			ERDGPassFlags::Raster,
+			ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
 			[ParametersPS, VertexShader, PixelShader, AtlasResolution](FRHICommandList& RHICmdList)
 			{
 				FHairCardAtlasTextureRectVS::FParameters ParametersVS;
@@ -3184,7 +3184,7 @@ bool HasHairCardsAtlasQueries()
 }
 
 void RunHairCardsAtlasQueries(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const FShaderDrawDebugData* DebugShaderData)
 {
@@ -3204,7 +3204,6 @@ void RunHairCardsAtlasQueries(
 	//	GRenderTargetPool.FindFreeElement(RHICmdList, Desc1, Q.ProceduralResource->CardsCoverageTextureRT, TEXT("HairCardsAtlasCoverageTexture"), true, ERenderTargetTransience::NonTransient);
 	//	GRenderTargetPool.FindFreeElement(RHICmdList, Desc2, Q.ProceduralResource->CardsUVsTextureRT, TEXT("HairCardsAtlasTangentTexture"), true, ERenderTargetTransience::NonTransient);	
 
-		FRDGBuilder GraphBuilder(RHICmdList);
 		FRDGTextureRef DepthTexture		= GraphBuilder.CreateTexture(Desc0, TEXT("CardsDepth"));
 		FRDGTextureRef CoverageTexture	= GraphBuilder.CreateTexture(Desc1, TEXT("CardCoverage"));
 		FRDGTextureRef TangentTexture	= GraphBuilder.CreateTexture(Desc2, TEXT("CardTangent"));
@@ -3225,7 +3224,6 @@ void RunHairCardsAtlasQueries(
 		GraphBuilder.QueueTextureExtraction(CoverageTexture, &Q.ProceduralResource->CardsCoverageTextureRT, ERHIAccess::SRVMask);
 		GraphBuilder.QueueTextureExtraction(TangentTexture, &Q.ProceduralResource->CardsTangentTextureRT, ERHIAccess::SRVMask);
 		GraphBuilder.QueueTextureExtraction(AttributeTexture, &Q.ProceduralResource->CardsAttributeTextureRT, ERHIAccess::SRVMask);
-		GraphBuilder.Execute();
 
 		// Create/Copy
 		Q.RestResource->CardsCoverageTextureRT = Q.ProceduralResource->CardsCoverageTextureRT;

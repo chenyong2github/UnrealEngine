@@ -1645,6 +1645,7 @@ static void TransitionShadowsToReadable(FRHICommandList& RHICmdList, TArrayView<
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderShadowProjectionsParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCategorizationTexture)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -1686,10 +1687,11 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 			TransitionShadowsToReadable(RHICmdList, NormalShadows);
 		});
 
-		const auto RenderNormalShadows = [&](FRDGTextureRef OutputTexture, FExclusiveDepthStencil ExclusiveDepthStencil)
+		const auto RenderNormalShadows = [&](FRDGTextureRef OutputTexture, FExclusiveDepthStencil ExclusiveDepthStencil, bool bSubPixel)
 		{
 			auto* PassParameters = GraphBuilder.AllocParameters<FRenderShadowProjectionsParameters>();
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+			PassParameters->HairCategorizationTexture = bSubPixel && HairVisibilityViews->HairDatas.Num() > 0 ? HairVisibilityViews->HairDatas[0].CategorizationTexture : nullptr;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil);
 
@@ -1703,16 +1705,16 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 				RDG_EVENT_NAME("%s", *LightNameWithLevel),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[this, &NormalShadows, LightSceneProxy, HairVisibilityViews, bProjectingForForwardShading](FRHICommandListImmediate& RHICmdList)
+				[this, &NormalShadows, LightSceneProxy, HairVisibilityViews, bProjectingForForwardShading, bSubPixel](FRHICommandListImmediate& RHICmdList)
 			{
 				const bool bMobileModulatedProjections = false;
-				FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneProxy, HairVisibilityViews, NormalShadows, bProjectingForForwardShading, bMobileModulatedProjections);
+				FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneProxy, bSubPixel ? HairVisibilityViews : nullptr, NormalShadows, bProjectingForForwardShading, bMobileModulatedProjections);
 			});
 		};
 
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Shadows");
-			RenderNormalShadows(ScreenShadowMaskTexture, FExclusiveDepthStencil::DepthRead_StencilWrite);
+			RenderNormalShadows(ScreenShadowMaskTexture, FExclusiveDepthStencil::DepthRead_StencilWrite, false);
 		}
 
 		if (ScreenShadowMaskSubPixelTexture && HairVisibilityViews)
@@ -1720,7 +1722,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 			RDG_EVENT_SCOPE(GraphBuilder, "SubPixelShadows");
 
 			// Sub-pixel shadows don't use stencil.
-			RenderNormalShadows(ScreenShadowMaskSubPixelTexture, FExclusiveDepthStencil::DepthRead_StencilNop);
+			RenderNormalShadows(ScreenShadowMaskSubPixelTexture, FExclusiveDepthStencil::DepthRead_StencilNop, true);
 		}
 	}
 

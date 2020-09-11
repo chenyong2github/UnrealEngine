@@ -624,7 +624,7 @@ void ComputeHairStrandsClustersCulling(
 				ClusterData.SetCullingResultAvailable(true);
 			}
 		}
-		TransitBufferToReadable(GraphBuilder.RHICmdList, TransitionQueue);
+		TransitBufferToReadable(GraphBuilder, TransitionQueue);
 	}
 }
 

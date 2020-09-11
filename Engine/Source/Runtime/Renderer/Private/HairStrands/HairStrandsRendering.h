@@ -44,7 +44,7 @@ void RenderHairBasePass(
 	FHairStrandsRenderingData& OutHairDatas);
 
 void RunHairStrandsBookmark(
-	FRHICommandListImmediate& RHICmdList, 
+	FRDGBuilder& GraphBuilder, 
 	EHairStrandsBookmark Bookmark, 
 	FHairStrandsBookmarkParameters& Parameters);
 

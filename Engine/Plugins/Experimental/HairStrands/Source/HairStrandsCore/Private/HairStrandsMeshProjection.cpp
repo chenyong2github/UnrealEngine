@@ -811,23 +811,6 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FHairInterpolateMeshTriangleCS, "/Engine/Private/HairStrands/HairStrandsMeshInterpolate.usf", "MainCS", SF_Compute);
 
-void TransitBufferToReadable(FRHICommandList& RHICmdList, FBufferTransitionQueue& BuffersToTransit)
-{
-	if (BuffersToTransit.Num())
-	{
-		FMemMark Mark(FMemStack::Get());
-		TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
-		Transitions.Reserve(BuffersToTransit.Num());
-		for (FRHIUnorderedAccessView* UAV : BuffersToTransit)
-		{
-			// TODO: do we know the source state here?
-			Transitions.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-		}
-		RHICmdList.Transition(Transitions);
-		BuffersToTransit.SetNum(0, false);
-	}
-}
-
 void AddHairStrandInterpolateMeshTrianglesPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -1265,14 +1248,7 @@ void GenerateFolliculeMask(
 	bool bClear = OutTexture == nullptr;
 	if (OutTexture == nullptr)
 	{
-		FRDGTextureDesc OutputDesc;
-		OutputDesc.ClearValue = FClearValueBinding(ClearColor);
-		OutputDesc.Extent.X = Resolution.X;
-		OutputDesc.Extent.Y = Resolution.Y;
-		OutputDesc.Depth = 0;
-		OutputDesc.Format = Format;
-		OutputDesc.NumMips = MipCount;
-		OutputDesc.Flags = TexCreate_None;
+		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(Resolution, Format, FClearValueBinding(ClearColor), TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, MipCount);
 		OutTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FollicleMask"));
 	}
 
@@ -1295,14 +1271,7 @@ void GenerateFolliculeMask(
 	bool bClear = OutTexture == nullptr;
 	if (OutTexture == nullptr)
 	{
-		FRDGTextureDesc OutputDesc;
-		OutputDesc.ClearValue = FClearValueBinding(ClearColor);
-		OutputDesc.Extent.X = Resolution.X;
-		OutputDesc.Extent.Y = Resolution.Y;
-		OutputDesc.Depth = 0;
-		OutputDesc.Format = Format;
-		OutputDesc.NumMips = MipCount;
-		OutputDesc.Flags = TexCreate_None;
+		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(Resolution, Format, FClearValueBinding(ClearColor), TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, MipCount);
 		OutTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FollicleMask"));
 	}
 
