@@ -3,6 +3,8 @@
 #include "DatasmithCADTranslator.h"
 
 #ifdef CAD_LIBRARY
+
+#include "CADInterfacesModule.h"
 #include "CoreTechParametricSurfaceExtension.h"
 #include "DatasmithCADTranslatorModule.h"
 #include "DatasmithDispatcher.h"
@@ -19,6 +21,12 @@ static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
 
 void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
+	if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
+	{
+		OutCapabilities.bIsEnabled = false;
+		return;
+	}
+
 #ifndef CAD_TRANSLATOR_DEBUG
 	OutCapabilities.bParallelLoadStaticMeshSupported = true;
 #endif
