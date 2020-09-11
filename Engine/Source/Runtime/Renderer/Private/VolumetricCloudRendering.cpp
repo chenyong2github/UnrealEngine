@@ -194,7 +194,7 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 		const bool bShadersCompiled = ShouldPipelineCompileVolumetricCloudShader(Scene->GetShaderPlatform());
 
 		FLightSceneInfo* AtmosphericLight0 = Scene->AtmosphereLights[0];
-		return bShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && AtmosphericLight0!=nullptr;
+		return bShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && AtmosphericLight0!=nullptr && VolumetricCloud->GetVolumetricCloudSceneProxy().GetCloudVolumeMaterial()!=nullptr;
 	}
 	return false;
 }
