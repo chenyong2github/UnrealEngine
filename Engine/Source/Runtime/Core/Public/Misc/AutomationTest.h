@@ -635,22 +635,12 @@ struct FAutomationScreenshotData
 
 struct CORE_API FAutomationScreenshotCompareResults
 {
-	FAutomationScreenshotCompareResults()
-		: UniqueId()
-		, bWasNew(false)
-		, bWasSimilar(false)
-		, MaxLocalDifference(0)
-		, GlobalDifference(0)
-		, ErrorMessage()
-	{
-	}
-
 	FGuid UniqueId;
-	bool bWasNew;
-	bool bWasSimilar;
-	double MaxLocalDifference;
-	double GlobalDifference;
 	FString ErrorMessage;
+	double MaxLocalDifference = 0.0;
+	double GlobalDifference = 0.0;
+	bool bWasNew = false;
+	bool bWasSimilar = false;
 
 	FAutomationEvent ToAutomationEvent(const FString& ScreenhotName) const;
 };
