@@ -107,21 +107,6 @@ public:
 		return EPlatformAuthentication::Possible;
 	}
 
-	virtual bool SupportsVariants() const override
-	{
-		return true;
-	}
-
-	virtual FString PlatformName() const override
-	{
-		return TEXT("HoloLens");
-	}
-
-	virtual float GetVariantPriority() const override
-	{
-		return 1.0f;
-	}
-
 	virtual bool IsSdkInstalled(bool bProjectHasCode, FString& OutDocumentationPath) const override;
 
 	virtual int32 CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const override;
