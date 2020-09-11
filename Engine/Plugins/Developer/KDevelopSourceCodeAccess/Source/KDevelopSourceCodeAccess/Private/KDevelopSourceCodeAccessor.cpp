@@ -161,7 +161,7 @@ FString FKDevelopSourceCodeAccessor::GetSolutionPath() const
 	{
 		CachedSolutionPath = FPaths::ProjectDir();
 		
-		if (!FUProjectDictionary(FPaths::RootDir()).IsForeignProject(CachedSolutionPath))
+		if (!FUProjectDictionary::GetDefault().IsForeignProject(CachedSolutionPath))
 		{
 			CachedSolutionPath = FPaths::Combine(FPaths::RootDir(), TEXT("UE4.kdev4"));
 		}
