@@ -31,14 +31,16 @@ class FMobileDeferredShadingPS : public FGlobalShader
 	class FUseClustred			: SHADER_PERMUTATION_BOOL("USE_CLUSTERED");
 	class FApplySkyReflection	: SHADER_PERMUTATION_BOOL("APPLY_SKY_REFLECTION");
 	class FApplyCSM				: SHADER_PERMUTATION_BOOL("APPLY_CSM");
+	class FApplyReflection		: SHADER_PERMUTATION_BOOL("APPLY_REFLECTION");
 	class FShadowQuality		: SHADER_PERMUTATION_INT("MOBILE_SHADOW_QUALITY", 4);
-	using FPermutationDomain = TShaderPermutationDomain< FUseClustred, FApplySkyReflection, FApplyCSM, FShadowQuality>;
+	using FPermutationDomain = TShaderPermutationDomain< FUseClustred, FApplySkyReflection, FApplyCSM, FApplyReflection, FShadowQuality>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, Forward)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FMobileDirectionalLightShaderParameters, MobileDirectionalLight)
-		SHADER_PARAMETER_STRUCT_REF(FMobileReflectionCaptureShaderParameters, MobileReflectionCapture)
+		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
+		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 	END_SHADER_PARAMETER_STRUCT()
 
 	//SHADER_PARAMETER_STRUCT_REF(FMobileSceneTextureUniformParameters, SceneTextures)
@@ -48,6 +50,7 @@ class FMobileDeferredShadingPS : public FGlobalShader
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT(PREPROCESSOR_TO_STRING(MAX_MOBILE_SHADOWCASCADES)), GetMobileMaxShadowCascades());
+		OutEnvironment.SetDefine(TEXT("SUPPORTS_TEXTURECUBE_ARRAY"), 1);
 	}
 
 	static FPermutationDomain RemapPermutationVector(FPermutationDomain PermutationVector)
@@ -80,11 +83,13 @@ class FMobileDeferredShadingPS : public FGlobalShader
 	{
 		bool bApplySky = View.Family->EngineShowFlags.SkyLighting;
 		int32 ShadowQuality = (int32)GetShadowQuality();
-				
+		int NumReflectionCaptures = View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures;
+
 		FPermutationDomain PermutationVector;
 		PermutationVector.Set<FMobileDeferredShadingPS::FUseClustred>(GMobileUseClusteredDeferredShading != 0);
 		PermutationVector.Set<FMobileDeferredShadingPS::FApplySkyReflection>(bApplySky);
 		PermutationVector.Set<FMobileDeferredShadingPS::FApplyCSM>(ShadowQuality > 0);
+		PermutationVector.Set<FMobileDeferredShadingPS::FApplyReflection>(NumReflectionCaptures > 0);
 		PermutationVector.Set<FMobileDeferredShadingPS::FShadowQuality>(FMath::Clamp(ShadowQuality - 1, 0, 3));
 		return PermutationVector;
 	}
@@ -128,8 +133,11 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	PassParameters.Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 	//PassParameters.SceneTextures = SceneTexturesBuffer;
 	PassParameters.MobileDirectionalLight = Scene.UniformBuffers.MobileDirectionalLightUniformBuffers[1];
-	PassParameters.MobileReflectionCapture = Scene.UniformBuffers.MobileSkyReflectionUniformBuffer;
 
+	PassParameters.ReflectionCaptureData = Scene.UniformBuffers.ReflectionCaptureUniformBuffer;
+	FReflectionUniformParameters ReflectionUniformParameters;
+	SetupReflectionUniformParameters(View, ReflectionUniformParameters);
+	PassParameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	// Add to emissive in SceneColor

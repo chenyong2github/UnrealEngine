@@ -52,7 +52,11 @@
 	#endif
 #endif
 
-#if FEATURE_LEVEL < FEATURE_LEVEL_SM5
+#ifndef SUPPORTS_TEXTURECUBE_ARRAY
+#define SUPPORTS_TEXTURECUBE_ARRAY (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
+#endif
+
+#if SUPPORTS_TEXTURECUBE_ARRAY == 0
 	// Define TextureCubeArray to something which will compile so we can use it in uniform buffers
 	#define TextureCubeArray TextureCube
 #endif

@@ -299,7 +299,7 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 		Ar.CookingTarget()->GetReflectionCaptureFormats(Formats);
 	}
 
-	if (Formats.Num() == 0 || Formats.Contains(FullHDR))
+	if (Formats.Num() == 0 || Formats.Contains(FullHDR) || IsMobileDeferredShading())
 	{
 		Ar << ReflectionCaptureMapBuildData.FullHDRCapturedData;
 	}
@@ -311,7 +311,7 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 
 	if (Ar.CustomVer(FMobileObjectVersion::GUID) >= FMobileObjectVersion::StoreReflectionCaptureCompressedMobile)
 	{
-		if (Ar.IsCooking() && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering))
+		if (Ar.IsCooking() && (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering) || IsMobileDeferredShading()))
 		{
 			UTextureCube* Dummy = NULL;
 			Ar << Dummy;
@@ -405,8 +405,8 @@ void UMapBuildDataRegistry::Serialize(FArchive& Ar)
 void UMapBuildDataRegistry::PostLoad()
 {
 	Super::PostLoad();
-	bool bFullDataRequired = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5;
-	bool bEncodedDataRequired = GIsEditor || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1;
+	bool bFullDataRequired = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || IsMobileDeferredShading();
+	bool bEncodedDataRequired = (GIsEditor || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1) && !IsMobileDeferredShading();
 
 #if WITH_EDITOR
 	if (ReflectionCaptureBuildData.Num() > 0 && bEncodedDataRequired)
