@@ -68,9 +68,6 @@ FSlateInvalidationRoot::~FSlateInvalidationRoot()
 #if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
 	ensure(FastWidgetPathToClearedBecauseOfDelay.Num() == 0);
 #endif
-#if WITH_SLATE_DEBUGGING
-	FSlateDebugging::ClearInvalidatedWidgets(*this);
-#endif
 
 	if (FSlateApplicationBase::IsInitialized())
 	{
@@ -117,11 +114,6 @@ void FSlateInvalidationRoot::InvalidateChildOrder(const SWidget* Investigator)
 		}
 
 #if WITH_SLATE_DEBUGGING
-		if (GSlateInvalidationDebugging && FastWidgetPathList.Num())
-		{
-			FSlateDebugging::WidgetInvalidated(*this, FastWidgetPathList[0], &FLinearColor::Red);
-		}
-
 		FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::ChildOrder);
 #endif
 		UE_TRACE_SLATE_ROOT_CHILDORDER_INVALIDATED(InvalidationRootWidget, Investigator);
@@ -226,9 +218,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 		SCOPED_NAMED_EVENT(Slate_PaintSlowPath, FColor::Red);
 
 		//CSV_EVENT(Basic, "Slate Slow Path update");
-#if WITH_SLATE_DEBUGGING
-		FSlateDebugging::ClearInvalidatedWidgets(*this);
-#endif
 		ClearAllFastPathData(!Context.bAllowFastPathUpdate);
 
 		GSlateIsOnFastUpdatePath = false;
@@ -268,18 +257,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 	if (Context.bAllowFastPathUpdate)
 	{
 		Context.WindowElementList->PopCachedElementData();
-
-#if WITH_SLATE_DEBUGGING
-		if (GSlateInvalidationDebugging)
-		{
-			if (!GSlateEnableGlobalInvalidation)
-			{
-				FSlateDebugging::DrawInvalidationRoot(*InvalidationRootWidget, CachedMaxLayerId, *Context.WindowElementList);
-			}
-
-			FSlateDebugging::DrawInvalidatedWidgets(*this, *Context.PaintArgs, *Context.WindowElementList);
-		}
-#endif
 	}
 
 	FinalUpdateList.Reset();
@@ -735,28 +712,6 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 				if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 				{
 					Stat_NeedsActiveTimerUpdate++;
-				}
-#endif
-
-#if WITH_SLATE_DEBUGGING
-				if (GSlateInvalidationDebugging)
-				{
-					if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint))
-					{
-						FSlateDebugging::WidgetInvalidated(*this, WidgetProxy);
-					}
-					else if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint) && !WidgetProxy.Widget->Advanced_IsInvalidationRoot())
-					{
-						FSlateDebugging::WidgetInvalidated(*this, WidgetProxy, &FLinearColor::Blue);
-					}
-					else if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsTick))
-					{
-						FSlateDebugging::WidgetInvalidated(*this, WidgetProxy, &FLinearColor::White);
-					}
-					else if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
-					{
-						FSlateDebugging::WidgetInvalidated(*this, WidgetProxy, &FLinearColor::Green);
-					}
 				}
 #endif
 			}

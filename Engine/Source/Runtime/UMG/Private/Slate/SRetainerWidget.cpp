@@ -468,14 +468,6 @@ SRetainerWidget::EPaintRetainedContentResult SRetainerWidget::PaintRetainedConte
 				WidgetRenderer->ViewOffset = -ViewOffset;
 
 				bool bRepaintedWidgets = WidgetRenderer->DrawInvalidationRoot(VirtualWindow, RenderTarget, *this, Context, GDeferRetainedRenderingRenderThread != 0);
-
-#if WITH_SLATE_DEBUGGING
-				if (bRepaintedWidgets)
-				{
-					FSlateDebugging::DrawInvalidationRoot(*this, Context.IncomingLayerId+1, *Context.WindowElementList);
-				}
-#endif
-
 				bRenderRequested = false;
 				Shared_WaitingToRender.Remove(this);
 

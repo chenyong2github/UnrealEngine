@@ -2,8 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "SlateGlobals.h"
-#include "Types/SlateConstants.h"
+
+#include "HAL/IConsoleManager.h"
 #include "Styling/SlateWidgetStyle.h"
+#include "Types/SlateConstants.h"
+
+#if WITH_SLATE_DEBUGGING
+#include "Containers/StringFwd.h"
+#include "Misc/OutputDeviceRedirector.h"
+#endif
 
 /** How much to scroll for each click of the mouse wheel (in Slate Screen Units). */
 TAutoConsoleVariable<float> GlobalScrollAmount(
@@ -53,18 +60,22 @@ static FAutoConsoleVariableRef CVarSlateCheckUObjectRenderResources(
 	GSlateCheckUObjectRenderResources,
 	TEXT("")
 );
+
 bool GSlateCheckUObjectRenderResourcesShouldLogFatal = false;
 #endif
 
 #if WITH_SLATE_DEBUGGING
-
-bool GSlateInvalidationDebugging = false;
-/** True if we should allow widgets to be cached in the UI at all. */
-FAutoConsoleVariableRef CVarInvalidationDebugging(
+FAutoConsoleVariable CVarInvalidationDebugging(
 	TEXT("Slate.InvalidationDebugging"),
-	GSlateInvalidationDebugging,
-	TEXT("Whether to show invalidation debugging visualization"));
-
+	false,
+	TEXT("Deprecated - Use SlateDebugger.Invalidate.Enable"),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* Variable)
+	{
+		TStringBuilder<64> Builder;
+		Builder << TEXT("SlateDebugger.Invalidate.Enable ")
+				<< Variable->GetBool();
+		IConsoleManager::Get().ProcessUserConsoleInput(Builder.GetData(), *GLog, nullptr);
+	}));
 
 bool GSlateHitTestGridDebugging = false;
 /** True if we should allow widgets to be cached in the UI at all. */
