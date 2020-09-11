@@ -17,6 +17,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Nanite Geometry Collection data moved to DDC
 		GeometryCollectionNaniteDDC,
+		
+		// Removing SourceAnimationData, animation layering is now applied during compression
+		RemovingSourceAnimationData,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

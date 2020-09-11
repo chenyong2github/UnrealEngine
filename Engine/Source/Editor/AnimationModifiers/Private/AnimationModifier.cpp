@@ -110,17 +110,9 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 
 void UAnimationModifier::UpdateCompressedAnimationData()
 {
-	if (CurrentAnimSequence->DoesNeedRebake() || CurrentAnimSequence->DoesNeedRecompress())
+	if (CurrentAnimSequence->DoesNeedRecompress())
 	{
-		if (CurrentAnimSequence->DoesNeedRebake())
-		{
-			CurrentAnimSequence->BakeTrackCurvesToRawAnimation();
-		}
-
-		if (CurrentAnimSequence->DoesNeedRecompress())
-		{
-			CurrentAnimSequence->RequestSyncAnimRecompression(false);
-		}
+		CurrentAnimSequence->RequestSyncAnimRecompression(false);
 	}
 }
 

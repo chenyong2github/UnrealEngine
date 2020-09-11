@@ -782,11 +782,6 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 		UAnimSequence* Sequence = Cast<UAnimSequence>(PreviewInstance->GetCurrentAsset());
 		if (Sequence)
 		{
-			if (Sequence->DoesNeedRebake())
-			{
-				TextValue = ConcatenateLine(TextValue, LOCTEXT("ApplyRawAnimationDataWarning", "<AnimViewport.WarningText>Animation is being edited. To apply to raw animation data, click \"Apply\"</>"));
-			}
-
 			if (Sequence->DoesNeedRecompress())
 			{
 				TextValue = ConcatenateLine(TextValue, LOCTEXT("ApplyToCompressedDataWarning", "<AnimViewport.WarningText>Animation is being edited. To apply to compressed data (and recalculate baked additives), click \"Apply\"</>"));

@@ -542,11 +542,13 @@ void UDebugSkelMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction*
 
 			BoneContainer.SetUseSourceData(false);
 			BoneContainer.SetUseRAWData(true);
+			PreviewInstance->EnableControllers(false);
 
 			GenSpaceBases(UncompressedSpaceBases);
-
+			
 			BoneContainer.SetUseRAWData(bUseRaw);
 			BoneContainer.SetUseSourceData(bUseSource);
+			PreviewInstance->EnableControllers(true);
 		}
 
 		// Non retargeted pose.

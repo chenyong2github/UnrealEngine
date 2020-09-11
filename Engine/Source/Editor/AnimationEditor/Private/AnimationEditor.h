@@ -129,10 +129,6 @@ private:
 
 	void OnSetKey();
 
-	bool CanApplyRawAnimChanges() const;
-
-	void OnApplyRawAnimChanges();
-
 	void OnReimportAnimation();
 
 	void OnApplyCompression();

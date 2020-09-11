@@ -345,12 +345,7 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 					OnStopEditingCurves.ExecuteIfBound(CurveEditInfo);
 
 					AnimSequenceBase->RawCurveData.DeleteCurveData(CurveToDelete, ERawCurveTrackTypes::RCT_Transform);
-
-					if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase))
-					{
-						AnimSequence->bNeedsRebake = true;
-					}
-
+					
 					bDeletedCurve = true;
 				}
 			}	

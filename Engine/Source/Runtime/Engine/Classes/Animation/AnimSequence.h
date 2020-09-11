@@ -241,7 +241,7 @@ protected:
 	/**
 	 * Source RawAnimationData. Only can be overridden by when transform curves are added first time OR imported
 	 */
-	TArray<struct FRawAnimSequenceTrack> SourceRawAnimationData;
+	TArray<struct FRawAnimSequenceTrack> SourceRawAnimationData_DEPRECATED;
 #endif
 
 public:
@@ -346,6 +346,7 @@ public:
 	UPROPERTY()
 	FString SourceFileTimestamp_DEPRECATED;
 
+	UE_DEPRECATED(5.0, "bNeedsRebake has been deprecated, transform curves are now baked during compression")
 	UPROPERTY(transient)
 	bool bNeedsRebake;
 
@@ -370,7 +371,6 @@ public:
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -446,7 +446,8 @@ public:
 	const TArray<FRawAnimSequenceTrack>& GetRawAnimationData() const { return RawAnimationData; }
 
 #if WITH_EDITORONLY_DATA
-	bool  HasSourceRawData() const { return SourceRawAnimationData.Num() > 0; }
+	UE_DEPRECATED(5.0, "SourceRawAnimationData has been deprecated")
+	bool HasSourceRawData() const { return false; }
 	const TArray<FName>& GetAnimationTrackNames() const { return AnimationTrackNames; }
 	
 	void  UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName);
@@ -585,6 +586,7 @@ public:
 
 protected:
 	void ApplyCompressedData(const TArray<uint8>& Data);
+	void SanitizeAnimationTrackData(FRawAnimSequenceTrack& RawAnim);
 
 public:
 	bool IsCompressedDataValid() const;
@@ -661,13 +663,17 @@ public:
 	/** 
 	 * Bake Transform Curves.TransformCurves to RawAnimation after making a back up of current RawAnimation
 	 */
-	void BakeTrackCurvesToRawAnimation();
+	UE_DEPRECATED(5.0, "BakeTrackCurvesToRawAnimation has been deprecated, transform curves are now baked during compression")
+	void BakeTrackCurvesToRawAnimation() {}
+
+	void BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable);
 
 	/**
 	 * Sometimes baked data gets invalidated. For example, if you retarget this from another animation
 	 * It won't matter anymore, so in any case, when the data is not valid anymore
 	 * We clear Source Raw Animation Data as well as Transform Curve
 	 */
+	UE_DEPRECATED(5.0, "ClearBakedTransformData has been deprecated, transform curves are now baked during compression")
 	void ClearBakedTransformData();
 	/**
 	 * Add Key to Transform Curves
@@ -676,7 +682,8 @@ public:
 	/**
 	 * Return true if it needs to re-bake
 	 */
-	bool DoesNeedRebake() const;
+	UE_DEPRECATED(5.0, "DoesNeedRebake has been deprecated, transform curves are now baked during compression")
+	bool DoesNeedRebake() const { return false; }
 	/**
 	 * Return true if it contains transform curves
 	 */
@@ -685,12 +692,14 @@ public:
 	/**
 	 * Returns whether this animation has baked transform curves (i.e. has the raw data been modified)
 	 */
-	bool HasBakedTransformCurves() const;
+	UE_DEPRECATED(5.0, "HasBakedTransformCurves has been deprecated, transform curves are now baked during compression")
+	bool HasBakedTransformCurves() const { return false; }
 
 	/**
 	 * Restore the pre baked transform curve raw data
 	 */
-	void RestoreSourceData();
+	UE_DEPRECATED(5.0, "RestoreSourceData has been deprecated, transform curves are now baked during compression")
+	void RestoreSourceData() {}
 
 	/**
 	* Return true if compressed data is out of date / missing and so animation needs to use raw data

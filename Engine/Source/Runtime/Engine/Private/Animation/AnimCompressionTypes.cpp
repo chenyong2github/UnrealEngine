@@ -38,13 +38,35 @@ void UpdateWithData(FSHA1& Sha, const DataType& Data)
 
 void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData) 
 {
+	auto UpdateWithFloatCurve = [&Sha](const FRichCurve& Curve)
+	{
+		UpdateWithData(Sha, Curve.DefaultValue);
+		UpdateSHAWithArray(Sha, Curve.GetConstRefOfKeys());
+		UpdateWithData(Sha, Curve.PreInfinityExtrap);
+		UpdateWithData(Sha, Curve.PostInfinityExtrap);
+	};
+
 	for (const FFloatCurve& Curve : InRawCurveData.FloatCurves)
 	{
 		UpdateWithData(Sha, Curve.Name.UID);
-		UpdateWithData(Sha, Curve.FloatCurve.DefaultValue);
-		UpdateSHAWithArray(Sha, Curve.FloatCurve.GetConstRefOfKeys());
-		UpdateWithData(Sha, Curve.FloatCurve.PreInfinityExtrap);
-		UpdateWithData(Sha, Curve.FloatCurve.PostInfinityExtrap);
+		UpdateWithFloatCurve(Curve.FloatCurve);
+	}
+
+	for (const FTransformCurve& Curve : InRawCurveData.TransformCurves)
+	{
+		UpdateWithData(Sha, Curve.Name.UID);
+
+		auto UpdateWithComponent = [&Sha, &UpdateWithFloatCurve](const FVectorCurve& VectorCurve)
+		{
+			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+			{
+				UpdateWithFloatCurve(VectorCurve.FloatCurves[ChannelIndex]);
+			}
+		};
+		
+		UpdateWithComponent(Curve.TranslationCurve);
+		UpdateWithComponent(Curve.RotationCurve);
+		UpdateWithComponent(Curve.ScaleCurve);
 	}
 }
 
@@ -151,22 +173,33 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 
 	const bool bHasVirtualBones = InSeq->GetSkeleton()->GetVirtualBones().Num() > 0;
 
+	TArray<FName> TempTrackNames;
+
 	if (InSeq->CanBakeAdditive())
 	{
-		TArray<FName> TempTrackNames;
 		InSeq->BakeOutAdditiveIntoRawData(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable, RawCurveData, AdditiveBaseAnimationData);
-	}
-	else if (bHasVirtualBones)// If we aren't additive we must bake virtual bones
-	{
-		TArray<FName> TempTrackNames;
-		InSeq->BakeOutVirtualBoneTracks(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable);
-		RawCurveData = InSeq->RawCurveData;
 	}
 	else
 	{
-		RawAnimationData = InSeq->GetRawAnimationData();
-		TrackToSkeletonMapTable = InSeq->GetRawTrackToSkeletonMapTable();
+		// In case we require baking down transform curves, do so now meaning Virtual Bone baking will incorporate the correct bone transforms
+		if (InSeq->DoesContainTransformCurves())
+		{
+			InSeq->BakeTrackCurvesToRawAnimationTracks(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable);			
+		}
+		else
+		{
+			RawAnimationData = InSeq->GetRawAnimationData();
+			TrackToSkeletonMapTable = InSeq->GetRawTrackToSkeletonMapTable();
+			TempTrackNames = InSeq->GetAnimationTrackNames();
+		}
+
 		RawCurveData = InSeq->RawCurveData;
+
+		// If we aren't additive we must bake virtual bones
+		if (bHasVirtualBones)
+		{
+			InSeq->BakeOutVirtualBoneTracks(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable);
+		}
 	}
 
 	if (bPerformStripping)

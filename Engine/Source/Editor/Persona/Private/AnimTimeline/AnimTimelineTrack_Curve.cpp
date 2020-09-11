@@ -372,11 +372,6 @@ void FAnimTimelineTrack_Curve::HandleCurveChanged()
 	}
 
 	GetModel()->GetAnimSequenceBase()->MarkRawDataAsModified();
-
-	if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(GetModel()->GetAnimSequenceBase()))
-	{
-		AnimSequence->bNeedsRebake = true;
-	}
 }
 
 void FAnimTimelineTrack_Curve::PostUndoRedo()

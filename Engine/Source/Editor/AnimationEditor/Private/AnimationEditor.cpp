@@ -198,10 +198,6 @@ void FAnimationEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FAnimationEditor::OnReimportAnimation),
 		FCanExecuteAction::CreateSP(this, &FAnimationEditor::HasValidAnimationSequence));
 
-	ToolkitCommands->MapAction(FAnimationEditorCommands::Get().ApplyAnimation,
-		FExecuteAction::CreateSP(this, &FAnimationEditor::OnApplyRawAnimChanges),
-		FCanExecuteAction::CreateSP(this, &FAnimationEditor::CanApplyRawAnimChanges));
-
 	ToolkitCommands->MapAction(FAnimationEditorCommands::Get().ExportToFBX_AnimData,
 		FExecuteAction::CreateSP(this, &FAnimationEditor::OnExportToFBX, EExportSourceOption::CurrentAnimation_AnimData),
 		FCanExecuteAction::CreateSP(this, &FAnimationEditor::HasValidAnimationSequence));
@@ -264,7 +260,7 @@ void FAnimationEditor::ExtendToolbar()
 			ToolbarBuilder.BeginSection("Animation");
 			{
 				ToolbarBuilder.AddToolBarButton(FAnimationEditorCommands::Get().ReimportAnimation);
-				ToolbarBuilder.AddToolBarButton(FAnimationEditorCommands::Get().ApplyCompression, NAME_None, LOCTEXT("Toolbar_ApplyCompression", "Compression"));
+				ToolbarBuilder.AddToolBarButton(FAnimationEditorCommands::Get().ApplyCompression, NAME_None, LOCTEXT("Toolbar_ApplyCompression", "Apply Compression"));
 
 				{
 					ToolbarBuilder.AddComboButton(
@@ -281,7 +277,6 @@ void FAnimationEditor::ExtendToolbar()
 			ToolbarBuilder.BeginSection("Editing");
 			{
 				ToolbarBuilder.AddToolBarButton(FAnimationEditorCommands::Get().SetKey, NAME_None, LOCTEXT("Toolbar_SetKey", "Key"));
-				ToolbarBuilder.AddToolBarButton(FAnimationEditorCommands::Get().ApplyAnimation, NAME_None, LOCTEXT("Toolbar_ApplyAnimation", "Apply"));
 			}
 			ToolbarBuilder.EndSection();
 
@@ -574,37 +569,6 @@ void FAnimationEditor::OnSetKey()
 	{
 		UDebugSkelMeshComponent* Component = PersonaToolkit->GetPreviewMeshComponent();
 		Component->PreviewInstance->SetKey();
-	}
-}
-
-bool FAnimationEditor::CanApplyRawAnimChanges() const
-{
-	UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimationAsset);
-
-	// ideally would be great if we can only show if something changed
-	return (AnimSequence && (AnimSequence->DoesNeedRebake() || AnimSequence->DoesNeedRecompress()));
-}
-
-void FAnimationEditor::OnApplyRawAnimChanges()
-{
-	UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimationAsset);
-	if (AnimSequence)
-	{
-		if (AnimSequence->DoesNeedRebake() || AnimSequence->DoesNeedRecompress())
-		{
-			FScopedTransaction ScopedTransaction(LOCTEXT("BakeAnimation", "Bake Animation"));
-			if (AnimSequence->DoesNeedRebake())
-			{
-				AnimSequence->Modify(true);
-				AnimSequence->BakeTrackCurvesToRawAnimation();
-			}
-
-			if (AnimSequence->DoesNeedRecompress())
-			{
-				AnimSequence->Modify(true);
-				AnimSequence->RequestSyncAnimRecompression(false);
-			}
-		}
 	}
 }
 

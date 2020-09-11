@@ -256,7 +256,6 @@ namespace EditorAnimUtils
 					// clear transform curves since those curves won't work in new skeleton
 					// since we're deleting curves, mark this rebake flag off
 					AnimSequenceToRetarget->RawCurveData.TransformCurves.Empty();
-					AnimSequenceToRetarget->bNeedsRebake = false;
 					// I can't copy transform curves yet because transform curves need retargeting. 
 					//EditorAnimUtils::CopyAnimCurves(OldSkeleton, NewSkeleton, AssetToRetarget, USkeleton::AnimTrackCurveMappingName, FRawCurveTracks::TransformType);
 				}

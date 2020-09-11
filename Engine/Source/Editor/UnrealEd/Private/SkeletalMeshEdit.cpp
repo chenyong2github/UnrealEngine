@@ -1504,8 +1504,6 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 	}
 
 	// importing custom attribute END
-	
-	const bool bSourceDataExists = DestSeq->HasSourceRawData();
 	TArray<AnimationTransformDebug::FAnimationTransformDebugData> TransformDebugData;
 	int32 TotalNumKeys = 0;
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
@@ -1697,16 +1695,8 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 	{
 		GWarn->BeginSlowTask( LOCTEXT("BeginCompressAnimation", "Compress Animation"), true);
 		GWarn->StatusForceUpdate(1, 1, LOCTEXT("CompressAnimation", "Compressing Animation"));
-		// if source data exists, you should bake it to Raw to apply
-		if(bSourceDataExists)
-		{
-			DestSeq->BakeTrackCurvesToRawAnimation();
-		}
-		else
-		{
-			// otherwise just compress
-			DestSeq->PostProcessSequence();
-		}
+		
+		DestSeq->PostProcessSequence();
 
 		// run debug mode
 		AnimationTransformDebug::OutputAnimationTransformDebugData(TransformDebugData, TotalNumKeys, RefSkeleton);

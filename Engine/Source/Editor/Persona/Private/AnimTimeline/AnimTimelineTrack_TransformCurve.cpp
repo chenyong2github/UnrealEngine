@@ -143,10 +143,7 @@ void FAnimTimelineTrack_TransformCurve::DeleteTrack()
 			AnimSequenceBase->Modify();
 			AnimSequenceBase->RawCurveData.DeleteCurveData(CurveToDelete, ERawCurveTrackTypes::RCT_Transform);
 
-			if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase))
-			{
-				AnimSequence->bNeedsRebake = true;
-			}
+			AnimSequenceBase->MarkRawDataAsModified();
 
 			GetModel()->RefreshTracks();
 
@@ -179,10 +176,7 @@ void FAnimTimelineTrack_TransformCurve::ToggleEnabled()
 
 		Curve->SetCurveTypeFlag(AACF_Disabled, bEnabled);
 
-		if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase))
-		{
-			AnimSequence->bNeedsRebake = true;
-		}
+		AnimSequenceBase->MarkRawDataAsModified();
 
 		// need to update curves, otherwise they're not disabled
 		if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)

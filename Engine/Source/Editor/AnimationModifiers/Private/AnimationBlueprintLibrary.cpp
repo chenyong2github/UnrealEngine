@@ -1195,8 +1195,6 @@ void UAnimationBlueprintLibrary::RemoveAllCurveData(UAnimSequence* AnimationSequ
 		AnimationSequence->RawCurveData.DeleteAllCurveData(ERawCurveTrackTypes::RCT_Float);
 		AnimationSequence->RawCurveData.DeleteAllCurveData(ERawCurveTrackTypes::RCT_Vector);
 		AnimationSequence->RawCurveData.DeleteAllCurveData(ERawCurveTrackTypes::RCT_Transform);
-
-		AnimationSequence->bNeedsRebake = true;
 	}
 	else
 	{
@@ -1215,7 +1213,6 @@ void UAnimationBlueprintLibrary::AddTransformationCurveKey(UAnimSequence* Animat
 		TransformArray.Add(Transform);
 
 		AddCurveKeysInternal<FTransform, FTransformCurve>(AnimationSequence, CurveName, TimeArray, TransformArray, ERawCurveTrackTypes::RCT_Transform);
-		AnimationSequence->bNeedsRebake = true;
 	}
 	else
 	{
@@ -1231,7 +1228,6 @@ void UAnimationBlueprintLibrary::AddTransformationCurveKeys(UAnimSequence* Anima
 		if (Times.Num() == Transforms.Num())
 		{
 			AddCurveKeysInternal<FTransform, FTransformCurve>(AnimationSequence, CurveName, Times, Transforms, ERawCurveTrackTypes::RCT_Transform);
-			AnimationSequence->bNeedsRebake = true;
 		}
 		else
 		{
@@ -1346,8 +1342,6 @@ void UAnimationBlueprintLibrary::AddCurveKeysInternal(UAnimSequence* AnimationSe
 			{
 				Curve->UpdateOrAddKey(KeyData[KeyIndex], Times[KeyIndex]);
 			}
-
-			AnimationSequence->BakeTrackCurvesToRawAnimation();
 		}
 	}
 }
@@ -1387,7 +1381,6 @@ bool UAnimationBlueprintLibrary::RemoveCurveInternal(UAnimSequence* AnimationSeq
 			if (ContainerName == USkeleton::AnimTrackCurveMappingName)
 			{
 				bRemoved = AnimationSequence->RawCurveData.DeleteCurveData(SmartCurveName, ERawCurveTrackTypes::RCT_Transform);
-				AnimationSequence->bNeedsRebake = true;
 			}
 			else
 			{

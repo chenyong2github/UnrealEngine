@@ -161,7 +161,7 @@ struct FBuildRawPoseScratchArea : public TThreadSingleton<FBuildRawPoseScratchAr
 
 
 template<bool bInterpolateT>
-void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, int32 KeyIndex1, int32 KeyIndex2, float Alpha)
+void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, int32 KeyIndex1, int32 KeyIndex2, float Alpha, float TimePerKey, const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves)
 {
 	const int32 NumTracks = InAnimationData.Num();
 	const FBoneContainer& RequiredBones = InOutPose.GetBoneContainer();
@@ -201,6 +201,8 @@ void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimati
 
 				const FRawAnimSequenceTrack& TrackToExtract = InAnimationData[TrackIndex];
 
+				const FTransformCurve* const * AdditiveBoneTransformCurve = AdditiveBoneTransformCurves ? AdditiveBoneTransformCurves->Find(SkeletonBoneIndex) : nullptr;
+
 				// Bail out (with rather wacky data) if data is empty for some reason.
 				if (TrackToExtract.PosKeys.Num() == 0 || TrackToExtract.RotKeys.Num() == 0)
 				{
@@ -218,6 +220,23 @@ void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimati
 					if (bInterpolateT)
 					{
 						Key2Pose[PoseBoneIndex] = ExtractTransformForKey(KeyIndex2, TrackToExtract);
+					}
+
+
+					if (AdditiveBoneTransformCurve)
+					{
+						const FTransform PoseOneAdditive = (*AdditiveBoneTransformCurve)->Evaluate(KeyIndex1 * TimePerKey, 1.f);
+						InOutPose[PoseBoneIndex].SetRotation(InOutPose[PoseBoneIndex].GetRotation() * PoseOneAdditive.GetRotation());
+						InOutPose[PoseBoneIndex].SetTranslation(InOutPose[PoseBoneIndex].TransformPosition(PoseOneAdditive.GetTranslation()));
+						InOutPose[PoseBoneIndex].SetScale3D(InOutPose[PoseBoneIndex].GetScale3D() * PoseOneAdditive.GetScale3D());
+
+						if (bInterpolateT)
+						{
+							const FTransform PoseTwoAdditive = (*AdditiveBoneTransformCurve)->Evaluate(KeyIndex2 * TimePerKey, 1.f);
+							Key2Pose[PoseBoneIndex].SetRotation(Key2Pose[PoseBoneIndex].GetRotation() * PoseTwoAdditive.GetRotation());
+							Key2Pose[PoseBoneIndex].SetTranslation(Key2Pose[PoseBoneIndex].TransformPosition(PoseTwoAdditive.GetTranslation()));
+							Key2Pose[PoseBoneIndex].SetScale3D(Key2Pose[PoseBoneIndex].GetScale3D() * PoseTwoAdditive.GetScale3D());
+						}
 					}
 				}
 
@@ -262,7 +281,7 @@ void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimati
 	}
 }
 
-void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName RetargetSource)
+void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName RetargetSource, const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves /*= nullptr*/)
 {
 	int32 KeyIndex1, KeyIndex2;
 	float Alpha;
@@ -286,13 +305,15 @@ void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, 
 		KeyIndex1 = KeyIndex2;
 	}
 
+	const float TimePerFrame = SequenceLength / (float)FMath::Max(NumFrames - 1, 1);
+
 	if (bInterpolate)
 	{
-		BuildPoseFromRawDataInternal<true>(InAnimationData, TrackToSkeletonMapTable, InOutPose, KeyIndex1, KeyIndex2, Alpha);
+		BuildPoseFromRawDataInternal<true>(InAnimationData, TrackToSkeletonMapTable, InOutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, AdditiveBoneTransformCurves);
 	}
 	else
 	{
-		BuildPoseFromRawDataInternal<false>(InAnimationData, TrackToSkeletonMapTable, InOutPose, KeyIndex1, KeyIndex2, Alpha);
+		BuildPoseFromRawDataInternal<false>(InAnimationData, TrackToSkeletonMapTable, InOutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, AdditiveBoneTransformCurves);
 	}
 
 	const FBoneContainer& RequiredBones = InOutPose.GetBoneContainer();
@@ -309,7 +330,6 @@ void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, 
 			FAnimationRuntime::RetargetBoneTransform(Skeleton, RetargetSource, InOutPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
 		}
 	}
-
 }
 
 
