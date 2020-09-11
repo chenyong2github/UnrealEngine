@@ -18,7 +18,6 @@ class AlCurve;
 
 typedef double AlMatrix4x4[4][4];
 
-using namespace CADLibrary;
 
 // Defined the reference in which the object has to be defined
 enum class EAliasObjectReference
@@ -29,7 +28,7 @@ enum class EAliasObjectReference
 };
 
 
-class FAliasCoretechWrapper : public CTSession
+class FAliasCoretechWrapper : public CADLibrary::CTSession
 {
 public:
 	/**
@@ -40,7 +39,7 @@ public:
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FAliasCoretechWrapper(const TCHAR* InOwner)
-		: CTSession(InOwner, 0.01, 1) 
+		: CADLibrary::CTSession(InOwner, 0.01, 1)
 		// Unit for CoreTech session is set to cm, 0.01, because Wire's unit is cm. Consequently, Scale factor is set to 1.
 	{
 	}
@@ -49,7 +48,7 @@ public:
 
 	static TSharedPtr<FAliasCoretechWrapper> GetSharedSession();
 
-	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, FMeshParameters& MeshParameters);
+	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);
 
 protected:
 	/**
