@@ -62,14 +62,6 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherVisualizeTracesFreeze(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenScreenProbeGatherMaxRayIntensity = 20;
-FAutoConsoleVariableRef GVarLumenScreenProbeGatherMaxRayIntensity(
-	TEXT("r.Lumen.ScreenProbeGather.MaxRayIntensity"),
-	GLumenScreenProbeGatherMaxRayIntensity,
-	TEXT("Clamps the maximum ray lighting intensity (with PreExposure) to reduce fireflies."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 class FClearTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearTracesCS)
@@ -107,7 +99,6 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
 		SHADER_PARAMETER(float, UncertainTraceRelativeDepthThreshold)
 		SHADER_PARAMETER(float, NumThicknessStepsToDetermineCertainty)
-		SHADER_PARAMETER(float, MaxRayIntensity)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
@@ -575,7 +566,6 @@ void TraceScreenProbes(
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
 		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold;
 		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;
-		PassParameters->MaxRayIntensity = GLumenScreenProbeGatherMaxRayIntensity;
 
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;

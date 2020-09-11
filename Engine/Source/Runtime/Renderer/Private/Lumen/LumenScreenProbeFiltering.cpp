@@ -70,6 +70,13 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherMultiresolutionSpatialFilter(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenScreenProbeGatherMaxRayIntensity = 20;
+FAutoConsoleVariableRef GVarLumenScreenProbeGatherMaxRayIntensity(
+	TEXT("r.Lumen.ScreenProbeGather.MaxRayIntensity"),
+	GLumenScreenProbeGatherMaxRayIntensity,
+	TEXT("Clamps the maximum ray lighting intensity (with PreExposure) to reduce fireflies."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 class FScreenProbeFilterScatterTracesCS : public FGlobalShader
 {
@@ -239,6 +246,7 @@ class FScreenProbeCompositeTracesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWScreenProbeHitDistance)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER(float, MaxRayIntensity)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
@@ -551,6 +559,7 @@ void FilterScreenProbes(
 				PassParameters->RWScreenProbeHitDistance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeHitDistance));
 				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 				PassParameters->View = View.ViewUniformBuffer;
+				PassParameters->MaxRayIntensity = GLumenScreenProbeGatherMaxRayIntensity;
 
 				FScreenProbeCompositeTracesCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FScreenProbeCompositeTracesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling());

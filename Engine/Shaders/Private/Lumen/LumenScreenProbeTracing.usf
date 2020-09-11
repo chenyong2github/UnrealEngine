@@ -38,7 +38,6 @@ void ClearTracesCS(
 }
 
 float MaxTraceDistance;
-float MaxRayIntensity;
 
 Texture2D FurthestHZBTexture;
 Texture2D ColorTexture;
@@ -178,12 +177,6 @@ void ScreenProbeTraceScreenTexturesCS(
 					ReducedColorUV = min(ReducedColorUV, ReducedColorUVMax);
 
 					float3 Lighting = ColorTexture.SampleLevel(ColorTextureSampler, ReducedColorUV, Level).rgb;
-					float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
-
-					if (MaxLighting > MaxRayIntensity)
-					{
-						Lighting *= MaxRayIntensity / MaxLighting;
-					}
 					
 					#if DEBUG_VISUALIZE_TRACE_TYPES
 						RWTraceRadiance[TraceCoord] = float3(.5f, 0, 0) * View.PreExposure;

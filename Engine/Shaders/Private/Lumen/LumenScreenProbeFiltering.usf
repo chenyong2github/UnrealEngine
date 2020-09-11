@@ -503,6 +503,7 @@ void ScreenProbeRecombineTracesCS(
 
 
 RWTexture2D<float> RWScreenProbeHitDistance;
+float MaxRayIntensity;
 
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
 void ScreenProbeCompositeTracesCS(
@@ -557,7 +558,15 @@ void ScreenProbeCompositeTracesCS(
 						else
 						{
 							uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, RayCoord);
-							TexelLighting += TraceRadiance.Load(int3(TraceCoord, 0)).xyz * Weight;
+							float3 Lighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
+							float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+
+							if (MaxLighting > MaxRayIntensity)
+							{
+								Lighting *= MaxRayIntensity / MaxLighting;
+							}
+
+							TexelLighting += Lighting * Weight;
 							TotalWeight += Weight;
 							MinHitDistance = min(MinHitDistance, DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x));
 						}
@@ -597,7 +606,15 @@ void ScreenProbeCompositeTracesCS(
 						float Weight = SolidAngle;
 
 						uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, SourceProbeTexelCoord);
-						TexelLighting += TraceRadiance.Load(int3(TraceCoord, 0)).xyz * Weight;
+						float3 Lighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
+						float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+
+						if (MaxLighting > MaxRayIntensity)
+						{
+							Lighting *= MaxRayIntensity / MaxLighting;
+						}
+
+						TexelLighting += Lighting * Weight;
 						TotalWeight += Weight;
 						MinHitDistance = min(MinHitDistance, DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x));
 					}
@@ -608,7 +625,15 @@ void ScreenProbeCompositeTracesCS(
 			else if (UpsampleFactor * ScreenProbeTracingOctahedronResolution == ScreenProbeGatherOctahedronResolution)
 			{
 				uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, ProbeTexelCoord / UpsampleFactor);
-				TexelLighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
+				float3 Lighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
+				float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+
+				if (MaxLighting > MaxRayIntensity)
+				{
+					Lighting *= MaxRayIntensity / MaxLighting;
+				}
+
+				TexelLighting = Lighting;
 				MinHitDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x);
 			}
 			else
