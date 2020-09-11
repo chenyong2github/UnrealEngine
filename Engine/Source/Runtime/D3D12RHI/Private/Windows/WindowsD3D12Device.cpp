@@ -8,8 +8,11 @@
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <delayimp.h>
-#if !PLATFORM_CPU_ARM_FAMILY
-	#include "amd_ags.h"
+#if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
+#include "amd_ags.h"
+#define AMD_API_ENABLE 1
+#else
+#define AMD_API_ENABLE 0
 #endif
 #if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
 	#define NV_API_ENABLE 1
@@ -563,7 +566,7 @@ void FD3D12DynamicRHI::Init()
 	// Need to set GRHIVendorId before calling IsRHIDevice* functions
 	GRHIVendorId = AdapterDesc.VendorId;
 
-#if !PLATFORM_CPU_ARM_FAMILY
+#if AMD_API_ENABLE
 	// Initialize the AMD AGS utility library, when running on an AMD device
 	if (IsRHIDeviceAMD() && bAllowVendorDevice)
 	{
@@ -583,7 +586,7 @@ void FD3D12DynamicRHI::Init()
 		Adapter->InitializeDevices();
 	}
 
-#if !PLATFORM_CPU_ARM_FAMILY
+#if AMD_API_ENABLE
 	// Warn if we are trying to use RGP frame markers but are either running on a non-AMD device
 	// or using an older AMD driver without RGP marker support
 	if (GEmitRgpFrameMarkers && !IsRHIDeviceAMD())
