@@ -43,6 +43,8 @@ namespace DatasmithRuntime
 
 	bool FSceneImporter::ProcessLightActorData(FActorData& ActorData, IDatasmithLightActorElement* LightActorElement)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessLightActorData);
+
 		if (ActorData.bProcessed)
 		{
 			return true;
@@ -79,6 +81,8 @@ namespace DatasmithRuntime
 
 	EActionResult::Type FSceneImporter::AssignProfileTexture(const FReferencer& Referencer, UTextureLightProfile* TextureProfile)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::AssignProfileTexture);
+
 		if (TextureProfile == nullptr)
 		{
 			ensure(Referencer.Type != EDataType::Actor);
@@ -117,6 +121,8 @@ namespace DatasmithRuntime
 
 	EActionResult::Type FSceneImporter::CreateLightComponent(FSceneGraphId ActorId)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateLightComponent);
+
 		FActorData& ActorData = ActorDataList[ActorId];
 
 		IDatasmithLightActorElement* LightElement = static_cast<IDatasmithLightActorElement*>(Elements[ActorId].Get());
@@ -204,6 +210,8 @@ namespace DatasmithRuntime
 				LightComponent = PointLightComponent;
 			}
 		}
+
+		ActorData.bCompleted = true;
 
 		return LightComponent ? EActionResult::Succeeded : EActionResult::Failed;
 	}

@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 
 
 namespace DirectLink
@@ -13,7 +14,7 @@ namespace DirectLink
  * Node Id, aka Element Id. Represent a node within a scene.
  * As a scene has a guid, the combination guid/id must be globally unique.
  */
-using FSceneGraphId = int32;
+using FSceneGraphId = uint32;
 constexpr FSceneGraphId InvalidId = 0;
 
 
@@ -21,7 +22,8 @@ using FElementHash = uint32;
 constexpr FElementHash InvalidHash = 0;
 
 
-using FStreamPort = int32;
+using FStreamPort = uint32;
+constexpr FStreamPort InvalidStreamPort = 0;
 
 /**
  * Guid and optional name, used to designate a scene across processes without ambiguity.
@@ -58,8 +60,8 @@ public:
 	const FGuid& GetGuid() const { return SceneId.SceneGuid; }
 	const FSceneIdentifier& GetSceneId() const { return SceneId; }
 
-private:
-	FSceneGraphId LastElementId = 0;
+protected:
+	FSceneGraphId LastElementId = InvalidId;
 	FSceneIdentifier SceneId{FGuid::NewGuid(), FString()};
 };
 
@@ -68,8 +70,8 @@ private:
  * DirectLink exchanges messages between pairs. Those versions numbers helps making sure pairs are compatible
  */
 static constexpr uint8 kMagic = 0xd1; // this constant should never change, it's used as a marker in a byte stream
-static constexpr uint8 kCurrentProtocolVersion = 4;
-static constexpr uint8 kMinSupportedProtocolVersion = 4; // oldest supported version
+static constexpr uint8 kCurrentProtocolVersion = 6;
+static constexpr uint8 kMinSupportedProtocolVersion = 6; // oldest supported version
 
 enum class ESerializationStatus
 {
@@ -83,8 +85,8 @@ enum class ESerializationStatus
 /** Used by data source and destination to describe how they are discovered by remote endpoints */
 enum class EVisibility
 {
-	Public,
-	Private,
+	Public,    // The connection point can accept connection requests from remote
+	Private,   // The connection point is not expected to be contacted from a remote
 };
 
 

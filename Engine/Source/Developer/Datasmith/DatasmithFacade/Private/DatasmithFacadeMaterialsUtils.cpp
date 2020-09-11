@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithFacadeMaterialsUtils.h"
+#include "DatasmithUtils.h"
+#include "Misc/Paths.h"
 
 void FDatasmithFacadeMaterialsUtils::FUVEditParameters::SetUVOffset( float X, float Y )
 {
@@ -138,6 +140,32 @@ FDatasmithFacadeMaterialExpression* FDatasmithFacadeMaterialsUtils::CreateNewFac
 	if ( ResultExpression )
 	{
 		return new FDatasmithFacadeMaterialExpression( ResultExpression, MaterialElementRef );
+	}
+
+	return nullptr;
+}
+
+FDatasmithFacadeTexture* FDatasmithFacadeMaterialsUtils::CreateSimpleTextureElement( const TCHAR* InTextureFilePath, FDatasmithFacadeTexture::ETextureMode InTextureMode )
+{
+	if (!FString( InTextureFilePath ).IsEmpty())
+	{
+		// Make Datasmith texture name from file name.
+		FString FileName = FDatasmithUtils::SanitizeObjectName( FPaths::GetBaseFilename( InTextureFilePath ) );
+		FString TextureName = FString::Printf( TEXT( "%ls_%d" ), *FileName, int( InTextureMode ) );
+
+		// Create a Datasmith texture element.
+		TSharedRef<IDatasmithTextureElement> TexturePtr = FDatasmithSceneFactory::CreateTexture( *TextureName );
+
+		// Set the texture label used in the Unreal UI.
+		TexturePtr->SetLabel( *FPaths::GetBaseFilename( InTextureFilePath ) );
+
+		// Set the Datasmith texture mode.
+		TexturePtr->SetTextureMode( static_cast<EDatasmithTextureMode>( InTextureMode ) );
+
+		// Set the Datasmith texture file path.
+		TexturePtr->SetFile( InTextureFilePath );
+
+		return new FDatasmithFacadeTexture( TexturePtr );
 	}
 
 	return nullptr;

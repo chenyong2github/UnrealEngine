@@ -2,12 +2,10 @@
 
 #include "DatasmithDirectLink.h"
 
-#include "DirectLink/Network/DirectLinkMessages.h"
-#include "DirectLink/Network/DirectLinkScenePipe.h"
-#include "DirectLink/SceneIndex.h"
-#include "DirectLink/SceneIndexBuilder.h"
-#include "IDatasmithSceneElements.h"
 #include "DatasmithExporterManager.h"
+#include "DirectLink/Network/DirectLinkEndpoint.h"
+#include "DirectLink/Misc.h"
+#include "IDatasmithSceneElements.h"
 
 #include "Containers/Ticker.h"
 #include "MeshDescription.h"
@@ -16,10 +14,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+
 DEFINE_LOG_CATEGORY(LogDatasmithDirectLinkExporterAPI);
-
-using DirectLink::NewMessage;
-
 
 class FDatasmithDirectLinkImpl
 {
@@ -35,9 +31,9 @@ public:
 	}
 
 	FDatasmithDirectLinkImpl()
-		: Endpoint(TEXT("DatasmithExporter"))
+		: Endpoint(MakeShared<DirectLink::FEndpoint, ESPMode::ThreadSafe>(TEXT("DatasmithExporter")))
 	{
-		Endpoint.SetVerbose();
+		Endpoint->SetVerbose();
 		check(ValidateCommunicationSetup() == 0);
 		// #ue_directlink_integration app specific endpoint name, and source name.
 	}
@@ -46,13 +42,14 @@ public:
 	{
 		UE_LOG(LogDatasmithDirectLinkExporterAPI, Log, TEXT("InitializeForScene"));
 
-		DirectLink::FIndexedScene IndexedScene(&Scene.Get());
+		Endpoint->RemoveSource(Source);
 
-		check(Scene->GetSharedState().IsValid());
+		// Use the scene's label to name the source
+		const TCHAR* SourceName = FCString::Strlen(Scene->GetLabel()) == 0 ? TEXT("unnamed") : Scene->GetLabel();
 
-		Endpoint.RemoveSource(Source);
-		Source = Endpoint.AddSource(TEXT("exporter-noname"), DirectLink::EVisibility::Public);
-		Endpoint.SetSourceRoot(Source, &*Scene, false);
+		Source = Endpoint->AddSource(SourceName, DirectLink::EVisibility::Public);
+		bool bSnapshotNow = false;
+		Endpoint->SetSourceRoot(Source, &*Scene, bSnapshotNow);
 		CurrentScene = Scene;
 
 		return true;
@@ -61,31 +58,29 @@ public:
 	bool UpdateScene(TSharedRef<IDatasmithScene>& Scene)
 	{
 		UE_LOG(LogDatasmithDirectLinkExporterAPI, Log, TEXT("UpdateScene"));
-
 		if (CurrentScene != Scene)
 		{
 			InitializeForScene(Scene);
 		}
 
-		if (!CurrentScene || !CurrentScene->GetSharedState().IsValid())
-		{
-			UE_LOG(LogDatasmithDirectLinkExporterAPI, Warning,
-				TEXT("UpdateScene issue: no shared state on given scene"));
-			return false;
-		}
-
-		Endpoint.SnapshotSource(Source);
+		Endpoint->SnapshotSource(Source);
+		DirectLink::DumpDatasmithScene(Scene, TEXT("send"));
 		return true;
 	}
 
+	TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> GetEnpoint() const
+	{
+		return Endpoint;
+	}
+
 private:
-	DirectLink::FEndpoint Endpoint;
+	TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> Endpoint;
 	DirectLink::FSourceHandle Source;
 	TSharedPtr<IDatasmithScene> CurrentScene;
 };
 
 
-TUniquePtr<class FDatasmithDirectLinkImpl> DirectLinkImpl;
+TUniquePtr<FDatasmithDirectLinkImpl> DirectLinkImpl;
 
 int32 FDatasmithDirectLink::ValidateCommunicationSetup()
 { return FDatasmithDirectLinkImpl::ValidateCommunicationSetup(); }
@@ -112,3 +107,13 @@ bool FDatasmithDirectLink::InitializeForScene(TSharedRef<IDatasmithScene>& Scene
 
 bool FDatasmithDirectLink::UpdateScene(TSharedRef<IDatasmithScene>& Scene)
 { return DirectLinkImpl->UpdateScene(Scene); }
+
+TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> FDatasmithDirectLink::GetEnpoint()
+{
+	if (!DirectLinkImpl)
+	{
+		DirectLinkImpl = MakeUnique<FDatasmithDirectLinkImpl>();
+	}
+
+	return DirectLinkImpl->GetEnpoint();
+}

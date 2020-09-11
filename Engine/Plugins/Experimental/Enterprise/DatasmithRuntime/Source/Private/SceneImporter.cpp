@@ -19,6 +19,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "ProfilingDebugging/MiscTrace.h"
 
 namespace DatasmithRuntime
 {
@@ -90,7 +91,7 @@ namespace DatasmithRuntime
 
 		SceneElement = InSceneElement;
 
-		TasksToComplete = SceneElement.IsValid() ? EDatasmithRuntimeWorkerTask::CollectSceneData : EDatasmithRuntimeWorkerTask::NoTask;
+		TasksToComplete |= SceneElement.IsValid() ? EDatasmithRuntimeWorkerTask::CollectSceneData : EDatasmithRuntimeWorkerTask::NoTask;
 
 #ifdef LIVEUPDATE_TIME_LOGGING
 		GlobalStartTime = FPlatformTime::Seconds();
@@ -113,6 +114,8 @@ namespace DatasmithRuntime
 
 	void FSceneImporter::CollectSceneData()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CollectSceneData);
+
 		LIVEUPDATE_LOG_TIME;
 
 		int32 ActorElementCount = 0;
@@ -139,7 +142,21 @@ namespace DatasmithRuntime
 
 		for (int32 Index = 0; Index < SceneElement->GetTexturesCount(); ++Index)
 		{
-			AddAsset(SceneElement->GetTexture(Index), TexturePrefix);
+			// Only add a texture if its associated resource file is available
+			if (IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(SceneElement->GetTexture(Index).Get()))
+			{
+				// If resource file does not exist, add scene's resource path if valid
+				if (!FPaths::FileExists(TextureElement->GetFile()) && FPaths::DirectoryExists(SceneElement->GetResourcePath()))
+				{
+					TextureElement->SetFile( *FPaths::Combine(SceneElement->GetResourcePath(), TextureElement->GetFile()) );
+				}
+
+				if (FPaths::FileExists(TextureElement->GetFile()))
+				{
+					AddAsset(SceneElement->GetTexture(Index), TexturePrefix);
+				}
+			}
+			// #ueent_datasmithruntime: Inform user resource file does not exist
 		}
 
 		for (int32 Index = 0; Index < SceneElement->GetMaterialsCount(); ++Index)
@@ -149,7 +166,21 @@ namespace DatasmithRuntime
 
 		for (int32 Index = 0; Index < SceneElement->GetMeshesCount(); ++Index)
 		{
-			AddAsset(SceneElement->GetMesh(Index), MeshPrefix);
+			// Only add a mesh if its associated resource is available
+			if (IDatasmithMeshElement* MeshElement = static_cast<IDatasmithMeshElement*>(SceneElement->GetMesh(Index).Get()))
+			{
+				// If resource file does not exist, add scene's resource path if valid
+				if (!FPaths::FileExists(MeshElement->GetFile()) && FPaths::DirectoryExists(SceneElement->GetResourcePath()))
+				{
+					MeshElement->SetFile( *FPaths::Combine(SceneElement->GetResourcePath(), MeshElement->GetFile()) );
+				}
+
+				if (FPaths::FileExists(MeshElement->GetFile()))
+				{
+					AddAsset(SceneElement->GetMesh(Index), MeshPrefix);
+				}
+			}
+			// #ueent_datasmithruntime: Inform user resource file does not exist
 		}
 
 		// Collect set of materials and meshes used in scene
@@ -220,6 +251,8 @@ namespace DatasmithRuntime
 
 	void FSceneImporter::ProcessActorElement(const TSharedPtr< IDatasmithActorElement >& ActorElement, FSceneGraphId ParentId)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessActorElement);
+
 		FSceneGraphId ElementId = ActorElement->GetNodeId();
 
 		if (!Elements.Contains(ElementId))
@@ -270,8 +303,27 @@ namespace DatasmithRuntime
 
 	void FSceneImporter::Tick(float DeltaSeconds)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::Tick);
+
 		if (TasksToComplete == EDatasmithRuntimeWorkerTask::NoTask)
 		{
+			return;
+		}
+
+		// Full reset of the world. Resume tasks on next tick
+		if (TasksToComplete & EDatasmithRuntimeWorkerTask::ResetScene)
+		{
+			DeleteData();
+
+			Elements.Empty();
+			AssetElementMapping.Empty();
+
+			AssetDataList.Empty();
+			TextureDataList.Empty();
+			ActorDataList.Empty();
+
+			TasksToComplete &= ~EDatasmithRuntimeWorkerTask::ResetScene;
+
 			return;
 		}
 
@@ -418,8 +470,10 @@ namespace DatasmithRuntime
 			}
 		}
 
-		if (TasksToComplete == EDatasmithRuntimeWorkerTask::NoTask)
+		if (TasksToComplete == EDatasmithRuntimeWorkerTask::NoTask && SceneElement.IsValid())
 		{
+			TRACE_BOOKMARK(TEXT("Load complete - %s"), *SceneElement->GetName());
+
 			Cast<ADatasmithRuntimeActor>(RootComponent->GetOwner())->bBuilding = false;
 #ifdef LIVEUPDATE_TIME_LOGGING
 			double ElapsedSeconds = FPlatformTime::Seconds() - GlobalStartTime;
@@ -436,19 +490,14 @@ namespace DatasmithRuntime
 	{
 		bIncrementalUpdate = !bIsNewScene;
 
+		TasksToComplete = EDatasmithRuntimeWorkerTask::NoTask;
+
 		// Clear all cached data if it is a new scene
 		if (bIsNewScene)
 		{
-			DeleteData();
-
-			Elements.Empty();
-			AssetElementMapping.Empty();
-
-			AssetDataList.Empty();
-			TextureDataList.Empty();
-			ActorDataList.Empty();
-
 			SceneElement.Reset();
+
+			TasksToComplete = EDatasmithRuntimeWorkerTask::ResetScene;
 		}
 		// Clean up referencer of all assets as it may change on an update
 		else
@@ -479,8 +528,6 @@ namespace DatasmithRuntime
 		{
 			ActionQueues[Index].Empty();
 		}
-
-		TasksToComplete = EDatasmithRuntimeWorkerTask::NoTask;
 	}
 
 	bool FSceneImporter::IncrementalUpdate(FUpdateContext& UpdateContext)
@@ -512,11 +559,35 @@ namespace DatasmithRuntime
 				}
 				else if (ElementPtr->IsA(EDatasmithElementType::StaticMesh))
 				{
-					AddAsset(MoveTemp(ElementPtr), MeshPrefix);
+					if (IDatasmithMeshElement* MeshElement = static_cast<IDatasmithMeshElement*>(ElementPtr.Get()))
+					{
+						// If resource file does not exist, add scene's resource path if valid
+						if (!FPaths::FileExists(MeshElement->GetFile()) && FPaths::DirectoryExists(SceneElement->GetResourcePath()))
+						{
+							MeshElement->SetFile( *FPaths::Combine(SceneElement->GetResourcePath(), MeshElement->GetFile()) );
+						}
+
+						if (FPaths::FileExists(MeshElement->GetFile()))
+						{
+							AddAsset(MoveTemp(ElementPtr), MeshPrefix);
+						}
+					}
 				}
 				else if (ElementPtr->IsA(EDatasmithElementType::Texture))
 				{
-					AddAsset(MoveTemp(ElementPtr), TexturePrefix);
+					if (IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(ElementPtr.Get()))
+					{
+						// If resource file does not exist, add scene's resource path if valid
+						if (!FPaths::FileExists(TextureElement->GetFile()) && FPaths::DirectoryExists(SceneElement->GetResourcePath()))
+						{
+							TextureElement->SetFile( *FPaths::Combine(SceneElement->GetResourcePath(), TextureElement->GetFile()) );
+						}
+
+						if (FPaths::FileExists(TextureElement->GetFile()))
+						{
+							AddAsset(MoveTemp(ElementPtr), TexturePrefix);
+						}
+					}
 				}
 			}
 
@@ -615,19 +686,22 @@ namespace DatasmithRuntime
 		if (UpdateContext.Deletions.Num() > 0)
 		{
 			// Sort array of elements to delete based on dependency. Less dependency first
-			Algo::SortBy(UpdateContext.Deletions, [&](TSharedPtr<IDatasmithElement>& ElementPtr) -> int64
+			Algo::SortBy(UpdateContext.Deletions, [&](DirectLink::FSceneGraphId& ElementId) -> int64
 				{
-					if (ElementPtr->IsA(EDatasmithElementType::BaseMaterial))
+					if (TSharedPtr<IDatasmithElement>* ElementPtr = Elements.Find(ElementId))
 					{
-						return 1;
-					}
-					else if (ElementPtr->IsA(EDatasmithElementType::StaticMesh))
-					{
-						return 2;
-					}
-					else if (ElementPtr->IsA(EDatasmithElementType::Texture))
-					{
-						return 0;
+						if ((*ElementPtr)->IsA(EDatasmithElementType::BaseMaterial))
+						{
+							return 1;
+						}
+						else if ((*ElementPtr)->IsA(EDatasmithElementType::StaticMesh))
+						{
+							return 2;
+						}
+						else if ((*ElementPtr)->IsA(EDatasmithElementType::Texture))
+						{
+							return 0;
+						}
 					}
 
 					return 4;
@@ -638,12 +712,12 @@ namespace DatasmithRuntime
 				return this->DeleteElement(Referencer.GetId());
 			};
 
-			for (TSharedPtr<IDatasmithElement>& ElementPtr : UpdateContext.Deletions)
+			for (DirectLink::FSceneGraphId& ElementId : UpdateContext.Deletions)
 			{
-				if (Elements.Contains(ElementPtr->GetNodeId()))
+				if (Elements.Contains(ElementId))
 				{
 					// #ue_liveupdate: Remove ElementDeletionCount
-					AddToQueue(DELETE_QUEUE, { TaskFunc, FReferencer(ElementPtr->GetNodeId()) } );
+					AddToQueue(DELETE_QUEUE, { TaskFunc, FReferencer(ElementId) } );
 				}
 			}
 

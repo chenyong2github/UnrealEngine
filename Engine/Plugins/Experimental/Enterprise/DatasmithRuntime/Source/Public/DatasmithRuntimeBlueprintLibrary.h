@@ -5,11 +5,80 @@
 #include "CoreMinimal.h"
 
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/StrongObjectPtr.h"
 
 #include "DatasmithRuntimeBlueprintLibrary.generated.h"
 
 class ADatasmithRuntimeActor;
 class UWorld;
+
+namespace DatasmithRuntime
+{
+	class FDirectLinkProxyImpl;
+}
+
+USTRUCT(BlueprintType)
+struct DATASMITHRUNTIME_API FDatasmithRuntimeSourceInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	FDatasmithRuntimeSourceInfo()
+		: Hash(0xffffffff)
+	{
+	}
+
+	FDatasmithRuntimeSourceInfo(const FString& InName, uint32 InHash)
+		: Name(InName)
+		, Hash(InHash)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DatasmithRuntime")
+	FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DatasmithRuntime")
+	int32 Hash;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FDatasmithRuntimeChangeEvent);
+
+// Class to interface with the DirectLink end point
+UCLASS(BlueprintType)
+class DATASMITHRUNTIME_API UDirectLinkProxy : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UDirectLinkProxy();
+
+	UFUNCTION(BlueprintCallable, Category = "DirectLink")
+	FString GetEndPointName();
+
+	UFUNCTION(BlueprintCallable, Category = "DirectLink")
+	TArray<FDatasmithRuntimeSourceInfo> GetListOfSources();
+
+	UFUNCTION(BlueprintCallable, Category = "DirectLink")
+	FString GetDestinationName(ADatasmithRuntimeActor* DatasmithRuntimeActor);
+
+	UFUNCTION(BlueprintCallable, Category = "DirectLink")
+	bool IsConnected(ADatasmithRuntimeActor* DatasmithRuntimeActor);
+
+	UFUNCTION(BlueprintCallable, Category = "DirectLink")
+	FString GetSourcename(ADatasmithRuntimeActor* DatasmithRuntimeActor);
+
+	UFUNCTION(BlueprintCallable, Category = "DirectLink")
+	void ConnectToSource(ADatasmithRuntimeActor* DatasmithRuntimeActor, int32 SourceIndex);
+
+	// Dynamic delegate used to trigger an event in the Game when there is
+	// a change in the DirectLink network
+	UPROPERTY(BlueprintAssignable)
+	FDatasmithRuntimeChangeEvent OnDirectLinkChange;
+
+private:
+	TSharedPtr<DatasmithRuntime::FDirectLinkProxyImpl> Impl;
+
+	friend class UDatasmithRuntimeLibrary;
+};
 
 UCLASS(meta = (ScriptName = "DatasmithRuntimeLibrary"))
 class DATASMITHRUNTIME_API UDatasmithRuntimeLibrary : public UBlueprintFunctionLibrary
@@ -34,7 +103,11 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
 	static void LoadDatasmithSceneFromExplorer(ADatasmithRuntimeActor* DatasmithRuntimeActor, const FString& DefaultPath, const FString& FileTypes);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
 	static void ResetActor(ADatasmithRuntimeActor* DatasmithRuntimeActor);
+
+	/** Returns an interface to the DirectLink end point */
+	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
+	static UDirectLinkProxy* GetDirectLinkProxy();
 };

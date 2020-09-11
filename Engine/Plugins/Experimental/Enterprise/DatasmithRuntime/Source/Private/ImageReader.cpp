@@ -698,6 +698,8 @@ namespace DatasmithRuntime
 
 	bool GetTextureData(const TCHAR* Source, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::GetTextureData);
+
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 		if (!PlatformFile.FileExists(Source) || FString(Source).Len() < 3)

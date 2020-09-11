@@ -9,12 +9,11 @@
 #include "DatasmithSceneXmlWriter.h"
 #include "DatasmithTranslatableSource.h"
 
-#include "DirectLink/DatasmithDeltaConsumer.h"
+#include "DirectLink/DatasmithSceneReceiver.h"
 #include "DirectLink/DirectLinkCommon.h"
 #include "DirectLink/Network/DirectLinkEndpoint.h"
 #include "DirectLink/Network/DirectLinkScenePipe.h"
-#include "DirectLink/SceneIndex.h"
-#include "DirectLink/SceneIndexBuilder.h"
+#include "DirectLink/SceneSnapshot.h"
 
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
@@ -80,57 +79,6 @@ bool UDirectLinkTestLibrary::TestParameters()
 	ok &= ensure(Out == In);
 
 	return ok;
-}
-
-
-bool UDirectLinkTestLibrary::TestIndex(const FString& InFilePath)
-{
-	TSharedPtr<IDatasmithScene> SourceScene = TranslateFile(InFilePath);
-	if (!SourceScene.IsValid())
-	{
-		return false;
-	}
-
-	DumpSceneXML(SourceScene, InFilePath, TEXT(".1.translated.udatasmith"));
-	DirectLink::FIndexedScene IndexedScene(SourceScene.Get());
-
-	TSharedRef<FDatasmithDeltaConsumer> Consumer = MakeShared<FDatasmithDeltaConsumer>();
-	IndexedScene.NewRemote(Consumer);
-
-	IndexedScene.UpdateRemotes();
-
-	DumpSceneXML(Consumer->GetScene(), InFilePath, TEXT(".1.rebuilt.udatasmith"));
-
-	return true;
-}
-
-
-bool UDirectLinkTestLibrary::TestIndex2(const FString& InFilePath)
-{
-	TSharedPtr<IDatasmithScene> SourceScene = TranslateFile(InFilePath);
-	if (!SourceScene.IsValid())
-	{
-		return false;
-	}
-
-	DumpSceneXML(SourceScene, InFilePath, TEXT(".2.translated.udatasmith"));
-	DirectLink::FIndexedScene IndexedScene(SourceScene.Get());
-
-	TSharedRef<FDatasmithDeltaConsumer> Consumer = MakeShared<FDatasmithDeltaConsumer>();
-	IndexedScene.NewRemote(Consumer);
-
-	IndexedScene.UpdateRemotes();
-
-	DumpSceneXML(Consumer->GetScene(), InFilePath, TEXT(".2.rebuilt_a.udatasmith"));
-
-	// do nothing then reupdate
-	IndexedScene.UpdateRemotes();
-	DumpSceneXML(Consumer->GetScene(), InFilePath, TEXT(".2.rebuilt_b.udatasmith"));
-
-	// partial edit // #ue_directlink_testing
-
-
-	return true;
 }
 
 
@@ -254,11 +202,11 @@ bool UDirectLinkTestLibrary::DumpReceivedScene()
 {
 	if (ReceiverState.Provider)
 	{
-		for (auto& KV : ReceiverState.Provider->Consumers)
+		for (auto& KV : ReceiverState.Provider->SceneReceivers)
 		{
-			if (TSharedPtr<FDatasmithDeltaConsumer>& DatasmithConsumer = KV.Value)
+			if (TSharedPtr<FDatasmithSceneReceiver>& DatasmithSceneReceiver = KV.Value)
 			{
-				if (TSharedPtr<IDatasmithScene> Scene = DatasmithConsumer->GetScene())
+				if (TSharedPtr<IDatasmithScene> Scene = DatasmithSceneReceiver->GetScene())
 				{
 					DumpSceneXML(Scene, ReceiverState.DumpXMLFilePath, TEXT("Received"));
 				}

@@ -4,125 +4,106 @@
 
 #include "DirectLink/DeltaConsumer.h"
 #include "DirectLink/Network/DirectLinkMessages.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
 
 #include "CoreTypes.h"
 #include "IMessageContext.h"
-#include "Misc/Guid.h"
 
+class FMessageEndpoint;
+struct FDirectLinkMsg_HaveListMessage;
+struct FMessageAddress;
 
 namespace DirectLink
 {
 class FEndpoint;
 
-
-class FScenePipeBase
-{ // stripped from its content, could be removed I guess
-public:
-	virtual ~FScenePipeBase() = default;
-
-protected:
-	FScenePipeBase(const FSceneIdentifier& SceneId)
-		: SceneId(SceneId)
-	{}
-
-public:
-	const FSceneIdentifier SceneId;
-	// #ue_directlink_streams no scene info in pipes... just dest/src
-};
-
 /**
  * Responsibility: delegate DeltaConsumer/DeltaProducer link over network, including message ordering and acknowledgments.
  */
 class FScenePipeToNetwork
-	: public FScenePipeBase
-	, public IDeltaConsumer
+	: public IDeltaConsumer
 {
 public:
-	FScenePipeToNetwork(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> Sender, const FSceneIdentifier& Scene)
-		: FScenePipeBase(Scene)
-		, Endpoint(Sender)
-		, ConnectionEvent(FPlatformProcess::GetSynchEventFromPool(true))
+	FScenePipeToNetwork(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint, const FMessageAddress& RemoteAddress, FStreamPort RemoteStreamPort)
+		: ThisEndpoint(ThisEndpoint)
+		, RemoteAddress(RemoteAddress)
+		, RemoteStreamPort(RemoteStreamPort)
 	{
-		check(Endpoint);
+		check(ThisEndpoint);
 	}
 
-	~FScenePipeToNetwork()
-	{
-		FPlatformProcess::ReturnSynchEventToPool(ConnectionEvent);
-	}
-
-	bool IsConnected()
-	{
-		if (Endpoint)
-		{
-			FRWScopeLock _(Lock, SLT_ReadOnly);
-			return ReceiverAddress.IsValid();
-		}
-		return false;
-	}
-
-	bool WaitForConnection(FTimespan Timeout)
-	{
-		ConnectionEvent->Wait(Timeout);
-		return IsConnected();
-	}
-
-	void SetDestinationInfo(const FMessageAddress& Dest, FStreamPort ReceiverStreamPort)
-	{
-		FRWScopeLock _(Lock, SLT_Write);
-		ReceiverAddress = Dest;
-		RemoteStreamPort = ReceiverStreamPort;
-		ConnectionEvent->Trigger();
-	}
-
-private:
 	virtual void SetDeltaProducer(IDeltaProducer* Producer) override;
-	virtual void OnOpenDelta(FOpenDeltaArg& OpenDeltaArg) override;
+	virtual void SetupScene(FSetupSceneArg& SetupSceneArg) override;
+	virtual void OpenDelta(FOpenDeltaArg& OpenDeltaArg) override;
 	virtual void OnSetElement(FSetElementArg& SetElementArg) override;
+	virtual void RemoveElements(FRemoveElementsArg& RemoveElementsArg) override;
 	virtual void OnCloseDelta(FCloseDeltaArg& CloseDeltaArg) override;
+	void HandleHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message);
 
 private:
-	IDeltaProducer* DeltaProducer;
+	void DelegateHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message);
 
-	// connectivity:
-	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> Endpoint;
-	class FEvent* ConnectionEvent = nullptr;
-	FRWLock Lock;
+private:
+	// connectivity
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint;
+	FMessageAddress RemoteAddress;
+	FStreamPort RemoteStreamPort;
 
-	// rooting
-	FMessageAddress ReceiverAddress;
-	FStreamPort RemoteStreamPort = 0;
-
-	// ordering
+	// sent message ordering
 	int8 BatchNumber = 0;
 	int32 NextMessageNumber;
+
+	// received message ordering
+	TMap<int32, FDirectLinkMsg_HaveListMessage> MessageBuffer;
+	int32 NextTransmitableMessageIndex = 0;
+	int32 CurrentBatchCode = 0;
+	IDeltaProducer* DeltaProducer = nullptr;
 };
 
 
 class FScenePipeFromNetwork
-	: public FScenePipeBase
-	, public IDeltaProducer
+	: public IDeltaProducer
 {
 public:
-	FScenePipeFromNetwork(const TSharedPtr<IDeltaConsumer> Consumer, const FSceneIdentifier& SceneId)
-		: FScenePipeBase(SceneId)
+	FScenePipeFromNetwork(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> Sender, const FMessageAddress& RemoteAddress, FStreamPort RemoteStreamPort, const TSharedRef<IDeltaConsumer> Consumer)
+		: ThisEndpoint(Sender)
+		, RemoteAddress(RemoteAddress)
+		, RemoteStreamPort(RemoteStreamPort)
 		, Consumer(Consumer)
-	{}
+	{
+		Consumer->SetDeltaProducer(this);
+	}
 
 	void HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message);
 
+	// delta producer
+	virtual void OnOpenHaveList(const FSceneIdentifier& HaveSceneId, bool bKeepPreviousContent, int32 SyncCycle) override;
+	virtual void OnHaveElement(FSceneGraphId NodeId, FElementHash HaveHash) override;
+	void SendHaveElements();
+	virtual void OnCloseHaveList() override;
+
 private:
-	// transmits messages to the actual delta consumer, reorderred
+	// transmits messages to the actual delta consumer, reordered
 	void DelegateDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message);
 
-	TSharedPtr<IDeltaConsumer> Consumer;
+private:
+	// connectivity
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint;
+	FMessageAddress RemoteAddress;
+	FStreamPort RemoteStreamPort;
 
+	// sent message ordering
+	int32 BatchNumber = 0;
+	int32 NextMessageNumber;
+	FDirectLinkMsg_HaveListMessage* BufferedHaveListContent = nullptr;
+	static constexpr int32 BufferSize = 100;
+
+	// received message ordering
 	TMap<int32, FDirectLinkMsg_DeltaMessage> MessageBuffer;
 	int32 NextTransmitableMessageIndex = 0;
 	int32 CurrentBatchCode = 0;
-};
 
+	TSharedPtr<IDeltaConsumer> Consumer;
+};
 
 
 } // namespace DirectLink

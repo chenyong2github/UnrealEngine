@@ -72,6 +72,9 @@ struct FNamedId
 
 	UPROPERTY()
 	FGuid Id;
+
+	UPROPERTY()
+	bool bIsPublic = false;
 };
 
 USTRUCT(meta=(Experimental))
@@ -131,7 +134,7 @@ struct FDirectLinkMsg_OpenStreamRequest
 	bool bRequestFromSource = false;
 
 	UPROPERTY()
-	int32 RequestFromStreamPort = 0; // FStreamPort
+	int32 RequestFromStreamPort = DirectLink::InvalidStreamPort;
 
 	UPROPERTY()
 	FGuid SourceGuid;
@@ -148,13 +151,16 @@ struct FDirectLinkMsg_OpenStreamAnswer
 	GENERATED_BODY();
 
 	UPROPERTY()
-	int32 RecipientStreamPort = 0; // FStreamPort
+	int32 RecipientStreamPort = DirectLink::InvalidStreamPort;
 
 	UPROPERTY()
 	bool bAccepted = false;
 
 	UPROPERTY()
-	int32 OpenedStreamPort = 0; // FStreamPort
+	FString Error; // optionnal: may be filled when the request is denied
+
+	UPROPERTY()
+	int32 OpenedStreamPort = DirectLink::InvalidStreamPort;
 };
 
 
@@ -164,7 +170,7 @@ struct FDirectLinkMsg_CloseStreamRequest
 	GENERATED_BODY();
 
 	UPROPERTY()
-	int32 RecipientStreamPort = 0; // FStreamPort
+	int32 RecipientStreamPort = DirectLink::InvalidStreamPort;
 };
 
 
@@ -177,8 +183,10 @@ struct FDirectLinkMsg_DeltaMessage
 	enum EKind
 	{
 		None,
+		SetupScene, // setup the stream for a scene id
 		OpenDelta,
 		SetElement,
+		RemoveElements,
 		CloseDelta,
 	};
 
@@ -194,10 +202,51 @@ struct FDirectLinkMsg_DeltaMessage
 	}
 
 	UPROPERTY()
-	int32 DestinationStreamPort = 0; // FStreamPort
+	int32 DestinationStreamPort = DirectLink::InvalidStreamPort;
 
 	UPROPERTY()
 	int8 BatchCode = 0;
+
+	UPROPERTY()
+	int32 MessageCode = 0;
+
+	UPROPERTY()
+	uint8 Kind = EKind::None;
+
+	UPROPERTY()
+	TArray<uint8> Payload;
+};
+
+
+USTRUCT(meta=(Experimental))
+struct FDirectLinkMsg_HaveListMessage
+{
+	GENERATED_BODY();
+
+	enum EKind : uint8
+	{
+		None,
+		OpenHaveList, // see Payload
+		HaveListElement, // see NodeIds and Hashes
+		CloseHaveList,
+	};
+
+	// required for UStructs
+	FDirectLinkMsg_HaveListMessage() = default;
+
+	FDirectLinkMsg_HaveListMessage(EKind Kind, DirectLink::FStreamPort SourceStreamPort, uint32 SyncCycle, uint32 MessageIndex)
+		: SourceStreamPort(SourceStreamPort)
+		, SyncCycle(SyncCycle)
+		, MessageCode(MessageIndex)
+		, Kind(Kind)
+	{
+	}
+
+	UPROPERTY()
+	int32 SourceStreamPort = 0; // FStreamPort
+
+	UPROPERTY()
+	int32 SyncCycle = 0;
 
 	UPROPERTY()
 	int32 MessageCode = 0;
@@ -207,6 +256,12 @@ struct FDirectLinkMsg_DeltaMessage
 
 	UPROPERTY()
 	TArray<uint8> Payload;
+
+	UPROPERTY()
+	TArray<int32> NodeIds;
+
+	UPROPERTY()
+	TArray<int32> Hashes;
 };
 
 

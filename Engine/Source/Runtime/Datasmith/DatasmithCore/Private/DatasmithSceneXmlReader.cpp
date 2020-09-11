@@ -20,7 +20,7 @@ FDatasmithSceneXmlReader::~FDatasmithSceneXmlReader() = default;
 namespace DatasmithSceneXmlReaderImpl
 {
 	const TCHAR* ActorTags[] = { DATASMITH_ACTORNAME, DATASMITH_ACTORMESHNAME, DATASMITH_CAMERANAME, DATASMITH_LIGHTNAME,
-		DATASMITH_CUSTOMACTORNAME, DATASMITH_LANDSCAPENAME, DATASMITH_POSTPROCESSVOLUME, DATASMITH_ACTORHIERARCHICALINSTANCEDMESHNAME };
+		DATASMITH_CUSTOMACTORNAME, DATASMITH_LANDSCAPENAME, DATASMITH_POSTPROCESSVOLUME, DATASMITH_ACTORHIERARCHICALINSTANCEDMESHNAME, DATASMITH_DECALACTORNAME };
 
 	template< typename T >
 	T ValueFromString( const FString& InString )
@@ -473,6 +473,13 @@ void FDatasmithSceneXmlReader::ParseActor(FXmlNode* InNode, TSharedPtr<IDatasmit
 		TSharedPtr< IDatasmithCameraActorElement > CameraElement = FDatasmithSceneFactory::CreateCameraActor(*InNode->GetAttribute(TEXT("name")));
 		ParseCamera(InNode, CameraElement);
 		InOutElement = CameraElement;
+	}
+	else if (InNode->GetTag().Compare(DATASMITH_DECALACTORNAME, ESearchCase::IgnoreCase) == 0)
+	{
+		TSharedPtr< IDatasmithDecalActorElement > DecalActorElement = FDatasmithSceneFactory::CreateDecalActor(*InNode->GetAttribute(TEXT("name")));
+		TSharedPtr< IDatasmithCustomActorElement > CustomActorElement = StaticCastSharedPtr< IDatasmithCustomActorElement >( DecalActorElement );
+		ParseCustomActor(InNode, CustomActorElement);
+		InOutElement = DecalActorElement;
 	}
 	else if (InNode->GetTag().Compare(DATASMITH_CUSTOMACTORNAME, ESearchCase::IgnoreCase) == 0)
 	{
@@ -1078,6 +1085,14 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 			ParseMasterMaterial(Nodes[i], MasterMaterial);
 			OutScene->AddMaterial(MasterMaterial);
 		}
+		//READ DECAL MATERIALS
+		else if (Nodes[i]->GetTag().Compare(DATASMITH_DECALMATERIALNAME, ESearchCase::IgnoreCase) == 0)
+		{
+			TSharedPtr< IDatasmithDecalMaterialElement > DecalMaterial = FDatasmithSceneFactory::CreateDecalMaterial(*Nodes[i]->GetAttribute(TEXT("name")));
+
+			ParseDecalMaterial(Nodes[i], DecalMaterial);
+			OutScene->AddMaterial(DecalMaterial);
+		}
 		//READ UEPBR MATERIALS
 		else if (Nodes[i]->GetTag().Compare(DATASMITH_UEPBRMATERIALNAME, ESearchCase::IgnoreCase) == 0)
 		{
@@ -1387,6 +1402,25 @@ void FDatasmithSceneXmlReader::ParseMasterMaterial(FXmlNode* InNode, TSharedPtr<
 	}
 
 	ParseKeyValueProperties( InNode, *OutElement );
+}
+
+void FDatasmithSceneXmlReader::ParseDecalMaterial(FXmlNode* InNode, TSharedPtr< IDatasmithDecalMaterialElement >& OutElement) const
+{
+	ParseElement( InNode, OutElement.ToSharedRef() );
+
+	for ( const FXmlNode* PropNode : InNode->GetChildrenNodes() )
+	{
+		if (PropNode->GetTag().Compare(DATASMITH_DIFFUSETEXNAME, ESearchCase::IgnoreCase) == 0)
+		{
+			FString PathName = PropNode->GetAttribute( TEXT("PathName") );
+			OutElement->SetDiffuseTexturePathName( *PathName );
+		}
+		else if (PropNode->GetTag().Compare(DATASMITH_NORMALTEXNAME, ESearchCase::IgnoreCase) == 0)
+		{
+			FString PathName = PropNode->GetAttribute( TEXT("PathName") );
+			OutElement->SetNormalTexturePathName( *PathName );
+		}
+	}
 }
 
 template< typename ExpressionInputType >
@@ -1753,7 +1787,14 @@ void FDatasmithSceneXmlReader::ParseKeyValueProperties(const FXmlNode* InNode, E
 {
 	for ( const FXmlNode* PropNode : InNode->GetChildrenNodes() )
 	{
-		TSharedPtr< IDatasmithKeyValueProperty > KeyValueProperty = FDatasmithSceneFactory::CreateKeyValueProperty( *PropNode->GetAttribute( TEXT("name") ) );
+		bool bAddProperty = false;
+		FString PropertyName = PropNode->GetAttribute( TEXT("name") );
+		TSharedPtr< IDatasmithKeyValueProperty > KeyValueProperty = OutElement.GetPropertyByName( *PropertyName );
+		if (!KeyValueProperty.IsValid())
+		{
+			KeyValueProperty = FDatasmithSceneFactory::CreateKeyValueProperty( *PropertyName );
+			bAddProperty = true;
+		}
 
 		TArrayView< const TCHAR* > EnumStrings( KeyValuePropertyTypeStrings );
 		int32 IndexOfEnumValue = EnumStrings.IndexOfByPredicate( [ TypeString = PropNode->GetAttribute(TEXT("type")) ]( const TCHAR* Value )
@@ -1766,7 +1807,10 @@ void FDatasmithSceneXmlReader::ParseKeyValueProperties(const FXmlNode* InNode, E
 			KeyValueProperty->SetPropertyType( (EDatasmithKeyValuePropertyType)IndexOfEnumValue );
 
 			KeyValueProperty->SetValue( *PropNode->GetAttribute(TEXT("val")) );
-			OutElement.AddProperty( KeyValueProperty );
+			if (bAddProperty)
+			{
+				OutElement.AddProperty( KeyValueProperty );
+			}
 		}
 	}
 }

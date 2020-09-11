@@ -42,7 +42,7 @@ public:
 	static void WriteEndOfMeshActorElement(const FString& ElementTypeString, FArchive& Archive, int32 Indent);
 
 	static void WriteHierarchicalInstancedMeshElement(const TSharedPtr< IDatasmithHierarchicalInstancedStaticMeshActorElement >& HierarchicalInstancedMeshElement, FArchive& Archive, int32 Indent);
-	static void WriteCustomActorElement(const TSharedPtr< IDatasmithCustomActorElement >& CustomActorElement, FArchive& Archive, int32 Indent);
+	static void WriteCustomActorElement(const TSharedPtr< IDatasmithCustomActorElement >& CustomActorElement, FArchive& Archive, int32 Indent, const TCHAR* = DATASMITH_CUSTOMACTORNAME);
 	static void WriteLandscapeActorElement(const TSharedPtr< IDatasmithLandscapeElement >& LandscapeActorElement, FArchive& Archive, int32 Indent);
 
 	static void WriteMetaDataElement(const TSharedPtr< IDatasmithMetaDataElement >& MetaDataElement, FArchive& Archive, int32 Indent);
@@ -62,6 +62,7 @@ public:
 
 	static void WriteMaterialElement( TSharedPtr< IDatasmithMaterialElement >& MaterialElement, FArchive& Archive, int32 Indent);
 	static void WriteMasterMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement >& MasterMaterialElement, FArchive& Archive, int32 Indent);
+	static void WriteDecalMaterialElement(TSharedPtr< IDatasmithDecalMaterialElement >& DecalMaterialElement, FArchive& Archive, int32 Indent);
 
 	static void WriteUEPbrMaterialElement( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, FArchive& Archive, int32 Indent );
 	static void WriteUEPbrMaterialExpressions( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, FArchive& Archive, int32 Indent );
@@ -380,6 +381,10 @@ void FDatasmithSceneXmlWriterImpl::WriteActorElement(const TSharedPtr< IDatasmit
 	{
 		WriteLightActorElement(StaticCastSharedPtr< IDatasmithLightActorElement >(ActorElement), Archive, Indent);
 	}
+	else if ( ActorElement->IsA( EDatasmithElementType::Decal ) )
+	{
+		WriteCustomActorElement(StaticCastSharedPtr< IDatasmithCustomActorElement >(ActorElement), Archive, Indent, DATASMITH_DECALACTORNAME);
+	}
 	else if ( ActorElement->IsA( EDatasmithElementType::CustomActor ) )
 	{
 		WriteCustomActorElement(StaticCastSharedPtr< IDatasmithCustomActorElement >(ActorElement), Archive, Indent);
@@ -563,12 +568,12 @@ void FDatasmithSceneXmlWriterImpl::WriteHierarchicalInstancedMeshElement(const T
 	WriteEndOfMeshActorElement(ElementTypeString, Archive, Indent);
 }
 
-void FDatasmithSceneXmlWriterImpl::WriteCustomActorElement(const TSharedPtr< IDatasmithCustomActorElement >& CustomActorElement, FArchive& Archive, int32 Indent)
+void FDatasmithSceneXmlWriterImpl::WriteCustomActorElement(const TSharedPtr< IDatasmithCustomActorElement >& CustomActorElement, FArchive& Archive, int32 Indent, const TCHAR* XmlNodeName)
 {
 	WriteIndent(Archive, Indent);
 
 	FString XmlString = TEXT("<");
-	XmlString += FString(DATASMITH_CUSTOMACTORNAME) + TEXT(" name=\"") + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(CustomActorElement->GetName())) + TEXT("\" ");
+	XmlString += FString(XmlNodeName) + TEXT(" name=\"") + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(CustomActorElement->GetName())) + TEXT("\" ");
 	XmlString += FString(DATASMITH_CUSTOMACTORPATHNAME) + TEXT("=\"") + SanitizeXMLText( CustomActorElement->GetClassOrPathName() ) + TEXT("\" ");
 
 	XmlString += GetLabelAndLayer( CustomActorElement );
@@ -585,7 +590,7 @@ void FDatasmithSceneXmlWriterImpl::WriteCustomActorElement(const TSharedPtr< IDa
 	WriteActorChildren(CustomActorElement, Archive, Indent);
 
 	WriteIndent(Archive, Indent);
-	XmlString = TEXT("</") + FString(DATASMITH_CUSTOMACTORNAME) + TEXT(">") + LINE_TERMINATOR;
+	XmlString = TEXT("</") + FString(XmlNodeName) + TEXT(">") + LINE_TERMINATOR;
 	SerializeToArchive( Archive, XmlString );
 }
 
@@ -1195,6 +1200,30 @@ void FDatasmithSceneXmlWriterImpl::WriteMasterMaterialElement(TSharedPtr< IDatas
 	SerializeToArchive( Archive, XmlString );
 }
 
+void FDatasmithSceneXmlWriterImpl::WriteDecalMaterialElement(TSharedPtr< IDatasmithDecalMaterialElement >& DecalMaterialElement, FArchive& Archive, int32 Indent)
+{
+	WriteIndent(Archive, Indent);
+
+	FString XmlString = TEXT("<");
+	XmlString += FString(DATASMITH_DECALMATERIALNAME) + TEXT(" name=\"") + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(DecalMaterialElement->GetName())) + TEXT("\" ");
+	XmlString += TEXT(" label=\"") + SanitizeXMLText(DecalMaterialElement->GetLabel()) + TEXT("\" ");
+
+	XmlString += FString(TEXT(">")) + LINE_TERMINATOR;
+	SerializeToArchive( Archive, XmlString );
+
+	WriteIndent(Archive, Indent + 1);
+	XmlString = TEXT("<") + FString(DATASMITH_DIFFUSETEXNAME) + TEXT(" PathName=\"") + SanitizeXMLText(DecalMaterialElement->GetDiffuseTexturePathName()) + TEXT("\"/>") + LINE_TERMINATOR;
+	SerializeToArchive( Archive, XmlString );
+
+	WriteIndent(Archive, Indent + 1);
+	XmlString = TEXT("<") + FString(DATASMITH_NORMALTEXNAME) + TEXT(" PathName=\"") + SanitizeXMLText(DecalMaterialElement->GetNormalTexturePathName()) + TEXT("\"/>") + LINE_TERMINATOR;
+	SerializeToArchive( Archive, XmlString );
+
+	WriteIndent(Archive, Indent);
+	XmlString = TEXT("</") + FString(DATASMITH_DECALMATERIALNAME) + TEXT(">") + LINE_TERMINATOR;
+	SerializeToArchive( Archive, XmlString );
+}
+
 void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialElement( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, FArchive& Archive, int32 Indent )
 {
 	WriteIndent( Archive, Indent );
@@ -1684,6 +1713,11 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 		{
 			TSharedPtr< IDatasmithMasterMaterialElement > MasterMaterialElement = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( BaseMaterialElement );
 			FDatasmithSceneXmlWriterImpl::WriteMasterMaterialElement( MasterMaterialElement, Archive, 1 );
+		}
+		else if ( BaseMaterialElement->IsA( EDatasmithElementType::DecalMaterial ) )
+		{
+			TSharedPtr< IDatasmithDecalMaterialElement > DecalMaterialElement = StaticCastSharedPtr< IDatasmithDecalMaterialElement >( BaseMaterialElement );
+			FDatasmithSceneXmlWriterImpl::WriteDecalMaterialElement( DecalMaterialElement, Archive, 1 );
 		}
 		else if ( BaseMaterialElement->IsA( EDatasmithElementType::UEPbrMaterial ) )
 		{

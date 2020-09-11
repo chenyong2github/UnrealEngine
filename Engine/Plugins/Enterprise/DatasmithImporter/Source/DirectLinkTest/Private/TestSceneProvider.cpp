@@ -1,26 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TestSceneProvider.h"
-#include "DirectLink/DatasmithDeltaConsumer.h"
+#include "DirectLink/DatasmithSceneReceiver.h"
 
-FTestSceneProvider::ESceneStatus FTestSceneProvider::GetSceneStatus(const DirectLink::FSceneIdentifier& SceneName)
+
+bool FTestSceneProvider::CanOpenNewConnection(const FSourceInformation& Source)
 {
-	return ESceneStatus::CanCreateScene;
+	static bool tmp = true;
+	return tmp;
 }
 
-TSharedPtr<DirectLink::IDeltaConsumer> FTestSceneProvider::GetDeltaConsumer(const DirectLink::FSceneIdentifier& Scene)
+
+TSharedPtr<DirectLink::ISceneReceiver> FTestSceneProvider::GetSceneReceiver(const FSourceInformation& Source)
 {
-	if (const auto* ElementPtr = Consumers.Find(Scene.SceneGuid))
+	if (const auto* ElementPtr = SceneReceivers.Find(Source.Id))
 	{
 		return *ElementPtr;
 	}
 
-	return Consumers.Add(Scene.SceneGuid, MakeShared<FDatasmithDeltaConsumer>());
-}
-
-bool FTestSceneProvider::CanOpenNewConnection()
-{
-	static bool tmp = true;
-	return tmp;
+	return SceneReceivers.Add(Source.Id, MakeShared<FDatasmithSceneReceiver>());
 }
 

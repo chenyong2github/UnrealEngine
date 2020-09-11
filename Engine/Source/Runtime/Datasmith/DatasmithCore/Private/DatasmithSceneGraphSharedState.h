@@ -3,14 +3,21 @@
 #pragma once
 
 
+#include "DirectLink/DirectLinkCommon.h"
 #include "DirectLink/DirectLinkLog.h"
 #include "DirectLink/SceneGraphNode.h"
 
 #include "Algo/Transform.h"
-#include "CoreTypes.h"
 
 class FDatasmithSceneGraphSharedState : public DirectLink::FSceneGraphSharedState
 {
+public:
+	FDatasmithSceneGraphSharedState() = default;
+
+	FDatasmithSceneGraphSharedState(const DirectLink::FSceneIdentifier& InSceneId)
+	{
+		SceneId = InSceneId;
+	}
 };
 
 

@@ -6,68 +6,40 @@
 #include "DatasmithFacadeElement.h"
 #include "DatasmithFacadeTexture.h"
 
+class FDatasmithFacadeKeyValueProperty;
+
 class DATASMITHFACADE_API FDatasmithFacadeBaseMaterial :
 	public FDatasmithFacadeElement
 {
 public:
-	enum class EFacadeMaterialType
+	enum class EDatasmithMaterialType
 	{
 		MasterMaterial,
 		UEPbrMaterial,
+		Unsupported,
 	};
 
-	virtual EFacadeMaterialType GetMaterialType() = 0;
+	EDatasmithMaterialType GetDatasmithMaterialType() const;
 
 #ifdef SWIG_FACADE
 protected:
 #endif
-
-	// Build a Datasmith material element and add it to the Datasmith scene.
-	virtual void BuildScene( FDatasmithFacadeScene& SceneRef ) override;
-
-	virtual TSharedRef<IDatasmithBaseMaterialElement> GetDatasmithBaseMaterial();
-
-	virtual TSharedRef<const IDatasmithBaseMaterialElement> GetDatasmithBaseMaterial() const;
-
-protected:
-
 	FDatasmithFacadeBaseMaterial(
 		const TSharedRef<IDatasmithBaseMaterialElement>& BaseMaterialElement 
 	);
 
-	void AddTextureReference( const FString& InTextureName, const FString& InTextureFilePath, FDatasmithFacadeTexture::ETextureMode InTextureMode );
-
-private:
-
-	struct TextureInfo
-	{
-		FString TextureName;
-		FString TextureFilePath;
-		FDatasmithFacadeTexture::ETextureMode TextureMode;
-
-		TextureInfo( const FString& InTextureName, const FString& InTextureFilePath, FDatasmithFacadeTexture::ETextureMode InTextureMode )
-			: TextureName( InTextureName )
-			, TextureFilePath( InTextureFilePath )
-			, TextureMode( InTextureMode )
-		{}
-	};
-
-	// Add a the given texture to the DatasmithScene if there is no other texture with the same name.
-	void AddTextureElementToScene(
-		const TextureInfo& TextureAssetInfo,
-		const TSharedPtr<IDatasmithScene>& DatasmithScene,
-		const TSharedPtr<TSet<FString>>& ExportedTextureSet
+	static EDatasmithMaterialType GetDatasmithMaterialType(
+		const TSharedRef<IDatasmithBaseMaterialElement>& InMaterial
 	);
 
-	// Array of info on this material's textures.
-	TArray<TextureInfo> ReferencedTextureAssets;
+	// Build a Datasmith material element and add it to the Datasmith scene.
+	virtual void BuildScene( FDatasmithFacadeScene& SceneRef ) override;
 
-	// A weak reference to the TSet holding all the texture names added to the current DatasmithScene.
-	// Used to make sure we don't add the same texture twice to the scene.
-	TWeakPtr<TSet<FString>> ExportedTextureSetRef;
-	
-	// A weak reference to the current DatasmithScene. Used to add new texture elements to the scene when adding a texture to the material.
-	TWeakPtr<IDatasmithScene> DatasmithSceneRef;
+	TSharedRef<IDatasmithBaseMaterialElement> GetDatasmithBaseMaterial() const;
+
+	static FDatasmithFacadeBaseMaterial* GetNewFacadeBaseMaterialFromSharedPtr(
+		const TSharedPtr<IDatasmithBaseMaterialElement>& InMaterial
+	);
 };
 
 class DATASMITHFACADE_API FDatasmithFacadeMasterMaterial :
@@ -77,12 +49,27 @@ class DATASMITHFACADE_API FDatasmithFacadeMasterMaterial :
 
 public:
 
-	// Possible Datasmith master material types.
+	// Possible Datasmith master material types, from EDatasmithMasterMaterialType in DatasmithDefinitions.h
 	enum class EMasterMaterialType
 	{
+		Auto,
 		Opaque,
 		Transparent,
-		CutOut
+		ClearCoat,
+		/** Instantiate a master material from a specified one */
+		Custom,
+		/** Material has a transparent cutout map */
+		CutOut,
+		/** Dummy element to count the number of types */
+		Count
+	};
+
+	enum class EMasterMaterialQuality : uint8
+	{
+		High,
+		Low,
+		/** Dummy element to count the number of qualities */
+		Count
 	};
 
 public:
@@ -93,11 +80,28 @@ public:
 
 	virtual ~FDatasmithFacadeMasterMaterial() {}
 
-	virtual EFacadeMaterialType GetMaterialType() override { return EFacadeMaterialType::MasterMaterial; }
+	/** Get the Datasmith master material type. */
+	EMasterMaterialType GetMaterialType() const;
 
-	// Set the Datasmith master material type.
-	void SetMasterMaterialType(
+	/** Set the Datasmith master material type. */
+	void SetMaterialType(
 		EMasterMaterialType InMasterMaterialType // master material type
+	);
+
+	/** Get the Datasmith master material quality. */
+	EMasterMaterialQuality GetQuality() const;
+
+	/** Set the Datasmith master material quality. */
+	void SetQuality(
+		EMasterMaterialQuality InQuality
+	);
+
+	/** Get the material path name used when master material type is set to Custom */
+	const TCHAR* GetCustomMaterialPathName() const;
+	
+	/** Set the material path name used when master material type is set to Custom */
+	void SetCustomMaterialPathName(
+		const TCHAR* InPathName
 	);
 
 	// Add a Datasmith material sRGBA color property.
@@ -120,9 +124,8 @@ public:
 
 	// Add a Datasmith material texture property.
 	void AddTexture(
-		const TCHAR* InPropertyName,                       // texture property name
-		const TCHAR* InTextureFilePath,                    // texture file path
-		FDatasmithFacadeTexture::ETextureMode InTextureMode = FDatasmithFacadeTexture::ETextureMode::Diffuse // texture mode
+		const TCHAR* InPropertyName,             // texture property name
+		const FDatasmithFacadeTexture* InTexture // texture file path
 	);
 
 	// Add a Datasmith material string property.
@@ -143,9 +146,25 @@ public:
 		bool         bInPropertyValue // property value
 	);
 
+	int32 GetPropertiesCount() const;
+
+	/** Returns a new FDatasmithFacadeKeyValueProperty pointing to the KeyValueProperty at the given index, the returned value must be deleted after used, can be nullptr. */
+	FDatasmithFacadeKeyValueProperty* GetNewProperty(
+		int32 PropertyIndex
+	) const;
+
+	/** Returns a new FDatasmithFacadeKeyValueProperty pointing to the KeyValueProperty with the given name, the returned value must be deleted after used, can be nullptr. */
+	FDatasmithFacadeKeyValueProperty* GetNewPropertyByName(
+		const TCHAR* PropertyName
+	) const;
+
 #ifdef SWIG_FACADE
 protected:
 #endif
+
+	FDatasmithFacadeMasterMaterial(
+		const TSharedRef<IDatasmithMasterMaterialElement>& InMaterialRef // Datasmith master material element
+	);
 
 	TSharedRef<IDatasmithMasterMaterialElement> GetDatasmithMasterMaterial() const;
 };

@@ -126,6 +126,8 @@ namespace DatasmithRuntime
 
 	void CalculateMeshesLightmapWeights(const TArray< FSceneGraphId >& MeshElementArray, const TMap< FSceneGraphId, TSharedPtr< IDatasmithElement > >& Elements, TMap< FSceneGraphId, float >& LightmapWeights)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::CalculateMeshesLightmapWeights);
+
 		LightmapWeights.Reserve(MeshElementArray.Num());
 
 		float MaxArea = 0.0f;
@@ -167,6 +169,8 @@ namespace DatasmithRuntime
 
 	int32 GenerateLightmapUVResolution(FMeshDescription& Mesh, int32 SrcLightmapIndex, int32 MinLightmapResolution)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::GenerateLightmapUVResolution);
+
 		// Determine the absolute minimum lightmap resolution that can be used for packing
 		FOverlappingCorners OverlappingCorners;
 		FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, Mesh, THRESH_POINTS_ARE_SAME);
@@ -292,6 +296,8 @@ namespace DatasmithRuntime
 
 	int32 ProcessMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement > MasterMaterialElement, const TCHAR* Host, FTextureCallback TextureCallback)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::ProcessMasterMaterialElement);
+
 		// Must be updated if FDatasmithMaterialImporter::GetMaterialRequirements changes
 		int32 MaterialRequirement = EMaterialRequirements::RequiresNormals | EMaterialRequirements::RequiresTangents;
 
@@ -361,6 +367,8 @@ namespace DatasmithRuntime
 
 	int32 ProcessMaterialElement( IDatasmithUEPbrMaterialElement* PbrMaterialElement, FTextureCallback TextureCallback)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::ProcessPbrMaterialElement);
+
 		// Must be updated if FDatasmithMaterialImporter::GetMaterialRequirements changes
 		int32 MaterialRequirement = EMaterialRequirements::RequiresNormals | EMaterialRequirements::RequiresTangents;
 
@@ -401,6 +409,8 @@ namespace DatasmithRuntime
 
 	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement, const FString& HostString )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::LoadMasterMaterial);
+
 		FDatasmithMasterMaterialManager& MaterialManager = FDatasmithMasterMaterialManager::Get();
 		const FString Host = MaterialManager.GetHostFromString( HostString );
 		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = MaterialManager.GetSelector( *Host );
@@ -535,6 +545,8 @@ namespace DatasmithRuntime
 
 	bool LoadPbrMaterial(UMaterialInstanceDynamic* MaterialInstance, IDatasmithUEPbrMaterialElement* MaterialElement)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::LoadPbrMaterial);
+
 		// #ue_dsruntime: For the time being, Pbr materials are opaque materials
 		const TCHAR* MaterialPath = OpaqueMaterialPath;
 
