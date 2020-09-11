@@ -50,7 +50,20 @@ public:
 		InSkeletalMeshComponent->SetUpdateAnimationInEditor(true);
 		InSkeletalMeshComponent->SetUpdateClothInEditor(true);
 #endif
-
+		TArray<USceneComponent*> ChildComponents;
+		InSkeletalMeshComponent->GetChildrenComponents(true, ChildComponents);
+		for (USceneComponent* ChildComponent : ChildComponents)
+		{
+			USkeletalMeshComponent* ChildSkelMeshComp = Cast<USkeletalMeshComponent>(ChildComponent);
+			if (ChildSkelMeshComp)
+			{
+				ChildSkelMeshComp->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+#if WITH_EDITOR
+				ChildSkelMeshComp->SetUpdateAnimationInEditor(true);
+				ChildSkelMeshComp->SetUpdateClothInEditor(true);
+#endif
+			}
+		}
 		// we use sequence instance if it's using anim blueprint that matches. Otherwise, we create sequence player
 		// this might need more check - i.e. making sure if it's same skeleton and so on, 
 		// Ideally we could just call NeedToSpawnAnimScriptInstance call, which is protected now
