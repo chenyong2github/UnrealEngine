@@ -133,8 +133,6 @@ protected:
 	FString MeshArchiveFile;
 	TArray<FBodyMesh> BodyMeshes;
 
-	bool bNeedSaveCTFile = false;
-
 	const FImportParameters& ImportParameters;
 };
 
