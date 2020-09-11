@@ -638,7 +638,8 @@ void UWorldPartition::AddToClusters(const FWorldPartitionActorDesc* ActorDesc)
 
 void UWorldPartition::RemoveFromClusters(const FWorldPartitionActorDesc* ActorDesc)
 {
-	FActorCluster* ActorCluster = ActorToActorCluster.FindChecked(ActorDesc->GetGuid());
+	FActorCluster* ActorCluster = ActorToActorCluster.FindAndRemoveChecked(ActorDesc->GetGuid());
+	ActorCluster->Actors.Remove(ActorDesc->GetGuid());
 
 	// Break up this cluster and reinsert all actors
 	ActorClustersSet.Remove(ActorCluster);
@@ -647,8 +648,6 @@ void UWorldPartition::RemoveFromClusters(const FWorldPartitionActorDesc* ActorDe
 	{
 		ActorToActorCluster[Guid] = nullptr;
 	}
-
-	ActorToActorCluster.Remove(ActorDesc->GetGuid());
 
 	for (const FGuid& Guid : ActorCluster->Actors)
 	{
