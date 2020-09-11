@@ -27,6 +27,7 @@ FChannel&				TraceLogChannel			= TraceLogChannelDetail;
 UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
+	UE_TRACE_EVENT_FIELD(bool, ReadOnly)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
@@ -133,13 +134,14 @@ FChannel::Iter FChannel::ReadNew()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void FChannel::Initialize(const ANSICHAR* InChannelName)
+void FChannel::Initialize(const ANSICHAR* InChannelName, const InitArgs& InArgs)
 {
 	using namespace Private;
 
 	Name.Ptr = InChannelName;
 	Name.Len = GetChannelNameLength(Name.Ptr);
 	Name.Hash = GetChannelHash(Name.Ptr, Name.Len);
+	Args = InArgs;
 
 	// Append channel to the linked list of new channels.
 	for (;; PlatformYield())
@@ -159,6 +161,7 @@ void FChannel::Announce() const
 	UE_TRACE_LOG(Trace, ChannelAnnounce, TraceLogChannel)
 		<< ChannelAnnounce.Id(Name.Hash)
 		<< ChannelAnnounce.IsEnabled(IsEnabled())
+		<< ChannelAnnounce.ReadOnly(Args.bReadOnly)
 		<< ChannelAnnounce.Name(Name.Ptr, Name.Len);
 }
 

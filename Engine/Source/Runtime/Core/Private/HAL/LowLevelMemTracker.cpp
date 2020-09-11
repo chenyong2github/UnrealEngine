@@ -13,7 +13,7 @@
 #include "MemPro/MemProProfiler.h"
 #include "Trace/Trace.inl"
 
-UE_TRACE_CHANNEL(MemoryChannel);
+UE_TRACE_CHANNEL(MemoryChannel, "Memory overview", true)
 
 UE_TRACE_EVENT_BEGIN(LLM, TagsSpec, Important)
 	UE_TRACE_EVENT_FIELD(int64, TagId)
