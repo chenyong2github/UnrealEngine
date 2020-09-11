@@ -7,6 +7,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Types/ReflectionMetadata.h"
 #include "Input/HittestGrid.h"
+#include "Trace/SlateTrace.h"
 #include "Widgets/SWidgetUtils.h"
 
 const FSlateWidgetPersistentState FSlateWidgetPersistentState::NoState;
@@ -44,9 +45,7 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 	}
 	else if(!bInvisibleDueToParentOrSelfVisibility)
 	{
-#if WITH_SLATE_DEBUGGING
 		EWidgetUpdateFlags PreviousUpdateFlag = UpdateFlags;
-#endif
 
 		if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 		{
@@ -67,6 +66,7 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 #if WITH_SLATE_DEBUGGING
 		FSlateDebugging::BroadcastWidgetUpdated(Widget, PreviousUpdateFlag);
 #endif
+		UE_TRACE_SLATE_WIDGET_UPDATED(Widget, PreviousUpdateFlag);
 	}
 
 	return OutgoingLayerId;
@@ -87,6 +87,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 #if WITH_SLATE_DEBUGGING
 			FSlateDebugging::BroadcastWidgetInvalidate(ParentProxy.Widget, Widget, EInvalidateWidgetReason::Layout);
 #endif
+			UE_TRACE_SLATE_WIDGET_INVALIDATED(ParentProxy.Widget, Widget, EInvalidateWidgetReason::Layout);
 			UpdateList.Push(ParentProxy);
 		}
 		bWidgetNeedsRepaint = true;
@@ -136,6 +137,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 #if WITH_SLATE_DEBUGGING
 					FSlateDebugging::BroadcastWidgetInvalidate(ParentProxy.Widget, Widget, EInvalidateWidgetReason::Layout);
 #endif
+					UE_TRACE_SLATE_WIDGET_INVALIDATED(ParentProxy.Widget, Widget, EInvalidateWidgetReason::Layout);
 					UpdateList.Push(ParentProxy);
 				}
 			}
@@ -298,6 +300,7 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReaso
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BroadcastWidgetInvalidate(Proxy.Widget, nullptr, InvalidateReason);
 #endif
+	UE_TRACE_SLATE_WIDGET_INVALIDATED(Proxy.Widget, nullptr, InvalidateReason);
 }
 
 void FWidgetProxyHandle::UpdateWidgetFlags(EWidgetUpdateFlags NewFlags)
