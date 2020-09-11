@@ -132,43 +132,50 @@ int32 UWorldPartitionBuildHLODsCommandlet::Main(const FString& Params)
 	}
 
 	// Delete packages
-	UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Deleting %d packages."), PackagesToDelete.Num());
-	if (!PackageHelper.Delete(PackagesToDelete))
+	if (!PackagesToDelete.IsEmpty())
 	{
-		UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error deleting packages."));
-		return 1;
-	}
-
-	// Checkout packages
-	UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Checking out %d actor packages."), PackagesToSave.Num());
-	for (UPackage* Package : PackagesToSave)
-	{
-		if (!PackageHelper.Checkout(Package))
+		UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Deleting %d packages."), PackagesToDelete.Num());
+		if (!PackageHelper.Delete(PackagesToDelete))
 		{
-			UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error checking out package %s."), *Package->GetName());
+			UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error deleting packages."));
 			return 1;
 		}
 	}
 
 	// Save packages
-	UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Saving %d packages."), PackagesToSave.Num());
-	for (UPackage* Package : PackagesToSave)
+	if (!PackagesToSave.IsEmpty())
 	{
-		if (!PackageHelper.Save(Package))
+		// Checkout packages
+		UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Checking out %d actor packages."), PackagesToSave.Num());
+		for (UPackage* Package : PackagesToSave)
 		{
-			UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error saving package %s."), *Package->GetName());
-			return 1;
+			if (!PackageHelper.Checkout(Package))
+			{
+				UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error checking out package %s."), *Package->GetName());
+				return 1;
+			}
 		}
-	}
 
-	// Add new packages to source control
-	UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Adding packages to source control."));
-	for (UPackage* Package : PackagesToSave)
-	{
-		if (!PackageHelper.AddToSourceControl(Package))
+		// Save packages
+		UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Saving %d packages."), PackagesToSave.Num());
+		for (UPackage* Package : PackagesToSave)
 		{
-			UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
-			return 1;
+			if (!PackageHelper.Save(Package))
+			{
+				UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error saving package %s."), *Package->GetName());
+				return 1;
+			}
+		}
+
+		// Add new packages to source control
+		UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Adding packages to source control."));
+		for (UPackage* Package : PackagesToSave)
+		{
+			if (!PackageHelper.AddToSourceControl(Package))
+			{
+				UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
+				return 1;
+			}
 		}
 	}
 

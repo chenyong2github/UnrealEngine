@@ -129,6 +129,11 @@ bool FCommandletPackageHelper::Delete(const TArray<FAssetData>& Assets) const
 
 bool FCommandletPackageHelper::Delete(const TArray<UPackage*>& Packages) const
 {
+	if (Packages.IsEmpty())
+	{
+		return true;
+	}
+
 	// Store all packages names as we won't be able to retrieve them from the UPackages once they are unloaded
 	TArray<FString> PackagesNames;
 	PackagesNames.Reserve(Packages.Num());

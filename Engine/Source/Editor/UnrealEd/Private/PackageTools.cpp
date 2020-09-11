@@ -272,6 +272,12 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 
 	bool UPackageTools::UnloadPackages( const TArray<UPackage*>& TopLevelPackages, FText& OutErrorMessage )
 	{
+		// Early out if no package is provided
+		if (TopLevelPackages.IsEmpty())
+		{
+			return true;
+		}
+
 		bool bResult = false;
 
 		// Get outermost packages, in case groups were selected.
