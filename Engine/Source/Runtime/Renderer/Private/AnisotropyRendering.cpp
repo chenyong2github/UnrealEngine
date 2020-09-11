@@ -274,7 +274,7 @@ void FAnisotropyMeshProcessor::Process(
 
 bool FDeferredShadingSceneRenderer::ShouldRenderAnisotropyPass() const
 {
-	if (IsSimpleForwardShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)))
+	if (IsAnyForwardShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)))
 	{
 		return false;
 	}
