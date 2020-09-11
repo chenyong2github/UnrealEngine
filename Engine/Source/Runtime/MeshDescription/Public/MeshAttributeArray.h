@@ -928,8 +928,8 @@ public:
 		return TMeshAttributesRef<ElementIDType, AttributeType>();
 	}
 
-	UE_DEPRECATED(4.26, "GetAttributesView() will no longer be supported; please use GetAttributesRef() instead.")
 	template <typename ViewType>
+	UE_DEPRECATED(4.26, "GetAttributesView() will no longer be supported; please use GetAttributesRef() instead.")
 	TMeshAttributesConstView<ElementIDType, ViewType> GetAttributesView( const FName AttributeName ) const
 	{
 		if( const FAttributesSetEntry* ArraySetPtr = this->Map.Find( AttributeName ) )
@@ -940,8 +940,8 @@ public:
 		return TMeshAttributesConstView<ElementIDType, ViewType>();
 	}
 
-	UE_DEPRECATED(4.26, "GetAttributesView() will no longer be supported; please use GetAttributesRef() instead.")
 	template <typename ViewType>
+	UE_DEPRECATED(4.26, "GetAttributesView() will no longer be supported; please use GetAttributesRef() instead.")
 	TMeshAttributesView<ElementIDType, ViewType> GetAttributesView( const FName AttributeName )
 	{
 		if( FAttributesSetEntry* ArraySetPtr = this->Map.Find( AttributeName ) )
