@@ -22,12 +22,15 @@ class UControlRigEditModeSettings : public UObject
 		, bCoordSystemPerWidgetMode(true)
 		, bOnlySelectRigControls(false)
 		, bLocalTransformsInEachLocalSpace(true)
+		, GizmoScale(1.0f)
 	{}
 
 	// UObject interface
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
 public:
 
 	/** Whether to show all bones in the hierarchy */
@@ -61,5 +64,10 @@ public:
 	/** If true when we transform multiple selected objects in the viewport they each transforms along their own local transform space */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bLocalTransformsInEachLocalSpace;
+	
+	/** The scale for Gizmos */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	float GizmoScale;
+
 	
 };

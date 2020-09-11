@@ -63,6 +63,7 @@ FEditorModeTools::FEditorModeTools()
 	, bSelectionHasSceneComponent(false)
 	, CoordSystem(COORD_World)
 	, bIsTracking(false)
+	, WidgetScale(1.0f)
 {
 	DefaultModeIDs.Add( FBuiltinEditorModes::EM_Default );
 
@@ -1633,6 +1634,24 @@ FWidget::EWidgetMode FEditorModeTools::GetWidgetMode() const
 	}
 
 	return WidgetMode;
+}
+
+/**
+* Set Scale On The Widget
+*/
+
+void FEditorModeTools::SetWidgetScale(float InScale)
+{
+	WidgetScale = InScale;
+}
+
+/**
+* Get Scale On The Widget
+*/
+
+float FEditorModeTools::GetWidgetScale() const
+{
+	return WidgetScale;
 }
 
 bool FEditorModeTools::GetShowFriendlyVariableNames()
