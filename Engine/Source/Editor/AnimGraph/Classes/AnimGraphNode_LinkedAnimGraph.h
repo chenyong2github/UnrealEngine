@@ -20,6 +20,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_LinkedAnimGraph Node;
 
+	// Begin UEdGraphNode
+	virtual void PostPasteNode();
+
 	// Begin UAnimGraphNode_CustomProperty
 	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override { return &Node;  }
 	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
