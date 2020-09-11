@@ -119,7 +119,7 @@ void FTraceSourceFiltering::AddReferencedObjects(FReferenceCollector& Collector)
 void FTraceSourceFiltering::PopulateRemoteTraceCommands()
 {
 #if SOURCE_FILTER_TRACE_ENABLED
-	CommandMap.Add(TEXT("AddFilterById"), { [this](const TArray<FString>& Arguments) -> void { FilterCollection->AddFilterOfClass(ConvertArgumentToClass(Arguments[0])); }, 1 });
+CommandMap.Add(TEXT("AddFilterById"), { [this](const TArray<FString>& Arguments) -> void { FilterCollection->AddFilterOfClass(ConvertArgumentToClass(Arguments[0])); }, 1 });
 
 	CommandMap.Add(TEXT("AddFilterClassToSet"),
 		{ [this](const TArray<FString>& Arguments) -> void { FilterCollection->AddFilterOfClassToSet(ConvertArgumentToClass(Arguments[0]), ConvertArgumentToFilterSet(Arguments[1])); }, 2 });
