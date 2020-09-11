@@ -56,6 +56,30 @@ public:
 		FDatasmithFacadeBaseMaterial* InMaterialPtr
 	);
 
+	/**
+	 * Returns the number of material elements added to the scene.
+	 */
+	int32 GetMaterialsCount() const;
+
+	/**
+	 * Returns a new FDatasmithFacadeBaseMaterial pointing to the Material at the specified index.
+	 * If the given index is invalid, the returned value is nullptr.
+	 * 
+	 * @param MaterialIndex The index of the material in the scene.
+	 */
+	FDatasmithFacadeBaseMaterial* GetNewMaterial(
+		int32 MaterialIndex
+	);
+
+	/**
+	 * Removes a Material Element from the scene.
+	 *
+	 * @param InMaterialPtr the Material Element to remove
+	 */
+	void RemoveMaterial(
+		FDatasmithFacadeBaseMaterial* InMaterialPtr
+	);
+
 	void AddMesh(
 		FDatasmithFacadeMesh* InMeshPtr
 	);
@@ -96,24 +120,40 @@ public:
 		FDatasmithFacadeMetaData* InMetaDataPtr
 	);
 	
-	// Instantiate an exporter and register export start time
+	/** Instantiate an exporter and register export start time */
 	void PreExport();
 
-	// Build and export a Datasmith scene instance and its scene element assets.
+	/** Build and export a Datasmith scene instance and its scene element assets. */
 	void ExportScene(
 		const TCHAR* InOutputPath // Datasmith scene output file path
 	);
 
-	// Build and export the Datasmith scene element assets.
-	// This must be done before building a Datasmith scene instance.
+	/** 
+	 * Build and export the Datasmith scene element assets.
+	 * This must be done before building a Datasmith scene instance.
+	 */
 	void ExportAssets(
 		const TCHAR* InAssetFolder // Datasmith asset folder path
 	);
 
-	// Build a Datasmith scene instance.
+	/** Build a Datasmith scene instance. */
 	void BuildScene(
 		const TCHAR* InSceneName // Datasmith scene name
 	);
+
+
+	/**
+	 * Set the Datasmith scene's label.
+	 * This is mainly used in conjunction with DirectLink. The scene's label is used
+	 * to name the source (stream) created to broadcast the content of the scene
+	 */
+	void SetLabel(
+		const TCHAR* InSceneLabel
+	);
+
+	/** Return the Datasmith scene's label. */
+	const TCHAR* GetLabel() const;
+
 
 #ifdef SWIG_FACADE
 protected:

@@ -3,6 +3,7 @@
 // Datasmith SDK.
 #include "DatasmithExporterManager.h"
 
+#if PLATFORM_WINDOWS
 // Begin Datasmith platform include gard.
 #include "Windows/AllowWindowsPlatformTypes.h"
 
@@ -23,3 +24,11 @@ BOOL WINAPI DllMain(
 
 // End Datasmith platform include guard.
 #include "Windows/HideWindowsPlatformTypes.h"
+#elif PLATFORM_MAC
+
+__attribute__((destructor)) void DllUnload()
+{
+	FDatasmithExporterManager::Shutdown();
+}
+
+#endif

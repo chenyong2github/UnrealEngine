@@ -5,27 +5,20 @@
 #include "DirectLink/DeltaConsumer.h"
 #include "DirectLink/ElementSnapshot.h"
 
-#include "DatasmithCore.h"
-#include "IDatasmithSceneElements.h"
 
-#include "CoreTypes.h"
-#include "Templates/UniquePtr.h"
-
-namespace DirectLink
-{
-class IDeltaProducer;
-} // namespace DirectLink
+class IDatasmithElement;
+class IDatasmithScene;
 
 
-class DATASMITHCORE_API FDatasmithDeltaConsumer
-	: public DirectLink::IDeltaConsumer
+class DATASMITHCORE_API FDatasmithSceneReceiver
+	: public DirectLink::ISceneReceiver
 {
 public:
 	class ISceneChangeListener
 	{
 	public:
 		virtual void OnOpenDelta() = 0;
-		virtual void OnNewScene() = 0;
+		virtual void OnNewScene(const DirectLink::FSceneIdentifier& SceneId) = 0;
 		virtual void OnAddElement(TSharedPtr<IDatasmithElement> Element) = 0;
 		virtual void OnChangedElement(TSharedPtr<IDatasmithElement> Element) = 0;
 		virtual void OnRemovedElement(DirectLink::FSceneGraphId ElementId) = 0;
@@ -33,25 +26,13 @@ public:
 	};
 
 public:
+	FDatasmithSceneReceiver();
+
 	void SetChangeListener(ISceneChangeListener* Listener) { ChangeListener = Listener; }
-
-	TSharedPtr<IDatasmithScene> GetScene() { return Scene; }
-
-private:
-	// IDeltaConsumer API
-	virtual void SetDeltaProducer(DirectLink::IDeltaProducer* Producer) override
-	{
-		DeltaProducer = Producer;
-	}
-
-	virtual void OnOpenDelta(FOpenDeltaArg& OpenDeltaArg) override;
-
-	virtual void OnSetElement(FSetElementArg& SetElementArg) override;
-
-	virtual void OnCloseDelta(FCloseDeltaArg& CloseDeltaArg) override;
+	TSharedPtr<IDatasmithScene> GetScene();
 
 private:
-	void LoadScene(const DirectLink::FSceneIdentifier& SceneId, uint32 ElementCount);
+	virtual void FinalSnapshot(const DirectLink::FSceneSnapshot& SceneSnapshot) override;
 
 private:
 	struct FDatasmithElementPointers : public DirectLink::IReferenceResolutionProvider
@@ -69,9 +50,11 @@ private:
 		TSharedPtr<IDatasmithElement> Element;
 		DirectLink::FReferenceSnapshot RefSnapshot;
 	};
-	TMap<DirectLink::FSceneGraphId, FFinalizableNode> FinalizableElements;
-	TMap<DirectLink::FSceneGraphId, DirectLink::FElementHash> LocalIndex;
-	FDatasmithElementPointers Elements;
+	struct FFinalizableNode2
+	{
+		TSharedPtr<IDatasmithElement> Element;
+		const DirectLink::FElementSnapshot* Snapshot;
+	};
 
 	struct FElementEdit{
 		DirectLink::FSceneGraphId Id;
@@ -82,14 +65,21 @@ private:
 	{
 		DirectLink::FSceneIdentifier OldSceneId;
 		DirectLink::FSceneIdentifier NewSceneId;
-		TArray<FElementEdit> ModifiedElements;
+		int32 SyncCycle;
+		bool bForceNewScene;
 	};
+
 	FChangeLog ChangeLog;
 	ISceneChangeListener* ChangeListener = nullptr;
 
-	DirectLink::FSceneIdentifier CurrentSceneId;
-	TSharedPtr<IDatasmithScene> Scene;
-	TSharedPtr<IDatasmithScene> UnstableScene;
+	struct FSceneState
+	{
+		DirectLink::FSceneIdentifier SceneId;
+		TSharedPtr<IDatasmithScene> Scene;
+		FDatasmithElementPointers Elements;
+	};
 
-	DirectLink::IDeltaProducer* DeltaProducer = nullptr;
+	TUniquePtr<FSceneState> Current;
 };
+
+

@@ -655,6 +655,32 @@ public:
 	virtual void AddProperty(const TSharedPtr< IDatasmithKeyValueProperty >& Property) = 0;
 };
 
+class DATASMITHCORE_API IDatasmithDecalMaterialElement : public IDatasmithBaseMaterialElement
+{
+public:
+	virtual ~IDatasmithDecalMaterialElement() {}
+
+	/** Get path name of the diffuse texture associated with the material */
+	virtual const TCHAR* GetDiffuseTexturePathName() const = 0;
+
+	/**
+	 * Set path name of the diffuse texture associated with the material
+	 * The path name can be either a package path referring to an existing texture asset
+	 * or a texture name referring a TextureElement in the DatasmithScene
+	 */
+	virtual void SetDiffuseTexturePathName(const TCHAR* DiffuseTexturePathName) = 0;
+
+	/** Get path name of the normal texture associated with the material */
+	virtual const TCHAR* GetNormalTexturePathName() const = 0;
+
+	/**
+	 * Set path name of the normal texture associated with the material
+	 * The path name can be either the name of a texture added to the Datasmith scene
+	 * or a path to an Unreal asset
+	 */
+	virtual void SetNormalTexturePathName(const TCHAR* NormalTexturePathName) = 0;
+};
+
 class DATASMITHCORE_API IDatasmithPostProcessElement : public IDatasmithElement
 {
 public:
@@ -1412,6 +1438,34 @@ public:
 
 	/** Add a property to this meta data */
 	virtual void AddProperty(const TSharedPtr< IDatasmithKeyValueProperty >& Property) = 0;
+};
+
+class DATASMITHCORE_API IDatasmithDecalActorElement : public IDatasmithCustomActorElement
+{
+public:
+	/** Get the Decal element size */
+	virtual FVector GetDimensions() const = 0;
+
+	/** Set the Decal element size */
+	virtual void SetDimensions(const FVector&) = 0;
+
+	/** Get the path name of the Material associated with the actor */
+	virtual const TCHAR* GetDecalMaterialPathName() const = 0;
+
+	/**
+	 * Set the path name of the Material that the Decal actor uses
+	 * It can be either a package path referring to an existing material asset
+	 * or a material name referring a DecalMaterialElement in the DatasmithScene
+	 * If this is not a DecalMaterialElement or a material with its material domain as DeferredDecal
+	 * The DecalActor generated in Unreal at import will use its default material
+	 */
+	virtual void SetDecalMaterialPathName(const TCHAR*) = 0;
+
+	/** Get the order in which Decal element is rendered. */
+	virtual int32 GetSortOrder() const = 0;
+
+	/** Set the order in which decal elements are rendered.  Higher values draw later (on top). */
+	virtual void SetSortOrder(int32) = 0;
 };
 
 class DATASMITHCORE_API IDatasmithScene : public IDatasmithElement

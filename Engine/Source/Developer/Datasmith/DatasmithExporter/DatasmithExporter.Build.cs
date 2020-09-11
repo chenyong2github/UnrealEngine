@@ -27,6 +27,10 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"RawMesh",
 					"StaticMeshDescription",
+					"Slate",
+					"InputCore",
+					"SlateCore",
+					"StandaloneRenderer",
 				}
 			);
 
@@ -37,7 +41,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-// 			PrecompileForTargets = PrecompileTargetsType.Any;
+			// PrecompileForTargets = PrecompileTargetsType.Any;
 		}
 	}
 }

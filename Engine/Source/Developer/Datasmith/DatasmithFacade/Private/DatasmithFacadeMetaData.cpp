@@ -3,6 +3,7 @@
 #include "DatasmithFacadeMetaData.h"
 
 #include "DatasmithFacadeScene.h"
+#include "DatasmithFacadeKeyValueProperty.h"
 
 FDatasmithFacadeMetaData::FDatasmithFacadeMetaData(
 	const TCHAR* InElementName
@@ -109,17 +110,14 @@ void FDatasmithFacadeMetaData::AddPropertyVector(
 	GetDatasmithMetaDataElement()->AddProperty(MetadataPropertyPtr);
 }
 
-void FDatasmithFacadeMetaData::AddCustomProperty(
-	const TCHAR* InPropertyName,
-	const TCHAR* InPropertyValue,
-	EPropertyType InPropertyType
+void FDatasmithFacadeMetaData::AddProperty(
+	const FDatasmithFacadeKeyValueProperty* InProperty
 )
 {
-	TSharedPtr<IDatasmithKeyValueProperty> MetadataPropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty(InPropertyName);
-	MetadataPropertyPtr->SetPropertyType(static_cast<EDatasmithKeyValuePropertyType>( InPropertyType ));
-	MetadataPropertyPtr->SetValue(InPropertyValue);
-
-	GetDatasmithMetaDataElement()->AddProperty(MetadataPropertyPtr);
+	if (InProperty)
+	{
+		GetDatasmithMetaDataElement()->AddProperty(InProperty->GetDatasmithKeyValueProperty());
+	}
 }
 
 int32 FDatasmithFacadeMetaData::GetPropertiesCount() const
@@ -127,49 +125,31 @@ int32 FDatasmithFacadeMetaData::GetPropertiesCount() const
 	return GetDatasmithMetaDataElement()->GetPropertiesCount();
 }
 
-const TCHAR* FDatasmithFacadeMetaData::GetPropertyName(
+FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMetaData::GetNewProperty(
 	int32 PropertyIndex
 ) const
 {
 	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMetaDataElement()->GetProperty(PropertyIndex))
 	{
-		return Property->GetName();
+		return new FDatasmithFacadeKeyValueProperty(Property.ToSharedRef());
 	}
 
 	return nullptr;
-}
-
-const TCHAR* FDatasmithFacadeMetaData::GetPropertyValue(
-	int32 PropertyIndex
-) const
-{
-	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMetaDataElement()->GetProperty(PropertyIndex))
-	{
-		return Property->GetValue();
-	}
-
-	return nullptr;
-}
-
-bool FDatasmithFacadeMetaData::GetPropertyType(
-	int32 PropertyIndex,
-	EPropertyType& OutPropertyType
-) const
-{
-	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMetaDataElement()->GetProperty(PropertyIndex))
-	{
-		OutPropertyType = static_cast<EPropertyType>( Property->GetPropertyType() );
-		return true;
-	}
-
-	return false;
 }
 
 void FDatasmithFacadeMetaData::SetAssociatedElement(
-	FDatasmithFacadeElement& Element
+	const FDatasmithFacadeElement* Element
 )
 {
-	GetDatasmithMetaDataElement()->SetAssociatedElement(Element.GetDatasmithElement());
+	TSharedRef<IDatasmithMetaDataElement> MetaDataElement = GetDatasmithMetaDataElement();
+	if (Element)
+	{
+		MetaDataElement->SetAssociatedElement(Element->GetDatasmithElement());
+	}
+	else
+	{
+		MetaDataElement->SetAssociatedElement(TSharedPtr<IDatasmithElement>());
+	}
 }
 
 void FDatasmithFacadeMetaData::BuildScene(

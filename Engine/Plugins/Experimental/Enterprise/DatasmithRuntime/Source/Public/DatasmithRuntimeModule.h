@@ -10,11 +10,6 @@
 
 #define DATASMITHLIVEUPDATE_MODULE_NAME TEXT("DatasmithRuntime")
 
-namespace DirectLink
-{
-	class ISceneProvider;
-}
-
 class IDatasmithRuntimeModuleInterface : public IModuleInterface
 {
 public:
@@ -27,7 +22,4 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded(DATASMITHLIVEUPDATE_MODULE_NAME);
 	}
-
-	virtual bool RegisterSceneProvider(TSharedPtr<DirectLink::ISceneProvider> SceneProvider) = 0;
-	virtual void UnregisterSceneProvider(TSharedPtr<DirectLink::ISceneProvider> SceneProvider) = 0;
 };

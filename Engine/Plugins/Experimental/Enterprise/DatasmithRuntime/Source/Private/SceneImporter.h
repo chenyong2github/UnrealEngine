@@ -67,6 +67,7 @@ namespace EDatasmithRuntimeWorkerTask
 		TextureCreate			= 0x0100,
 		TextureAssign			= 0x0800,
 		DeleteElement			= 0x2000,
+		ResetScene				= 0x4000,
 		AllTasks				= 0xffff
 	};
 }
