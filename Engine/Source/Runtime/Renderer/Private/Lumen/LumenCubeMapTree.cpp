@@ -110,14 +110,7 @@ FAutoConsoleVariableRef CVarLumenCubeMapTreeCullFaces(
 
 bool IsPrimitiveToDFObjectMappingRequired()
 {
-	bool bGeneratePrimitiveToDFObjectMapping = false;
-
-#if RHI_RAYTRACING
-	static IConsoleVariable* CVarRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
-	bGeneratePrimitiveToDFObjectMapping = (CVarRayTracing ? (CVarRayTracing->GetInt() != 0) : false) && IsRayTracingEnabled();
-#endif
-
-	return bGeneratePrimitiveToDFObjectMapping;
+	return IsRayTracingEnabled();
 }
 
 void FLumenCubeMapTreeGPUData::FillData(const class FLumenCubeMapTree& RESTRICT CubeMapTree, FVector4* RESTRICT OutData)
