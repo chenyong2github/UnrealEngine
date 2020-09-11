@@ -329,10 +329,10 @@ FFrameRate UAjaCustomTimeStep::GetSyncRate() const
 {
 	FFrameRate SyncRate = GetFixedFrameRate();
 
-	if ((MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::Interlaced) && bWaitForFrameToBeReady)
+	if (MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::ProgressiveSegmentedFrame)
 	{
-		// If interlaced and waiting for full frame, you should get 2 interupts per frame (one per subframe)
-		SyncRate.Denominator *= 2;
+		// If pSF and waiting for full frame, you should get 2 field interrupts.
+		SyncRate.Numerator *= 2;
 	}
 
 	return SyncRate;
@@ -390,9 +390,17 @@ bool UAjaCustomTimeStep::WaitForSync()
 	uint32 NewSyncCount = 0;
 	const bool bIsNewSyncCountValid = SyncChannel->GetSyncCount(NewSyncCount);
 
-	if (bEnableOverrunDetection && bIsNewSyncCountValid && bIsPreviousSyncCountValid && (NewSyncCount != PreviousSyncCount+1))
+	const int32 ExpectedSyncCountsPerWait = 
+		MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::ProgressiveSegmentedFrame ? 2 : 1;
+
+	if (bEnableOverrunDetection 
+		&& bIsNewSyncCountValid 
+		&& bIsPreviousSyncCountValid 
+		&& (NewSyncCount != (PreviousSyncCount + ExpectedSyncCountsPerWait)))
 	{
-		UE_LOG(LogAjaMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), NewSyncCount-PreviousSyncCount-1);
+		UE_LOG(LogAjaMedia, Warning, 
+			TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) dropped."), 
+			NewSyncCount - PreviousSyncCount - ExpectedSyncCountsPerWait);
 	}
 
 	if (bIsNewSyncCountValid)
