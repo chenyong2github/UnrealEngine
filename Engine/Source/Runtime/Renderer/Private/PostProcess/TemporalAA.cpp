@@ -87,10 +87,12 @@ inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
 
 inline bool DoesPlatformSupportGen5TAA(EShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5 || FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform);
+	return (
+		(IsPCPlatform(Platform) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)) ||
+		FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform));
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FTAA2CommonParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FTAACommonParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InputInfo)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, LowFrequencyInfo)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, RejectionInfo)
@@ -101,17 +103,17 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTAA2CommonParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FTAA2HistoryTextures, )
+BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, )
 	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [kHistoryTextures])
 END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FTAA2HistoryUAVs, )
+BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, Textures, [kHistoryTextures])
 END_SHADER_PARAMETER_STRUCT()
 
-FTAA2HistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTAA2HistoryTextures& Textures)
+FTAAHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTAAHistoryTextures& Textures)
 {
-	FTAA2HistoryUAVs UAVs;
+	FTAAHistoryUAVs UAVs;
 	for (int32 i = 0; i < kHistoryTextures; i++)
 	{
 		UAVs.Textures[i] = GraphBuilder.CreateUAV(Textures.Textures[i]);
@@ -138,7 +140,7 @@ public:
 	{
 		//OutEnvironment.CompilerFlags.Add(CFLAG_AllowRealTypes);
 	}
-}; // class FTAA2Shader
+}; // class FTAAGen5Shader
 
 class FTAAStandaloneCS : public FGlobalShader
 {
@@ -301,13 +303,13 @@ class FTAAStandaloneCS : public FGlobalShader
 	}
 }; // class FTAAStandaloneCS
 
-class FTAA2DilateVelocityCS : public FTAAGen5Shader
+class FTAADilateVelocityCS : public FTAAGen5Shader
 {
-	DECLARE_GLOBAL_SHADER(FTAA2DilateVelocityCS);
-	SHADER_USE_PARAMETER_STRUCT(FTAA2DilateVelocityCS, FTAAGen5Shader);
+	DECLARE_GLOBAL_SHADER(FTAADilateVelocityCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAADilateVelocityCS, FTAAGen5Shader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityTexture)
@@ -318,15 +320,15 @@ class FTAA2DilateVelocityCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevClosestDepthOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
-}; // class FTAA2DilateVelocityCS
+}; // class FTAADilateVelocityCS
 
-class FTAA2BuildParallaxMaskCS : public FTAAGen5Shader
+class FTAABuildParallaxMaskCS : public FTAAGen5Shader
 {
-	DECLARE_GLOBAL_SHADER(FTAA2BuildParallaxMaskCS);
-	SHADER_USE_PARAMETER_STRUCT(FTAA2BuildParallaxMaskCS, FTAAGen5Shader);
+	DECLARE_GLOBAL_SHADER(FTAABuildParallaxMaskCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAABuildParallaxMaskCS, FTAAGen5Shader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 		SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
@@ -337,15 +339,15 @@ class FTAA2BuildParallaxMaskCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ParallaxRejectionMaskOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
-}; // class FTAA2BuildParallaxMaskCS
+}; // class FTAABuildParallaxMaskCS
 
-class FTAA2DecimateHistoryCS : public FTAAGen5Shader
+class FTAADecimateHistoryCS : public FTAAGen5Shader
 {
-	DECLARE_GLOBAL_SHADER(FTAA2DecimateHistoryCS);
-	SHADER_USE_PARAMETER_STRUCT(FTAA2DecimateHistoryCS, FTAAGen5Shader);
+	DECLARE_GLOBAL_SHADER(FTAADecimateHistoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAADecimateHistoryCS, FTAAGen5Shader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 		SHADER_PARAMETER(FVector, OutputQuantizationError)
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 		SHADER_PARAMETER(int32, bCameraCut)
@@ -354,21 +356,21 @@ class FTAA2DecimateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
 
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
-		SHADER_PARAMETER_STRUCT(FTAA2HistoryTextures, PrevHistory)
+		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PredictionSceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PredictionInfoOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
-}; // class FTAA2DecimateHistoryCS
+}; // class FTAADecimateHistoryCS
 
-class FTAA2FilterFrequenciesCS : public FTAAGen5Shader
+class FTAAFilterFrequenciesCS : public FTAAGen5Shader
 {
-	DECLARE_GLOBAL_SHADER(FTAA2FilterFrequenciesCS);
-	SHADER_USE_PARAMETER_STRUCT(FTAA2FilterFrequenciesCS, FTAAGen5Shader);
+	DECLARE_GLOBAL_SHADER(FTAAFilterFrequenciesCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAAFilterFrequenciesCS, FTAAGen5Shader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 		SHADER_PARAMETER(FVector, OutputQuantizationError)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
@@ -379,43 +381,43 @@ class FTAA2FilterFrequenciesCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredPredictionSceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
-}; // class FTAA2FilterFrequenciesCS
+}; // class FTAAFilterFrequenciesCS
 
-class FTAA2CompareHistoryCS : public FTAAGen5Shader
+class FTAACompareHistoryCS : public FTAAGen5Shader
 {
-	DECLARE_GLOBAL_SHADER(FTAA2CompareHistoryCS);
-	SHADER_USE_PARAMETER_STRUCT(FTAA2CompareHistoryCS, FTAAGen5Shader);
+	DECLARE_GLOBAL_SHADER(FTAACompareHistoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAACompareHistoryCS, FTAAGen5Shader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredInputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredPredictionSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HistoryRejectionOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
-}; // class FTAA2CompareHistoryCS
+}; // class FTAACompareHistoryCS
 
-class FTAA2DilateRejectionCS : public FTAAGen5Shader
+class FTAADilateRejectionCS : public FTAAGen5Shader
 {
-	DECLARE_GLOBAL_SHADER(FTAA2DilateRejectionCS);
-	SHADER_USE_PARAMETER_STRUCT(FTAA2DilateRejectionCS, FTAAGen5Shader);
+	DECLARE_GLOBAL_SHADER(FTAADilateRejectionCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAADilateRejectionCS, FTAAGen5Shader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DilatedHistoryRejectionOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
-}; // class FTAA2DilateRejectionCS
+}; // class FTAADilateRejectionCS
 
-class FTAA2UpdateHistoryCS : public FTAAGen5Shader
+class FTAAUpdateHistoryCS : public FTAAGen5Shader
 {
-	DECLARE_GLOBAL_SHADER(FTAA2UpdateHistoryCS);
-	SHADER_USE_PARAMETER_STRUCT(FTAA2UpdateHistoryCS, FTAAGen5Shader);
+	DECLARE_GLOBAL_SHADER(FTAAUpdateHistoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAAUpdateHistoryCS, FTAAGen5Shader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputSceneStencilTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
@@ -428,22 +430,22 @@ class FTAA2UpdateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER(int32, bCameraCut)
 
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
-		SHADER_PARAMETER_STRUCT(FTAA2HistoryTextures, PrevHistory)
+		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
 
-		SHADER_PARAMETER_STRUCT(FTAA2HistoryUAVs, HistoryOutput)
+		SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, HistoryOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
-}; // class FTAA2UpdateHistoryCS
+}; // class FTAAUpdateHistoryCS
 
 IMPLEMENT_GLOBAL_SHADER(FTAAStandaloneCS, "/Engine/Private/TemporalAA/TAAStandalone.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTAA2DilateVelocityCS, "/Engine/Private/TemporalAA/TAADilateVelocity.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTAA2BuildParallaxMaskCS, "/Engine/Private/TemporalAA/TAABuildParallaxMask.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTAA2DecimateHistoryCS, "/Engine/Private/TemporalAA/TAADecimateHistory.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTAA2FilterFrequenciesCS, "/Engine/Private/TemporalAA/TAAFilterFrequencies.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTAA2CompareHistoryCS, "/Engine/Private/TemporalAA/TAACompareHistory.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTAA2DilateRejectionCS, "/Engine/Private/TemporalAA/TAADilateRejection.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTAA2UpdateHistoryCS, "/Engine/Private/TemporalAA/TAAUpdateHistory.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAADilateVelocityCS, "/Engine/Private/TemporalAA/TAADilateVelocity.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAABuildParallaxMaskCS, "/Engine/Private/TemporalAA/TAABuildParallaxMask.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAADecimateHistoryCS, "/Engine/Private/TemporalAA/TAADecimateHistory.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAAFilterFrequenciesCS, "/Engine/Private/TemporalAA/TAAFilterFrequencies.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAACompareHistoryCS, "/Engine/Private/TemporalAA/TAACompareHistory.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAADilateRejectionCS, "/Engine/Private/TemporalAA/TAADilateRejection.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAAUpdateHistoryCS, "/Engine/Private/TemporalAA/TAAUpdateHistory.usf", "MainCS", SF_Compute);
 
 float CatmullRom(float x)
 {
@@ -1028,7 +1030,7 @@ static void AddGen5MainTemporalAAPasses(
 
 	FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 
-	FTAA2CommonParameters CommonParameters;
+	FTAACommonParameters CommonParameters;
 	{
 		CommonParameters.InputInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
 			InputExtent, InputRect));
@@ -1084,7 +1086,7 @@ static void AddGen5MainTemporalAAPasses(
 				PrevClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevClosestDepthTexture"));
 			}
 
-			FTAA2DilateVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2DilateVelocityCS::FParameters>();
+			FTAADilateVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADilateVelocityCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
 			PassParameters->SceneDepthTexture = PassInputs.SceneDepthTexture;
 			PassParameters->SceneVelocityTexture = PassInputs.SceneVelocityTexture;
@@ -1098,7 +1100,7 @@ static void AddGen5MainTemporalAAPasses(
 			AddClearUAVPass(GraphBuilder, PassParameters->PrevUseCountOutput, ClearValues);
 			AddClearUAVPass(GraphBuilder, PassParameters->PrevClosestDepthOutput, ClearValues);
 
-			TShaderMapRef<FTAA2DilateVelocityCS> ComputeShader(View.ShaderMap);
+			TShaderMapRef<FTAADilateVelocityCS> ComputeShader(View.ShaderMap);
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TAA DilateVelocity %dx%d", InputRect.Width(), InputRect.Height()),
@@ -1118,7 +1120,7 @@ static void AddGen5MainTemporalAAPasses(
 				ParallaxRejectionMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.ParallaxRejectionMask"));
 			}
 
-			FTAA2BuildParallaxMaskCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2BuildParallaxMaskCS::FParameters>();
+			FTAABuildParallaxMaskCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAABuildParallaxMaskCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
 			{
 				float TanHalfFieldOfView = View.ViewMatrices.GetInvProjectionMatrix().M[0][0];
@@ -1133,7 +1135,7 @@ static void AddGen5MainTemporalAAPasses(
 			PassParameters->ParallaxRejectionMaskOutput = GraphBuilder.CreateUAV(ParallaxRejectionMaskTexture);
 			PassParameters->DebugOutput = CreateDebugUAV(InputExtent, TEXT("Debug.TAA.BuildParallaxMask"));
 
-			TShaderMapRef<FTAA2BuildParallaxMaskCS> ComputeShader(View.ShaderMap);
+			TShaderMapRef<FTAABuildParallaxMaskCS> ComputeShader(View.ShaderMap);
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TAA BuildParallaxMask %dx%d", InputRect.Width(), InputRect.Height()),
@@ -1145,7 +1147,7 @@ static void AddGen5MainTemporalAAPasses(
 
 	// Setup the previous frame history
 	FScreenPassTextureViewportParameters PrevHistoryInfo;
-	FTAA2HistoryTextures PrevHistory;
+	FTAAHistoryTextures PrevHistory;
 	if (bCameraCut)
 	{
 		PrevHistoryInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
@@ -1179,7 +1181,7 @@ static void AddGen5MainTemporalAAPasses(
 
 	// Allocate a new history
 	bool bR11G11B10History = CVarTAAR11G11B10History.GetValueOnRenderThread() != 0;
-	FTAA2HistoryTextures History;
+	FTAAHistoryTextures History;
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			HistoryExtent,
@@ -1211,7 +1213,7 @@ static void AddGen5MainTemporalAAPasses(
 			PredictionInfoTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Decimated.Completeness"));
 		}
 
-		FTAA2DecimateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2DecimateHistoryCS::FParameters>();
+		FTAADecimateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADecimateHistoryCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(PredictionSceneColorTexture->Desc.Format);
 		PassParameters->HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
@@ -1227,7 +1229,7 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->PredictionInfoOutput = GraphBuilder.CreateUAV(PredictionInfoTexture);
 		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TAA.DecimateHistory"));
 
-		TShaderMapRef<FTAA2DecimateHistoryCS> ComputeShader(View.ShaderMap);
+		TShaderMapRef<FTAADecimateHistoryCS> ComputeShader(View.ShaderMap);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("TAA DecimateHistory %dx%d", InputRect.Width(), InputRect.Height()),
@@ -1254,7 +1256,7 @@ static void AddGen5MainTemporalAAPasses(
 				FilteredPredictionSceneColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Filtered.Prediction.SceneColor"));
 			}
 
-			FTAA2FilterFrequenciesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2FilterFrequenciesCS::FParameters>();
+			FTAAFilterFrequenciesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAAFilterFrequenciesCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
 			PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(FilteredInputTexture->Desc.Format);
 
@@ -1266,7 +1268,7 @@ static void AddGen5MainTemporalAAPasses(
 			PassParameters->FilteredPredictionSceneColorOutput = GraphBuilder.CreateUAV(FilteredPredictionSceneColorTexture);
 			PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TAA.FilterFrequencies"));
 
-			TShaderMapRef<FTAA2FilterFrequenciesCS> ComputeShader(View.ShaderMap);
+			TShaderMapRef<FTAAFilterFrequenciesCS> ComputeShader(View.ShaderMap);
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TAA FilterFrequencies %dx%d", LowFrequencyRect.Width(), LowFrequencyRect.Height()),
@@ -1287,7 +1289,7 @@ static void AddGen5MainTemporalAAPasses(
 				HistoryRejectionTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.HistoryRejection"));
 			}
 
-			FTAA2CompareHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2CompareHistoryCS::FParameters>();
+			FTAACompareHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAACompareHistoryCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
 			PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
 			PassParameters->FilteredInputTexture = FilteredInputTexture;
@@ -1296,7 +1298,7 @@ static void AddGen5MainTemporalAAPasses(
 			PassParameters->HistoryRejectionOutput = GraphBuilder.CreateUAV(HistoryRejectionTexture);
 			PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TAA.CompareHistory"));
 
-			TShaderMapRef<FTAA2CompareHistoryCS> ComputeShader(View.ShaderMap);
+			TShaderMapRef<FTAACompareHistoryCS> ComputeShader(View.ShaderMap);
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TAA CompareHistory %dx%d", LowFrequencyRect.Width(), LowFrequencyRect.Height()),
@@ -1311,13 +1313,13 @@ static void AddGen5MainTemporalAAPasses(
 	{
 		DilatedHistoryRejectionTexture = GraphBuilder.CreateTexture(HistoryRejectionTexture->Desc, TEXT("TAA.DilatedHistoryRejection"));
 
-		FTAA2DilateRejectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2DilateRejectionCS::FParameters>();
+		FTAADilateRejectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADilateRejectionCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 		PassParameters->HistoryRejectionTexture = HistoryRejectionTexture;
 		PassParameters->DilatedHistoryRejectionOutput = GraphBuilder.CreateUAV(DilatedHistoryRejectionTexture);
 		PassParameters->DebugOutput = CreateDebugUAV(RejectionExtent, TEXT("Debug.TAA.DilateRejection"));
 
-		TShaderMapRef<FTAA2DilateRejectionCS> ComputeShader(View.ShaderMap);
+		TShaderMapRef<FTAADilateRejectionCS> ComputeShader(View.ShaderMap);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("TAA DilateRejection %dx%d", RejectionRect.Width(), RejectionRect.Height()),
@@ -1340,7 +1342,7 @@ static void AddGen5MainTemporalAAPasses(
 			SceneColorOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Output"));
 		}
 
-		FTAA2UpdateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2UpdateHistoryCS::FParameters>();
+		FTAAUpdateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAAUpdateHistoryCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
 		PassParameters->InputSceneStencilTexture = GraphBuilder.CreateSRV(
@@ -1360,7 +1362,7 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->SceneColorOutput = GraphBuilder.CreateUAV(SceneColorOutputTexture);
 		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent, TEXT("Debug.TAA.UpdateHistory"));
 
-		TShaderMapRef<FTAA2UpdateHistoryCS> ComputeShader(View.ShaderMap);
+		TShaderMapRef<FTAAUpdateHistoryCS> ComputeShader(View.ShaderMap);
 		ClearUnusedGraphResources(ComputeShader, PassParameters);
 
 		for (int32 i = 0; i < kHistoryTextures; i++)
