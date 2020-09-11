@@ -30,7 +30,7 @@ protected:
 	virtual bool OnExecute_Implementation(AActor* Target, const FGameplayCueParameters& Parameters) override;
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void OnBurst(AActor* Target, const FGameplayCueParameters& Parameters, const FGameplayCueNotify_SpawnResult& SpawnResults) const;
+	void OnBurst(AActor* Target, const FGameplayCueParameters& Parameters, const FGameplayCueNotify_SpawnResult& SpawnResults);
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
