@@ -54,15 +54,15 @@ for prop in capturable_by_class:
     print "\t" + prop   
 
 # Returns nullptr for invalid paths. This will also show an error in the Output Log
-prop1 = var1.capture_property(spawned_actor, "False property path");
+prop1 = var1.capture_property(spawned_actor, "False property path")
 assert prop1 is None
 
 # Comparison is case insensitive: The property is named "Can be Damaged", but this still works
-prop2 = var1.capture_property(spawned_actor, "cAn Be DAMAged");
+prop2 = var1.capture_property(spawned_actor, "cAn Be DAMAged")
 assert prop2 is not None and prop2.get_full_display_string() == "Can be Damaged"    
 
 # Attempts to capture the same property more than once are ignored, and None is returned
-prop2attempt2 = var1.capture_property(spawned_actor, "Can Be Damaged");
+prop2attempt2 = var1.capture_property(spawned_actor, "Can Be Damaged")
 assert prop2attempt2 is None
 
 # Check which properties have been captured for some actor in a variant
@@ -72,15 +72,15 @@ for captured_prop in captured_props:
     print "\t" + captured_prop.get_full_display_string()
 
 # Capture property in a component
-prop3 = var1.capture_property(spawned_actor, "Static Mesh Component / Relative Location");
+prop3 = var1.capture_property(spawned_actor, "Static Mesh Component / Relative Location")
 assert prop3 is not None and prop3.get_full_display_string() == "Static Mesh Component / Relative Location"
 
 # Can't capture the component itself. This will also show an error in the Output Log
-prop4 = var1.capture_property(spawned_actor, "Static Mesh Component");
+prop4 = var1.capture_property(spawned_actor, "Static Mesh Component")
 assert prop4 is None  
 
 # Capture material property
-prop5 = var1.capture_property(spawned_actor, "Static Mesh Component / Material[0]");
+prop5 = var1.capture_property(spawned_actor, "Static Mesh Component / Material[0]")
 assert prop5 is not None  
 
 # Removing property captures
