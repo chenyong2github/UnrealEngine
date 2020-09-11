@@ -46,7 +46,6 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, ControlRigLog(nullptr)
 	, bEnableControlRigLogging(true)
 #endif
-	, DrawInterface(nullptr)
 	, DataSourceRegistry(nullptr)
 	, EventQueue()
 #if WITH_EDITOR
@@ -410,7 +409,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	}
 
 	FRigUnitContext Context;
-	Context.DrawInterface = DrawInterface;
+	Context.DrawInterface = &DrawInterface;
 	Context.DrawContainer = &DrawContainer;
 
 	if (InState == EControlRigState::Init)
@@ -564,6 +563,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if (Context.DrawInterface && Context.DrawContainer)
 	{
+		DrawInterface.Reset();
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
 		for (const FRigControl& Control : Hierarchy.ControlHierarchy)
@@ -750,7 +750,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 				if (Instruction.Positions.Num() > 0)
 				{
-					DrawInterface->Instructions.Add(Instruction);
+					DrawInterface.Instructions.Add(Instruction);
 				}
 			}
 		}
