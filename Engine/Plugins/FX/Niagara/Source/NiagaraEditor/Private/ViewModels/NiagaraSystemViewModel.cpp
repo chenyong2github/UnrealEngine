@@ -2075,6 +2075,19 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 	ResetSystem(ETimeResetMode::KeepCurrentTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
 }
 
+void FNiagaraSystemViewModel::ClearEmitterStats()
+{
+#if STATS
+	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+	{
+		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+		{
+			Emitter->ClearStatCaptures();
+		}
+	}
+#endif
+}
+
 void FNiagaraSystemViewModel::AddSystemEventHandlers()
 {
 	if (System != nullptr)

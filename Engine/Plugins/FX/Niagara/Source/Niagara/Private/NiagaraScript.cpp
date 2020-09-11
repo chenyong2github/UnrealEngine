@@ -42,8 +42,6 @@
 #include "NiagaraSimulationStageBase.h"
 #include "Async/Async.h"
 
-DECLARE_STATS_GROUP(TEXT("Niagara Detailed"), STATGROUP_NiagaraDetailed, STATCAT_Advanced);
-
 #if ENABLE_COOK_STATS
 namespace NiagaraScriptCookStats
 {

@@ -6,11 +6,8 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
-#include "NiagaraEvents.h"
-#include "NiagaraCollision.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptExecutionParameterStore.h"
@@ -154,6 +151,15 @@ struct FScriptExecutionConstantBufferTable
 	}
 };
 
+#if STATS
+struct FStatExecutionTimer
+{
+	TSimpleRingBuffer<uint64> AccumulatedCycles = TSimpleRingBuffer<uint64>(120);
+
+	FStatExecutionTimer();
+};
+#endif
+
 struct FNiagaraScriptExecutionContextBase
 {
 	UNiagaraScript* Script;
@@ -176,6 +182,12 @@ struct FNiagaraScriptExecutionContextBase
 	static uint32 TickCounter;
 
 	int32 HasInterpolationParameters : 1;
+#if STATS
+	TArray<FStatScopeData> StatScopeData;
+	TMap<TStatIdData const*, FStatExecutionTimer> ExecutionTimings;
+	void CreateStatScopeData();
+	TMap<TStatIdData const*, float> ReportStats();
+#endif
 	
 	FNiagaraScriptExecutionContextBase();
 	virtual ~FNiagaraScriptExecutionContextBase();

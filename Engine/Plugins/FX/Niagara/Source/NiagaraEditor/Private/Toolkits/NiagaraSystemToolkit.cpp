@@ -4,6 +4,7 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraObjectSelection.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -27,7 +28,6 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorSettings.h"
 #include "NiagaraSystemFactoryNew.h"
-#include "NiagaraEmitter.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystemEditorData.h"
 
@@ -36,7 +36,6 @@
 
 #include "EditorStyleSet.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Framework/Docking/WorkspaceItem.h"
 #include "ScopedTransaction.h"
 
 #include "Framework/Application/SlateApplication.h"
@@ -51,13 +50,8 @@
 #include "Engine/Selection.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
-#include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
 #include "NiagaraMessageLogViewModel.h"
-#include "ViewModels/NiagaraOverviewGraphViewModel.h"
-#include "NiagaraScriptSourceBase.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 
@@ -775,6 +769,25 @@ void FNiagaraSystemToolkit::SetupCommands()
 		FExecuteAction::CreateRaw(this, &FNiagaraSystemToolkit::ResetSimulation));
 
 	GetToolkitCommands()->MapAction(
+        FNiagaraEditorCommands::Get().ToggleStatPerformance,
+        FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformance),
+        FCanExecuteAction(),
+        FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsStatPerformanceChecked));
+	GetToolkitCommands()->MapAction(
+        FNiagaraEditorCommands::Get().ClearStatPerformance,
+        FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ClearStatPerformance));
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeAvg,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceTypeAvg),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsStatPerformanceTypeAvg));
+	GetToolkitCommands()->MapAction(
+        FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeMax,
+        FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceTypeMax),
+        FCanExecuteAction(),
+        FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsStatPerformanceTypeMax));
+
+	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().ToggleBounds,
 		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnToggleBounds),
 		FCanExecuteAction(),
@@ -940,7 +953,25 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 				);
 			}
 			ToolbarBuilder.EndSection();
-
+			
+#if STATS
+			ToolbarBuilder.BeginSection("NiagaraStatisticsOptions");
+			{
+				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ToggleStatPerformance, NAME_None,
+                    LOCTEXT("NiagaraShowPerformance", "Performance"),
+                    LOCTEXT("ShowBoundsTooltip", "Show runtime performance for cpu scripts."),
+                    FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats"));
+				ToolbarBuilder.AddComboButton(
+                    FUIAction(),
+                    FOnGetContent::CreateRaw(Toolkit, &FNiagaraSystemToolkit::GenerateStatConfigMenuContent, Toolkit->GetToolkitCommands()),
+                    FText(),
+                    LOCTEXT("NiagaraShowPerformanceCombo_ToolTip", "Runtime performance options"),
+                    FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats"),
+                    true);
+			}
+			ToolbarBuilder.EndSection();
+#endif
+			
 			ToolbarBuilder.BeginSection("PlaybackOptions");
 			{
 				ToolbarBuilder.AddComboButton(
@@ -976,6 +1007,19 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateBoundsMenuContent(TSharedRef<
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
 
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds);
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateStatConfigMenuContent(TSharedRef<FUICommandList> InCommandList)
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
+
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ClearStatPerformance);
+	MenuBuilder.AddMenuSeparator();
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeAvg);
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeMax);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -1220,6 +1264,46 @@ void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds()
 
 	SystemViewModel->UpdateEmitterFixedBounds();
 
+}
+
+void FNiagaraSystemToolkit::ClearStatPerformance()
+{
+	SystemViewModel->ClearEmitterStats();
+}
+
+void FNiagaraSystemToolkit::ToggleStatPerformance()
+{
+	IConsoleVariable* StatVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
+	if (StatVar)
+	{
+		StatVar->Set(!StatVar->GetBool());
+	}
+}
+
+void FNiagaraSystemToolkit::ToggleStatPerformanceTypeAvg()
+{
+	SystemViewModel->StatEvaluationType = ENiagaraStatEvaluationType::Average;
+}
+
+void FNiagaraSystemToolkit::ToggleStatPerformanceTypeMax()
+{
+	SystemViewModel->StatEvaluationType = ENiagaraStatEvaluationType::Maximum;
+}
+
+bool FNiagaraSystemToolkit::IsStatPerformanceTypeAvg()
+{
+	return SystemViewModel->StatEvaluationType == ENiagaraStatEvaluationType::Average;
+}
+
+bool FNiagaraSystemToolkit::IsStatPerformanceTypeMax()
+{
+	return SystemViewModel->StatEvaluationType == ENiagaraStatEvaluationType::Maximum;
+}
+
+bool FNiagaraSystemToolkit::IsStatPerformanceChecked()
+{
+	IConsoleVariable* StatVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
+	return StatVar ? StatVar->GetBool() : false;
 }
 
 void FNiagaraSystemToolkit::UpdateOriginalEmitter()
