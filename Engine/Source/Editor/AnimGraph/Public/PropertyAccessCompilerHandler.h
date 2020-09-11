@@ -6,20 +6,16 @@
 #include "UObject/Interface.h"
 #include "Containers/ArrayView.h"
 #include "Delegates/Delegate.h"
-#include "IPropertyAccessCompilerSubsystem.generated.h"
+#include "IAnimBlueprintCompilerHandler.h"
 
 enum class EPropertyAccessBatchType : uint8;
+class IAnimBlueprintGeneratedClassCompiledData;
 
-UINTERFACE(MinimalAPI)
-class UPropertyAccessCompilerSubsystem : public UInterface
+// Delegate called when the library is compiled (whether successfully or not)
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostLibraryCompiled, IAnimBlueprintGeneratedClassCompiledData& /*OutCompiledData*/)
+
+class FPropertyAccessCompilerHandler : public IAnimBlueprintCompilerHandler
 {
-	GENERATED_BODY()
-};
-
-class IPropertyAccessCompilerSubsystem
-{
-	GENERATED_BODY()
-
 public:
 	// Add a copy to the property access library we are compiling
 	// @return an integer handle to the pending copy. This can be resolved to a true copy index by calling MapCopyIndex
@@ -29,7 +25,7 @@ public:
 	virtual FSimpleMulticastDelegate& OnPreLibraryCompiled() = 0;
 
 	// Delegate called when the library is compiled (whether successfully or not)
-	virtual FSimpleMulticastDelegate& OnPostLibraryCompiled() = 0;
+	virtual FOnPostLibraryCompiled& OnPostLibraryCompiled() = 0;
 
 	// Maps the initial integer copy handle to a true handle, post compilation
 	virtual int32 MapCopyIndex(int32 InIndex) const = 0;

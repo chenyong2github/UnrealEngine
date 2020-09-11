@@ -14,6 +14,7 @@
 class FCompilerResultsLog;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
+class FAnimBlueprintCompilerHandler;
 
 UCLASS(Abstract)
 class ANIMGRAPH_API UAnimGraphNode_CustomProperty : public UAnimGraphNode_Base, public IClassVariableCreator
@@ -23,7 +24,7 @@ class ANIMGRAPH_API UAnimGraphNode_CustomProperty : public UAnimGraphNode_Base, 
 public:
 
 	// IClassVariableCreator interface
-	virtual void CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext) override;
+	virtual void CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext) override;
 
 	//~ Begin UEdGraphNode Interface.
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
@@ -34,10 +35,10 @@ public:
 
 	// UAnimGraphNode_Base interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
-	virtual void OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext) override;
+	virtual void OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
 
 	// Gets the property on InOwnerInstanceClass that corresponds to InInputPin
-	void GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, FProperty*& OutProperty);
+	void GetInstancePinProperty(const IAnimBlueprintCompilationContext& InCompilationContext, UEdGraphPin* InInputPin, FProperty*& OutProperty);
 	// Gets the unique name for the property linked to a given pin
 	FString GetPinTargetVariableName(const UEdGraphPin* InPin) const;
 	// Gets Target Class this properties to link

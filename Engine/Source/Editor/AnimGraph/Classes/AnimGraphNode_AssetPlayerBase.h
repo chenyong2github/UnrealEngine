@@ -29,7 +29,7 @@ public:
 	ANIMGRAPH_API virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 
 	/** UAnimGraphNode_Base interface */
-	virtual void OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext) override;
+	virtual void OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
 
 	virtual void SetAnimationAsset(UAnimationAsset* Asset) { check(false); /*Base function called*/ }
 };

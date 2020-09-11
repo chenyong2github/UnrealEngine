@@ -12,7 +12,7 @@
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/BlendSpaceBase.h"
-#include "AnimBlueprintClassSubsystem.h"
+#include "PropertyAccess.h"
 
 #include "AnimBlueprintGeneratedClass.generated.h"
 
@@ -284,8 +284,8 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 {
 	GENERATED_UCLASS_BODY()
 
-	friend class UAnimBlueprintClassSubsystem;
 	friend class FAnimBlueprintCompilerContext;
+	friend class FAnimBlueprintGeneratedClassCompiledData;
 
 	// List of state machines present in this blueprint class
 	UPROPERTY()
@@ -331,22 +331,16 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	UPROPERTY()
 	TMap<FName, FAnimGraphBlendOptions> GraphBlendOptions;
 
-	/** Data for each subsystem */
+private:
+	// The library holding the property access data
 	UPROPERTY()
-	TArray<UAnimBlueprintClassSubsystem*> Subsystems;
-
-	/** Map of class->subsystem */
-	TMap<TSubclassOf<UAnimBlueprintClassSubsystem>, UAnimBlueprintClassSubsystem*> SubsystemMap;
-	TMap<TSubclassOf<UInterface>, UAnimBlueprintClassSubsystem*> SubsystemInterfaceMap;
-
-	/** Subsystem properties */
-	TArray<FStructProperty*> SubsystemProperties;
+	FPropertyAccessLibrary PropertyAccessLibrary;
 
 public:
 	// IAnimClassInterface interface
-	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return GetRootClass()->BakedStateMachines; }
+	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return GetRootClass()->GetBakedStateMachines_Direct(); }
 	virtual USkeleton* GetTargetSkeleton() const override { return TargetSkeleton; }
-	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const override { return GetRootClass()->AnimNotifies; }
+	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const override { return GetRootClass()->GetAnimNotifies_Direct(); }
 	virtual const TArray<FStructProperty*>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
 	virtual const TArray<FStructProperty*>& GetLinkedAnimGraphNodeProperties() const override { return LinkedAnimGraphNodeProperties; }
 	virtual const TArray<FStructProperty*>& GetLinkedAnimLayerNodeProperties() const override { return LinkedAnimLayerNodeProperties; }
@@ -354,27 +348,25 @@ public:
 	virtual const TArray<FStructProperty*>& GetDynamicResetNodeProperties() const override { return DynamicResetNodeProperties; }
 	virtual const TArray<FStructProperty*>& GetStateMachineNodeProperties() const override { return StateMachineNodeProperties; }
 	virtual const TArray<FStructProperty*>& GetInitializationNodeProperties() const override { return InitializationNodeProperties; }
-	virtual const TArray<FName>& GetSyncGroupNames() const override { return GetRootClass()->SyncGroupNames; }
-	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return GetRootClass()->OrderedSavedPoseIndicesMap; }
+	virtual const TArray<FName>& GetSyncGroupNames() const override { return GetRootClass()->GetSyncGroupNames_Direct(); }
+	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return GetRootClass()->GetOrderedSavedPoseNodeIndicesMap_Direct(); }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return GetSyncGroupNames().IndexOfByKey(SyncGroupName); }
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
-	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GetRootClass()->GraphAssetPlayerInformation; }
-	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const override { return GetRootClass()->GraphBlendOptions; }
-	virtual const TArray<UAnimBlueprintClassSubsystem*>& GetSubsystems() const override { return GetRootClass()->Subsystems; }
-	virtual UAnimBlueprintClassSubsystem* GetSubsystem(TSubclassOf<UAnimBlueprintClassSubsystem> InClass) const override;
-	virtual UAnimBlueprintClassSubsystem* FindSubsystemWithInterface(TSubclassOf<UInterface> InClassInterface) const override;
-	virtual const TArray<FStructProperty*>& GetSubsystemProperties() const override { return SubsystemProperties; }
+	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GetRootClass()->GetGraphAssetPlayerInformation_Direct(); }
+	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const override { return GetRootClass()->GetGraphBlendOptions_Direct(); }
+	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary() const override { return GetRootClass()->GetPropertyAccessLibrary_Direct(); }
+
+private:
+	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines_Direct() const override { return BakedStateMachines; }
+	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies_Direct() const override { return AnimNotifies; }
+	virtual const TArray<FName>& GetSyncGroupNames_Direct() const override { return SyncGroupNames; }
+	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap_Direct() const override { return OrderedSavedPoseIndicesMap; }
+	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation_Direct() const override { return GraphAssetPlayerInformation; }
+	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions_Direct() const override { return GraphBlendOptions; }
+	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary_Direct() const override { return PropertyAccessLibrary; }
 
 public:
-	// Get the root anim BP class (i.e. if this is a derived class).
-	// Some properties that are derived from the compiled anim graph are routed to the 'Root' class
-	// as child classes don't get fully compiled. Instead they just override various asset players leaving the
-	// full compilation up to the base class. 
-	// Previously we copied over all the parent class data in Link(), but as Link() can be called on the async 
-	// loading thread we cant do any object-duplication operations (e.g. with subsystems).
-	const UAnimBlueprintGeneratedClass* GetRootClass() const;
-
 #if WITH_EDITORONLY_DATA
 	FAnimBlueprintDebugData AnimBlueprintDebugData;
 
@@ -489,9 +481,6 @@ public:
 
 	// Populates AnimBlueprintFunctions according to the UFunction(s) on this class
 	void GenerateAnimationBlueprintFunctions();
-
-	// Rebuild subsystem & subsystem interface maps from Subsystems array
-	void RebuildSubsystemMaps();
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
