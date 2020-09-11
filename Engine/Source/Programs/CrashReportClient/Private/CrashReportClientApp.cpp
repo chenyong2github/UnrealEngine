@@ -1166,6 +1166,15 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	{
 		FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("Monitor/Start:%d"), FPlatformProcess::GetCurrentProcessId()));
 
+		if (!MonitorWritePipe)
+		{
+			FDiagnosticLogger::Get().LogEvent(TEXT("CRC/NoWritePipe"));
+		}
+		if (!MonitorReadPipe)
+		{
+			FDiagnosticLogger::Get().LogEvent(TEXT("CRC/NoReadPipe"));
+		}
+
 		// Log any termination occurring in CRC (no sub-system should terminate CRC)
 		FDelegateHandle TerminateHandle = FCoreDelegates::ApplicationWillTerminateDelegate.AddLambda([]()
 		{
@@ -1226,18 +1235,18 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			return MakeTuple(bRunning, ProcessReturnCodeOpt);
 		};
 
+		// Loop until the Editor exits.
 		TTuple<bool/*bRunning*/, TOptional<int32>/*ExitCode*/> ProcessStatus = GetProcessStatus(MonitoredProcess);
-
-		while (ProcessStatus.Get<0>() && !IsEngineExitRequested())
+		while (ProcessStatus.Get<0>())
 		{
 			const double CurrLoopStartTime = FPlatformTime::Seconds();
 
-			// If 'out-of-process' crash reporting was enabled.
 			if (MonitorWritePipe && MonitorReadPipe)
 			{
-				// Check if the monitored process signaled a crash or an ensure.
+				// Check if the monitored process signaled a crash or an ensure, read the pipe data to avoid blocking the writer, but process the data only if CRC wasn't requested to exit.
+				// This purposedly ignores any ensure that could be piped out just after a crash. (The way concurrent crash/ensures are handled/reported make this unlikely, but possible).
 				FSharedCrashContext CrashContext;
-				if (IsCrashReportAvailable(MonitorPid, CrashContext, MonitorReadPipe))
+				if (IsCrashReportAvailable(MonitorPid, CrashContext, MonitorReadPipe) && !IsEngineExitRequested())
 				{
 					FDiagnosticLogger::Get().LogEvent(TEXT("Report/Start"));
 
