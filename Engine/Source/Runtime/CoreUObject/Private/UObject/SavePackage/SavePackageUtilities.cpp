@@ -2,6 +2,8 @@
 
 #include "UObject/SavePackage/SavePackageUtilities.h"
 
+#include "Algo/Sort.h"
+#include "Algo/Unique.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
@@ -897,57 +899,219 @@ void FObjectExportSortHelper::SortExports( FLinkerSave* Linker, FLinkerLoad* Lin
 	}
 }
 
-FEDLCookChecker::FEDLNodeID::FEDLNodeID() 
-	: bDepIsSerialize(false) 
-{}
-
-FEDLCookChecker::FEDLNodeID::FEDLNodeID(UObject* DepObject, bool bInDepIsSerialize)
-	: bDepIsSerialize(bInDepIsSerialize)
+FEDLCookChecker::FEDLNodeHash::FEDLNodeHash()
 {
-	while (DepObject)
+}
+
+FEDLCookChecker::FEDLNodeHash::FEDLNodeHash(const TArray<FEDLNodeData>* InNodes, FEDLNodeID InNodeID, EObjectEvent InObjectEvent)
+	: Nodes(InNodes)
+	, NodeID(InNodeID)
+	, bIsNode(true)
+	, ObjectEvent(InObjectEvent)
+{
+}
+
+FEDLCookChecker::FEDLNodeHash::FEDLNodeHash(const UObject* InObject, EObjectEvent InObjectEvent)
+	: Object(InObject)
+	, bIsNode(false)
+	, ObjectEvent(InObjectEvent)
+{
+}
+
+bool FEDLCookChecker::FEDLNodeHash::operator==(const FEDLNodeHash& Other) const
+{
+	if (ObjectEvent != Other.ObjectEvent)
 	{
-		ObjectPath.Add(DepObject->GetFName());
-		DepObject = DepObject->GetOuter();
+		return false;
 	}
-}
 
-bool FEDLCookChecker::FEDLNodeID::operator==(const FEDLNodeID& Other) const
-{
-	return bDepIsSerialize == Other.bDepIsSerialize && ObjectPath == Other.ObjectPath;
-}
+	uint32 LocalNodeID;
+	uint32 OtherNodeID;
+	const UObject* LocalObject;
+	const UObject* OtherObject;
+	FName LocalName = ObjectNameFirst(*this, LocalNodeID, LocalObject);
+	FName OtherName = ObjectNameFirst(Other, OtherNodeID, OtherObject);
 
-FString FEDLCookChecker::FEDLNodeID::ToString() const
-{
-	FString RetString = bDepIsSerialize ? TEXT("Serialize:") : TEXT("Create:");
-	for (int32 NameIdx = ObjectPath.Num() - 1; NameIdx >= 0; --NameIdx)
+	do
 	{
-		RetString += ObjectPath[NameIdx].ToString();
-		if (NameIdx > 0)
+		if (LocalName != OtherName)
 		{
-			if (NameIdx == ObjectPath.Num() - 1)
-			{
-				RetString += TEXT(".");
-			}
-			else
-			{
-				RetString += TEXT(":");
-			}
+			return false;
 		}
-	}
-	return RetString;
+		LocalName = ObjectNameNext(*this, LocalNodeID, LocalObject);
+		OtherName = ObjectNameNext(Other, OtherNodeID, OtherObject);
+	} while (!LocalName.IsNone() && !OtherName.IsNone());
+	return LocalName.IsNone() == OtherName.IsNone();
 }
 
-uint32 GetTypeHash(const FEDLCookChecker::FEDLNodeID& A)
+uint32 GetTypeHash(const FEDLCookChecker::FEDLNodeHash& A)
 {
 	uint32 Hash = 0;
-	for (const FName& Name : A.ObjectPath)
+
+	uint32 LocalNodeID;
+	const UObject* LocalObject;
+	FName LocalName = FEDLCookChecker::FEDLNodeHash::ObjectNameFirst(A, LocalNodeID, LocalObject);
+	do
 	{
-		Hash = HashCombine(Hash, GetTypeHash(Name));
+		Hash = HashCombine(Hash, GetTypeHash(LocalName));
+		LocalName = FEDLCookChecker::FEDLNodeHash::ObjectNameNext(A, LocalNodeID, LocalObject);
+	} while (!LocalName.IsNone());
+
+	return (Hash << 1) | (uint32)A.ObjectEvent;
+}
+
+FName FEDLCookChecker::FEDLNodeHash::GetName() const
+{
+	if (bIsNode)
+	{
+		return (*Nodes)[NodeID].Name;
 	}
-	return (Hash << 1) | (uint32)A.bDepIsSerialize;
+	else
+	{
+		return Object->GetFName();
+	}
+}
+
+bool FEDLCookChecker::FEDLNodeHash::TryGetParent(FEDLCookChecker::FEDLNodeHash& Parent) const
+{
+	EObjectEvent ParentObjectEvent = EObjectEvent::Create; // For purposes of parents, which is used only to get the ObjectPath, we always use the Create version of the node as the parent
+	if (bIsNode)
+	{
+		FEDLNodeID ParentID = (*Nodes)[NodeID].ParentID;
+		if (ParentID != NodeIDInvalid)
+		{
+			Parent = FEDLNodeHash(Nodes, ParentID, ParentObjectEvent);
+			return true;
+		}
+	}
+	else
+	{
+		UObject* ParentObject = Object->GetOuter();
+		if (ParentObject)
+		{
+			Parent = FEDLNodeHash(ParentObject, ParentObjectEvent);
+			return true;
+		}
+	}
+	return false;
+}
+
+FEDLCookChecker::EObjectEvent FEDLCookChecker::FEDLNodeHash::GetObjectEvent() const
+{
+	return ObjectEvent;
+}
+
+void FEDLCookChecker::FEDLNodeHash::SetNodes(const TArray<FEDLNodeData>* InNodes)
+{
+	if (bIsNode)
+	{
+		Nodes = InNodes;
+	}
+}
+
+FName FEDLCookChecker::FEDLNodeHash::ObjectNameFirst(const FEDLNodeHash& InNode, uint32& OutNodeID, const UObject*& OutObject)
+{
+	if (InNode.bIsNode)
+	{
+		OutNodeID = InNode.NodeID;
+		return (*InNode.Nodes)[OutNodeID].Name;
+	}
+	else
+	{
+		OutObject = InNode.Object;
+		return OutObject->GetFName();
+	}
+}
+
+FName FEDLCookChecker::FEDLNodeHash::ObjectNameNext(const FEDLNodeHash& InNode, uint32& OutNodeID, const UObject*& OutObject)
+{
+	if (InNode.bIsNode)
+	{
+		OutNodeID = (*InNode.Nodes)[OutNodeID].ParentID;
+		return OutNodeID != NodeIDInvalid ? (*InNode.Nodes)[OutNodeID].Name : NAME_None;
+	}
+	else
+	{
+		OutObject = OutObject->GetOuter();
+		return OutObject ? OutObject->GetFName() : NAME_None;
+	}
+}
+
+FEDLCookChecker::FEDLNodeData::FEDLNodeData(FEDLNodeID InID, FEDLNodeID InParentID, FName InName, EObjectEvent InObjectEvent)
+	: Name(InName)
+	, ID(InID)
+	, ParentID(InParentID)
+	, ObjectEvent(InObjectEvent)
+	, bIsExport(false)
+{
+}
+
+FEDLCookChecker::FEDLNodeData::FEDLNodeData(FEDLNodeID InID, FEDLNodeID InParentID, FName InName, FEDLNodeData&& Other)
+	: Name(InName)
+	, ID(InID)
+	, ImportingPackagesSorted(MoveTemp(Other.ImportingPackagesSorted))
+	, ParentID(InParentID)
+	, ObjectEvent(Other.ObjectEvent)
+	, bIsExport(Other.bIsExport)
+{
+	// Note that Other Name and ParentID must be unmodified, since they might still be needed for GetHashCode calls from children
+	Other.ImportingPackagesSorted.Empty();
+}
+
+FEDLCookChecker::FEDLNodeHash FEDLCookChecker::FEDLNodeData::GetNodeHash(const FEDLCookChecker& Owner) const
+{
+	return FEDLNodeHash(&Owner.Nodes, ID, ObjectEvent);
+}
+
+FString FEDLCookChecker::FEDLNodeData::ToString(const FEDLCookChecker& Owner) const
+{
+	TStringBuilder<NAME_SIZE> Result;
+	switch (ObjectEvent)
+	{
+	case EObjectEvent::Create:
+		Result << TEXT("Create:");
+		break;
+	case EObjectEvent::Serialize:
+		Result << TEXT("Serialize:");
+		break;
+	default:
+		check(false);
+		break;
+	}
+	AppendPathName(Owner, Result);
+	return FString(Result);
+}
+
+void FEDLCookChecker::FEDLNodeData::AppendPathName(const FEDLCookChecker& Owner, FStringBuilderBase& Result) const
+{
+	if (ParentID != NodeIDInvalid)
+	{
+		const FEDLNodeData& ParentNode = Owner.Nodes[ParentID];
+		ParentNode.AppendPathName(Owner, Result);
+		bool bParentIsOutermost = ParentNode.ParentID == NodeIDInvalid;
+		Result << (bParentIsOutermost ? TEXT(".") : SUBOBJECT_DELIMITER);
+	}
+	Name.AppendString(Result);
+}
+
+void FEDLCookChecker::FEDLNodeData::Merge(FEDLCookChecker::FEDLNodeData&& Other)
+{
+	check(ObjectEvent == Other.ObjectEvent);
+	bIsExport = bIsExport | Other.bIsExport;
+
+	ImportingPackagesSorted.Append(Other.ImportingPackagesSorted);
+	Algo::Sort(ImportingPackagesSorted, FNameFastLess());
+	ImportingPackagesSorted.SetNum(Algo::Unique(ImportingPackagesSorted), true /* bAllowShrinking */);
+}
+
+FEDLCookChecker::FEDLCookChecker(EInternalConstruct)
+	: bIsActive(false)
+{
+
 }
 
 FEDLCookChecker::FEDLCookChecker()
+	:FEDLCookChecker(EInternalConstruct::Type)
 {
 	SetActiveIfNeeded();
 
@@ -964,8 +1128,8 @@ void FEDLCookChecker::Reset()
 {
 	check(!GIsSavingPackage);
 
-	ImportToImportingPackage.Empty();
-	Exports.Empty();
+	Nodes.Empty();
+	NodeHashToNodeID.Empty();
 	NodePrereqs.Empty();
 	bIsActive = false;
 }
@@ -976,10 +1140,15 @@ void FEDLCookChecker::AddImport(UObject* Import, UPackage* ImportingPackage)
 	{
 		if (!Import->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn))
 		{
-			FEDLNodeID ImportID(Import, true);
+			FEDLNodeID NodeId = FindOrAddNode(FEDLNodeHash(Import, EObjectEvent::Serialize));
+			FEDLNodeData& NodeData = Nodes[NodeId];
 			FName ImportingPackageName = ImportingPackage->GetFName();
-
-			ImportToImportingPackage.Add(MoveTemp(ImportID), MoveTemp(ImportingPackageName));
+			TArray<FName>& Sorted = NodeData.ImportingPackagesSorted;
+			int32 InsertionIndex = Algo::LowerBound(Sorted, ImportingPackageName, FNameFastLess());
+			if (InsertionIndex == Sorted.Num() || Sorted[InsertionIndex] != ImportingPackageName)
+			{
+				Sorted.Insert(ImportingPackageName, InsertionIndex);
+			}
 		}
 	}
 }
@@ -987,9 +1156,11 @@ void FEDLCookChecker::AddExport(UObject* Export)
 {
 	if (bIsActive)
 	{
-		FEDLNodeID ExportID(Export, true);
-		Exports.Add(MoveTemp(ExportID));
-		AddArc(Export, false, Export, true); // every export must be created before it can be serialize...these arcs are implicit and not listed in any table.
+		FEDLNodeID SerializeID = FindOrAddNode(FEDLNodeHash(Export, EObjectEvent::Serialize));
+		Nodes[SerializeID].bIsExport = true;
+		FEDLNodeID CreateID = FindOrAddNode(FEDLNodeHash(Export, EObjectEvent::Create));
+		Nodes[CreateID].bIsExport = true;
+		AddDependency(SerializeID, CreateID); // every export must be created before it can be serialize...these arcs are implicit and not listed in any table.
 	}
 }
 
@@ -997,11 +1168,15 @@ void FEDLCookChecker::AddArc(UObject* DepObject, bool bDepIsSerialize, UObject* 
 {
 	if (bIsActive)
 	{
-		FEDLNodeID ExportID(Export, bExportIsSerialize);
-		FEDLNodeID DepID(DepObject, bDepIsSerialize);
-
-		NodePrereqs.Add(MoveTemp(ExportID), MoveTemp(DepID));
+		FEDLNodeID ExportID = FindOrAddNode(FEDLNodeHash(Export, bExportIsSerialize ? EObjectEvent::Serialize : EObjectEvent::Create));
+		FEDLNodeID DepID = FindOrAddNode(FEDLNodeHash(DepObject, bDepIsSerialize ? EObjectEvent::Serialize : EObjectEvent::Create));
+		AddDependency(ExportID, DepID);
 	}
+}
+
+void FEDLCookChecker::AddDependency(FEDLNodeID SourceID, FEDLNodeID TargetID)
+{
+	NodePrereqs.Add(SourceID, TargetID);
 }
 
 void FEDLCookChecker::StartSavingEDLCookInfoForVerification()
@@ -1014,7 +1189,7 @@ void FEDLCookChecker::StartSavingEDLCookInfoForVerification()
 	}
 }
 
-bool FEDLCookChecker::CheckForCyclesInner(TMultiMap<FEDLNodeID, FEDLNodeID>& NodePrereqs, TSet<FEDLNodeID>& Visited, TSet<FEDLNodeID>& Stack, const FEDLNodeID& Visit, FEDLNodeID& FailNode)
+bool FEDLCookChecker::CheckForCyclesInner(TSet<FEDLNodeID>& Visited, TSet<FEDLNodeID>& Stack, const FEDLNodeID& Visit, FEDLNodeID& FailNode)
 {
 	bool bResult = false;
 	if (Stack.Contains(Visit))
@@ -1031,23 +1206,121 @@ bool FEDLCookChecker::CheckForCyclesInner(TMultiMap<FEDLNodeID, FEDLNodeID>& Nod
 			Stack.Add(Visit);
 			for (auto It = NodePrereqs.CreateConstKeyIterator(Visit); !bResult && It; ++It)
 			{
-				bResult = CheckForCyclesInner(NodePrereqs, Visited, Stack, It.Value(), FailNode);
+				bResult = CheckForCyclesInner(Visited, Stack, It.Value(), FailNode);
 			}
 			Stack.Remove(Visit);
 		}
 	}
-	UE_CLOG(bResult && Stack.Contains(FailNode), LogSavePackage, Error, TEXT("Cycle Node %s"), *Visit.ToString());
+	UE_CLOG(bResult && Stack.Contains(FailNode), LogSavePackage, Error, TEXT("Cycle Node %s"), *Nodes[Visit].ToString(*this));
 	return bResult;
+}
+
+FEDLCookChecker::FEDLNodeID FEDLCookChecker::FindOrAddNode(const FEDLNodeHash& NodeHash)
+{
+	uint32 TypeHash = GetTypeHash(NodeHash);
+	FEDLNodeID* NodeIDPtr = NodeHashToNodeID.FindByHash(TypeHash, NodeHash);
+	if (NodeIDPtr)
+	{
+		return *NodeIDPtr;
+	}
+
+	FName Name = NodeHash.GetName();
+	FEDLNodeHash ParentHash;
+	FEDLNodeID ParentID = NodeHash.TryGetParent(ParentHash) ? FindOrAddNode(ParentHash) : NodeIDInvalid;
+	FEDLNodeID NodeID = Nodes.Num();
+	FEDLNodeData& NewNodeData = Nodes.Emplace_GetRef(NodeID, ParentID, Name, NodeHash.GetObjectEvent());
+	NodeHashToNodeID.AddByHash(TypeHash, NewNodeData.GetNodeHash(*this), NodeID);
+	return NodeID;
+}
+
+FEDLCookChecker::FEDLNodeID FEDLCookChecker::FindOrAddNode(FEDLNodeData&& NodeData, const FEDLCookChecker& OldOwnerOfNode, FEDLNodeID ParentIDInThis, bool& bNew)
+{
+	// Note that NodeData's Name and ParentID must be unmodified, since they might still be needed for GetHashCode calls from children
+
+	FEDLNodeHash NodeHash = NodeData.GetNodeHash(OldOwnerOfNode);
+	uint32 TypeHash = GetTypeHash(NodeHash);
+	FEDLNodeID* NodeIDPtr = NodeHashToNodeID.FindByHash(TypeHash, NodeHash);
+	if (NodeIDPtr)
+	{
+		bNew = false;
+		return *NodeIDPtr;
+	}
+
+	FEDLNodeID NodeID = Nodes.Num();
+	FEDLNodeData& NewNodeData = Nodes.Emplace_GetRef(NodeID, ParentIDInThis, NodeData.Name, MoveTemp(NodeData));
+	NodeHashToNodeID.AddByHash(TypeHash, NewNodeData.GetNodeHash(*this), NodeID);
+	bNew = true;
+	return NodeID;
+}
+
+FEDLCookChecker::FEDLNodeID FEDLCookChecker::FindNode(const FEDLNodeHash& NodeHash)
+{
+	const FEDLNodeID* NodeIDPtr = NodeHashToNodeID.Find(NodeHash);
+	return NodeIDPtr ? *NodeIDPtr : NodeIDInvalid;
+}
+
+void FEDLCookChecker::Merge(FEDLCookChecker&& Other)
+{
+	if (Nodes.Num() == 0)
+	{
+		Swap(Nodes, Other.Nodes);
+		Swap(NodeHashToNodeID, Other.NodeHashToNodeID);
+		Swap(NodePrereqs, Other.NodePrereqs);
+
+		// Switch the pointers in all of the swapped data to point at this instead of Other
+		for (TPair<FEDLNodeHash, FEDLNodeID>& KVPair : NodeHashToNodeID)
+		{
+			FEDLNodeHash& NodeHash = KVPair.Key;
+			NodeHash.SetNodes(&Nodes);
+		}
+	}
+	else
+	{
+		Other.NodeHashToNodeID.Empty(); // We will be invalidating the data these NodeHashes point to in the Other.Nodes loop, so empty the array now to avoid using it by accident
+
+		TArray<FEDLNodeID> RemapIDs;
+		RemapIDs.Reserve(Other.Nodes.Num());
+		for (FEDLNodeData& NodeData : Other.Nodes)
+		{
+			FEDLNodeID ParentID;
+			if (NodeData.ParentID == NodeIDInvalid)
+			{
+				ParentID = NodeIDInvalid;
+			}
+			else
+			{
+				// Parents should be earlier in the nodes list than children, since we always FindOrAdd the parent (and hence add it to the nodelist) when creating the child.
+				// Since the parent is earlier in the nodes list, we have already transferred it, and its ID in this->Nodes is therefore RemapIDs[Other.ParentID]
+				check(NodeData.ParentID < NodeData.ID);
+				ParentID = RemapIDs[NodeData.ParentID];
+			}
+
+			bool bNew;
+			FEDLNodeID NodeID = FindOrAddNode(MoveTemp(NodeData), Other, ParentID, bNew);
+			if (!bNew)
+			{
+				Nodes[NodeID].Merge(MoveTemp(NodeData));
+			}
+			RemapIDs.Add(NodeID);
+		}
+
+		for (const TPair<FEDLNodeID, FEDLNodeID>& Prereq : Other.NodePrereqs)
+		{
+			FEDLNodeID SourceID = RemapIDs[Prereq.Key];
+			FEDLNodeID TargetID = RemapIDs[Prereq.Value];
+			AddDependency(SourceID, TargetID);
+		}
+
+		Other.NodePrereqs.Empty();
+		Other.Nodes.Empty();
+	}
 }
 
 void FEDLCookChecker::Verify(bool bFullReferencesExpected)
 {
 	check(!GIsSavingPackage);
 
-	bool bIsActive = false;
-	TMultiMap<FEDLNodeID, FName> ImportToImportingPackage;
-	TSet<FEDLNodeID> Exports;
-	TMultiMap<FEDLNodeID, FEDLNodeID> NodePrereqs;
+	FEDLCookChecker Accumulator(EInternalConstruct::Type);
 
 	{
 		FScopeLock CookCheckerInstanceLock(&CookCheckerInstanceCritical);
@@ -1055,40 +1328,49 @@ void FEDLCookChecker::Verify(bool bFullReferencesExpected)
 		{
 			if (Checker->bIsActive)
 			{
-				bIsActive = true;
-				Exports.Append(MoveTemp(Checker->Exports));
-				ImportToImportingPackage.Append(MoveTemp(Checker->ImportToImportingPackage));
-				NodePrereqs.Append(MoveTemp(Checker->NodePrereqs));
+				Accumulator.bIsActive = true;
+				Accumulator.Merge(MoveTemp(*Checker));
 			}
 			Checker->Reset();
 		}			
 	}
 
-	if (bIsActive && Exports.Num())
+	if (Accumulator.bIsActive)
 	{
 		double StartTime = FPlatformTime::Seconds();
 			
 		if (bFullReferencesExpected)
 		{
 			// imports to things that are not exports...
-			for (const auto& Pair : ImportToImportingPackage)
+			for (const FEDLNodeData& NodeData : Accumulator.Nodes)
 			{
-				if (!Exports.Contains(Pair.Key))
+				if (NodeData.bIsExport)
 				{
-					UE_LOG(LogSavePackage, Warning, TEXT("%s imported %s, but it was never saved as an export."), *Pair.Value.ToString(), *Pair.Key.ToString());
+					continue;
+				}
+
+				// Any imports of this non-exported node are an error; log them all if they exist
+				for (FName PackageName : NodeData.ImportingPackagesSorted)
+				{
+					UE_LOG(LogSavePackage, Warning, TEXT("%s imported %s, but it was never saved as an export."), *PackageName.ToString(), *NodeData.ToString(Accumulator));
 				}
 			}
 		}
+
 		// cycles in the dep graph
 		TSet<FEDLNodeID> Visited;
 		TSet<FEDLNodeID> Stack;
 		bool bHadCycle = false;
-		for (const FEDLNodeID& Export : Exports)
+		for (const FEDLNodeData& NodeData : Accumulator.Nodes)
 		{
-			FEDLNodeID FailNode;
-			if (CheckForCyclesInner(NodePrereqs, Visited, Stack, Export, FailNode))
+			if (!NodeData.bIsExport)
 			{
-				UE_LOG(LogSavePackage, Error, TEXT("----- %s contained a cycle (listed above)."), *FailNode.ToString());
+				continue;
+			}
+			FEDLNodeID FailNode;
+			if (Accumulator.CheckForCyclesInner(Visited, Stack, NodeData.ID, FailNode))
+			{
+				UE_LOG(LogSavePackage, Error, TEXT("----- %s contained a cycle (listed above)."), *Accumulator.Nodes[FailNode].ToString(Accumulator));
 				bHadCycle = true;
 			}
 		}
