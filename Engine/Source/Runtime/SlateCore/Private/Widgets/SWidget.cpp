@@ -16,6 +16,7 @@
 #include "Input/HittestGrid.h"
 #include "Debugging/SlateDebugging.h"
 #include "Widgets/SWindow.h"
+#include "Trace/SlateTrace.h"
 #include "Types/ReflectionMetadata.h"
 #include "Stats/Stats.h"
 #include "Containers/StringConv.h"
@@ -178,6 +179,13 @@ void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& Ca
 	}
 }
 
+#if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
+namespace SlateTraceMetaData
+{
+	uint64 UniqueIdGenerator = 0;
+}
+#endif
+
 FName NAME_MouseButtonDown(TEXT("MouseButtonDown"));
 FName NAME_MouseButtonUp(TEXT("MouseButtonUp"));
 FName NAME_MouseMove(TEXT("MouseMove"));
@@ -217,6 +225,9 @@ SWidget::SWidget()
 	, RenderTransformPivot(FVector2D::ZeroVector)
 	, Cursor( TOptional<EMouseCursor::Type>() )
 	, ToolTip()
+#if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
+	, UniqueIdentifier(++SlateTraceMetaData::UniqueIdGenerator)
+#endif
 #if ENABLE_STATNAMEDEVENTS
 	, StatIDStringStorage(nullptr)
 #endif
@@ -226,6 +237,8 @@ SWidget::SWidget()
 		INC_DWORD_STAT(STAT_SlateTotalWidgets);
 		INC_DWORD_STAT(STAT_SlateTotalWidgetsPerFrame);
 	}
+
+	UE_TRACE_SLATE_WIDGET_ADDED(this);
 }
 
 SWidget::~SWidget()
@@ -274,6 +287,7 @@ SWidget::~SWidget()
 	StatIDStringStorage = nullptr;
 #endif
 
+	UE_TRACE_SLATE_WIDGET_REMOVED(this);
 	DEC_DWORD_STAT(STAT_SlateTotalWidgets);
 	DEC_MEMORY_STAT_BY(STAT_SlateSWidgetAllocSize, AllocSize);
 }
@@ -1148,6 +1162,7 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 #if WITH_SLATE_DEBUGGING
 		FSlateDebugging::BroadcastWidgetInvalidate(this, nullptr, InvalidateReason);
 #endif
+		UE_TRACE_SLATE_WIDGET_INVALIDATED(this, nullptr, InvalidateReason);
 	}
 }
 
@@ -1167,6 +1182,8 @@ void SWidget::SetDebugInfo( const ANSICHAR* InType, const ANSICHAR* InFile, int3
 	CreatedInLocation = FName( InFile );
 	CreatedInLocation.SetNumber(OnLine);
 #endif
+
+	UE_TRACE_SLATE_WIDGET_DEBUG_INFO(this);
 }
 
 void SWidget::OnClippingChanged()
@@ -1224,14 +1241,13 @@ FSlateRect SWidget::CalculateCullingAndClippingRules(const FGeometry& AllottedGe
 
 int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-#if WITH_SLATE_DEBUGGING
-	EWidgetUpdateFlags PreviousUpdateFlag = UpdateFlags;
-#endif
+	const EWidgetUpdateFlags PreviousUpdateFlag = UpdateFlags;
 
 	// TODO, Maybe we should just make Paint non-const and keep OnPaint const.
 	TSharedRef<SWidget> MutableThis = ConstCastSharedRef<SWidget>(AsShared());
 
 	INC_DWORD_STAT(STAT_SlateNumPaintedWidgets);
+	UE_TRACE_SCOPED_SLATE_WIDGET_PAINT(this);
 
 	const SWidget* PaintParent = Args.GetPaintParent();
 	//if (GSlateEnableGlobalInvalidation)
@@ -1463,6 +1479,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BroadcastWidgetUpdatedByPaint(this, PreviousUpdateFlag);
 #endif
+	UE_TRACE_SLATE_WIDGET_UPDATED(this, PreviousUpdateFlag);
 
 	return NewLayerId;
 }
@@ -1642,14 +1659,20 @@ void SWidget::AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe)
 {
 	MetaData.Add(AddMe);
 
-#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
+
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA || UE_SLATE_TRACE_ENABLED
 	if (AddMe->IsOfType<FReflectionMetaData>())
 	{
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
 		TSharedRef<FReflectionMetaData> Reflection = StaticCastSharedRef<FReflectionMetaData>(AddMe);
 		if (Reflection->Name == FindWidgetMetaData::WidgeName && Reflection->Asset.Get() && Reflection->Asset.Get()->GetFName() == FindWidgetMetaData::AssetName)
 		{
 			FindWidgetMetaData::FoundWidget = this;
 		}
+#endif
+#if UE_SLATE_TRACE_ENABLED
+		UE_TRACE_SLATE_WIDGET_DEBUG_INFO(this);
+#endif
 	}
 #endif
 }

@@ -13,6 +13,7 @@ public class SlateCore : ModuleRules
 				"InputCore",
 				"ApplicationCore",
 				"Json",
+				"TraceLog",
 			});
 
 		PrivateIncludePaths.AddRange(

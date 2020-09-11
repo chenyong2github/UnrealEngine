@@ -23,6 +23,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/SViewport.h"
 #include "Framework/Application/SWindowTitleBar.h"
+#include "Input/Events.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
 #if WITH_ACCESSIBILITY
@@ -41,6 +42,7 @@
 #include "Math/UnitConversion.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Trace/SlateTrace.h"
 
 #ifndef SLATE_HAS_WIDGET_REFLECTOR
 	#define SLATE_HAS_WIDGET_REFLECTOR !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && PLATFORM_DESKTOP
@@ -475,6 +477,9 @@ namespace SlateDefs
 
 	// How far tool tips should be pushed out from a force field border, in pixels
 	static const FVector2D ToolTipOffsetFromForceField( 4.0f, 3.0f );
+
+	// Empty set of Touch Key
+	static TSet<FKey> EmptyTouchKeySet;
 }
 
 
@@ -1577,6 +1582,8 @@ void FSlateApplication::TickAndDrawWidgets(float DeltaTime)
 		GetAccessibleMessageHandler()->ProcessAccessibleTasks();
 	}
 #endif
+
+	UE_TRACE_SLATE_APPLICATION_TICK_AND_DRAW_WIDGETS(GetDeltaTime());
 }
 
 void FSlateApplication::PumpMessages()
@@ -2959,14 +2966,12 @@ void FSlateApplication::ProcessExternalReply(const FWidgetPath& CurrentEventPath
 		TSharedRef<FSlateUser> SlateUser = GetOrCreateUser(ValidatedUserIndex);
 		const bool bIsPrimaryUser = ValidatedUserIndex == CursorUserIndex;
 
-		static TSet<FKey> EmptySet;
-
 		FPointerEvent MouseEvent(
 			ValidatedUserIndex,
 			PointerIndex,
 			SlateUser->GetCursorPosition(),
 			SlateUser->GetPreviousCursorPosition(),
-			bIsPrimaryUser ? PressedMouseButtons : EmptySet,
+			bIsPrimaryUser ? PressedMouseButtons : SlateDefs::EmptyTouchKeySet,
 			EKeys::Invalid,
 			0,
 			bIsPrimaryUser ? PlatformApplication->GetModifierKeys() : FModifierKeysState()
