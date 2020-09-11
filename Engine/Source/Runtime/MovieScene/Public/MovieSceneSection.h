@@ -217,7 +217,7 @@ public:
 	 * 
 	 * @param NewRange	The new range of times
 	 */
-	void SetRange(const TRange<FFrameNumber>& NewRange)
+	MOVIESCENE_API virtual void SetRange(const TRange<FFrameNumber>& NewRange)
 	{
 		// Do not modify for objects that still need initialization (i.e. we're in the object's constructor)
 		bool bCanSetRange = HasAnyFlags(RF_NeedInitialization) || TryModify();
@@ -274,13 +274,13 @@ public:
 	 * Set this section's start frame in sequence resolution space.
 	 * @note: Will be clamped to the current end frame if necessary
 	 */
-	MOVIESCENE_API void SetStartFrame(TRangeBound<FFrameNumber> NewStartFrame);
+	MOVIESCENE_API virtual void SetStartFrame(TRangeBound<FFrameNumber> NewStartFrame);
 
 	/**
 	 * Set this section's end frame in sequence resolution space
 	 * @note: Will be clamped to the current start frame if necessary
 	 */
-	MOVIESCENE_API void SetEndFrame(TRangeBound<FFrameNumber> NewEndFrame);
+	MOVIESCENE_API virtual void SetEndFrame(TRangeBound<FFrameNumber> NewEndFrame);
 
 	/**
 	 * Returns whether or not a provided position in time is within the timespan of the section 
