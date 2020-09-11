@@ -284,6 +284,22 @@ public:
 		return *ItemPtr;
 	}
 
+	template <typename... ArgsType>
+	ItemType& EmplaceBack(ArgsType&&... Args)
+	{
+		if (!LastPage || LastPage->Count == PageSize)
+		{
+			LastPage = &PagesArray.AddDefaulted_GetRef();
+			FirstPage = PagesArray.GetData();
+			LastPage->Items = reinterpret_cast<ItemType*>(Allocator.Allocate(PageSize * sizeof(ItemType)));
+		}
+		++TotalItemCount;
+		ItemType* ItemPtr = LastPage->Items + LastPage->Count;
+		new (ItemPtr) ItemType(Forward<ArgsType>(Args)...);
+		++LastPage->Count;
+		return *ItemPtr;
+	}
+
 	ItemType& Insert(uint64 Index)
 	{
 		if (Index >= TotalItemCount)

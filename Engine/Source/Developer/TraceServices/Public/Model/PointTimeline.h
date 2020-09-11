@@ -99,10 +99,14 @@ public:
 	
 	uint64 AppendEvent(double Time, const EventType& Event)
 	{
+		return EmplaceEvent(Time, Event);
+	}
+
+	template <typename... ArgsType>
+	uint64 EmplaceEvent(double Time, ArgsType&&... Args)
+	{
 		uint64 Index = Events.Num();
-		FEventInternal& EventInternal = Events.PushBack();
-		EventInternal.Time = Time;
-		EventInternal.Event = Event;
+		Events.EmplaceBack(Time, Forward<ArgsType>(Args)...);
 
 		FEventPage* LastPage = Events.GetLastPage();
 		if (LastPage != CurrentPage)
@@ -145,6 +149,12 @@ private:
 	{
 		double Time;
 		EventType Event;
+
+		FEventInternal() = default;
+		FEventInternal(double InTime, EventType InEvent)
+			: Time(InTime)
+			, Event(MoveTempIfPossible(InEvent))
+		{ }
 	};
 
 	struct FEventPage
