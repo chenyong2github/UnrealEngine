@@ -11,6 +11,7 @@
 #include "EditableMeshTypes.h"
 #include "StaticMeshResources.h"
 #include "DynamicMeshBuilder.h"
+#include "RenderCommandFence.h"
 #include "WireframeMeshComponent.generated.h"
 
 class FPrimitiveSceneProxy;
@@ -56,6 +57,7 @@ public:
 	{}
 
 	virtual void BeginDestroy();
+	virtual bool IsReadyForFinishDestroy() override;
 
 	void Reset();
 	void AddVertex( const FVertexID VertexID );
@@ -88,6 +90,7 @@ public:
 
 	FStaticMeshVertexBuffers VertexBuffers;
 	FDynamicMeshIndexBuffer32 IndexBuffer;
+	FRenderCommandFence ReleaseFence;
 
 	mutable FBoxSphereBounds Bounds;
 	mutable bool bBoundsDirty;
