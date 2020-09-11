@@ -588,7 +588,7 @@ public:
 	 * @param MaxAngleDegrees	"to" angle that defines the end of the range of valid angles
 	 * @return Returns clamped angle in the range -180..180.
 	 */
-	static float CORE_API ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees);
+	static CORE_API float ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees);
 
 	/** Find the smallest angle between two headings (in degrees) */
 	static float FindDeltaAngleDegrees(float A1, float A2)
