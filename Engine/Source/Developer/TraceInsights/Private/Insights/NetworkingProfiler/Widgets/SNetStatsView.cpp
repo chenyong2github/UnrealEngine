@@ -1760,7 +1760,7 @@ void SNetStatsView::UpdateStatsInternal()
 
 FNetEventNodePtr SNetStatsView::GetNetEventNode(uint32 EventTypeIndex) const
 {
-	return (static_cast<int32>(EventTypeIndex) < NetEventNodes.Num()) ? NetEventNodes[EventTypeIndex] : nullptr;
+	return (EventTypeIndex < (uint32)NetEventNodes.Num()) ? NetEventNodes[EventTypeIndex] : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
