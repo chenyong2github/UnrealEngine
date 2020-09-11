@@ -124,6 +124,7 @@ DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture object pool memory"),STAT_D3D11TextureP
 DECLARE_CYCLE_STAT_EXTERN(TEXT("RenderTargetCommit"), STAT_D3D11RenderTargetCommits, STATGROUP_D3D11RHI, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("RenderTargetCommitUAV"), STAT_D3D11RenderTargetCommitsUAV, STATGROUP_D3D11RHI, );
 
+extern TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex;
 
 struct FD3D11GlobalStats
 {
