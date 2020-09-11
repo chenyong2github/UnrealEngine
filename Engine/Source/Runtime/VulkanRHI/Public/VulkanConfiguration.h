@@ -247,6 +247,12 @@
 	#endif
 #endif
 
+#ifdef VK_KHR_shader_atomic_int64
+	#define VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS	1
+#else
+	#define VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS	0
+#endif
+
 #ifndef VULKAN_OBJECT_TRACKING 
 #define VULKAN_OBJECT_TRACKING 0 //Track objects created and memory used. use r.vulkan.dumpmemory to dump to console
 #endif
