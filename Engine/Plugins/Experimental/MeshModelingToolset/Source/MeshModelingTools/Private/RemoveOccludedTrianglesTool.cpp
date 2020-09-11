@@ -80,6 +80,7 @@ URemoveOccludedTrianglesAdvancedProperties::URemoveOccludedTrianglesAdvancedProp
 
 URemoveOccludedTrianglesTool::URemoveOccludedTrianglesTool()
 {
+	SetToolDisplayName(LOCTEXT("ProjectToTargetToolName", "Jacketing Tool"));
 }
 
 void URemoveOccludedTrianglesTool::SetWorld(UWorld* World)
@@ -144,6 +145,11 @@ void URemoveOccludedTrianglesTool::Setup()
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	SetupPreviews();
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("RemoveOccludedTrianglesToolDescription",
+			"Remove triangles that are fully contained within the selected Meshes, and hence cannot be visible with opaque shading."),
+		EToolMessageLevel::UserNotification);
 }
 
 

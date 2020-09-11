@@ -130,6 +130,20 @@ void UParameterizeMeshTool::Setup()
 
 	Preview->SetVisibility(true);
 	Preview->InvalidateResult();    // start compute
+
+
+	if (bDoAutomaticGlobalUnwrap)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartTool_Global", "Automatically partition the selected Mesh into UV islands, flatten, and pack into a single UV chart"),
+			EToolMessageLevel::UserNotification);
+	}
+	else
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartTool_Regions", "Generate UVs for polygroups or existing UV charts of the Mesh using various strategies. Does not calculate layout/packing."),
+			EToolMessageLevel::UserNotification);
+	}
 }
 
 void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)

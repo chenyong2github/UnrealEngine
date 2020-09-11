@@ -68,7 +68,7 @@ void UEditMeshPolygonsToolActionPropertySet::PostAction(EEditMeshPolygonsToolAct
 
 UEditMeshPolygonsTool::UEditMeshPolygonsTool()
 {
-	SetToolDisplayName(LOCTEXT("EditMeshPolygonsToolName", "Edit PolyGroups"));
+	SetToolDisplayName(LOCTEXT("EditMeshPolygonsToolName", "Edit PolyGroups Tool"));
 }
 
 void UEditMeshPolygonsTool::EnableTriangleMode()
@@ -228,9 +228,20 @@ void UEditMeshPolygonsTool::Setup()
 	SetToolPropertySourceEnabled(SetUVProperties, false);
 
 
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartEditMeshPolygonsTool", "Select PolyGroups to edit mesh. Q to toggle Gizmo Orientation Lock."),
-		EToolMessageLevel::UserNotification);
+	if (bTriangleMode)
+	{
+		SetToolDisplayName(LOCTEXT("EditMeshTrianglesToolName", "Edit Triangles Tool"));
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartEditMeshPolygonsTool_TriangleMode", "Select Triangles to edit mesh. Q to toggle Gizmo Orientation Lock."),
+			EToolMessageLevel::UserNotification);
+	}
+	else
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartEditMeshPolygonsTool", "Select PolyGroups to edit mesh. Q to toggle Gizmo Orientation Lock."),
+			EToolMessageLevel::UserNotification);
+	}
+
 	if (Topology->Groups.Num() < 2)
 	{
 		GetToolManager()->DisplayMessage( LOCTEXT("NoGroupsWarning", "This object has a single PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."), EToolMessageLevel::UserWarning);

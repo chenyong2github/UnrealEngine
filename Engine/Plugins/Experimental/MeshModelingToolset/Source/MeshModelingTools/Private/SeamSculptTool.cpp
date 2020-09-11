@@ -47,7 +47,10 @@ void USeamSculptTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-
+USeamSculptTool::USeamSculptTool()
+{
+	SetToolDisplayName(LOCTEXT("SeamSculptToolName", "UV Seam Tool"));
+}
 
 void USeamSculptTool::Setup()
 {
@@ -69,6 +72,8 @@ void USeamSculptTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
+	SetToolPropertySourceEnabled(BrushProperties, false);
+
 	Settings->WatchProperty(Settings->bShowWireframe,
 		[this](bool bNewValue) { PreviewMesh->EnableWireframe(bNewValue); });
 
@@ -82,7 +87,7 @@ void USeamSculptTool::Setup()
 	PreviewMesh->GetOnMeshChanged().AddLambda([this]() { bPreviewGeometryNeedsUpdate = true; });
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartSeamSculptTool", "This Tool allows you to sculpt seams!"),
+		LOCTEXT("OnStartSeamSculptTool", "Draw UV seams on the mesh by left click-dragging between mesh vertices."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -228,10 +233,10 @@ void USeamSculptTool::ApplyStamp(const FBrushStampData& Stamp)
 
 void USeamSculptTool::InitPreviewGeometry()
 {
-	FColor BoundaryColor = FColor(0, 0, 255);
-	float BoundaryThickness = 4.0;
-	FColor SeamColor = FColor(50, 200, 50);
-	float SeamThickness = 2.0;
+	FColor BoundaryColor = FColor(15, 15, 255);
+	float BoundaryThickness = 6.0;
+	FColor SeamColor = FColor(25, 150, 25);
+	float SeamThickness = 4.0;
 
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 
@@ -257,8 +262,8 @@ void USeamSculptTool::InitPreviewGeometry()
 
 void USeamSculptTool::UpdatePreviewGeometry()
 {
-	FColor SeamColor = FColor(50, 200, 50);
-	float SeamThickness = 2.0;
+	FColor SeamColor = FColor(25, 150, 25);
+	float SeamThickness = 4.0;
 
 	const FDynamicMesh3* BaseMesh = InputMesh.Get();
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetMesh();
