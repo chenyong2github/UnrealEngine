@@ -1460,7 +1460,7 @@ void FChunkDownloader::DownloadChunkInternal(const FChunk& Chunk, const FCallbac
 		}
 	}
 	check(MultiCallback->GetNumPending() > 0);
-}
+} //-V773
 
 void FChunkDownloader::MountChunkInternal(FChunk& Chunk, const FCallback& Callback)
 {
@@ -1764,7 +1764,7 @@ void FChunkDownloader::DownloadChunks(const TArray<int32>& ChunkIds, const FCall
 			DownloadChunkInternal(*Chunk, MultiCallback->AddPending(), Priority);
 		}
 		check(MultiCallback->GetNumPending() > 0);
-	}
+	} //-V773
 	else
 	{
 		// no need to manage callbacks
@@ -1849,7 +1849,7 @@ void FChunkDownloader::MountChunks(const TArray<int32>& ChunkIds, const FCallbac
 			MountChunkInternal(*Chunk, MultiCallback->AddPending());
 		}
 		check(MultiCallback->GetNumPending() > 0);
-	}
+	} //-V773
 	else
 	{
 		// no need to manage callbacks
