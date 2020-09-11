@@ -61,10 +61,6 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 	virtual bool IsUsedAsAtlasPosition() const { return false; }
 
 	virtual void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const override;
-
-	//~ Begin UObject Interface
-	virtual bool IsDestructionThreadSafe() const override { return true; }
-	//~ End UObject Interface
 };
 
 
