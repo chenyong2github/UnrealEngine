@@ -152,6 +152,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Settings/LevelEditorPlaySettings.h"
 #include "LandscapeSubsystem.h"
 #include "TextureCompiler.h"
+#include "StaticMeshCompiler.h"
 #endif
 // @todo this is here only due to circular dependency to AIModule. To be removed
 
@@ -2645,6 +2646,11 @@ void UEngine::InitializeObjectReferences()
 	LoadEngineTexture(LightMapDensityTexture, *LightMapDensityTextureName.ToString());
 #if 1/*RHI_RAYTRACING*/
 	LoadEngineTexture(BlueNoiseTexture, *BlueNoiseTextureName.ToString());
+#endif
+
+#if WITH_EDITOR
+	// Avoid breaking some engine textures that might be cached very early (i.e. BlueNoise)
+	FTextureCompilingManager::Get().FinishAllCompilation();
 #endif
 
 	if ( DefaultPhysMaterial == NULL )
