@@ -65,6 +65,9 @@ public:
 	/** Returns all top-level Filter instances */
 	const TArray<UDataSourceFilter*>& GetFilters() const { return Filters; }
 
+	/** Returns flattened Filter instances */
+	void GetFlatFilters(TArray<UDataSourceFilter*>& OutFilters);
+
 	/** Copies Filter data from other provided Filter Collection*/
 	void CopyData(USourceFilterCollection* OtherCollection);
 
@@ -78,9 +81,14 @@ public:
 
 	/** Callback for patching up contained UDataSourceFilter blueprint instances which just got re-instanced */
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+
+	/** Returns parent filter set, if any, for provided filter */
+	UDataSourceFilterSet* GetParentForFilter(UDataSourceFilter* Filter);
 protected:
 	/** Recursively removes filter and any contained child filters  */
 	void RemoveFilterRecursive(UDataSourceFilter* ToRemoveFilter);
+
+	void AddFilterToSet(UDataSourceFilter* Filter, UDataSourceFilterSet* FilterSet);
 
 	/** Adds unique filter class name */
 	void AddClassName(UDataSourceFilter* Filter);
