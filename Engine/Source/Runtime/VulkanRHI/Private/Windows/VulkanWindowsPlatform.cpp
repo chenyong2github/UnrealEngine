@@ -197,8 +197,6 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	// Fullscreen requires Instance capabilities2
 	OutExtensions.Add(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
 #endif
-	
-	OutExtensions.Add(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
 }
 
 void FVulkanWindowsPlatform::CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface)
