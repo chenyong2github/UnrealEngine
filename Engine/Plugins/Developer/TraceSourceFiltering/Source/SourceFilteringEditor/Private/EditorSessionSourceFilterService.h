@@ -85,6 +85,9 @@ protected:
 	TSharedRef<IFilterObject> AddFilterObjectToDataBuilder(UDataSourceFilter* Filter, FTreeViewDataBuilder& InBuilder);
 
 	void SetupWorldFilters();
+	
+	/** Callback for whenever any Filter instance blueprint class gets deleted */
+	void OnAssetsPendingDelete(TArray<UObject*> const& ObjectsForDelete);
 protected:
 	/** Blueprints on which a OnCompiled calllback has been registered, used to refresh data and repopulate the UI */
 	TArray<UBlueprint*> DelegateRegisteredBlueprints;

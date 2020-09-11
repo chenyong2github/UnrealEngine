@@ -19,4 +19,19 @@ public:
 
 protected:
 	void RegisterLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
+
+#if WITH_EDITOR
+	/** Keeps track of any source filters due to be removed because their class (blueprint) is due to be deleted */
+	struct FPendingFilterDeletion
+	{
+		class UDataSourceFilter* FilterWithDeletedClass;
+		class UDataSourceFilter* ReplacementFilter;
+		const UObject* ToDeleteFilterClassObject;
+	};
+	TArray<FPendingFilterDeletion> PendingDeletions;
+	
+	/** Callbacks to handle blueprint source filter class deletion */
+	void HandleAssetDeleted(UObject* DeletedObject);
+	void OnAssetsPendingDelete(TArray<UObject*> const& ObjectsForDelete);
+#endif // WITH_EDITOR
 };
