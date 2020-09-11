@@ -30,6 +30,7 @@ DECLARE_GPU_STAT(AtmospherePreCompute);
 //////////////////////////////////////////////////////////////////////////
 // FAtmosphereShaderTextureParameters
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** Shader parameters needed for atmosphere passes. */
 class FAtmosphereShaderTextureParameters
@@ -1886,3 +1887,5 @@ void FScene::RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResou
 		}
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
