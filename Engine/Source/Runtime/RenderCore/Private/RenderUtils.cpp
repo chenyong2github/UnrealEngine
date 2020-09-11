@@ -516,7 +516,7 @@ public:
 	// FResource interface.
 	virtual void InitRHI() override
 	{
-		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+		if (SupportsTextureCubeArray(GetFeatureLevel() ))
 		{
 			// Create the texture RHI.
 			FRHIResourceCreateInfo CreateInfo(TEXT("BlackCubeArray"));
@@ -955,6 +955,17 @@ RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform)
 	// make it shader platform setting?
 	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));
 	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
+}
+
+RENDERCORE_API bool IsMobileDeferredShading()
+{
+	static auto* MobileShadingPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ShadingPath"));
+	return MobileShadingPathCvar->GetValueOnAnyThread() == 1;
+}
+
+RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel)
+{
+	return FeatureLevel == ERHIFeatureLevel::SM5 || IsMobileDeferredShading();
 }
 
 RENDERCORE_API bool GPUSceneUseTexture2D(const FStaticShaderPlatform Platform)

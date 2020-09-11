@@ -5,6 +5,14 @@
 #include "ReflectionEnvironmentShared.ush"
 #include "LightGridCommon.ush"
 #include "MobileShadingModels.ush"
+#if APPLY_SKY_REFLECTION
+#define ENABLE_SKY_LIGHT 1
+#endif
+#define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 1
+#define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 1
+#define REFLECTION_COMPOSITE_HAS_SPHERE_CAPTURES 1
+#define REFLECTION_COMPOSITE_HAS_BOX_CAPTURES 1
+#include "ReflectionEnvironmentComposite.ush"
 #if METAL_PROFILE
 #include "/Engine/Public/Platform/Metal/MetalSubpassSupport.ush"
 #endif
@@ -89,21 +97,6 @@ FGBufferData DecodeGBufferMobile(
 	return GBuffer;
 }
 
-// Sky only now
-half3 GetImageBasedReflectionLighting(half3 ReflectionVector, half Roughness)
-{
-	half3 ProjectedCaptureVector = ReflectionVector;	
-	half CubemapMaxMip = MobileReflectionCapture.Params.y;
-
-	// Compute fractional mip from roughness
-	half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, CubemapMaxMip);
-	// Fetch from cubemap
-	half3 SpecularIBL = MobileReflectionCapture.Texture.SampleLevel(MobileReflectionCapture.TextureSampler, ProjectedCaptureVector, AbsoluteSpecularMip).rgb;
-	// Apply sky colour if the reflection map is the sky.
-	SpecularIBL*= View.SkyLightColor.rgb;
-	SpecularIBL*= View.IndirectLightingColorScale;
-	return SpecularIBL;
-}
 
 half3 GetDirectLighting(
 	FMobileLightData LightData, 
@@ -232,12 +225,12 @@ void MobileDeferredShadingPS(
 		ShadingModelContext.SpecularColor = GetEnvBRDF(ShadingModelContext.SpecularColor, GBuffer.Roughness, NoV);
 	}
 	
+	float2 LocalPosition = SvPosition.xy - View.ViewRectMin.xy;
+	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SceneDepth);
 	// Local lights
 #if USE_CLUSTERED
 	{
-		const uint EyeIndex = 0; 
-		float2 LocalPosition = SvPosition.xy - View.ViewRectMin.xy;
-		uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SceneDepth);
+		const uint EyeIndex = 0;
 		const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridIndex, EyeIndex);
 		Color += GetLightGridLocalLighting(CulledLightGridData, ShadingModelContext, GBuffer, WorldPosition, CameraVector, EyeIndex, 0);
 	}
@@ -252,8 +245,29 @@ void MobileDeferredShadingPS(
 	Lighting.Diffuse = ShadingModelContext.DiffuseColor;
 	Color += (Shadow * NoL) * MobileDirectionalLight.DirectionalLightColor.rgb * (Lighting.Diffuse + Lighting.Specular * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z);
 
-#if APPLY_SKY_REFLECTION
-	half3 SpecularIBL = GetImageBasedReflectionLighting(ReflectionVector, GBuffer.Roughness); 
+#if APPLY_REFLECTION
+	uint NumCulledEntryIndex = (ForwardLightData.NumGridCells + GridIndex) * NUM_CULLED_LIGHTS_GRID_STRIDE;
+	uint NumLocalReflectionCaptures = min(ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 0], ForwardLightData.NumReflectionCaptures);
+	uint DataStartIndex = ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 1];
+
+	float3 SpecularIBL = CompositeReflectionCapturesAndSkylight(
+		1.0f,
+		WorldPosition,
+		ReflectionVector,//RayDirection,
+		GBuffer.Roughness,
+		GBuffer.IndirectIrradiance,
+		1.0f,
+		0.0f,
+		NumLocalReflectionCaptures,
+		DataStartIndex,
+		0,
+		true);
+		
+	Color += SpecularIBL * ShadingModelContext.SpecularColor;
+#elif APPLY_SKY_REFLECTION
+	float SkyAverageBrightness = 1.0f;
+	float3 SpecularIBL = GetSkyLightReflection(ReflectionVector, GBuffer.Roughness, SkyAverageBrightness);
+	SpecularIBL *= ComputeMixingWeight(GBuffer.IndirectIrradiance, SkyAverageBrightness, GBuffer.Roughness);
 	Color += SpecularIBL * ShadingModelContext.SpecularColor;
 #endif
 	half3 SkyDiffuseLighting = GetSkySHDiffuseSimple(GBuffer.WorldNormal);

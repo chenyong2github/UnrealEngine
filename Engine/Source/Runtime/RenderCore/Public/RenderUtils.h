@@ -474,6 +474,10 @@ RENDERCORE_API bool IsSimpleForwardShadingEnabled(const FStaticShaderPlatform Pl
 
 RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform);
 
+RENDERCORE_API bool IsMobileDeferredShading();
+
+RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel);
+
 RENDERCORE_API bool GPUSceneUseTexture2D(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform);
