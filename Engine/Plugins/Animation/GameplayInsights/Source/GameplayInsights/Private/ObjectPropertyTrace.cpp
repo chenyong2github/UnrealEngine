@@ -250,7 +250,10 @@ void FObjectPropertyTrace::Init()
 	check(!ObjectPropertyTrace::TickerHandle.IsValid());
 	ObjectPropertyTrace::TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("ObjectPropertyTrace"), 0.0f, [](float InDelta)
 	{
-		ObjectPropertyTrace::TraceObjects();
+		if(UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectProperties))
+		{
+			ObjectPropertyTrace::TraceObjects();
+		}
 
 		return true;
 	});
