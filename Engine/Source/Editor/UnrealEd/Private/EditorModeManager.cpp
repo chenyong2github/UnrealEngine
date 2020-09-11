@@ -61,9 +61,9 @@ FEditorModeTools::FEditorModeTools()
 	, bShowWidget(true)
 	, bHideViewportUI(false)
 	, bSelectionHasSceneComponent(false)
+	, WidgetScale(1.0f)
 	, CoordSystem(COORD_World)
 	, bIsTracking(false)
-	, WidgetScale(1.0f)
 {
 	DefaultModeIDs.Add( FBuiltinEditorModes::EM_Default );
 
