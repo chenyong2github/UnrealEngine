@@ -96,6 +96,9 @@ private:
 
 	struct FPreDragSectionData
 	{
+		/** Pointer to the ISequencerSection in the drag*/
+		ISequencerSection* SequencerSection;
+
 		/** Pointer to the movie section, this section is only valid during a drag operation*/
 		UMovieSceneSection * MovieSection;
 		/** The initial range of the section before it was resized */

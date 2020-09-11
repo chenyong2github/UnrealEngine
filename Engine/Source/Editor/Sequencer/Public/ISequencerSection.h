@@ -207,6 +207,19 @@ public:
 	virtual void SlipSection(FFrameNumber SlipTime) {}
 
 	/**
+	Dilation starts with a drag operation
+	*/
+	SEQUENCER_API virtual void BeginDilateSection() {};
+	/**
+	New Range that's set as we Dilate
+	@param NewRange The NewRange.
+	@param DilationFactor The factor we have dilated from the beginning of the drag
+	*/
+	SEQUENCER_API virtual void DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor) {};
+
+
+
+	/**
 	 * Called when the properties context menu is being built, so this section can customize how the menu's details view looks like.
 	 *
 	 * @param DetailsView The details view widget
@@ -230,6 +243,14 @@ public:
 	}
 
 	virtual bool IsReadOnly() const override { return WeakSection.IsValid() ? WeakSection.Get()->IsReadOnly() : false; }
+
+	virtual void DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor) override
+	{
+		if (GetSectionObject())
+		{
+			GetSectionObject()->SetRange(NewRange);
+		}
+	}
 
 protected:
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;
