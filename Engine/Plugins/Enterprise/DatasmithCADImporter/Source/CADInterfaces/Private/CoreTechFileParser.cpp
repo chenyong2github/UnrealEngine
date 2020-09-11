@@ -156,11 +156,11 @@ FString AsFString(CT_STR CtName)
 	return CtName.IsEmpty() ? FString() : CtName.toUnicode();
 };
 
-uint32 GetFileHash(const CADLibrary::FFileDescription& FileDescription, const FImportParameters& ImportParam)
+uint32 FCoreTechFileParser::GetFileHash()
 {
 	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
 
-	int64 FileSize = FileStatData.FileSize;
+	FileSize = FileStatData.FileSize;
 	FDateTime ModificationTime = FileStatData.ModificationTime;
 
 	uint32 FileHash = GetTypeHash(FileDescription);
@@ -645,7 +645,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 		return EProcessResult::FileNotFound;
 	}
 
-	uint32 FileHash = GetFileHash(FileDescription, ImportParameters);
+	uint32 FileHash = GetFileHash();
 
 	SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
 
@@ -695,28 +695,36 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	SceneGraphArchive.FullPath = FileDescription.Path;
 	SceneGraphArchive.CADFileName = FileDescription.Name;
 
-	CT_FLAGS CTImportOption = SetCoreTechImportOption(FileDescription.Extension);
+	// the parallelization of monolithic Jt file is set in SetCoreTechImportOption. Then it's processed as the other exploded formats
+	CT_FLAGS CTImportOption = SetCoreTechImportOption();
 
 	FString LoadOption;
 	CT_UINT32 NumberOfIds = 1;
 
 	if (!FileDescription.Configuration.IsEmpty())
 	{
-		NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.Path);
-		if (NumberOfIds > 1)
+		if (FileDescription.Extension == "jt")
 		{
-			CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*FileDescription.Path);
-			for (CT_UINT32 i = 0; i < NumberOfIds; i++)
+			LoadOption = FileDescription.Configuration;
+		}
+		else
+		{
+			NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.Path);
+			if (NumberOfIds > 1)
 			{
-				CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*FileDescription.Path, i);
-				if (FileDescription.Configuration == AsFString(ConfValue)) {
-					ActiveConfig = i;
-					break;
+				CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*FileDescription.Path);
+				for (CT_UINT32 i = 0; i < NumberOfIds; i++)
+				{
+					CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*FileDescription.Path, i);
+					if (FileDescription.Configuration == AsFString(ConfValue)) {
+						ActiveConfig = i;
+						break;
+					}
 				}
-			}
 
-			CTImportOption |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
-			LoadOption = FString::FromInt((int32) ActiveConfig);
+				CTImportOption |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
+				LoadOption = FString::FromInt((int32)ActiveConfig);
+			}
 		}
 	}
 
@@ -724,7 +732,9 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 	{
 		CT_KERNEL_IO::UnloadModel();
-		Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF);
+		CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
+		CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
+		Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTReImportOption, 0, *LoadOption);
 	}
 
 	// the file is loaded but it's empty, so no data is generate
@@ -806,16 +816,32 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	return EProcessResult::ProcessOk;
 }
 
-CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption(const FString& MainFileExt)
+CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption()
 {
 	// Set import option
 	CT_FLAGS Flags = CT_LOAD_FLAGS_USE_DEFAULT;
+	const FString& MainFileExt = FileDescription.Extension;
 
-	// Do not read meta-data from JT files with CoreTech. It crashes...
-	if (MainFileExt != TEXT("jt"))
+	// Parallelisation of monolitic Jt file,
+	// For Jt file, first step the file is read with "Structure only option"
+	// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
+	if (MainFileExt == TEXT("jt"))
 	{
-		Flags |= CT_LOAD_FLAGS_READ_META_DATA;
+		if (FileDescription.Configuration.IsEmpty())
+		{
+			if (FileSize > 2e6 /* 2 Mb */) // First step 
+			{
+				Flags |= CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;
+			}
+		}
+		else // Second step
+		{
+			Flags &= ~CT_LOAD_FLAGS_REMOVE_EMPTY_COMPONENTS;
+			Flags |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
+		}
 	}
+
+	Flags |= CT_LOAD_FLAGS_READ_META_DATA;
 
 	if (MainFileExt == TEXT("catpart") || MainFileExt == TEXT("catproduct") || MainFileExt == TEXT("cgr"))
 	{
@@ -1044,11 +1070,32 @@ bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 Defau
 		SceneGraphArchive.Instances[Index].bIsExternalRef = true;
 
 		CT_STR ComponentFile, FileType;
-		CT_COMPONENT_IO::AskExternalDefinition(ReferenceNodeId, ComponentFile, FileType);
+		CT_UINT3264 InternalId;
+		CT_COMPONENT_IO::AskExternalDefinition(ReferenceNodeId, ComponentFile, FileType, InternalId);
 		FString ExternalRefFullPath = AsFString(ComponentFile);
 
-		const FString ConfigName = TEXT("Configuration Name");
-		FString Configuration = SceneGraphArchive.Instances[Index].MetaData.FindRef(ConfigName);
+		FString Configuration;
+		if (FileDescription.Extension == TEXT("jt"))
+		{
+			if (ExternalRefFullPath.IsEmpty())
+			{
+				ExternalRefFullPath = FileDescription.Path;
+			}
+
+			// Parallelisation of monolitic Jt file,
+			// is the external reference is the current file ? 
+			// Yes => this is an unloaded part that will be imported with CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT Option
+			// No => the external reference is realy external... 
+			if(FPaths::IsSamePath(ExternalRefFullPath, FileDescription.Path))
+			{
+				Configuration = FString::Printf(TEXT("%d"), InternalId);
+			}
+		} 
+		else
+		{
+			const FString ConfigName = TEXT("Configuration Name");
+			Configuration = SceneGraphArchive.Instances[Index].MetaData.FindRef(ConfigName);
+		}
 		FFileDescription NewFileDescription(*ExternalRefFullPath, *Configuration, *FileDescription.MainCadFilePath);
 		SceneGraphArchive.Instances[Index].ExternalRef = NewFileDescription;
 		SceneGraphArchive.ExternalRefSet.Add(NewFileDescription);
