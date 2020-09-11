@@ -134,11 +134,7 @@ public:
 	/**
 	*  ApplyPhysicsField
 	*    This function will dispatch a command to the physics thread to apply
-	*    a generic evaluation of a user defined field network. See documentation,
-	*    for examples of how to recreate variations of the above generic
-	*    fields using field networks
-	*
-	*    (https://wiki.it.epicgames.net/display/~Brice.Criswell/Fields)
+	*    a generic evaluation of a user defined field network. 
 	*
 	*    @param Enabled : Is this force enabled for evaluation.
 	*    @param EFieldPhysicsType : Type of field supported by the solver.
