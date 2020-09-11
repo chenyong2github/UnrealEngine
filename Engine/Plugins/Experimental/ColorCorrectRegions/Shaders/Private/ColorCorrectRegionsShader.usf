@@ -618,7 +618,6 @@ MaterialFloat3 ComposureColorGradePerRange(MaterialFloat3 WorkingColor, Material
 float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
 {
 	// Translate
-	
 	MaterialFloat3 Translated = (GetWorldPosition(Parameters) - ExternalExpressions.Translate.rgb);
 	// Rotate
 	MaterialFloat3 RotatedZ = RotateAboutAxis(MaterialFloat4(MaterialFloat3(0.00000000, 0.00000000, 1.00000000), ExternalExpressions.Rotate.b * -1), MaterialFloat3(0.00000000, 0.00000000, 0.00000000), Translated);
@@ -748,9 +747,9 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 		MaterialFloat4 CustomStencil = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, 25), 25, false);
 		FinalColor = lerp(FinalColor, ExternalExpressions.SceneTexture.rgb, clamp(CustomStencil.r, 0., 1.));
 	}
-	
+
 	// Pre Multiply color. The actual Alpha blending is done in a separate pass.
-	FinalColor = (FinalColor.rgb * (1.00000000 - ExternalExpressions.SceneTexture.a));
+	FinalColor = (FinalColor.rgb * (1.00000000 - SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_Opacity), PPI_Opacity, false)));
 
 	return float4(FinalColor, FinalAlpha);
 }
@@ -826,7 +825,7 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 #if CLIP_PIXELS_OUTSIDE_AABB
 	PixelMaterialInputs.Opacity = FinalColor.a;
 #else
-	PixelMaterialInputs.Opacity = SceneTexture.a;
+	PixelMaterialInputs.Opacity = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_Opacity), PPI_Opacity, false);
 #endif
 	PixelMaterialInputs.OpacityMask = 1.00000000;
 	PixelMaterialInputs.BaseColor = MaterialFloat3(0.00000000, 0.00000000, 0.00000000);

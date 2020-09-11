@@ -306,11 +306,12 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 		// Reusing the same output description for our back buffer as SceneColor
-		FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
+		FRDGTextureDesc ColorCorrectRegionsOutputDesc = SceneColor.Texture->Desc;
+		ColorCorrectRegionsOutputDesc.Format = PF_FloatRGBA;
 		FLinearColor ClearColor(0., 0., 0., 0.);
-		OutputDesc.ClearValue = FClearValueBinding(ClearColor);
+		ColorCorrectRegionsOutputDesc.ClearValue = FClearValueBinding(ClearColor);
 
-		FRDGTexture* BackBufferRenderTargetTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("BackBufferRenderTargetTexture"));
+		FRDGTexture* BackBufferRenderTargetTexture = GraphBuilder.CreateTexture(ColorCorrectRegionsOutputDesc, TEXT("BackBufferRenderTargetTexture"));
 		FScreenPassRenderTarget BackBufferRenderTarget = FScreenPassRenderTarget(BackBufferRenderTargetTexture, SceneColor.ViewRect, ERenderTargetLoadAction::EClear);
 		FScreenPassRenderTarget SceneColorRenderTarget(SceneColor, ERenderTargetLoadAction::ELoad);
 		const FScreenPassTextureViewport SceneColorTextureViewport(SceneColor);
