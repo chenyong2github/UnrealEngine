@@ -928,23 +928,7 @@ public:
 		return TMeshAttributesRef<ElementIDType, AttributeType>();
 	}
 
-	/**
-	 * Get a view on an attribute array with the given name, accessing elements as the given type.
-	 * Access to elements will be slightly slower than with GetAttributesRef, but element access is not strongly typed.
-	 *
-	 * Example of use:
-	 *
-	 *		const TVertexInstanceAttributesView<FVector> VertexNormals = VertexInstanceAttributes().GetAttributesView<FVector>( "Normal" );
-	 *		for( const FVertexInstanceID VertexInstanceID : GetVertexInstances().GetElementIDs() )
-	 *		{
-	 *          // This will work even if the Normals array has a different internal type, e.g. FPackedVector
-	 *			const FVector Normal = VertexNormals.Get( VertexInstanceID );
-	 *			DoSomethingWith( Normal );
-	 *		}
-	 *
-	 * Note that the returned object is a value type which should be assigned and passed by value, not reference.
-	 * It is valid for as long as this TAttributesSet object exists.
-	 */
+	UE_DEPRECATED(4.26, "GetAttributesView() will no longer be supported; please use GetAttributesRef() instead.")
 	template <typename ViewType>
 	TMeshAttributesConstView<ElementIDType, ViewType> GetAttributesView( const FName AttributeName ) const
 	{
@@ -956,6 +940,7 @@ public:
 		return TMeshAttributesConstView<ElementIDType, ViewType>();
 	}
 
+	UE_DEPRECATED(4.26, "GetAttributesView() will no longer be supported; please use GetAttributesRef() instead.")
 	template <typename ViewType>
 	TMeshAttributesView<ElementIDType, ViewType> GetAttributesView( const FName AttributeName )
 	{
