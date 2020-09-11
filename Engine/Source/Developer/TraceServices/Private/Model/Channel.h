@@ -14,7 +14,7 @@ public:
 	static const FName ProviderName;
 
 	FChannelProvider();
-	void AnnounceChannel(const TCHAR* ChannelName, uint32 Id);
+	void AnnounceChannel(const TCHAR* ChannelName, uint32 Id, bool bReadOnly);
 	void UpdateChannel(uint32 Id, bool bEnabled);
 
 	virtual uint64	GetChannelCount() const override;

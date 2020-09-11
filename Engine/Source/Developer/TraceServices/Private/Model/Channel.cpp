@@ -14,7 +14,7 @@ FChannelProvider::FChannelProvider()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void FChannelProvider::AnnounceChannel(const TCHAR* InChannelName, uint32 Id)
+void FChannelProvider::AnnounceChannel(const TCHAR* InChannelName, uint32 Id, bool bReadOnly)
 {
 	FString ChannelName(InChannelName);
 	ChannelName.GetCharArray()[0] = TChar<TCHAR>::ToUpper(ChannelName.GetCharArray()[0]);
@@ -22,6 +22,7 @@ void FChannelProvider::AnnounceChannel(const TCHAR* InChannelName, uint32 Id)
 		Id,
 		ChannelName,
 		false,
+		bReadOnly,
 	});
 
 	TimeStamp = FDateTime::Now();

@@ -49,8 +49,8 @@ UE_TRACE_API void	ThreadGroupEnd() UE_TRACE_IMPL();
 #define UE_TRACE_LOG_SCOPED_T(LoggerName, EventName, ChannelsExpr, ...)	TRACE_PRIVATE_LOG_SCOPED_T(LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__)
 
 ////////////////////////////////////////////////////////////////////////////////
-#define UE_TRACE_CHANNEL(ChannelName)					TRACE_PRIVATE_CHANNEL(ChannelName)
+#define UE_TRACE_CHANNEL(ChannelName, ...)				TRACE_PRIVATE_CHANNEL(ChannelName, ##__VA_ARGS__)
 #define UE_TRACE_CHANNEL_EXTERN(ChannelName, ...)		TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ##__VA_ARGS__)
 #define UE_TRACE_CHANNEL_MODULE_EXTERN(ModuleApi, ChannelName)	TRACE_PRIVATE_CHANNEL_MODULE_EXTERN(ModuleApi, ChannelName)
-#define UE_TRACE_CHANNEL_DEFINE(ChannelName)			TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName)
+#define UE_TRACE_CHANNEL_DEFINE(ChannelName, ...)		TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName, ##__VA_ARGS__)
 #define UE_TRACE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)	TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)
