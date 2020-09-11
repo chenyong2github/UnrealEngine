@@ -118,15 +118,13 @@ UMeshPaintMode::UMeshPaintMode()
 	: Super()
 {
 	SettingsClass = UMeshPaintModeSettings::StaticClass();
-	// Don't be a visible mode unless legacy mesh paint mode is not on.
-	const bool bVisible = !GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyMeshPaintMode;
 	FModuleManager::Get().LoadModule("EditorStyle");
 
 	Info = FEditorModeInfo(
 		FName(TEXT("MeshPaintMode")),
 		LOCTEXT("ModeName", "Mesh Paint"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode", "LevelEditor.MeshPaintMode.Small"),
-		bVisible,
+		true,
 		600
 	);
 }

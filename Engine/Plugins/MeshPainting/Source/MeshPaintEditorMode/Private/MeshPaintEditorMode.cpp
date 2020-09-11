@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintEditorMode.h"
-#include "EditorModeRegistry.h"
 #include "Modules/ModuleManager.h"
 #include "MeshPaintMode.h"
 #include "EditorModeManager.h"
@@ -14,7 +13,6 @@
 #include "MeshPaintSplineMeshAdapter.h"
 #include "MeshPaintStaticMeshAdapter.h"
 #include "MeshPaintSkeletalMeshAdapter.h"
-#include "Settings/LevelEditorMiscSettings.h"
 
 class FMeshPaintEditorModeModule : public IModuleInterface
 {
@@ -57,12 +55,9 @@ void FMeshPaintEditorModeModule::Register()
 
 void FMeshPaintEditorModeModule::OnPostEngineInit()
 {
-	if (!GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyMeshPaintMode)
-	{
-		Register();
-		FMeshPaintingToolActionCommands::RegisterAllToolActions();
-		FMeshPaintEditorModeCommands::Register();
-	}
+	Register();
+	FMeshPaintingToolActionCommands::RegisterAllToolActions();
+	FMeshPaintEditorModeCommands::Register();
 }
 
 void FMeshPaintEditorModeModule::StartupModule()

@@ -166,7 +166,6 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("WebBrowser", "WebBrowserTexture"),
 			new KeyValuePair<string, string>("WindowsMixedRealityHMD", "WindowsMixedRealityHandTracking"),
             new KeyValuePair<string, string>("UnrealEd", "MeshPaint"),
-            new KeyValuePair<string, string>("UnrealEd", "MeshPaintMode"),
         };
 
 
