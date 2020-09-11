@@ -12,6 +12,7 @@ struct FChannelEntry
 	uint32 Id;
 	FString Name;
 	bool bIsEnabled;
+	bool bReadOnly;
 };
 
 class IChannelProvider

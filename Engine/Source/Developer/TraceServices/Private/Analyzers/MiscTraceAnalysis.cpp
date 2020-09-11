@@ -205,8 +205,9 @@ void FMiscTraceAnalyzer::OnChannelAnnounce(const FOnEventContext& Context)
 	FString ChannelName = FTraceAnalyzerUtils::LegacyAttachmentString<ANSICHAR>("Name", Context);
 	uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
 	bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
+	bool bReadOnly = Context.EventData.GetValue<bool>("ReadOnly", false);
 
-	ChannelProvider.AnnounceChannel(*ChannelName, ChannelId);
+	ChannelProvider.AnnounceChannel(*ChannelName, ChannelId, bReadOnly);
 	ChannelProvider.UpdateChannel(ChannelId, bEnabled);
 }
 

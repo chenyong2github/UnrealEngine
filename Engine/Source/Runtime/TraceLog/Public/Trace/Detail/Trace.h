@@ -11,30 +11,32 @@ namespace Trace
 	class FChannel;
 };
 
+#define TRACE_PRIVATE_CHANNEL_DEFAULT_ARGS false, "None"
+
 #define TRACE_PRIVATE_CHANNEL_DECLARE(LinkageType, ChannelName) \
 	static Trace::FChannel ChannelName##Object; \
 	LinkageType Trace::FChannel& ChannelName = ChannelName##Object;
 
-#define TRACE_PRIVATE_CHANNEL_IMPL(ChannelName) \
+#define TRACE_PRIVATE_CHANNEL_IMPL(ChannelName, ...) \
 	struct F##ChannelName##Registrator \
 	{ \
 		F##ChannelName##Registrator() \
 		{ \
-			ChannelName##Object.Initialize(#ChannelName); \
+			ChannelName##Object.Initialize(#ChannelName, { __VA_ARGS__ } ); \
 		} \
 	}; \
 	static F##ChannelName##Registrator ChannelName##Reg = F##ChannelName##Registrator();
 
-#define TRACE_PRIVATE_CHANNEL(ChannelName) \
+#define TRACE_PRIVATE_CHANNEL(ChannelName, ...) \
 	TRACE_PRIVATE_CHANNEL_DECLARE(static, ChannelName) \
-	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName)
+	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName, ##__VA_ARGS__)
 
 #define TRACE_PRIVATE_CHANNEL_MODULE_EXTERN(ModuleApi, ChannelName) \
 	TRACE_PRIVATE_CHANNEL_DECLARE(ModuleApi extern, ChannelName)
 
-#define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName) \
+#define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName, ...) \
 	TRACE_PRIVATE_CHANNEL_DECLARE(, ChannelName) \
-	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName)
+	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName, ##__VA_ARGS__)
 
 #define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ...) \
 	__VA_ARGS__ extern Trace::FChannel& ChannelName;
@@ -125,13 +127,13 @@ namespace Trace
 
 #else
 
-#define TRACE_PRIVATE_CHANNEL(ChannelName)
+#define TRACE_PRIVATE_CHANNEL(ChannelName, ...)
 
 #define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ...)
 
 #define TRACE_PRIVATE_CHANNEL_MODULE_EXTERN(ModuleApi, ChannelName)
 
-#define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName)
+#define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName, ...)
 
 #define TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr) \
 	false
