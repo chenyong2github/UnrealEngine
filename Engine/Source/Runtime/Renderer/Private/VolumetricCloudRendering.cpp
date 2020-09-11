@@ -132,6 +132,16 @@ static TAutoConsoleVariable<float> CVarVolumetricCloudShadowMapSnapLength(
 	TEXT("Snapping size in kilometers of the cloud shadowmap position to avoid flickering."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<float> CVarVolumetricCloudShadowMapRaySampleMaxCount(
+	TEXT("r.VolumetricCloud.ShadowMap.RaySampleMaxCount"), 128.0f,
+	TEXT("The maximum number of samples taken while ray marching shadow rays to evaluate teh cloud shadow map."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+static TAutoConsoleVariable<float> CVarVolumetricCloudShadowMapRaySampleHorizonMultiplier(
+	TEXT("r.VolumetricCloud.ShadowMap.RaySampleHorizonMultiplier"), 2.0f,
+	TEXT("The multipler on the sample count applied when the atmospheric light reach the horizon. Less pixel in the shadow map needs to be traced, but rays need to travel a lot longer."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 static TAutoConsoleVariable<int32> CVarVolumetricCloudShadowMapMaxResolution(
 	TEXT("r.VolumetricCloud.ShadowMap.MaxResolution"), 2048,
 	TEXT("The maximum resolution of the cloud shadow map."),
@@ -144,7 +154,7 @@ static TAutoConsoleVariable<int32> CVarVolumetricCloudShadowSpatialFiltering(
 
 static TAutoConsoleVariable<float> CVarVolumetricCloudShadowTemporalFilteringNewFrameWeight(
 	TEXT("r.VolumetricCloud.ShadowMap.TemporalFiltering.NewFrameWeight"), 0.5f,
-	TEXT("The shadow map temporal filter and represent the weight of current frame's contribution. Low value can produce issue with depth might not converge after some time due to precision isssue ()."),
+	TEXT("The shadow map temporal filter and represent the weight of current frame's contribution. Low value can produce issue with depth might not converge after some time due to precision isssue. Disabled when equal 1"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<float> CVarVolumetricCloudShadowTemporalFilteringLightRotationCutHistory(
@@ -233,6 +243,15 @@ static int32 GetVolumetricCloudShadowMapResolution(const FLightSceneProxy* Atmos
 	return 32;
 }
 
+static int32 GetVolumetricCloudShadowRaySampleCountScale(const FLightSceneProxy* AtmosphericLight)
+{
+	if (AtmosphericLight)
+	{
+		return AtmosphericLight->GetCloudShadowRaySampleCountScale();
+	}
+	return 4;
+}
+
 static float GetVolumetricCloudShadowMapExtentKm(const FLightSceneProxy* AtmosphericLight)
 {
 	if (AtmosphericLight)
@@ -278,7 +297,7 @@ static int32 GetVolumetricCloudSkyAOResolution(const FSkyLightSceneProxy* SkyLig
 {
 	if (SkyLight)
 	{
-		return FMath::Min(int32(512.0f * float(SkyLight->CloudAmbientOcclusionMapResolutionScale)), CVarVolumetricCloudShadowMapMaxResolution.GetValueOnAnyThread());
+		return FMath::Min(int32(512.0f * float(SkyLight->CloudAmbientOcclusionMapResolutionScale)), CVarVolumetricCloudSkyAOMaxResolution.GetValueOnAnyThread());
 	}
 	return 32;
 }
@@ -1235,7 +1254,12 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder)
 					CloudGlobalShaderParams.CloudShadowmapFarDepthKm[LightIndex] = FarPlane * CentimetersToKilometers;
 
 					// More samples when the sun is at the horizon: a lot more distance to travel and less pixel covered so trying to keep the same cost and quality.
-					CloudGlobalShaderParams.CloudShadowmapSampleClount[LightIndex] = 16.0f + 32.0f * FMath::Clamp(0.2f / FMath::Abs(FVector::DotProduct(PlanetToCameraNormUp, AtmopshericLightDirection)) - 1.0f, 0.0f, 1.0f);
+					const float CloudShadowRaySampleCountScale = GetVolumetricCloudShadowRaySampleCountScale(AtmosphericLight);
+					const float CloudShadowRaySampleBaseCount = 16.0f;
+					const float CloudShadowRayMapSampleCount = FMath::Max(4.0f, FMath::Min(CloudShadowRaySampleBaseCount * CloudShadowRaySampleCountScale, CVarVolumetricCloudShadowMapRaySampleMaxCount.GetValueOnAnyThread()));
+					const float RaySampleHorizonFactor = FMath::Max(0.0f, CVarVolumetricCloudShadowMapRaySampleHorizonMultiplier.GetValueOnAnyThread()-1.0f);
+					const float HorizonFactor = FMath::Clamp(0.2f / FMath::Abs(FVector::DotProduct(PlanetToCameraNormUp, -AtmopshericLightDirection)), 0.0f, 1.0f);
+					CloudGlobalShaderParams.CloudShadowmapSampleClount[LightIndex] = CloudShadowRayMapSampleCount + RaySampleHorizonFactor * CloudShadowRayMapSampleCount * HorizonFactor;
 				}
 				else
 				{
