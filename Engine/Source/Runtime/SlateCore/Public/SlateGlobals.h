@@ -74,7 +74,6 @@ extern SLATECORE_API bool GSlateCheckUObjectRenderResourcesShouldLogFatal;
 #endif
 
 #if WITH_SLATE_DEBUGGING
-extern SLATECORE_API bool GSlateInvalidationDebugging;
 extern SLATECORE_API bool GSlateHitTestGridDebugging;
 #endif
 /* Forward declarations
