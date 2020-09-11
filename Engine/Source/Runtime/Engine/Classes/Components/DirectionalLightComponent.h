@@ -189,17 +189,17 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	/**
 	 * The overal strength of the cloud shadow, higher value will block more light.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 1.0))
 	float CloudShadowStrength;
 	/**
 	 * The strength of the shadow on atmosphere. Disabled when 0.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 1.0))
 	float CloudShadowOnAtmosphereStrength;
 	/**
 	 * The strength of the shadow on opaque and transparent meshes. Disabled when 0.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 1.0))
 	float CloudShadowOnSurfaceStrength;
 	/**
 	 * The bias applied to the shadow front depth of the volumetric cloud shadow map.
@@ -214,8 +214,14 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	/**
 	 * Scale the cloud shadow map resolution. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
 	float CloudShadowMapResolutionScale;
+	/**
+	 * Scale the shadowm map tracing sample count.
+	 * The sample count resolution is still clamped according to scalability setting to 'r.VolumetricCloud.ShadowMap.RaySampleMaxCount'.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
+	float CloudShadowRaySampleCountScale;
 
 	/**
 	 * Scales the lights contribution when scattered in cloud participating media. This can help counter balance the fact that our multiple scattering solution is only an approximation.

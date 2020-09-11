@@ -174,7 +174,7 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	/**
 	 * The strength of the ambient occlusion, higher value will block more light.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 1.0))
 	float CloudAmbientOcclusionStrength;
 	/**
 	 * The world space radius of the cloud ambiant occlusion map around the camera in kilometers.
@@ -184,7 +184,7 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	/**
 	 * Scale the cloud ambiant occlusion map resolution. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
 	float CloudAmbientOcclusionMapResolutionScale;
 	/**
 	 * Controls the aperture angle to integrate sky visibility over. 1 Means entire hemisphere and 0 infinitely small solid angle oriented up.
