@@ -354,6 +354,11 @@ int32 FAnimationBudgetAllocator::CalculateWorkDistributionAndQueue(float InDelta
 		const int32 PrerequisiteHandle = InComponentData.RootPrerequisite != nullptr ? InComponentData.RootPrerequisite->GetAnimationBudgetHandle() : INDEX_NONE;
 		const FAnimBudgetAllocatorComponentData& ComponentDataToCheck = PrerequisiteHandle != INDEX_NONE ? AllComponentData[PrerequisiteHandle] : InComponentData;
 
+		// Calculate interp alpha even when interpolation or ticking is disabled as this is used to decide how much root motion to consume
+		// each frame by character movement
+		float Alpha = FMath::Clamp((1.0f / (InComponentData.TickRate - InComponentData.SkippedTicks + 1)), 0.0f, 1.0f);
+		InComponentData.Component->SetExternalInterpolationAlpha(Alpha);
+
 		// Using (frame offset + frame counter) % tick rate allows us to only tick at the specified interval,
 		// but at a roughly even distribution over all registered components
 		const bool bTickThisFrame = (((GFrameCounter + ComponentDataToCheck.FrameOffset) % ComponentDataToCheck.TickRate) == 0);
@@ -373,12 +378,6 @@ int32 FAnimationBudgetAllocator::CalculateWorkDistributionAndQueue(float InDelta
 
 			InComponentData.AccumulatedDeltaTime = bTickThisFrame ? 0.0f : InComponentData.AccumulatedDeltaTime;
 
-			if(InComponentData.bInterpolate)
-			{
-				float Alpha = FMath::Clamp((1.0f / (InComponentData.TickRate - InComponentData.SkippedTicks + 1)), 0.0f, 1.0f);
-				InComponentData.Component->SetExternalInterpolationAlpha(Alpha);
-			}
-
 			TickEnableHelper(InComponentData.Component, true);
 
 			// Only switch to desired tick rate when we actually tick (throttled)
@@ -392,6 +391,10 @@ int32 FAnimationBudgetAllocator::CalculateWorkDistributionAndQueue(float InDelta
 		}
 		else
 		{
+			// Disable external update here as character movement 'manual ticks' need to respect the external control as well
+			// otherwise they will end up ticking too often, ending up with incorrect root motion
+			InComponentData.Component->EnableExternalUpdate(false);
+
 			TickEnableHelper(InComponentData.Component, false);
 		}
 	};
