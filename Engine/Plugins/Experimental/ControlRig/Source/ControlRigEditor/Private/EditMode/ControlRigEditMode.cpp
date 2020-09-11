@@ -366,6 +366,9 @@ void FControlRigEditMode::Exit()
 	//clear proxies
 	ControlProxy->RemoveAllProxies();
 
+	//make sure the widget is reset
+	ResetGizmoSize();
+
 	// Call parent implementation
 	FEdMode::Exit();
 }
@@ -1432,6 +1435,18 @@ void FControlRigEditMode::BindCommands()
 	CommandBindings->MapAction(
 		Commands.ResetAllTransforms,
 		FExecuteAction::CreateRaw(this, &FControlRigEditMode::ResetTransforms, false));
+
+	CommandBindings->MapAction(
+		Commands.IncreaseGizmoSize,
+		FExecuteAction::CreateRaw(this, &FControlRigEditMode::IncreaseGizmoSize));
+
+	CommandBindings->MapAction(
+		Commands.DecreaseGizmoSize,
+		FExecuteAction::CreateRaw(this, &FControlRigEditMode::DecreaseGizmoSize));
+
+	CommandBindings->MapAction(
+		Commands.ResetGizmoSize,
+		FExecuteAction::CreateRaw(this, &FControlRigEditMode::ResetGizmoSize));
 }
 
 bool FControlRigEditMode::IsControlSelected() const
@@ -1467,6 +1482,26 @@ bool FControlRigEditMode::GetRigElementGlobalTransform(const FRigElementKey& InE
 	return false;
 }
 
+void FControlRigEditMode::IncreaseGizmoSize()
+{
+	Settings->GizmoScale += 0.1f;
+	FEditorModeTools& ModeTools = GLevelEditorModeTools();
+	ModeTools.SetWidgetScale(Settings->GizmoScale);
+}
+
+void FControlRigEditMode::DecreaseGizmoSize()
+{
+	Settings->GizmoScale -= 0.1f;
+	FEditorModeTools& ModeTools = GLevelEditorModeTools();
+	ModeTools.SetWidgetScale(Settings->GizmoScale);
+}
+
+void FControlRigEditMode::ResetGizmoSize()
+{
+	Settings->GizmoScale = 1.0f;
+	FEditorModeTools& ModeTools = GLevelEditorModeTools();
+	ModeTools.SetWidgetScale(Settings->GizmoScale);
+}
 
 void FControlRigEditMode::ToggleManipulators()
 {

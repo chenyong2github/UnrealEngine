@@ -325,6 +325,16 @@ public:
 	FWidget::EWidgetMode GetWidgetMode() const;
 
 	/**
+	* Set Scale On The Widget
+	*/
+	void SetWidgetScale(float InScale);
+
+	/**
+	*  Get Widget Scale
+	*/
+	float GetWidgetScale() const;
+
+	/**
 	 * Gets the current state of script editor usage of show friendly names
 	 * @deprecated Use GetDefault<UEditorStyleSettings>()->bShowFriendlyNames instead
 	 *
@@ -597,6 +607,10 @@ protected:
 
 	/** if true the current selection has a scene component */
 	bool bSelectionHasSceneComponent;
+
+	/** Scale Factor for Widget*/
+	float WidgetScale;
+
 private:
 	struct FEdModeToolbarRow
 	{
