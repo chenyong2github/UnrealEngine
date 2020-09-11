@@ -36,7 +36,7 @@ public:
 	template<typename T, typename U = typename TEnableIf<TIsSame<T, uint64>::Value>::Type>
 	constexpr FWidgetId(T InValue) : Value(InValue) {}
 	explicit operator bool() const { return Value != 0; }
-	friend uint32 GetTypeHash(const FWidgetId& Key) { return GetTypeHash(Key.Value); }
+	friend uint32 GetTypeHash(const FWidgetId& Key) { return ::GetTypeHash(Key.Value); }
 	friend bool operator==(const FWidgetId A, const FWidgetId B) { return A.Value == B.Value; }
 	friend bool operator!=(const FWidgetId A, const FWidgetId B) { return A.Value != B.Value; }
 };

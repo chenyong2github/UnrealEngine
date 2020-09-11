@@ -6,6 +6,10 @@
 #include "Trace/Config.h"
 #include "Trace/Trace.h"
 
+#include "FastUpdate/WidgetUpdateFlags.h"
+#include "Templates/UnrealTemplate.h"
+#include "Widgets/InvalidateWidgetReason.h"
+
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define UE_SLATE_TRACE_ENABLED 1
 #else
@@ -23,10 +27,6 @@ ENUM_CLASS_FLAGS(ESlateTraceApplicationFlags)
 
 
 #if UE_SLATE_TRACE_ENABLED
-
-#include "FastUpdate/WidgetUpdateFlags.h"
-#include "Templates/UnrealTemplate.h"
-#include "Widgets/InvalidateWidgetReason.h"
 
 class FSlateApplicationBase;
 class FSlateTraceMetaData;
