@@ -119,6 +119,15 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 
 	// Initialize the misc editor
 	FUnrealEdMisc::Get().OnInit();
+	FCoreDelegates::OnExit.AddLambda([]()
+	{
+		// Shutdown the global static mode manager
+		if (Internal::GetGlobalModeManager().IsValid())
+		{
+			GLevelEditorModeTools().SetDefaultMode(FBuiltinEditorModes::EM_Default);
+			Internal::GetGlobalModeManager().Reset();
+		}
+	});
 	
 	SlowTask.EnterProgressFrame(10);
 
@@ -216,10 +225,6 @@ void EditorExit()
 	// Save out any config settings for the editor so they don't get lost
 	GEditor->SaveConfig();
 	GLevelEditorModeTools().SaveConfig();
-
-	// Shutdown the global static mode manager
-	GLevelEditorModeTools().SetDefaultMode(FBuiltinEditorModes::EM_Default);
-	Internal::GetGlobalModeManager().Reset();
 
 	// Clean up the actor folders singleton
 	FActorFolders::Cleanup();
