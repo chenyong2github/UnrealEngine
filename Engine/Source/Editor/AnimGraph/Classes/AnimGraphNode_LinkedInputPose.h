@@ -66,7 +66,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/** IClassVariableCreator interface */
-	virtual void CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext) override;
+	virtual void CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext) override;
 
 	/** UEdGraphNode interface */
 	virtual FLinearColor GetNodeTitleColor() const override;

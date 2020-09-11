@@ -24,6 +24,10 @@
 #include "AnimGraphDetails.h"
 #include "AnimationGraphSchema.h"
 #include "AnimBlueprintCompiler.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
+#include "AnimBlueprintCompilerHandler_CachedPose.h"
+#include "AnimBlueprintCompilerHandler_LinkedAnimGraph.h"
+#include "AnimBlueprintCompilerHandler_StateMachine.h"
 
 IMPLEMENT_MODULE(FAnimGraphModule, AnimGraph);
 
@@ -36,6 +40,27 @@ void FAnimGraphModule::StartupModule()
 	FKismetCompilerContext::RegisterCompilerForBP(UAnimBlueprint::StaticClass(), [](UBlueprint* InBlueprint, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions)
 	{
 		return MakeShared<FAnimBlueprintCompilerContext>(CastChecked<UAnimBlueprint>(InBlueprint), InMessageLog, InCompileOptions);
+	});
+
+	// Register node compilation handlers
+	IAnimBlueprintCompilerHandlerCollection::RegisterHandler("AnimBlueprintCompilerHandler_Base", [](IAnimBlueprintCompilerCreationContext& InCreationContext)
+	{
+		return MakeUnique<FAnimBlueprintCompilerHandler_Base>(InCreationContext);
+	});
+
+	IAnimBlueprintCompilerHandlerCollection::RegisterHandler("AnimBlueprintCompilerHandler_CachedPose", [](IAnimBlueprintCompilerCreationContext& InCreationContext)
+	{
+		return MakeUnique<FAnimBlueprintCompilerHandler_CachedPose>(InCreationContext);
+	});
+
+	IAnimBlueprintCompilerHandlerCollection::RegisterHandler("AnimBlueprintCompilerHandler_LinkedAnimGraph", [](IAnimBlueprintCompilerCreationContext& InCreationContext)
+	{
+		return MakeUnique<FAnimBlueprintCompilerHandler_LinkedAnimGraph>(InCreationContext);
+	});
+
+	IAnimBlueprintCompilerHandlerCollection::RegisterHandler("AnimBlueprintCompilerHandler_StateMachine", [](IAnimBlueprintCompilerCreationContext& InCreationContext)
+	{
+		return MakeUnique<FAnimBlueprintCompilerHandler_StateMachine>(InCreationContext);
 	});
 
 	// Register the editor modes
@@ -76,6 +101,11 @@ void FAnimGraphModule::StartupModule()
 
 void FAnimGraphModule::ShutdownModule()
 {
+	IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("AnimBlueprintCompilerHandler_Base");
+	IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("AnimBlueprintCompilerHandler_CachedPose");
+	IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("AnimBlueprintCompilerHandler_LinkedAnimGraph");
+	IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("AnimBlueprintCompilerHandler_StateMachine");
+
 	// Unregister the editor modes
 	FEditorModeRegistry::Get().UnregisterMode(AnimNodeEditModes::CCDIK);
 	FEditorModeRegistry::Get().UnregisterMode(AnimNodeEditModes::SplineIK);

@@ -36,7 +36,7 @@ class ANIMGRAPH_API UAnimGraphNode_StateMachineBase : public UAnimGraphNode_Base
 
 	// UAnimGraphNode_Base interface
 	virtual FString GetNodeCategory() const override;
-	virtual void OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext) override;
+	virtual void OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
 	// End of UAnimGraphNode_Base interface
 
 	//  @return the name of this state machine

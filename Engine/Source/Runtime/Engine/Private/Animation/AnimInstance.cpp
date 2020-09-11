@@ -471,11 +471,11 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 		UpdateMontageEvaluationData();
 	}
 
-	// Give class subsystems a crack
-	IAnimClassInterface::ForEachAnimInstanceSubsystemData(this, [this, DeltaSeconds](UAnimBlueprintClassSubsystem* InSubsystem, FAnimInstanceSubsystemData& InSubsystemData)
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		InSubsystem->OnUpdateAnimation(this, InSubsystemData, DeltaSeconds);
-	});
+		// Process internal batched property copies
+		PropertyAccess::ProcessCopies(this, AnimBlueprintClass->GetPropertyAccessLibrary(), EPropertyAccessCopyBatch::ExternalBatched);
+	}
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
