@@ -3221,10 +3221,10 @@ void RunHairCardsAtlasQueries(
 			AttributeTexture);
 
 
-		GraphBuilder.QueueTextureExtraction(DepthTexture, &Q.ProceduralResource->CardsDepthTextureRT, true);
-		GraphBuilder.QueueTextureExtraction(CoverageTexture, &Q.ProceduralResource->CardsCoverageTextureRT, true);
-		GraphBuilder.QueueTextureExtraction(TangentTexture, &Q.ProceduralResource->CardsTangentTextureRT, true);
-		GraphBuilder.QueueTextureExtraction(AttributeTexture, &Q.ProceduralResource->CardsAttributeTextureRT, true);
+		GraphBuilder.QueueTextureExtraction(DepthTexture, &Q.ProceduralResource->CardsDepthTextureRT, ERHIAccess::SRVMask);
+		GraphBuilder.QueueTextureExtraction(CoverageTexture, &Q.ProceduralResource->CardsCoverageTextureRT, ERHIAccess::SRVMask);
+		GraphBuilder.QueueTextureExtraction(TangentTexture, &Q.ProceduralResource->CardsTangentTextureRT, ERHIAccess::SRVMask);
+		GraphBuilder.QueueTextureExtraction(AttributeTexture, &Q.ProceduralResource->CardsAttributeTextureRT, ERHIAccess::SRVMask);
 		GraphBuilder.Execute();
 
 		// Create/Copy
