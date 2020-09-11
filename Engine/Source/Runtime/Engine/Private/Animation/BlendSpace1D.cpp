@@ -82,6 +82,7 @@ void UBlendSpace1D::SnapSamplesToClosestGridPoint()
 	TArray<float> GridPoints;
 	TArray<int32> ClosestSampleToGridPoint;
 	TArray<bool> SampleDataOnPoints;
+	TArray<bool> ShouldSnap;
 
 	const float GridMin = BlendParameters[0].Min;
 	const float GridMax = BlendParameters[0].Max;
@@ -89,10 +90,13 @@ void UBlendSpace1D::SnapSamplesToClosestGridPoint()
 	const int32 NumGridPoints = BlendParameters[0].GridNum + 1;
 	const float GridStep = GridRange / BlendParameters[0].GridNum;
 
-	// First mark all samples as invalid
-	for (FBlendSample& BlendSample : SampleData)
+	// First mark all samples as invalid and s unsnapped, recording whether they were snapped before
+	ShouldSnap.SetNumZeroed(SampleData.Num());
+	for (int32 BlendSampleIndex = 0; BlendSampleIndex < SampleData.Num(); ++BlendSampleIndex)
 	{
-		BlendSample.bIsValid = false;
+		FBlendSample& BlendSample = SampleData[BlendSampleIndex];
+		ShouldSnap[BlendSampleIndex] = BlendSample.bSnapToGrid;
+		BlendSample.bSnapToGrid = false;
 	}
 
 	for (int32 GridPointIndex = 0; GridPointIndex < NumGridPoints; ++GridPointIndex)
@@ -127,26 +131,29 @@ void UBlendSpace1D::SnapSamplesToClosestGridPoint()
 	// Find closest grid point to sample
 	for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
 	{
-		FBlendSample& BlendSample = SampleData[SampleIndex];
-
-		// Find closest grid point
-		float SmallestDistance = FLT_MAX;
-		int32 Index = INDEX_NONE;
-		for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
+		if (ShouldSnap[SampleIndex])
 		{
-			const float Distance = FMath::Abs(GridPoints[PointIndex] - BlendSample.SampleValue.X);
-			if (Distance < SmallestDistance)
+			FBlendSample& BlendSample = SampleData[SampleIndex];
+
+			// Find closest grid point
+			float SmallestDistance = FLT_MAX;
+			int32 Index = INDEX_NONE;
+			for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
 			{
-				Index = PointIndex;
-				SmallestDistance = Distance;
+				const float Distance = FMath::Abs(GridPoints[PointIndex] - BlendSample.SampleValue.X);
+				if (Distance < SmallestDistance)
+				{
+					Index = PointIndex;
+					SmallestDistance = Distance;
+				}
 			}
-		}
 
-		// Only move the sample if it is also closest to the grid point
-		if (Index != INDEX_NONE && ClosestSampleToGridPoint[Index] == SampleIndex)
-		{
-			BlendSample.SampleValue.X = GridPoints[Index];
-			BlendSample.bIsValid = true;
+			// Only move the sample if it is also closest to the grid point
+			if (Index != INDEX_NONE && ClosestSampleToGridPoint[Index] == SampleIndex)
+			{
+				BlendSample.SampleValue.X = GridPoints[Index];
+				BlendSample.bSnapToGrid = true;
+			}
 		}
 	}
 }
