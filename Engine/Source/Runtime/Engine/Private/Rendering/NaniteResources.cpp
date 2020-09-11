@@ -868,6 +868,7 @@ void FGlobalResources::ReleaseRHI()
 		StatsBuffer.SafeRelease();
 
 #if NANITE_USE_SCRATCH_BUFFERS
+		PrimaryVisibleClustersBuffer.SafeRelease();
 		ScratchVisibleClustersBuffer.SafeRelease();
 
 		MainPassBuffers.ScratchCandidateClustersBuffer.SafeRelease();
@@ -885,7 +886,8 @@ void FGlobalResources::Update(FRHICommandListImmediate& RHICmdList)
 
 #if NANITE_USE_SCRATCH_BUFFERS
 	// Any buffer may be released from the pool, so check each individually not just one of them.
-	if (!ScratchVisibleClustersBuffer.IsValid() ||
+	if (!PrimaryVisibleClustersBuffer.IsValid() || 
+		!ScratchVisibleClustersBuffer.IsValid() ||
 		!ScratchOccludedInstancesBuffer.IsValid() ||
 		!MainPassBuffers.ScratchCandidateClustersBuffer.IsValid() ||
 		!PostPassBuffers.ScratchCandidateClustersBuffer.IsValid())
@@ -895,6 +897,11 @@ void FGlobalResources::Update(FRHICommandListImmediate& RHICmdList)
 
 		// Allocate scratch buffers (TODO: RDG should support external non-RDG buffers).
 		// Can't do this in InitRHI as RHICmdList doesn't have a valid context yet.
+
+		if (!PrimaryVisibleClustersBuffer.IsValid())
+		{
+			GetPooledFreeBuffer(RHICmdList, ClustersBufferDesc, PrimaryVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
+		}
 
 		if (!ScratchVisibleClustersBuffer.IsValid())
 		{
@@ -916,6 +923,7 @@ void FGlobalResources::Update(FRHICommandListImmediate& RHICmdList)
 			GetPooledFreeBuffer(RHICmdList, ClustersBufferDesc, PostPassBuffers.ScratchCandidateClustersBuffer, TEXT("PostPass.CandidateClusters"));
 		}
 
+		check(PrimaryVisibleClustersBuffer.IsValid());
 		check(ScratchVisibleClustersBuffer.IsValid());
 		check(MainPassBuffers.ScratchCandidateClustersBuffer.IsValid());
 		check(PostPassBuffers.ScratchCandidateClustersBuffer.IsValid());

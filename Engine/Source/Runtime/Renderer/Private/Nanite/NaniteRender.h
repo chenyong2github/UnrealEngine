@@ -455,7 +455,8 @@ FCullingContext	InitCullingContext(
 	bool bTwoPassOcclusion,
 	bool bUpdateStreaming,
 	bool bSupportsMultiplePasses,
-	bool bForceHWRaster
+	bool bForceHWRaster,
+	bool bPrimaryContext
 );
 
 FRasterContext InitRasterContext(

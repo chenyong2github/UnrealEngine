@@ -511,6 +511,7 @@ public:
 	TRefCountPtr<FPooledRDGBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
 
 #if NANITE_USE_SCRATCH_BUFFERS
+	TRefCountPtr<FPooledRDGBuffer>& GetPrimaryVisibleClustersBufferRef() { return PrimaryVisibleClustersBuffer; }
 	TRefCountPtr<FPooledRDGBuffer>& GetScratchVisibleClustersBufferRef() { return ScratchVisibleClustersBuffer; }
 	TRefCountPtr<FPooledRDGBuffer>& GetScratchOccludedInstancesBufferRef() { return ScratchOccludedInstancesBuffer; }
 #endif
@@ -530,6 +531,7 @@ private:
 	TRefCountPtr<FPooledRDGBuffer> StructureBufferStride8;
 
 #if NANITE_USE_SCRATCH_BUFFERS
+	TRefCountPtr<FPooledRDGBuffer> PrimaryVisibleClustersBuffer;
 	// Used for scratch memory (transient only)
 	TRefCountPtr<FPooledRDGBuffer> ScratchVisibleClustersBuffer;
 	TRefCountPtr<FPooledRDGBuffer> ScratchOccludedInstancesBuffer;

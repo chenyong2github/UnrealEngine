@@ -670,6 +670,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 			const bool bUpdateStreaming = false;
 			const bool bSupportsMultiplePasses = false;
 			const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+			const bool bPrimaryContext = false;
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
@@ -681,7 +682,8 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 					bTwoPassOcclusion,
 					bUpdateStreaming,
 					bSupportsMultiplePasses,
-					bForceHWRaster
+					bForceHWRaster,
+					bPrimaryContext
 				);
 				Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(Views[ViewIndex], HitProxyTextureSize);
 				Nanite::CullRasterize(GraphBuilder, *Scene, { PackedView }, CullingContext, RasterContext, RasterState);

@@ -2087,6 +2087,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			const bool bUpdateStreaming = true;
 			const bool bSupportsMultiplePasses = false;
 			const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+			const bool bPrimaryContext = true;
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
@@ -2100,7 +2101,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					bTwoPassOcclusion,
 					bUpdateStreaming,
 					bSupportsMultiplePasses,
-					bForceHWRaster);
+					bForceHWRaster,
+					bPrimaryContext);
 
 				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
 				const bool bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
@@ -3409,8 +3411,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
 			}
 		}
-			else
-			{
+		else
+		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				FViewInfo& View = Views[ViewIndex];

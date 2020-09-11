@@ -1757,12 +1757,13 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 
 					// Need separate passes for near clip on/off currently
 					const bool bSupportsMultiplePasses = (PackedViews.Num() > 0 && PackedViewsNoNearClip.Num() > 0);
+					const bool bPrimaryContext = false;
 
 					// NOTE: Rendering into an atlas like this is not going to work properly with HZB, but we are not currently using HZB here.
 					// It might be worthwhile going through the virtual SM rendering path even for "dense" cases even just for proper handling of all the details.
 					FIntRect FullAtlasViewRect(FIntPoint(0, 0), AtlasSize);
 					const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
-					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, nullptr, FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false);
+					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, nullptr, FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false, bPrimaryContext);
 					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, AtlasSize, Nanite::EOutputBufferMode::DepthOnly);
 							
 					
@@ -1991,6 +1992,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 						RasterState.bNearClip = false;
 					}
 
+					const bool bPrimaryContext = false;
+
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 						GraphBuilder,
 						*Scene,
@@ -1999,7 +2002,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 						false,
 						bUpdateStreaming,
 						false,
-						false
+						false,
+						bPrimaryContext
 					);
 
 					const bool bExtractStats = Nanite::IsStatFilterActive(VirtualFilterName);
@@ -2179,7 +2183,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 					check(ProjectedShadowInfo->ResolutionY == ShadowViewRect.Max.Y);
 					check(ProjectedShadowInfo->BorderSize == 0);
 					
-					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, nullptr, ShadowViewRect, true, bUpdateStreaming, false, false);
+					const bool bPrimaryContext = false;
+					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, nullptr, ShadowViewRect, true, bUpdateStreaming, false, false, bPrimaryContext);
 					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, TargetSize, Nanite::EOutputBufferMode::DepthOnly);
 
 					// Setup packed view

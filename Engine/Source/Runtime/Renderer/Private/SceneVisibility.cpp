@@ -41,6 +41,7 @@
 #include "RectLightSceneProxy.h"
 #include "Math/Halton.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
+#include "Algo/Unique.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -2470,7 +2471,7 @@ struct FRelevancePacket
 			{
 				if (EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds.Num())
 				{
-					TotalHitProxiesToAdd += EditorSelectedPrimitives.Prims[Idx]->HitProxies.Num();
+					TotalHitProxiesToAdd += EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds.Num();
 				}
 			}
 
@@ -2478,12 +2479,9 @@ struct FRelevancePacket
 
 			for (int32 Idx = 0; Idx < EditorSelectedPrimitives.NumPrims; ++Idx)
 			{
-				if (EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds.Num())
+				for (uint32 IdValue : EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds)
 				{
-					for (HHitProxy* HitProxy : EditorSelectedPrimitives.Prims[Idx]->HitProxies)
-					{
-						WriteView.EditorSelectedHitProxyIds.Add(HitProxy->Id.GetColor().DWColor());
-					}
+					WriteView.EditorSelectedHitProxyIds.Add(IdValue);
 				}
 			}
 		}
@@ -3745,13 +3743,8 @@ static void UpdateEditorSelectedHitProxyIds(
 		FDynamicReadBuffer& EditorSelectedBuffer = View.EditorSelectedBuffer;
 
 		Algo::Sort(EditorSelectedHitProxyIds);
-
-		// TODO: We should implement something akin to std::unique that removes
-		//       duplicate hit proxy IDs from EditorSelectedHitProxyIds so the
-		//       GPU based search in Nanite has less to search through. The list
-		//       is already sorted at this point, so a linear walk that copies unique
-		//       values over duplicates and trims array length when the walk finishes
-		//       should do the trick here.
+		int32 EndIndex = Algo::Unique(EditorSelectedHitProxyIds);
+		EditorSelectedHitProxyIds.RemoveAt(EndIndex, EditorSelectedHitProxyIds.Num() - EndIndex);
 
 		uint32 EditorSelectedCount = EditorSelectedHitProxyIds.Num();
 		uint32 EditorSelectedBufferCount = FMath::Max(FMath::RoundUpToPowerOfTwo(EditorSelectedCount), 1u);

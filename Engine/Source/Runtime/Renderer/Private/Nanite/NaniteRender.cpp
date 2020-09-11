@@ -2110,7 +2110,8 @@ FCullingContext InitCullingContext(
 	bool bTwoPassOcclusion,
 	bool bUpdateStreaming,
 	bool bSupportsMultiplePasses,
-	bool bForceHWRaster
+	bool bForceHWRaster,
+	bool bPrimaryContext
 	)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
@@ -2192,7 +2193,14 @@ FCullingContext InitCullingContext(
 	CullingContext.MainAndPostPassPersistentStates		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 12, 2 ), TEXT("MainAndPostPassPersistentStates") );
 
 #if NANITE_USE_SCRATCH_BUFFERS
-	CullingContext.VisibleClustersSWHW					= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchVisibleClustersBufferRef(), TEXT("VisibleClustersSWHW"));
+	if (bPrimaryContext)
+	{
+		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetPrimaryVisibleClustersBufferRef(), TEXT("VisibleClustersSWHW"));
+	}
+	else
+	{
+		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchVisibleClustersBufferRef(), TEXT("VisibleClustersSWHW"));
+	}
 	CullingContext.MainPass.CandidateClusters			= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetMainPassBuffers().ScratchCandidateClustersBuffer, TEXT("MainPass.CandidateClusters"));
 #else
 	FRDGBufferDesc VisibleClustersDesc					= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxClusters());	// Max clusters * sizeof(uint3)
@@ -4762,12 +4770,12 @@ void GetEditorSelectionPassParameters(
 
 	OutPassParameters->View						= View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
+	OutPassParameters->MaxClusters				= Nanite::FGlobalResources::GetMaxClusters();
 	OutPassParameters->SOAStrides				= NaniteRasterResults->SOAStrides;
 	OutPassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 	OutPassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64				= VisBuffer64;
-	//TODO Zabir - which view to pick here?
-	OutPassParameters->MaterialHitProxyTable	= Scene.MaterialTables[0].GetHitProxyTableSRV();
+	OutPassParameters->MaterialHitProxyTable	= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	OutPassParameters->OutputToInputScale		= FVector2D(View.ViewRect.Size()) / FVector2D(ViewportRect.Size());
 }
 

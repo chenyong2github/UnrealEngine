@@ -2078,6 +2078,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 				const bool bUpdateStreaming = false;
 				const bool bSupportsMultiplePasses = true;
 				const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+				const bool bPrimaryContext = false;
 
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
@@ -2087,7 +2088,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 					false,
 					bUpdateStreaming,
 					bSupportsMultiplePasses,
-					bForceHWRaster);
+					bForceHWRaster,
+					bPrimaryContext);
 
 				static bool bUseMultiViewPath = true;
 				if(bUseMultiViewPath)
