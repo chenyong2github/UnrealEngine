@@ -3535,7 +3535,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 		NewSortEntry.CubemapIndex = -1;
 		NewSortEntry.CaptureOffsetAndAverageBrightness = FVector4(CurrentCapture->CaptureOffset, 1.0f);
 		NewSortEntry.CaptureProxy = CurrentCapture;
-		if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+		if (SupportsTextureCubeArray(Scene->GetFeatureLevel()))
 		{
 			FCaptureComponentSceneState* ComponentStatePtr = ReflectionSceneData.AllocatedReflectionCaptureState.Find(CurrentCapture->Component);
 			if (!ComponentStatePtr)
