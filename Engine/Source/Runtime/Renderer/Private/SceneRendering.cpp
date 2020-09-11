@@ -1685,11 +1685,20 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 		else
 		{
-			const FRWBufferStructured& ViewPrimitiveShaderDataBuffer = ViewState ? ViewState->PrimitiveShaderDataBuffer : OneFramePrimitiveShaderDataBuffer;
+			const FRWBufferStructured* ViewPrimitiveShaderDataBuffer = nullptr;
 
-			if (ViewPrimitiveShaderDataBuffer.SRV)
+			if (DynamicPrimitiveShaderData.Num() > 0)
 			{
-				ViewUniformShaderParameters.PrimitiveSceneData = ViewPrimitiveShaderDataBuffer.SRV;
+				ViewPrimitiveShaderDataBuffer = ViewState ? &ViewState->PrimitiveShaderDataBuffer : &OneFramePrimitiveShaderDataBuffer;
+			}
+			else if (Scene)
+			{
+				ViewPrimitiveShaderDataBuffer = &Scene->GPUScene.PrimitiveBuffer;
+			}
+
+			if (ViewPrimitiveShaderDataBuffer && ViewPrimitiveShaderDataBuffer->SRV)
+			{
+				ViewUniformShaderParameters.PrimitiveSceneData = ViewPrimitiveShaderDataBuffer->SRV;
 			}
 		}
 
@@ -1699,8 +1708,20 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 		else
 		{
-			const FTextureRWBuffer2D& ViewPrimitiveShaderDataTexture = ViewState ? ViewState->PrimitiveShaderDataTexture : OneFramePrimitiveShaderDataTexture;
-			ViewUniformShaderParameters.PrimitiveSceneDataTexture = OrBlack2DIfNull(ViewPrimitiveShaderDataTexture.Buffer);
+			const FTextureRWBuffer2D* ViewPrimitiveShaderDataTexture = nullptr;
+			if (DynamicPrimitiveShaderData.Num() > 0)
+			{
+				ViewPrimitiveShaderDataTexture = ViewState ? &ViewState->PrimitiveShaderDataTexture : &OneFramePrimitiveShaderDataTexture;
+			}
+			else if (Scene)
+			{
+				ViewPrimitiveShaderDataTexture = &Scene->GPUScene.PrimitiveTexture;
+			}
+
+			if (ViewPrimitiveShaderDataTexture)
+			{
+				ViewUniformShaderParameters.PrimitiveSceneDataTexture = OrBlack2DIfNull(ViewPrimitiveShaderDataTexture->Buffer);
+			}
 		}
 		
 		if (LightmapSceneDataOverrideSRV)
