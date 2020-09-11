@@ -11,9 +11,11 @@
 #include "MovieScene.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 #include "SkeletalDebugRendering.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationTrack"
 
@@ -286,6 +288,12 @@ static void CalculateDistanceMap(USkeletalMeshComponent* SkelMeshComp, UAnimSequ
 	FCSPose<FCompactPose> FirstMeshPoses, SecondMeshPoses;
 	FirstAnimPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
 	SecondAnimPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
+
+	FBlendedCurve FirstOutCurve, SecondOutCurve;
+	FStackCustomAttributes FirstTempAttributes, SecondTempAttributes;
+	FAnimationPoseData FirstAnimPoseData(FirstAnimPose, FirstOutCurve, FirstTempAttributes);
+	FAnimationPoseData SecondAnimPoseData(SecondAnimPose, SecondOutCurve, SecondTempAttributes);
+
 	//sort by bone lengths just do the first half
 	//this should avoid us overvalueing to many small values.
 	/*
@@ -303,15 +311,15 @@ static void CalculateDistanceMap(USkeletalMeshComponent* SkelMeshComp, UAnimSequ
 		});
 		*/
 	FBlendedCurve OutCurve;
-	const FBoneContainer& RequiredBones = FirstAnimPose.GetBoneContainer();
+	const FBoneContainer& RequiredBones = FirstAnimPoseData.GetPose().GetBoneContainer();
 	for (TArray<float>& FloatArray : OutDistanceDifferences)
 	{
 		FloatArray.SetNum(SecondAnimNumFrames);
 		float FirstAnimTime = FirstAnimIndex * FrameRateDiff + StartFirstAnimTime;
 		FirstAnimIndex += 1.0f;
 		FAnimExtractContext FirstExtractionContext(FirstAnimTime, false);
-		FirstAnimSeq->GetAnimationPose(FirstAnimPose, OutCurve, FirstExtractionContext);
-		FirstMeshPoses.InitPose(FirstAnimPose);
+		FirstAnimSeq->GetAnimationPose(FirstAnimPoseData, FirstExtractionContext);
+		FirstMeshPoses.InitPose(FirstAnimPoseData.GetPose());
 		float SecondAnimIndex = 0.0f;
 		for (float& DistVal : FloatArray)
 		{
@@ -319,11 +327,11 @@ static void CalculateDistanceMap(USkeletalMeshComponent* SkelMeshComp, UAnimSequ
 			float SecondAnimTime = SecondAnimIndex * FrameRateDiff;
 			SecondAnimIndex += 1.0f;
 			FAnimExtractContext SecondExtractionContext(SecondAnimTime, false);
-			SecondAnimSeq->GetAnimationPose(SecondAnimPose, OutCurve, SecondExtractionContext);
-			SecondMeshPoses.InitPose(SecondAnimPose);
+			SecondAnimSeq->GetAnimationPose(SecondAnimPoseData, SecondExtractionContext);
+			SecondMeshPoses.InitPose(SecondAnimPoseData.GetPose());
 
 			float DiffVal = 0.0f;
-			for (FCompactPoseBoneIndex PoseBoneIndex : FirstAnimPose.ForEachBoneIndex())
+			for (FCompactPoseBoneIndex PoseBoneIndex : FirstAnimPoseData.GetPose().ForEachBoneIndex())
 			{
 				FTransform FirstTransform = FirstMeshPoses.GetComponentSpaceTransform(PoseBoneIndex);
 				FTransform SecondTransform = SecondMeshPoses.GetComponentSpaceTransform(PoseBoneIndex);
