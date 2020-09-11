@@ -158,6 +158,7 @@ void FAnimNode_LinkedAnimGraph::Evaluate_AnyThread(FPoseContext& Output)
 		// Move the curves
 		Output.Curve.MoveFrom(EvaluationContext.Curve);
 		Output.Pose.MoveBonesFrom(EvaluationContext.Pose);
+		Output.CustomAttributes.MoveFrom(EvaluationContext.CustomAttributes);
 	}
 	else if(InputPoses.Num() > 0)
 	{

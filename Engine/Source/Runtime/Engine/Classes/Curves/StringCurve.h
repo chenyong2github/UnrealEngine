@@ -206,6 +206,8 @@ public:
 	 */
 	FKeyHandle UpdateOrAddKey(float InTime, const FString& InValue, float KeyTimeTolerance = KINDA_SMALL_NUMBER);
 
+	/** Tries to reduce the number of keys required for accurate evaluation (removing duplicates) */
+	void RemoveRedundantKeys();
 public:
 
 	//~ FIndexedCurve interface

@@ -47,11 +47,13 @@ void FAnimNode_LinkedInputPose::Evaluate_AnyThread(FPoseContext& Output)
 
 		Output.Pose.MoveBonesFrom(InputContext.Pose);
 		Output.Curve.MoveFrom(InputContext.Curve);
+		Output.CustomAttributes.MoveFrom(InputContext.CustomAttributes);
 	}
 	else if(CachedInputPose.IsValid() && CachedInputCurve.IsValid())
 	{
 		Output.Pose.CopyBonesFrom(CachedInputPose);
 		Output.Curve.CopyFrom(CachedInputCurve);
+		Output.CustomAttributes.CopyFrom(CachedAttributes);
 	}
 	else
 	{

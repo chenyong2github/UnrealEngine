@@ -1314,7 +1314,7 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 						return InProperty.Get<float>() * ValueScale;
 					}
 				});
-				TargetSequence->Stub_AddBoneFloatCustomAttribute(BoneName, FName(CurveName), TimeArray, FloatValues);
+				TargetSequence->AddBoneFloatCustomAttribute(BoneName, FName(CurveName), TimeArray, FloatValues);
 				break;
 			}
 			case EFbxType::eFbxBool:
@@ -1334,7 +1334,7 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 						return static_cast<int32>(InProperty.Get<int32>() * ValueScale);
 					}
 				});
-				TargetSequence->Stub_AddBoneIntegerCustomAttribute(BoneName, FName(CurveName), TimeArray, IntValues);
+				TargetSequence->AddBoneIntegerCustomAttribute(BoneName, FName(CurveName), TimeArray, IntValues);
 				break;
 			}
 			case EFbxType::eFbxString:
@@ -1354,7 +1354,7 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 						return FString(UTF8_TO_TCHAR(InProperty.Get<FbxString>()));
 					}
 				});
-				TargetSequence->Stub_AddBoneStringCustomAttribute(BoneName, FName(CurveName), TimeArray, StringValues);
+				TargetSequence->AddBoneStringCustomAttribute(BoneName, FName(CurveName), TimeArray, StringValues);
 				break;
 			}
 			case EFbxType::eFbxDouble:

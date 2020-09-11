@@ -43,6 +43,7 @@ struct ENGINE_API FAnimNode_LinkedInputPose : public FAnimNode_Base
 	 */
 	FCompactHeapPose CachedInputPose;
 	FBlendedHeapCurve CachedInputCurve;
+	FHeapCustomAttributes CachedAttributes;
 
 	// The node index of the currently-linked outer node
 	int32 OuterGraphNodeIndex;

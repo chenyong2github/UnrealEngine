@@ -92,7 +92,9 @@ void FAnimNode_AimOffsetLookAt::Evaluate_AnyThread(FPoseContext& Context)
 		FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(MeshSpaceRotationAdditivePoseContext);
 
 		// Accumulate poses together
-		FAnimationRuntime::AccumulateMeshSpaceRotationAdditiveToLocalPose(Context.Pose, MeshSpaceRotationAdditivePoseContext.Pose, Context.Curve, MeshSpaceRotationAdditivePoseContext.Curve, Alpha);
+		FAnimationPoseData BaseAnimationPoseData(Context);
+		const FAnimationPoseData AdditiveAnimationPoseData(MeshSpaceRotationAdditivePoseContext);
+		FAnimationRuntime::AccumulateMeshSpaceRotationAdditiveToLocalPose(BaseAnimationPoseData, AdditiveAnimationPoseData, Alpha);
 
 		// Resulting rotations are not normalized, so normalize here.
 		Context.Pose.NormalizeRotations();
