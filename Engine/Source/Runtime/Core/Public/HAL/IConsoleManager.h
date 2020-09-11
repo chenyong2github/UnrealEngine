@@ -1019,6 +1019,19 @@ public:
 	}
 
 	/**
+	 * Create a bool console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Callback Delegate called when the variable changes. @see IConsoleVariable::SetOnChangedCallback
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	FAutoConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, const FConsoleVariableDelegate& Callback, uint32 Flags = ECVF_Default)
+		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
+	{
+		AsVariable()->SetOnChangedCallback(Callback);
+	}
+	
+	/**
 	 * Create a int console variable
 	 * @param Name must not be 0
 	 * @param Help must not be 0
