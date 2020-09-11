@@ -77,7 +77,7 @@ private:
 
 	FName SelectedProfileName;
 
-	TWeakPtr<class IEditableSkeleton> EditableSkeleton;
+	TSharedPtr<class IEditableSkeleton> EditableSkeleton;
 
 	FOnBlendProfileSelected BlendProfileSelectedDelegate;
 
