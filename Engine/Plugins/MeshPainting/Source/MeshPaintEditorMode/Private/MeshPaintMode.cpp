@@ -345,11 +345,11 @@ void UMeshPaintMode::OnVertexPaintFinished()
 		{
 			if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
 			{
+				UpdateCachedVertexDataSize();
 				MeshToolManager->Refresh();
 			}
 		}
 	}
-	UpdateCachedVertexDataSize();
 }
 
 void UMeshPaintMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -694,7 +694,7 @@ void UMeshPaintMode::PropagateVertexColorsToLODs()
 			FComponentReregisterContext ReregisterContext(SelectedComponent);
 		}
 	}
-
+	UpdateCachedVertexDataSize();
 	MeshToolManager->Refresh();
 }
 
