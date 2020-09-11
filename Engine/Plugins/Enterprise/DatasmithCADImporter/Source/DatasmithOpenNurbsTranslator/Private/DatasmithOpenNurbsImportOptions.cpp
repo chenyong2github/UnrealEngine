@@ -10,7 +10,8 @@
 #define LOCTEXT_NAMESPACE "DatasmithOpenNurbsImportPlugin"
 
 #if WITH_EDITOR
-bool UDatasmithOpenNurbsImportOptions::CanEditChange(const FProperty* InProperty)
+
+bool UDatasmithOpenNurbsImportOptions::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty) || !InProperty)
 	{
@@ -23,7 +24,6 @@ bool UDatasmithOpenNurbsImportOptions::CanEditChange(const FProperty* InProperty
 	{
 		if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
 		{
-			Options.Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes;
 			return false;
 		}
 		return true;
