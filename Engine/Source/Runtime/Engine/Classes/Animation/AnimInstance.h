@@ -793,6 +793,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
 	UAnimInstance* GetLinkedAnimLayerInstanceByGroup(FName InGroup) const;
 
+	/** Runs through all nodes, attempting to find all distinct layer linked instances in the group */
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	void GetLinkedAnimLayerInstancesByGroup(FName InGroup, TArray<UAnimInstance*>& OutLinkedInstances) const;
+
+	/** Gets layer linked instance that matches group and class */
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	UAnimInstance* GetLinkedAnimLayerInstanceByGroupAndClass(FName InGroup, TSubclassOf<UAnimInstance> InClass) const;
+
 	UE_DEPRECATED(4.24, "Function renamed, please use GetLinkedAnimLayerInstanceByClass")
 	UAnimInstance* GetLayerSubInstanceByClass(TSubclassOf<UAnimInstance> InClass) const { return GetLinkedAnimLayerInstanceByClass(InClass); }
 
