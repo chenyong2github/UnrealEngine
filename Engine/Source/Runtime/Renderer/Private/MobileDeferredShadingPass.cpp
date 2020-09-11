@@ -83,7 +83,7 @@ class FMobileDeferredShadingPS : public FGlobalShader
 	{
 		bool bApplySky = View.Family->EngineShowFlags.SkyLighting;
 		int32 ShadowQuality = (int32)GetShadowQuality();
-		int NumReflectionCaptures = View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures;
+		int32 NumReflectionCaptures = View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures;
 
 		FPermutationDomain PermutationVector;
 		PermutationVector.Set<FMobileDeferredShadingPS::FUseClustred>(GMobileUseClusteredDeferredShading != 0);
