@@ -19,15 +19,21 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	
 private:
+	float GetFullBarWidth() const;
 	FOptionalSize GetVisualizationBrushWidth() const;
 	FOptionalSize GetPlaceholderBrushWidth() const;
-	FLinearColor GetBrushUsageColor() const;
+	FLinearColor GetVisualizationBrushColor() const;
+	FLinearColor GetPlaceholderBrushColor() const;
 	bool HasPerformanceData() const;
+	bool IsSystemStack() const;
+	bool IsEmitterStack() const;
+	bool IsParticleStack() const;
 	EVisibility IsVisible() const;
 	FText GetPerformanceDisplayText() const;
 	FText GetEvalTypeDisplayText() const;
 	FSlateColor GetPerformanceDisplayTextColor() const;
 	FSlateFontInfo GetPerformanceDisplayTextFont() const;
+	FText CreateTooltipText() const;
 
 	bool IsGroupHeaderEntry() const;
 	bool IsModuleEntry() const;
@@ -35,8 +41,9 @@ private:
 	UNiagaraEmitter* GetEmitter() const;
 	ENiagaraScriptUsage GetUsage() const;
 	ENiagaraStatEvaluationType GetEvaluationType() const;
-
-	float CalculateGroupOverallTime() const;
+	bool IsInterpolatedSpawnEnabled() const;
+	
+	float CalculateGroupOverallTime(FString StatScopeName) const;
 	float CalculateStackEntryTime() const;
 
 	mutable TOptional<FText> IconToolTipCache;
@@ -45,4 +52,5 @@ private:
 
 	float GroupOverallTime = 0;
 	float StackEntryTime = 0;
+	float UpdateInSpawnTime = 0;
 };

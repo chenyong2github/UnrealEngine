@@ -801,6 +801,35 @@ enum ENiagaraBindingSource
 	MaxBindingSource
 };
 
+#if STATS
+/** Combines all stat reporting and evaluation of niagara instances (emitter or system).
+ * This is then used by the SNiagaraStackRowPerfWidget to display the data in the ui.
+ */
+struct NIAGARA_API FNiagaraStatDatabase
+{
+	typedef TTuple<uint64, ENiagaraScriptUsage> FStatReportKey;
+
+	/* Used by emitter and system instances to add the recorded data of a frame to this emitter's data store. */
+	void AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData);
+
+	/* Removes all captured stats. */
+	void ClearStatCaptures();
+
+	/* Returns the average runtime cost of a specific module call inside the script for the given usage. Returns 0 if no data was found. */
+	float GetRuntimeStat(FName StatName, ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
+
+	/* Returns the average runtime cost of a script for the given usage. Returns 0 if no data was recorded for that usage. */
+	float GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
+
+	/* Returns the names of all captures stat data points. Useful for debugging and to dump the stat data. */
+	TMap<ENiagaraScriptUsage, TSet<FName>> GetAvailableStatNames();
+
+private:
+	/** The captured runtime stat data. The first key is a combination of reporter handle and script usage, the second key is the stat id which correlates to a single recorded scope. */
+	TMap<FStatReportKey, TMap<TStatIdData const*, float>> StatCaptures;
+	FCriticalSection CriticalSection;
+};
+#endif
 
 /** Defines all you need to know about a variable.*/
 USTRUCT()
