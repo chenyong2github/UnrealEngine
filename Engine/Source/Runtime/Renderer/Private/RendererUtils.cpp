@@ -13,7 +13,7 @@ public:
 	static const uint32 ThreadGroupSizeX = 8;
 	static const uint32 ThreadGroupSizeY = 8;
 
-	class FNumRenderTargets : SHADER_PERMUTATION_INT("NUM_RENDER_TARGETS", MaxRenderTargetCount);
+	class FNumRenderTargets : SHADER_PERMUTATION_INT("NUM_RENDER_TARGETS", MaxRenderTargetCount + 1);
 	using FPermutationDomain = TShaderPermutationDomain<FNumRenderTargets>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
