@@ -34,13 +34,13 @@ FString CreateCommandDeclinedMessage(const FGuid& InMessageID, const FString& In
 	return CreateMessage(TEXT("command accepted"), false, { { TEXT("id"), InMessageID.ToString() }, {TEXT("error"), InErrorMessage} });
 }
 
-FString CreateProgramStartedMessage(const FString& InProgramID)
+FString CreateProgramStartedMessage(const FString& InProgramID, const FString& InMessageID)
 {
-	return CreateMessage(TEXT("program started"), true, { { TEXT("program id"), InProgramID } });
+	return CreateMessage(TEXT("program started"), true, { { TEXT("program id"), InProgramID }, { TEXT("message id"), InMessageID } });
 }
-FString CreateProgramStartFailedMessage(const FString& InErrorMessage)
+FString CreateProgramStartFailedMessage(const FString& InErrorMessage, const FString& InMessageID)
 {
-	return CreateMessage(TEXT("program started"), false, { { TEXT("error"), InErrorMessage } });
+	return CreateMessage(TEXT("program started"), false, { { TEXT("error"), InErrorMessage }, { TEXT("message id"), InMessageID } });
 }
 
 FString CreateProgramKilledMessage(const FString& InProgramID)
@@ -97,14 +97,24 @@ FString CreateVcsSyncFailedMessage(const FString& InErrorMessage)
 	return CreateMessage(TEXT("vcs sync complete"), false, { { TEXT("error"), InErrorMessage } });
 }
 
-FString CreateFileTransferCompletedMessage(const FString& InDestinationPath)
+FString CreateReceiveFileFromClientCompletedMessage(const FString& InDestinationPath)
 {
-	return CreateMessage(TEXT("transfer file complete"), true, { { TEXT("destination"), InDestinationPath } });
+	return CreateMessage(TEXT("send file complete"), true, { { TEXT("destination"), InDestinationPath } });
 }
 
-FString CreateFileTransferFailedMessage(const FString& InDestinationPath, const FString& InError)
+FString CreateReceiveFileFromClientFailedMessage(const FString& InDestinationPath, const FString& InError)
 {
-	return CreateMessage(TEXT("transfer file complete"), false, { { TEXT("destination"), InDestinationPath }, {TEXT("error"), InError } });
+	return CreateMessage(TEXT("send file complete"), false, { { TEXT("destination"), InDestinationPath }, { TEXT("error"), InError } });
+}
+
+FString CreateSendFileToClientCompletedMessage(const FString& InSourcePath, const FString& InFileContent)
+{
+	return CreateMessage(TEXT("receive file complete"), true, { { TEXT("source"), InSourcePath }, { TEXT("content"), InFileContent } });
+}
+
+FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const FString& InError)
+{
+	return CreateMessage(TEXT("receive file complete"), false, { { TEXT("source"), InSourcePath }, { TEXT("error"), InError } });
 }
 
 
@@ -156,14 +166,24 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		OutTask = MakeUnique<FSwitchboardKillAllTask>(MessageID, InEndpoint);
 		return true;
 	}
-	else if (CommandName == TEXT("transfer file"))
+	else if (CommandName == TEXT("send file"))
 	{
 		TSharedPtr<FJsonValue> DestinationField = JsonData->TryGetField(TEXT("destination"));
 		TSharedPtr<FJsonValue> FileContentField = JsonData->TryGetField(TEXT("content"));
 		
 		if (DestinationField.IsValid() && FileContentField.IsValid())
 		{
-			OutTask = MakeUnique<FSwitchboardTransferFileTask>(MessageID, InEndpoint, DestinationField->AsString(), FileContentField->AsString());
+			OutTask = MakeUnique<FSwitchboardReceiveFileFromClientTask>(MessageID, InEndpoint, DestinationField->AsString(), FileContentField->AsString());
+			return true;
+		}
+	}
+	else if (CommandName == TEXT("receive file"))
+	{
+		TSharedPtr<FJsonValue> SourceField = JsonData->TryGetField(TEXT("source"));
+
+		if (SourceField.IsValid())
+		{
+			OutTask = MakeUnique<FSwitchboardSendFileToClientTask>(MessageID, InEndpoint, SourceField->AsString());
 			return true;
 		}
 	}
