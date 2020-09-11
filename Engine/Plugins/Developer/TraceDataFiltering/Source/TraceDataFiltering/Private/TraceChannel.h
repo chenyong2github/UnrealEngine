@@ -9,12 +9,13 @@ class ISessionTraceFilterService;
 class FTraceChannel : public ITraceObject
 {
 public:
-	FTraceChannel(FString InName, FString InParentName, uint32 InHash, bool bInEnabled, const TArray<TSharedPtr<ITraceObject>>& InChildObjects, TSharedPtr<ISessionTraceFilterService> InFilterService);
+	FTraceChannel(FString InName, FString InParentName, uint32 InHash, bool bInEnabled, bool bInCmdLineOnly, const TArray<TSharedPtr<ITraceObject>>& InChildObjects, TSharedPtr<ISessionTraceFilterService> InFilterService);
 
 	/** Begin ITraceObject overrides */
 	virtual FText GetDisplayText() const override;;
 	virtual FString GetName() const;
 	virtual void SetPending() override;
+	virtual bool IsReadOnly() const;
 	virtual void SetIsFiltered(bool bState) override;
 	virtual bool IsFiltered() const override;
 	virtual bool IsPending() const override;
@@ -34,6 +35,7 @@ protected:
 	/** Whether or not this channel is filtered out, true = filtered; false = not filtered */
 	bool bFiltered;
 	bool bIsPending;	
+	bool bReadOnly;
 
 	TSharedPtr<ISessionTraceFilterService> FilterService;
 };
