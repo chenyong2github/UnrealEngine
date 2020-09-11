@@ -930,7 +930,7 @@ public:
 
 		if (HairVisibilityData && HairVisibilityData->CategorizationTexture)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetRenderTargetItem().ShaderResourceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
 
 			float DeviceZNear = 1;
 			float DeviceZFar = 0;
@@ -1378,7 +1378,7 @@ public:
 
 		if (bUseSubPixel && HairVisibilityData && HairVisibilityData->CategorizationTexture)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetRenderTargetItem().ShaderResourceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
 		}
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
