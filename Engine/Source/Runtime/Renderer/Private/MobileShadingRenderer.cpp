@@ -582,8 +582,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bDeferredShading)
 	{
 		GatherAndSortLights(SortedLightSet);
+		int32 NumReflectionCaptures = View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures;
+		bool bCullLightsToGrid = (NumReflectionCaptures > 0 || GMobileUseClusteredDeferredShading != 0);
 		FRDGBuilder GraphBuilder(RHICmdList);
-		ComputeLightGrid(GraphBuilder, true, SortedLightSet);
+		ComputeLightGrid(GraphBuilder, bCullLightsToGrid, SortedLightSet);
 		GraphBuilder.Execute();
 	}
 

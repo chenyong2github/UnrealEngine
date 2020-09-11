@@ -9,4 +9,6 @@ class FScene;
 class FViewInfo;
 struct FSortedLightSetSceneInfo;
 
+extern int32 GMobileUseClusteredDeferredShading;
+
 void MobileDeferredShadingPass(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View, const FSortedLightSetSceneInfo &SortedLightSet);
