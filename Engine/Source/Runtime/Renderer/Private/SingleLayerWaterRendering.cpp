@@ -656,13 +656,14 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	FRDGTextureMSAA SceneColorTexture,
 	FRDGTextureMSAA SceneDepthTexture,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> DepthOnlySceneTextures,
-	bool bShouldRenderVolumetricCloud)
+	bool bShouldRenderVolumetricCloud,
+	FSceneWithoutWaterTextures& SceneWithoutWaterTextures)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "SingleLayerWater");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SingleLayerWater);
 
 	// Copy the texture to be available for the water surface to refract
-	const FSceneWithoutWaterTextures SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, Views, SceneColorTexture.Resolve, SceneDepthTexture.Resolve);
+	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, Views, SceneColorTexture.Resolve, SceneDepthTexture.Resolve);
 
 	// Render height fog over the color buffer if it is allocated, e.g. SingleLayerWaterUsesSimpleShading is true which is not the case on Switch.
 	if (SceneWithoutWaterTextures.ColorTexture && ShouldRenderFog(ViewFamily))
