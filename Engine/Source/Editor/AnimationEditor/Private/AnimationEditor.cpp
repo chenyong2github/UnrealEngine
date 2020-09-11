@@ -436,6 +436,14 @@ TSharedPtr<SDockTab> FAnimationEditor::OpenNewAnimationDocumentTab(UAnimationAss
 				.Label(NameAttribute)
 				.TabRole(ETabRole::DocumentTab)
 				.TabColorScale(GetTabColorScale())
+				.OnTabClosed_Lambda([this](TSharedRef<SDockTab> InTab)
+				{
+					TSharedPtr<SDockTab> CurveTab = AnimCurveDocumentTab.Pin();
+					if(CurveTab.IsValid())
+					{
+						CurveTab->RequestCloseTab();
+					}
+				})
 				[
 					TabContents
 				];
