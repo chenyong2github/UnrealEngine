@@ -43,6 +43,7 @@ struct ENGINE_API FEdGraphTerminalType
 		, TerminalSubCategoryObject(nullptr)
 		, bTerminalIsConst(false)
 		, bTerminalIsWeakPointer(false)
+		, bTerminalIsUObjectWrapper(false)
 	{
 	}
 
@@ -65,6 +66,10 @@ struct ENGINE_API FEdGraphTerminalType
 	/** Whether or not this is a weak reference */
 	UPROPERTY()
 	bool bTerminalIsWeakPointer;
+
+	/** Whether or not this is a "wrapped" Unreal object ptr type (e.g. TSubclassOf<T> instead of UClass*) */
+	UPROPERTY()
+	bool bTerminalIsUObjectWrapper;
 
 	/** Creates a TerminalType from the primary portion of the PinType */
 	static FEdGraphTerminalType FromPinType(const FEdGraphPinType& PinType);

@@ -3369,6 +3369,12 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const FProperty* Property, /*ou
 		{
 			return false;
 		}
+
+		// Ensure that the value term will be identified as a wrapper type if the source property has that flag set.
+		if(MapProperty->ValueProp->HasAllPropertyFlags(CPF_UObjectWrapper))
+		{
+			TypeOut.PinValueType.bTerminalIsUObjectWrapper = true;
+		}
 	}
 	else if (SetProperty)
 	{
@@ -3381,6 +3387,9 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const FProperty* Property, /*ou
 	TypeOut.ContainerType = FEdGraphPinType::ToPinContainerType(ArrayProperty != nullptr, SetProperty != nullptr, MapProperty != nullptr);
 	TypeOut.bIsReference = Property->HasAllPropertyFlags(CPF_OutParm|CPF_ReferenceParm);
 	TypeOut.bIsConst     = Property->HasAllPropertyFlags(CPF_ConstParm);
+
+	// This flag will be set on the key/inner property for container types, so check the test property.
+	TypeOut.bIsUObjectWrapper = TestProperty->HasAllPropertyFlags(CPF_UObjectWrapper);
 
 	// Check to see if this is the wildcard property for the target container type
 	if(IsWildcardProperty(Property))
