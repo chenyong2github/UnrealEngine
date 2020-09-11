@@ -107,6 +107,10 @@ void UMeshInspectorTool::Setup()
 	AddToolPropertySource(MeshAnalysis);
 
 	UpdateVisualization();
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartTool", "Visualize various geometric properties and attributes of the Mesh"),
+		EToolMessageLevel::UserNotification);
 }
 
 

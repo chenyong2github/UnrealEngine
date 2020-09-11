@@ -503,7 +503,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPhysicsInspectorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSetCollisionGeometryTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginEditCollisionGeometryTool);
+		//ToolbarBuilder.AddToolBarButton(Commands.BeginEditCollisionGeometryTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginExtractCollisionGeometryTool);
 	}
 

@@ -36,7 +36,7 @@ public:
 	bool bVisible = true;
 
 	/** World-space scaling factor on the UV Layout */
-	UPROPERTY(EditAnywhere, Category = UVLayoutPreview)
+	UPROPERTY(EditAnywhere, Category = UVLayoutPreview, meta = (UIMin = "0.1", UIMax = "10.0", ClampMin = "0.0001", ClampMax = "1000"))
 	float ScaleFactor = 1.0;
 
 	/** Where should the UV layout be positioned relative to the target object, relative to camera */

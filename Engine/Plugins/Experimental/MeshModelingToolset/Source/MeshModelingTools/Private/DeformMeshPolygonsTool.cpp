@@ -933,6 +933,11 @@ void UDeformMeshPolygonsTool::Setup()
 		            "This object has a single PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."),
 		    EToolMessageLevel::UserWarning);
 	}
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("DeformMeshPolygonsToolDescription",
+			"Deform the mesh by directly manipulating (ie click-and-drag) the PolyGroup Edges/Faces/Vertices. "),
+		EToolMessageLevel::UserNotification);
 }
 
 void UDeformMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)

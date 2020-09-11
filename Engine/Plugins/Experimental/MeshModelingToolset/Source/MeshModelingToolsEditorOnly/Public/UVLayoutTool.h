@@ -68,7 +68,7 @@ public:
 	int TextureResolution = 1024;
 
 	/** Apply this uniform scaling to the UVs after any layout recalculation */
-	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "0.1", UIMax = "5.0", ClampPin = "0.0001", ClampMax = "10000") )
+	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "0.1", UIMax = "5.0", ClampMin = "0.0001", ClampMax = "10000") )
 	float UVScaleFactor = 1;
 
 	/** Apply this 2D translation to the UVs after any layout recalculation, and after scaling */
