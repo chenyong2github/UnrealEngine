@@ -29,7 +29,7 @@
 
 TSet<FString> STraceDataFilterWidget::LastExpandedObjectNames;
 
-STraceDataFilterWidget::STraceDataFilterWidget() : bNeedsTreeRefresh(false), bHighlightingPreset(false)
+STraceDataFilterWidget::STraceDataFilterWidget() : PreviousSessionHandle(INDEX_NONE), bNeedsTreeRefresh(false), bHighlightingPreset(false)
 {
 }
 
@@ -577,6 +577,8 @@ void STraceDataFilterWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSh
 	SessionFilterService = MakeShareable(new FSessionTraceFilterService(SessionHandle, AnalysisSession));
 #endif
 
+	PreviousSessionHandle = SessionHandle;
+
 	/** Refresh presets so config loaded state is directly applied */
 	OnPresetsChanged();
 	/** Refresh data driving the treeview */
@@ -731,7 +733,7 @@ void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 	else
 	{
 		if (AnalysisSession.IsValid())
-		{
+		{			
 			Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
 			if (StoreClient)
 			{
@@ -740,7 +742,7 @@ void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 				if (SessionCount > 0)
 				{
 					const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
-					if (SessionInfo)
+					if (SessionInfo && (!AnalysisSession->IsAnalysisComplete() || SessionInfo->GetTraceId() != PreviousSessionHandle))
 					{
 						SetCurrentAnalysisSession(SessionInfo->GetTraceId(), AnalysisSession.ToSharedRef());
 					}
