@@ -127,7 +127,7 @@ void USoundEffectPreset::UnregisterInstance(TSoundEffectPtr InEffectPtr)
 		// Message added to ensure to get additional debug info - Jira: FORT-309671
 		// Logging instead of using ensureMsgf to get info in shipping builds.  
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UE_LOG(LogAudio, Error, TEXT("Attempt to unregister sound effect outside of audio thread. Current thread id: %d. Named thread type: %d. Audio Thread Id: %d. Game Thread Id: %d."), FPlatformTLS::GetCurrentThreadId(), FTaskGraphInterface::Get().GetCurrentThreadIfKnown(), GAudioThreadId, GGameThreadId);
+		UE_LOG(LogAudio, Error, TEXT("Attempt to unregister sound effect outside of audio thread. Current thread id: %d. Named thread type: %d. Game Thread Id: %d."), FPlatformTLS::GetCurrentThreadId(), FTaskGraphInterface::Get().GetCurrentThreadIfKnown(), GGameThreadId);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }

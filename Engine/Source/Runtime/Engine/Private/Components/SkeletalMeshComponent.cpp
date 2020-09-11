@@ -2245,7 +2245,6 @@ void USkeletalMeshComponent::DispatchParallelEvaluationTasks(FActorComponentTick
 
 	if ( TickFunction )
 	{
-		TickFunction->GetCompletionHandle()->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 		TickFunction->GetCompletionHandle()->DontCompleteUntil(TickCompletionEvent);
 	}
 }

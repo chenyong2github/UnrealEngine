@@ -1244,36 +1244,6 @@ void FRenderCommandFence::Wait(bool bProcessGameThreadTasks) const
 }
 
 /**
- * List of tasks that must be completed before we start a render frame
- * Note, normally, you don't need the render command themselves in this list workers that queue render commands are usually sufficient
- */
-static FCompletionList FrameRenderPrerequisites;
-
-/**
- * Adds a task that must be completed either before the next scene draw or a flush rendering commands
- * Note, normally, you don't need the render command themselves in this list workers that queue render commands are usually sufficient
- * @param TaskToAdd, task to add as a pending render thread task
- */
-void AddFrameRenderPrerequisite(const FGraphEventRef& TaskToAdd)
-{
-	FrameRenderPrerequisites.Add(TaskToAdd);
-}
-
-/**
- * Gather the frame render prerequisites and make sure all render commands are at least queued
- */
-void AdvanceFrameRenderPrerequisite()
-{
-	checkSlow(IsInGameThread()); 
-	FGraphEventRef PendingComplete = FrameRenderPrerequisites.CreatePrerequisiteCompletionHandle(ENamedThreads::GameThread);
-	if (PendingComplete.GetReference())
-	{
-		GameThreadWaitForTask(PendingComplete);
-	}
-}
-
-
-/**
  * Waits for the rendering thread to finish executing all pending rendering commands.  Should only be used from the game thread.
  */
 void FlushRenderingCommands(bool bFlushDeferredDeletes)
@@ -1302,8 +1272,6 @@ void FlushRenderingCommands(bool bFlushDeferredDeletes)
 			EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes :
 			EImmediateFlushType::FlushRHIThreadFlushResources);
 	});
-
-	AdvanceFrameRenderPrerequisite();
 
 	// Find the objects which may be cleaned up once the rendering thread command queue has been flushed.
 	FPendingCleanupObjects* PendingCleanupObjects = GetPendingCleanupObjects();
