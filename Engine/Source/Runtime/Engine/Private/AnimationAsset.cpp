@@ -257,7 +257,7 @@ void UAnimationAsset::RemoveMetaData(const TArray<UAnimMetaData*> MetaDataInstan
 	MetaData.RemoveAll(
 		[&](UAnimMetaData* MetaDataInstance)
 	{
-		return MetaDataInstances.Find(MetaDataInstance);
+		return MetaDataInstances.Contains(MetaDataInstance);
 	});
 }
 
