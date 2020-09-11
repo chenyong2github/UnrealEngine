@@ -30,6 +30,13 @@ FAutoConsoleVariableRef CVarAllowGPUParticles(
 	TEXT("If true, allow the usage of GPU particles for Niagara."),
 	ECVF_Default);
 
+int32 GNiagaraMaxStatInstanceReports = 20;
+FAutoConsoleVariableRef CVarMaxStatInstanceReportss(
+    TEXT("fx.NiagaraMaxStatInstanceReports"),
+    GNiagaraMaxStatInstanceReports,
+    TEXT("The max number of different instances from which stat reports are aggregated."),
+    ECVF_Default);
+
 //////////////////////////////////////////////////////////////////////////
 
 FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* StructOrEnum)
@@ -338,6 +345,102 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+#if STATS
+void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData)
+{
+	if (CapturedData.Num() == 0)
+	{
+		return;
+	}
+	FScopeLock Lock(&CriticalSection);
+	if (StatCaptures.Num() > GNiagaraMaxStatInstanceReports)
+	{
+		// we don't need data from too many emitter instances. If we already have enough, delete an old data point.
+		TArray<FStatReportKey> Keys;
+		StatCaptures.GetKeys(Keys);
+		StatCaptures.Remove(Keys[FMath::RandHelper(Keys.Num())]);
+	}
+	StatCaptures.FindOrAdd(ReportKey) = CapturedData;
+}
+
+void FNiagaraStatDatabase::ClearStatCaptures()
+{
+	FScopeLock Lock(&CriticalSection);
+	StatCaptures.Empty();
+}
+
+float FNiagaraStatDatabase::GetRuntimeStat(FName StatName, ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType)
+{
+	FScopeLock Lock(&CriticalSection);
+	int32 ValueCount = 0;
+	float Sum = 0;
+	float Max = 0;
+	for (const auto& EmitterEntry : StatCaptures)
+	{
+		if (Usage != EmitterEntry.Key.Value)
+		{
+			continue;
+		}
+		for (const auto& StatEntry : EmitterEntry.Value)
+		{
+			if (MinimalNameToName(StatEntry.Key->Name) == StatName)
+			{
+				Max = FMath::Max(Max, StatEntry.Value);
+				Sum += StatEntry.Value;
+				ValueCount++;
+				break;
+			}
+		}
+	}
+	if (EvaluationType == ENiagaraStatEvaluationType::Maximum)
+	{
+		return Max;
+	}
+	return ValueCount == 0 ? 0 : Sum / ValueCount;
+}
+
+float FNiagaraStatDatabase::GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType)
+{
+	FScopeLock Lock(&CriticalSection);
+	int32 ValueCount = 0;
+	float Sum = 0;
+	float Max = 0;
+	for (const auto& EmitterEntry : StatCaptures)
+	{
+		if (Usage != EmitterEntry.Key.Value)
+		{
+			continue;
+		}
+		for (const auto& StatEntry : EmitterEntry.Value)
+		{
+			Max = FMath::Max(Max, StatEntry.Value);
+			Sum += StatEntry.Value;
+			ValueCount++;
+		}
+	}
+	if (EvaluationType == ENiagaraStatEvaluationType::Maximum)
+	{
+		return Max;
+	}
+	return ValueCount == 0 ? 0 : Sum / ValueCount;
+}
+
+TMap<ENiagaraScriptUsage, TSet<FName>> FNiagaraStatDatabase::GetAvailableStatNames()
+{
+	FScopeLock Lock(&CriticalSection);
+	TMap<ENiagaraScriptUsage, TSet<FName>> Result;
+	for (const auto& EmitterEntry : StatCaptures)
+	{
+		for (const auto& StatEntry : EmitterEntry.Value)
+		{
+			ENiagaraScriptUsage Usage = EmitterEntry.Key.Value; 
+			Result.FindOrAdd(Usage).Add(MinimalNameToName(StatEntry.Key->Name));
+		}
+	}
+	return Result;
+}
+#endif
 
 void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {

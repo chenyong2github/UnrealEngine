@@ -1268,7 +1268,10 @@ void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds()
 
 void FNiagaraSystemToolkit::ClearStatPerformance()
 {
+#if STATS
+	SystemViewModel->GetSystem().GetStatData().ClearStatCaptures();
 	SystemViewModel->ClearEmitterStats();
+#endif
 }
 
 void FNiagaraSystemToolkit::ToggleStatPerformance()

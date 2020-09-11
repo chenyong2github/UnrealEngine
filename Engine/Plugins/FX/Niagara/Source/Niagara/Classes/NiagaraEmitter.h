@@ -526,22 +526,7 @@ public:
 	/* This is used by the emitter instances to report runtime allocations to reduce reallocation in future simulation runs. */
 	int32 AddRuntimeAllocation(uint64 ReporterHandle, int32 AllocationCount);
 #if STATS
-	typedef TTuple<uint64, ENiagaraScriptUsage> FStatReportKey;
-
-	/* Used by emitter instances to add the recorded data of a frame to this emitter's data store. */
-	void AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData);
-
-	/* Removes all captured stats. */
-	NIAGARA_API void ClearStatCaptures();
-
-	/* Returns the average runtime cost of a specific module call inside the script for the given usage. Returns 0 if no data was found. */
-	NIAGARA_API float GetRuntimeStat(FName StatName, ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
-
-	/* Returns the average runtime cost of this emitter's script for the given usage. Returns 0 if no data was recorded for that usage. */
-	NIAGARA_API float GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
-
-	/* Returns the names of all captures stat data points. Useful for debugging and to dump the stat data. */
-	NIAGARA_API TMap<ENiagaraScriptUsage, TSet<FName>> GetAvailableStatNames();
+	NIAGARA_API FNiagaraStatDatabase& GetStatData() { return StatDatabase; }
 #endif
 
 	/* Returns the number of max expected particles for memory allocations. */
@@ -658,6 +643,7 @@ private:
 	mutable TStatId StatID_GT_CNC;
 	mutable TStatId StatID_RT;
 	mutable TStatId StatID_RT_CNC;
+	FNiagaraStatDatabase StatDatabase;
 #endif
 
 	/** Indicates that the GPU script requires the view uniform buffer. */
@@ -671,10 +657,6 @@ private:
 
 	MemoryRuntimeEstimation RuntimeEstimation;
 	FCriticalSection EstimationCriticalSection;
-#if STATS
-	/** The captured runtime stat data. The first key is a combination of emitter handle and script usage, the second key is the stat id which correlates to a single module call. */
-	TMap<FStatReportKey, TMap<TStatIdData const*, float>> StatCaptures;
-#endif
 
 	FNiagaraEmitterScalabilitySettings CurrentScalabilitySettings;
 
