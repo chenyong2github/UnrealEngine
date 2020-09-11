@@ -4447,11 +4447,6 @@ void StaticExit()
 	// Delete all linkers are pending destroy
 	DeleteLoaders();
 
-	// We'll be destroying objects without time limit during exit purge
-	// so doing it on a separate thread doesn't make anything faster,
-	// also the exit purge is not a standard GC pass so no need to overcompilcate things
-	GMultithreadedDestructionEnabled = false;
-
 	// Cleanup root.
 	if (GObjTransientPkg != NULL)
 	{
@@ -4470,6 +4465,11 @@ void StaticExit()
 	{
 		IncrementalPurgeGarbage(false);
 	}
+
+	// From now on we'll be destroying objects without time limit during exit purge
+	// so doing it on a separate thread doesn't make anything faster,
+	// also the exit purge is not a standard GC pass so no need to overcompilcate things
+	GMultithreadedDestructionEnabled = false;
 
 	// Make sure no other threads manipulate UObjects
 	AcquireGCLock();
