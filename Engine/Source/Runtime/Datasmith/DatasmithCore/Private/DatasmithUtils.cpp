@@ -989,6 +989,21 @@ namespace DatasmithSceneUtilsImpl
 							}
 						}
 					}
+					else if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::Generic))
+					{
+						const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast<IDatasmithMaterialExpressionGeneric*>(ExpressionElement);
+
+						for ( int32 PropertyIndex = 0; PropertyIndex < GenericExpression->GetPropertiesCount(); ++PropertyIndex )
+						{
+							if ( const TSharedPtr< IDatasmithKeyValueProperty >& Property = GenericExpression->GetProperty( PropertyIndex ) )
+							{
+								if ( Property->GetPropertyType() == EDatasmithKeyValuePropertyType::Texture )
+								{
+									this->ReferencedTextures.Add( Property->GetValue() );
+								}
+							}
+						}
+					}
 					else if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::FunctionCall))
 					{
 						const IDatasmithMaterialExpressionFunctionCall* FunctionExpression = static_cast<IDatasmithMaterialExpressionFunctionCall*>(ExpressionElement);
@@ -1002,6 +1017,7 @@ namespace DatasmithSceneUtilsImpl
 									TSharedPtr<IDatasmithBaseMaterialElement> MaterialElement = StaticCastSharedPtr<IDatasmithBaseMaterialElement>(*MaterialElementPtr);
 
 									this->ReferencedMaterials.Add(MaterialElement);
+									this->ScanPbrMaterialElement(static_cast< IDatasmithUEPbrMaterialElement* >( MaterialElement.Get() ));
 								}
 							}
 						}
@@ -1024,6 +1040,11 @@ namespace DatasmithSceneUtilsImpl
 			ParseExpressionElement(MaterialElement->GetAmbientOcclusion().GetExpression());
 			ParseExpressionElement(MaterialElement->GetOpacity().GetExpression());
 			ParseExpressionElement(MaterialElement->GetWorldDisplacement().GetExpression());
+
+			if ( MaterialElement->GetUseMaterialAttributes() )
+			{
+				ParseExpressionElement(MaterialElement->GetMaterialAttributes().GetExpression());
+			}			
 		}
 
 		void ScanCompositeTexture( IDatasmithCompositeTexture* CompositeTexture )
@@ -1126,7 +1147,8 @@ namespace DatasmithSceneUtilsImpl
 				ScanMeshElement(MeshElement);
 			}
 
-			for (TSharedPtr<IDatasmithBaseMaterialElement >& MaterialElement : ReferencedMaterials)
+			TSet< TSharedPtr<IDatasmithBaseMaterialElement > > CopyOfReferencedMaterials = ReferencedMaterials; // We might discover more referenced materials so iterate on a copy of the set
+			for (TSharedPtr<IDatasmithBaseMaterialElement >& MaterialElement : CopyOfReferencedMaterials)
 			{
 				if ( MaterialElement->IsA( EDatasmithElementType::UEPbrMaterial ) )
 				{
