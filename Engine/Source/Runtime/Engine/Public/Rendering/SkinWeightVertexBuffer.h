@@ -283,10 +283,10 @@ public:
 	{ return bUse16BitBoneIndex; }
 
 	GPUSkinBoneInfluenceType GetBoneInfluenceType() const;
-	bool GetRigidWeightBone(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, int32& OutBoneIndex) const;
-	uint32 GetBoneIndex(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const;
+	ENGINE_API bool GetRigidWeightBone(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, int32& OutBoneIndex) const;
+	ENGINE_API uint32 GetBoneIndex(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const;
 	void SetBoneIndex(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex, uint32 BoneIndex);
-	uint8 GetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const;
+	ENGINE_API uint8 GetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const;
 	void SetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex, uint8 BoneWeight);
 	void ResetVertexBoneWeights(uint32 VertexWeightOffset, uint32 VertexInfluenceCount);
 
@@ -460,9 +460,9 @@ public:
 	ENGINE_API GPUSkinBoneInfluenceType GetBoneInfluenceType() const;
 	void GetVertexInfluenceOffsetCount(uint32 VertexIndex, uint32& VertexWeightOffset, uint32& VertexInfluenceCount) const;
 	ENGINE_API bool GetRigidWeightBone(uint32 VertexIndex, int32& OutBoneIndex) const;
-	uint32 GetBoneIndex(uint32 VertexIndex, uint32 InfluenceIndex) const;
+	ENGINE_API uint32 GetBoneIndex(uint32 VertexIndex, uint32 InfluenceIndex) const;
 	void SetBoneIndex(uint32 VertexIndex, uint32 InfluenceIndex, uint32 BoneIndex);
-	uint8 GetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex) const;
+	ENGINE_API uint8 GetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex) const;
 	void SetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex, uint8 BoneWeight);
 	void ResetVertexBoneWeights(uint32 VertexIndex);
 
