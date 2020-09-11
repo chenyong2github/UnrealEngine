@@ -29,6 +29,9 @@ ZLIB_BRANCH="${ZLIB_VERSION}"
 OSSL_VERSION="1.1.1"
 OSSL_BRANCH="OpenSSL_1_1_1-stable"
 
+LWS_VERSION="3.0.0"
+LWS_BRANCH="${LWS_VERSION}"
+
 ## TODO: Enable when/if needed for macOS
 #LIBCURL_VERSION=curl-7_65_3
 #LIBCURL_BRANCH="${LIBCURL_VERSION}"
@@ -232,6 +235,71 @@ build_openssl()
 	popd > /dev/null
 }
 
+build_libwebsockets()
+{
+	LIB_NAME="libWebSockets"
+	LIB_NAME_LC="libwebsockets"
+
+	pushd "${SCRIPT_DIR}/${DROP_TO_LIBROOT}/${DROP_TO_THIRDPARTY}/${LIB_NAME}" > /dev/null 2>&1
+
+	DGB_LIBFILE_PATH="${LIB_NAME_LC}/lib/Mac/Debug/${LIB_NAME_LC}.a"
+	REL_LIBFILE_PATH="${LIB_NAME_LC}/lib/Mac/Release/${LIB_NAME_LC}.a"
+
+	LIBFILES=( "${DGB_LIBFILE_PATH}" "${REL_LIBFILE_PATH}" )
+	INCFILES=( "${LIB_NAME_LC}/include/Mac/libwebsockets.h" "${LIB_NAME_LC}/include/Mac/lws_config.h" )
+
+	if [ "${ENABLE_CHECKOUT_FILES}" == "1" ]; then
+		checkoutFiles ${LIBFILES[@]}
+		checkoutFiles ${INCFILES[@]}
+	fi
+	saveFileStates ${LIBFILES[@]} ${INCFILES[@]}
+
+	echo "================================================================================"
+	echo "Building ${LIB_NAME}"
+	echo "================================================================================"
+
+	SRCROOT="/tmp/${LIB_NAME}"
+	DSTROOT="`pwd`"
+
+	PREFIX_ROOT="${SRCROOT}/Deploy"
+
+	mkdir -p "${PREFIX_ROOT}"
+
+	pushd "${SRCROOT}" > /dev/null 2>&1
+
+	cp "${DSTROOT}/libwebsockets/libwebsockets-${LWS_VERSION}.zip" ./
+	unzip libwebsockets-${LWS_VERSION}.zip
+	patch libwebsockets-${LWS_VERSION}/lib/core/private.h -i ${DSTROOT}/${LIB_NAME_LC}/NoMsgNoSignalRedefinition-v${LWS_VERSION}.patch
+	cd libwebsockets-${LWS_VERSION}
+	mkdir build-debug
+	cd build-debug
+	cmake .. -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX:PATH=${PREFIX_ROOT}/Debug -DOPENSSL_ROOT_DIR=/tmp/OpenSSL/Deploy/Universal -DCMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE=/tmp/OpenSSL/Deploy/Universal -DZLIB_INCLUDE_DIR=/tmp/zlib/Deploy/include -DZLIB_LIBRARY_RELEASE=/tmp/zlib/Deploy/lib/libz.a -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+	make -j$(get_core_count) && make install
+	cd ..
+	mkdir build-release
+	cd build-release
+	cmake .. -DCMAKE_INSTALL_PREFIX:PATH=${PREFIX_ROOT}/Release -DOPENSSL_ROOT_DIR=/tmp/OpenSSL/Deploy/Universal -DCMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE=/tmp/OpenSSL/Deploy/Universal -DZLIB_INCLUDE_DIR=/tmp/zlib/Deploy/include -DZLIB_LIBRARY_RELEASE=/tmp/zlib/Deploy/lib/libz.a -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+	make -j$(get_core_count) && make install
+
+	popd > /dev/null
+
+	cp -v ${PREFIX_ROOT}/Debug/lib/${LIB_NAME_LC}.a ${DGB_LIBFILE_PATH}
+	cp -v ${PREFIX_ROOT}/Release/lib/${LIB_NAME_LC}.a ${REL_LIBFILE_PATH}
+	cp -av ${PREFIX_ROOT}/Release/include/* "${LIB_NAME_LC}/include/Mac/"
+
+	echo "================================================================================"
+	echo "Checking built file status:"
+	checkFilesWereUpdated ${LIBFILES[@]} ${INCFILES[@]}
+	echo "================================================================================"
+	checkFilesAreFatBinaries ${LIBFILES[@]}
+	echo "================================================================================"
+	echo "${LIB_NAME} was successfully built and updated."
+	echo "================================================================================"
+	echo ""
+
+	popd > /dev/null
+}
+
 ##
 #TODO: Build libcurl as universal when/if needed for macOS
 #build_libcurl()
@@ -246,6 +314,7 @@ build_openssl()
 
 build_zlib
 build_openssl
+build_libwebsockets
 
 ## TODO: Enable when/if needed for macOS
 #build_libcurl
