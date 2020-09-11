@@ -2969,10 +2969,8 @@ namespace ObjectTools
 			}
 		}
 
-		if (bSelectionChanged)
-		{
-			GEditor->NoteSelectionChange();
-		}
+		GEditor->NoteSelectionChange();
+
 
 		{
 			// If the current editor world is in this list, transition to a new map and reload the world to finish the delete
