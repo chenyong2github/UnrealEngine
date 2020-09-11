@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	D3D11VertexBuffer.cpp: D3D texture RHI implementation.
+	D3D11Texture.cpp: D3D texture RHI implementation.
 =============================================================================*/
 
 #include "D3D11RHIPrivate.h"
@@ -666,7 +666,14 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 
 	if (Flags & TexCreate_Shared)
 	{
-		TextureDesc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
+		if (GCVarUseSharedKeyedMutex->GetInt() != 0)
+		{
+			TextureDesc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+		}
+		else
+		{
+			TextureDesc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
+		}
 	}
 
 	if (Flags & TexCreate_GenerateMipCapable)

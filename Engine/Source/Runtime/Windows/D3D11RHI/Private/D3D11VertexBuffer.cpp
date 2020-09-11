@@ -6,11 +6,11 @@
 
 #include "D3D11RHIPrivate.h"
 
-static TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex(
+TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex(
 	TEXT("r.D3D11.UseSharedKeyMutex"),
 	0,
-	TEXT("If 1, BUF_Shared textures will be created with the D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX\n")
-	TEXT("flag instead of D3D11_RESOURCE_MISC_SHARED (default).\n"),
+	TEXT("If 1, BUF_Shared vertex / index buffer and TexCreate_Shared texture will be created\n")
+	TEXT("with the D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX flag instead of D3D11_RESOURCE_MISC_SHARED (default).\n"),
 	ECVF_Default);
 
 FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size,uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
