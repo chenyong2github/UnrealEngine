@@ -54,7 +54,10 @@ void SSlateOptions::Construct( const FArguments& InArgs )
 			{
 #if WITH_SLATE_DEBUGGING
 				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("EnableWidgetCaching", "Widget Caching"), TEXT("Slate.EnableInvalidationPanels"));
-				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("InvalidationDebugging", "Invalidation Debugging"), TEXT("Slate.InvalidationDebugging"));
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("InvalidationDebugging", "Invalidation Debugging"), TEXT("SlateDebugger.Invalidate.Enable"));
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("InvalidationRootDebugging", "Invalidation Root Debugging"), TEXT("SlateDebugger.InvalidationRoot.Enable"));
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("UpdateDebugging", "Update Debugging"), TEXT("SlateDebugger.Update.Enable"));
+				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("PaintDebugging", "Paint Debugging"), TEXT("SlateDebugger.Paint.Enable"));
 				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("ShowClipping", "Show Clipping"), TEXT("Slate.ShowClipping"));
 				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("DebugCulling", "Debug Culling"), TEXT("Slate.DebugCulling"));
 				FillToolbar(ToolbarBuilder, Icon, LOCTEXT("EnsureAllVisibleWidgetsPaint", "Ensure All Visible Widgets Paint"), TEXT("Slate.EnsureAllVisibleWidgetsPaint"));

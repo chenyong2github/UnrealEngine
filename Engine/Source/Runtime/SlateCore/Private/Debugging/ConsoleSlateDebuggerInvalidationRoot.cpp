@@ -21,6 +21,7 @@
 
 FConsoleSlateDebuggerInvalidationRoot::FConsoleSlateDebuggerInvalidationRoot()
 	: bEnabled(false)
+	, bEnabledCVarValue(false)
 	, bDisplayInvalidationRootList(true)
 	, bUseWidgetPathAsName(false)
 	, bShowLegend(false)
@@ -32,12 +33,17 @@ FConsoleSlateDebuggerInvalidationRoot::FConsoleSlateDebuggerInvalidationRoot()
 	, CacheDuration(2.0)
 	, StartCommand(
 		TEXT("SlateDebugger.InvalidationRoot.Start"),
-		TEXT("Start the Invalidation Root widget debug tool. Use to show when we are using the slow or fast path."),
+		TEXT("Start the Invalidation Root widget debug tool. It shows when Invalidation Root are using the slow or the fast path."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidationRoot::StartDebugging))
 	, StopCommand(
 		TEXT("SlateDebugger.InvalidationRoot.Stop"),
 		TEXT("Stop the Invalidation Root widget debug tool."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidationRoot::StopDebugging))
+	, EnabledRefCVar(
+		TEXT("SlateDebugger.InvalidationRoot.Enable")
+		, bEnabledCVarValue
+		, TEXT("Start/Stop the Invalidation Root widget debug tool. It shows when Invalidation Root are using the slow or the fast path.")
+		, FConsoleVariableDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidationRoot::HandleEnabled))
 	, ToggleLegendCommand(
 		TEXT("SlateDebugger.InvalidationRoot.ToggleLegend"),
 		TEXT("Option to display the color legend."),
@@ -98,6 +104,7 @@ void FConsoleSlateDebuggerInvalidationRoot::StartDebugging()
 
 		FSlateDebugging::PaintDebugElements.AddRaw(this, &FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo);
 	}
+	bEnabledCVarValue = bEnabled;
 }
 
 void FConsoleSlateDebuggerInvalidationRoot::StopDebugging()
@@ -108,6 +115,19 @@ void FConsoleSlateDebuggerInvalidationRoot::StopDebugging()
 
 		InvaliadatedRoots.Empty();
 		bEnabled = false;
+	}
+	bEnabledCVarValue = bEnabled;
+}
+
+void FConsoleSlateDebuggerInvalidationRoot::HandleEnabled(IConsoleVariable* Variable)
+{
+	if (bEnabledCVarValue)
+	{
+		StartDebugging();
+	}
+	else
+	{
+		StopDebugging();
 	}
 }
 
