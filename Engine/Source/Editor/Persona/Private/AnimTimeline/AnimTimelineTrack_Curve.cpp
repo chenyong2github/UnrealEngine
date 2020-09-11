@@ -362,14 +362,7 @@ FReply FAnimTimelineTrack_Curve::HandleDoubleClicked(const FGeometry& InGeometry
 
 void FAnimTimelineTrack_Curve::HandleCurveChanged()
 {
-	if(CurveEditor.IsValid())
-	{
-		CurveEditor->ZoomToFit(EAxisList::Y);
-	}
-	if(CurveOverlay.IsValid())
-	{
-		CurveOverlay->BuildBoundsLabels();
-	}
+	ZoomToFit();
 
 	GetModel()->GetAnimSequenceBase()->MarkRawDataAsModified();
 
@@ -381,14 +374,7 @@ void FAnimTimelineTrack_Curve::HandleCurveChanged()
 
 void FAnimTimelineTrack_Curve::PostUndoRedo()
 {
-	if(CurveEditor.IsValid())
-	{
-		CurveEditor->ZoomToFit(EAxisList::Y);
-	}
-	if(CurveOverlay.IsValid())
-	{
-		CurveOverlay->BuildBoundsLabels();
-	}
+	ZoomToFit();
 }
 
 void FAnimTimelineTrack_Curve::HendleEditCurve()
@@ -411,6 +397,18 @@ void FAnimTimelineTrack_Curve::GetCurveEditInfo(int32 InCurveIndex, FSmartName& 
 	OutName = OuterCurveName;
 	OutType = OuterType;
 	OutCurveIndex = OuterCurveIndex;
+}
+
+void FAnimTimelineTrack_Curve::ZoomToFit()
+{
+	if(CurveEditor.IsValid())
+	{
+		CurveEditor->ZoomToFit(EAxisList::Y);
+	}
+	if(CurveOverlay.IsValid())
+	{
+		CurveOverlay->BuildBoundsLabels();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
