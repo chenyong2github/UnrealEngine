@@ -822,7 +822,7 @@ const FExposureBufferData* FSceneViewState::FEyeAdaptationManager::GetBuffer(uin
 
 FExposureBufferData* FSceneViewState::FEyeAdaptationManager::GetOrCreateBuffer(FRHICommandListImmediate& RHICmdList, uint32 BufferIndex)
 {
-	check(BufferIndex == 0 || BufferIndex == 1);
+	check(0 <= BufferIndex && BufferIndex < 3);
 
 	// Create textures if needed.
 	if (!ExposureBufferData[BufferIndex].IsValid())
