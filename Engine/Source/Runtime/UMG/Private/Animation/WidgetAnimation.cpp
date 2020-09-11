@@ -7,6 +7,9 @@
 #include "MovieScene.h"
 #include "Components/PanelSlot.h"
 #include "IMovieScenePlayer.h"
+#include "Tracks/MovieSceneAudioTrack.h"
+#include "Tracks/MovieSceneEventTrack.h"
+#include "Tracks/MovieSceneMaterialParameterCollectionTrack.h"
 #include "UObject/SequencerObjectVersion.h"
 
 
@@ -71,6 +74,17 @@ FText UWidgetAnimation::GetDisplayName() const
 	return bHasDisplayLabel ? FText::FromString(DisplayLabel) : Super::GetDisplayName();
 }
 
+ETrackSupport UWidgetAnimation::IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const
+{
+	if (InTrackClass == UMovieSceneAudioTrack::StaticClass() ||
+		InTrackClass == UMovieSceneEventTrack::StaticClass() ||
+		InTrackClass == UMovieSceneMaterialParameterCollectionTrack::StaticClass())
+	{
+		return ETrackSupport::Supported;
+	}
+
+	return Super::IsTrackSupported(InTrackClass);
+}
 #endif
 
 float UWidgetAnimation::GetStartTime() const

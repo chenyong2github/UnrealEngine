@@ -182,8 +182,8 @@ public:
 
 	virtual int32 PaintTrackArea(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle);
 
-	virtual bool SupportsType( TSubclassOf<class UMovieSceneTrack> TrackClass ) const = 0;
-	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const { return true; }
+	virtual bool SupportsType( TSubclassOf<class UMovieSceneTrack> TrackClass ) const override = 0;
+	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override { return true; }
 	virtual void Tick(float DeltaTime) override;
 
 protected:

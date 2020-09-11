@@ -228,7 +228,8 @@ TSharedRef<ISequencerSection> FCameraCutTrackEditor::MakeSectionInterface(UMovie
 
 bool FCameraCutTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return (InSequence != nullptr) && (InSequence->GetClass()->GetName() == TEXT("LevelSequence"));
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneCameraCutTrack::StaticClass()) : ETrackSupport::NotSupported;
+	return TrackSupported == ETrackSupport::Supported;
 }
 
 
