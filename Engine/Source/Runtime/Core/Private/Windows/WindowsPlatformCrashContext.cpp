@@ -365,7 +365,7 @@ namespace
 {
 
 static int32 ReportCrashCallCount = 0;
-static std::atomic<int32> ReportCallCount = 0;
+static std::atomic<int32> ReportCallCount(0);
 
 static FORCEINLINE bool CreatePipeWrite(void*& ReadPipe, void*& WritePipe)
 {
