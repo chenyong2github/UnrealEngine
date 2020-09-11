@@ -17,7 +17,7 @@ import { Context } from './settings';
 import { BlockagePauseInfo, PauseState } from './state-interfaces';
 import { newTickJournal, TickJournal } from './tick-journal';
 import { computeTargets, parseDescriptionLines, processOtherBotTargets, getIntegrationOwner, getNodeBotFullName, getNodeBotFullNameForLogging } from './targets';
-import { Graph } from '../new/graph';
+import { GraphAPI } from '../new/graph';
 
 /**********************************
  * Bot monitoring a single stream
@@ -87,7 +87,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		externalUrl: string, 
 		private readonly eventTriggers: BotEventTriggers,
 		settings: Context,
-		private readonly ubergraph: Graph
+		private readonly ubergraph: GraphAPI
 	) {
 		// Node initial CL used when creating new (sub-)graph: should be able to set initial CL of source node and have that apply to edges
 		super(settings, branchDef.config.initialCL)
@@ -1582,7 +1582,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		const args = parsedLines.arguments
 		if (optTargetBranch || (args.length + defaultTargets.length) > 0) {
-			console.log(this.branch.upperName, 'here')
 			computeTargets(this.branch, this.ubergraph, change.change, info, args, defaultTargets, this.nodeBotLogger, optTargetBranch)
 		}
 

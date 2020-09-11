@@ -170,7 +170,7 @@ export class IPC {
 			return {statusCode: 400, message: 'Invalid CL parameter: ' + query.cl}
 		}
 
-		const tracer = new Trace(this.robo.graph, this.ipcLogger)
+		const tracer = new Trace(this.robo.graph.graph, this.ipcLogger)
 
 		let success = false
 		try {
@@ -200,7 +200,7 @@ export class IPC {
 	}
 
 	private dumpGraph(): OperationReturnType {
-		return { ...OPERATION_SUCCESS, data: this.robo.graph.dump() } 
+		return { ...OPERATION_SUCCESS, data: this.robo.graph.graph.dump() } 
 	}
 
 	private isRunning(botname: string): OperationReturnType {
