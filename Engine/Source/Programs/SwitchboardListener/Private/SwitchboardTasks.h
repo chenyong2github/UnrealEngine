@@ -13,7 +13,8 @@ enum class ESwitchboardTaskType : uint8
 	VcsReportRevision,
 	VcsSync,
 	Restart,
-	TransferFile,
+	ReceiveFileFromClient,
+	SendFileToClient,
 	Disconnect,
 	KeepAlive,
 };
@@ -56,16 +57,26 @@ struct FSwitchboardKillAllTask : public FSwitchboardTask
 	{}
 };
 
-struct FSwitchboardTransferFileTask : public FSwitchboardTask
+struct FSwitchboardReceiveFileFromClientTask : public FSwitchboardTask
 {
-	FSwitchboardTransferFileTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint, const FString& InDestination, const FString& InContent)
-		: FSwitchboardTask{ ESwitchboardTaskType::TransferFile, TEXT("transfer file"), InTaskID, InEndpoint }
+	FSwitchboardReceiveFileFromClientTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint, const FString& InDestination, const FString& InContent)
+		: FSwitchboardTask{ ESwitchboardTaskType::ReceiveFileFromClient, TEXT("receive file from client"), InTaskID, InEndpoint }
 		, Destination(InDestination)
 		, FileContent(InContent)
 	{}
 
 	FString Destination;
 	FString FileContent;
+};
+
+struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
+{
+	FSwitchboardSendFileToClientTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint, const FString& InSource)
+		: FSwitchboardTask{ ESwitchboardTaskType::SendFileToClient, TEXT("send file to client"), InTaskID, InEndpoint }
+		, Source(InSource)
+	{}
+
+	FString Source;
 };
 
 struct FSwitchboardVcsInitTask : public FSwitchboardTask

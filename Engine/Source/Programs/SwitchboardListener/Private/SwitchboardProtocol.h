@@ -10,8 +10,8 @@ struct FSwitchboardTask;
 FString CreateCommandAcceptedMessage(const FGuid& InMessageID);
 FString CreateCommandDeclinedMessage(const FGuid& InMessageID, const FString& InErrorMessage);
 
-FString CreateProgramStartedMessage(const FString& InProgramID);
-FString CreateProgramStartFailedMessage(const FString& InErrorMessage);
+FString CreateProgramStartedMessage(const FString& InProgramID, const FString& InMessageID);
+FString CreateProgramStartFailedMessage(const FString& InErrorMessage, const FString& InMessageID);
 
 FString CreateProgramKilledMessage(const FString& InProgramID);
 FString CreateProgramKillFailedMessage(const FString& InProgramID, const FString& InErrorMessage);
@@ -25,8 +25,11 @@ FString CreateVcsReportRevisionFailedMessage(const FString& InError);
 FString CreateVcsSyncCompletedMessage(const FString& InSyncedChange);
 FString CreateVcsSyncFailedMessage(const FString& InErrorMessage);
 
-FString CreateFileTransferCompletedMessage(const FString& InDestinationPath);
-FString CreateFileTransferFailedMessage(const FString& InDestinationPath, const FString& InError);
+FString CreateReceiveFileFromClientCompletedMessage(const FString& InDestinationPath);
+FString CreateReceiveFileFromClientFailedMessage(const FString& InDestinationPath, const FString& InError);
+
+FString CreateSendFileToClientCompletedMessage(const FString& InSourcePath, const FString& InFileContent);
+FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const FString& InError);
 //~
 
 bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask);
