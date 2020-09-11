@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Insights/ITimingViewExtender.h"
+#include "SlateTimingViewSession.h"
 
 namespace Insights { class ITimingViewSession; }
 namespace Insights { class IAnalysisSession; }
@@ -13,8 +14,7 @@ class FMenuBuilder;
 namespace UE
 {
 namespace SlateInsights
-{ 
-class FSlateTimingViewSession;
+{
 
 class FSlateTimingViewExtender : public Insights::ITimingViewExtender
 {
