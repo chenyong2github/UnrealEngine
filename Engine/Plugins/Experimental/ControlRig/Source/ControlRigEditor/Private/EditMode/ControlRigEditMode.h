@@ -168,6 +168,15 @@ protected:
 	/** Reset Transforms */
 	void ResetTransforms(bool bSelectionOnly);
 
+	/** Increase Gizmo Size */
+	void IncreaseGizmoSize();
+
+	/** Decrease Gizmo Size */
+	void DecreaseGizmoSize();
+
+	/** Reset Gizmo Size */
+	void ResetGizmoSize();
+
 	/** Bind our keyboard commands */
 	void BindCommands();
 
