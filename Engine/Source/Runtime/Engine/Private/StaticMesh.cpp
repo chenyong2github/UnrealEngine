@@ -1432,18 +1432,13 @@ void FStaticMeshRenderData::SerializeInlineDataRepresentations(FArchive& Ar, USt
 
 			if (bValid)
 			{
-#if WITH_EDITOR
-				check(LOD.CardRepresentationData != nullptr);
-
-				Ar << *(LOD.CardRepresentationData);
-#else
 				if (LOD.CardRepresentationData == nullptr)
 				{
+					check(Ar.IsLoading());
 					LOD.CardRepresentationData = new FCardRepresentationData();
 				}
 
 				Ar << *(LOD.CardRepresentationData);
-#endif
 			}
 		}
 	}
