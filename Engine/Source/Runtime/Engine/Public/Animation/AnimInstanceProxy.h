@@ -345,6 +345,11 @@ public:
 	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  If the group is valid, OutSyncGroupPtr will point to the group.
 	FAnimTickRecord& CreateUninitializedTickRecord(int32 GroupIndex, FAnimGroupInstance*& OutSyncGroupPtr);
 
+	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  
+	// If the group is valid, OutSyncGroupPtr will point to the group.
+	// Supply the scope to sync with tick records outside this instance
+	FAnimTickRecord& CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr);
+
 	/** Helper function: make a tick record for a sequence */
 	void MakeSequenceTickRecord(FAnimTickRecord& TickRecord, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const;
 
@@ -825,6 +830,9 @@ private:
 
 	/** Skeletal mesh component we are attached to. Note that this will be nullptr outside of pre/post update */
 	USkeletalMeshComponent* SkeletalMeshComponent;
+
+	/** Cached ptr to the main instance proxy, which may be "this" */
+	FAnimInstanceProxy* MainInstanceProxy;
 
 	/** The last time passed into PreUpdate() */
 	float CurrentDeltaSeconds;
