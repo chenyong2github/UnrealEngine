@@ -1039,6 +1039,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 		SunLightAtmosphereTransmittance[Index] = FLinearColor::White;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Compute a mapping between directional light and trnasmittance to apply. For each AtmosphereSunLightIndex, the brightest lights is kept.
 	if ((AtmosphericFogComponent && AtmosphericFogComponent->bAtmosphereAffectsSunIlluminance) || SkyAtmosphereComponent)
 	{
@@ -1070,6 +1071,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 			}
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Export directional lights.
 	for ( int32 LightIndex = 0; LightIndex < DirectionalLights.Num(); ++LightIndex )

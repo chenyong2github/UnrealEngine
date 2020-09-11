@@ -224,6 +224,7 @@ void USkyAtmosphereComponent::CheckForErrors()
 					break;
 				}
 			}
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS 
 			for (TObjectIterator<UAtmosphericFogComponent> ComponentIt; ComponentIt; ++ComponentIt)
 			{
 				UAtmosphericFogComponent* Component = *ComponentIt;
@@ -238,6 +239,7 @@ void USkyAtmosphereComponent::CheckForErrors()
 					break;
 				}
 			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		if (bMultipleFound)

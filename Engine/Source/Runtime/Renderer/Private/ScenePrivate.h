@@ -2768,10 +2768,13 @@ public:
 	virtual void AddExponentialHeightFog(UExponentialHeightFogComponent* FogComponent) override;
 	virtual void RemoveExponentialHeightFog(UExponentialHeightFogComponent* FogComponent) override;
 	virtual bool HasAnyExponentialHeightFog() const override;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual void AddAtmosphericFog(UAtmosphericFogComponent* FogComponent) override;
 	virtual void RemoveAtmosphericFog(UAtmosphericFogComponent* FogComponent) override;
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override;
 	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() override { return AtmosphericFog; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt) override;
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override;
@@ -2797,10 +2800,13 @@ public:
 	virtual void UpdateParameterCollections(const TArray<FMaterialParameterCollectionInstanceResource*>& InParameterCollections) override;
 
 	/** Determines whether the scene has atmospheric fog and sun light. */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool HasAtmosphericFog() const
 	{
 		return (AtmosphericFog != NULL); // Use default value when Sun Light is not existing
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	bool HasSkyAtmosphere() const
 	{
 		return (SkyAtmosphere != NULL);
