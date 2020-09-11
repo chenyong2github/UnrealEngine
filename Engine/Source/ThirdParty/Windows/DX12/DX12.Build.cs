@@ -32,11 +32,13 @@ public class DX12 : ModuleRules
 		{
 			bool PixAvalable = (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64);
 			if (PixAvalable &&
-			//Target.WindowsPlatform.bUseWindowsSDK10 &&
-			Target.WindowsPlatform.bPixProfilingEnabled &&
-			Target.Configuration != UnrealTargetConfiguration.Shipping &&
-			Target.Configuration != UnrealTargetConfiguration.Test)
+				//Target.WindowsPlatform.bUseWindowsSDK10 &&
+				Target.WindowsPlatform.bPixProfilingEnabled &&
+				Target.Configuration != UnrealTargetConfiguration.Shipping &&
+				Target.Configuration != UnrealTargetConfiguration.Test)
 			{
+				PublicSystemLibraries.Add("dxgi.lib"); // For DXGIGetDebugInterface1
+
 				string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 				PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "/Windows/Pix/Include");
 				string PixLibDir = Target.UEThirdPartySourceDirectory + "/Windows/Pix/Lib/" + Arch + "/";

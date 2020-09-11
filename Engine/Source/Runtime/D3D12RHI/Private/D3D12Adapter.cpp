@@ -13,7 +13,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "Windows/WindowsPlatformMisc.h"
 #endif
 
-#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
 	#include "amd_ags.h"
 #endif
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -363,7 +363,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 #endif
 
 	bool bDeviceCreated = false;
-#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
 	if (IsRHIDeviceAMD() && OwningRHI->GetAmdAgsContext())
 	{
 		auto* CVarShaderDevelopmentMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderDevelopmentMode"));
