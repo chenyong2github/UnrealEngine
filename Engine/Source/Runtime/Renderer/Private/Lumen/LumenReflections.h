@@ -18,6 +18,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
 	SHADER_PARAMETER(uint32, ReflectionDownsampleFactor)
 	SHADER_PARAMETER(FIntPoint, ReflectionTracingViewSize)
 	SHADER_PARAMETER(FIntPoint, ReflectionTracingBufferSize)
+	SHADER_PARAMETER(float, MaxRayIntensity)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, RayBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledDepth)

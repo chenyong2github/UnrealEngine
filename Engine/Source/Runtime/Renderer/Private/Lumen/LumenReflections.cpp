@@ -82,6 +82,13 @@ FAutoConsoleVariableRef CVarLumenReflectionHistoryDistanceThreshold(
 	ECVF_RenderThreadSafe
 	);
 
+float GLumenReflectionMaxRayIntensity = 20;
+FAutoConsoleVariableRef GVarLumenReflectionMaxRayIntensity(
+	TEXT("r.Lumen.Reflections.MaxRayIntensity"),
+	GLumenReflectionMaxRayIntensity,
+	TEXT("Clamps the maximum ray lighting intensity (with PreExposure) to reduce fireflies."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 class FReflectionClearTileIndirectArgsCS : public FGlobalShader
 {
@@ -477,7 +484,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.ReflectionDownsampleFactor = GLumenReflectionDownsampleFactor;
 	ReflectionTracingParameters.ReflectionTracingViewSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
 	ReflectionTracingParameters.ReflectionTracingBufferSize = FIntPoint::DivideAndRoundUp(SceneContext.GetBufferSizeXY(), (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
-	
+	ReflectionTracingParameters.MaxRayIntensity = GLumenReflectionMaxRayIntensity;
+
 	FPooledRenderTargetDesc RayBufferDesc(FPooledRenderTargetDesc::Create2DDesc(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
 	ReflectionTracingParameters.RayBuffer = GraphBuilder.CreateTexture(RayBufferDesc, TEXT("ReflectionRayBuffer"));
 

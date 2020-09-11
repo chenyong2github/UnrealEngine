@@ -96,6 +96,13 @@ void ReflectionTraceScreenTexturesCS(
 			{
 				float3 Lighting = SampleScreenColor(ColorTexture, ColorTextureSampler, SampleUV).xyz * PrevSceneColorPreExposureCorrection;
 
+				float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+
+				if (MaxLighting > MaxRayIntensity)
+				{
+					Lighting *= MaxRayIntensity / MaxLighting;
+				}
+
 				#if DEBUG_VISUALIZE_TRACE_TYPES
 					RWTraceRadiance[ReflectionTracingCoord] = float3(.5f, 0, 0) * View.PreExposure;
 				#else
@@ -247,6 +254,13 @@ void TraceCards(
 
 	Transparency = lerp(Transparency, 1, DistanceFade);
 
+	float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+
+	if (MaxLighting > MaxRayIntensity)
+	{
+		Lighting *= MaxRayIntensity / MaxLighting;
+	}
+
 	#if DEBUG_VISUALIZE_TRACE_TYPES
 		RWTraceRadiance[ReflectionTracingCoord] = float3(0, .5f, 0) * View.PreExposure;
 	#else
@@ -323,6 +337,13 @@ void TraceVoxels(
 
 	EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
 	
+	float MaxLighting = max3(TraceResult.Lighting.x, TraceResult.Lighting.y, TraceResult.Lighting.z);
+
+	if (MaxLighting > MaxRayIntensity)
+	{
+		TraceResult.Lighting *= MaxRayIntensity / MaxLighting;
+	}
+
 	#if DEBUG_VISUALIZE_TRACE_TYPES
 		RWTraceRadiance[ReflectionTracingCoord] = float3(0, 0, .5f) * View.PreExposure;
 	#else

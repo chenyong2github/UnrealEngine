@@ -13,6 +13,7 @@ uint2 ReflectionTracingBufferSize;
 
 // Downsample factor from full res to tracing res
 uint ReflectionDownsampleFactor;
+float MaxRayIntensity;
 
 // Note: negative if invalid ray
 Texture2D DownsampledDepth;
