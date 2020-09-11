@@ -35,9 +35,9 @@ UAnimGraphNode_LinkedInputPose::UAnimGraphNode_LinkedInputPose()
 {
 }
 
-void UAnimGraphNode_LinkedInputPose::CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext)
+void UAnimGraphNode_LinkedInputPose::CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext)
 {
-	IterateFunctionParameters([this, &InCompilerContext](const FName& InName, FEdGraphPinType InPinType)
+	IterateFunctionParameters([this, &InCreationContext](const FName& InName, FEdGraphPinType InPinType)
 	{
 		if(!UAnimationGraphSchema::IsPosePin(InPinType))
 		{
@@ -45,7 +45,7 @@ void UAnimGraphNode_LinkedInputPose::CreateClassVariablesFromBlueprint(FKismetCo
 			if(Pin && Pin->LinkedTo.Num() > 0)
 			{
 				// create properties for 'local' linked input pose pins
-				FProperty* NewLinkedInputPoseProperty = static_cast<FAnimBlueprintCompilerContext*>(&InCompilerContext)->CreateVariable(InName, InPinType);
+				FProperty* NewLinkedInputPoseProperty = InCreationContext.CreateVariable(InName, InPinType);
 				if(NewLinkedInputPoseProperty)
 				{
 					NewLinkedInputPoseProperty->SetPropertyFlags(CPF_BlueprintReadOnly);

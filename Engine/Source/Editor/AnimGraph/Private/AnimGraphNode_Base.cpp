@@ -18,7 +18,9 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AnimBlueprintCompiler.h"
-#include "AnimBlueprintCompilerSubsystem_Base.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
+#include "IAnimBlueprintCompilationContext.h"
+#include "AnimBlueprintCompilationContext.h"
 #include "FindInBlueprintManager.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_Base"
@@ -33,8 +35,9 @@ UAnimGraphNode_Base::UAnimGraphNode_Base(const FObjectInitializer& ObjectInitial
 
 void UAnimGraphNode_Base::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
-	UAnimBlueprintCompilerSubsystem_Base* Subsystem = static_cast<FAnimBlueprintCompilerContext*>(&CompilerContext)->GetSubsystem<UAnimBlueprintCompilerSubsystem_Base>();
-	Subsystem->CreateEvaluationHandlerForNode(this);
+	TUniquePtr<IAnimBlueprintCompilationContext> CompilationContext = IAnimBlueprintCompilationContext::Get(CompilerContext);
+	FAnimBlueprintCompilerHandler_Base* Handler = CompilationContext->GetHandler<FAnimBlueprintCompilerHandler_Base>("AnimBlueprintCompilerHandler_Base");
+	Handler->CreateEvaluationHandlerForNode(*CompilationContext.Get(), this);
 }
 
 void UAnimGraphNode_Base::PreEditChange(FProperty* PropertyThatWillChange)
@@ -338,15 +341,15 @@ void UAnimGraphNode_Base::GetPinHoverText(const UEdGraphPin& Pin, FString& Hover
 	}
 }
 
-void UAnimGraphNode_Base::ProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext)
+void UAnimGraphNode_Base::ProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
-	UAnimBlueprintCompilerSubsystem_Base* SubsystemBase = InCompilerContext.GetSubsystem<UAnimBlueprintCompilerSubsystem_Base>();
+	FAnimBlueprintCompilerHandler_Base* HandlerBase = InCompilationContext.GetHandler<FAnimBlueprintCompilerHandler_Base>("AnimBlueprintCompilerHandler_Base");
 
 	// Record pose pins for later patchup and gather pins that have an associated evaluation handler
-	SubsystemBase->AddStructEvalHandlers(this);
+	HandlerBase->AddStructEvalHandlers(this, InCompilationContext, OutCompiledData);
 
 	// Call the override point
-	OnProcessDuringCompilation(InCompilerContext);
+	OnProcessDuringCompilation(InCompilationContext, OutCompiledData);
 }
 
 void UAnimGraphNode_Base::HandleAnimReferenceCollection(UAnimationAsset* AnimAsset, TArray<UAnimationAsset*>& AnimationAssets) const

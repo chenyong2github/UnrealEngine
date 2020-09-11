@@ -8,6 +8,8 @@
 #include "PropertyAccessEditor.h"
 #include "Modules/ModuleInterface.h"
 #include "Features/IModularFeatures.h"
+#include "IAnimBlueprintCompilerHandlerCollection.h"
+#include "AnimBlueprintCompilerHandler_PropertyAccess.h"
 
 class FPropertyAccessEditorModule : public IPropertyAccessEditor, public IModuleInterface
 {
@@ -16,10 +18,19 @@ public:
 	virtual void StartupModule() override
 	{
 		IModularFeatures::Get().RegisterModularFeature("PropertyAccessEditor", this);
+
+		// Register node compilation handlers
+		IAnimBlueprintCompilerHandlerCollection::RegisterHandler("PropertyAccessCompilerHandler", [](IAnimBlueprintCompilerCreationContext& InCreationContext)
+		{
+			return MakeUnique<FAnimBlueprintCompilerHandler_PropertyAccess>(InCreationContext);
+		});
 	}
 
 	virtual void ShutdownModule() override
 	{
+		// Register node compilation handlers
+		IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("PropertyAccessCompilerHandler");
+
 		IModularFeatures::Get().UnregisterModularFeature("PropertyAccessEditor", this);
 	}
 
@@ -30,7 +41,7 @@ public:
 			.Args(InArgs);
 	}
 
-	virtual EPropertyAccessResolveResult ResolveLeafProperty(UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const override
+	virtual EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const override
 	{
 		return PropertyAccess::ResolveLeafProperty(InStruct, InPath, OutProperty, OutArrayIndex);
 	}
