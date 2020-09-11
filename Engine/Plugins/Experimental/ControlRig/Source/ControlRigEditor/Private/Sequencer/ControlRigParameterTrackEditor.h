@@ -86,6 +86,11 @@ private:
 	/** Delegate for Curve Selection Changed Event */
 	void OnCurveDisplayChanged(FCurveModel* InCurveModel, bool bDisplayed);
 
+	/** Actor Added Delegate*/
+	void HandleActorAdded(AActor* Actor, FGuid TargetObjectGuid);
+	/** Add Control Rig Tracks For Skelmesh Components*/
+	void AddTrackForComponent(USceneComponent* Component);
+
 	/** Control Rig Delegates*/
 	void HandleControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
 	void HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
@@ -151,6 +156,7 @@ private:
 	FDelegateHandle SequencerChangedHandle;
 	FDelegateHandle CurveChangedHandle;
 	FDelegateHandle OnPreRefreshImmediateHandle;
+	FDelegateHandle OnActorAddedToSequencerHandle;
 
 private:
 
