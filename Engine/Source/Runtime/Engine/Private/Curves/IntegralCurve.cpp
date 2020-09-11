@@ -222,3 +222,34 @@ FKeyHandle FIntegralCurve::FindKeyBeforeOrAt(float KeyTime) const
 	}
 	return GetKeyHandle(FoundIndex);
 }
+
+void FIntegralCurve::RemoveRedundantKeys()
+{
+	TArray<FKeyHandle> KeyHandlesToRemove;
+	for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+	{
+		if (KeyIndex + 2 < Keys.Num())
+		{
+			const FIntegralKey& CurrentKey = Keys[KeyIndex];
+			const FIntegralKey& NextKeyOne = Keys[KeyIndex + 1];
+			const FIntegralKey& NextKeyTwo = Keys[KeyIndex + 2];
+
+			if (CurrentKey.Value == NextKeyOne.Value && NextKeyOne.Value == NextKeyTwo.Value)
+			{
+				KeyHandlesToRemove.Add(GetKeyHandle(KeyIndex + 1));
+			}
+		}
+	}
+
+	for (const FKeyHandle& Handle : KeyHandlesToRemove)
+	{
+		DeleteKey(Handle);
+	}
+
+	// Const value, remove keys and set default value
+	if (Keys.Num() == 1)
+	{
+		DefaultValue = Keys[0].Value;
+		DeleteKey(GetKeyHandle(0));
+	}
+}

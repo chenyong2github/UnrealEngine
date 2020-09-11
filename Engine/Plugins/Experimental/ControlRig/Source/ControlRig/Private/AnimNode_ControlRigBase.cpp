@@ -209,7 +209,10 @@ void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
 			FAnimationRuntime::ConvertPoseToAdditive(AdditivePose.Pose, SourcePose.Pose);
 			AdditivePose.Curve.ConvertToAdditive(SourcePose.Curve);
 			Output = SourcePose;
-			FAnimationRuntime::AccumulateAdditivePose(Output.Pose, AdditivePose.Pose, Output.Curve, AdditivePose.Curve, InternalBlendAlpha, AAT_LocalSpaceBase);
+
+			FAnimationPoseData BaseAnimationPoseData(Output);
+			const FAnimationPoseData AdditiveAnimationPoseData(AdditivePose);
+			FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, InternalBlendAlpha, AAT_LocalSpaceBase);
 		}
 	}
 	else // if not relevant, skip to run control rig

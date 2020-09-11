@@ -6,6 +6,8 @@
 #include "AnimationRuntime.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimSequenceBase.h"
+#include "Animation/AnimationPoseData.h"
 #define LOCTEXT_NAMESPACE "PoseAsset"
 
 // utility function 
@@ -378,8 +380,18 @@ struct FBoneIndices
 
 void UPoseAsset::GetBaseAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve) const
 {
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData OutPoseData(OutPose, OutCurve, TempAttributes);
+	GetBaseAnimationPose(OutPoseData);
+}
+
+void UPoseAsset::GetBaseAnimationPose(FAnimationPoseData& OutAnimationPoseData) const
+{
+	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
 	if (bAdditivePose && PoseContainer.Poses.IsValidIndex(BasePoseIndex))
 	{
+		FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
+
 		const FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
 		USkeleton* MySkeleton = GetSkeleton();
 
@@ -530,11 +542,21 @@ void UPoseAsset::GetAnimationCurveOnly(TArray<FName>& InCurveNames, TArray<float
 
 bool UPoseAsset::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData OutPoseData(OutPose, OutCurve, TempAttributes);
+	return GetAnimationPose(OutPoseData, ExtractionContext);
+}
+
+bool UPoseAsset::GetAnimationPose(struct FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const
+{
 	ANIM_MT_SCOPE_CYCLE_COUNTER(PoseAssetGetAnimationPose, !IsInGameThread());
 
 	// if we have any pose curve
 	if (ExtractionContext.PoseCurves.Num() > 0)
 	{
+		FCompactPose& OutPose = OutAnimationPoseData.GetPose();
+		FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
+
 		const FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
 		USkeleton* MySkeleton = GetSkeleton();
 

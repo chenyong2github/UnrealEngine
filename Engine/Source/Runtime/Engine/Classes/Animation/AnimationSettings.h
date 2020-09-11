@@ -11,6 +11,8 @@
 #include "Templates/SubclassOf.h"
 #include "Animation/AnimSequence.h"
 #include "Engine/DeveloperSettings.h"
+#include "CustomAttributes.h"
+
 #include "AnimationSettings.generated.h"
 
 /**
@@ -66,6 +68,14 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	/** List of bone names whose custom attributes are directly importer on the bone. */
 	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
 	TArray<FString> BoneNamesWithCustomAttributes;
+
+	/** Custom Attribute specific blend types (by name) */
+	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
+	TMap<FName, ECustomAttributeBlendType> AttributeBlendModes;
+
+	/** Default Custom Attribute blend type */
+	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
+	ECustomAttributeBlendType DefaultAttributeBlendMode;
 
 public:
 	static UAnimationSettings * Get() { return CastChecked<UAnimationSettings>(UAnimationSettings::StaticClass()->GetDefaultObject()); }

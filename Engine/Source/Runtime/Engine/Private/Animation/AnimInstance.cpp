@@ -701,15 +701,17 @@ bool UAnimInstance::ParallelCanEvaluate(const USkeletalMesh* InSkeletalMesh) con
 	return Proxy.GetRequiredBones().IsValid() && (Proxy.GetRequiredBones().GetAsset() == InSkeletalMesh);
 }
 
-void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, TArray<FTransform>& OutBoneSpaceTransforms, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose)
-{
-	ParallelEvaluateAnimation(bForceRefPose, InSkeletalMesh, OutCurve, OutPose);
-}
-
 void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose)
 {
+	FHeapCustomAttributes Attributes;
+	FParallelEvaluationData EvalData = { OutCurve, OutPose, Attributes };
+	ParallelEvaluateAnimation(bForceRefPose, InSkeletalMesh, EvalData);
+}
+
+void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FParallelEvaluationData& OutEvaluationData)
+{
 	FAnimInstanceProxy& Proxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
-	OutPose.SetBoneContainer(&Proxy.GetRequiredBones());
+	OutEvaluationData.OutPose.SetBoneContainer(&Proxy.GetRequiredBones());
 
 	FMemMark Mark(FMemStack::Get());
 
@@ -722,12 +724,14 @@ void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeleta
 		// Run the anim blueprint
 		Proxy.EvaluateAnimation(EvaluationContext);
 		// Move the curves
-		OutCurve.CopyFrom(EvaluationContext.Curve);
-		OutPose.CopyBonesFrom(EvaluationContext.Pose);
+		OutEvaluationData.OutCurve.CopyFrom(EvaluationContext.Curve);
+		OutEvaluationData.OutPose.CopyBonesFrom(EvaluationContext.Pose);
+
+		OutEvaluationData.OutAttributes.CopyFrom(EvaluationContext.CustomAttributes);
 	}
 	else
 	{
-		OutPose.ResetToRefPose();
+		OutEvaluationData.OutPose.ResetToRefPose();
 	}
 }
 

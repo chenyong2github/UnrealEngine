@@ -203,3 +203,34 @@ FKeyHandle FStringCurve::UpdateOrAddKey(float InTime, const FString& InValue, fl
 	// a key wasn't found, add it now
 	return AddKey(InTime, InValue);
 }
+
+void FStringCurve::RemoveRedundantKeys()
+{
+	TArray<FKeyHandle> KeyHandlesToRemove;
+	for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+	{
+		if (KeyIndex + 2 < Keys.Num())
+		{
+			const FStringCurveKey& CurrentKey = Keys[KeyIndex];
+			const FStringCurveKey& NextKeyOne = Keys[KeyIndex + 1];
+			const FStringCurveKey& NextKeyTwo = Keys[KeyIndex + 2];
+
+			if (CurrentKey.Value == NextKeyOne.Value && NextKeyOne.Value == NextKeyTwo.Value)
+			{
+				KeyHandlesToRemove.Add(GetKeyHandle(KeyIndex + 1));
+			}
+		}
+	}
+
+	for (const FKeyHandle& Handle : KeyHandlesToRemove)
+	{
+		DeleteKey(Handle);
+	}
+
+	// Const value, remove keys and set default value
+	if (Keys.Num() == 1)
+	{
+		DefaultValue = Keys[0].Value;
+		DeleteKey(GetKeyHandle(0));
+	}
+}

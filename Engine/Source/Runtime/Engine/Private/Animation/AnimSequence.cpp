@@ -45,6 +45,9 @@
 #include "Animation/AnimStreamable.h"
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "Animation/CustomAttributesRuntime.h"
+#include "Stats/StatsHierarchical.h"
+#include "Animation/AnimationPoseData.h"
 
 #define USE_SLERP 0
 #define LOCTEXT_NAMESPACE "AnimSequence"
@@ -602,6 +605,9 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	ImportResampleFramerate = 0;
 	bAllowFrameStripping = true;
 	CompressionErrorThresholdScale = 1.f;
+
+	CustomAttributesGuid.Invalidate();
+	BakedCustomAttributesGuid.Invalidate();
 #endif
 }
 
@@ -639,21 +645,6 @@ void UAnimSequence::AddReferencedObjects(UObject* This, FReferenceCollector& Col
 	UAnimSequence* AnimSeq = CastChecked<UAnimSequence>(This);
 	Collector.AddReferencedObject(AnimSeq->CompressedData.BoneCompressionCodec);
 	Collector.AddReferencedObject(AnimSeq->CompressedData.CurveCompressionCodec);
-}
-
-int32 UAnimSequence::Stub_GetBoneFloatCustomAttributeNum(const FName& BoneName) const
-{
-	return 0;
-}
-
-int32 UAnimSequence::Stub_GetBoneIntegerCustomAttributeNum(const FName& BoneName) const
-{
-	return 0;
-}
-
-int32 UAnimSequence::Stub_GetBoneStringCustomAttributeNum(const FName& BoneName) const
-{
-	return 0;
 }
 
 int32 UAnimSequence::GetUncompressedRawSize() const
@@ -1493,25 +1484,27 @@ void DebugPrintBone(const FCompactPose& OutPose, const FCompactPoseBoneIndex& Bo
 }
 #endif
 
-void UAnimSequence::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
+void UAnimSequence::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_GetAnimationPose);
+
+	const FCompactPose& OutPose = OutAnimationPoseData.GetPose();
 
 	// @todo anim: if compressed and baked in the future, we don't have to do this 
 	if (UseRawDataForPoseExtraction(OutPose.GetBoneContainer()) && IsValidAdditive())
 	{
 		if (AdditiveAnimType == AAT_LocalSpaceBase)
 		{
-			GetBonePose_Additive(OutPose, OutCurve, ExtractionContext);
+			GetBonePose_Additive(OutAnimationPoseData, ExtractionContext);
 		}
 		else if (AdditiveAnimType == AAT_RotationOffsetMeshSpace)
 		{
-			GetBonePose_AdditiveMeshRotationOnly(OutPose, OutCurve, ExtractionContext);
+			GetBonePose_AdditiveMeshRotationOnly(OutAnimationPoseData, ExtractionContext);
 		}
 	}
 	else
 	{
-		GetBonePose(OutPose, OutCurve, ExtractionContext);
+		GetBonePose(OutAnimationPoseData, ExtractionContext);
 	}
 
 	// Check that all bone atoms coming from animation are normalized
@@ -1553,8 +1546,17 @@ void UAnimSequence::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& OutCu
 
 void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData) const
 {
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+	GetBonePose(OutAnimationPoseData, ExtractionContext, bForceUseRawData);
+}
+
+void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData /*= false*/) const
+{
 	SCOPE_CYCLE_COUNTER(STAT_AnimSeq_GetBonePose);
 	CSV_SCOPED_TIMING_STAT(Animation, AnimSeq_GetBonePose);
+
+	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
 
 	const FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
 	const bool bUseRawDataForPoseExtraction = bForceUseRawData || UseRawDataForPoseExtraction(RequiredBones);
@@ -1608,7 +1610,7 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 	}
 
 	// extract curve data . Even if no track, it can contain curve data
-	EvaluateCurveData(OutCurve, ExtractionContext.CurrentTime, bUseRawDataForPoseExtraction);
+	EvaluateCurveData(OutAnimationPoseData.GetCurve(), ExtractionContext.CurrentTime, bUseRawDataForPoseExtraction);
 
 	const int32 NumTracks = bUseRawDataForPoseExtraction ? TrackToSkeletonMapTable.Num() : CompressedData.CompressedTrackToSkeletonMapTable.Num();
 	if (NumTracks == 0)
@@ -1646,11 +1648,15 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 		{
 			RootMotionReset.ResetRootBoneForRootMotion(OutPose[FCompactPoseBoneIndex(0)], RequiredBones);
 		}
+
+		GetCustomAttributes(OutAnimationPoseData, ExtractionContext, true);
+
 		return;
 	}
 #endif // WITH_EDITOR
 
 	DecompressPose(OutPose, CompressedData, ExtractionContext, GetSkeleton(), SequenceLength, Interpolation, bIsBakedAdditive, RetargetSource, GetFName(), RootMotionReset);
+	GetCustomAttributes(OutAnimationPoseData, ExtractionContext, false);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1722,6 +1728,18 @@ int32 UAnimSequence::AddNewRawTrack(FName TrackName, FRawAnimSequenceTrack* Trac
 
 void UAnimSequence::GetBonePose_Additive(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+
+	GetBonePose_Additive(OutAnimationPoseData, ExtractionContext);
+}
+
+void UAnimSequence::GetBonePose_Additive(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const
+{
+	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
+	FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
+	FStackCustomAttributes& OutAttributes = OutAnimationPoseData.GetAttributes();
+
 	if (!IsValidAdditive())
 	{
 		OutPose.ResetToAdditiveIdentity();
@@ -1729,23 +1747,36 @@ void UAnimSequence::GetBonePose_Additive(FCompactPose& OutPose, FBlendedCurve& O
 	}
 
 	// Extract target pose
-	GetBonePose(OutPose, OutCurve, ExtractionContext);
+	GetBonePose(OutAnimationPoseData, ExtractionContext);
 
 	// Extract base pose
 	FCompactPose BasePose;
 	FBlendedCurve BaseCurve;
+	FStackCustomAttributes BaseAttributes;
 	
 	BasePose.SetBoneContainer(&OutPose.GetBoneContainer());
 	BaseCurve.InitFrom(OutCurve);	
 
-	GetAdditiveBasePose(BasePose, BaseCurve, ExtractionContext);
+	FAnimationPoseData BasePoseData(BasePose, BaseCurve, BaseAttributes);
+
+	GetAdditiveBasePose(BasePoseData, ExtractionContext);
 
 	// Create Additive animation
 	FAnimationRuntime::ConvertPoseToAdditive(OutPose, BasePose);
 	OutCurve.ConvertToAdditive(BaseCurve);
+
+	FCustomAttributesRuntime::SubtractAttributes(BaseAttributes, OutAttributes);
 }
 
 void UAnimSequence::GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
+{
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+
+	GetAdditiveBasePose(OutAnimationPoseData, ExtractionContext);
+}
+
+void UAnimSequence::GetAdditiveBasePose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const
 {
 	switch (RefPoseType)
 	{
@@ -1758,7 +1789,7 @@ void UAnimSequence::GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& Ou
 
 			FAnimExtractContext BasePoseExtractionContext(ExtractionContext);
 			BasePoseExtractionContext.CurrentTime = BasePoseTime;
-			RefPoseSeq->GetBonePose(OutPose, OutCurve, BasePoseExtractionContext, true);
+			RefPoseSeq->GetBonePose(OutAnimationPoseData, BasePoseExtractionContext, true);
 			break;
 		}
 		// use animation as a base pose. Need BasePoseSeq and RefFrameIndex (will clamp if outside).
@@ -1769,20 +1800,31 @@ void UAnimSequence::GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& Ou
 
 			FAnimExtractContext BasePoseExtractionContext(ExtractionContext);
 			BasePoseExtractionContext.CurrentTime = BasePoseTime;
-			RefPoseSeq->GetBonePose(OutPose, OutCurve, BasePoseExtractionContext, true);
+			RefPoseSeq->GetBonePose(OutAnimationPoseData, BasePoseExtractionContext, true);
 			break;
 		}
 		// use ref pose of Skeleton as base
 		case ABPT_RefPose:
 		default:
-			OutPose.ResetToRefPose();
+			OutAnimationPoseData.GetPose().ResetToRefPose();
 			break;
 	}
-
 }
 
 void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+
+	GetBonePose_AdditiveMeshRotationOnly(OutAnimationPoseData, ExtractionContext);
+}
+
+void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const
+{
+	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
+	FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
+	FStackCustomAttributes& OutAttributes = OutAnimationPoseData.GetAttributes();
+
 	if (!IsValidAdditive())
 	{
 		// since this is additive, need to initialize to identity
@@ -1791,14 +1833,19 @@ void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FCompactPose& OutPose, 
 	}
 
 	// Get target pose
-	GetBonePose(OutPose, OutCurve, ExtractionContext, true);
+	GetBonePose(OutAnimationPoseData, ExtractionContext, true);
 
 	// get base pose
 	FCompactPose BasePose;
 	FBlendedCurve BaseCurve;
+	FStackCustomAttributes BaseAttributes;
+
+	FAnimationPoseData BasePoseData(BasePose, BaseCurve, BaseAttributes);
+
 	BasePose.SetBoneContainer(&OutPose.GetBoneContainer());
 	BaseCurve.InitFrom(OutCurve);
-	GetAdditiveBasePose(BasePose, BaseCurve, ExtractionContext);
+
+	GetAdditiveBasePose(BasePoseData, ExtractionContext);
 
 	// Convert them to mesh rotation.
 	FAnimationRuntime::ConvertPoseToMeshRotation(OutPose);
@@ -1807,6 +1854,8 @@ void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FCompactPose& OutPose, 
 	// Turn into Additive
 	FAnimationRuntime::ConvertPoseToAdditive(OutPose, BasePose);
 	OutCurve.ConvertToAdditive(BaseCurve);
+
+	FCustomAttributesRuntime::SubtractAttributes(BaseAttributes, OutAttributes);
 }
 
 void UAnimSequence::RetargetBoneTransform(FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive) const
@@ -2350,6 +2399,8 @@ void UAnimSequence::ApplyCompressedData(const TArray<uint8>& Data)
 {
 #if WITH_EDITOR
 	bCompressionInProgress = false;
+	
+	SynchronousCustomAttributesCompression();
 #endif
 	if(Data.Num() > 0)
 	{
@@ -2423,7 +2474,7 @@ public:
 	{}
 		
 	FByFramePoseEvalContext(float InSequenceLength, int32 InRawNumOfFrames, USkeleton* InSkeleton)
-		: IntervalTime(InSequenceLength / ((float)InRawNumOfFrames - 1))
+		: IntervalTime(InSequenceLength / ((float)FMath::Max(InRawNumOfFrames - 1, 1)))
 	{
 		// Initialize RequiredBones for pose evaluation
 		RequiredBones.SetUseRAWData(true);
@@ -2485,7 +2536,10 @@ void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewR
 		//Grab pose for this frame
 		const float CurrentFrameTime = Frame * EvalContext.IntervalTime;
 		ExtractContext.CurrentTime = CurrentFrameTime;
-		GetAnimationPose(Pose, Curve, ExtractContext);
+
+		FStackCustomAttributes TempAttributes;
+		FAnimationPoseData AnimPoseData(Pose, Curve, TempAttributes);
+		GetAnimationPose(AnimPoseData, ExtractContext);
 
 		for (int32 VBIndex = 0; VBIndex < VBRefData.Num(); ++VBIndex)
 		{
@@ -2540,7 +2594,10 @@ void UAnimSequence::TestEvalauteAnimation() const
 		//Grab pose for this frame
 		const float CurrentFrameTime = Frame * EvalContext.IntervalTime;
 		ExtractContext.CurrentTime = CurrentFrameTime;
-		GetAnimationPose(Pose, Curve, ExtractContext);
+
+		FStackCustomAttributes TempAttributes;
+		FAnimationPoseData AnimPoseData(Pose, Curve, TempAttributes);
+		GetAnimationPose(AnimPoseData, ExtractContext);
 	}
 }
 
@@ -2619,8 +2676,14 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 		const float PreviousFrameTime = (Frame - 1) * EvalContext.IntervalTime;
 		const float CurrentFrameTime = Frame * EvalContext.IntervalTime;
 		ExtractContext.CurrentTime = CurrentFrameTime;
-		GetAnimationPose(Pose, Curve, ExtractContext);
-		GetAdditiveBasePose(BasePose, DummyBaseCurve, ExtractContext);
+
+		FStackCustomAttributes BaseAttributes;
+		FAnimationPoseData AnimPoseData(Pose, Curve, BaseAttributes);
+		GetAnimationPose(AnimPoseData, ExtractContext);
+
+		FStackCustomAttributes AdditiveAttributes;
+		FAnimationPoseData AnimBasePoseData(BasePose, DummyBaseCurve, AdditiveAttributes);
+		GetAdditiveBasePose(AnimBasePoseData, ExtractContext);
 
 		//Write out every track for this frame
 		for (FCompactPoseBoneIndex TrackIndex(0); TrackIndex < NewRawTracks.Num(); ++TrackIndex)
@@ -5050,6 +5113,324 @@ bool UAnimSequence::UseRawDataForPoseExtraction(const FBoneContainer& RequiredBo
 {
 	return bUseRawDataOnly || (GetSkeletonVirtualBoneGuid() != GetSkeleton()->GetVirtualBoneGuid()) || RequiredBones.GetDisableRetargeting() || RequiredBones.ShouldUseRawData() || RequiredBones.ShouldUseSourceData();
 }
+
+void UAnimSequence::GetCustomAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_GetCustomAttributes);
+
+	const FBoneContainer& RequiredBones = OutAnimationPoseData.GetPose().GetBoneContainer();
+	FStackCustomAttributes& OutAttributes = OutAnimationPoseData.GetAttributes();
+
+#if WITH_EDITOR
+	if (bUseRawData)
+	{
+		for (const FCustomAttributePerBoneData& BoneAttributes : PerBoneCustomAttributeData)
+		{
+			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(BoneAttributes.BoneTreeIndex);
+
+			for (const FCustomAttribute& Attribute : BoneAttributes.Attributes)
+			{
+				FCustomAttributesRuntime::GetAttributeValue(OutAttributes, PoseBoneIndex, Attribute, ExtractionContext);
+			}
+		}
+	}
+	else
+#endif // WITH_EDITOR
+	{
+		for (const FBakedCustomAttributePerBoneData& BakedBoneAttributes : BakedPerBoneCustomAttributeData)
+		{
+			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(BakedBoneAttributes.BoneTreeIndex);
+			for (const FBakedFloatCustomAttribute& Attribute : BakedBoneAttributes.FloatAttributes)
+			{
+				const ECustomAttributeBlendType BlendType = FCustomAttributesRuntime::GetAttributeBlendType(Attribute.AttributeName);
+				const float Value = Attribute.FloatCurve.Eval(ExtractionContext.CurrentTime);
+				OutAttributes.AddBoneAttribute<float>(PoseBoneIndex, Attribute.AttributeName, BlendType, Value);
+			}
+
+			for (const FBakedIntegerCustomAttribute& Attribute : BakedBoneAttributes.IntAttributes)
+			{
+				const ECustomAttributeBlendType BlendType = FCustomAttributesRuntime::GetAttributeBlendType(Attribute.AttributeName);
+				const int32 Value = Attribute.IntCurve.Evaluate(ExtractionContext.CurrentTime);
+				OutAttributes.AddBoneAttribute<int32>(PoseBoneIndex, Attribute.AttributeName, BlendType, Value);
+			}
+
+			for (const FBakedStringCustomAttribute& Attribute : BakedBoneAttributes.StringAttributes)
+			{
+				static const FString DefaultValue = TEXT("");
+				const FString Value = Attribute.StringCurve.Eval(ExtractionContext.CurrentTime, DefaultValue);
+				OutAttributes.AddBoneAttribute<FString>(PoseBoneIndex, Attribute.AttributeName, ECustomAttributeBlendType::Override, Value);
+			}
+		}
+	}
+}
+
+#if WITH_EDITOR
+void UAnimSequence::RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName)
+{
+	FCustomAttributePerBoneData* DataPtr = PerBoneCustomAttributeData.FindByPredicate([BoneName, this](FCustomAttributePerBoneData& Attribute)
+	{
+		return Attribute.BoneTreeIndex == GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName);
+	});
+
+	if (DataPtr)
+	{
+		const int32 NumRemoved = DataPtr->Attributes.RemoveAll([AttributeName](FCustomAttribute& Attribute)
+		{
+			return Attribute.Name == AttributeName;
+		});
+
+		// In case there are no custom attributes left for this bone, remove the wrapping structure entry as well
+		if (DataPtr->Attributes.Num() == 0)
+		{
+			ensure(PerBoneCustomAttributeData.RemoveAll([DataPtr](FCustomAttributePerBoneData& Attribute)
+			{
+				return Attribute.BoneTreeIndex == DataPtr->BoneTreeIndex;
+			}) == 1);
+		}
+
+		if (NumRemoved)
+		{
+			// Update the Guid used to keep track of raw / baked versions
+			CustomAttributesGuid = FGuid::NewGuid();
+		}
+	}
+}
+
+void UAnimSequence::GetCustomAttributesForBone(const FName& BoneName, TArray<FCustomAttribute>& OutAttributes) const
+{
+	const USkeleton* CurrentSkeleton = GetSkeleton();
+
+	if (CurrentSkeleton)
+	{
+		const int32 BoneIndex = CurrentSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
+
+		if (BoneIndex != INDEX_NONE)
+		{
+			for (const FCustomAttributePerBoneData& PerBoneData : PerBoneCustomAttributeData)
+			{
+				if (PerBoneData.BoneTreeIndex == BoneIndex)
+				{
+					OutAttributes.Append(PerBoneData.Attributes);
+				}
+			}
+		}
+	}
+}
+
+// Helper functionality to populate a curve by sampling the custom attribute data
+template<typename DataType, typename CurveType>
+void ConvertAttributeToAdditive(const FCustomAttribute& AdditiveAttribute, const FCustomAttribute& RefAttribute, CurveType& InOutCurve, float SamplingTime, int32 NumberOfFrames, TFunctionRef<float(float Time)> GetReferenceTime)
+{
+	for (int32 Frame = 0; Frame < NumberOfFrames; ++Frame)
+	{
+		const float CurrentFrameTime = Frame * SamplingTime;
+
+		DataType AdditiveValue;
+		FCustomAttributesRuntime::GetAttributeValue(AdditiveAttribute, CurrentFrameTime, AdditiveValue);
+
+		DataType RefValue;
+		FCustomAttributesRuntime::GetAttributeValue(RefAttribute, GetReferenceTime(CurrentFrameTime), RefValue);
+
+		const DataType Value = RefValue - AdditiveValue;
+		InOutCurve.AddKey(CurrentFrameTime, Value);
+	}
+}
+
+void UAnimSequence::SynchronousCustomAttributesCompression()
+{
+	// If we are additive, we'll need to sample the base pose (against we're additive) and subtract the attributes from the base ones
+	const bool bShouldSampleBasePose = IsValidAdditive() && RefPoseType != ABPT_RefPose;
+	
+	BakedPerBoneCustomAttributeData.Empty(PerBoneCustomAttributeData.Num());
+
+	auto ProcessCustomAttribute = [this](const FCustomAttribute& Attribute, FBakedCustomAttributePerBoneData& BakedBoneAttributes)
+	{		
+		switch (static_cast<EVariantTypes>(Attribute.VariantType))
+		{
+			case EVariantTypes::Float:
+			{
+				FBakedFloatCustomAttribute& BakedFloatAttribute = BakedBoneAttributes.FloatAttributes.AddDefaulted_GetRef();
+				BakedFloatAttribute.AttributeName = Attribute.Name;
+
+				FSimpleCurve& FloatCurve = BakedFloatAttribute.FloatCurve;
+
+				TArray<FSimpleCurveKey> Keys;
+				for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
+				{
+					const FVariant& VariantValue = Attribute.Values[KeyIndex];
+					FloatCurve.AddKey(Attribute.Times[KeyIndex], VariantValue.GetValue<float>());
+				}
+
+				FloatCurve.SetDefaultValue(FloatCurve.GetFirstKey().Value);
+				FloatCurve.RemoveRedundantKeys(0.f);
+				break;
+			}
+
+			case EVariantTypes::Int32:
+			{
+				FBakedIntegerCustomAttribute& BakedIntAttribute = BakedBoneAttributes.IntAttributes.AddDefaulted_GetRef();
+				BakedIntAttribute.AttributeName = Attribute.Name;
+
+				FIntegralCurve& IntCurve = BakedIntAttribute.IntCurve;
+				for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
+				{
+					const FVariant& VariantValue = Attribute.Values[KeyIndex];
+					IntCurve.AddKey(Attribute.Times[KeyIndex], VariantValue.GetValue<int32>());
+				}
+
+				IntCurve.SetDefaultValue(IntCurve.GetKey(IntCurve.GetFirstKeyHandle()).Value);
+				IntCurve.RemoveRedundantKeys();
+				break;
+			}
+
+			case EVariantTypes::String:
+			{
+				FBakedStringCustomAttribute& BakedStringAttribute = BakedBoneAttributes.StringAttributes.AddDefaulted_GetRef();
+				BakedStringAttribute.AttributeName = Attribute.Name;
+
+				FStringCurve& StringCurve = BakedStringAttribute.StringCurve;
+				for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
+				{
+					const FVariant& VariantValue = Attribute.Values[KeyIndex];
+					StringCurve.AddKey(Attribute.Times[KeyIndex], VariantValue.GetValue<FString>());
+				}
+
+				StringCurve.SetDefaultValue(StringCurve.GetKey(StringCurve.GetFirstKeyHandle()).Value);
+				StringCurve.RemoveRedundantKeys();
+				break;
+			}
+
+			default:
+			{
+				ensureMsgf(false, TEXT("Invalid data variant type for custom attribute, only int32, float and FString are currently supported"));
+				break;
+			}
+		}
+	};
+
+	if (bShouldSampleBasePose)
+	{
+		// Behaviour for determining the time to sample the base pose attributes
+		auto GetBasePoseTimeToSample = [this](float InTime) -> float
+		{
+			float BasePoseTime = 0.f;
+
+			if (RefPoseType == ABPT_AnimScaled)
+			{
+				const float Fraction = (SequenceLength > 0.f) ? FMath::Clamp<float>(InTime / SequenceLength, 0.f, 1.f) : 0.f;
+				BasePoseTime = RefPoseSeq->SequenceLength * Fraction;
+			}
+			else if (RefPoseType == ABPT_AnimFrame)
+			{
+				const float Fraction = (RefPoseSeq->NumFrames > 0) ? FMath::Clamp<float>((float)RefFrameIndex / (float)RefPoseSeq->NumFrames, 0.f, 1.f) : 0.f;
+				BasePoseTime = RefPoseSeq->SequenceLength * Fraction;
+
+			}
+
+			return BasePoseTime;
+		};
+
+		const FReferenceSkeleton& RefSkeleton = GetSkeleton()->GetReferenceSkeleton();
+
+		// Helper struct to match sample timings with regular additive baking
+		FByFramePoseEvalContext EvalContext(this);
+		for (const FCustomAttributePerBoneData& BoneAttributes : PerBoneCustomAttributeData)
+		{
+			FBakedCustomAttributePerBoneData& BakedBoneAttributes = BakedPerBoneCustomAttributeData.AddDefaulted_GetRef();
+			BakedBoneAttributes.BoneTreeIndex = BoneAttributes.BoneTreeIndex;
+
+			TArray<FCustomAttribute> ReferenceSequenceAttributes;			
+			RefPoseSeq->GetCustomAttributesForBone(RefSkeleton.GetBoneName(BoneAttributes.BoneTreeIndex), ReferenceSequenceAttributes);
+
+			// Check whether or not the base sequence has any attributes
+			if (!ReferenceSequenceAttributes.Num())
+			{
+				for (const FCustomAttribute& Attribute : BoneAttributes.Attributes)
+				{
+					ProcessCustomAttribute(Attribute, BakedBoneAttributes);
+				}
+			}
+			else
+			{
+				for (const FCustomAttribute& Attribute : BoneAttributes.Attributes)
+				{
+					// Try and find equivalent in reference sequence
+					const FCustomAttribute* RefAttribute = ReferenceSequenceAttributes.FindByPredicate([Attribute](const FCustomAttribute& Attr)
+					{	
+						return Attribute.Name == Attr.Name && Attribute.VariantType == Attr.VariantType;
+					});
+
+					if (RefAttribute)
+					{
+						switch (static_cast<EVariantTypes>(Attribute.VariantType))
+						{
+							case EVariantTypes::Float:
+							{
+								FBakedFloatCustomAttribute& BakedFloatAttribute = BakedBoneAttributes.FloatAttributes.AddDefaulted_GetRef();
+								BakedFloatAttribute.AttributeName = Attribute.Name;
+
+								FSimpleCurve& FloatCurve = BakedFloatAttribute.FloatCurve;
+								ConvertAttributeToAdditive<float, FSimpleCurve>(Attribute, *RefAttribute, FloatCurve, EvalContext.IntervalTime, NumFrames, GetBasePoseTimeToSample);
+								FloatCurve.RemoveRedundantKeys(0.f);
+
+								break;
+							}
+
+							case EVariantTypes::Int32:
+							{
+								FBakedIntegerCustomAttribute& BakedIntAttribute = BakedBoneAttributes.IntAttributes.AddDefaulted_GetRef();
+								BakedIntAttribute.AttributeName = Attribute.Name;
+
+								FIntegralCurve& IntCurve = BakedIntAttribute.IntCurve;
+								ConvertAttributeToAdditive<int32, FIntegralCurve>(Attribute, *RefAttribute, IntCurve, EvalContext.IntervalTime, NumFrames, GetBasePoseTimeToSample);
+								IntCurve.RemoveRedundantKeys();
+							
+								break;
+							}
+
+							case EVariantTypes::String:
+							{
+								ProcessCustomAttribute(Attribute, BakedBoneAttributes);
+								break;
+							}
+						}
+					}
+					else
+					{
+						ProcessCustomAttribute(Attribute, BakedBoneAttributes);
+					}					
+				}
+			}
+		}
+	}
+	else
+	{
+		for (const FCustomAttributePerBoneData& BoneAttributes : PerBoneCustomAttributeData)
+		{
+			FBakedCustomAttributePerBoneData& BakedBoneAttributes = BakedPerBoneCustomAttributeData.AddDefaulted_GetRef();
+			BakedBoneAttributes.BoneTreeIndex = BoneAttributes.BoneTreeIndex;
+
+			for (const FCustomAttribute& Attribute : BoneAttributes.Attributes)
+			{
+				ProcessCustomAttribute(Attribute, BakedBoneAttributes);
+			}
+		}
+	}
+
+	// Match baked/raw attributes guid
+	BakedCustomAttributesGuid = CustomAttributesGuid;
+}
+
+FCustomAttributePerBoneData& UAnimSequence::FindOrAddCustomAttributeForBone(const FName& BoneName)
+{
+	FCustomAttributePerBoneData* DataPtr = PerBoneCustomAttributeData.FindByPredicate([BoneName, this](FCustomAttributePerBoneData& Attribute)
+	{
+		return Attribute.BoneTreeIndex == GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName);
+	});
+
+	return DataPtr ? *DataPtr : PerBoneCustomAttributeData.AddDefaulted_GetRef();
+}
+#endif // WITH_EDITOR
 
 void UAnimSequence::AdvanceMarkerPhaseAsFollower(const FMarkerTickContext& Context, float DeltaRemaining, bool bLooping, float& CurrentTime, FMarkerPair& PreviousMarker, FMarkerPair& NextMarker) const
 {
