@@ -14,7 +14,7 @@
 	"IsBetaVersion": false,
 	"EnabledByDefault": false,
 	"SupportedTargetPlatforms" : [
-		"IOS"
+		"IOS", "Win64"
 	],
 	"Modules":
 	[
