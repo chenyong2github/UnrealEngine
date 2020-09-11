@@ -35,16 +35,16 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	UI_COMMAND(BeginAddSpherePrimitiveTool, "Sphere", "Add Lat/Long Parametrized Spheres", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(BeginAddPatchTool, "Patch", "Start the Add Patch Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginRevolveBoundaryTool, "RevolveBoundary", "Start the Revolve Boundary Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginRevolveBoundaryTool, "CutRevolve", "Start the CutRevolve Tool, which revolves a section curve created by cutting the selected Mesh", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginDrawPolygonTool, "Polygon", "Start the Draw Polygon Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginDrawPolyPathTool, "PolyPath", "Start the Draw PolyPath Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginDrawAndRevolveTool, "DrawAndRevolve", "Start the Draw-and-Revolve Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginDrawAndRevolveTool, "PolyRevolve", "Start the Draw-and-Revolve Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginShapeSprayTool, "ShapeSpray", "Start the Shape Spray Tool", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(BeginSculptMeshTool, "Sculpt", "Start the Sculpt Mesh Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginPolyEditTool, "PolyEdit", "Start the PolyEdit Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginGroupEdgeInsertionTool, "GroupEdgeInsert", "Start the Group Edge Insertion Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginEdgeLoopInsertionTool, "EdgeLoopInsert", "Start the Edge Loop Insertion Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginGroupEdgeInsertionTool, "EdgeInsert", "Start the Group Edge Insertion Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginEdgeLoopInsertionTool, "LoopInsert", "Start the Edge Loop Insertion Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginTriEditTool, "TriEdit", "Start the Triangle Edit Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginPolyDeformTool, "PolyDeform", "Start the PolyDeform Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginSmoothMeshTool, "Smooth", "Start the Smooth Mesh Tool", EUserInterfaceActionType::Button, FInputChord());
@@ -60,7 +60,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 
 	UI_COMMAND(BeginRemeshSculptMeshTool, "DynaSculpt", "Start the Liquid Sculpt Mesh Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginRemeshMeshTool, "Remesh", "Start the Remesh Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginProjectToTargetTool, "Remesh To Target", "Start the Remesh To Target Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginProjectToTargetTool, "MapToMesh", "Start the Remesh To Target Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginSimplifyMeshTool, "Simplify", "Start the Simplify Mesh Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginEditNormalsTool, "Normals", "Start the Edit Normals Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginEditTangentsTool, "Tangents", "Start the Edit Tangents Tool", EUserInterfaceActionType::Button, FInputChord());
@@ -69,12 +69,12 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	UI_COMMAND(BeginUVLayoutTool, "UVLayout", "Start the UV Layout Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginVoxelMergeTool, "VoxMerge", "Start the Voxel Merge Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginVoxelBooleanTool, "VoxBoolean", "Start the Voxel Boolean Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginVoxelSolidifyTool, "VoxSolidify", "Start the Voxel SolidifyTool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginVoxelSolidifyTool, "VoxWrap", "Start the Voxel Shell Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginVoxelBlendTool, "VoxBlend", "Start the Voxel Blend Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginVoxelMorphologyTool, "VoxMorphology", "Start the Voxel Morphology Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginSelfUnionTool, "Mesh Merge", "Start the Mesh-Based (Intersection-Resolving) Merge Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginSelfUnionTool, "SelfUnion", "Start the Mesh-Based Self-Union Tool, which will resolve self-intersections", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginMeshBooleanTool, "Mesh Boolean", "Start the Mesh-Based Boolean Tool", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BeginBspConversionTool, "BSP Conversion", "Start the BSP-to-static-mesh Conversion Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginBspConversionTool, "BSP Conversion", "Start the BSP-to-StaticMesh Conversion Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginMeshToVolumeTool, "Mesh2Vol", "Start the Mesh to Volume Conversion Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginVolumeToMeshTool, "Vol2Mesh", "Start the Volume to Mesh Conversion Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginPlaneCutTool, "PlaneCut", "Start the Plane Cut Tool", EUserInterfaceActionType::Button, FInputChord());

@@ -62,7 +62,7 @@ public:
 
 	/** Bake scale */
 	UPROPERTY(EditAnywhere, Category = Options)
-	EBakeScaleMethod BakeScale = EBakeScaleMethod::BakeNonuniformScale;
+	EBakeScaleMethod BakeScale = EBakeScaleMethod::BakeFullScale;
 
 	/** Recenter pivot after baking transform */
 	UPROPERTY(EditAnywhere, Category = Options)
