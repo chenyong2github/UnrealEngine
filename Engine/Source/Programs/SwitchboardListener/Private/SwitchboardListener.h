@@ -5,14 +5,15 @@
 #include "CoreMinimal.h"
 #include "Interfaces/IPv4/Ipv4Endpoint.h"
 
+struct FRunningProcess;
 struct FSwitchboardTask;
+struct FSwitchboardDisconnectTask;
+struct FSwitchboardSendFileToClientTask;
 struct FSwitchboardStartTask;
-struct FSwitchboardTransferFileTask;
+struct FSwitchboardReceiveFileFromClientTask;
 struct FSwitchboardVcsInitTask;
 struct FSwitchboardVcsReportRevisionTask;
 struct FSwitchboardVcsSyncTask;
-struct FSwitchboardDisconnectTask;
-struct FRunningProcess;
 class FInternetAddr;
 class FSocket;
 class FSwitchboardSourceControl;
@@ -36,7 +37,8 @@ private:
 	bool StartProcess(const FSwitchboardStartTask& InRunTask);
 	bool KillProcess(FRunningProcess* InProcess);
 	bool KillAllProcesses();
-	bool TransferFile(const FSwitchboardTransferFileTask& TransferTask);
+	bool ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask);
+	bool SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask);
 	bool InitVersionControlSystem(const FSwitchboardVcsInitTask& InVcsInitTask);
 	bool ReportVersionControlRevision(const FSwitchboardVcsReportRevisionTask& InVcsRevisionTask);
 	bool SyncVersionControl(const FSwitchboardVcsSyncTask& InSyncTask);

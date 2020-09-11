@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SwitchboardListener.h"
+#include "SwitchboardListenerApp.h"
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "ISourceControlState.h"
@@ -100,9 +101,10 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 	FCommandLineOptions Options;
 	if (!ParseCommandLine(ArgC, ArgV, Options))
 	{
-		UE_LOG(LogSwitchboard, Error, TEXT("Could not find required command line options"));
-		UE_LOG(LogSwitchboard, Error, TEXT("Example Usage: SwitchboardListener -ip=127.0.0.1 -port=2980"));
-		return false;
+		UE_LOG(LogSwitchboard, Warning, TEXT("No ip/port passed on command line!"));
+		UE_LOG(LogSwitchboard, Warning, TEXT("Defaulting to: -ip=0.0.0.0 -port=2980"));
+		Options.Address = FIPv4Address(0, 0, 0, 0);
+		Options.Port = 2980;
 	}
 	FSwitchboardListener Listener({ Options.Address, Options.Port });
 	if (!Listener.Init())
