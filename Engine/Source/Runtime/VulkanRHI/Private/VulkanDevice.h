@@ -48,6 +48,8 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasKHRImageFormatList : 1;
 			uint32 HasEXTASTCDecodeMode : 1;
 			uint32 HasQcomRenderPassTransform : 1;
+			uint32 HasAtomicInt64 : 1;
+			uint32 HasBufferAtomicInt64 : 1;
 		};
 		uint32 Packed;
 	};

@@ -917,7 +917,20 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 	// Query features
 	VulkanRHI::vkGetPhysicalDeviceFeatures(Gpu, &PhysicalFeatures);
 
-	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d Tessellation %d"), DeviceIndex, PhysicalFeatures.geometryShader, PhysicalFeatures.tessellationShader);
+#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
+	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+	{
+		VkPhysicalDeviceShaderAtomicInt64Features AtomicFeatures;
+		ZeroVulkanStruct(AtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
+		VkPhysicalDeviceFeatures2 Features2;
+		ZeroVulkanStruct(Features2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+		Features2.pNext = &AtomicFeatures;
+		VulkanRHI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &Features2);
+		OptionalDeviceExtensions.HasBufferAtomicInt64 = (AtomicFeatures.shaderBufferInt64Atomics == VK_TRUE);
+	}
+#endif
+
+	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d Tessellation %d BufferAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, PhysicalFeatures.tessellationShader, OptionalDeviceExtensions.HasBufferAtomicInt64);
 
 	CreateDevice();
 
