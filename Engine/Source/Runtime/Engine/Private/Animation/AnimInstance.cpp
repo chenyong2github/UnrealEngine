@@ -259,16 +259,22 @@ void UAnimInstance::UninitializeAnimation()
 	}
 
 	USkeletalMeshComponent* SkelMeshComp = GetSkelMeshComponent();
-	if (SkelMeshComp)
+
+	// Skip dispatching notify end messages during re-instancing. Various classes may be in an incomplete state so calling
+	// arbitrary script is dangerous.
+	if(!GIsReinstancing)
 	{
-		// Tick currently active AnimNotifyState
-		for(int32 Index=0; Index<ActiveAnimNotifyState.Num(); Index++)
+		if (SkelMeshComp)
 		{
-			const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
-			if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
+			// Tick currently active AnimNotifyState
+			for(int32 Index=0; Index<ActiveAnimNotifyState.Num(); Index++)
 			{
-				TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, End);
-				AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
+				const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
+				if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
+				{
+					TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, End);
+					AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
+				}
 			}
 		}
 	}
