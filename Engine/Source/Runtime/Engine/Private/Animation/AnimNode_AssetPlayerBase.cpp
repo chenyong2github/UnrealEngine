@@ -6,6 +6,7 @@
 FAnimNode_AssetPlayerBase::FAnimNode_AssetPlayerBase()
 	: GroupIndex(INDEX_NONE)
 	, GroupRole(EAnimGroupRole::CanBeLeader)
+	, GroupScope(EAnimSyncGroupScope::Local)
 	, bIgnoreForRelevancyTest(false)
 	, bHasBeenFullWeight(false)
 	, BlendWeight(0.0f)
@@ -39,7 +40,7 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 	FAnimGroupInstance* SyncGroup;
 	const int32 GroupIndexToUse = ((GroupRole < EAnimGroupRole::TransitionLeader) || bHasBeenFullWeight) ? GroupIndex : INDEX_NONE;
 
-	FAnimTickRecord& TickRecord = Context.AnimInstanceProxy->CreateUninitializedTickRecord(GroupIndexToUse, /*out*/ SyncGroup);
+	FAnimTickRecord& TickRecord = Context.AnimInstanceProxy->CreateUninitializedTickRecordInScope(GroupIndexToUse, GroupScope, /*out*/ SyncGroup);
 
 	Context.AnimInstanceProxy->MakeSequenceTickRecord(TickRecord, Sequence, bLooping, PlayRate, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 	TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();

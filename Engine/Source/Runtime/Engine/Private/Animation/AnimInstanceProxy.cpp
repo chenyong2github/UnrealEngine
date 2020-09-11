@@ -552,6 +552,8 @@ void FAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent();
+	MainInstanceProxy = &InAnimInstance->GetSkelMeshComponent()->GetAnimInstance()->GetProxyOnAnyThread<FAnimInstanceProxy>();
+
 	if (SkeletalMeshComponent->SkeletalMesh != nullptr)
 	{
 		Skeleton = SkeletalMeshComponent->SkeletalMesh->Skeleton;
@@ -592,13 +594,14 @@ void FAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 void FAnimInstanceProxy::ClearObjects()
 {
 	SkeletalMeshComponent = nullptr;
+	MainInstanceProxy = nullptr;
 	Skeleton = nullptr;
 }
 
 FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(int32 GroupIndex, FAnimGroupInstance*& OutSyncGroupPtr)
 {
 	// Find or create the sync group if there is one
-	OutSyncGroupPtr = NULL;
+	OutSyncGroupPtr = nullptr;
 	if (GroupIndex >= 0)
 	{
 		TArray<FAnimGroupInstance>& SyncGroups = SyncGroupArrays[GetSyncGroupWriteIndex()];
@@ -610,8 +613,29 @@ FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(int32 GroupIn
 	}
 
 	// Create the record
-	FAnimTickRecord* TickRecord = new ((OutSyncGroupPtr != NULL) ? OutSyncGroupPtr->ActivePlayers : UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()]) FAnimTickRecord();
+	FAnimTickRecord* TickRecord = new ((OutSyncGroupPtr != nullptr) ? OutSyncGroupPtr->ActivePlayers : UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()]) FAnimTickRecord();
 	return *TickRecord;
+}
+
+FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr)
+{
+	if (GroupIndex >= 0)
+	{
+		switch(Scope)
+		{
+		default:
+			ensureMsgf(false, TEXT("FAnimInstanceProxy::CreateUninitializedTickRecordInScope: Scope has invalid value %d"), Scope);
+			// Fall through
+
+		case EAnimSyncGroupScope::Local:
+			return CreateUninitializedTickRecord(GroupIndex, OutSyncGroupPtr);
+		case EAnimSyncGroupScope::Component:
+			// Forward to the main instance to sync with animations there in TickAssetPlayerInstances()
+			return MainInstanceProxy->CreateUninitializedTickRecord(GroupIndex, OutSyncGroupPtr);
+		}
+	}
+	
+	return CreateUninitializedTickRecord(GroupIndex, OutSyncGroupPtr);
 }
 
 void FAnimInstanceProxy::MakeSequenceTickRecord(FAnimTickRecord& TickRecord, class UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const

@@ -371,6 +371,7 @@ void UAnimGraphNode_SequencePlayer::BakeDataDuringCompilation(class FCompilerRes
 	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
 	Node.GroupIndex = AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
 	Node.GroupRole = SyncGroup.GroupRole;
+	Node.GroupScope = SyncGroup.GroupScope;
 }
 
 void UAnimGraphNode_SequencePlayer::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const
