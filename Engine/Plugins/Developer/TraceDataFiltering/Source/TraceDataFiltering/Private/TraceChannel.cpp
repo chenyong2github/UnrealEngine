@@ -4,7 +4,7 @@
 #include "Internationalization/Text.h"
 #include "ISessionTraceFilterService.h"
 
-FTraceChannel::FTraceChannel(FString InName, FString InParentName, uint32 InHash, bool bInEnabled, const TArray<TSharedPtr<ITraceObject>>& InChildObjects, TSharedPtr<ISessionTraceFilterService> InFilterService) : Name(InName), ParentName(InParentName), Hash(InHash), ChildObjects(InChildObjects), bFiltered(!bInEnabled), bIsPending(false), FilterService(InFilterService)
+FTraceChannel::FTraceChannel(FString InName, FString InParentName, uint32 InHash, bool bInEnabled, bool bInCmdLineOnly, const TArray<TSharedPtr<ITraceObject>>& InChildObjects, TSharedPtr<ISessionTraceFilterService> InFilterService) : Name(InName), ParentName(InParentName), Hash(InHash), ChildObjects(InChildObjects), bFiltered(!bInEnabled), bIsPending(false), bReadOnly(bInCmdLineOnly), FilterService(InFilterService)
 {
 
 }
@@ -22,6 +22,12 @@ FString FTraceChannel::GetName() const
 void FTraceChannel::SetPending()
 {
 	bIsPending = true;
+}
+
+
+bool FTraceChannel::IsReadOnly() const
+{
+	return bReadOnly;
 }
 
 void FTraceChannel::SetIsFiltered(bool bState)

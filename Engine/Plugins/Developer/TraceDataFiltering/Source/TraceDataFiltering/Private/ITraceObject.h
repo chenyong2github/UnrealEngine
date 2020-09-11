@@ -19,6 +19,9 @@ public:
 
 	/** Set whether or not this object should (not) be filtered out */
 	virtual void SetIsFiltered(bool bState) = 0;
+
+	/** Returns whether or not this object can be changed by the user. */
+	virtual bool IsReadOnly() const = 0;
 	
 	/** Set whether or not this object is pending an update of its state (from the connect edTrace connection) */
 	virtual void SetPending() = 0;
