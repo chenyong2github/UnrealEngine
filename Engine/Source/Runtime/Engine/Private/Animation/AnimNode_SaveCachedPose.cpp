@@ -108,6 +108,9 @@ void FAnimNode_SaveCachedPose::PostGraphUpdate()
 			}
 		}
 
+		// Sync with the update counter
+		UpdateCounter.SynchronizeWith(CachedUpdateContexts[MaxWeightIdx].Context.AnimInstanceProxy->GetUpdateCounter());
+
 		// Update the max weighted pose node
 		{
 			TRACE_SCOPED_ANIM_NODE(CachedUpdateContexts[MaxWeightIdx].Context);
