@@ -891,7 +891,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 {
 	if (NewCaptures.Num() > 0)
 	{
-		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+		if (SupportsTextureCubeArray(GetFeatureLevel()))
 		{
 			int32_t PlatformMaxNumReflectionCaptures = FMath::Min(FMath::FloorToInt(GMaxTextureArrayLayers / 6.0f), GMaxNumReflectionCaptures);
 
@@ -1406,7 +1406,7 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 			// Safety check during the reflection capture build, there should not be any map build data
 			ensure(!bVerifyOnlyCapturing);
 
-			check(GetFeatureLevel() >= ERHIFeatureLevel::SM5);
+			check(SupportsTextureCubeArray(GetFeatureLevel()));
 
 			FScene* Scene = this;
 
