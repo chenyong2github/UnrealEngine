@@ -13,7 +13,7 @@ import { Mailer } from '../common/mailer';
 import { ClientSpec, getPerforceUsername, getRootDirectoryForBranch, initializePerforce, PerforceContext } from '../common/perforce';
 import { BuildVersion, VersionReader } from '../common/version';
 import { CertFiles } from '../common/webserver';
-import { addBranchGraph, Graph } from '../new/graph';
+import { addBranchGraph, Graph, GraphAPI } from '../new/graph';
 import { AutoBranchUpdater } from './autobranchupdater';
 import { Branch } from './branch-interfaces';
 import { GraphBot } from './graphbot';
@@ -185,7 +185,7 @@ GraphBot.dataDirectory = args.branchSpecsDirectory;
 export class RoboMerge {
 	private readonly roboMergeLogger = new ContextualLogger('RoboMerge')
 	readonly graphBots = new Map<string, GraphBot>()
-	graph = new Graph
+	graph: GraphAPI
 	mailer: Mailer
 	
 	static VERSION : BuildVersion = VersionReader.getBuildVersionObj();
@@ -328,30 +328,37 @@ function _checkForAutoPauseBots(branches: Branch[], logger: ContextualLogger) {
 	}
 }
 
+let specReloadEntryCount = 0
 async function _onBranchSpecReloaded(graphBot: GraphBot, logger: ContextualLogger) {
-	await _initWorkspacesForGraphBot(graphBot, await _getExistingWorkspaces(), logger)
-
-	// regenerate ubergraph
-	const graph = new Graph
-
-	graphBot.initBots(graph)
-
-	// race condition when two or more branches get reloaded at the same time!
-	//	- multiple bots await above, at which time new branch objects have no bots
 	try {
-		for (const graphBot of robo.graphBots.values()) {
-			addBranchGraph(graph, graphBot.branchGraph)
-		}
-		robo.graph = graph
+		++specReloadEntryCount
+		await _initWorkspacesForGraphBot(graphBot, await _getExistingWorkspaces(), logger)
 	}
-	catch (err) {
-		logger.printException(err, 'Caught error regenerating ubergraph')
+	finally {
+		--specReloadEntryCount
+	}
+
+	graphBot.initBots(robo.graph)
+
+	if (specReloadEntryCount === 0) {
+		// regenerate ubergraph (last update to finish does regen if multiple in flight)
+		const graph = new Graph
+
+		// race condition when two or more branches get reloaded at the same time!
+		//	- multiple bots await above, at which time new branch objects have no bots
+		try {
+			for (const graphBot of robo.graphBots.values()) {
+				addBranchGraph(graph, graphBot.branchGraph)
+			}
+			robo.graph.reset(graph)
+		}
+		catch (err) {
+			logger.printException(err, 'Caught error regenerating ubergraph')
+		}
 	}
 
 	logger.info(`Restarting monitoring ${graphBot.branchGraph.botname} branches after reloading branch definitions`)
 	graphBot.runbots()
-
-	// no need to check for paused bots any more - pause state persists
 }
 
 async function init(logger: ContextualLogger) {
@@ -385,9 +392,11 @@ async function init(logger: ContextualLogger) {
 		await _initBranchWorkspacesForAllBots(logger)
 	}
 
+	const graph = new Graph
+	robo.graph = new GraphAPI(graph)
 	for (const graphBot of robo.graphBots.values()) {
 		graphBot.initBots(robo.graph)
-		addBranchGraph(robo.graph, graphBot.branchGraph)
+		addBranchGraph(graph, graphBot.branchGraph)
 	}
 }
 

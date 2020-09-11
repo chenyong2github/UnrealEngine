@@ -76,6 +76,40 @@ NB: one node in the ubergraph can represent multiple nodebots across bots
 
  */ 
 
+export class GraphAPI {
+	constructor(public graph: Graph) {
+	}
+
+	reset(graph: Graph) {
+		this.graph = graph
+	}
+
+	getNode(name: TargetName) {
+		return this.graph.getNode(name)
+	}
+
+	getBranchGraph(name: BotName) {
+		return this.graph.branchGraphAliases.get(name)
+	}
+
+	findAllRoutesBetween(src: Node, target: Node, flags?: EdgeFlag[], skip?: Set<Node>) {
+		return this.graph.findAllRoutesBetween(src, target, flags, skip)
+	}
+
+	computeImplicitTargets(source: Node, requestedTargets: Map<Node, MergeMode>, allowedBots?: string[]) {
+		return this.graph.computeImplicitTargets(source, requestedTargets, allowedBots)
+	}
+}
+
+type EdgeDump = {
+	target: string
+	flags: string
+}
+
+type NodeDump = {
+	edges: EdgeDump[]
+	aliases: string[]
+}
 
 export class Graph {
 	private streamNodes = new Map<Stream, Node>()
@@ -84,10 +118,6 @@ export class Graph {
 	private edgesByTarget = new Map<Node, Set<Edge>>()
 	private edgesByBot = new Map<string, Set<Edge>>()
 
-
-	/**
-		Just used to implement 
-	 */
 	branchGraphAliases = new Map<string, BranchGraphInterface>()
 
 	findOrCreateStreamNode(depotPath: string | Branch) {
@@ -169,16 +199,18 @@ export class Graph {
 			setDefault(nodeNames, node, []).push(name)
 		}
 
-// for now, just dumping out aliases
-
 		const orderedNodes = [...nodeNames.keys()]
 		sortBy(orderedNodes, node => node.debugName)
 
-		const result: [string, string[]][] = []
+		const result: [string, NodeDump][] = []
 		for (const node of orderedNodes) {
-			const aliases = nodeNames.get(node)!
-			aliases.sort()
-			result.push([node.debugName, aliases])
+			const info: NodeDump = {edges: [], aliases: nodeNames.get(node)!}
+			info.aliases.sort()
+
+			for (const edge of this.getEdgesBySource(node)) {
+				info.edges.push({target: edge.target.debugName, flags: [...edge.flags].join(', ')})
+			}
+			result.push([node.debugName, info])
 		}
 
 		return result
@@ -217,11 +249,8 @@ export class Graph {
 	}
 
 	// function called this to match NodeBot function
-	computeImplicitTargets(
-		source: Node,
-		requestedTargets: Map<Node, MergeMode>,
-		allowedBots?: string[]
-	): {status: Success, integrations?: ComputeResult, unreachable?: Node[]} {
+	computeImplicitTargets(source: Node, requestedTargets: Map<Node, MergeMode>, allowedBots?: string[])
+		: {status: Success, integrations?: ComputeResult, unreachable?: Node[]} {
 
 		const targetsToFind = new Set<Node>()
 		const skipNodes = new Set<Node>()

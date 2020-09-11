@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { FunctionalTest, P4Util, RobomergeBranchSpec, Stream } from '../framework'
+import { EdgeProperties, FunctionalTest, P4Util, RobomergeBranchSpec, Stream } from '../framework'
 import { Perforce } from '../test-perforce'
 
 const DEPOT_NAME = 'CrossBot'
@@ -40,7 +40,7 @@ function createStreams(p4: Perforce, test: FunctionalTest) {
 				await test.createStreamsAndWorkspaces(streams, DEPOT_NAME)
 
 				const mainClient = test.getClient('Main', 'testuser1', DEPOT_NAME)
-				for (const n of [1, 2, 3, 4, 5, 6]) {
+				for (const n of [1, 2, 3, 4, 5, 6, 7]) {
 					await P4Util.addFileAndSubmit(mainClient, `test${n}.txt`, 'Initial content')
 				}
 
@@ -217,7 +217,9 @@ export class ComplexCrossBot extends ComplexBase {
 			this.checkHeadRevision('R26', 'test4.txt', 2, DEPOT_NAME),
 			this.checkHeadRevision('Plus', 'test4.txt', 2, DEPOT_NAME),
 			this.checkHeadRevision('R26', 'test5.txt', 2, DEPOT_NAME),
-			this.checkHeadRevision('Plus', 'test5.txt', 2, DEPOT_NAME)
+			this.checkHeadRevision('Plus', 'test5.txt', 2, DEPOT_NAME),
+			this.checkHeadRevision('FNM', 'test7.txt', 2, DEPOT_NAME),
+			this.checkHeadRevision('RES', 'test7.txt', 2, DEPOT_NAME)
 		])
 	}
 
@@ -281,10 +283,9 @@ export class ComplexCrossBot3 extends ComplexBase {
 	}
 
 	async run() {
-	}
-
-	async verify() {
-
+		const client = this.getClient('R25Dev', 'testuser1', DEPOT_NAME)
+		await client.sync()
+		await P4Util.editFileAndSubmit(client, 'test7.txt', 'Initial content\n\nMergeable line', 'nextgen Plus')
 	}
 
 	getBranches() {
@@ -295,5 +296,22 @@ export class ComplexCrossBot3 extends ComplexBase {
 			this.makeBranch('R26', [], []),
 			this.makeBranch('DEM', ['Plus'], [])
 		]
+	}
+
+	getEdges(): EdgeProperties[] {
+		return [
+		  { from: this.fullBranchName('DEM'), to: this.fullBranchName('Plus')
+		  , incognitoMode: true
+		  }
+		]
+	}
+
+	async verify() {
+	}
+
+	getMacros() {
+		return {
+			'nextgen': [`#robomerge[${complexBot!.botName}] FNM, -RES`]
+		}
 	}
 }

@@ -21,7 +21,7 @@ import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Settings } from './settings';
 import { Status } from './status';
 import { TickJournal } from './tick-journal';
-import { Graph } from '../new/graph';
+import { GraphAPI } from '../new/graph';
 
 // probably get the gist after 2000 characters
 const MAX_ERROR_LENGTH_TO_REPORT = 2000
@@ -96,7 +96,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		return branch && branch.bot ? branch.bot as NodeBot : undefined
 	}
 
-	initBots(ubergraph: Graph) {
+	initBots(ubergraph: GraphAPI) {
 		this.eventTriggers = new BotEventTriggers(this.branchGraph.botname, this.branchGraph.config)
 		this.eventTriggers.registerHandler(this)
 		const blockageUrlGenerator: NodeOpUrlGenerator = (blockage : Blockage | null) => { 
