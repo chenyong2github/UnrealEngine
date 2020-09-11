@@ -11,6 +11,7 @@ struct FTraceObjectInfo
 {
 	FString Name;
 	bool bEnabled;
+	bool bReadOnly;
 	uint32 Hash;
 	uint32 OwnerHash;
 };
