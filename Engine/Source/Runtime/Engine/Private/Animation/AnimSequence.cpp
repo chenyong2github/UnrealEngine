@@ -4382,9 +4382,9 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 
 				// Apply PostProcess behaviour in-place
 				SanitizeAnimationTrackData(RawTrack);
-				StaticCompressRawAnimData(NewRawTracks, NumFrames, GetFName());
 			}
 		}
+		StaticCompressRawAnimData(NewRawTracks, NumFrames, GetFName());
 	}
 }
 
