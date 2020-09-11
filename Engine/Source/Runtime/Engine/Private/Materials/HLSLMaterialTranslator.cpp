@@ -866,6 +866,10 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			Errorf(TEXT("Volume materials must use an Additive blend mode."));
 		}
+		if (Domain == MD_Volume && Material->IsUsedWithSkeletalMesh())
+		{
+			Errorf(TEXT("Volume materials are not compatible with skinned meshes: they are voxelised as boxes anyway. Please disable UsedWithSkeletalMesh on the material."));
+		}
 
 		if (Material->IsLightFunction() && BlendMode != BLEND_Opaque)
 		{
