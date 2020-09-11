@@ -1520,6 +1520,7 @@ public:
 	virtual bool GetCastCloudShadows() const { return false; }
 	virtual float GetCloudShadowExtent() const { return 1.0f; }
 	virtual float GetCloudShadowMapResolutionScale() const { return 1.0f; }
+	virtual float GetCloudShadowRaySampleCountScale() const { return 1.0f; }
 	virtual float GetCloudShadowStrength() const { return 1.0f; }
 	virtual float GetCloudShadowOnAtmosphereStrength() const { return 1.0f; }
 	virtual float GetCloudShadowOnSurfaceStrength() const { return 1.0f; }
