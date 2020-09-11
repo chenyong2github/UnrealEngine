@@ -736,6 +736,10 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 	{
 		ImportedActor = FDatasmithActorImporter::ImportCameraActor( ImportContext, StaticCastSharedRef< IDatasmithCameraActorElement >(ActorElement) );
 	}
+	else if (ActorElement->IsA(EDatasmithElementType::Decal))
+	{
+		ImportedActor = FDatasmithActorImporter::ImportDecalActor( ImportContext, StaticCastSharedRef< IDatasmithDecalActorElement >(ActorElement), UniqueNameProvider );
+	}
 	else if (ActorElement->IsA(EDatasmithElementType::CustomActor))
 	{
 		ImportedActor = FDatasmithActorImporter::ImportCustomActor( ImportContext, StaticCastSharedRef< IDatasmithCustomActorElement >(ActorElement), UniqueNameProvider );
