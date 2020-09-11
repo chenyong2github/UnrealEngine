@@ -1006,7 +1006,6 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 		SystemTickGraphEvent = SimulationTickTask->GetCompletionEvent();
 		Context.FinalizeEvents->Add(SystemTickGraphEvent);
 
-		MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 		MyCompletionGraphEvent->DontCompleteUntil(FinalizeGraphEvent);
 
 		SimulationTickTask->Unlock(ENamedThreads::GameThread);

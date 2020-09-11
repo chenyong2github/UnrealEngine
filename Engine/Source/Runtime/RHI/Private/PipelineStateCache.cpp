@@ -639,8 +639,7 @@ FAutoConsoleTaskPriority CPrio_FCompilePipelineStateTask(
 	TEXT("Task and thread priority for FCompilePipelineStateTask."),
 	ENamedThreads::HighThreadPriority,		// if we have high priority task threads, then use them...
 	ENamedThreads::NormalTaskPriority,		// .. at normal task priority
-	ENamedThreads::HighTaskPriority,		// if we don't have hi pri threads, then use normal priority threads at high task priority instead
-	EPowerSavingEligibility::NotEligible	// Not eligible for downgrade when power saving is requested.
+	ENamedThreads::HighTaskPriority		// if we don't have hi pri threads, then use normal priority threads at high task priority instead
 );
 #if RHI_RAYTRACING
 
