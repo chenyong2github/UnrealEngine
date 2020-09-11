@@ -58,6 +58,7 @@ void IMeshPaintComponentAdapter::DefaultQueryPaintableTextures(int32 MaterialInd
 				!TextureBase->Texture->IsNormalMap() && 
 				!TextureBase->Texture->VirtualTextureStreaming &&
 				!TextureBase->Texture->HasHDRSource() && // Currently HDR textures are not supported to paint on.
+				TextureBase->Texture->Source.GetBytesPerPixel() > 0 && // Textures' sources must have a known count of bytes per pixel
 				(TextureBase->Texture->Source.GetBytesPerPixel() <= UTexturePaintToolset::GetMaxSupportedBytesPerPixelForPainting())) // Textures' sources must fit in FColor struct to be supported.
 			{
 				// Default UV channel to index 0. 
