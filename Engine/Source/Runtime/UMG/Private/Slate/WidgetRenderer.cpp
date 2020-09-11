@@ -7,6 +7,7 @@
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "Rendering/SlateDrawBuffer.h"
+#include "TextureResource.h"
 #include "Engine/TextureRenderTarget2D.h"
 
 #if !UE_SERVER
@@ -321,7 +322,7 @@ bool FWidgetRenderer::DrawInvalidationRoot(TSharedRef<SVirtualWindow>& VirtualWi
 				static_cast<float>(FApp::GetCurrentTime() - GStartTime),
 				static_cast<float>(FApp::GetDeltaTime()),
 				static_cast<float>(FPlatformTime::Seconds() - GStartTime),
-				(FRenderTarget*)RenderTarget->GameThread_GetRenderTargetResource(),
+				static_cast<FRenderTarget*>(RenderTarget->GameThread_GetRenderTargetResource()),
 				Renderer.Get(),
 				bClearTarget
 			};
