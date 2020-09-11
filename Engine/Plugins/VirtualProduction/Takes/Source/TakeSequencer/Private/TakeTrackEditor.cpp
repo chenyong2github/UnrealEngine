@@ -67,11 +67,11 @@ const FSlateBrush* FTakeTrackEditor::GetIconBrush() const
 bool FTakeTrackEditor::ImportAnimatedProperty(const FString& InPropertyName, const FRichCurve& InCurve, FGuid InBinding, UMovieScene* InMovieScene)
 {
 	// check whether this property is something we can import
-	if (InPropertyName != GetDefault<UMovieSceneTakeSettings>()->HoursText.ToString() && 
-		InPropertyName != GetDefault<UMovieSceneTakeSettings>()->MinutesText.ToString() && 
-		InPropertyName != GetDefault<UMovieSceneTakeSettings>()->SecondsText.ToString() && 
-		InPropertyName != GetDefault<UMovieSceneTakeSettings>()->FramesText.ToString() && 
-		InPropertyName != GetDefault<UMovieSceneTakeSettings>()->SubFramesText.ToString())
+	if (InPropertyName != GetDefault<UMovieSceneTakeSettings>()->HoursName && 
+		InPropertyName != GetDefault<UMovieSceneTakeSettings>()->MinutesName && 
+		InPropertyName != GetDefault<UMovieSceneTakeSettings>()->SecondsName && 
+		InPropertyName != GetDefault<UMovieSceneTakeSettings>()->FramesName && 
+		InPropertyName != GetDefault<UMovieSceneTakeSettings>()->SubFramesName)
 	{
 		return false;
 	}
@@ -113,23 +113,23 @@ bool FTakeTrackEditor::ImportAnimatedProperty(const FString& InPropertyName, con
 
 	TakeSection->Modify();
 
-	if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->HoursText.ToString())
+	if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->HoursName)
 	{
 		TakeSection->HoursCurve.Set(KeyTimes, KeyIntegerValues);
 	}
-	else if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->MinutesText.ToString())
+	else if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->MinutesName)
 	{
 		TakeSection->MinutesCurve.Set(KeyTimes, KeyIntegerValues);
 	}
-	else if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->SecondsText.ToString())
+	else if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->SecondsName)
 	{
 		TakeSection->SecondsCurve.Set(KeyTimes, KeyIntegerValues);
 	}
-	else if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->FramesText.ToString())
+	else if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->FramesName)
 	{
 		TakeSection->FramesCurve.Set(KeyTimes, KeyIntegerValues);
 	}
-	else if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->SubFramesText.ToString())
+	else if (InPropertyName == GetDefault<UMovieSceneTakeSettings>()->SubFramesName)
 	{
 		TakeSection->SubFramesCurve.Set(KeyTimes, KeyFloatValues);
 	}
@@ -146,7 +146,7 @@ bool FTakeTrackEditor::ImportAnimatedProperty(const FString& InPropertyName, con
 bool FTakeTrackEditor::ImportStringProperty(const FString& InPropertyName, const FString& InStringValue, FGuid InBinding, UMovieScene* InMovieScene)
 {
 	// check whether this property is something we can import
-	if (InPropertyName != GetDefault<UMovieSceneTakeSettings>()->SlateText.ToString() )
+	if (InPropertyName != GetDefault<UMovieSceneTakeSettings>()->SlateName)
 	{
 		return false;
 	}

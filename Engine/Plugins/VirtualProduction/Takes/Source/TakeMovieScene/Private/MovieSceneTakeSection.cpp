@@ -77,19 +77,19 @@ void UMovieSceneTakeSection::ReconstructChannelProxy()
 
 	static FTakeSectionEditorData EditorData;
 
-	FText HoursText = GetDefault<UMovieSceneTakeSettings>()->HoursText;
-	FText MinutesText = GetDefault<UMovieSceneTakeSettings>()->MinutesText;
-	FText SecondsText = GetDefault<UMovieSceneTakeSettings>()->SecondsText;
-	FText FramesText = GetDefault<UMovieSceneTakeSettings>()->FramesText;
-	FText SubFramesText = GetDefault<UMovieSceneTakeSettings>()->SubFramesText;
-	FText SlateText = GetDefault<UMovieSceneTakeSettings>()->SlateText;
+	FString HoursName = GetDefault<UMovieSceneTakeSettings>()->HoursName;
+	FString MinutesName = GetDefault<UMovieSceneTakeSettings>()->MinutesName;
+	FString SecondsName = GetDefault<UMovieSceneTakeSettings>()->SecondsName;
+	FString FramesName = GetDefault<UMovieSceneTakeSettings>()->FramesName;
+	FString SubFramesName = GetDefault<UMovieSceneTakeSettings>()->SubFramesName;
+	FString SlateName = GetDefault<UMovieSceneTakeSettings>()->SlateName;
 
-	EditorData.MetaData[0].SetIdentifiers(*HoursText.ToString(), HoursText);
-	EditorData.MetaData[1].SetIdentifiers(*MinutesText.ToString(), MinutesText);
-	EditorData.MetaData[2].SetIdentifiers(*SecondsText.ToString(), SecondsText);
-	EditorData.MetaData[3].SetIdentifiers(*FramesText.ToString(), FramesText);
-	EditorData.MetaData[4].SetIdentifiers(*SubFramesText.ToString(), SubFramesText);
-	EditorData.MetaData[5].SetIdentifiers(*SlateText.ToString(), SlateText);
+	EditorData.MetaData[0].SetIdentifiers(FName(*HoursName), FText::FromString(HoursName));
+	EditorData.MetaData[1].SetIdentifiers(FName(*MinutesName), FText::FromString(MinutesName));
+	EditorData.MetaData[2].SetIdentifiers(FName(*SecondsName), FText::FromString(SecondsName));
+	EditorData.MetaData[3].SetIdentifiers(FName(*FramesName), FText::FromString(FramesName));
+	EditorData.MetaData[4].SetIdentifiers(FName(*SubFramesName), FText::FromString(SubFramesName));
+	EditorData.MetaData[5].SetIdentifiers(FName(*SlateName), FText::FromString(SlateName));
 
 	Channels.Add(HoursCurve,     EditorData.MetaData[0], EditorData.ExternalValues[0]);
 	Channels.Add(MinutesCurve,   EditorData.MetaData[1], EditorData.ExternalValues[1]);
