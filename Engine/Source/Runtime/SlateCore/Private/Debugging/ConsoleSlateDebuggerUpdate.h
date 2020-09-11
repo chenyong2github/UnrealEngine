@@ -33,6 +33,7 @@ public:
 
 	void StartDebugging();
 	void StopDebugging();
+	bool IsEnabled() const { return bEnabled; }
 
 	void ToggleDisplayLegend();
 	void ToogleDisplayWidgetNameList();
@@ -41,6 +42,7 @@ public:
 	void SaveConfig();
 
 private:
+	void HandleEnabled(IConsoleVariable* Variable);
 	void HandleSetWidgetUpdateFlagsFilter(const TArray<FString>& Params);
 
 	void HandleEndFrame();
@@ -49,6 +51,7 @@ private:
 
 private:
 	bool bEnabled;
+	bool bEnabledCVarValue;
 
 	//~ Settings
 	bool bDisplayWidgetsNameList;
@@ -69,6 +72,7 @@ private:
 	//~ Console objects
 	FAutoConsoleCommand StartCommand;
 	FAutoConsoleCommand StopCommand;
+	FAutoConsoleVariableRef EnabledRefCVar;
 	FAutoConsoleCommand ToggleLegendCommand;
 	FAutoConsoleCommand ToogleWidgetsNameListCommand;
 	FAutoConsoleCommand ToogleDisplayUpdateFromPaintCommand;

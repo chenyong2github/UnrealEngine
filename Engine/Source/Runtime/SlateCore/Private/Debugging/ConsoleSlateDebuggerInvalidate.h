@@ -32,6 +32,7 @@ public:
 
 	void StartDebugging();
 	void StopDebugging();
+	bool IsEnabled() const { return bEnabled; }
 
 	void LoadConfig();
 	void SaveConfig();
@@ -73,6 +74,7 @@ private:
 	void ToggleWidgetNameList();
 	void ToggleLogInvalidatedWidget();
 
+	void HandleEnabled(IConsoleVariable* Variable);
 	void HandleSetInvalidateWidgetReasonFilter(const TArray<FString>& Params);
 	void HandleSetInvalidateRootReasonFilter(const TArray<FString>& Params);
 
@@ -87,6 +89,7 @@ private:
 
 private:
 	bool bEnabled;
+	bool bEnabledCVarValue;
 
 	//~ Settings
 	bool bDisplayWidgetList;
@@ -110,6 +113,7 @@ private:
 	//~ Console objects
 	FAutoConsoleCommand StartCommand;
 	FAutoConsoleCommand StopCommand;
+	FAutoConsoleVariableRef EnabledRefCVar;
 	FAutoConsoleCommand ToggleLegendCommand;
 	FAutoConsoleCommand ToogleWidgetsNameListCommand;
 	FAutoConsoleCommand ToogleLogInvalidatedWidgetCommand;

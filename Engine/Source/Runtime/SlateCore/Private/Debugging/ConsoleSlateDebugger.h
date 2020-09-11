@@ -31,7 +31,9 @@ public:
 
 	void StartDebugging();
 	void StopDebugging();
+	bool IsEnabled() const { return bEnabled; }
 
+protected:
 	//~ Begin IWidgetInputRoutingEvent interface
 	virtual void OnProcessInput(ESlateDebuggingInputEvent InputEventType, const FInputEvent& Event) override;
 	virtual void OnPreProcessInput(ESlateDebuggingInputEvent InputEventType, const TCHAR* InputPrecessor, bool bHandled) override;
