@@ -16,6 +16,8 @@ class ENGINE_API AWorldPartitionHLOD : public AActor
 	GENERATED_UCLASS_BODY()
 
 public:
+	UPrimitiveComponent* GetHLODComponent();
+
 	void LinkCell(FName InCellName);
 	void UnlinkCell(FName InCellName);
 
@@ -33,7 +35,7 @@ protected:
 
 public:
 #if WITH_EDITOR
-	void SetParentPrimitive(UPrimitiveComponent* InParentPrimitive);
+	void SetHLODPrimitive(UPrimitiveComponent* InHLODPrimitive);
 	void SetChildrenPrimitives(const TArray<UPrimitiveComponent*>& InChildrenPrimitives);
 
 	const TArray<FGuid>& GetSubActors() const;
