@@ -2191,6 +2191,8 @@ void UK2Node_CallFunction::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
 	if (Ar.IsLoading())
 	{
 		if (Ar.UE4Ver() < VER_UE4_SWITCH_CALL_NODE_TO_USE_MEMBER_REFERENCE)
@@ -2209,6 +2211,53 @@ void UK2Node_CallFunction::Serialize(FArchive& Ar)
 			{
 				const bool bSelf = FunctionReference.IsSelfContext();
 				FunctionReference.SetDirect(FunctionReference.GetMemberName(), FunctionGuid, (bSelf ? NULL : FunctionReference.GetMemberParentClass((UClass*)NULL)), bSelf);
+			}
+		}
+
+		// Consider the 'CPF_UObjectWrapper' flag on native function call parameters and return values.
+		if (Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::PinTypeIncludesUObjectWrapperFlag)
+		{
+			if (UFunction* TargetFunction = GetTargetFunction())
+			{
+				if (TargetFunction->IsNative())
+				{
+					for (TFieldIterator<FProperty> PropIt(TargetFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+					{
+						if (UEdGraphPin* Pin = FindPin(PropIt->GetFName()))
+						{
+							if (const FMapProperty* MapProperty = CastField<FMapProperty>(*PropIt))
+							{
+								if (MapProperty->KeyProp && MapProperty->KeyProp->HasAllPropertyFlags(CPF_UObjectWrapper))
+								{
+									Pin->PinType.bIsUObjectWrapper = 1;
+								}
+
+								if (MapProperty->ValueProp && MapProperty->ValueProp->HasAllPropertyFlags(CPF_UObjectWrapper))
+								{
+									Pin->PinType.PinValueType.bTerminalIsUObjectWrapper = true;
+								}
+							}
+							else if (const FSetProperty* SetProperty = CastField<FSetProperty>(*PropIt))
+							{
+								if (SetProperty->ElementProp && SetProperty->ElementProp->HasAllPropertyFlags(CPF_UObjectWrapper))
+								{
+									Pin->PinType.PinValueType.bTerminalIsUObjectWrapper = true;
+								}
+							}
+							else if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(*PropIt))
+							{
+								if(ArrayProperty->Inner && ArrayProperty->Inner->HasAllPropertyFlags(CPF_UObjectWrapper))
+								{
+									Pin->PinType.PinValueType.bTerminalIsUObjectWrapper = true;
+								}
+							}
+							else if (PropIt->HasAllPropertyFlags(CPF_UObjectWrapper))
+							{
+								Pin->PinType.bIsUObjectWrapper = 1;
+							}
+						}
+					}
+				}
 			}
 		}
 

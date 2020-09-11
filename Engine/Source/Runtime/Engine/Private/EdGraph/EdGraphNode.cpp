@@ -4,6 +4,7 @@
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Textures/SlateIcon.h"
 #include "EdGraph/EdGraph.h"
@@ -27,12 +28,14 @@ FEdGraphTerminalType FEdGraphTerminalType::FromPinType(const FEdGraphPinType& Pi
 	TerminalType.TerminalSubCategoryObject = PinType.PinSubCategoryObject;
 	TerminalType.bTerminalIsConst = PinType.bIsConst;
 	TerminalType.bTerminalIsWeakPointer = PinType.bIsWeakPointer;
+	TerminalType.bTerminalIsUObjectWrapper = PinType.bIsUObjectWrapper;
 	return TerminalType;
 }
 
 FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& T)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::PinsStoreFName)
 	{
@@ -78,6 +81,11 @@ FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& T)
 
 	Ar << T.bTerminalIsConst;
 	Ar << T.bTerminalIsWeakPointer;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::PinTypeIncludesUObjectWrapperFlag)
+	{
+		Ar << T.bTerminalIsUObjectWrapper;
+	}
 
 	return Ar;
 }

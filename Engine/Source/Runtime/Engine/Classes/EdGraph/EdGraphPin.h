@@ -131,6 +131,10 @@ public:
 	UPROPERTY()
 	uint8 bIsWeakPointer:1;
 
+	/** Whether or not this is a "wrapped" Unreal object ptr type (e.g. TSubclassOf<T> instead of UClass*) */
+	UPROPERTY()
+	uint8 bIsUObjectWrapper:1;
+
 	FORCEINLINE bool IsContainer() const { return (ContainerType != EPinContainerType::None); }
 	FORCEINLINE bool IsArray() const { return (ContainerType == EPinContainerType::Array); }
 	FORCEINLINE bool IsSet() const { return (ContainerType == EPinContainerType::Set); }
@@ -143,7 +147,8 @@ public:
 		, bIsArray_DEPRECATED(false)
 		, bIsReference(false)
 		, bIsConst(false)
-		, bIsWeakPointer(false)	
+		, bIsWeakPointer(false)
+		, bIsUObjectWrapper(false)
 	{
 	}
 
