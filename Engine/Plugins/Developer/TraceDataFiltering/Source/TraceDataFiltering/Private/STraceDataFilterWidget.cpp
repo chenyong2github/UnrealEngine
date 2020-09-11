@@ -596,7 +596,7 @@ TSharedRef<ITraceObject> STraceDataFilterWidget::AddFilterableObject(const FTrac
 		ChildPtrs.Add(EventItem);
 	}
 
-	TSharedRef<FTraceChannel> SharedItem = MakeShareable(new FTraceChannel(Event.Name, ParentName, Event.Hash, Event.bEnabled, ChildPtrs, SessionFilterService));
+	TSharedRef<FTraceChannel> SharedItem = MakeShareable(new FTraceChannel(Event.Name, ParentName, Event.Hash, Event.bEnabled, Event.bReadOnly, ChildPtrs, SessionFilterService));
 	ParentToChild.Add(SharedItem, ChildPtrs);
 
 	for (TSharedPtr<ITraceObject> ChildObject : ChildPtrs)

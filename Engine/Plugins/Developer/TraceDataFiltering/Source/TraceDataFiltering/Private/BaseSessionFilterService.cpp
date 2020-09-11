@@ -37,6 +37,7 @@ void FBaseSessionFilterService::GetRootObjects(TArray<FTraceObjectInfo>& OutObje
 			FTraceObjectInfo& EventInfo = OutObjects.AddDefaulted_GetRef();
 			EventInfo.Name = Channels[ChannelIndex].Name;
 			EventInfo.bEnabled = Channels[ChannelIndex].bIsEnabled;
+			EventInfo.bReadOnly = Channels[ChannelIndex].bReadOnly;
 			EventInfo.Hash = GetTypeHash(EventInfo.Name);
 			EventInfo.OwnerHash = 0;
 		}
