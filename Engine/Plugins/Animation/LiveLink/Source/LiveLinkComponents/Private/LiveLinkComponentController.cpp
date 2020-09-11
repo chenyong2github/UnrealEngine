@@ -116,7 +116,6 @@ void ULiveLinkComponentController::TickComponent(float DeltaTime, ELevelTick Tic
 		if (*bIsSpawnableCache && bDisableEvaluateLiveLinkWhenSpawnable)
 		{
 			bEvaluateLiveLink = false;
-			UE_LOG(LogLiveLinkComponents, Warning, TEXT("%s was spawned by Sequencer. Disabling \"Evaluate Live Link\" because \"Disable Evaluate Live Link When Spawnable\" was true."), *GetFullName(OwningActor->GetOuter()));
 		}
 	}
 
