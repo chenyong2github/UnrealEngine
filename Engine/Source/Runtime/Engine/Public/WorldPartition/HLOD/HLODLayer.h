@@ -59,7 +59,7 @@ class ENGINE_API UHLODLayer : public UObject
 public:
 	const TArray<FHLODLevelSettings>& GetLevels() const { return Levels; }
 
-	static void GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, const TSet<FGuid>& InCellActors);
+	static TArray<AWorldPartitionHLOD*> GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, const TSet<FGuid>& InCellActors);
 
 	static UHLODLayer* GetHLODLayer(const AActor* InActor);
 	static bool ShouldIncludeInHLOD(AActor* InActor);

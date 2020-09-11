@@ -21,6 +21,7 @@
 #include "Misc/Parse.h"
 #include "Algo/Find.h"
 #include "Algo/Transform.h"
+#include "EngineUtils.h"
 
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -1197,13 +1198,16 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		GridActors[GridIndex].Add(ActorCluster);
 	}
 
+	// Keep track of all valid HLOD actors
+	TSet<AWorldPartitionHLOD*> ValidHLODActors;
+
 	const FBox WorldBounds = WorldPartition->GetWorldBounds();
 	for (int32 GridIndex = 0; GridIndex < Grids.Num(); GridIndex++)
 	{
 		const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
 		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, GridActors[GridIndex]);
 
-		PartionedActors.ForEachCells([PartionedActors, RuntimeGrid, WorldPartition, this](const FIntVector& CellCoord)
+		PartionedActors.ForEachCells([PartionedActors, &ValidHLODActors, RuntimeGrid, WorldPartition, this](const FIntVector& CellCoord)
 		{
 			const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartionedActors.GetCell(CellCoord);
 			if (GridCell.Actors.Num() != 0)
@@ -1212,9 +1216,22 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 				PartionedActors.GetCellBounds(CellCoord, CellBounds);
 
 				FName CellName = GetCellName(RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y);
-				UHLODLayer::GenerateHLODForCell(WorldPartition, CellName, GridCell.Actors);
+
+				TArray<AWorldPartitionHLOD*> HLODActors;
+				HLODActors = UHLODLayer::GenerateHLODForCell(WorldPartition, CellName, GridCell.Actors);
+
+				ValidHLODActors.Append(HLODActors);
 			}
 		});
+	}
+
+	// Destroy all invalid HLOD actors
+	for (TActorIterator<AWorldPartitionHLOD> ItHLOD(GetWorld()); ItHLOD; ++ItHLOD)
+	{
+		if (!ValidHLODActors.Contains(*ItHLOD))
+		{
+			GetWorld()->DestroyActor(*ItHLOD);
+		}
 	}
 
 	return true;

@@ -26,25 +26,34 @@ class FHLODBuilder
 public:
 	virtual ~FHLODBuilder() {}
 
-	virtual void Build(const TArray<AActor*>& InSubActors) const = 0;
+	virtual void Build(const TArray<AActor*>& InSubActors) = 0;
 
 	typedef TFunction<UPrimitiveComponent*(AWorldPartitionHLOD*)> FCreateComponentFunction;
 		
-	AWorldPartitionHLOD* SpawnHLODActor(const TCHAR* InName, const TArray<UPrimitiveComponent*>& InSubComponents, FCreateComponentFunction InCreateComponentFunc) const
+	void SpawnHLODActor(const TCHAR* InName, const TArray<UPrimitiveComponent*>& InSubComponents, FCreateComponentFunction InCreateComponentFunc)
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.bDeferConstruction = true;
-		SpawnParams.bCreateActorPackage = true;
-		AWorldPartitionHLOD* HLODActor = World->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
+		FString HLODActorName = FString::Printf(TEXT("%s_%s_%s"), *HLODLayer->GetName(), *CellName.ToString(), InName);
+		FString HLODActorPath = FString::Printf(TEXT("%s.%s"), *World->PersistentLevel->GetPathName(), *HLODActorName);
+
+		AWorldPartitionHLOD* HLODActor = FindObject<AWorldPartitionHLOD>(ANY_PACKAGE, *HLODActorPath);
+		if (!HLODActor)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.bDeferConstruction = true;
+			SpawnParams.bCreateActorPackage = true;
+			SpawnParams.Name = *HLODActorName;
+			HLODActor = World->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
+		}
 
 		UPrimitiveComponent* ParentComponent = InCreateComponentFunc(HLODActor);
 
 		if (ParentComponent)
 		{
+			HLODActor->Modify();
 			HLODActor->SetHLODLayer(HLODLayer, iLevel);
-			HLODActor->SetParentPrimitive(ParentComponent);
+			HLODActor->SetHLODPrimitive(ParentComponent);
 			HLODActor->SetChildrenPrimitives(InSubComponents);
-			HLODActor->SetActorLabel(FString::Printf(TEXT("%s_%s_%s"), *HLODLayer->GetName(), *CellName.ToString(), InName));
+			HLODActor->SetActorLabel(HLODActorName);
 			HLODActor->RuntimeGrid = GetHLODLevelSettings().TargetGrid;
 
 			WorldPartition->UpdateActorDesc(HLODActor);
@@ -55,7 +64,10 @@ public:
 			HLODActor = nullptr;
 		}
 
-		return HLODActor;
+		if (HLODActor)
+		{
+			HLODActors.Add(HLODActor);
+		}
 	}
 
 	TArray<UPrimitiveComponent*> GatherPrimitiveComponents(int32 iHLODLevel, const TArray<AActor*> InActors) const
@@ -88,6 +100,8 @@ public:
 	const UHLODLayer*	HLODLayer;
 	int32				iLevel;
 	FName				CellName;
+
+	TArray<AWorldPartitionHLOD*> HLODActors;
 };
 
 
@@ -96,7 +110,7 @@ public:
  */
 class FHLODBuilder_Instancing : public FHLODBuilder
 {
-	virtual void Build(const TArray<AActor*>& InSubActors) const override
+	virtual void Build(const TArray<AActor*>& InSubActors) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_Instancing::BuildHLOD);
 
@@ -145,7 +159,7 @@ class FHLODBuilder_Instancing : public FHLODBuilder
  */
 class FHLODBuilder_MeshMerge : public FHLODBuilder
 {
-	virtual void Build(const TArray<AActor*>& InSubActors) const override
+	virtual void Build(const TArray<AActor*>& InSubActors) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::BuildHLOD_MeshMerge);
 
@@ -185,7 +199,7 @@ class FHLODBuilder_MeshMerge : public FHLODBuilder
  */
 class FHLODBuilder_MeshSimplify : public FHLODBuilder
 {
-	virtual void Build(const TArray<AActor*>& InSubActors) const override
+	virtual void Build(const TArray<AActor*>& InSubActors) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::BuildHLOD_MeshProxy);
 
@@ -227,9 +241,11 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 /**
  *
  */
-void FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors)
+TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors)
 {
 	const TArray<FHLODLevelSettings>& LevelsSettings = InHLODLayer->GetLevels();
+
+	TArray<AWorldPartitionHLOD*> HLODActors;
 
 	for (int32 iLevel = 0; iLevel < LevelsSettings.Num(); ++iLevel)
 	{
@@ -263,8 +279,12 @@ void FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName 
 			HLODBuilder->CellName = InCellName;
 
 			HLODBuilder->Build(InSubActors);
+			
+			HLODActors += HLODBuilder->HLODActors;
 		}
 	}
+
+	return HLODActors;
 }
 
 #endif

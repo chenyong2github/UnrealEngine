@@ -5,23 +5,28 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "SourceControlHelpers.h"
+#include "AssetRegistryModule.h"
 
 class UNREALED_API FCommandletPackageHelper
 {
 public:
 	FCommandletPackageHelper();
+	~FCommandletPackageHelper();
 
-	void SetSourceControlEnabled(bool bWithSourceControl);
-	bool UseSourceControl() const { return SourceControlProvider != nullptr; }
-	ISourceControlProvider& GetSourceControlProvider() const { check(UseSourceControl()); return *SourceControlProvider; }
+	bool UseSourceControl() const;
 
 	bool Delete(const FString& PackageName) const;
 	bool Delete(UPackage* Package) const;
+	bool Delete(const TArray<UPackage*>& Packages) const;
+	bool Delete(const TArray<FAssetData>& Assets) const;
 	bool AddToSourceControl(UPackage* Package) const;
 	bool Checkout(UPackage* Package) const;
 	bool Save(UPackage* Package) const;
 
 private:
-	FScopedSourceControl SourceControl;
-	mutable ISourceControlProvider* SourceControlProvider;
+	ISourceControlProvider& GetSourceControlProvider() const;
+
+	bool DeleteInternal(const FString& PackageName) const;
+
+	FScopedSourceControl SourceControl;	
 };

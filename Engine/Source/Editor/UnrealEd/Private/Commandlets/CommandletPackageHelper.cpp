@@ -9,6 +9,7 @@
 #include "UObject/Package.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
+#include "PackageTools.h"
 #include "ISourceControlOperation.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlState.h"
@@ -18,13 +19,22 @@
 DEFINE_LOG_CATEGORY_STATIC(LogCommandletPackageHelper, Log, All);
 
 FCommandletPackageHelper::FCommandletPackageHelper()
-	: SourceControlProvider(nullptr)
 {
 }
 
-void FCommandletPackageHelper::SetSourceControlEnabled(bool bWithSourceControl)
+FCommandletPackageHelper::~FCommandletPackageHelper()
 {
-	SourceControlProvider = bWithSourceControl ? &ISourceControlModule::Get().GetProvider() : nullptr;
+	UPackage::WaitForAsyncFileWrites();
+}
+
+bool FCommandletPackageHelper::UseSourceControl() const
+{
+	return ISourceControlModule::Get().GetProvider().IsEnabled();
+}
+
+ISourceControlProvider& FCommandletPackageHelper::GetSourceControlProvider() const
+{ 
+	return ISourceControlModule::Get().GetProvider();
 }
 
 bool FCommandletPackageHelper::Delete(const FString& PackageName) const
@@ -102,7 +112,50 @@ bool FCommandletPackageHelper::Delete(const FString& PackageName) const
 
 bool FCommandletPackageHelper::Delete(UPackage* Package) const
 {
-	return Delete(Package->GetName());
+	TArray<UPackage*> Packages = { Package };
+	return Delete(Packages);
+}
+
+bool FCommandletPackageHelper::Delete(const TArray<FAssetData>& Assets) const
+{
+	bool bAllPackagesDeleted = true;
+	for (const FAssetData& AssetToDelete : Assets)
+	{
+		bAllPackagesDeleted &= Delete(AssetToDelete.PackageName.ToString());
+	}
+
+	return bAllPackagesDeleted;
+}
+
+bool FCommandletPackageHelper::Delete(const TArray<UPackage*>& Packages) const
+{
+	// Store all packages names as we won't be able to retrieve them from the UPackages once they are unloaded
+	TArray<FString> PackagesNames;
+	PackagesNames.Reserve(Packages.Num());
+
+	for (UPackage* Package : Packages)
+	{
+		PackagesNames.Add(Package->GetName());
+
+		// Must clear dirty flag befor unloading
+		Package->SetDirtyFlag(false);
+	}
+
+	// Unload packages so we can delete them
+	FText ErrorMessage;
+	if (!UPackageTools::UnloadPackages(Packages, ErrorMessage))
+	{
+		UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error unloading package: %s"), *ErrorMessage.ToString());
+		return false;
+	}
+
+	bool bAllPackagesDeleted = true;
+	for (const FString& PackageName : PackagesNames)
+	{
+		bAllPackagesDeleted &= Delete(PackageName);
+	}
+
+	return bAllPackagesDeleted;
 }
 
 bool FCommandletPackageHelper::AddToSourceControl(UPackage* Package) const

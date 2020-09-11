@@ -668,9 +668,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	bConversionSuffix = Switches.Contains(TEXT("ConversionSuffix"));
 
-	bool bNoSourceControl = Switches.Contains(TEXT("NoSourceControl"));
-	PackageHelper.SetSourceControlEnabled(!bNoSourceControl);
-
 	// Load configuration file
 	FString LevelLongPackageName;
 	if (FPackageName::SearchForPackageOnDisk(Tokens[0], nullptr, &LevelLongPackageName))
@@ -718,17 +715,19 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		FString OldLevelName = Tokens[0] + ConversionSuffix;
 		FActorRegistry::GetLevelActors(*OldLevelName, Assets);
 
-		for (const FAssetData& Asset : Assets)
+		if (!PackageHelper.Delete(Assets))
 		{
-			if (!PackageHelper.Delete(Asset.PackageName.ToString()))
-			{
-				return 1;
-			}
+			UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to delete external actor package(s)"));
+			return 1;
 		}
 
 		if (FPackageName::SearchForPackageOnDisk(OldLevelName, &OldLevelName))
 		{
-			PackageHelper.Delete(OldLevelName);
+			if (!PackageHelper.Delete(OldLevelName))
+			{
+				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to delete previously converted level '%s'"), *Tokens[0]);
+				return 1;
+			}
 		}
 	}
 
