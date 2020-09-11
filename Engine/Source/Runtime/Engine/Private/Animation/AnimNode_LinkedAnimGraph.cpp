@@ -222,6 +222,8 @@ void FAnimNode_LinkedAnimGraph::TeardownInstance()
 		InstanceToRun->UninitializeAnimation();
 		InstanceToRun = nullptr;
 	}
+
+	SetTargetInstance(nullptr);
 }
 
 void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewAnimInstance)
