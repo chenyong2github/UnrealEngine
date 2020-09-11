@@ -23,9 +23,9 @@ DECLARE_CYCLE_STAT(TEXT("Blur Image"), STAT_BlurImage, STATGROUP_ARKIT);
 
 static bool InRenderThread()
 {
-	if (GRenderingThread && !GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
+	if (GIsThreadedRendering && !GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
 	{
-		return FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+		return IsInActualRenderingThread();
 	}
 	
 	return false;
