@@ -9,6 +9,8 @@
 #include "Animation/AnimComposite.h"
 #include "BonePose.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 ///////////////////////////////////////////////////////
 // FAnimSegment
@@ -543,6 +545,13 @@ void FAnimTrack::SortAnimSegments()
 
 void FAnimTrack::GetAnimationPose(/*out*/ FCompactPose& OutPose, /*out*/ FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
+	FStackCustomAttributes TempAttributes;
+	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+	GetAnimationPose(OutAnimationPoseData, ExtractionContext);
+}
+
+void FAnimTrack::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const
+{
 	bool bExtractedPose = false;
 	const float ClampedTime = FMath::Clamp(ExtractionContext.CurrentTime, 0.f, GetLength());
 
@@ -558,7 +567,7 @@ void FAnimTrack::GetAnimationPose(/*out*/ FCompactPose& OutPose, /*out*/ FBlende
 				SequenceExtractionContext.CurrentTime = PositionInAnim;
 				SequenceExtractionContext.bExtractRootMotion &= AnimRef->HasRootMotion();
 
-				AnimRef->GetAnimationPose(OutPose, OutCurve, SequenceExtractionContext);
+				AnimRef->GetAnimationPose(OutAnimationPoseData, SequenceExtractionContext);
 				bExtractedPose = true;
 			}
 		}
@@ -566,7 +575,7 @@ void FAnimTrack::GetAnimationPose(/*out*/ FCompactPose& OutPose, /*out*/ FBlende
 
 	if (!bExtractedPose)
 	{
-		OutPose.ResetToRefPose();
+		OutAnimationPoseData.GetPose().ResetToRefPose();
 	}
 }
 

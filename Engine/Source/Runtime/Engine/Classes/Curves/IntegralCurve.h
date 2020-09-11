@@ -120,6 +120,8 @@ public:
 	/** Gets the handle for the last key which is at or before the time requested.  If there are no keys at or before the requested time, an invalid handle is returned. */
 	FKeyHandle FindKeyBeforeOrAt(float KeyTime) const;
 
+	/** Tries to reduce the number of keys required for accurate evaluation (zero error threshold) */
+	void RemoveRedundantKeys();
 private:
 
 	/** The keys, ordered by time */

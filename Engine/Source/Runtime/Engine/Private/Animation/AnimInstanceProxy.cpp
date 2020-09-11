@@ -25,6 +25,7 @@
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
 #include "Animation/AnimMTStats.h"
+#include "Animation/AnimInstance.h"
 
 #undef DO_ANIMSTAT_PROCESSING
 
@@ -1457,6 +1458,24 @@ void FAnimInstanceProxy::EvaluateAnimationNode_WithRoot(FPoseContext& Output, FA
 
 void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FCompactPose& SourcePose, const FBlendedCurve& SourceCurve, float InSourceWeight, FCompactPose& BlendedPose, FBlendedCurve& BlendedCurve, float InBlendWeight, float InTotalNodeWeight)
 {
+	FStackCustomAttributes TempAttributes;
+
+	const FAnimationPoseData SourceAnimationPoseData(*const_cast<FCompactPose*>(&SourcePose), *const_cast<FBlendedCurve*>(&SourceCurve), TempAttributes);
+	FAnimationPoseData BlendedAnimationPoseData(BlendedPose, BlendedCurve, TempAttributes);
+
+	SlotEvaluatePose(SlotNodeName, SourceAnimationPoseData, InSourceWeight, BlendedAnimationPoseData, InBlendWeight, InTotalNodeWeight);
+}
+
+void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnimationPoseData& SourceAnimationPoseData, float InSourceWeight, FAnimationPoseData& OutBlendedAnimationPoseData, float InBlendWeight, float InTotalNodeWeight)
+{
+	const FCompactPose& SourcePose = SourceAnimationPoseData.GetPose();
+	const FBlendedCurve& SourceCurve = SourceAnimationPoseData.GetCurve();
+	const FStackCustomAttributes& SourceAttributes = SourceAnimationPoseData.GetAttributes();
+	
+	FCompactPose& BlendedPose = OutBlendedAnimationPoseData.GetPose();
+	FBlendedCurve& BlendedCurve = OutBlendedAnimationPoseData.GetCurve();
+	FStackCustomAttributes& BlendedAttributes = OutBlendedAnimationPoseData.GetAttributes();
+	
 	//Accessing MontageInstances from this function is not safe (as this can be called during Parallel Anim Evaluation!
 	//Any montage data you need to add should be part of MontageEvaluationData
 	// nothing to blend, just get it out
@@ -1464,6 +1483,7 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FComp
 	{
 		BlendedPose = SourcePose;
 		BlendedCurve = SourceCurve;
+		BlendedAttributes = SourceAttributes;
 		return;
 	}
 
@@ -1485,6 +1505,7 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FComp
 		{
 			BlendedPose = SourcePose;
 			BlendedCurve = SourceCurve;
+			BlendedAttributes = SourceAttributes;
 			return;
 		}
 
@@ -1506,7 +1527,9 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FComp
 
 			// Extract pose from Track
 			FAnimExtractContext ExtractionContext(EvalState.MontagePosition, Montage->HasRootMotion() && RootMotionMode != ERootMotionMode::NoRootMotionExtraction);
-			AnimTrack->GetAnimationPose(NewPose.Pose, NewPose.Curve, ExtractionContext);
+
+			FAnimationPoseData NewAnimationPoseData(NewPose);
+			AnimTrack->GetAnimationPose(NewAnimationPoseData, ExtractionContext);
 
 			// add montage curves 
 			FBlendedCurve MontageCurve;
@@ -1561,6 +1584,7 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FComp
 		{
 			BlendedPose = SourcePose;
 			BlendedCurve = SourceCurve;
+			BlendedAttributes = SourceAttributes;
 		}
 		// Otherwise we need to blend non additive poses together
 		else
@@ -1576,10 +1600,14 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FComp
 			TArray<const FBlendedCurve*, TInlineAllocator<8>> BlendingCurves;
 			BlendingCurves.AddUninitialized(NumPoses);
 
+			TArray<const FStackCustomAttributes*, TInlineAllocator<8>> BlendingAttributes;
+			BlendingAttributes.AddUninitialized(NumPoses);
+
 			for (int32 Index = 0; Index < NonAdditivePoses.Num(); Index++)
 			{
 				BlendingPoses[Index] = &NonAdditivePoses[Index].Pose;
 				BlendingCurves[Index] = &NonAdditivePoses[Index].Curve;
+				BlendingAttributes[Index] = &NonAdditivePoses[Index].Attributes;
 				BlendWeights[Index] = NonAdditivePoses[Index].Weight;
 			}
 
@@ -1588,11 +1616,12 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FComp
 				int32 const SourceIndex = BlendWeights.Num() - 1;
 				BlendingPoses[SourceIndex] = &SourcePose;
 				BlendingCurves[SourceIndex] = &SourceCurve;
+				BlendingAttributes[SourceIndex] = &SourceAttributes;
 				BlendWeights[SourceIndex] = SourceWeight;
 			}
 
 			// now time to blend all montages
-			FAnimationRuntime::BlendPosesTogetherIndirect(BlendingPoses, BlendingCurves, BlendWeights, BlendedPose, BlendedCurve);
+			FAnimationRuntime::BlendPosesTogetherIndirect(BlendingPoses, BlendingCurves, BlendingAttributes, BlendWeights, OutBlendedAnimationPoseData);
 		}
 	}
 
@@ -1601,8 +1630,9 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FComp
 	{
 		for (int32 Index = 0; Index < AdditivePoses.Num(); Index++)
 		{
-			FSlotEvaluationPose const& AdditivePose = AdditivePoses[Index];
-			FAnimationRuntime::AccumulateAdditivePose(BlendedPose, AdditivePose.Pose, BlendedCurve, AdditivePose.Curve, AdditivePose.Weight, AdditivePose.AdditiveType);
+			FSlotEvaluationPose& AdditivePose = AdditivePoses[Index];
+			const FAnimationPoseData AdditiveAnimationPoseData(AdditivePose);
+			FAnimationRuntime::AccumulateAdditivePose(OutBlendedAnimationPoseData, AdditiveAnimationPoseData, AdditivePose.Weight, AdditivePose.AdditiveType);
 		}
 	}
 

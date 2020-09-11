@@ -234,6 +234,9 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 		TArray<FBlendedCurve> TargetBlendCurves;
 		TargetBlendCurves.SetNum(NumPoses);
 
+		TArray<FStackCustomAttributes> TargetBlendAttributes;
+		TargetBlendAttributes.SetNum(NumPoses);
+
 		for (int32 ChildIndex = 0; ChildIndex < NumPoses; ++ChildIndex)
 		{
 			if (FAnimWeight::IsRelevant(BlendWeights[ChildIndex]))
@@ -243,6 +246,7 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 
 				TargetBlendPoses[ChildIndex].MoveBonesFrom(CurrentPoseContext.Pose);
 				TargetBlendCurves[ChildIndex].MoveFrom(CurrentPoseContext.Curve);
+				TargetBlendAttributes[ChildIndex].MoveFrom(CurrentPoseContext.CustomAttributes);
 			}
 			else
 			{
@@ -286,7 +290,9 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 		{
 			BlendFlags |= FAnimationRuntime::EBlendPosesPerBoneFilterFlags::MeshSpaceScale;
 		}
-		FAnimationRuntime::BlendPosesPerBoneFilter(BasePoseContext.Pose, TargetBlendPoses, BasePoseContext.Curve, TargetBlendCurves, Output.Pose, Output.Curve, CurrentBoneBlendWeights, BlendFlags, CurveBlendOption);
+
+		FAnimationPoseData AnimationPoseData(Output);
+		FAnimationRuntime::BlendPosesPerBoneFilter(BasePoseContext.Pose, TargetBlendPoses, BasePoseContext.Curve, TargetBlendCurves, BasePoseContext.CustomAttributes, TargetBlendAttributes, AnimationPoseData, CurrentBoneBlendWeights, BlendFlags, CurveBlendOption);
 	}
 }
 

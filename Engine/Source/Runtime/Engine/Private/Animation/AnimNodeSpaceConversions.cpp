@@ -37,6 +37,7 @@ void FAnimNode_ConvertComponentToLocalSpace::Evaluate_AnyThread(FPoseContext & O
 	checkSlow( InputCSPose.Pose.GetPose().IsValid() );
 	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MoveTemp(InputCSPose.Pose), Output.Pose);
 	Output.Curve = MoveTemp(InputCSPose.Curve);
+	Output.CustomAttributes = MoveTemp(InputCSPose.CustomAttributes);
 }
 
 void FAnimNode_ConvertComponentToLocalSpace::GatherDebugData(FNodeDebugData& DebugData)
@@ -87,4 +88,5 @@ void FAnimNode_ConvertLocalToComponentSpace::EvaluateComponentSpace_AnyThread(FC
 
 	OutputCSPose.Pose.InitPose(MoveTemp(InputPose.Pose));
 	OutputCSPose.Curve = MoveTemp(InputPose.Curve);
+	OutputCSPose.CustomAttributes = MoveTemp(InputPose.CustomAttributes);
 }

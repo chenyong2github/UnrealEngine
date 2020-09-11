@@ -51,6 +51,7 @@ void FAnimNode_TransitionPoseEvaluator::Evaluate_AnyThread(FPoseContext& Output)
 	// This is because we need information about the transition that is not available at this level
 	Output.Pose.CopyBonesFrom(CachedPose);
 	Output.Curve.CopyFrom(CachedCurve);
+	Output.CustomAttributes.CopyFrom(CachedAttributes);
 
 	if ((EvaluatorMode != EEvaluatorMode::EM_Standard) && (CacheFramesRemaining > 0))
 	{
@@ -82,4 +83,5 @@ void FAnimNode_TransitionPoseEvaluator::CachePose(const FPoseContext& PoseToCach
 	CachedPose.CopyBonesFrom(PoseToCache.Pose);
 	CachedPose.NormalizeRotations();
 	CachedCurve.CopyFrom(PoseToCache.Curve);
+	CachedAttributes.CopyFrom(PoseToCache.CustomAttributes);
 }

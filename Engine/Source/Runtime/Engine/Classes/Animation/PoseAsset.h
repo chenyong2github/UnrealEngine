@@ -177,8 +177,14 @@ public:
 	* @param	PoseIndex			Index of Pose
 	* @param	PoseWeight			Weight of pose
 	*/
+	UE_DEPRECATED(4.26, "Use GetAnimationPose with other signature")
 	ENGINE_API bool GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
+	ENGINE_API bool GetAnimationPose(struct FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
+
+	UE_DEPRECATED(4.26, "Use GetBaseAnimationPose with other signature")
 	ENGINE_API void GetBaseAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve) const;
+	ENGINE_API void GetBaseAnimationPose(struct FAnimationPoseData& OutAnimationPoseData) const;
+
 	virtual bool HasRootMotion() const { return false; }
 	virtual bool IsValidAdditive() const { return bAdditivePose; }
 

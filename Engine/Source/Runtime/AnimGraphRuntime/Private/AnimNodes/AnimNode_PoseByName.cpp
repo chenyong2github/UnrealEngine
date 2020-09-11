@@ -50,7 +50,9 @@ void FAnimNode_PoseByName::Evaluate_AnyThread(FPoseContext& Output)
 		// we only have one 
 		PoseExtractContext.PoseCurves[0].Value = PoseWeight;
 		// only give pose curve, we don't set any more curve here
-		CurrentPoseAsset->GetAnimationPose(Output.Pose, Output.Curve, PoseExtractContext);
+
+		FAnimationPoseData OutputAnimationPoseData(Output);
+		CurrentPoseAsset->GetAnimationPose(OutputAnimationPoseData, PoseExtractContext);
 	}
 	else
 	{

@@ -236,7 +236,10 @@ struct FAnimTrack
 	ENGINE_API const FAnimSegment* GetSegmentAtTime(float InTime) const;
 
 	/** Get animation pose function */
+	UE_DEPRECATED(4.26, "Use other GetAnimationPose signature")
 	ENGINE_API void GetAnimationPose(/*out*/ FCompactPose& OutPose,/*out*/ FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
+	
+	ENGINE_API void GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
 
 	/** Enable Root motion setting from montage */
 	void EnableRootMotionSettingFromMontage(bool bInEnableRootMotion, const ERootMotionRootLock::Type InRootMotionRootLock);
