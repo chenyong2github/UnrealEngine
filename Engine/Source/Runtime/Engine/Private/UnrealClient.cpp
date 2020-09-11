@@ -1442,7 +1442,6 @@ void UPostProcessComponent::Serialize(FArchive& Ar)
 */
 void FViewport::EnqueueBeginRenderFrame(const bool bShouldPresent)
 {
-	AdvanceFrameRenderPrerequisite();
 	FViewport* Viewport = this;
 	ENQUEUE_RENDER_COMMAND(BeginDrawingCommand)(
 		[Viewport](FRHICommandListImmediate& RHICmdList)
