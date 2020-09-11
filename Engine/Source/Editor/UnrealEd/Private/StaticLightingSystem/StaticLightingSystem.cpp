@@ -2074,6 +2074,7 @@ void FStaticLightingSystem::GatherScene()
 		}
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool LegacyAtmosphericFogRegistered = false;
 	for (TObjectIterator<UAtmosphericFogComponent> It; It; ++It)
 	{
@@ -2085,6 +2086,7 @@ void FStaticLightingSystem::GatherScene()
 			break;	// We only register the first we find
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	for (TObjectIterator<USkyAtmosphereComponent> It; It; ++It)
 	{

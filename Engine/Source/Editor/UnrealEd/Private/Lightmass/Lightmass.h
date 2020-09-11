@@ -116,10 +116,12 @@ public:
 		Portals.Add(InPortalComponent->GetComponentTransform().ToMatrixWithScale());
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	void SetAtmosphericComponent(const UAtmosphericFogComponent* AtmosphericFog)
 	{
 		AtmosphericFogComponent = AtmosphericFog;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void SetSkyAtmosphereComponent(const USkyAtmosphereComponent* SkyAtmosphere)
 	{
@@ -211,7 +213,9 @@ private:
 	TArray<FBox>				CharacterIndirectDetailVolumes;
 	TArray<FMatrix>				Portals;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const UAtmosphericFogComponent*	AtmosphericFogComponent;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	const USkyAtmosphereComponent*	SkyAtmosphereComponent;
 
 	FLightmassWorldInfoSettings LevelSettings;

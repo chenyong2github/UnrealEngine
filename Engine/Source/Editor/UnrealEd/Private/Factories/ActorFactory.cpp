@@ -1645,8 +1645,10 @@ UActorFactoryAtmosphericFog
 UActorFactoryAtmosphericFog::UActorFactoryAtmosphericFog(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DisplayName = LOCTEXT("AtmosphericFogDisplayName", "Atmospheric Fog");
 	NewActorClass = AAtmosphericFog::StaticClass();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /*-----------------------------------------------------------------------------
