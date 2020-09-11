@@ -35,13 +35,15 @@ ECADInterfaceAvailability ICADInterfacesModule::IsAvailable()
 		return CADInterfaceAvailability;
 	}
 
+	CADInterfaceAvailability = ECADInterfaceAvailability::Unavailable;
+
 	if (!FModuleManager::Get().IsModuleLoaded(CADINTERFACES_MODULE_NAME))
 	{
 		UE_LOG(CADInterfaces, Error, TEXT("Failed to load CADInterfaces module. Plug-in will not be functional."));
-		CADInterfaceAvailability = ECADInterfaceAvailability::Unavailable;
 		return CADInterfaceAvailability;
 	}
 
+#ifdef CAD_INTERFACE
 	double MetricUnit = 0.001;
 	CT_IO_ERROR InitalizationStatus = CADLibrary::CTKIO_InitializeKernel(MetricUnit);
 	if (InitalizationStatus == IO_OK || InitalizationStatus == IO_ERROR_ALREADY_INITIALIZED)
@@ -60,8 +62,8 @@ ECADInterfaceAvailability ICADInterfacesModule::IsAvailable()
 			UE_LOG(CADInterfaces, Error, TEXT("CoreTech dll is not initialize. Plug - in will not be functional."));
 			break;
 		}
-		CADInterfaceAvailability = ECADInterfaceAvailability::Unavailable;
 	}
+#endif
 	return CADInterfaceAvailability;
 }
 
