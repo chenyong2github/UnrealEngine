@@ -571,7 +571,7 @@ bool FWindowsPlatformProcess::GetPerFrameProcessorUsage(uint32 ProcessId, float&
 			LastProcessTime = (double)DeltaProcessCycleTime / DeltaCyclesPerFrame;
 
 			// Idle cycles are stored per core and flipped to allow per-frame calculation
-			const uint32 BufferLength = 512;
+			const uint32 BufferLength = 1024;
 			check(BufferLength >= NumCores * 8);
 
 			static uint64 IdleCycleTimeBuffers[2][BufferLength] = {{0}};
