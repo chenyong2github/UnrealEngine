@@ -25,6 +25,7 @@
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "HAL/ThreadManager.h"
 #include "BuildSettings.h"
@@ -35,6 +36,7 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <shellapi.h>
+#include <atomic>
 
 #ifndef UE_LOG_CRASH_CALLSTACK
 	#define UE_LOG_CRASH_CALLSTACK 1
@@ -363,6 +365,7 @@ namespace
 {
 
 static int32 ReportCrashCallCount = 0;
+static std::atomic<int32> ReportCallCount = 0;
 
 static FORCEINLINE bool CreatePipeWrite(void*& ReadPipe, void*& WritePipe)
 {
@@ -574,6 +577,9 @@ enum class EErrorReportUI
 	ReportInUnattendedMode	
 };
 
+/** This lock is to prevent an ensure and a crash to concurrently report to CrashReportClient (CRC) when CRC is running in background and waiting for crash/ensure (monitor mode). */
+static FCriticalSection GMonitorLock;
+
 /**
  * Write required information about the crash to the shared context, and then signal the crash reporter client 
  * running in monitor mode about the crash.
@@ -591,6 +597,9 @@ int32 ReportCrashForMonitor(
 	void* ReadPipe,
 	EErrorReportUI ReportUI)
 {
+	// An ensures and a crashes can enter this function concurrently.
+	FScopeLock ScopedMonitorLock(&GMonitorLock);
+
 	FGenericCrashContext::CopySharedCrashContext(*SharedContext);
 
 	// Set the platform specific crash context, so that we can stack walk and minidump from
@@ -739,7 +748,7 @@ int32 ReportCrashForMonitor(
 	CloseHandle(ThreadSnapshot);
 
 	FString CrashDirectoryAbsolute;
-	if (FGenericCrashContext::CreateCrashReportDirectory(SharedContext->SessionContext.CrashGUIDRoot, ReportCrashCallCount, CrashDirectoryAbsolute))
+	if (FGenericCrashContext::CreateCrashReportDirectory(SharedContext->SessionContext.CrashGUIDRoot, ReportCallCount++, CrashDirectoryAbsolute))
 	{
 		FCString::Strcpy(SharedContext->CrashFilesDirectory, *CrashDirectoryAbsolute);
 		// Copy the log file to output
@@ -979,7 +988,7 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
  * See MSDN docs on EXCEPTION_RECORD.
  */
 #include "Windows/AllowWindowsPlatformTypes.h"
-void CreateExceptionInfoString(EXCEPTION_RECORD* ExceptionRecord)
+void CreateExceptionInfoString(EXCEPTION_RECORD* ExceptionRecord, TCHAR* OutErrorString, int32 ErrorStringBufSize)
 {
 	// #CrashReport: 2014-08-18 Fix FString usage?
 	FString ErrorString = TEXT("Unhandled Exception: ");
@@ -1013,7 +1022,7 @@ void CreateExceptionInfoString(EXCEPTION_RECORD* ExceptionRecord)
 		ErrorString += FString::Printf(TEXT("0x%08x"), (uint32)ExceptionRecord->ExceptionCode);
 	}
 
-	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, UE_ARRAY_COUNT(GErrorExceptionDescription));
+	FCString::Strncpy(OutErrorString, *ErrorString, ErrorStringBufSize);
 
 #undef HANDLE_CASE
 }
@@ -1318,6 +1327,7 @@ private:
 		// Get the default settings for the crash context
 		ECrashContextType Type = ECrashContextType::Crash;
 		const TCHAR* ErrorMessage = TEXT("Unhandled exception");
+		TCHAR ErrorMessageLocal[UE_ARRAY_COUNT(GErrorExceptionDescription)];
 		int NumStackFramesToIgnore = 2;
 
 		void* ContextWrapper = nullptr;
@@ -1342,8 +1352,11 @@ private:
 		{
 			// When a generic exception is thrown, it is important to get all the stack frames
 			NumStackFramesToIgnore = 0;
-			CreateExceptionInfoString(ExceptionInfo->ExceptionRecord);
-			ErrorMessage = GErrorExceptionDescription;
+			CreateExceptionInfoString(ExceptionInfo->ExceptionRecord, ErrorMessageLocal, UE_ARRAY_COUNT(ErrorMessageLocal));
+			ErrorMessage = ErrorMessageLocal;
+
+			// TODO: Fix race conditions when writing GErrorExceptionDescription (concurrent threads can read/write it)
+			FCString::Strncpy(GErrorExceptionDescription, ErrorMessageLocal, UE_ARRAY_COUNT(GErrorExceptionDescription));
 		}
 
 #if USE_CRASH_REPORTER_MONITOR
@@ -1417,7 +1430,7 @@ private:
 			
 			if (ExceptionInfo->ExceptionRecord->ExceptionCode != EnsureExceptionCode && ExceptionInfo->ExceptionRecord->ExceptionCode != AssertExceptionCode)
 			{
-				CreateExceptionInfoString(ExceptionInfo->ExceptionRecord);
+				CreateExceptionInfoString(ExceptionInfo->ExceptionRecord, GErrorExceptionDescription, UE_ARRAY_COUNT(GErrorExceptionDescription));
 				FCString::Strncat(GErrorHist, GErrorExceptionDescription, UE_ARRAY_COUNT(GErrorHist));
 				FCString::Strncat(GErrorHist, TEXT("\r\n\r\n"), UE_ARRAY_COUNT(GErrorHist));
 			}
@@ -1663,13 +1676,14 @@ FORCENOINLINE void ReportEnsure(const TCHAR* ErrorMessage, int NumStackFramesToI
 		return;
 	}
 
-	// Simple re-entrance guard.
-	EnsureLock.Lock();
+	// Serialize concurrent ensures (from concurrent threads).
+	FScopeLock ScopedEnsureLock(&EnsureLock);
 
-	if (bReentranceGuard)
+	// Ignore any ensure that could be fired by the code reporting an ensure.
+	TGuardValue<bool> ReentranceGuard(bReentranceGuard, true);
+	if (*ReentranceGuard) // Read the old value.
 	{
-		EnsureLock.Unlock();
-		return;
+		return; // Already handling an ensure.
 	}
 
 	// Stop checking heartbeat for this thread (and stop the gamethread hitch detector if we're the game thread).
@@ -1678,12 +1692,7 @@ FORCENOINLINE void ReportEnsure(const TCHAR* ErrorMessage, int NumStackFramesToI
 	FSlowHeartBeatScope SuspendHeartBeat(true);
 	FDisableHitchDetectorScope SuspendGameThreadHitch;
 
-	bReentranceGuard = true;
-
 	ReportEnsureInner(ErrorMessage, NumStackFramesToIgnore + 1);
-
-	bReentranceGuard = false;
-	EnsureLock.Unlock();
 }
 
 #if !IS_PROGRAM && 0
