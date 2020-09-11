@@ -3420,7 +3420,6 @@ void USkeletalMeshComponent::UpdateClothStateAndSimulate(float DeltaTime, FTickF
 			FGraphEventArray Prerequisites;
 			Prerequisites.Add(ParallelClothTask);
 			FGraphEventRef ClothCompletionEvent = TGraphTask<FParallelClothCompletionTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this);
-			ThisTickFunction.GetCompletionHandle()->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 			ThisTickFunction.GetCompletionHandle()->DontCompleteUntil(ClothCompletionEvent);
 		}
 	}

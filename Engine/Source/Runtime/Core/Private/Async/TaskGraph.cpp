@@ -69,7 +69,7 @@ static int32 GIgnoreThreadToDoGatherOn = 0;
 static FAutoConsoleVariableRef CVarIgnoreThreadToDoGatherOn(
 	TEXT("TaskGraph.IgnoreThreadToDoGatherOn"),
 	GIgnoreThreadToDoGatherOn,
-	TEXT("If 1, then we ignore the hint provided with SetGatherThreadForDontCompleteUntil and just run it on AnyHiPriThreadHiPriTask.")
+	TEXT("DEPRECATED! If 1, then we ignore the hint provided with SetGatherThreadForDontCompleteUntil and just run it on AnyHiPriThreadHiPriTask.")
 );
 
 static int32 GTestDontCompleteUntilForAlreadyComplete = 1;
@@ -79,12 +79,7 @@ static FAutoConsoleVariableRef CVarTestDontCompleteUntilForAlreadyComplete(
 	TEXT("If 1, then we before spawning a gather task, we just check if all of the subtasks are complete, and in that case we can skip the gather.")
 );
 
-CORE_API int32 GEnablePowerSavingThreadPriorityReductionCVar = 0;
-static FAutoConsoleVariableRef CVarEnablePowerSavingThreadPriorityReduction(
-	TEXT("TaskGraph.EnablePowerSavingThreadPriorityReduction"),
-	GEnablePowerSavingThreadPriorityReductionCVar,
-	TEXT("If 1, then high pri thread tasks which are marked EPowerSavingEligibility::Eligible can be dropped to normal priority.")
-);
+UE_DEPRECATED(4.26, "No longer supported") CORE_API int32 GEnablePowerSavingThreadPriorityReductionCVar = 0;
 
 CORE_API bool GAllowTaskGraphForkMultithreading = true;
 static FAutoConsoleVariableRef CVarEnableForkedMultithreading(

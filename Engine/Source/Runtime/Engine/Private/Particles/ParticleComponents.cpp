@@ -4791,7 +4791,6 @@ public:
 				Prereqs.Add(FinalizePrereq);
 			}
 			FGraphEventRef Finalize = TGraphTask<FParticleFinalizeTask>::CreateTask(&Prereqs, CurrentThread).ConstructAndDispatchWhenReady(Target);
-			MyCompletionGraphEvent->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 			MyCompletionGraphEvent->DontCompleteUntil(Finalize);
 			if (FinalizeDispatchCounter)
 			{
@@ -5254,7 +5253,6 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 				FGraphEventArray* Prereqs = FXAsyncBatcher.GetAsyncPrereq(OutFinalizeBatchEvent, FinalizeDispatchCounter);
 				AsyncWork = TGraphTask<FParticleAsyncTask>::CreateTask(Prereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, OutFinalizeBatchEvent, FinalizeDispatchCounter);
 #if !WITH_EDITOR  // we need to not complete until this is done because the game thread finalize task has not beed queued yet
-				ThisTickFunction->GetCompletionHandle()->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 				ThisTickFunction->GetCompletionHandle()->DontCompleteUntil(AsyncWork);
 #endif
 			}
@@ -5264,7 +5262,6 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 				FGraphEventArray Prereqs;
 				Prereqs.Add(AsyncWork);
 				FGraphEventRef Finalize = TGraphTask<FParticleFinalizeTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this);
-				ThisTickFunction->GetCompletionHandle()->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
 				ThisTickFunction->GetCompletionHandle()->DontCompleteUntil(Finalize);
 			}
 #endif
