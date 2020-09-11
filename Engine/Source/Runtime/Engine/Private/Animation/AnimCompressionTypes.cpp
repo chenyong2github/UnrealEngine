@@ -52,6 +52,7 @@ void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData)
 		UpdateWithFloatCurve(Curve.FloatCurve);
 	}
 
+#if WITH_EDITOR
 	for (const FTransformCurve& Curve : InRawCurveData.TransformCurves)
 	{
 		UpdateWithData(Sha, Curve.Name.UID);
@@ -68,6 +69,7 @@ void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData)
 		UpdateWithComponent(Curve.RotationCurve);
 		UpdateWithComponent(Curve.ScaleCurve);
 	}
+#endif // WITH_EDITOR
 }
 
 FGuid GenerateGuidFromRawAnimData(const TArray<FRawAnimSequenceTrack>& RawAnimationData, const FRawCurveTracks& RawCurveData)

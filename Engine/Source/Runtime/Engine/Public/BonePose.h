@@ -877,4 +877,4 @@ void FCSPose<PoseType>::ConvertComponentPosesToLocalPoses(FCSPose<PoseType>&& In
 }
 
 // Populate InOutPose based on raw animation data. 
-extern void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName RetargetSource, const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves = nullptr);
+extern void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, float InTime, EAnimInterpolationType Interpolation, int32 NumFrames, float SequenceLength, FName RetargetSource, const TMap<int32, const struct FTransformCurve*>* AdditiveBoneTransformCurves = nullptr);
