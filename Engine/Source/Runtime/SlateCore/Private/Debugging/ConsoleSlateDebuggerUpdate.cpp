@@ -19,6 +19,7 @@
 
 FConsoleSlateDebuggerUpdate::FConsoleSlateDebuggerUpdate()
 	: bEnabled(false)
+	, bEnabledCVarValue(false)
 	, bDisplayWidgetsNameList(false)
 	, bUseWidgetPathAsName(false)
 	, bDisplayUpdateFromPaint(false)
@@ -35,12 +36,17 @@ FConsoleSlateDebuggerUpdate::FConsoleSlateDebuggerUpdate()
 	, CacheDuration(2.0)
 	, StartCommand(
 		TEXT("SlateDebugger.Update.Start"),
-		TEXT("Start the update widget debug tool. Use to show widgets that have been updated each frames."),
+		TEXT("Start the update widget debug tool. It shows when widgets are updated."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerUpdate::StartDebugging))
 	, StopCommand(
 		TEXT("SlateDebugger.Update.Stop"),
 		TEXT("Stop the update widget debug tool."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerUpdate::StopDebugging))
+	, EnabledRefCVar(
+		TEXT("SlateDebugger.Update.Enable")
+		, bEnabledCVarValue
+		, TEXT("Start/Stop the painted widget debug tool. It shows when widgets are updated.")
+		, FConsoleVariableDelegate::CreateRaw(this, &FConsoleSlateDebuggerUpdate::HandleEnabled))
 	, ToggleLegendCommand(
 		TEXT("SlateDebugger.Update.ToggleLegend"),
 		TEXT("Option to display the color legend."),
@@ -133,6 +139,7 @@ void FConsoleSlateDebuggerUpdate::StartDebugging()
 		FSlateDebugging::WidgetUpdatedEvent.AddRaw(this, &FConsoleSlateDebuggerUpdate::HandleWidgetUpdate);
 		FCoreDelegates::OnEndFrame.AddRaw(this, &FConsoleSlateDebuggerUpdate::HandleEndFrame);
 	}
+	bEnabledCVarValue = bEnabled;
 }
 
 void FConsoleSlateDebuggerUpdate::StopDebugging()
@@ -145,6 +152,19 @@ void FConsoleSlateDebuggerUpdate::StopDebugging()
 
 		UpdatedWidgets.Empty();
 		bEnabled = false;
+	}
+	bEnabledCVarValue = bEnabled;
+}
+
+void FConsoleSlateDebuggerUpdate::HandleEnabled(IConsoleVariable* Variable)
+{
+	if (bEnabledCVarValue)
+	{
+		StartDebugging();
+	}
+	else
+	{
+		StopDebugging();
 	}
 }
 

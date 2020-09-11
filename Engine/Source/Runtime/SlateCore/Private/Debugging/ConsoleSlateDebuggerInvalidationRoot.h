@@ -33,6 +33,7 @@ public:
 
 	void StartDebugging();
 	void StopDebugging();
+	bool IsEnabled() const { return bEnabled; }
 
 	void SaveConfig();
 
@@ -44,6 +45,7 @@ private:
 
 	void ToggleLegend();
 	void ToggleWidgetNameList();
+	void HandleEnabled(IConsoleVariable* Variable);
 	void HandlePaintDebugInfo(const FPaintArgs& InArgs, const FGeometry& InAllottedGeometry, FSlateWindowElementList& InOutDrawElements, int32& InOutLayerId);
 	
 	TSWindowId GetWidgetWindowId(const SWidget* Widget) const;
@@ -51,6 +53,7 @@ private:
 
 private:
 	bool bEnabled;
+	bool bEnabledCVarValue;
 
 	//~ Settings
 	bool bDisplayInvalidationRootList;
@@ -66,6 +69,7 @@ private:
 	//~ Console objects
 	FAutoConsoleCommand StartCommand;
 	FAutoConsoleCommand StopCommand;
+	FAutoConsoleVariableRef EnabledRefCVar;
 	FAutoConsoleCommand ToggleLegendCommand;
 	FAutoConsoleCommand ToogleWidgetsNameListCommand;
 

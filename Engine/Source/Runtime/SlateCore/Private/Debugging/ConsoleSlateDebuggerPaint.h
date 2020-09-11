@@ -34,10 +34,12 @@ public:
 
 	void StartDebugging();
 	void StopDebugging();
+	bool IsEnabled() const { return bEnabled; }
 
 	void SaveConfig();
 
 private:
+	void HandleEnabled(IConsoleVariable* Variable);
 	void HandleLogOnce();
 	void HandleToggleWidgetNameList();
 	void HandleEndFrame();
@@ -46,6 +48,7 @@ private:
 
 private:
 	bool bEnabled;
+	bool bEnabledCVarValue;
 
 	//~ Settings
 	bool bDisplayWidgetsNameList;
@@ -64,6 +67,7 @@ private:
 	//~ Console objects
 	FAutoConsoleCommand ShowPaintWidgetCommand;
 	FAutoConsoleCommand HidePaintWidgetCommand;
+	FAutoConsoleVariableRef EnabledRefCVar;
 	FAutoConsoleCommand LogPaintedWidgetOnceCommand;
 	FAutoConsoleCommand DisplayWidgetsNameListCommand;
 	FAutoConsoleVariableRef MaxNumberOfWidgetInListtRefCVar;

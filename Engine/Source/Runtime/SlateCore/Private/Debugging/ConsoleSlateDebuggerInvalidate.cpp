@@ -19,6 +19,7 @@
 
 FConsoleSlateDebuggerInvalidate::FConsoleSlateDebuggerInvalidate()
 	: bEnabled(false)
+	, bEnabledCVarValue(false)
 	, bDisplayWidgetList(true)
 	, bUseWidgetPathAsName(false)
 	, bShowLegend(false)
@@ -38,12 +39,17 @@ FConsoleSlateDebuggerInvalidate::FConsoleSlateDebuggerInvalidate()
 	, CacheDuration(2.0)
 	, StartCommand(
 		TEXT("SlateDebugger.Invalidate.Start"),
-		TEXT("Start the Invalidation Root widget debug tool. Use to show when we are using the slow or fast path."),
+		TEXT("Start the Invalidation widget debug tool. It shows when widgets are invalidated."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::StartDebugging))
 	, StopCommand(
 		TEXT("SlateDebugger.Invalidate.Stop"),
-		TEXT("Stop the Invalidation Root widget debug tool."),
+		TEXT("Stop the Invalidation widget debug tool."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::StopDebugging))
+	, EnabledRefCVar(
+		TEXT("SlateDebugger.Invalidate.Enable")
+		, bEnabledCVarValue
+		, TEXT("Start/Stop the Invalidation widget debug tool. It shows when widgets are invalidated.")
+		, FConsoleVariableDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::HandleEnabled))
 	, ToggleLegendCommand(
 		TEXT("SlateDebugger.Invalidate.ToggleLegend"),
 		TEXT("Option to display the color legend."),
@@ -138,6 +144,7 @@ void FConsoleSlateDebuggerInvalidate::StartDebugging()
 		FSlateDebugging::WidgetInvalidateEvent.AddRaw(this, &FConsoleSlateDebuggerInvalidate::HandleWidgetInvalidated);
 		FCoreDelegates::OnEndFrame.AddRaw(this, &FConsoleSlateDebuggerInvalidate::HandleEndFrame);
 	}
+	bEnabledCVarValue = bEnabled;
 }
 
 void FConsoleSlateDebuggerInvalidate::StopDebugging()
@@ -151,6 +158,19 @@ void FConsoleSlateDebuggerInvalidate::StopDebugging()
 		InvalidationInfos.Empty();
 		FrameInvalidationInfos.Empty();
 		bEnabled = false;
+	}
+	bEnabledCVarValue = bEnabled;
+}
+
+void FConsoleSlateDebuggerInvalidate::HandleEnabled(IConsoleVariable* Variable)
+{
+	if (bEnabledCVarValue)
+	{
+		StartDebugging();
+	}
+	else
+	{
+		StopDebugging();
 	}
 }
 
