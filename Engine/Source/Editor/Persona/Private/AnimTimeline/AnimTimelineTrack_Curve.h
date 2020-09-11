@@ -74,6 +74,9 @@ protected:
 	/** Handle undo/redo */
 	void PostUndoRedo();
 
+	/** Zoom the view to fit the bounds of the curve */
+	void ZoomToFit();
+
 protected:
 	/** The curve we are editing */
 	TArray<FRichCurve*> Curves;
