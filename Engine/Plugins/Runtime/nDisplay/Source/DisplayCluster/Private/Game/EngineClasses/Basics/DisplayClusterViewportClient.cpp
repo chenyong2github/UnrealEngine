@@ -474,6 +474,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 			bool AllowPostProcessSettingsScreenPercentage = false;
 			float GlobalResolutionFraction = 1.0f;
+			float SecondaryScreenPercentage = 1.0f;
 
 			if (ViewFamily.EngineShowFlags.ScreenPercentage)
 			{
@@ -482,10 +483,19 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 				// Get global view fraction set by r.ScreenPercentage.
 				GlobalResolutionFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction() * CustomBufferRatio;
+
+				// We need to split the screen percentage if below 0.5 because TAA upscaling only works well up to 2x.
+				if (GlobalResolutionFraction < 0.5f)
+				{
+					SecondaryScreenPercentage = 2.0f * GlobalResolutionFraction;
+					GlobalResolutionFraction = 0.5f;
+				}
 			}
 
 			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
 				ViewFamily, GlobalResolutionFraction, AllowPostProcessSettingsScreenPercentage));
+
+			ViewFamily.SecondaryViewFraction = SecondaryScreenPercentage;
 		}
 		else if (bStereoRendering)
 		{
