@@ -46,6 +46,8 @@ namespace DatasmithRuntime
 
 	void FSceneImporter::ProcessMaterialData(FAssetData& MaterialData)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMaterialData);
+
 		if (MaterialData.bProcessed)
 		{
 			return;
@@ -126,6 +128,8 @@ namespace DatasmithRuntime
 
 	EActionResult::Type FSceneImporter::ProcessMaterial(FSceneGraphId ElementId)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMaterial);
+
 		FAssetData& MaterialData = AssetDataList[ ElementId ];
 
 		TSharedPtr< IDatasmithElement >& Element = Elements[ ElementId ];
@@ -163,6 +167,8 @@ namespace DatasmithRuntime
 
 	EActionResult::Type FSceneImporter::AssignTexture(const FReferencer& Referencer, UTexture2D* Texture)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::AssignTexture);
+
 		if (Texture)
 		{
 			const FSceneGraphId ElementId = Referencer.GetId();

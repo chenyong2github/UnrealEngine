@@ -71,6 +71,33 @@ void FDatasmithFacadeScene::AddMaterial(
 	InMaterialPtr->BuildScene( *this );
 }
 
+int32 FDatasmithFacadeScene::GetMaterialsCount() const
+{
+	return SceneRef->GetMaterialsCount();
+}
+
+FDatasmithFacadeBaseMaterial* FDatasmithFacadeScene::GetNewMaterial(
+	int32 MaterialIndex
+)
+{
+	if (TSharedPtr<IDatasmithBaseMaterialElement> ActorElement = SceneRef->GetMaterial( MaterialIndex ))
+	{
+		return FDatasmithFacadeBaseMaterial::GetNewFacadeBaseMaterialFromSharedPtr( ActorElement );
+	}
+
+	return nullptr;
+}
+
+void FDatasmithFacadeScene::RemoveMaterial(
+	FDatasmithFacadeBaseMaterial* InMaterialPtr
+)
+{
+	if (InMaterialPtr)
+	{
+		SceneRef->RemoveMaterial( InMaterialPtr->GetDatasmithBaseMaterial() );
+	}
+}
+
 void FDatasmithFacadeScene::AddMesh(
 	FDatasmithFacadeMesh* InMeshPtr
 )
@@ -144,7 +171,17 @@ void FDatasmithFacadeScene::ExportAssets(
 	const TCHAR* InAssetFolder
 )
 {
-	FString AssetFolder = InAssetFolder;
+	// If applicable, update SceneExporter with new folder
+	if (FCString::Strlen(SceneExporterRef->GetAssetsOutputPath()) == 0)
+	{
+		SceneExporterRef->SetOutputPath(InAssetFolder);
+	}
+	else
+	{
+		ensure(FCString::Strcmp(SceneExporterRef->GetAssetsOutputPath(), InAssetFolder) == 0);
+	}
+
+	FString AssetFolder(InAssetFolder);
 
 	// Build and export the Datasmith scene element assets.
 	for (TSharedPtr<FDatasmithFacadeElement> ElementPtr : SceneElementSet)
@@ -157,22 +194,36 @@ void FDatasmithFacadeScene::ExportAssets(
 //There won't be a need to reset the scene once all the Facade elements will stop generating DatasmithElement on the fly (and duplicating the data) during BuildElement()
 void ResetBuiltFacadeElement(TSharedRef<IDatasmithScene>& SceneRef)
 {
+	TArray<TSharedPtr<IDatasmithMeshElement>> MeshesArray;
 	TArray<TSharedPtr<IDatasmithBaseMaterialElement>> MaterialArray;
 	TArray<TSharedPtr<IDatasmithTextureElement>> TextureArray;
 	TArray<TSharedPtr<IDatasmithMetaDataElement>> MetaDataArray;
 	TArray<TSharedPtr<IDatasmithActorElement>> ActorArray;
+	TArray<TSharedPtr<IDatasmithLevelSequenceElement>> LevelSequences;
+	TArray<TSharedPtr<IDatasmithLevelVariantSetsElement>> LevelVariantSets;
 
+	const int32 MeshCount = SceneRef->GetMeshesCount();
 	const int32 MaterialCount = SceneRef->GetMaterialsCount();
 	const int32 TextureCount = SceneRef->GetTexturesCount();
 	const int32 MetaDataCount = SceneRef->GetMetaDataCount();
 	const int32 ActorCount = SceneRef->GetActorsCount();
+	const int32 LevelSequencesCount = SceneRef->GetLevelSequencesCount();
+	const int32 LevelVariantSetsCount = SceneRef->GetLevelVariantSetsCount();
 
+	MeshesArray.Reserve( MeshCount );
 	MaterialArray.Reserve( MaterialCount );
 	TextureArray.Reserve( TextureCount );
 	MetaDataArray.Reserve( MetaDataCount );
 	ActorArray.Reserve( ActorCount );
+	LevelSequences.Reserve( LevelSequencesCount );
+	LevelVariantSets.Reserve( LevelVariantSetsCount );
 
-	//Backup Materials and Textures before reseting the scene in order to restore them.
+	//Backup Meshes, Materials and Textures before reseting the scene in order to restore them.
+	for ( int32 MeshIndex = 0; MeshIndex < MeshCount; ++MeshIndex )
+	{
+		MeshesArray.Add( SceneRef->GetMesh( MeshIndex ) );
+	}
+
 	for ( int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex )
 	{
 		MaterialArray.Add( SceneRef->GetMaterial( MaterialIndex ) );
@@ -193,7 +244,22 @@ void ResetBuiltFacadeElement(TSharedRef<IDatasmithScene>& SceneRef)
 		ActorArray.Add( SceneRef->GetActor( ActorIndex ) );
 	}
 
+	for ( int32 LevelSequenceIndex = 0; LevelSequenceIndex < LevelSequencesCount; ++LevelSequenceIndex )
+	{
+		LevelSequences.Add( SceneRef->GetLevelSequence( LevelSequenceIndex ) );
+	}
+
+	for ( int32 LevelVariantSetIndex = 0; LevelVariantSetIndex < LevelVariantSetsCount; ++LevelVariantSetIndex )
+	{
+		LevelVariantSets.Add( SceneRef->GetLevelVariantSets( LevelVariantSetIndex ) );
+	}
+
 	SceneRef->Reset();
+
+	for ( TSharedPtr<IDatasmithMeshElement>& CurrentMesh : MeshesArray )
+	{
+		SceneRef->AddMesh( CurrentMesh );
+	}
 
 	for ( TSharedPtr<IDatasmithBaseMaterialElement>& CurrentMaterial : MaterialArray )
 	{
@@ -208,6 +274,16 @@ void ResetBuiltFacadeElement(TSharedRef<IDatasmithScene>& SceneRef)
 	for ( TSharedPtr<IDatasmithMetaDataElement>& CurrentMetaData : MetaDataArray )
 	{
 		SceneRef->AddMetaData( CurrentMetaData );
+	}
+
+	for ( TSharedPtr<IDatasmithLevelSequenceElement>& CurrentLevelSequence : LevelSequences )
+	{
+		SceneRef->AddLevelSequence( CurrentLevelSequence.ToSharedRef() );
+	}
+
+	for ( TSharedPtr<IDatasmithLevelVariantSetsElement>& CurrentLevelVariantSet : LevelVariantSets )
+	{
+		SceneRef->AddLevelVariantSets( CurrentLevelVariantSet );
 	}
 
 	for ( TSharedPtr<IDatasmithActorElement>& CurrentActor : ActorArray )
@@ -309,4 +385,14 @@ TSharedRef<IDatasmithScene> FDatasmithFacadeScene::GetScene() const
 TSharedRef<TSet<FString>> FDatasmithFacadeScene::GetExportedTextures() const
 {
 	return ExportedTextureSet;
+}
+
+void FDatasmithFacadeScene::SetLabel(const TCHAR* InSceneLabel)
+{
+	SceneRef->SetLabel(InSceneLabel);
+}
+
+const TCHAR* FDatasmithFacadeScene::GetLabel() const
+{
+	return SceneRef->GetLabel();
 }

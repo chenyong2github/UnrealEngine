@@ -4,34 +4,36 @@
 
 #include "CoreMinimal.h"
 
-#include "DirectLink/DatasmithDeltaConsumer.h"
+#include "DirectLink/DatasmithSceneReceiver.h"
 #include "GameFramework/Actor.h"
+
+#include <atomic>
 
 #include "DatasmithRuntime.generated.h"
 
-class FDatasmithRuntimeSceneProvider;
 class IDatasmithScene;
 
 namespace DatasmithRuntime
 {
 	class FSceneImporter;
+	class FDestinationProxy;
 }
 
 struct FUpdateContext
 {
 	TArray<TSharedPtr<IDatasmithElement>> Additions;
-	TArray<TSharedPtr<IDatasmithElement>> Deletions;
 	TArray<TSharedPtr<IDatasmithElement>> Updates;
+	TArray<DirectLink::FSceneGraphId> Deletions;
 };
 
 
 // UHT doesn't really like operator ::
-using FDatasmithDeltaConsumer_ISceneChangeListener = FDatasmithDeltaConsumer::ISceneChangeListener; 
+using FDatasmithSceneReceiver_ISceneChangeListener = FDatasmithSceneReceiver::ISceneChangeListener;
 
 UCLASS( MinimalAPI )
-class ADatasmithRuntimeActor 
+class ADatasmithRuntimeActor
 	: public AActor
-	, public FDatasmithDeltaConsumer_ISceneChangeListener
+	, public FDatasmithSceneReceiver_ISceneChangeListener
 {
 	GENERATED_BODY()
 
@@ -45,21 +47,29 @@ public:
 	// End AActor overrides
 
 	// ISceneChangeListener interface
-	virtual void OnOpenDelta() override {OnNewScene();}
-	virtual void OnNewScene() override;
+	virtual void OnOpenDelta(/*int32 ElementsCount*/) override;
+	virtual void OnNewScene(const DirectLink::FSceneIdentifier& SceneId) override;
 	virtual void OnAddElement(TSharedPtr<IDatasmithElement> Element) override;
-	virtual void OnChangedElement(TSharedPtr<IDatasmithElement> Element) override {}
-	virtual void OnRemovedElement(DirectLink::FSceneGraphId ElementId) override {}
+	virtual void OnChangedElement(TSharedPtr<IDatasmithElement> Element) override;
+	virtual void OnRemovedElement(DirectLink::FSceneGraphId ElementId) override;
 	virtual void OnCloseDelta() override;
 	// End ISceneChangeListener interface
 
-	void OnDeleteElement(TSharedPtr<IDatasmithElement> Element);
-	void OnUpdateElement(TSharedPtr<IDatasmithElement> Element);
+	void Register();
+	void Unregister();
+	bool IsConnected();
+	FString GetDestinationName() { return GetName(); }
+	FString GetSourceName();
+	bool OpenConnection(uint32 SourceHash);
+	void CloseConnection();
 
 	void SetScene(TSharedPtr<IDatasmithScene> SceneElement);
 
 	UPROPERTY(Category="DatasmithRuntime HUD", EditDefaultsOnly, BlueprintReadOnly)
 	float Progress;
+
+	UPROPERTY(Category="DatasmithRuntime HUD", EditDefaultsOnly, BlueprintReadOnly)
+	bool bReceiving;
 
 	UPROPERTY(Category="DatasmithRuntime HUD", EditDefaultsOnly, BlueprintReadOnly)
 	bool bBuilding;
@@ -69,14 +79,14 @@ public:
 
 	void Reset();
 
-	void StartReceivingDelta();
-
 private:
 	TSharedPtr< DatasmithRuntime::FSceneImporter > SceneImporter;
 
-	TSharedPtr<FDatasmithRuntimeSceneProvider> SceneProvider;
-	TAtomic<bool> bNewScene;
-	TAtomic<double> ClosedDeltaWaitTime;
+	TSharedPtr<DatasmithRuntime::FDestinationProxy> DirectLinkHelper;
+
+	std::atomic_bool bNewScene;
+	std::atomic<double> ClosedDeltaWaitTime;
+	float ElementDeltaStep;
 
 	FCriticalSection UpdateContextCriticalSection;
 	FUpdateContext UpdateContext;

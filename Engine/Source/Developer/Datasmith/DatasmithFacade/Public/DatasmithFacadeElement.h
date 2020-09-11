@@ -5,6 +5,8 @@
 // Datasmith SDK.
 #include "DatasmithSceneFactory.h"
 
+class FDatasmithFacadeScene;
+
 class DATASMITHFACADE_API FDatasmithFacadeElement
 {
 	friend class FDatasmithFacadeScene;

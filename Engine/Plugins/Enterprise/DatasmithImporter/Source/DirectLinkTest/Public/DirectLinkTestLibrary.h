@@ -18,12 +18,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DirectLink")
 	static bool TestParameters();
 
-	UFUNCTION(BlueprintCallable, Category = "DirectLink")
-	static bool TestIndex(const FString& InFilePath);
-
-	UFUNCTION(BlueprintCallable, Category = "DirectLink")
-	static bool TestIndex2(const FString& InFilePath);
-
 
 	UFUNCTION(BlueprintCallable, Category = "DirectLink")
 	static bool StartReceiver();

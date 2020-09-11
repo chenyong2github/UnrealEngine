@@ -74,6 +74,9 @@ public:
 	static TSharedRef< IDatasmithPropertyCaptureElement > CreatePropertyCapture();
 	static TSharedRef< IDatasmithObjectPropertyCaptureElement > CreateObjectPropertyCapture();
 
+	static TSharedRef< IDatasmithDecalActorElement > CreateDecalActor( const TCHAR* InName );
+	static TSharedRef< IDatasmithDecalMaterialElement > CreateDecalMaterial( const TCHAR* InName );
+
 	static TSharedRef< IDatasmithScene > CreateScene( const TCHAR* InName );
 	static TSharedRef< IDatasmithScene > DuplicateScene( const TSharedRef< IDatasmithScene >& InScene );
 };

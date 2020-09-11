@@ -38,11 +38,6 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
   public FDatasmithFacadeUEPbrMaterial(string InElementName) : this(DatasmithFacadeCSharpPINVOKE.new_FDatasmithFacadeUEPbrMaterial(InElementName), true) {
   }
 
-  public override FDatasmithFacadeBaseMaterial.EFacadeMaterialType GetMaterialType() {
-    FDatasmithFacadeBaseMaterial.EFacadeMaterialType ret = (FDatasmithFacadeBaseMaterial.EFacadeMaterialType)DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetMaterialType(swigCPtr);
-    return ret;
-  }
-
   public FDatasmithFacadeExpressionInput GetBaseColor() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetBaseColor(swigCPtr), true);
     return ret;

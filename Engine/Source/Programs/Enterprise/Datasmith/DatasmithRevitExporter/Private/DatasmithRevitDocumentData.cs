@@ -16,24 +16,19 @@ namespace DatasmithRevitExporter
 {
 	public class FDocumentData
 	{
-		public enum EActorModifiedFlags
-		{
-			ActorModifiedProperties = 1 << 0,
-			ActorModifiedMetadata = 1 << 1,
-			ActorModifiedAll = ~0
-		}
-
 		public class FBaseElementData
 		{
 			public ElementType BaseElementType;
 			public FDatasmithFacadeMesh ElementMesh = null;
 			public FDatasmithFacadeActor ElementActor = null;
 			public FDatasmithFacadeMetaData ElementMetaData = null;
-			public EActorModifiedFlags ModifiedFlags = 0;
 			public FDocumentData DocumentData = null;
 			public bool bOptimizeHierarchy = true;
+			public bool bIsModified = true;
 
 			public List<FBaseElementData> ChildElements = new List<FBaseElementData>();
+
+			public FBaseElementData Parent = null;
 
 			public FBaseElementData(
 				ElementType InElementType, FDocumentData InDocumentData
@@ -48,63 +43,6 @@ namespace DatasmithRevitExporter
 				ElementActor = InElementActor;
 				ElementMetaData = InElementMetaData;
 				DocumentData = InDocumentData;
-			}
-
-			public void SanitizeActorHierarchyNames()
-			{
-				string ElementName = ElementActor.GetName();
-
-				if (ChildElements.Count > 0)
-				{
-					Dictionary<string, int> NameCountMap = new Dictionary<string, int>();
-					Dictionary<string, int> NameUsageMap = new Dictionary<string, int>();
-
-					// Count the number of times a name is reused by the Datasmith actor children.
-					foreach (FBaseElementData ChildElement in ChildElements)
-					{
-						FDatasmithFacadeActor ChildActor = ChildElement.ElementActor;
-						string ChildActorName = ChildActor.GetName();
-
-						if (!NameCountMap.ContainsKey(ChildActorName))
-						{
-							NameCountMap.Add(ChildActorName, 0);
-							NameUsageMap.Add(ChildActorName, 0);
-						}
-
-						NameCountMap[ChildActorName]++;
-					}
-
-					// Rename with a name made unique each child of the Datasmith actor.
-					foreach (FBaseElementData ChildElement in ChildElements)
-					{
-						FDatasmithFacadeActor ChildActor = ChildElement.ElementActor;
-						string ChildActorName = ChildActor.GetName();
-
-						NameUsageMap[ChildActorName]++;
-
-						// Build a new unique name for the Datasmith actor child.
-						string NewChildActorName;
-						if (NameCountMap[ChildActorName] > 1)
-						{
-							NewChildActorName = string.Format("{0}.{1}_{2}/{3}", ElementName, ChildActorName, NameUsageMap[ChildActorName], NameCountMap[ChildActorName]);
-						}
-						else
-						{
-							NewChildActorName = string.Format("{0}.{1}", ElementName, ChildActorName);
-						}
-
-						// Assign new unique name to the Datasmith actor child.
-						ChildActor.SetName(NewChildActorName);
-
-						// Make sure all the actor names are unique in the hierarchy of this Datasmith actor child.
-						ChildElement.SanitizeActorHierarchyNames();
-					}
-				}
-
-				// Hash the Datasmith actor name to shorten it.
-				string HashedActorName = FDatasmithFacadeElement.GetStringHash(ElementName);
-				ElementActor.SetName(HashedActorName);
-				ElementMetaData.SetName(HashedActorName + "_DATA");
 			}
 
 			public bool IsSimpleActor()
@@ -141,61 +79,63 @@ namespace DatasmithRevitExporter
 						ElementActor.AddChild(MeshActor.GetChild(ChildIndex));
 					}
 
-					ElementMetaData.SetAssociatedElement(ElementActor);
+					ElementMetaData?.SetAssociatedElement(ElementActor);
 
 					return true;
 				}
 
-				return !(ElementActor is FDatasmithFacadeActorMesh || ElementActor is FDatasmithFacadeActorLight	|| ElementActor is FDatasmithFacadeActorCamera);
+				return !(ElementActor is FDatasmithFacadeActorMesh || ElementActor is FDatasmithFacadeActorLight || ElementActor is FDatasmithFacadeActorCamera);
 			}
 
-			private void AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InElement, FBaseElementData InParent)
+			public void AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InParent)
 			{
-				if (InParent == null)
+				foreach (FBaseElementData CurrentChild in ChildElements)
 				{
-					InScene.AddActor(InElement.ElementActor);
-				}
-				else
-				{
-					InParent.ElementActor.AddChild(InElement.ElementActor);
+					CurrentChild.AddToScene(InScene, this);
 				}
 
-				if (!DocumentData.bSkipMetadataExport && InElement.ElementMetaData != null)
+				if (!DocumentData.IsActorCached(this) && bIsModified)
 				{
-					InScene.AddMetaData(InElement.ElementMetaData);
-				}
-			}
-
-			public bool AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InParentActor, bool bGlobalOptimizeHierarchy)
-			{
-				bool bHasChildSaved = false;
-				bool bLocalOptimizeHierarchy = bOptimizeHierarchy & bGlobalOptimizeHierarchy;
-
-				bool bIsSimpleActor = IsSimpleActor();
-
-				if (bLocalOptimizeHierarchy && bIsSimpleActor && ChildElements.Count == 1)
-				{
-					FBaseElementData ChildElement = ChildElements[0];
-					if (ChildElement.ElementActor.IsComponent() == true)
+					if (InParent == null)
 					{
-						ChildElement.ElementActor.SetIsComponent(false);
+						InScene.AddActor(ElementActor);
+					}
+					else
+					{
+						InParent.ElementActor.AddChild(ElementActor);
 					}
 
-					return ChildElement.AddToScene(InScene, InParentActor, bGlobalOptimizeHierarchy);
+					if (!DocumentData.bSkipMetadataExport && ElementMetaData != null)
+					{
+						InScene.AddMetaData(ElementMetaData);
+					}
+
+					DocumentData.CacheElement(this);
 				}
+
+				bIsModified = false;
+			}
+
+			public bool Optimize()
+			{
+				bool bIsSimpleActor = IsSimpleActor();
+
+				List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
 
 				foreach (FBaseElementData CurrentChild in ChildElements)
 				{
-					bHasChildSaved |= CurrentChild.AddToScene(InScene, this, bGlobalOptimizeHierarchy);
+					if (CurrentChild.Optimize())
+					{
+						ChildrenToRemove.Add(CurrentChild);
+					}
 				}
 
-				if (!bLocalOptimizeHierarchy || !bIsSimpleActor || bHasChildSaved)
+				foreach (FBaseElementData Child in ChildrenToRemove)
 				{
-					AddToScene(InScene, this, InParentActor);
-					return true;
+					ChildElements.Remove(Child);
 				}
 
-				return false;
+				return bIsSimpleActor && (ChildElements.Count == 0) && bOptimizeHierarchy;
 			}
 
 			public void UpdateMeshName()
@@ -216,24 +156,31 @@ namespace DatasmithRevitExporter
 			public FElementData(
 				Element InElement,
 				Transform InWorldTransform,
-				FDatasmithFacadeActorMesh InExistingActor,
 				FDocumentData InDocumentData
 			)
 				: base(InElement.Document.GetElement(InElement.GetTypeId()) as ElementType, InDocumentData)
 			{
 				CurrentElement = InElement;
 
+				InitializePivotPlacement(ref InWorldTransform);
+
+				// Create a new Datasmith mesh actor.
+				InitializeElement(InWorldTransform, this);
+			}
+
+			public void InitializePivotPlacement(ref Transform InOutWorldTransform)
+			{
 				// If element has location, use it as a transform in order to have better pivot placement.
 				Transform PivotTransform = GetPivotTransform(CurrentElement);
 				if (PivotTransform != null)
 				{
-					if (!InWorldTransform.IsIdentity)
+					if (!InOutWorldTransform.IsIdentity)
 					{
-						InWorldTransform = InWorldTransform * PivotTransform;
-					}
+						InOutWorldTransform = InOutWorldTransform * PivotTransform;
+					} 
 					else
 					{
-						InWorldTransform = PivotTransform;
+						InOutWorldTransform = PivotTransform;
 					}
 
 					if (CurrentElement.GetType() == typeof(Wall)
@@ -243,13 +190,6 @@ namespace DatasmithRevitExporter
 						MeshPointsTransform = PivotTransform.Inverse;
 					}
 				}
-				if (InExistingActor != null)
-				{
-					ElementActor = InExistingActor;
-				}
-
-				// Create a new Datasmith mesh actor.
-				InitializeElement(InWorldTransform, this);
 			}
 
 			// Compute orthonormal basis, given the X vector.
@@ -314,9 +254,41 @@ namespace DatasmithRevitExporter
 
 				if (InElement.GetType() == typeof(Wall))
 				{
-					BasisY = (InElement as Wall).Orientation.Normalize();
-					BasisX = BasisY.CrossProduct(XYZ.BasisZ).Normalize();
-					BasisZ = BasisX.CrossProduct(BasisY).Normalize();
+					// In rare cases, wall may not support orientation.
+					// If this happens, we need to use the direction of its Curve property and 
+					// derive orientation from there.
+					try
+					{
+						BasisY = (InElement as Wall).Orientation.Normalize();
+						BasisX = BasisY.CrossProduct(XYZ.BasisZ).Normalize();
+						BasisZ = BasisX.CrossProduct(BasisY).Normalize();
+					} 
+					catch
+					{
+						if (InElement.Location.GetType() == typeof(LocationCurve))
+						{
+							LocationCurve CurveLocation = InElement.Location as LocationCurve;
+
+							if (CurveLocation.Curve.GetType() == typeof(Line))
+							{
+								BasisX = (CurveLocation.Curve as Line).Direction;
+								ComputeBasis(BasisX, ref BasisY, ref BasisZ);
+							} 
+							else if (CurveLocation.Curve.IsBound)
+							{
+								Transform Derivatives = CurveLocation.Curve.ComputeDerivatives(0f, true);
+								BasisX = Derivatives.BasisX.Normalize();
+								BasisY = Derivatives.BasisY.Normalize();
+								BasisZ = Derivatives.BasisZ.Normalize();
+							} 
+							else 
+							{
+								BasisX = XYZ.BasisX;
+								BasisY = XYZ.BasisY;
+								BasisZ = XYZ.BasisZ;
+							}
+						}
+					}
 				}
 				else if (InElement.GetType() == typeof(Railing))
 				{
@@ -396,9 +368,9 @@ namespace DatasmithRevitExporter
 			{
 				FBaseElementData InstanceData = new FBaseElementData(InInstanceType, DocumentData);
 
-				InitializeElement(InWorldTransform, InstanceData);
-
 				InstanceDataStack.Push(InstanceData);
+
+				InitializeElement(InWorldTransform, InstanceData);
 
 				// The Datasmith instance actor is a component in the hierarchy.
 				InstanceData.ElementActor.SetIsComponent(true);
@@ -406,7 +378,9 @@ namespace DatasmithRevitExporter
 
 			public FBaseElementData PopInstance()
 			{
-				return InstanceDataStack.Pop();
+				FBaseElementData Instance = InstanceDataStack.Pop();
+				Instance.bIsModified = true;
+				return Instance;
 			}
 
 			public void AddLightActor(
@@ -581,10 +555,13 @@ namespace DatasmithRevitExporter
 				FBaseElementData ParentElement = (InstanceDataStack.Count == 0) ? this : InstanceDataStack.Peek();
 
 				ParentElement.ChildElements.Add(InChildActor);
+				InChildActor.Parent = ParentElement;
 			}
 
 			public void AddChildActor(
-				FDatasmithFacadeActor ChildActor, FDatasmithFacadeMetaData MetaData, bool bOptimizeHierarchy
+				FDatasmithFacadeActor ChildActor, 
+				FDatasmithFacadeMetaData MetaData, 
+				bool bOptimizeHierarchy
 			)
 			{
 				FBaseElementData ElementData = new FBaseElementData(ChildActor, MetaData, DocumentData);
@@ -593,9 +570,10 @@ namespace DatasmithRevitExporter
 				FBaseElementData Parent = (InstanceDataStack.Count == 0) ? this : InstanceDataStack.Peek();
 
 				Parent.ChildElements.Add(ElementData);
+				ElementData.Parent = Parent;
 			}
 
-			private void InitializeElement(
+			public void InitializeElement(
 					Transform InWorldTransform,
 					FBaseElementData InElement
 			)
@@ -622,7 +600,10 @@ namespace DatasmithRevitExporter
 				string LayerName = GetCategoryName();
 				SetActorProperties(LayerName, InElement.ElementActor);
 
-				InElement.ElementMetaData = GetActorMetaData(InElement.ElementActor);
+				if (!DocumentData.bSkipMetadataExport)
+				{
+					InElement.ElementMetaData = GetActorMetaData(InElement.ElementActor);
+				}
 			}
 
 			public string GetCategoryName()
@@ -706,7 +687,9 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
-					return $"{DocumentName}:{InstanceDataStack.Peek().BaseElementType.UniqueId}";
+					// Generate unique name for instances
+					FBaseElementData Instance = InstanceDataStack.Peek();
+					return $"{DocumentName}:{Instance.BaseElementType.UniqueId}:{Instance.GetHashCode()}";
 				}
 			}
 
@@ -804,20 +787,18 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private FExportData				CachedExportData = null;
-		private FExportData				CurrentExportData = new FExportData();
+		private FExportData						CachedExportData = null;
+		private FExportData						CurrentExportData = new FExportData();
 
-		private Document				CurrentDocument;
-		private Stack<FElementData>		ElementDataStack = new Stack<FElementData>();
-		private string					CurrentMaterialDataKey = null;
-		private int						LatestMaterialIndex = 0;
-		private List<string>			MessageList = null;
+		private Document						CurrentDocument;
+		private Stack<FElementData>				ElementDataStack = new Stack<FElementData>();
+		private string							CurrentMaterialDataKey = null;
+		private int								LatestMaterialIndex = 0;
+		private List<string>					MessageList = null;
 
-		private HashSet<int>			ModifiedElementsSet = new HashSet<int>();
+		public FDatasmithFacadeScene			DatasmithScene = null;
 
-		public FDatasmithFacadeScene	DatasmithScene = null;
-
-		public bool						bSkipMetadataExport = false;
+		public bool								bSkipMetadataExport = false;
 
 		public FDocumentData(
 			Document InDocument,
@@ -832,13 +813,35 @@ namespace DatasmithRevitExporter
 			DatasmithScene = InScene;
 		}
 
-		private bool IsActorCached(ElementId ElemId)
+		private bool IsActorCached(ElementId InElemId)
 		{
 			if (CachedExportData != null)
 			{
-				return CachedExportData.ActorMap.ContainsKey(ElemId);
+				return CachedExportData.ActorMap.ContainsKey(InElemId);
 			}
 			return false;
+		}
+
+		private bool IsActorCached(FBaseElementData InBaseElemData)
+		{
+			FElementData ElemData = InBaseElemData as FElementData;
+			if (CachedExportData != null && ElemData != null)
+			{
+				if (ElemData.CurrentElement != null && ElemData.CurrentElement.IsValidObject)
+				{
+					return CachedExportData.ActorMap.ContainsKey(ElemData.CurrentElement.Id);
+				}
+			}
+			return false;
+		}
+
+		public void CacheElement(FBaseElementData InBaseElementData)
+		{
+			FElementData ElemData = InBaseElementData as FElementData;
+			if (ElemData != null && CachedExportData != null)
+			{
+				CachedExportData.ActorMap[ElemData.CurrentElement.Id] = InBaseElementData;
+			}
 		}
 
 		private bool IsActorModified(ElementId ElemId)
@@ -848,48 +851,6 @@ namespace DatasmithRevitExporter
 				return CachedExportData.ModifiedActorSet.Contains(ElemId);
 			}
 			return false;
-		}
-
-		public void OnElementModified(ElementId ElemId)
-		{
-			ModifiedElementsSet.Add(ElemId.IntegerValue);
-		}
-
-		public void OnElementAdded(ElementId ElemId)
-		{
-			//todo
-			/*
-			if (DeletedElements.Contains(id))
-			{
-				// Element was deleted and added back (undo) before being synced (sent to datasmith),
-				// so just remove it from deleted
-				DeletedElements.Remove(id);
-			}
-			else
-			{
-				// New element of supported type
-				AddedElements.Add(id);
-			}
-			*/
-		}
-
-		public void OnElementDeleted(ElementId ElemId)
-		{
-			//todo
-
-			/*
-			if (AddedElements.Contains(id))
-			{
-				// Element was added and deleted before being synced (sent to datasmith),
-				// don't add it to the deleted elements
-				AddedElements.Remove(id);
-			}
-			else if (SyncedElements.Contains(id))
-			{
-				// Flag existing datasmith element for removal
-				DeletedElements.Add(id);
-			}
-			*/
 		}
 
 		public Document GetDocument()
@@ -914,48 +875,55 @@ namespace DatasmithRevitExporter
 			Transform InWorldTransform
 		)
 		{
-			FDatasmithFacadeActorMesh ExistingActor = null;
+			FElementData ElementData = null;
 
 			if (IsActorCached(InElement.Id))
 			{
 				if (IsActorModified(InElement.Id))
 				{
-					ExistingActor = CachedExportData.ActorMap[InElement.Id].ElementActor as FDatasmithFacadeActorMesh;
+					ElementData = (FElementData)CachedExportData.ActorMap[InElement.Id];
+					FDatasmithFacadeActor ExistingActor = ElementData.ElementActor;
 
-					// In case of instancing, we need to remove the child instances that will be re-created.
-					if (ExistingActor.GetChildrenCount() > 0)
+					// Remove children that are instances: they will be re-created;
+					// The reason is that we cannot uniquely identify family instances (no id) and when element changes,
+					// we need to export all of its child instances anew.
+					if (ExistingActor != null && ElementData.ChildElements.Count > 0)
 					{
-						List<FDatasmithFacadeActor> ChildToRemove = new List<FDatasmithFacadeActor>();
+						List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
 						
-						for(int ChildIndex = 0; ChildIndex < ExistingActor.GetChildrenCount(); ++ChildIndex)
+						for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
 						{
-							FDatasmithFacadeActor Child = ExistingActor.GetChild(ChildIndex);
-							if(Child.GetTagsCount() > 0)
+							FBaseElementData ChildElement = ElementData.ChildElements[ChildIndex];
+
+							bool bIsFamilyIntance = ((ChildElement as FElementData) == null) && ChildElement.ElementActor.IsComponent();
+
+							if (bIsFamilyIntance)
 							{
-								for(int TagIndex = 0; TagIndex < Child.GetTagsCount(); ++TagIndex)
-								{
-									if(Child.GetTag(TagIndex) == "Revit.Element.IsInstance")
-									{
-										ChildToRemove.Add(Child);
-										break;
-									}
-								}
+								ChildrenToRemove.Add(ChildElement);
 							}
 						}
 
-						foreach(FDatasmithFacadeActor Child in ChildToRemove)
+						foreach (FBaseElementData Child in ChildrenToRemove)
 						{
-							ExistingActor.RemoveChild(Child);
+							ExistingActor.RemoveChild(Child.ElementActor);
+							ElementData.ChildElements.Remove(Child);
 						}
 					}
+
+					ElementData.InitializePivotPlacement(ref InWorldTransform);
+					ElementData.InitializeElement(InWorldTransform, ElementData);
 				}
 				else
 				{
 					return false; // We have up to date cache for this element.
 				}
 			}
+			else
+			{
+				ElementData = new FElementData(InElement, InWorldTransform, this);
+			}
 
-			ElementDataStack.Push(new FElementData(InElement, InWorldTransform, ExistingActor, this));
+			ElementDataStack.Push(ElementData);
 			ElementDataStack.Peek().ElementActor.AddTag("IsElement");
 
 			return true;
@@ -974,20 +942,22 @@ namespace DatasmithRevitExporter
 
 			CollectMesh(ElementMesh);
 
-			if (IsActorModified(ElementData.CurrentElement.Id))
-			{
-				ElementData.ModifiedFlags = EActorModifiedFlags.ActorModifiedProperties;
-			}
+			// Direct link related: clear from modified set since we might get another element with same id and we 
+			// dont want to 
+			CachedExportData?.ModifiedActorSet.Remove(ElementData.CurrentElement.Id);
+		
+			ElementData.bIsModified = true;
 
 			if (ElementDataStack.Count == 0)
 			{
 				ElementId ElemId = ElementData.CurrentElement.Id;
 
-				if (CurrentExportData.ActorMap.ContainsKey(ElemId))
+				if (CurrentExportData.ActorMap.ContainsKey(ElemId) && CurrentExportData.ActorMap[ElemId] != ElementData)
 				{
 					// Handle the spurious case of Revit Custom Exporter calling back more than once for the same element.
 					// These extra empty actors will be cleaned up later by the Datasmith actor hierarchy optimization.
 					CurrentExportData.ActorMap[ElemId].ChildElements.Add(ElementData);
+					ElementData.Parent = CurrentExportData.ActorMap[ElemId];
 				}
 				else
 				{
@@ -1183,7 +1153,8 @@ namespace DatasmithRevitExporter
 
 		public void WrapupLink(
 			FDatasmithFacadeScene InDatasmithScene,
-			FBaseElementData InLinkActor
+			FBaseElementData InLinkActor,
+			HashSet<string> UniqueTextureNameSet
 		)
 		{
 			// TODO Cache collected actors!!!
@@ -1203,19 +1174,21 @@ namespace DatasmithRevitExporter
 				InLinkActor.bOptimizeHierarchy = false;
 
 				// Add the collected actors from the Datasmith actor dictionary as children of the Datasmith link actor.
-				foreach (FBaseElementData CollectedActor in CurrentExportData.ActorMap.Values)
+				foreach (var Actor in CurrentExportData.ActorMap.Values)
 				{
-					InLinkActor.ChildElements.Add(CollectedActor);
+					InLinkActor.ChildElements.Add(Actor);
+					Actor.Parent = InLinkActor;
 				}
 			}
 
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
-			AddCollectedMaterials(InDatasmithScene);
+			AddCollectedMaterials(InDatasmithScene, UniqueTextureNameSet);
 		}
 
 		public void WrapupScene(
 			FDatasmithFacadeScene InDatasmithScene,
-			bool bOptimizeHierarchy
+			bool bOptimizeHierarchy,
+			HashSet<string> UniqueTextureNameSet
 		)
 		{
 			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
@@ -1227,17 +1200,29 @@ namespace DatasmithRevitExporter
 			// Factor in the Datasmith actor hierarchy the Revit document level hierarchy.
 			AddLevelHierarchy();
 
+			List<ElementId> OptimizedAwayElements = new List<ElementId>();
+
+			foreach (var CollectedActor in CurrentExportData.ActorMap)
+			{
+				if (CollectedActor.Value.Optimize())
+				{
+					OptimizedAwayElements.Add(CollectedActor.Key);
+				}
+			}
+
+			foreach (ElementId Element in  OptimizedAwayElements)
+			{
+				CurrentExportData.ActorMap.Remove(Element);
+			}
+
 			// Add the collected actors from the Datasmith actor dictionary to the Datasmith scene.
 			foreach (FBaseElementData CollectedActor in CurrentExportData.ActorMap.Values)
 			{
-				// Make sure all the actor names are unique and persistent in the Datasmith actor hierarchy.
-				CollectedActor.SanitizeActorHierarchyNames();
-
-				CollectedActor.AddToScene(InDatasmithScene, null, bOptimizeHierarchy);
+				CollectedActor.AddToScene(InDatasmithScene, null);
 			}
 
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
-			AddCollectedMaterials(InDatasmithScene);
+			AddCollectedMaterials(InDatasmithScene, UniqueTextureNameSet);
 		}
 
 		public void LogElement(
@@ -1411,13 +1396,24 @@ namespace DatasmithRevitExporter
 		}
 
 		private void AddCollectedMaterials(
-			FDatasmithFacadeScene InDatasmithScene
+			FDatasmithFacadeScene InDatasmithScene,
+			HashSet<string> UniqueTextureNameSet
 		)
 		{
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
 			foreach (FMaterialData CollectedMaterialData in CurrentExportData.MaterialDataMap.Values)
 			{
 				InDatasmithScene.AddMaterial(CollectedMaterialData.MasterMaterial);
+
+				foreach(FDatasmithFacadeTexture CurrentTexture in CollectedMaterialData.CollectedTextures)
+				{
+					string TextureName = CurrentTexture.GetName();
+					if (!UniqueTextureNameSet.Contains(TextureName))
+					{
+						UniqueTextureNameSet.Add(TextureName);
+						InDatasmithScene.AddTexture(CurrentTexture);
+					}
+				}
 
 				if (CollectedMaterialData.MessageList.Count > 0)
 				{
@@ -1522,20 +1518,23 @@ namespace DatasmithRevitExporter
 				ElementId ParentElementId = ParentElement.Id;
 
 				// Add the parented actor as child of the parent Datasmith actor.
-				CurrentExportData.ActorMap[ParentElementId].ChildElements.Add(CurrentExportData.ActorMap[ElemId]);
+
+				FBaseElementData ElementData = CurrentExportData.ActorMap[ElemId];
+				FBaseElementData ParentElementData = CurrentExportData.ActorMap[ParentElementId];
+				
+				if (!ParentElementData.ChildElements.Contains(ElementData))
+				{
+					ParentElementData.ChildElements.Add(ElementData);
+					ElementData.Parent = ParentElementData;
+				}
 
 				// Prevent the parent Datasmith actor from being removed by optimization.
-				CurrentExportData.ActorMap[ParentElementId].bOptimizeHierarchy = false;
+				ParentElementData.bOptimizeHierarchy = false;
 			}
 
 			// Remove the parented child actors from the Datasmith actor dictionary.
 			foreach (ElementId ElemId in new List<ElementId>(CurrentExportData.ActorMap.Keys))
 			{
-				if (CachedExportData != null)
-				{
-					CachedExportData.ActorMap[ElemId] = CurrentExportData.ActorMap[ElemId];
-				}
-
 				Element ParentElement = InGetParentElement(ElemId);
 
 				if (ParentElement == null)

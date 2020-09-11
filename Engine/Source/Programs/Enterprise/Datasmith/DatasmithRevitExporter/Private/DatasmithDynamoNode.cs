@@ -66,17 +66,13 @@ namespace DSNode
 			// Retrieve the Unreal Datasmith export options.
 			DatasmithRevitExportOptions ExportOptions = new DatasmithRevitExportOptions(InDocument);
 
-			if (DatasmithSyncRevitCommand.DirectLink == null || !InDocument.Equals(DatasmithSyncRevitCommand.DirectLink.RootDocument))
-			{
-				DatasmithSyncRevitCommand.DirectLink = new FDirectLink();
-			}
 			// Create a custom export context for command Export to Unreal Datasmith.
 			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(
 				App,
 				InDocument,
 				FilePaths,
 				ExportOptions,
-				DatasmithSyncRevitCommand.DirectLink);
+				null);
 
 			// Clamp tesselation parameter to a valid range.
 			ExportContext.LevelOfTessellation = Math.Min(Math.Max(InTesselation, -1), 15);

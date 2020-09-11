@@ -2,19 +2,17 @@
 
 #pragma once
 
-#include "DirectLink/DeltaConsumer.h"
 #include "DirectLink/DirectLinkCommon.h"
 #include "DirectLink/Network/DirectLinkISceneProvider.h"
 
 
-class FDatasmithDeltaConsumer;
+class FDatasmithSceneReceiver;
 
 class FTestSceneProvider : public DirectLink::ISceneProvider
 {
 public:
-	virtual ESceneStatus GetSceneStatus(const DirectLink::FSceneIdentifier& Scene) override;
-	virtual TSharedPtr<DirectLink::IDeltaConsumer> GetDeltaConsumer(const DirectLink::FSceneIdentifier& Scene) override;
-	virtual bool CanOpenNewConnection() override;
+	virtual bool CanOpenNewConnection(const FSourceInformation& Source) override;
+	virtual TSharedPtr<DirectLink::ISceneReceiver> GetSceneReceiver(const FSourceInformation& Source) override;
 
-	TMap<FGuid, TSharedPtr<FDatasmithDeltaConsumer>> Consumers;
+	TMap<FGuid, TSharedPtr<FDatasmithSceneReceiver>> SceneReceivers;
 };

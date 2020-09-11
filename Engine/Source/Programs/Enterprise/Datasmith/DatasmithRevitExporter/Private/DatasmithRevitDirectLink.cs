@@ -13,6 +13,7 @@ using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.DB.Visual;
 using System.Linq;
 using System.Threading;
+using Autodesk.Revit.DB.Events;
 
 namespace DatasmithRevitExporter
 {
@@ -24,10 +25,12 @@ namespace DatasmithRevitExporter
 		public Dictionary<string, FMaterialData>						MaterialDataMap = new Dictionary<string, FMaterialData>();
 	};
 
-	public class FDirectLink : IUpdater
+	public class FDirectLink
 	{
+		private static FDirectLink Instance;
+
 		private FExportData CachedExportData = new FExportData();
-		private UpdaterId RevitUpdaterId;
+
 		private FDatasmithFacadeDirectLink DatasmithDirectLink;
 
 		public FDatasmithFacadeScene DatasmithScene { get; private set; }
@@ -36,18 +39,38 @@ namespace DatasmithRevitExporter
 		private HashSet<ElementId> DeletedElements = new HashSet<ElementId>();
 		private HashSet<ElementId> ModifiedElements = new HashSet<ElementId>();
 
-// 		private System.Timers.Timer MetadataExportTimer;
+		private EventHandler<DocumentChangedEventArgs> DocumentChangedHandler;
 
-// 		private bool bInitialMetadataExport = false;
+		private System.Timers.Timer MetadataExportTimer;
+
+		private bool bInitialMetadataExport = false;
 
 		private readonly CancellationTokenSource CTS = new CancellationTokenSource();
 
-		public void Destroy()
+		public static void InitInstance()
 		{
-			if (RevitUpdaterId != null)
+			Debug.Assert(Instance == null);
+			Instance = new FDirectLink();
+		}
+
+		public static void DestroyInstance(Application InApp)
+		{
+			if (Instance == null)
 			{
-				UpdaterRegistry.UnregisterUpdater(RevitUpdaterId);
+				return;
 			}
+			Instance.Destroy(InApp);
+			Instance = null;
+		}
+
+		private void Destroy(Application InApp)
+		{
+			if (DocumentChangedHandler != null)
+			{
+				InApp.DocumentChanged -= DocumentChangedHandler;
+				DocumentChangedHandler = null;
+			}
+
 			CachedExportData.MeshMap.Clear();
 			CachedExportData.ActorMap.Clear();
 			CachedExportData.MaterialDataMap.Clear();
@@ -55,20 +78,25 @@ namespace DatasmithRevitExporter
 
 			// Make sure timer wont be running after DirectLink gets destroyed
 			// (and thus referencing null refs)
-// 			if (MetadataExportTimer != null)
-// 			{
-// 				CTS.Cancel();
-// 				while (MetadataExportTimer.Enabled)
-// 				{
-// 					Thread.Sleep(10);
-// 				}
-// 				MetadataExportTimer = null;
-// 			}
+ 			if (MetadataExportTimer != null)
+ 			{
+ 				CTS.Cancel();
+ 				while (MetadataExportTimer.Enabled)
+ 				{
+ 					Thread.Sleep(10);
+ 				}
+ 				MetadataExportTimer = null;
+ 			}
 
 			DatasmithDirectLink = null;
 			DatasmithScene = null;
 			RootDocument = null;
 			DeletedElements = null;
+		}
+
+		public static FDirectLink Get()
+		{
+			return Instance;
 		}
 
 		// Apply accumulated modifications of revit document to the datasmith scene.
@@ -85,9 +113,10 @@ namespace DatasmithRevitExporter
 				{
 					continue;
 				}
-				FDocumentData.FBaseElementData ActorData = CachedExportData.ActorMap[ElemId];
-				DatasmithScene.RemoveActor(ActorData.ElementActor);
+				FDocumentData.FBaseElementData ElementData = CachedExportData.ActorMap[ElemId];
 				CachedExportData.ActorMap.Remove(ElemId);
+				ElementData.Parent?.ChildElements.Remove(ElementData);
+				DatasmithScene.RemoveActor(ElementData.ElementActor);
 			}
 
 			DeletedElements.Clear();
@@ -127,12 +156,14 @@ namespace DatasmithRevitExporter
 					FDatasmithRevitExportContext.PRODUCT_NAME,
 					InDocument.Application.VersionNumber);
 
-				RevitUpdaterId = new UpdaterId(InDocument.Application.ActiveAddInId, new Guid("fafbf6b2-4c06-42d4-97c1-d1b4eb593eff"));
-				UpdaterRegistry.RegisterUpdater(this);
-				RegisterFilters();
+				string SceneLabel = Path.GetFileNameWithoutExtension(RootDocument.PathName);
+				DatasmithScene.SetLabel(SceneLabel);
 
 				DatasmithDirectLink = new FDatasmithFacadeDirectLink();
 				bool bInitOk = DatasmithDirectLink.InitializeForScene(DatasmithScene);
+
+				DocumentChangedHandler = new EventHandler<DocumentChangedEventArgs>(OnDocumentChanged);
+				InDocument.Application.DocumentChanged += DocumentChangedHandler;
 			}
 
 			foreach (var Elem in ModifiedElements)
@@ -163,7 +194,7 @@ namespace DatasmithRevitExporter
 			DatasmithScene.BuildScene(SceneName);
 
 			bool bUpdateOk = DatasmithDirectLink.UpdateScene(DatasmithScene);
-/*
+
 			// Schedule metadata export.
 			int MetadataExportDelay = 3000;
 			int MetadataExportBatchSize = 1000;
@@ -181,8 +212,14 @@ namespace DatasmithRevitExporter
 						KeyValuePair<ElementId, FDocumentData.FBaseElementData> Entry = CachedExportData.ActorMap.ElementAt(MetadataExportedSize);
 						Element RevitElement = RootDocument.GetElement(Entry.Key);
 						FDatasmithFacadeActor Actor = Entry.Value.ElementActor;
-						FDocumentData.AddActorMetadata(RevitElement, Entry.Value.ElementMetaData);
-						Entry.Value.ModifiedFlags = FDocumentData.EActorModifiedFlags.ActorModifiedMetadata;
+
+						FDocumentData.FBaseElementData ElementData = Entry.Value;
+
+						ElementData.ElementMetaData = new FDatasmithFacadeMetaData(Actor.GetName() + "_DATA");
+						ElementData.ElementMetaData.SetLabel(Actor.GetLabel());
+						ElementData.ElementMetaData.SetAssociatedElement(Actor);
+
+						FDocumentData.AddActorMetadata(RevitElement, ElementData.ElementMetaData);
 					}
 
 					if (CTS.IsCancellationRequested) return;
@@ -205,86 +242,37 @@ namespace DatasmithRevitExporter
 			}
 
 			bInitialMetadataExport = false;
-*/
 		}
 
-		// IUpdater implementation
-
-		public void Execute(UpdaterData InData)
+		public static void OnDocumentChanged(
+		  object InSender,
+		  DocumentChangedEventArgs InArgs) 
 		{
-			if (RootDocument == null)
-			{
-				return; // Nothing to do, we don't have cached data for this document.
-			}
+			FDirectLink DirectLink = FDirectLink.Get();
+
+			Debug.Assert(DirectLink != null);
 
 			// Handle modified elements
-			foreach (ElementId ElemId in InData.GetModifiedElementIds())
+			foreach (ElementId ElemId in InArgs.GetModifiedElementIds())
 			{
-				ModifiedElements.Add(ElemId);
+				DirectLink.ModifiedElements.Add(ElemId);
 			}
 
 			// Handle deleted elements
-			foreach (ElementId ElemId in InData.GetDeletedElementIds())
+			foreach (ElementId ElemId in InArgs.GetDeletedElementIds())
 			{
-				DeletedElements.Add(ElemId);
+				DirectLink.DeletedElements.Add(ElemId);
 			}
 
 			// Handle new elements
-			foreach (ElementId ElemId in InData.GetAddedElementIds())
+			foreach (ElementId ElemId in InArgs.GetAddedElementIds())
 			{
-				if (DeletedElements.Contains(ElemId))
+				if (DirectLink.DeletedElements.Contains(ElemId))
 				{
 					// Undo command
-					DeletedElements.Remove(ElemId);
+					DirectLink.DeletedElements.Remove(ElemId);
 				}
 			}
 		}
-
-		public void RegisterFilters()
-		{
-			List<ElementClassFilter> Filters = new List<ElementClassFilter>();
-			Filters.Add(new ElementClassFilter(typeof(Wall)));
-			Filters.Add(new ElementClassFilter(typeof(Railing)));
-			Filters.Add(new ElementClassFilter(typeof(FlexDuct)));
-			Filters.Add(new ElementClassFilter(typeof(FlexPipe)));
-			Filters.Add(new ElementClassFilter(typeof(FamilyInstance)));
-
-			foreach (var Filter in Filters)
-			{
-				UpdaterRegistry.AddTrigger(RevitUpdaterId, Filter, Element.GetChangeTypeElementAddition());
-				UpdaterRegistry.AddTrigger(RevitUpdaterId, Filter, Element.GetChangeTypeElementDeletion());
-				UpdaterRegistry.AddTrigger(RevitUpdaterId, Filter, Element.GetChangeTypeGeometry());
-			}
-
-			// Change type = element addition
-			//UpdaterRegistry.AddTrigger(RevitUpdaterId, wallFilter, Element.GetChangeTypeElementAddition());
-			//UpdaterRegistry.AddTrigger(RevitUpdaterId, wallFilter, Element.GetChangeTypeElementDeletion());
-			//UpdaterRegistry.AddTrigger(RevitUpdaterId, wallFilter, Element.GetChangeTypeGeometry());
-			//ElementCategoryFilter f = new ElementCategoryFilter(BuiltInCategory.OST_ModelText);
-			//UpdaterRegistry.AddTrigger(updater.GetUpdaterId(), f, Element.GetChangeTypeAny());
-		}
-
-		public string GetAdditionalInformation()
-		{
-			return "Datasmith Element Tracker";
-		}
-
-		public ChangePriority GetChangePriority()
-		{
-			return ChangePriority.FloorsRoofsStructuralWalls;
-		}
-
-		public UpdaterId GetUpdaterId()
-		{
-			return RevitUpdaterId;
-		}
-
-		public string GetUpdaterName()
-		{
-			return "DatasmithElementTracker";
-		}
-
-		// End IUpdater implementation
-
 	}
 }

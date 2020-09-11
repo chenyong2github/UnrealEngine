@@ -2,7 +2,6 @@
 
 namespace UnrealBuildTool.Rules
 {
-	[SupportedPlatforms("Win64")]
 	public class DatasmithFacadeCSharp : ModuleRules
 	{
 		public DatasmithFacadeCSharp(ReadOnlyTargetRules Target)
@@ -16,6 +15,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"DatasmithCore",
 					"DatasmithExporter",
+					"DatasmithExporterUI",
 					"DatasmithFacade",
 
 					// Network layer

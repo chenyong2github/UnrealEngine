@@ -263,16 +263,6 @@ protected:
 	{}
 };
 
-enum class EDatasmithFacadeKeyValuePropertyType : uint8
-{
-	String,
-	Color,
-	Float,
-	Bool,
-	Texture,
-	Vector
-};
-
 class FDatasmithFacadeMaterialExpressionGeneric : public FDatasmithFacadeMaterialExpression
 {
 public:
@@ -283,15 +273,10 @@ public:
 	int32 GetPropertiesCount() const;
 
 	/** Add a property to this expression*/
-	void AddProperty( const TCHAR* PropertyName, EDatasmithFacadeKeyValuePropertyType PropertyType, const TCHAR* PropertyValue );
+	void AddProperty( const FDatasmithFacadeKeyValueProperty* InPropertyPtr );
 
-	bool GetPropertyType( int32 Index, EDatasmithFacadeKeyValuePropertyType& OutPropertyType );
-
-	/** Returns the value of the property at the specified Index. The returned pointer may be nullptr if the given index is invalid. */
-	const TCHAR* GetPropertyValue( int32 Index );
-
-	/** Returns the name of the property at the specified Index. The returned pointer may be nullptr if the given index is invalid. */
-	const TCHAR* GetPropertyName( int32 Index );
+	/** Returns a new FDatasmithFacadeKeyValueProperty pointing to the property at the given index, the returned value must be deleted after used, can be nullptr. */
+	FDatasmithFacadeKeyValueProperty* GetNewProperty( int32 Index );
 
 #ifdef SWIG_FACADE
 protected:
@@ -326,7 +311,6 @@ public:
 
 	virtual ~FDatasmithFacadeUEPbrMaterial() {}
 
-	virtual EFacadeMaterialType GetMaterialType() override { return EFacadeMaterialType::UEPbrMaterial; }
 	FDatasmithFacadeExpressionInput GetBaseColor() const;
 	void SetBaseColor( FDatasmithFacadeExpressionInput& InBaseColor );
 	FDatasmithFacadeExpressionInput GetMetallic() const;
@@ -385,6 +369,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
+
+	FDatasmithFacadeUEPbrMaterial( const TSharedRef<IDatasmithUEPbrMaterialElement>& InMaterialRef );
 
 	IDatasmithMaterialExpression* AddMaterialExpression( const EDatasmithFacadeMaterialExpressionType ExpressionType );
 
