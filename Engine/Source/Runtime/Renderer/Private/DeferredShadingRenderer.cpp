@@ -2066,9 +2066,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		NaniteRasterResults.AddDefaulted(Views.Num());
 
-		//TODO Brian - removing for link error.  renderer doesn't / probably shouldn't depend on engine module.
-		//SCOPED_GPU_STAT(RHICmdList, NaniteRaster);
-
+		SCOPED_GPU_STAT(RHICmdList, NaniteRaster);
 		FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
 		const FIntPoint RasterTextureSize = SceneTargets.SceneDepthZ->GetDesc().Extent;
 

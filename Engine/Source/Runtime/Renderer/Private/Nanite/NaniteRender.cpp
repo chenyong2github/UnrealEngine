@@ -43,8 +43,13 @@
 
 #define NUM_PERSISTENT_THREADS	1440				// TODO: Find a better way to estimate the number of threads we will need
 
-DECLARE_GPU_STAT_NAMED(NaniteInstanceCull, TEXT("Nanite Instance Cull"));
+DECLARE_GPU_STAT_NAMED(NaniteInstanceCull,		TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM,	TEXT("Nanite Instance Cull VSM"));
+
+DEFINE_GPU_STAT(NaniteDebug);
+DEFINE_GPU_STAT(NaniteEditor);
+DEFINE_GPU_STAT(NaniteRaster);
+DEFINE_GPU_STAT(NaniteMaterials);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, STATGROUP_Nanite);
 
@@ -3501,8 +3506,7 @@ void DrawHitProxies(
 	LLM_SCOPE(ELLMTag::Nanite);
 
 	SCOPED_DRAW_EVENT(RHICmdList, NaniteHitProxyPass);
-	//TODO - link errors.
-	//SCOPED_GPU_STAT(RHICmdList, NaniteEditor);
+	SCOPED_GPU_STAT(RHICmdList, NaniteEditor);
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 
@@ -3834,8 +3838,7 @@ void DrawBasePass(
 
 	LLM_SCOPE(ELLMTag::Nanite);
 	SCOPED_DRAW_EVENT(RHICmdList, NaniteBasePass);
-	//TODO - link errors.
-	//SCOPED_GPU_STAT(RHICmdList, NaniteMaterials);
+	SCOPED_GPU_STAT(RHICmdList, NaniteMaterials);
 
 	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
 	const ENaniteMeshPass::Type MeshPass = ENaniteMeshPass::BasePass;
@@ -4265,7 +4268,7 @@ void DrawBasePass(
 		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
 
 		// TODO: Hook up to RDG pass
-		//SCOPED_GPU_STAT(RHICmdList, NaniteDebug);
+		SCOPED_GPU_STAT(RHICmdList, NaniteDebug);
 
 		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2DDesc(
 			View.ViewRect.Max,
@@ -4794,8 +4797,7 @@ void DrawEditorSelection(
 	}
 
 	SCOPED_DRAW_EVENT(RHICmdList, NaniteEditorSelection);
-	//TODO link errors
-	//SCOPED_GPU_STAT(RHICmdList, NaniteEditor);
+	SCOPED_GPU_STAT(RHICmdList, NaniteEditor);
 
 	uint32 SelectionCount = FMath::RoundUpToPowerOfTwo(View.EditorSelectedHitProxyIds.Num());
 	uint32 SearchBufferCountDim = FMath::Min((uint32)FEmitEditorSelectionDepthPS::FSearchBufferCountDim::MaxValue, FMath::FloorLog2(SelectionCount));

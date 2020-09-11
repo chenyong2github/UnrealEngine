@@ -21,11 +21,7 @@
 #include "AI/Navigation/NavCollisionBase.h"
 #include "Misc/Compression.h"
 
-DEFINE_GPU_STAT(NaniteDebug);
-DEFINE_GPU_STAT(NaniteEditor);
-DEFINE_GPU_STAT(NaniteRaster);
 DEFINE_GPU_STAT(NaniteStreaming);
-DEFINE_GPU_STAT(NaniteMaterials);
 
 #define MAX_CLUSTERS	(16 * 1024 * 1024)
 #define MAX_NODES		 (2 * 1024 * 1024)

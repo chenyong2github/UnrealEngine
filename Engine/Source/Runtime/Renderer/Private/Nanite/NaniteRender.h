@@ -21,6 +21,10 @@ static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS		= ( 1 << MAX_VIEWS_PE
 
 #define SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA				0	// Keep in sync with NaniteRender.cpp
 
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteDebug, TEXT("Nanite Debug"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteEditor, TEXT("Nanite Editor"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteRaster, TEXT("Nanite Raster"));
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteMaterials, TEXT("Nanite Materials"));
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER(FIntVector4,   SOAStrides)

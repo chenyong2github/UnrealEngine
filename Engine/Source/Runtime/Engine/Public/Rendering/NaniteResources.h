@@ -78,11 +78,8 @@
 
 DECLARE_STATS_GROUP( TEXT("Nanite"), STATGROUP_Nanite, STATCAT_Advanced );
 
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteDebug,     TEXT("Nanite Debug"));
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteEditor,    TEXT("Nanite Editor"));
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteRaster,    TEXT("Nanite Raster"));
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteStreaming, TEXT("Nanite Streaming"));
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteMaterials, TEXT("Nanite Materials"));
+
 
 class UStaticMesh;
 class UBodySetup;
