@@ -3416,7 +3416,7 @@ FReply SAnimNotifyTrack::OnNotifyNodeDragStarted(TSharedRef<SAnimNotifyNode> Not
 	// Check to see if we've already selected the triggering node
 	if (!NotifyNode->bSelected)
 	{
-		SelectTrackObjectNode(NotifyIndex, MouseEvent.IsShiftDown());
+		SelectTrackObjectNode(NotifyIndex, MouseEvent.IsShiftDown(), false);
 	}
 
 	// Sort our nodes so we're acessing them in time order
