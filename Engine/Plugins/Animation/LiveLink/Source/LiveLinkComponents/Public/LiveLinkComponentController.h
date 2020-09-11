@@ -41,9 +41,20 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "LiveLink", meta = (UseComponentPicker, AllowedClasses = "ActorComponent", DisallowedClasses = "LiveLinkComponentController"))
 	FComponentReference ComponentToControl;
 
+	// If true, will not evaluate LiveLink if the attached actor is a spawnable in Sequencer
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
+	bool bDisableEvaluateLiveLinkWhenSpawnable = true;
+
+	// If false, will not evaluate live link, effectively pausing.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
+	bool bEvaluateLiveLink = true;
+	
 protected:
 	// Keep track when component gets registered or controller map gets changed
 	bool bIsDirty;
+
+	// Cache if the owner is a spawnable.
+	TOptional<bool> bIsSpawnableCache;
 
 public:
 	
