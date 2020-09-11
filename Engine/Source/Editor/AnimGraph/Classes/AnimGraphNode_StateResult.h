@@ -29,7 +29,7 @@ class UAnimGraphNode_StateResult : public UAnimGraphNode_Base
 
 	//~ Begin UAnimGraphNode_Base Interface
 	virtual bool IsSinkNode() const override;
-	virtual void OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext) override;
+	virtual void OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
 
 	// Get the link to the documentation
 	virtual FString GetDocumentationLink() const override;

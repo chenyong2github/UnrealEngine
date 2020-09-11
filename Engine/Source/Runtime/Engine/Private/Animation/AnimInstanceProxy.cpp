@@ -15,6 +15,9 @@
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/WorldSettings.h"
+#include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_LinkedAnimLayer.h"
+#include "Animation/AnimMontage.h"
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName)
 #include "Animation/AnimMTStats.h"
@@ -22,9 +25,6 @@
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
 #include "Animation/AnimMTStats.h"
-#include "Animation/AnimNode_Root.h"
-#include "Animation/AnimNode_LinkedAnimLayer.h"
-#include "Animation/AnimMontage.h"
 
 #undef DO_ANIMSTAT_PROCESSING
 
@@ -124,26 +124,23 @@ void FAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 
 		// Initialize state buffers
 		int32 NumStates = 0;
-		if(IAnimClassInterface* Interface = GetAnimClassInterface())
+		const TArray<FBakedAnimationStateMachine>& BakedMachines = AnimClassInterface->GetBakedStateMachines();
+		const int32 NumMachines = BakedMachines.Num();
+		for(int32 MachineClassIndex = 0; MachineClassIndex < NumMachines; ++MachineClassIndex)
 		{
-			const TArray<FBakedAnimationStateMachine>& BakedMachines = Interface->GetBakedStateMachines();
-			const int32 NumMachines = BakedMachines.Num();
-			for(int32 MachineClassIndex = 0; MachineClassIndex < NumMachines; ++MachineClassIndex)
-			{
-				const FBakedAnimationStateMachine& Machine = BakedMachines[MachineClassIndex];
-				StateMachineClassIndexToWeightOffset.Add(MachineClassIndex, NumStates);
-				NumStates += Machine.States.Num();
-			}
-			StateWeightArrays[0].Reset(NumStates);
-			StateWeightArrays[0].AddZeroed(NumStates);
-			StateWeightArrays[1].Reset(NumStates);
-			StateWeightArrays[1].AddZeroed(NumStates);
-
-			MachineWeightArrays[0].Reset(NumMachines);
-			MachineWeightArrays[0].AddZeroed(NumMachines);
-			MachineWeightArrays[1].Reset(NumMachines);
-			MachineWeightArrays[1].AddZeroed(NumMachines);
+			const FBakedAnimationStateMachine& Machine = BakedMachines[MachineClassIndex];
+			StateMachineClassIndexToWeightOffset.Add(MachineClassIndex, NumStates);
+			NumStates += Machine.States.Num();
 		}
+		StateWeightArrays[0].Reset(NumStates);
+		StateWeightArrays[0].AddZeroed(NumStates);
+		StateWeightArrays[1].Reset(NumStates);
+		StateWeightArrays[1].AddZeroed(NumStates);
+
+		MachineWeightArrays[0].Reset(NumMachines);
+		MachineWeightArrays[0].AddZeroed(NumMachines);
+		MachineWeightArrays[1].Reset(NumMachines);
+		MachineWeightArrays[1].AddZeroed(NumMachines);
 
 #if WITH_EDITORONLY_DATA
 		if (UAnimBlueprint* Blueprint = Cast<UAnimBlueprint>(InAnimInstance->GetClass()->ClassGeneratedBy))
@@ -1207,11 +1204,11 @@ void FAnimInstanceProxy::UpdateAnimation()
 
 	FMemMark Mark(FMemStack::Get());
 
-	// Give class subsystems a crack
-	IAnimClassInterface::ForEachAnimInstanceSubsystemData(CastChecked<UAnimInstance>(GetAnimInstanceObject()), [this](UAnimBlueprintClassSubsystem* InSubsystem, FAnimInstanceSubsystemData& InSubsystemData)
+	// Process internal batched property copies
+	if(AnimClassInterface)
 	{
-		InSubsystem->OnParallelUpdateAnimation(*this, InSubsystemData, CurrentDeltaSeconds);
-	});
+		PropertyAccess::ProcessCopies(GetAnimInstanceObject(), AnimClassInterface->GetPropertyAccessLibrary(), EPropertyAccessCopyBatch::InternalBatched);
+	}
 
 #if WITH_EDITORONLY_DATA
 	UpdatedNodesThisFrame.Reset();

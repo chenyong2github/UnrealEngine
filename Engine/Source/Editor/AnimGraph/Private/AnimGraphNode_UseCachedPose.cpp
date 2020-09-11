@@ -8,8 +8,9 @@
 #include "BlueprintActionFilter.h"
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
-#include "AnimBlueprintCompiler.h"
-#include "AnimBlueprintCompilerSubsystem_CachedPose.h"
+#include "AnimBlueprintCompilerHandler_CachedPose.h"
+#include "IAnimBlueprintCompilerHandlerCollection.h"
+#include "IAnimBlueprintCompilationContext.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_UseCachedPose
@@ -178,17 +179,17 @@ bool UAnimGraphNode_UseCachedPose::IsActionFilteredOut(class FBlueprintActionFil
 	return bIsFilteredOut;
 }
 
-void UAnimGraphNode_UseCachedPose::OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext)
+void UAnimGraphNode_UseCachedPose::OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {	
-	UAnimBlueprintCompilerSubsystem_CachedPose* CompilerSubsystem = InCompilerContext.GetSubsystem<UAnimBlueprintCompilerSubsystem_CachedPose>();
-	check(CompilerSubsystem);
+	FAnimBlueprintCompilerHandler_CachedPose* CompilerHandler = InCompilationContext.GetHandler<FAnimBlueprintCompilerHandler_CachedPose>("AnimBlueprintCompilerHandler_CachedPose");
+	check(CompilerHandler);
 
 	bool bSuccessful = false;
 
 	// Link to the saved cached pose
 	if(SaveCachedPoseNode.IsValid())
 	{
-		if (UAnimGraphNode_SaveCachedPose* AssociatedSaveNode = CompilerSubsystem->GetSaveCachedPoseNodes().FindRef(SaveCachedPoseNode->CacheName))
+		if (UAnimGraphNode_SaveCachedPose* AssociatedSaveNode = CompilerHandler->GetSaveCachedPoseNodes().FindRef(SaveCachedPoseNode->CacheName))
 		{
 			FStructProperty* LinkProperty = FindFProperty<FStructProperty>(FAnimNode_UseCachedPose::StaticStruct(), TEXT("LinkToCachingNode"));
 			check(LinkProperty);
@@ -196,7 +197,7 @@ void UAnimGraphNode_UseCachedPose::OnProcessDuringCompilation(FAnimBlueprintComp
 			FPoseLinkMappingRecord LinkRecord = FPoseLinkMappingRecord::MakeFromMember(this, AssociatedSaveNode, LinkProperty);
 			if (LinkRecord.IsValid())
 			{
-				CompilerSubsystem->AddPoseLinkMappingRecord(LinkRecord);
+				InCompilationContext.AddPoseLinkMappingRecord(LinkRecord);
 			}
 			bSuccessful = true;
 
@@ -209,7 +210,7 @@ void UAnimGraphNode_UseCachedPose::OnProcessDuringCompilation(FAnimBlueprintComp
 	
 	if(!bSuccessful)
 	{
-		CompilerSubsystem->GetMessageLog().Error(*LOCTEXT("NoAssociatedSaveNode", "@@ does not have an associated Save Cached Pose node").ToString(), this);
+		InCompilationContext.GetMessageLog().Error(*LOCTEXT("NoAssociatedSaveNode", "@@ does not have an associated Save Cached Pose node").ToString(), this);
 	}
 }
 

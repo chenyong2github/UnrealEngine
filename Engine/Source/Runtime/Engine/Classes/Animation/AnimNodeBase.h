@@ -31,7 +31,7 @@ class UAnimInstance;
 struct FAnimInstanceProxy;
 struct FAnimNode_Base;
 class UProperty;
-class IPropertyAccess;
+struct FPropertyAccessLibrary;
 
 /**
  * Utility container for tracking a stack of ancestor nodes by node type during graph traversal
@@ -747,7 +747,7 @@ struct ENGINE_API FExposedValueHandler
 		: BoundFunction(NAME_None)
 		, Function(nullptr)
 		, ValueHandlerNodeProperty(nullptr)
-		, PropertyAccess(nullptr)
+		, PropertyAccessLibrary(nullptr)
 		, bInitialized(false)
 	{
 	}
@@ -770,8 +770,8 @@ struct ENGINE_API FExposedValueHandler
 	UPROPERTY()
 	TFieldPath<FStructProperty> ValueHandlerNodeProperty;
 
-	// Cached property access system ptr
-	IPropertyAccess* PropertyAccess;
+	// Cached property access library ptr
+	const FPropertyAccessLibrary* PropertyAccessLibrary;
 
 	// Prevent multiple initialization
 	bool bInitialized;
@@ -785,7 +785,7 @@ struct ENGINE_API FExposedValueHandler
 	static void ClassInitialization(TArray<FExposedValueHandler>& Handlers, UObject* ClassDefaultObject);
 
 	// Bind copy records and cache UFunction if necessary
-	void Initialize(UClass* InClass, IPropertyAccess* InPropertyAccess);
+	void Initialize(UClass* InClass, const FPropertyAccessLibrary& InPropertyAccessLibrary);
 
 	// Execute the function and copy records
 	void Execute(const FAnimationBaseContext& Context) const;
