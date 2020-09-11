@@ -70,7 +70,9 @@ void FAnimNode_Slot::Evaluate_AnyThread(FPoseContext & Output)
 			Source.Evaluate(SourceContext);
 		}
 
-		Output.AnimInstanceProxy->SlotEvaluatePose(SlotName, SourceContext.Pose, SourceContext.Curve, WeightData.SourceWeight, Output.Pose, Output.Curve, WeightData.SlotNodeWeight, WeightData.TotalNodeWeight);
+		const FAnimationPoseData SourcePoseData(SourceContext);
+		FAnimationPoseData OutputPoseData(Output);
+		Output.AnimInstanceProxy->SlotEvaluatePose(SlotName, SourcePoseData, WeightData.SourceWeight, OutputPoseData, WeightData.SlotNodeWeight, WeightData.TotalNodeWeight);
 
 		checkSlow(!Output.ContainsNaN());
 		checkSlow(Output.IsNormalized());

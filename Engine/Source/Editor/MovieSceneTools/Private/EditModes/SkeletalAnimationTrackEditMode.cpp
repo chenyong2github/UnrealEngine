@@ -19,6 +19,8 @@
 #include "SkeletalDebugRendering.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
@@ -375,10 +377,16 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 									{
 										FCompactPose OutPose;
 										OutPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
+
 										FBlendedCurve OutCurve;
-										float Seconds = AnimSection->MapTimeToAnimation(CurrentTime.Time, CurrentTime.Rate);
+										FStackCustomAttributes TempAttributes;
+										FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+
+										const float Seconds = AnimSection->MapTimeToAnimation(CurrentTime.Time, CurrentTime.Rate);
 										FAnimExtractContext ExtractionContext(Seconds, false);
-										AnimSequence->GetAnimationPose(OutPose, OutCurve, ExtractionContext);
+
+										AnimSequence->GetAnimationPose(OutAnimationPoseData, ExtractionContext);
+
 										FFrameTime TimeToSample = CurrentTime.Time;
 										if (TimeToSample < AnimSection->GetRange().GetLowerBoundValue())
 										{

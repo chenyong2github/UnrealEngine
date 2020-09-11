@@ -117,7 +117,10 @@ void FAnimNode_TwoWayBlend::Evaluate_AnyThread(FPoseContext& Output)
 			A.Evaluate(Pose1);
 			B.Evaluate(Pose2);
 
-			FAnimationRuntime::BlendTwoPosesTogether(Pose1.Pose, Pose2.Pose, Pose1.Curve, Pose2.Curve, (1.0f - InternalBlendAlpha), Output.Pose, Output.Curve);
+			FAnimationPoseData BlendedAnimationPoseData(Output);
+			const FAnimationPoseData AnimationPoseOneData(Pose1);
+			const FAnimationPoseData AnimationPoseTwoData(Pose2);
+			FAnimationRuntime::BlendTwoPosesTogether(AnimationPoseOneData, AnimationPoseTwoData, (1.0f - InternalBlendAlpha), BlendedAnimationPoseData);
 		}
 		else
 		{

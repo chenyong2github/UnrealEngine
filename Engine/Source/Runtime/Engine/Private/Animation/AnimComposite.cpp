@@ -5,6 +5,8 @@
 =============================================================================*/ 
 
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/CustomAttributesRuntime.h"
 
 UAnimComposite::UAnimComposite(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -68,9 +70,11 @@ void UAnimComposite::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Cont
 	ExtractRootMotionFromTrack(AnimationTrack, PreviousTime, PreviousTime + MoveDelta, Context.RootMotionMovementParams);
 }
 
-void UAnimComposite::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
+void UAnimComposite::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const
 {
-	AnimationTrack.GetAnimationPose(OutPose, OutCurve, ExtractionContext);
+	AnimationTrack.GetAnimationPose(OutAnimationPoseData, ExtractionContext);
+
+	FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
 
 	FBlendedCurve CompositeCurve;
 	CompositeCurve.InitFrom(OutCurve);

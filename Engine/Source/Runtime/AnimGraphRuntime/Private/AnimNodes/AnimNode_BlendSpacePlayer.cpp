@@ -126,7 +126,8 @@ void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	if ((BlendSpace != NULL) && (Output.AnimInstanceProxy->IsSkeletonCompatible(BlendSpace->GetSkeleton())))
 	{
-		BlendSpace->GetAnimationPose(BlendSampleDataCache, Output.Pose, Output.Curve);
+		FAnimationPoseData AnimationPoseData(Output);
+		BlendSpace->GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
 	}
 	else
 	{

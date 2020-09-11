@@ -484,8 +484,9 @@ void UDebugSkelMeshComponent::GenSpaceBases(TArray<FTransform>& OutSpaceBases)
 	TempBoneSpaceTransforms.AddUninitialized(OutSpaceBases.Num());
 	FVector TempRootBoneTranslation;
 	FBlendedHeapCurve TempCurve;
+	FHeapCustomAttributes TempAtttributes;
 	AnimScriptInstance->PreEvaluateAnimation();
-	PerformAnimationEvaluation(SkeletalMesh, AnimScriptInstance, OutSpaceBases, TempBoneSpaceTransforms, TempRootBoneTranslation, TempCurve);
+	PerformAnimationEvaluation(SkeletalMesh, AnimScriptInstance, OutSpaceBases, TempBoneSpaceTransforms, TempRootBoneTranslation, TempCurve, TempAtttributes);
 	AnimScriptInstance->PostEvaluateAnimation();
 }
 
@@ -571,10 +572,13 @@ void UDebugSkelMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction*
 					{
 						FCompactPose AdditiveBasePose;
 						FBlendedCurve AdditiveCurve;
+						FStackCustomAttributes AdditiveAttributes;
 						AdditiveCurve.InitFrom(BoneContainer);
 						AdditiveBasePose.SetBoneContainer(&BoneContainer);
-						Sequence->GetAdditiveBasePose(AdditiveBasePose, AdditiveCurve, FAnimExtractContext(PreviewInstance->GetCurrentTime()));
-						CSAdditiveBasePose.InitPose(AdditiveBasePose);
+						
+						FAnimationPoseData AnimationPoseData(AdditiveBasePose, AdditiveCurve, AdditiveAttributes);
+						Sequence->GetAdditiveBasePose(AnimationPoseData, FAnimExtractContext(PreviewInstance->GetCurrentTime()));
+						CSAdditiveBasePose.InitPose(AnimationPoseData.GetPose());
 					}
 
 					const int32 NumSkeletonBones = BoneContainer.GetNumBones();
