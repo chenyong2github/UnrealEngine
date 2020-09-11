@@ -207,6 +207,9 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	{
 		FDXGIGetDebugInterface1 DXGIGetDebugInterface1FnPtr = nullptr;
 
+#if PLATFORM_HOLOLENS
+		DXGIGetDebugInterface1FnPtr = DXGIGetDebugInterface1;
+#else
 		// CreateDXGIFactory2 is only available on Win8.1+, find it if it exists
 		HMODULE DxgiDLL = LoadLibraryA("dxgi.dll");
 		if (DxgiDLL)
@@ -217,6 +220,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 #pragma warning(pop)
 			FreeLibrary(DxgiDLL);
 		}
+#endif
 		
 		if (DXGIGetDebugInterface1FnPtr)
 		{
