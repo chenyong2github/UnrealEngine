@@ -2703,7 +2703,6 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 			InLayerNode->InitializeSubGraph_AnyThread(InitContext);
 			FAnimationCacheBonesContext CacheBonesContext(&InThisProxy);
 			InLayerNode->CacheBonesSubGraph_AnyThread(CacheBonesContext);
-			InLinkedProxy.ClearObjects();
 		};
 
 		for (TPair<UClass*, TMap<FName, TArray<FAnimNode_LinkedAnimLayer*, TInlineAllocator<4>>, TInlineSetAllocator<4>>> ClassLayerNodesToSet : LayerNodesToSet)
