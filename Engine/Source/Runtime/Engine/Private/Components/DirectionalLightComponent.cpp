@@ -183,6 +183,7 @@ public:
 	float CloudShadowOnSurfaceStrength;
 	float CloudShadowDepthBias;
 	float CloudShadowMapResolutionScale;
+	float CloudShadowRaySampleCountScale;
 	FLinearColor CloudScatteredLuminanceScale;
 	uint32 bPerPixelAtmosphereTransmittance : 1;
 
@@ -216,6 +217,7 @@ public:
 		CloudShadowOnSurfaceStrength(Component->CloudShadowOnSurfaceStrength),
 		CloudShadowDepthBias(Component->CloudShadowDepthBias),
 		CloudShadowMapResolutionScale(Component->CloudShadowMapResolutionScale),
+		CloudShadowRaySampleCountScale(Component->CloudShadowRaySampleCountScale),
 		CloudScatteredLuminanceScale(Component->CloudScatteredLuminanceScale),
 		bPerPixelAtmosphereTransmittance(Component->bPerPixelAtmosphereTransmittance)
 	{
@@ -512,6 +514,10 @@ public:
 	virtual float GetCloudShadowMapResolutionScale()  const override
 	{
 		return CloudShadowMapResolutionScale;
+	}
+	virtual float GetCloudShadowRaySampleCountScale()  const override
+	{
+		return CloudShadowRaySampleCountScale;
 	}
 	virtual float GetCloudShadowStrength()  const override
 	{
@@ -989,6 +995,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	bCastCloudShadows = 0;
 	CloudShadowExtent = 150.0f;
 	CloudShadowMapResolutionScale = 1.0f;
+	CloudShadowRaySampleCountScale = 1.0f;
 	CloudShadowStrength = 1.0f;
 	CloudShadowOnAtmosphereStrength = 1.0f;
 	CloudShadowOnSurfaceStrength = 1.0f;
@@ -1088,6 +1095,7 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowExtent)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowMapResolutionScale)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowRaySampleCountScale)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowStrength)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowOnAtmosphereStrength)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowOnSurfaceStrength)
