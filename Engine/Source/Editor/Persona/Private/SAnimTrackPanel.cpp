@@ -75,7 +75,7 @@ void SAnimTrackPanel::PanInputViewRange(int32 ScreenDelta, FVector2D ScreenViewS
 {
 	FTrackScaleInfo ScaleInfo(ViewInputMin.Get(),  ViewInputMax.Get(), 0.f, 0.f, ScreenViewSize);
 
-	float InputDeltaX = ScreenDelta/ScaleInfo.PixelsPerInput;
+	float InputDeltaX = ScaleInfo.PixelsPerInput > 0.0f ? ScreenDelta/ScaleInfo.PixelsPerInput : 0.0f;
 
 	float NewViewInputMin = ViewInputMin.Get() + InputDeltaX;
 	float NewViewInputMax = ViewInputMax.Get() + InputDeltaX;
