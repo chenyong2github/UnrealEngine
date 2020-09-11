@@ -198,6 +198,8 @@ void FD3D12StateCacheBase::ClearState()
 
 	PipelineState.Graphics.MinDepth = 0.0f;
 	PipelineState.Graphics.MaxDepth = 1.0f;
+	PipelineState.Graphics.Combiner = EVRSRateCombiner::VRSRB_Passthrough;
+	PipelineState.Graphics.DrawShadingRate = EVRSShadingRate::VRSSR_1x1;
 }
 
 void FD3D12StateCacheBase::DirtyStateForNewCommandList()
@@ -238,7 +240,9 @@ void FD3D12StateCacheBase::DirtyStateForNewCommandList()
 	{
 		bNeedSetDepthBounds = GSupportsDepthBoundsTest;
 	}
-
+	
+	bNeedSetShadingRate = GRHISupportsVariableRateShading;
+	
 	// Always dirty View and Sampler bindings. We detect the slots that are actually used at Draw/Dispatch time.
 	PipelineState.Common.SRVCache.DirtyAll();
 	PipelineState.Common.UAVCache.DirtyAll();
