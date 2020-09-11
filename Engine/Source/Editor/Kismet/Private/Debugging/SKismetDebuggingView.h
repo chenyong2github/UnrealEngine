@@ -107,6 +107,8 @@ public:
 	// End of SWidget interface
 protected:
 	FText GetTopText() const;
+	bool CanDisableAllBreakpoints() const;
+	FReply OnDisableAllBreakpointsClicked();
 
 	TSharedRef<ITableRow> OnGenerateRowForWatchTree(FDebugTreeItemPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnGetChildrenForWatchTree(FDebugTreeItemPtr InParent, TArray<FDebugTreeItemPtr>& OutChildren);

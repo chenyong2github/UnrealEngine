@@ -1058,6 +1058,22 @@ EVisibility SKismetDebuggingView::IsDebuggerVisible() const
 	return (GEditor->PlayWorld != NULL) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+bool SKismetDebuggingView::CanDisableAllBreakpoints() const
+{
+	const UBlueprint* BlueprintObj = BlueprintToWatchPtr.Get();
+	return BlueprintObj && BlueprintObj->Breakpoints.Num() > 0;
+}
+
+FReply SKismetDebuggingView::OnDisableAllBreakpointsClicked()
+{
+	if(UBlueprint* BlueprintObj = BlueprintToWatchPtr.Get())
+	{
+		FDebuggingActionCallbacks::SetEnabledOnAllBreakpoints(BlueprintObj, false);		
+	}
+	
+	return FReply::Handled();
+}
+
 void SKismetDebuggingView::Construct(const FArguments& InArgs)
 {	
 	BlueprintToWatchPtr = InArgs._BlueprintToWatch;
@@ -1093,8 +1109,21 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew(STextBlock)
-			.Text( this, &SKismetDebuggingView::GetTopText )
+			SNew( SHorizontalBox )
+			+ SHorizontalBox::Slot()
+			.HAlign( HAlign_Left )
+			[
+				SNew( STextBlock )
+					.Text( this, &SKismetDebuggingView::GetTopText )
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign( HAlign_Right )
+			[
+				SNew( SButton )
+	                .IsEnabled( this, &SKismetDebuggingView::CanDisableAllBreakpoints )
+	                .Text( LOCTEXT( "DisableAllBreakPoints", "Disable All Breakpoints" ) )
+	                .OnClicked( this, &SKismetDebuggingView::OnDisableAllBreakpointsClicked )
+			]
 		]
 		+SVerticalBox::Slot()
 		[
