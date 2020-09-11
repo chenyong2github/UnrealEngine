@@ -26,7 +26,7 @@ class MESHMODELINGTOOLS_API UCSGMeshesToolProperties : public UInteractiveToolPr
 public:
 	/** The type of operation */
 	UPROPERTY(EditAnywhere, Category = Options)
-	ECSGOperation Operation = ECSGOperation::Union;
+	ECSGOperation Operation = ECSGOperation::DifferenceAB;
 
 	/** Show boundary edges created by the CSG operation -- often due to numerical error */
 	UPROPERTY(EditAnywhere, Category = Options)

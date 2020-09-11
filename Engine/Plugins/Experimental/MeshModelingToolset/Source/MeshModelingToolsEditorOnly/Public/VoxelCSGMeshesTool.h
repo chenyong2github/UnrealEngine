@@ -64,7 +64,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesToolProperties : public UIn
 public:
 	/** The type of operation  */
 	UPROPERTY(EditAnywhere, Category = Options)
-	EVoxelCSGOperation Operation;
+	EVoxelCSGOperation Operation = EVoxelCSGOperation::DifferenceAB;
 
 	/** The size of the geometry bounding box major axis measured in voxels.*/
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024"))
