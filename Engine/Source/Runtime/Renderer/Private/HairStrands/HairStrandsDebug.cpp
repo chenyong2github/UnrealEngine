@@ -518,7 +518,7 @@ static void AddDebugDeepShadowTexturePass(
 	FIntPoint AtlasResolution(0, 0);
 	FVector2D AltasOffset(0, 0);
 	FVector2D AltasScale(0, 0);
-	if (ShadowData)
+	if (ShadowData && Resources)
 	{
 		AtlasResolution = FIntPoint(Resources->DepthAtlasTexture->Desc.Extent.X, Resources->DepthAtlasTexture->Desc.Extent.Y);
 		AltasOffset = FVector2D(ShadowData->AtlasRect.Min.X / float(AtlasResolution.X), ShadowData->AtlasRect.Min.Y / float(AtlasResolution.Y));
@@ -534,8 +534,8 @@ static void AddDebugDeepShadowTexturePass(
 	Parameters->DomAtlasScale = AltasScale;
 	Parameters->OutputResolution = Resolution;
 	Parameters->InvOutputResolution = FVector2D(1.f / Resolution.X, 1.f / Resolution.Y);
-	Parameters->DeepShadowDepthTexture = Resources->DepthAtlasTexture;
-	Parameters->DeepShadowLayerTexture = Resources->LayersAtlasTexture;
+	Parameters->DeepShadowDepthTexture = Resources ? Resources->DepthAtlasTexture : nullptr;
+	Parameters->DeepShadowLayerTexture = Resources ? Resources->LayersAtlasTexture : nullptr;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->HairViewRect = FIntVector4(HairViewRect.Min.X, HairViewRect.Min.Y, HairViewRect.Width(), HairViewRect.Height());
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutTarget, ERenderTargetLoadAction::ELoad, 0);
