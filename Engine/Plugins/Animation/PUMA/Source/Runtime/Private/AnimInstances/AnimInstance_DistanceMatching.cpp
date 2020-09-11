@@ -185,7 +185,7 @@ void UAnimInstance_DistanceMatching::UpdateStartTransition(const ACharacter& Cha
 				FVector FrameMovement = (CharacterVelocity * DeltaTime) + (CharacterAcceleration * DeltaTime * DeltaTime);
 									
 				float DesiredStartAnimDistance = DistanceCurve.GetValueAtPosition(StartAnimation, StartAnimPosition) + FrameMovement.Size2D();
-				float DesiredStartAnimPosition = FMath::Clamp(DistanceCurve.GetAnimPositionFromDistance(StartAnimation, DesiredStartAnimDistance), StartAnimPosition, StartAnimation->SequenceLength);
+				float DesiredStartAnimPosition = FMath::Clamp(DistanceCurve.GetAnimPositionFromDistance(StartAnimation, DesiredStartAnimDistance), StartAnimPosition, StartAnimation->GetPlayLength());
 				float DesiredStartAnimOverallRate = FMath::Clamp((DesiredStartAnimPosition - StartAnimPosition) / DeltaTime, 0.75f, 1.5f);
 				CalculateStrideWarpingValues(PlayRateStrideWarpAlpha, DesiredStartAnimOverallRate);
 				StartAnimPosition += DeltaTime * PlayRateValue;
@@ -298,7 +298,7 @@ void UAnimInstance_DistanceMatching::UpdateStopTransition(const ACharacter& Char
 			{
 				StopAnimPosition += DeltaTime;
 
-				if (StopAnimPosition >= StopAnimation->SequenceLength - StopTransitionData.GetCrossfadeDuration(*this))
+				if (StopAnimPosition >= StopAnimation->GetPlayLength() - StopTransitionData.GetCrossfadeDuration(*this))
 				{
 					bStopComplete = true;
 				}

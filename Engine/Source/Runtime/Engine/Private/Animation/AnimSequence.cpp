@@ -4297,7 +4297,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 
 
 		// NumFrames can't be zero (filtered earlier)
-		const float Interval = GetIntervalPerKey(NumFrames, SequenceLength);
+		const float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
 
 		for (const FTransformCurve& Curve : RawCurveData.TransformCurves)
 		{

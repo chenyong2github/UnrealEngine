@@ -296,7 +296,7 @@ void PoseSearchBuildIndex(const UAnimSequenceBase& AnimSequence, const UPoseSear
 	ExtractionCtx.bExtractRootMotion = true;
 
 	double CurrTime = SearchConfig.FrameSamplingRange.GetLowerBoundValue();
-	const double EndTime = FMath::Min(AnimSequence.SequenceLength, SearchConfig.FrameSamplingRange.GetUpperBoundValue());
+	const double EndTime = FMath::Min(AnimSequence.GetPlayLength(), SearchConfig.FrameSamplingRange.GetUpperBoundValue());
 	const double DeltaTime = 1.0 / SearchConfig.SampleRate;
 
 	const int32 NumPoses = FMath::FloorToInt((EndTime - CurrTime) / DeltaTime);
