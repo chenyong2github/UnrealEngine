@@ -54,6 +54,7 @@ FEditorSessionSourceFilterService::FEditorSessionSourceFilterService()
 	// Register delegate to catch engine-level trace filtering system changes 
 	FTraceWorldFiltering::OnFilterStateChanged().AddRaw(this, &FEditorSessionSourceFilterService::StateChanged);	
 	SetupWorldFilters();
+	FEditorDelegates::OnAssetsPreDelete.AddRaw(this, &FEditorSessionSourceFilterService::OnAssetsPendingDelete);
 }
 
 FEditorSessionSourceFilterService::~FEditorSessionSourceFilterService()
@@ -65,6 +66,7 @@ FEditorSessionSourceFilterService::~FEditorSessionSourceFilterService()
 	
 	FilterCollection->GetSourceFiltersUpdated().RemoveAll(this);
 	FTraceWorldFiltering::OnFilterStateChanged().RemoveAll(this);
+	FEditorDelegates::OnAssetsPreDelete.RemoveAll(this);
 }
 
 void FEditorSessionSourceFilterService::AddFilter(const FString& FilterClassName)
@@ -653,6 +655,14 @@ void FEditorSessionSourceFilterService::SetupWorldFilters()
 			return FTraceWorldFiltering::IsWorldNetModeTraceable((ENetMode)TypeValue);
 		})
 	);
+}
+
+void FEditorSessionSourceFilterService::OnAssetsPendingDelete(TArray<UObject*> const& ObjectsForDelete)
+{
+	DelegateRegisteredBlueprints.RemoveAll([&ObjectsForDelete](UBlueprint* Blueprint)
+	{
+		return ObjectsForDelete.Contains(Blueprint);
+	});
 }
 
 void FEditorSessionSourceFilterService::OnBlueprintCompiled(UBlueprint* InBlueprint)
