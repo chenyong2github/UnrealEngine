@@ -608,7 +608,7 @@ void SMyBlueprint::Tick(const FGeometry& AllottedGeometry, const double InCurren
 
 FReply SMyBlueprint::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (CommandList->ProcessCommandBindings(InKeyEvent))
+	if (CommandList.IsValid() && CommandList->ProcessCommandBindings(InKeyEvent))
 	{
 		return FReply::Handled();
 	}
