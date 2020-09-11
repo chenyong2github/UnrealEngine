@@ -38,6 +38,7 @@ void FPaperStyle::Initialize()
 	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon20x20(20.0f, 20.0f);
 	const FVector2D Icon40x40(40.0f, 40.0f);
+	const FVector2D Icon64x64(64.0f, 64.0f);
 
 	// Only register once
 	if (StyleSet.IsValid())
@@ -257,6 +258,57 @@ void FPaperStyle::Initialize()
 		StyleSet->Set("AssetActions.ExtractSprites", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/icon_Texture_ExtractSprites_16x"), Icon16x16));
 		StyleSet->Set("AssetActions.ConfigureForRetroSprites", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/icon_Texture_ConfigureForRetroSprites_16x"), Icon16x16));
 		StyleSet->Set("AssetActions.CreateTileSet", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/icon_Texture_CreateTileSet_16x"), Icon16x16));
+	}
+
+	{
+		// Sprites (asset, component, actor)
+		StyleSet->Set("ClassIcon.PaperSprite", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperSprite_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperSprite", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperSprite_64x", Icon64x64));
+		StyleSet->Set("ClassIcon.PaperSpriteComponent", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperSpriteComponent_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperSpriteComponent", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperSpriteComponent_64x", Icon64x64));
+		StyleSet->Set("ClassIcon.PaperSpriteActor", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperSpriteActor_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperSpriteActor", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperSpriteActor_64x", Icon64x64));
+
+		// Flipbooks (asset, component, actor)
+		StyleSet->Set("ClassIcon.PaperFlipbook", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperFlipbook_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperFlipbook", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperFlipbook_64x", Icon64x64));
+		StyleSet->Set("ClassIcon.PaperFlipbookComponent", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperFlipbookComponent_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperFlipbookComponent", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperFlipbookComponent_64x", Icon64x64));
+		StyleSet->Set("ClassIcon.PaperFlipbookActor", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperFlipbookActor_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperFlipbookActor", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperFlipbookActor_64x", Icon64x64));
+
+		// Tile maps (asset, component, actor)
+		StyleSet->Set("ClassIcon.PaperTileMap", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTileMap_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperTileMap", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTileMap_64x", Icon64x64));
+		StyleSet->Set("ClassIcon.PaperTileMapComponent", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTileMapComponent_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperTileMapComponent", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTileMapComponent_64x", Icon64x64));
+		StyleSet->Set("ClassIcon.PaperTileMapActor", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTileMapActor_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperTileMapActor", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTileMapActor_64x", Icon64x64));
+
+		// UPaperSpriteAtlas assets
+		//@TODO: Paper2D: These icons don't match the naming scheme
+		StyleSet->Set("ClassIcon.PaperSpriteAtlas", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/Paper2DSpriteAtlasGroup_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperSpriteAtlas", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/Paper2DSpriteAtlasGroup_64x", Icon64x64));
+
+		//@TODO: UPaperSpriteSheet icons?
+
+		// APaperCharacter icons
+		StyleSet->Set("ClassIcon.PaperCharacter", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperCharacter_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperCharacter", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperCharacter_64x", Icon64x64));
+
+		// UPaperTileSet icons
+		StyleSet->Set("ClassIcon.PaperTileSet", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTileSet_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperTileSet", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTileSet_64x", Icon64x64));
+
+		// UPaperTerrainMaterial icons
+		StyleSet->Set("ClassIcon.PaperTerrainMaterial", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTerrainMaterial_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperTerrainMaterial", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTerrainMaterial_64x", Icon64x64));
+
+		// Terrain splines (component, actor)
+		StyleSet->Set("ClassIcon.PaperTerrainComponent", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTerrainComponent_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperTerrainComponent", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTerrainComponent_64x", Icon64x64));
+		StyleSet->Set("ClassIcon.PaperTerrainActor", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTerrainActor_16x", Icon16x16));
+		StyleSet->Set("ClassThumbnail.PaperTerrainActor", new IMAGE_PLUGIN_BRUSH("Icons/AssetIcons/PaperTerrainActor_16x", Icon64x64));
 	}
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
