@@ -148,6 +148,12 @@ void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilenam
 		BaseFile = OutFilename;
 		BaseFile.Split(TEXT("."), &OutFilename, &OutExtension, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 		OutExtension = OutExtension + TEXT(".*");
+		return;
+	}
+
+	if (OutExtension.IsEmpty())
+	{
+		OutFilename = BaseFile;
 	}
 }
 
