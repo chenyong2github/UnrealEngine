@@ -19,6 +19,8 @@
 #include "AlTrimRegion.h"
 #include "AlTM.h"
 
+using namespace CADLibrary;
+
 TWeakPtr<FAliasCoretechWrapper> FAliasCoretechWrapper::SharedSession;
 
 struct UVPoint
