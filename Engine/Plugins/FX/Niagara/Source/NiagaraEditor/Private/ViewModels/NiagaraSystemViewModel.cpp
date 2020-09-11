@@ -2062,7 +2062,6 @@ void FNiagaraSystemViewModel::UpdateEmitterFixedBounds()
 		}
 		FNiagaraEmitterHandle* SelectedEmitterHandle = EmitterHandleViewModel->GetEmitterHandle();
 		check(SelectedEmitterHandle);
-		UNiagaraEmitter* Emitter = SelectedEmitterHandle->GetInstance();
 		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInst : PreviewComponent->GetSystemInstance()->GetEmitters())
 		{
 			if (&EmitterInst->GetEmitterHandle() == SelectedEmitterHandle && !EmitterInst->IsComplete())
@@ -2082,7 +2081,7 @@ void FNiagaraSystemViewModel::ClearEmitterStats()
 	{
 		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
 		{
-			Emitter->ClearStatCaptures();
+			Emitter->GetStatData().ClearStatCaptures();
 		}
 	}
 #endif

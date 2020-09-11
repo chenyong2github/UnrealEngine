@@ -5,6 +5,7 @@
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeOutput.h"
+#include "NiagaraSystem.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -145,6 +146,14 @@ FLinearColor SNiagaraStackRowPerfWidget::GetVisualizationBrushColor() const
 	{
 		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleSpawn");
 	}
+	if (Usage == ENiagaraScriptUsage::SystemSpawnScript)
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystemSpawn");
+	}
+	if (Usage == ENiagaraScriptUsage::SystemUpdateScript)
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystemUpdate");
+	}
 	return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorDefault");
 }
 
@@ -160,11 +169,38 @@ FLinearColor SNiagaraStackRowPerfWidget::GetPlaceholderBrushColor() const
 bool SNiagaraStackRowPerfWidget::HasPerformanceData() const
 {
 #if STATS
-	bool IsPerfCaptureEnabled = StatEnabledVar && StatEnabledVar->GetBool() && StackEntry->GetEmitterViewModel().IsValid();
-	return IsPerfCaptureEnabled && (IsGroupHeaderEntry() || IsModuleEntry()) && (StackEntry->GetExecutionCategoryName()	== UNiagaraStackEntry::FExecutionCategoryNames::Particle);
+	bool IsPerfCaptureEnabled = StatEnabledVar && StatEnabledVar->GetBool();
+	if (IsPerfCaptureEnabled && IsSystemStack())
+	{
+		return (IsGroupHeaderEntry() || IsModuleEntry()) && (StackEntry->GetExecutionSubcategoryName() != UNiagaraStackEntry::FExecutionSubcategoryNames::Settings);
+	}
+	if (IsPerfCaptureEnabled && IsEmitterStack())
+	{
+		return IsModuleEntry() && (StackEntry->GetExecutionSubcategoryName() != UNiagaraStackEntry::FExecutionSubcategoryNames::Settings);
+	}
+	if (IsPerfCaptureEnabled && IsParticleStack())
+	{
+		return IsGroupHeaderEntry() || IsModuleEntry();
+	}
+	return false;
 #else
 	return false;
 #endif
+}
+
+bool SNiagaraStackRowPerfWidget::IsSystemStack() const
+{
+	return StackEntry.IsValid() && StackEntry->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::System;
+}
+
+bool SNiagaraStackRowPerfWidget::IsEmitterStack() const
+{
+	return StackEntry.IsValid() && StackEntry->GetEmitterViewModel().IsValid() && StackEntry->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::Emitter;
+}
+
+bool SNiagaraStackRowPerfWidget::IsParticleStack() const
+{
+	return StackEntry.IsValid() && StackEntry->GetEmitterViewModel().IsValid() && StackEntry->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::Particle;
 }
 
 EVisibility SNiagaraStackRowPerfWidget::IsVisible() const
@@ -244,10 +280,18 @@ FText SNiagaraStackRowPerfWidget::CreateTooltipText() const
 {
 	if (IsModuleEntry())
 	{
+		if (IsEmitterStack())
+		{
+			return LOCTEXT("EmitterEntryTooltip", "This shows the emitter module runtime cost in percent.\nNote that the displayed percentage relates to the system script, where the emitter scripts are embedded.\nThe module cost does not include work from DI calls to other threads, e.g. async collision traces.");
+		}
 		return LOCTEXT("ModuleEntryTooltip", "This shows the module runtime cost in percent.\nThe displayed percentage relates only to the parent script, not the whole emitter.\nThe module cost does not include work from DI calls to other threads, e.g. async collision traces.");
 	}
 	if (IsGroupHeaderEntry())
 	{
+		if (IsSystemStack())
+		{
+			return LOCTEXT("GroupHeaderSystemTooltip", "This is the total runtime cost of the system script and its module calls.\nSince the emitter scripts are embedded in the system scripts, they are part of this cost as well.\nNote that the module calls do not add up to 100% because the script itself has some overhead as well.");
+		}
 		if (GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript)
 		{
 			return LOCTEXT("GroupHeaderSpawnTooltip", "This is the total runtime cost of the spawn script and its module calls.\nNote that the module calls do not add up to 100% because the script itself has some overhead as well.\nWhen interpolated spawn is enabled, this also includes the cost of running the update script on the spawned particles.");
@@ -291,25 +335,12 @@ UNiagaraEmitter* SNiagaraStackRowPerfWidget::GetEmitter() const
 
 ENiagaraScriptUsage SNiagaraStackRowPerfWidget::GetUsage() const
 {
-	UNiagaraEmitter* Emitter = GetEmitter();
-	if (!Emitter)
-	{
-		return ENiagaraScriptUsage::Module;
-	}
 	FName SubcategoryName = StackEntry->GetExecutionSubcategoryName();
-	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Event)
-	{
-		return ENiagaraScriptUsage::ParticleEventScript;
-	}
-	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::SimulationStage)
-	{
-		return ENiagaraScriptUsage::ParticleSimulationStageScript;
-	}
 	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn)
 	{
-		return ENiagaraScriptUsage::ParticleSpawnScript;
+		return StackEntry->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::Particle ? ENiagaraScriptUsage::ParticleSpawnScript : ENiagaraScriptUsage::SystemSpawnScript;
 	}
-	return ENiagaraScriptUsage::ParticleUpdateScript;
+	return StackEntry->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::Particle ? ENiagaraScriptUsage::ParticleUpdateScript :  ENiagaraScriptUsage::SystemUpdateScript;
 }
 
 ENiagaraStatEvaluationType SNiagaraStackRowPerfWidget::GetEvaluationType() const
@@ -336,13 +367,23 @@ float SNiagaraStackRowPerfWidget::CalculateGroupOverallTime(FString StatScopeNam
 	{
 		return 0;
 	}
-	UNiagaraEmitter* Emitter = GetEmitter();
-	if (!Emitter)
+	if (IsParticleStack())
 	{
-		return 0;
+		UNiagaraEmitter* Emitter = GetEmitter();
+		if (!Emitter)
+		{
+			return 0;
+		}
+		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
+		return FPlatformTime::ToMilliseconds(Emitter->GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
 	}
-	TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
-	return FPlatformTime::ToMilliseconds(Emitter->GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
+	if (IsSystemStack() || IsEmitterStack())
+	{
+		UNiagaraSystem& System = StackEntry->GetSystemViewModel()->GetSystem();
+		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
+        return FPlatformTime::ToMilliseconds(System.GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
+	}
+	return 0;
 #else
 	return 0;
 #endif
@@ -360,19 +401,42 @@ float SNiagaraStackRowPerfWidget::CalculateStackEntryTime() const
 		return GroupOverallTime;
 	}
 
-	UNiagaraEmitter* Emitter = GetEmitter();
-	if (!Emitter || !IsModuleEntry())
-	{
-		return 0;
-	}
-
 	UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(StackEntry);
 	UNiagaraNodeFunctionCall& FunctionNode = ModuleItem->GetModuleNode();
-	ENiagaraScriptUsage Usage = GetUsage();
-	FString StatScopeName = FunctionNode.GetFunctionName() + "_Emitter";
-	TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
-	FString StatName = StatId.GetName().ToString();
-	return FPlatformTime::ToMilliseconds(Emitter->GetRuntimeStat(StatId.GetName(), Usage, GetEvaluationType()));
+	if (IsParticleStack())
+	{
+		UNiagaraEmitter* Emitter = GetEmitter();
+		if (!Emitter)
+		{
+			return 0;
+		}
+
+		FString StatScopeName = FunctionNode.GetFunctionName() + "_Emitter";
+		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
+		FString StatName = StatId.GetName().ToString();
+		return FPlatformTime::ToMilliseconds(Emitter->GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
+	}
+	if (IsEmitterStack())
+	{
+		UNiagaraEmitter* Emitter = GetEmitter();
+		if (!Emitter)
+		{
+			return 0;
+		}
+		FString StatScopeName = FunctionNode.GetFunctionName() + "_" + Emitter->GetName();
+		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
+		FString StatName = StatId.GetName().ToString();
+		UNiagaraSystem& System = StackEntry->GetSystemViewModel()->GetSystem();
+		return FPlatformTime::ToMilliseconds(System.GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
+	}
+	if (IsSystemStack())
+	{
+		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(FunctionNode.GetFunctionName());
+		FString StatName = StatId.GetName().ToString();
+		UNiagaraSystem& System = StackEntry->GetSystemViewModel()->GetSystem();
+		return FPlatformTime::ToMilliseconds(System.GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
+	}
+	return 0;
 #else
 	return 0;
 #endif

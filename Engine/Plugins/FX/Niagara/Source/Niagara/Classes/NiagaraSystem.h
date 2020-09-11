@@ -271,6 +271,10 @@ public:
 	FORCEINLINE int32 GetWarmupTickCount()const { return WarmupTickCount; }
 	FORCEINLINE float GetWarmupTickDelta()const { return WarmupTickDelta; }
 
+#if STATS
+	FNiagaraStatDatabase& GetStatData() { return StatDatabase; }
+#endif
+
 #if WITH_EDITORONLY_DATA
 	/** Are there any pending compile requests?*/
 	bool HasOutstandingCompilationRequests(bool bIncludingGPUShaders = false) const;
@@ -621,6 +625,7 @@ protected:
 
 	mutable TStatId StatID_InstanceCount;
 	mutable TStatId StatID_InstanceCountSolo;
+	FNiagaraStatDatabase StatDatabase;
 #endif
 
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;
