@@ -863,7 +863,7 @@ namespace DatasmithSceneUtilsImpl
 
 		void ScanMaterialIDElement(const IDatasmithMaterialIDElement* MaterialIDElement)
 		{
-			if (MaterialIDElement && MaterialIDElement->GetId() != -1)
+			if (MaterialIDElement)
 			{
 				if (TSharedPtr<IDatasmithElement>* MaterialElementPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
 				{
@@ -1026,6 +1026,61 @@ namespace DatasmithSceneUtilsImpl
 			ParseExpressionElement(MaterialElement->GetWorldDisplacement().GetExpression());
 		}
 
+		void ScanCompositeTexture( IDatasmithCompositeTexture* CompositeTexture )
+		{
+			if ( !CompositeTexture )
+			{
+				return;
+			}
+
+			for (int32 i = 0; i < CompositeTexture->GetParamSurfacesCount(); ++i)
+			{
+				const FString Texture = CompositeTexture->GetParamTexture(i);
+
+				if ( !Texture.IsEmpty() && Algo::Find( ReferencedTextures, Texture ) == nullptr )
+				{
+					this->ReferencedTextures.Add( Texture );
+					this->ReferencedTextures.Add( Texture + TEXT("_Tex") );
+				}
+			}
+
+			for (int32 i = 0; i < CompositeTexture->GetParamMaskSurfacesCount(); i++)
+			{
+				ScanCompositeTexture( CompositeTexture->GetParamMaskSubComposite(i).Get() );
+			}
+
+			for (int32 i = 0; i < CompositeTexture->GetParamSurfacesCount(); i++)
+			{
+				ScanCompositeTexture( CompositeTexture->GetParamSubComposite(i).Get() );
+			}
+		};
+
+		void ScanLegacyMaterialElement(IDatasmithMaterialElement* MaterialElement)
+		{
+			if ( !MaterialElement )
+			{
+				return;
+			}
+
+			for (int32 j = 0; j < MaterialElement->GetShadersCount(); ++j )
+			{
+				if ( const TSharedPtr< IDatasmithShaderElement >& Shader = MaterialElement->GetShader(j) )
+				{
+					ScanCompositeTexture( Shader->GetDiffuseComp().Get() );
+					ScanCompositeTexture( Shader->GetRefleComp().Get() );
+					ScanCompositeTexture( Shader->GetRoughnessComp().Get() );
+					ScanCompositeTexture( Shader->GetNormalComp().Get() );
+					ScanCompositeTexture( Shader->GetBumpComp().Get() );
+					ScanCompositeTexture( Shader->GetTransComp().Get() );
+					ScanCompositeTexture( Shader->GetMaskComp().Get() );
+					ScanCompositeTexture( Shader->GetDisplaceComp().Get() );
+					ScanCompositeTexture( Shader->GetMetalComp().Get() );
+					ScanCompositeTexture( Shader->GetEmitComp().Get() );
+					ScanCompositeTexture( Shader->GetWeightComp().Get() );
+				}
+			}
+		}
+
 		void Initialize()
 		{
 			int32 AssetElementCount = Scene->GetTexturesCount() + Scene->GetMaterialsCount() +
@@ -1080,6 +1135,23 @@ namespace DatasmithSceneUtilsImpl
 				else if ( MaterialElement->IsA( EDatasmithElementType::MasterMaterial ) )
 				{
 					ScanMasterMaterialElement(static_cast< IDatasmithMasterMaterialElement* >( MaterialElement.Get() ));
+				}
+				else if ( MaterialElement->IsA( EDatasmithElementType::Material ) )
+				{
+					ScanLegacyMaterialElement(static_cast< IDatasmithMaterialElement* >( MaterialElement.Get() ));
+				}
+			}
+
+			for ( int32 ActorIndex = 0; ActorIndex < Scene->GetActorsCount(); ++ActorIndex )
+			{
+				const TSharedPtr< IDatasmithActorElement >& Actor = Scene->GetActor( ActorIndex );
+
+				if ( Actor->IsA( EDatasmithElementType::EnvironmentLight ) )
+				{
+					if ( TSharedPtr< IDatasmithEnvironmentElement > EnvironmentElement = StaticCastSharedPtr< IDatasmithEnvironmentElement >( Actor ) )
+					{
+						ScanCompositeTexture( EnvironmentElement->GetEnvironmentComp().Get() );
+					}
 				}
 			}
 
