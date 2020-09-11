@@ -55,6 +55,7 @@ namespace Chaos
 			float InFrictionCoefficient,
 			bool bInUseSelfCollisions,
 			float InSelfCollisionThickness,
+			bool bInUseLegacyBackstop,
 			bool bInUseLODIndexOverride,
 			int32 InLODIndexOverride);
 		~FClothingSimulationCloth();
@@ -185,6 +186,7 @@ namespace Chaos
 		float FrictionCoefficient;
 		bool bUseSelfCollisions;
 		float SelfCollisionThickness;
+		bool bUseLegacyBackstop;
 		bool bUseLODIndexOverride;
 		int32 LODIndexOverride;
 		bool bNeedsReset;

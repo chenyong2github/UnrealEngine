@@ -83,7 +83,8 @@ namespace Chaos
 			const TArray<TVector<T, d>>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
 			const TArray<TVector<T, d>>& InAnimationNormals,  // Use global indexation (will need adding ParticleOffset)
 			const TConstArrayView<T>& InSphereRadii,  // Use local indexation
-			const TConstArrayView<T>& InSphereOffsetDistances  // Use local indexation
+			const TConstArrayView<T>& InSphereOffsetDistances,  // Use local indexation
+			const bool bInUseLegacyBackstop  // Do not include the sphere radius in the distance calculations when this is true
 		)
 			: AnimationPositions(InAnimationPositions)
 			, AnimationNormals(InAnimationNormals)
@@ -91,6 +92,7 @@ namespace Chaos
 			, SphereOffsetDistances(InSphereOffsetDistances)
 			, ParticleOffset(InParticleOffset)
 			, SphereRadiiMultiplier((T)1.)
+			, bUseLegacyBackstop(bInUseLegacyBackstop)
 		{
 			check(InSphereRadii.Num() == InParticleCount);
 			check(InSphereOffsetDistances.Num() == InParticleCount);
@@ -101,6 +103,38 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_PBD_SphericalBackstop);
 
+			if (bUseLegacyBackstop)
+			{
+				// SphereOffsetDistances includes the sphere radius
+				// This is harder to author, and does not follow the NvCloth specs.
+				// However, this is how it's been done in the Unreal Engine PhysX cloth implementation.
+				ApplyLegacyHelper(Particles, Dt);
+			}
+			else
+			{
+				// SphereOffsetDistances doesn't include the sphere radius
+				ApplyHelper(Particles, Dt);
+			}
+		}
+
+		inline void SetSphereRadiiMultiplier(const T InSphereRadiiMultiplier)
+		{
+			SphereRadiiMultiplier = FMath::Max((T)0., InSphereRadiiMultiplier);
+		}
+
+		inline T GetSphereRadiiMultiplier() const
+		{
+			return SphereRadiiMultiplier;
+		}
+
+		inline bool UseLegacyBackstop() const
+		{
+			return bUseLegacyBackstop;
+		}
+
+	private:
+		inline void ApplyHelper(TPBDParticles<T, d>& Particles, const T Dt) const
+		{
 			const int32 ParticleCount = SphereRadii.Num();
 
 			PhysicsParallelFor(ParticleCount, [&](int32 Index)  // TODO: profile need for parallel loop based on particle count
@@ -118,15 +152,14 @@ namespace Chaos
 				const T SphereOffsetDistance = SphereOffsetDistances[Index];
 				const T Radius = SphereRadii[Index] * SphereRadiiMultiplier;
 
-				const TVector<T, d> Center = AnimationPosition - (Radius + SphereOffsetDistance) * AnimationNormal;
-
+				const TVector<T, d> Center = AnimationPosition - (Radius + SphereOffsetDistance) * AnimationNormal;  // Non legacy version adds radius to the distance
 				const TVector<T, d> CenterToParticle = Particles.P(ParticleIndex) - Center;
 				const T DistanceSquared = CenterToParticle.SizeSquared();
 
 				static const T DeadZoneSquareRadius = SMALL_NUMBER;
 				if (DistanceSquared < DeadZoneSquareRadius)
 				{
-					Particles.P(ParticleIndex) = AnimationPosition - SphereOffsetDistance * AnimationNormal;
+					Particles.P(ParticleIndex) = AnimationPosition - SphereOffsetDistance * AnimationNormal;  // Non legacy version adds radius to the distance
 				}
 				else if (DistanceSquared < FMath::Square(Radius))
 				{
@@ -137,14 +170,41 @@ namespace Chaos
 			});
 		}
 
-		inline void SetSphereRadiiMultiplier(const T InSphereRadiiMultiplier)
+		inline void ApplyLegacyHelper(TPBDParticles<T, d>& Particles, const T Dt) const
 		{
-			SphereRadiiMultiplier = FMath::Max((T)0., InSphereRadiiMultiplier);
-		}
+			const int32 ParticleCount = SphereRadii.Num();
 
-		inline T GetSphereRadiiMultiplier() const
-		{
-			return SphereRadiiMultiplier;
+			PhysicsParallelFor(ParticleCount, [&](int32 Index)  // TODO: profile need for parallel loop based on particle count
+			{
+				const int32 ParticleIndex = ParticleOffset + Index;
+
+				if (Particles.InvM(ParticleIndex) == 0)
+				{
+					return;
+				}
+
+				const TVector<T, d>& AnimationPosition = AnimationPositions[Index];
+				const TVector<T, d>& AnimationNormal = AnimationNormals[Index];
+
+				const T SphereOffsetDistance = SphereOffsetDistances[Index];
+				const T Radius = SphereRadii[Index] * SphereRadiiMultiplier;
+
+				const TVector<T, d> Center = AnimationPosition - SphereOffsetDistance * AnimationNormal;  // Legacy version already includes the radius within the distance
+				const TVector<T, d> CenterToParticle = Particles.P(ParticleIndex) - Center;
+				const T DistanceSquared = CenterToParticle.SizeSquared();
+
+				static const T DeadZoneSquareRadius = SMALL_NUMBER;
+				if (DistanceSquared < DeadZoneSquareRadius)
+				{
+					Particles.P(ParticleIndex) = AnimationPosition - (SphereOffsetDistance - Radius) * AnimationNormal;  // Legacy version already includes the radius to the distance
+				}
+				else if (DistanceSquared < FMath::Square(Radius))
+				{
+					const TVector<T, d> PositionOnSphere = (Radius / sqrt(DistanceSquared)) * CenterToParticle;
+					Particles.P(ParticleIndex) = Center + PositionOnSphere;
+				}
+				// Else the particle is outside the sphere, and there is nothing to do
+			});
 		}
 
 	private:
@@ -154,5 +214,6 @@ namespace Chaos
 		const TConstArrayView<T> SphereOffsetDistances;  // Sphere position offsets, use local indexation
 		const int32 ParticleOffset;
 		T SphereRadiiMultiplier;
+		bool bUseLegacyBackstop;
 	};
 }

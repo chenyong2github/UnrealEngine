@@ -202,6 +202,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->FrictionCoefficient,
 		ClothConfig->bUseSelfCollisions,
 		ClothConfig->SelfCollisionThickness,
+		ClothConfig->bUseLegacyBackstop,
 		/*bUseLODIndexOverride =*/ false,
 		/*LODIndexOverride =*/ INDEX_NONE));
 
@@ -476,6 +477,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->FrictionCoefficient,
 			ClothConfig->bUseSelfCollisions,
 			ClothConfig->SelfCollisionThickness,
+			ClothConfig->bUseLegacyBackstop,
 			/*bUseLODIndexOverride =*/ false,
 			/*LODIndexOverride =*/ INDEX_NONE);
 
@@ -1106,10 +1108,11 @@ void FClothingSimulation::DebugDrawBackstops(FPrimitiveDrawInterface* PDI) const
 {
 	auto DrawBackstop = [PDI](const FVector& Position, const FVector& Normal, float Radius, const FVector& Axis, const FLinearColor& Color)
 	{
-		static const float ArcAngle = 25.0f; // Arc angle in degrees
 		static const float MaxCosAngle = 0.99f;
 		if (FMath::Abs(FVector::DotProduct(Normal, Axis)) < MaxCosAngle)
 		{
+			static const float ArcLength = 5.0f; // Arch length in cm
+			const float ArcAngle = 360.0f * ArcLength / FMath::Max((Radius * 2.0f * PI), ArcLength);
 			DrawArc(PDI, Position, Normal, FVector::CrossProduct(Axis, Normal).GetSafeNormal(), -ArcAngle / 2.0f, ArcAngle / 2.0f, Radius, Color);
 		}
 	};
@@ -1129,6 +1132,7 @@ void FClothingSimulation::DebugDrawBackstops(FPrimitiveDrawInterface* PDI) const
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 		if (const TPBDSphericalBackstopConstraint<float, 3>* const BackstopConstraint = ClothConstraints.GetBackstopConstraints().Get())
 		{
+			const bool bUseLegacyBackstop = BackstopConstraint->UseLegacyBackstop();
 			const TConstArrayView<float>& BackstopDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopDistance];
 			const TConstArrayView<float>& BackstopRadiuses = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopRadius];
 			const TConstArrayView<TVector<float, 3>> AnimationPositions = Cloth->GetAnimationPositions(Solver.Get());
@@ -1147,16 +1151,16 @@ void FClothingSimulation::DebugDrawBackstops(FPrimitiveDrawInterface* PDI) const
 				const FVector AnimationPosition = LocalSpaceLocation + AnimationPositions[Index];
 				const FVector& AnimationNormal = AnimationNormals[Index];
 
-				// Draw a line to the current position
+				// Draw a line to show the current distance to the sphere
 				const FVector Pos0 = LocalSpaceLocation + AnimationPositions[Index];
-				const FVector Pos1 = Pos0 - BackstopDistance * AnimationNormal;
+				const FVector Pos1 = Pos0 - (bUseLegacyBackstop ? BackstopDistance - BackstopRadius : BackstopDistance) * AnimationNormal;
 				const FVector Pos2 = LocalSpaceLocation + ParticlePositions[Index];
 				DrawLine(PDI, Pos1, Pos2, ColorLight);
 
 				// Draw the sphere
 				if (BackstopRadius > 0.f)
 				{
-					const FVector Center = Pos0 - (BackstopRadius + BackstopDistance) * AnimationNormal;
+					const FVector Center = Pos0 - (bUseLegacyBackstop ? BackstopDistance : BackstopRadius + BackstopDistance) * AnimationNormal;
 					DrawBackstop(Center, AnimationNormal, BackstopRadius, FVector::ForwardVector, ColorDark);
 					DrawBackstop(Center, AnimationNormal, BackstopRadius, FVector::UpVector, ColorDark);
 					DrawBackstop(Center, AnimationNormal, BackstopRadius, FVector::RightVector, ColorDark);
@@ -1183,6 +1187,7 @@ void FClothingSimulation::DebugDrawBackstopDistances(FPrimitiveDrawInterface* PD
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 		if (const TPBDSphericalBackstopConstraint<float, 3>* const BackstopConstraint = ClothConstraints.GetBackstopConstraints().Get())
 		{
+			const bool bUseLegacyBackstop = BackstopConstraint->UseLegacyBackstop();
 			const TConstArrayView<float>& BackstopDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopDistance];
 			const TConstArrayView<float>& BackstopRadiuses = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopRadius];
 			const TConstArrayView<TVector<float, 3>> AnimationPositions = Cloth->GetAnimationPositions(Solver.Get());
@@ -1202,7 +1207,7 @@ void FClothingSimulation::DebugDrawBackstopDistances(FPrimitiveDrawInterface* PD
 
 				// Draw a line to the sphere boundary
 				const FVector Pos0 = LocalSpaceLocation + AnimationPositions[Index];
-				const FVector Pos1 = Pos0 - BackstopDistance * AnimationNormal;
+				const FVector Pos1 = Pos0 - (bUseLegacyBackstop ? BackstopDistance - BackstopRadius : BackstopDistance) * AnimationNormal;
 				DrawLine(PDI, Pos0, Pos1, ColorDark);
 			}
 		}
