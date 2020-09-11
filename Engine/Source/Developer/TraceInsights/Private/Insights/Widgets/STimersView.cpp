@@ -1793,7 +1793,7 @@ void STimersView::ApplyAggregation(Trace::ITable<Trace::FTimingProfilerAggregate
 
 FTimerNodePtr STimersView::GetTimerNode(uint32 TimerId) const
 {
-	return (static_cast<int32>(TimerId) < TimerNodes.Num()) ? TimerNodes[TimerId] : nullptr;
+	return (TimerId < (uint32)TimerNodes.Num()) ? TimerNodes[TimerId] : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
