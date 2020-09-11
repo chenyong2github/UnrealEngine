@@ -934,7 +934,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 							AnimInstance->AnimationToPlay = AnimSequence;
 							if (InstanceIndex > 0)
 							{
-								const float Steps = (AnimSequence->SequenceLength * 0.9f) / (NumInstances);
+								const float Steps = (AnimSequence->GetPlayLength() * 0.9f) / (NumInstances);
 								const float StartTimeOffset = Steps * InstanceIndex;
 								AnimInstance->PermutationTimeOffset = StartTimeOffset;
 							}
@@ -946,7 +946,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 							AnimInstance->ComponentIndex = Components.Num();
 
 							/** Set the current animation length length */
-							StateData.AnimationLengths.Add(AnimSequence->SequenceLength);
+							StateData.AnimationLengths.Add(AnimSequence->GetPlayLength());
 						}
 					}
 					else if (AnimSequence != nullptr)
@@ -962,14 +962,14 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 						{
 							if (InstanceIndex > 0)
 							{
-								const float Steps = (AnimSequence->SequenceLength * 0.9f) / (NumInstances);
+								const float Steps = (AnimSequence->GetPlayLength() * 0.9f) / (NumInstances);
 								const float StartTimeOffset = Steps * InstanceIndex;
 								Component->SetPosition(StartTimeOffset, false);
 							}
 						}
 
 						/** Set the current animation length length */
-						StateData.AnimationLengths.Add(AnimSequence->SequenceLength);
+						StateData.AnimationLengths.Add(AnimSequence->GetPlayLength());
 					}
 
 					/** Set material to red to indicate that it's not in use*/
@@ -995,7 +995,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 					AdditiveInstanceStack.AddInstance(AdditiveInstance);
 					
 					/** Set the current animation length length */
-					StateData.AnimationLengths.Add(AnimSequence->SequenceLength);
+					StateData.AnimationLengths.Add(AnimSequence->GetPlayLength());
 					Components.Add(AdditiveComponent);
 				}
 				
@@ -2034,7 +2034,7 @@ uint32 UAnimSharingInstance::SetupAdditiveInstance(uint8 StateIndex, uint8 FromS
 		Instance.AdditiveAnimationInstance = AnimationInstance;
 		Instance.BaseComponent = PerStateData[FromState].Components[StateComponentIndex];
 		const float WorldTimeSeconds = GetWorld()->GetTimeSeconds();
-		Instance.EndTime = WorldTimeSeconds + StateData.AdditiveAnimationSequence->SequenceLength;
+		Instance.EndTime = WorldTimeSeconds + StateData.AdditiveAnimationSequence->GetPlayLength();
 		Instance.State = StateIndex;
 		Instance.UsedPerStateComponentIndex = PerStateData[StateIndex].Components.IndexOfByKey(AnimationInstance->GetComponent());
 

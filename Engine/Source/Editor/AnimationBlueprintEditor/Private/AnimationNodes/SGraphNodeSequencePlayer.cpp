@@ -170,7 +170,7 @@ void SGraphNodeSequencePlayer::SetSequencePositionRatio(float NewRatio)
 	{
 		if (SequencePlayer->Sequence != NULL)
 		{
-			const float NewTime = NewRatio * SequencePlayer->Sequence->SequenceLength;
+			const float NewTime = NewRatio * SequencePlayer->Sequence->GetPlayLength();
 			SequencePlayer->SetAccumulatedTime(NewTime);
 		}
 	}

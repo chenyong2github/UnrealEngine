@@ -360,7 +360,7 @@ bool SAnimMontagePanel::ClampToEndTime(float NewEndTime)
 	bool bClampingNeeded = (SequenceLength > 0.f && NewEndTime < SequenceLength);
 	if(bClampingNeeded)
 	{
-		float ratio = NewEndTime / Montage->SequenceLength;
+		float ratio = NewEndTime / Montage->GetPlayLength();
 
 		for(int32 i=0; i < Montage->CompositeSections.Num(); i++)
 		{
@@ -582,9 +582,9 @@ void SAnimMontagePanel::PostRedo( bool bSuccess )
 void SAnimMontagePanel::PostRedoUndo()
 {
 	// when undo or redo happens, we still have to recalculate length, so we can't rely on sequence length changes or not
-	if (Montage->SequenceLength)
+	if (Montage->GetPlayLength())
 	{
-		Montage->SequenceLength = 0.f;
+		Montage->SetSequenceLength(0.f);
 	}
 
 	RebuildMontagePanel(); //Rebuild here, undoing adds can cause slate to crash later on if we don't (using dummy args since they aren't used by the method
@@ -795,7 +795,7 @@ void SAnimMontagePanel::OnNewSectionClicked(float DataPosX)
 bool SAnimMontagePanel::CanAddNewSection()
 {
 	// Can't add sections if there isn't a montage, or that montage is of zero length
-	return Montage && Montage->SequenceLength > 0.0f;
+	return Montage && Montage->GetPlayLength() > 0.0f;
 }
 
 void SAnimMontagePanel::CreateNewSection(const FText& NewSectionName, ETextCommit::Type CommitInfo, float StartTime)
@@ -1076,7 +1076,7 @@ float SAnimMontagePanel::GetSequenceLength() const
 {
 	if(Montage != nullptr)
 	{
-		return Montage->SequenceLength;
+		return Montage->GetPlayLength();
 	}
 	return 0.0f;
 }

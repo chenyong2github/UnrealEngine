@@ -17,10 +17,10 @@ struct FMovieSceneSkeletalAnimationParams
 	FMovieSceneSkeletalAnimationParams();
 
 	/** Gets the animation duration, modified by play rate */
-	float GetDuration() const { return FMath::IsNearlyZero(PlayRate) || Animation == nullptr ? 0.f : Animation->SequenceLength / PlayRate; }
+	float GetDuration() const { return FMath::IsNearlyZero(PlayRate) || Animation == nullptr ? 0.f : Animation->GetPlayLength() / PlayRate; }
 
 	/** Gets the animation sequence length, not modified by play rate */
-	float GetSequenceLength() const { return Animation != nullptr ? Animation->SequenceLength : 0.f; }
+	float GetSequenceLength() const { return Animation != nullptr ? Animation->GetPlayLength() : 0.f; }
 
 	/** The animation this section plays */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Animation", meta=(AllowedClasses = "AnimSequence,AnimComposite,AnimStreamable"))

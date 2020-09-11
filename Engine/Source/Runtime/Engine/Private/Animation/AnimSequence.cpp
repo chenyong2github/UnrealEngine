@@ -129,7 +129,7 @@ void OnCVarsChanged()
 		const FCompressedAnimSequence& AnimData = Seq->CompressedData;
 		const FUECompressedAnimData& UEAnimData = AnimData.CompressedDataStructure;
 		const int32 Additive = Seq->IsValidAdditive() ? 1 : 0;
-		OutputMessage += FString::Printf(TEXT("%s - %.2f Fr:%i Add:%i TO:%i SO:%i CBS:%i\n"), *Seq->GetName(), Seq->SequenceLength, Seq->GetRawNumberOfFrames(), Additive, UEAnimData.CompressedTrackOffsets.Num(), UEAnimData.CompressedScaleOffsets.OffsetData.Num(), UEAnimData.CompressedByteStream.Num());
+		OutputMessage += FString::Printf(TEXT("%s - %.2f Fr:%i Add:%i TO:%i SO:%i CBS:%i\n"), *Seq->GetName(), Seq->GetPlayLength(), Seq->GetRawNumberOfFrames(), Additive, UEAnimData.CompressedTrackOffsets.Num(), UEAnimData.CompressedScaleOffsets.OffsetData.Num(), UEAnimData.CompressedByteStream.Num());
 		OutputMessage += FString::Printf(TEXT("\t K:%i (%i : %i : %i)\n"), (int32)UEAnimData.KeyEncodingFormat, (int32)UEAnimData.TranslationCompressionFormat, (int32)UEAnimData.RotationCompressionFormat, (int32)UEAnimData.ScaleCompressionFormat);
 		OutputMessage += FString::Printf(TEXT("\t Curve Codec:%s\n"), AnimData.CurveCompressionCodec ? *AnimData.CurveCompressionCodec->GetPathName() : TEXT("nullptr"));
 		OutputMessage += FString::Printf(TEXT("\t TrackOff:%s\n"), *GetArrayGuid<int32>(UEAnimData.CompressedTrackOffsets).ToString());
@@ -804,7 +804,7 @@ void UAnimSequence::Serialize(FArchive& Ar)
 bool UAnimSequence::IsValidToPlay() const
 {
 	// make sure sequence length is valid and raw animation data exists, and compressed
-	return ( SequenceLength > 0.f);
+	return (GetPlayLength() > 0.f);
 }
 #endif
 
@@ -813,7 +813,7 @@ void UAnimSequence::SortSyncMarkers()
 	// First make sure all SyncMarkers are within a valid range
 	for (auto& SyncMarker : AuthoredSyncMarkers)
 	{
-		SyncMarker.Time = FMath::Clamp(SyncMarker.Time, 0.f, SequenceLength);
+		SyncMarker.Time = FMath::Clamp(SyncMarker.Time, 0.f, GetPlayLength());
 	}
 
 	// Then sort
@@ -953,10 +953,10 @@ void UAnimSequence::PostLoad()
 	}
 	// @remove temp hack for fixing length
 	// @todo need to fix importer/editing feature
-	else if ( SequenceLength == 0.f )
+	else if (GetPlayLength() == 0.f )
 	{
 		ensure(NumFrames == 1);
-		SequenceLength = MINIMUM_ANIMATION_LENGTH;
+		SetSequenceLength(MINIMUM_ANIMATION_LENGTH);
 	}
 	// Raw data exists, but missing compress animation data
 	else if( GetSkeleton() && !IsCompressedDataValid()
@@ -1227,7 +1227,7 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, floa
 	// If the caller didn't request that raw animation data be used . . .
 	if ( !bUseRawData && IsCompressedDataValid() )
 	{
-		FAnimSequenceDecompressionContext DecompContext(SequenceLength, Interpolation, GetFName(), *CompressedData.CompressedDataStructure);
+		FAnimSequenceDecompressionContext DecompContext(GetPlayLength(), Interpolation, GetFName(), *CompressedData.CompressedDataStructure);
 		DecompContext.Seek(Time);
 		CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
 		return;
@@ -1290,7 +1290,7 @@ void UAnimSequence::ExtractBoneTransform(const struct FRawAnimSequenceTrack& Raw
 
 void UAnimSequence::ExtractBoneTransform(const struct FRawAnimSequenceTrack& RawTrack, FTransform& OutAtom, float Time) const
 {
-	FAnimationUtils::ExtractTransformFromTrack(Time, NumFrames, SequenceLength, RawTrack, Interpolation, OutAtom);
+	FAnimationUtils::ExtractTransformFromTrack(Time, NumFrames, GetPlayLength(), RawTrack, Interpolation, OutAtom);
 }
 
 void UAnimSequence::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const
@@ -1356,7 +1356,7 @@ FTransform UAnimSequence::ExtractRootMotion(float StartTime, float DeltaTime, bo
 		do
 		{
 			// Disable looping here. Advance to desired position, or beginning / end of animation 
-			const ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(false, DesiredDeltaMove, CurrentPosition, SequenceLength);
+			const ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(false, DesiredDeltaMove, CurrentPosition, GetPlayLength());
 
 			// Verify position assumptions
 			ensureMsgf(bPlayingBackwards ? (CurrentPosition <= PreviousPosition) : (CurrentPosition >= PreviousPosition), TEXT("in Animation %s(Skeleton %s) : bPlayingBackwards(%d), PreviousPosition(%0.2f), Current Position(%0.2f)"),
@@ -1370,7 +1370,7 @@ FTransform UAnimSequence::ExtractRootMotion(float StartTime, float DeltaTime, bo
 				const float ActualDeltaMove = (CurrentPosition - PreviousPosition);
 				DesiredDeltaMove -= ActualDeltaMove;
 
-				PreviousPosition = bPlayingBackwards ? SequenceLength : 0.f;
+				PreviousPosition = bPlayingBackwards ? GetPlayLength() : 0.f;
 				CurrentPosition = PreviousPosition;
 			}
 			else
@@ -1603,7 +1603,7 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 			}
 		}
 
-		BuildPoseFromRawData(AnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, SequenceLength, RetargetSource, &ActiveBoneCurves);
+		BuildPoseFromRawData(AnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, GetPlayLength(), RetargetSource, &ActiveBoneCurves);
 
 		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
 		{
@@ -1613,7 +1613,7 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 	}
 #endif // WITH_EDITOR
 
-	DecompressPose(OutPose, CompressedData, ExtractionContext, GetSkeleton(), SequenceLength, Interpolation, bIsBakedAdditive, RetargetSource, GetFName(), RootMotionReset);
+	DecompressPose(OutPose, CompressedData, ExtractionContext, GetSkeleton(), GetPlayLength(), Interpolation, bIsBakedAdditive, RetargetSource, GetFName(), RootMotionReset);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1716,8 +1716,8 @@ void UAnimSequence::GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& Ou
 		case ABPT_AnimScaled:
 		{
 			// normalize time to fit base seq
-			const float Fraction = (SequenceLength > 0.f)? FMath::Clamp<float>(ExtractionContext.CurrentTime / SequenceLength, 0.f, 1.f) : 0.f;
-			const float BasePoseTime = RefPoseSeq->SequenceLength * Fraction;
+			const float Fraction = (GetPlayLength() > 0.f)? FMath::Clamp<float>(ExtractionContext.CurrentTime / GetPlayLength(), 0.f, 1.f) : 0.f;
+			const float BasePoseTime = RefPoseSeq->GetPlayLength() * Fraction;
 
 			FAnimExtractContext BasePoseExtractionContext(ExtractionContext);
 			BasePoseExtractionContext.CurrentTime = BasePoseTime;
@@ -1728,7 +1728,7 @@ void UAnimSequence::GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& Ou
 		case ABPT_AnimFrame:
 		{
 			const float Fraction = (RefPoseSeq->NumFrames > 0) ? FMath::Clamp<float>((float)RefFrameIndex / (float)RefPoseSeq->NumFrames, 0.f, 1.f) : 0.f;
-			const float BasePoseTime = RefPoseSeq->SequenceLength * Fraction;
+			const float BasePoseTime = RefPoseSeq->GetPlayLength() * Fraction;
 
 			FAnimExtractContext BasePoseExtractionContext(ExtractionContext);
 			BasePoseExtractionContext.CurrentTime = BasePoseTime;
@@ -1818,15 +1818,15 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 	check (StartFrame < EndFrame);
 
 	int32 OldNumFrames = NumFrames;
-	float OldSequenceLength = SequenceLength;
+	float OldSequenceLength = GetPlayLength();
 
 	// verify condition
 	NumFrames = NewNumFrames;
 	// Update sequence length to match new number of frames.
-	SequenceLength = NewLength;
+	SetSequenceLength(NewLength);
 
 	float Interval = OldSequenceLength / OldNumFrames;
-	ensure (Interval == SequenceLength/NumFrames);
+	ensure (Interval == GetPlayLength()/NumFrames);
 
 	float OldStartTime = StartFrame * Interval;
 	float OldEndTime = EndFrame * Interval;
@@ -1896,7 +1896,7 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 			}
 		}
 
-		float ClampedCurrentTime = FMath::Clamp(CurrentTime, 0.f, SequenceLength);
+		float ClampedCurrentTime = FMath::Clamp(CurrentTime, 0.f, GetPlayLength());
 		Notify.LinkSequence(this, ClampedCurrentTime);
 		Notify.SetDuration(NewDuration);
 
@@ -1904,7 +1904,7 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 		{
 			Notify.TriggerTimeOffset = GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::OffsetAfter);
 		}
-		else if (ClampedCurrentTime == SequenceLength)
+		else if (ClampedCurrentTime == GetPlayLength())
 		{
 			Notify.TriggerTimeOffset = GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::OffsetBefore);
 		}
@@ -1933,7 +1933,7 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 				CurrentTime -= Duration;
 			}
 		}
-		Marker.Time = FMath::Clamp(CurrentTime, 0.f, SequenceLength);
+		Marker.Time = FMath::Clamp(CurrentTime, 0.f, GetPlayLength());
 	}
 	// resize curves
 	RawCurveData.Resize(NewLength, bInsert, OldStartTime, OldEndTime);
@@ -1979,12 +1979,12 @@ bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame,
 			}
 		}
 
-		float const FrameTime = SequenceLength / ((float)NumFrames);
+		float const FrameTime = GetPlayLength() / ((float)NumFrames);
 
 		int32 NewNumFrames = NumFrames + NumFramesToInsert;
 		ResizeSequence((float)NewNumFrames * FrameTime, NewNumFrames, true, StartFrame, EndFrame);
 
-		UE_LOG(LogAnimation, Log, TEXT("\tSequenceLength: %f, NumFrames: %d"), SequenceLength, NumFrames);
+		UE_LOG(LogAnimation, Log, TEXT("\tGetPlayLength(): %f, NumFrames: %d"), GetPlayLength(), NumFrames);
 		
 		MarkRawDataAsModified();
 		MarkPackageDirty();
@@ -1998,7 +1998,7 @@ bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame,
 bool UAnimSequence::CropRawAnimData( float CurrentTime, bool bFromStart )
 {
 	// Length of one frame.
-	float const FrameTime = SequenceLength / ((float)NumFrames);
+	float const FrameTime = GetPlayLength() / ((float)NumFrames);
 	// Save Total Number of Frames before crop
 	int32 TotalNumOfFrames = NumFrames;
 
@@ -2014,7 +2014,7 @@ bool UAnimSequence::CropRawAnimData( float CurrentTime, bool bFromStart )
 	// causing if you were in below position, it will still crop 1 frame. 
 	// To be clearer, it seems better if we reject those inputs. 
 	// If you're a bit before/after, we assume that you'd like to crop
-	if ( CurrentTime == 0.f || CurrentTime == SequenceLength )
+	if ( CurrentTime == 0.f || CurrentTime == GetPlayLength() )
 	{
 		return false;
 	}
@@ -2022,8 +2022,8 @@ bool UAnimSequence::CropRawAnimData( float CurrentTime, bool bFromStart )
 	// Find the right key to cut at.
 	// This assumes that all keys are equally spaced (ie. won't work if we have dropped unimportant frames etc).
 	// The reason I'm changing to TotalNumOfFrames is CT/SL = KeyIndexWithFraction/TotalNumOfFrames
-	// To play TotalNumOfFrames, it takes SequenceLength. Each key will take SequenceLength/TotalNumOfFrames
-	float const KeyIndexWithFraction = (CurrentTime * (float)(TotalNumOfFrames)) / SequenceLength;
+	// To play TotalNumOfFrames, it takes GetPlayLength(). Each key will take GetPlayLength()/TotalNumOfFrames
+	float const KeyIndexWithFraction = (CurrentTime * (float)(TotalNumOfFrames)) / GetPlayLength();
 	int32 KeyIndex = bFromStart ? FMath::FloorToInt(KeyIndexWithFraction) : FMath::CeilToInt(KeyIndexWithFraction);
 	// Ensure KeyIndex is in range.
 	KeyIndex = FMath::Clamp<int32>(KeyIndex, 1, TotalNumOfFrames-1); 
@@ -2054,7 +2054,7 @@ bool UAnimSequence::CropRawAnimData( float CurrentTime, bool bFromStart )
 	// Update sequence length to match new number of frames.
 	ResizeSequence((float)NewNumFrames * FrameTime, NewNumFrames, false, StartKey, StartKey+NumKeys);
 
-	UE_LOG(LogAnimation, Log, TEXT("\tSequenceLength: %f, NumFrames: %d"), SequenceLength, NumFrames);
+	UE_LOG(LogAnimation, Log, TEXT("\tGetPlayLength(): %f, NumFrames: %d"), GetPlayLength(), NumFrames);
 
 	MarkRawDataAsModified();
 	OnRawDataChanged();
@@ -2402,11 +2402,11 @@ public:
 	TArray<FBoneIndexType> RequiredBoneIndexArray;
 
 	FByFramePoseEvalContext(const UAnimSequence* InAnimToEval)
-		: FByFramePoseEvalContext(InAnimToEval->SequenceLength, InAnimToEval->GetRawNumberOfFrames(), InAnimToEval->GetSkeleton())
+		: FByFramePoseEvalContext(InAnimToEval->GetPlayLength(), InAnimToEval->GetRawNumberOfFrames(), InAnimToEval->GetSkeleton())
 	{}
 		
-	FByFramePoseEvalContext(float InSequenceLength, int32 InRawNumOfFrames, USkeleton* InSkeleton)
-		: IntervalTime(InSequenceLength / ((float)InRawNumOfFrames - 1))
+	FByFramePoseEvalContext(float SequenceLength, int32 InRawNumOfFrames, USkeleton* InSkeleton)
+		: IntervalTime(SequenceLength / ((float)InRawNumOfFrames - 1))
 	{
 		// Initialize RequiredBones for pose evaluation
 		RequiredBones.SetUseRAWData(true);
@@ -2773,13 +2773,13 @@ bool UAnimSequence::CopyNotifies(UAnimSequence* SourceAnimSeq, UAnimSequence* De
 	// If the destination sequence is shorter than the source sequence, we'll be dropping notifies that
 	// occur at later times than the dest sequence is long.  Give the user a chance to abort if we
 	// find any notifies that won't be copied over.
-	if(bShowDialogs && DestAnimSeq->SequenceLength < SourceAnimSeq->SequenceLength)
+	if(bShowDialogs && DestAnimSeq->GetPlayLength() < SourceAnimSeq->GetPlayLength())
 	{
 		for(int32 NotifyIndex=0; NotifyIndex<SourceAnimSeq->Notifies.Num(); ++NotifyIndex)
 		{
 			// If a notify is found which occurs off the end of the destination sequence, prompt the user to continue.
 			const FAnimNotifyEvent& SrcNotifyEvent = SourceAnimSeq->Notifies[NotifyIndex];
-			if( SrcNotifyEvent.GetTriggerTime() > DestAnimSeq->SequenceLength )
+			if( SrcNotifyEvent.GetTriggerTime() > DestAnimSeq->GetPlayLength() )
 			{
 				const bool bProceed = EAppReturnType::Yes == FMessageDialog::Open( EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "SomeNotifiesWillNotBeCopiedQ", "Some notifies will not be copied because the destination sequence is not long enough.  Proceed?") );
 				if( !bProceed )
@@ -2815,7 +2815,7 @@ bool UAnimSequence::CopyNotifies(UAnimSequence* SourceAnimSeq, UAnimSequence* De
 		const FAnimNotifyEvent& SrcNotifyEvent = SourceAnimSeq->Notifies[NotifyIndex];
 
 		// Skip notifies which occur at times later than the destination sequence is long.
-		if( SrcNotifyEvent.GetTriggerTime() > DestAnimSeq->SequenceLength )
+		if( SrcNotifyEvent.GetTriggerTime() > DestAnimSeq->GetPlayLength() )
 		{
 			++NumNotifiesThatWereNotCopied;
 			continue;
@@ -3116,7 +3116,7 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 			ConvertedLocalSpaceAnimations.AddZeroed(SrcNumTracks);
 
 			int32 NumKeys = NumFrames;
-			float Interval = GetIntervalPerKey(NumFrames, SequenceLength);
+			float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
 
 			// allocate arrays
 			for(int32 SrcTrackIndex=0; SrcTrackIndex<SrcNumTracks; ++SrcTrackIndex)
@@ -3340,7 +3340,7 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 			ConvertedSpaceBases.AddZeroed(NumBones);
 
 			int32 NumKeys = NumFrames;
-			float Interval = GetIntervalPerKey(NumFrames, SequenceLength);
+			float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
 
 			// allocate arrays
 			for(int32 BoneIndex=0; BoneIndex<NumBones; ++BoneIndex)
@@ -3727,7 +3727,7 @@ void UAnimSequence::ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnim
 bool UAnimSequence::AddLoopingInterpolation()
 {
 	int32 NumTracks = AnimationTrackNames.Num();
-	float Interval = GetIntervalPerKey(NumFrames, SequenceLength);
+	float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
 
 	if(NumFrames > 0)
 	{
@@ -3757,7 +3757,7 @@ bool UAnimSequence::AddLoopingInterpolation()
 			}
 		}
 
-		SequenceLength += Interval;
+		SetSequenceLength(GetPlayLength() + Interval);
 		NumFrames = NewNumKeys;
 
 		PostProcessSequence();
@@ -3787,7 +3787,7 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 
 	// 2d array of animated time [boneindex][time key]
 	int32 NumKeys = NumFrames;
-	float Interval = GetIntervalPerKey(NumFrames, SequenceLength);
+	float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
 
 	// allocate arrays
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
@@ -4413,7 +4413,7 @@ void UAnimSequence::ResetAnimation()
 {
 	// clear everything. Making new animation, so need to reset all the things that belong here
 	NumFrames = 0;
-	SequenceLength = 0.f;
+	SetSequenceLength(0.f);
 	RawAnimationData.Empty();
 	AnimationTrackNames.Empty();
 	TrackToSkeletonMapTable.Empty();
@@ -4473,7 +4473,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMesh* Mesh)
 		ResetAnimation();
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		SequenceLength = MINIMUM_ANIMATION_LENGTH;
+		SetSequenceLength(MINIMUM_ANIMATION_LENGTH);
 		NumFrames = 1;
 
 		const int32 NumBones = RefSkeleton.GetRawBoneNum();
@@ -4515,7 +4515,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMeshComponent* MeshComponent)
 		ResetAnimation();
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		SequenceLength = MINIMUM_ANIMATION_LENGTH;
+		SetSequenceLength(MINIMUM_ANIMATION_LENGTH);
 		NumFrames = 1;
 
 		const int32 NumBones = RefSkeleton.GetRawBoneNum();
@@ -4554,7 +4554,7 @@ bool UAnimSequence::CreateAnimation(UAnimSequence* Sequence)
 	{
 		ResetAnimation();
 
-		SequenceLength = Sequence->SequenceLength;
+		SetSequenceLength(Sequence->GetPlayLength());
 		NumFrames = Sequence->NumFrames;
 
 		RawAnimationData = Sequence->RawAnimationData;
@@ -4708,9 +4708,9 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 	float MarkerTimeOffset = 0.f;
 
 	// Hard to reproduce issue triggering this, ensure & clamp for now
-	ensureMsgf(CurrentTime >= 0.f && CurrentTime <= SequenceLength, TEXT("Current time inside of AdvanceMarkerPhaseAsLeader is out of range %.3f of 0.0 to %.3f\n    Sequence: %s"), CurrentTime, SequenceLength, *GetFullName());
+	ensureMsgf(CurrentTime >= 0.f && CurrentTime <= GetPlayLength(), TEXT("Current time inside of AdvanceMarkerPhaseAsLeader is out of range %.3f of 0.0 to %.3f\n    Sequence: %s"), CurrentTime, GetPlayLength(), *GetFullName());
 
-	CurrentTime = FMath::Clamp(CurrentTime, 0.f, SequenceLength);
+	CurrentTime = FMath::Clamp(CurrentTime, 0.f, GetPlayLength());
 
 	if (bPlayingForwards)
 	{
@@ -4719,8 +4719,8 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 			if (NextMarker.MarkerIndex == -1)
 			{
 				float PrevCurrentTime = CurrentTime;
-				CurrentTime = FMath::Min(CurrentTime + CurrentMoveDelta, SequenceLength);
-				NextMarker.TimeToMarker = SequenceLength - CurrentTime;
+				CurrentTime = FMath::Min(CurrentTime + CurrentMoveDelta, GetPlayLength());
+				NextMarker.TimeToMarker = GetPlayLength() - CurrentTime;
 				PrevMarker.TimeToMarker -= CurrentTime - PrevCurrentTime; //Add how far we moved to distance from previous marker
 				break;
 			}
@@ -4731,7 +4731,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				bOffsetInitialized = true;
 				if (NextSyncMarker.Time < CurrentTime)
 				{
-					MarkerTimeOffset = SequenceLength;
+					MarkerTimeOffset = GetPlayLength();
 				}
 			}
 
@@ -4760,7 +4760,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 							break;
 						}
 						NextMarker.MarkerIndex = 0;
-						MarkerTimeOffset += SequenceLength;
+						MarkerTimeOffset += GetPlayLength();
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName));
 				if (NextMarker.MarkerIndex != -1)
@@ -4770,10 +4770,10 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 			}
 			else
 			{
-				CurrentTime = FMath::Fmod(CurrentTime + CurrentMoveDelta, SequenceLength);
+				CurrentTime = FMath::Fmod(CurrentTime + CurrentMoveDelta, GetPlayLength());
 				if (CurrentTime < 0.f)
 				{
-					CurrentTime += SequenceLength;
+					CurrentTime += GetPlayLength();
 				}
 				NextMarker.TimeToMarker = TimeToMarker - CurrentMoveDelta;
 				PrevMarker.TimeToMarker -= CurrentMoveDelta;
@@ -4800,7 +4800,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				bOffsetInitialized = true;
 				if (PrevSyncMarker.Time > CurrentTime)
 				{
-					MarkerTimeOffset = -SequenceLength;
+					MarkerTimeOffset = -GetPlayLength();
 				}
 			}
 
@@ -4829,7 +4829,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 							break;
 						}
 						PrevMarker.MarkerIndex = AuthoredSyncMarkers.Num() - 1;
-						MarkerTimeOffset -= SequenceLength;
+						MarkerTimeOffset -= GetPlayLength();
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[PrevMarker.MarkerIndex].MarkerName));
 				if (PrevMarker.MarkerIndex != -1)
@@ -4839,10 +4839,10 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 			}
 			else
 			{
-				CurrentTime = FMath::Fmod(CurrentTime + CurrentMoveDelta, SequenceLength);
+				CurrentTime = FMath::Fmod(CurrentTime + CurrentMoveDelta, GetPlayLength());
 				if (CurrentTime < 0.f)
 				{
-					CurrentTime += SequenceLength;
+					CurrentTime += GetPlayLength();
 				}
 				PrevMarker.TimeToMarker = TimeToMarker - CurrentMoveDelta;
 				NextMarker.TimeToMarker -= CurrentMoveDelta;
@@ -4851,7 +4851,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 		}
 	}
 
-	check(CurrentTime >= 0.f && CurrentTime <= SequenceLength);
+	check(CurrentTime >= 0.f && CurrentTime <= GetPlayLength());
 }
 
 void AdvanceMarkerForwards(int32& Marker, FName MarkerToFind, bool bLooping, const TArray<FAnimSyncMarker>& AuthoredSyncMarkers)
@@ -4973,7 +4973,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsFollower(const FMarkerTickContext& Conte
 			if (NextMarker.MarkerIndex == -1)
 			{
 				check(!bLooping || Context.GetMarkerSyncEndPosition().NextMarkerName == NAME_None); // shouldnt have an end of anim marker if looping
-				CurrentTime = FMath::Min(CurrentTime + DeltaRemaining, SequenceLength);
+				CurrentTime = FMath::Min(CurrentTime + DeltaRemaining, GetPlayLength());
 				break;
 			}
 			else if (PassedMarkersIndex < Context.MarkersPassedThisTick.Num())
@@ -5075,11 +5075,11 @@ void UAnimSequence::GetMarkerIndicesForTime(float CurrentTime, bool bLooping, co
 	OutPrevMarker.MarkerIndex = -1;
 	OutPrevMarker.TimeToMarker = -CurrentTime;
 	OutNextMarker.MarkerIndex = -1;
-	OutNextMarker.TimeToMarker = SequenceLength - CurrentTime;
+	OutNextMarker.TimeToMarker = GetPlayLength() - CurrentTime;
 
 	for (int32 LoopMod = LoopModStart; LoopMod < LoopModEnd; ++LoopMod)
 	{
-		const float LoopModTime = LoopMod * SequenceLength;
+		const float LoopModTime = LoopMod * GetPlayLength();
 		for (int Idx = 0; Idx < AuthoredSyncMarkers.Num(); ++Idx)
 		{
 			const FAnimSyncMarker& Marker = AuthoredSyncMarkers[Idx];
@@ -5130,23 +5130,23 @@ FMarkerSyncAnimPosition UAnimSequence::GetMarkerSyncPositionfromMarkerIndicies(i
 	}
 	else
 	{
-		NextTime = SequenceLength;
+		NextTime = GetPlayLength();
 	}
 
 	// Account for looping
 	if(PrevTime > NextTime)
 	{
-		PrevTime = (PrevTime > CurrentTime) ? PrevTime - SequenceLength : PrevTime;
-		NextTime = (NextTime < CurrentTime) ? NextTime + SequenceLength : NextTime;
+		PrevTime = (PrevTime > CurrentTime) ? PrevTime - GetPlayLength() : PrevTime;
+		NextTime = (NextTime < CurrentTime) ? NextTime + GetPlayLength() : NextTime;
 	}
 	else if (PrevTime > CurrentTime)
 	{
-		CurrentTime += SequenceLength;
+		CurrentTime += GetPlayLength();
 	}
 
 	if (PrevTime == NextTime)
 	{
-		PrevTime -= SequenceLength;
+		PrevTime -= GetPlayLength();
 	}
 
 	check(NextTime > PrevTime);
@@ -5158,18 +5158,18 @@ FMarkerSyncAnimPosition UAnimSequence::GetMarkerSyncPositionfromMarkerIndicies(i
 float UAnimSequence::GetCurrentTimeFromMarkers(FMarkerPair& PrevMarker, FMarkerPair& NextMarker, float PositionBetweenMarkers) const
 {
 	float PrevTime = (PrevMarker.MarkerIndex != -1) ? AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time : 0.f;
-	float NextTime = (NextMarker.MarkerIndex != -1) ? AuthoredSyncMarkers[NextMarker.MarkerIndex].Time : SequenceLength;
+	float NextTime = (NextMarker.MarkerIndex != -1) ? AuthoredSyncMarkers[NextMarker.MarkerIndex].Time : GetPlayLength();
 
 	if (PrevTime >= NextTime)
 	{
-		PrevTime -= SequenceLength; //Account for looping
+		PrevTime -= GetPlayLength(); //Account for looping
 	}
 	float CurrentTime = PrevTime + PositionBetweenMarkers * (NextTime - PrevTime);
 	if (CurrentTime < 0.f)
 	{
-		CurrentTime += SequenceLength;
+		CurrentTime += GetPlayLength();
 	}
-	CurrentTime = FMath::Clamp<float>(CurrentTime, 0, SequenceLength);
+	CurrentTime = FMath::Clamp<float>(CurrentTime, 0, GetPlayLength());
 
 	PrevMarker.TimeToMarker = PrevTime - CurrentTime;
 	NextMarker.TimeToMarker = NextTime - CurrentTime;
@@ -5202,7 +5202,7 @@ void UAnimSequence::GetMarkerIndicesForPosition(const FMarkerSyncAnimPosition& S
 			}
 		}
 
-		ensureMsgf(OutCurrentTime >= 0.f && OutCurrentTime <= SequenceLength, TEXT("Current time inside of GetMarkerIndicesForPosition is out of range %.3f of 0.0 to %.3f\n    Sequence: %s"), OutCurrentTime, SequenceLength, *GetFullName());
+		ensureMsgf(OutCurrentTime >= 0.f && OutCurrentTime <= GetPlayLength(), TEXT("Current time inside of GetMarkerIndicesForPosition is out of range %.3f of 0.0 to %.3f\n    Sequence: %s"), OutCurrentTime, GetPlayLength(), *GetFullName());
 		return;
 	}
 
@@ -5264,12 +5264,12 @@ void UAnimSequence::GetMarkerIndicesForPosition(const FMarkerSyncAnimPosition& S
 					float NextMarkerTime = AuthoredSyncMarkers[NextMarkerIdx].Time;
 					if (NextMarkerTime < PrevMarker.Time)
 					{
-						NextMarkerTime += SequenceLength;
+						NextMarkerTime += GetPlayLength();
 					}
 					float ThisCurrentTime = PrevMarker.Time + SyncPosition.PositionBetweenMarkers * (NextMarkerTime - PrevMarker.Time);
-					if (ThisCurrentTime > SequenceLength)
+					if (ThisCurrentTime > GetPlayLength())
 					{
-						ThisCurrentTime -= SequenceLength;
+						ThisCurrentTime -= GetPlayLength();
 					}
 					float ThisDiff = FMath::Abs(ThisCurrentTime - CurrentInputTime);
 					if (ThisDiff < DiffToCurrentTime)

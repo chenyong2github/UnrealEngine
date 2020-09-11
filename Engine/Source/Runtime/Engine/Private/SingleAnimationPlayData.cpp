@@ -32,7 +32,7 @@ void FSingleAnimationPlayData::ValidatePosition()
 		UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(AnimToPlay);
 		if (SequenceBase)
 		{
-			Max = SequenceBase->SequenceLength;
+			Max = SequenceBase->GetPlayLength();
 		}
 	}
 

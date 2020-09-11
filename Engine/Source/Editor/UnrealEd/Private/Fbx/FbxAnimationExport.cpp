@@ -25,13 +25,13 @@ namespace UnFbx
 
 	bool FFbxExporter::SetupAnimStack(const UAnimSequence* AnimSeq)
 	{
-		if (AnimSeq->SequenceLength == 0.f)
+		if (AnimSeq->GetPlayLength() == 0.f)
 		{
 			// something is wrong
 			return false;
 		}
 
-		const float FrameRate = FMath::TruncToFloat(((AnimSeq->GetRawNumberOfFrames() - 1) / AnimSeq->SequenceLength) + 0.5f);
+		const float FrameRate = FMath::TruncToFloat(((AnimSeq->GetRawNumberOfFrames() - 1) / AnimSeq->GetPlayLength()) + 0.5f);
 		//Configure the scene time line
 		{
 			FbxGlobalSettings& SceneGlobalSettings = Scene->GetGlobalSettings();
@@ -52,7 +52,7 @@ namespace UnFbx
 		// set time correctly
 		FbxTime ExportedStartTime, ExportedStopTime;
 		ExportedStartTime.SetSecondDouble(0.f);
-		ExportedStopTime.SetSecondDouble(AnimSeq->SequenceLength);
+		ExportedStopTime.SetSecondDouble(AnimSeq->GetPlayLength());
 
 		FbxTimeSpan ExportedTimeSpan;
 		ExportedTimeSpan.Set(ExportedStartTime, ExportedStopTime);
@@ -249,9 +249,9 @@ void FFbxExporter::ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>&
 void FFbxExporter::IterateInsideAnimSequence(const UAnimSequence* AnimSeq, float AnimStartOffset, float AnimEndOffset, float AnimPlayRate, float StartTime, TFunctionRef<void(float, FbxTime, bool)> IterationLambda)
 {
 	float AnimTime = AnimStartOffset;
-	float AnimEndTime = (AnimSeq->SequenceLength - AnimEndOffset);
+	float AnimEndTime = (AnimSeq->GetPlayLength() - AnimEndOffset);
 	// Subtracts 1 because NumFrames includes an initial pose for 0.0 second
-	double TimePerKey = (AnimSeq->SequenceLength / (AnimSeq->GetRawNumberOfFrames() - 1));
+	double TimePerKey = (AnimSeq->GetPlayLength() / (AnimSeq->GetRawNumberOfFrames() - 1));
 	const float AnimTimeIncrement = TimePerKey * AnimPlayRate;
 	uint32 AnimFrameIndex = 0;
 

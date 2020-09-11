@@ -275,7 +275,7 @@ void UAnimStreamable::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& Out
 			}
 		}
 
-		BuildPoseFromRawData(RawAnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, SequenceLength, RetargetSource);
+		BuildPoseFromRawData(RawAnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, GetPlayLength(), RetargetSource);
 
 		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
 		{
@@ -442,7 +442,7 @@ void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 	AnimationTrackNames = InSourceSequence->GetAnimationTrackNames();
 	
 	NumFrames = InSourceSequence->GetNumberOfFrames();
-	SequenceLength = InSourceSequence->SequenceLength;
+	SetSequenceLength(InSourceSequence->GetPlayLength());
 	
 	RateScale = InSourceSequence->RateScale;
 
@@ -534,7 +534,7 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 	if (!Platform->IsServerOnly() && ChunkSizeSeconds > 0.f) // <= 0.f signifies to not chunk & don't have chunks on a server
 	{
 		ChunkSizeSeconds = FMath::Max(ChunkSizeSeconds, MINIMUM_CHUNK_SIZE);
-		const int32 InitialNumChunks = FMath::FloorToInt(SequenceLength / ChunkSizeSeconds);
+		const int32 InitialNumChunks = FMath::FloorToInt(GetPlayLength() / ChunkSizeSeconds);
 		NumChunks = FMath::Max(InitialNumChunks, 1);
 	}
 
@@ -620,7 +620,7 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 		const bool bSkipDDC = false;
 
 		const int32 ChunkNumFrames = FrameEnd - FrameStart;
-		const float FrameLength = SequenceLength / (float)(NumFrames - 1);
+		const float FrameLength = GetPlayLength() / (float)(NumFrames - 1);
 		Chunk.StartTime = FrameStart * FrameLength;
 		Chunk.SequenceLength = ChunkNumFrames * FrameLength;
 

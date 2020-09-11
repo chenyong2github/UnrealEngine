@@ -39,14 +39,14 @@ void FAnimLinkableElement::LinkMontage(UAnimMontage* Montage, float AbsMontageTi
 
 void FAnimLinkableElement::LinkSequence(UAnimSequenceBase* Sequence, float AbsSequenceTime)
 {
-	if(Sequence && Sequence->SequenceLength > 0)
+	if(Sequence && Sequence->GetPlayLength() > 0)
 	{
 		LinkedMontage = nullptr;
 		LinkedSequence = Sequence;
 		SegmentIndex = 0;
 
 		SegmentBeginTime = 0.0f;
-		SegmentLength = Sequence->SequenceLength;
+		SegmentLength = Sequence->GetPlayLength();
 
 		SetTime(AbsSequenceTime);
 	}

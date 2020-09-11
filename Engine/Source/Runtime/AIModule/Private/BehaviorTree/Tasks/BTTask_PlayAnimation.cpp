@@ -50,7 +50,7 @@ EBTNodeResult::Type UBTTask_PlayAnimation::ExecuteTask(UBehaviorTreeComponent& O
 			CachedSkelMesh = SkelMesh;
 
 			SkelMesh->PlayAnimation(AnimationToPlay, bLooping);
-			const float FinishDelay = AnimationToPlay->GetMaxCurrentTime();
+			const float FinishDelay = AnimationToPlay->GetPlayLength();
 
 			if (bNonBlocking == false && FinishDelay > 0)
 			{

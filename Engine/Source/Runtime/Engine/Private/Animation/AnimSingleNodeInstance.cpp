@@ -390,7 +390,7 @@ float UAnimSingleNodeInstance::GetLength()
 		}
 		else if (UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(CurrentAsset))
 		{
-			return SequenceBase->SequenceLength;
+			return SequenceBase->GetPlayLength();
 		}
 	}
 
@@ -402,13 +402,13 @@ void UAnimSingleNodeInstance::StepForward()
 	if (UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(CurrentAsset))
 	{
 		FAnimSingleNodeInstanceProxy& Proxy = GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>();
-		const FAnimKeyHelper Helper(Sequence->SequenceLength, Sequence->GetNumberOfFrames());
+		const FAnimKeyHelper Helper(Sequence->GetPlayLength(), Sequence->GetNumberOfFrames());
 		float KeyLength = Helper.TimePerKey() + SMALL_NUMBER;
-		float Fraction = (Proxy.GetCurrentTime()+KeyLength)/Sequence->SequenceLength;
+		float Fraction = (Proxy.GetCurrentTime()+KeyLength)/Sequence->GetPlayLength();
 		int32 Frames = (float)Helper.LastKey() * Fraction;
 		if (IsLooping())
 		{
-			int32 PreviousFrame = (float)Helper.LastKey() * (Proxy.GetCurrentTime() / Sequence->SequenceLength);
+			int32 PreviousFrame = (float)Helper.LastKey() * (Proxy.GetCurrentTime() / Sequence->GetPlayLength());
 			Frames = (PreviousFrame == Helper.LastKey()) ? 0 : Frames;
 		}
 		else
@@ -425,9 +425,9 @@ void UAnimSingleNodeInstance::StepBackward()
 	{
 		FAnimSingleNodeInstanceProxy& Proxy = GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>();
 
-		const FAnimKeyHelper Helper(Sequence->SequenceLength, Sequence->GetNumberOfFrames());
+		const FAnimKeyHelper Helper(Sequence->GetPlayLength(), Sequence->GetNumberOfFrames());
 		float KeyLength = Helper.TimePerKey() + SMALL_NUMBER;
-		float Fraction = (Proxy.GetCurrentTime()-KeyLength)/Sequence->SequenceLength;
+		float Fraction = (Proxy.GetCurrentTime()-KeyLength)/Sequence->GetPlayLength();
 		int32 Frames = (float)Helper.LastKey() * Fraction;
 		if (IsLooping())
 		{

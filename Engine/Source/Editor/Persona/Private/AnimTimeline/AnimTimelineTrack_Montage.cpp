@@ -361,7 +361,7 @@ class SMontageSections : public SLeafWidget
 							SNew(SNumericEntryBox<float>)
 							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.MinValue(0.0f)
-							.MaxValue(AnimMontage->SequenceLength)
+							.MaxValue(AnimMontage->GetPlayLength())
 							.Value(Section.GetTime())
 							.AllowSpin(true)
 							.OnValueCommitted_Lambda([this, SectionIndex](float InValue, ETextCommit::Type InCommitType)
@@ -398,7 +398,7 @@ class SMontageSections : public SLeafWidget
 							{
 								if (AnimMontage->CompositeSections.IsValidIndex(SectionIndex))
 								{
-									float NewTime = FMath::Clamp(AnimMontage->GetTimeAtFrame(InValue), 0.0f, AnimMontage->SequenceLength);
+									float NewTime = FMath::Clamp(AnimMontage->GetTimeAtFrame(InValue), 0.0f, AnimMontage->GetPlayLength());
 									WeakModel.Pin()->GetMontagePanel()->GetAnimMontagePanel()->SetSectionTime(SectionIndex, NewTime);
 								}
 

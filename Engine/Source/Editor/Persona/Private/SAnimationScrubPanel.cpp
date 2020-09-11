@@ -353,7 +353,7 @@ float SAnimationScrubPanel::GetSequenceLength() const
 	}
 	else if (LockedSequence)
 	{
-		return LockedSequence->SequenceLength;
+		return LockedSequence->GetPlayLength();
 	}
 	else
 	{
@@ -480,7 +480,7 @@ void SAnimationScrubPanel::OnCropAnimSequence( bool bFromStart, float CurrentTim
 				//Resetting slider position to the first frame
 				PreviewInstance->SetPosition( 0.0f, false );
 
-				OnSetInputViewRange.ExecuteIfBound(0, AnimSequence->SequenceLength);
+				OnSetInputViewRange.ExecuteIfBound(0, AnimSequence->GetPlayLength());
 			}
 		}
 	}
@@ -508,7 +508,7 @@ void SAnimationScrubPanel::OnAppendAnimSequence( bool bFromStart, int32 NumOfFra
 			int32 CopyFrame = StartFrame;
 			AnimSequence->InsertFramesToRawAnimData(StartFrame, EndFrame, CopyFrame);
 
-			OnSetInputViewRange.ExecuteIfBound(0, AnimSequence->SequenceLength);
+			OnSetInputViewRange.ExecuteIfBound(0, AnimSequence->GetPlayLength());
 		}
 	}
 }
@@ -534,7 +534,7 @@ void SAnimationScrubPanel::OnInsertAnimSequence( bool bBefore, int32 CurrentFram
 			int32 EndFrame = StartFrame + 1;
 			AnimSequence->InsertFramesToRawAnimData(StartFrame, EndFrame, CurrentFrame);
 
-			OnSetInputViewRange.ExecuteIfBound(0, AnimSequence->SequenceLength);
+			OnSetInputViewRange.ExecuteIfBound(0, AnimSequence->GetPlayLength());
 		}
 	}
 }

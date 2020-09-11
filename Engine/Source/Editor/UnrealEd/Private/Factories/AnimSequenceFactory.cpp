@@ -70,7 +70,7 @@ UObject* UAnimSequenceFactory::FactoryCreateNew(UClass* Class, UObject* InParent
 	UAnimSequence* AnimSequence = NewObject<UAnimSequence>(InParent, Class, Name, Flags);
 
 	// @todo I think this will crash, we should support differentoptions
-	AnimSequence->SequenceLength = 0.f;
+	AnimSequence->SetSequenceLength(0.f);
 	AnimSequence->SetRawNumberOfFrame(0);
 	
 	if (TargetSkeleton)

@@ -11,7 +11,7 @@ float FAnimNode_SequenceEvaluator::GetCurrentAssetTime()
 
 float FAnimNode_SequenceEvaluator::GetCurrentAssetLength()
 {
-	return Sequence ? Sequence->SequenceLength : 0.0f;
+	return Sequence ? Sequence->GetPlayLength() : 0.0f;
 }
 
 /////////////////////////////////////////////////////
@@ -36,7 +36,7 @@ void FAnimNode_SequenceEvaluator::UpdateAssetPlayer(const FAnimationUpdateContex
 	if (Sequence)
 	{
 		// Clamp input to a valid position on this sequence's time line.
-		ExplicitTime = FMath::Clamp(ExplicitTime, 0.f, Sequence->SequenceLength);
+		ExplicitTime = FMath::Clamp(ExplicitTime, 0.f, Sequence->GetPlayLength());
 
 		if ((!bTeleportToExplicitTime || (GroupIndex != INDEX_NONE)) && (Context.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
 		{
@@ -48,21 +48,21 @@ void FAnimNode_SequenceEvaluator::UpdateAssetPlayer(const FAnimationUpdateContex
 					case ESequenceEvalReinit::ExplicitTime: InternalTimeAccumulator = ExplicitTime; break;
 				}
 
-				InternalTimeAccumulator = FMath::Clamp(InternalTimeAccumulator, 0.f, Sequence->SequenceLength);
+				InternalTimeAccumulator = FMath::Clamp(InternalTimeAccumulator, 0.f, Sequence->GetPlayLength());
 			}
 
 			float TimeJump = ExplicitTime - InternalTimeAccumulator;
 			if (bShouldLoop)
 			{
-				if (FMath::Abs(TimeJump) > (Sequence->SequenceLength * 0.5f))
+				if (FMath::Abs(TimeJump) > (Sequence->GetPlayLength() * 0.5f))
 				{
 					if (TimeJump > 0.f)
 					{
-						TimeJump -= Sequence->SequenceLength;
+						TimeJump -= Sequence->GetPlayLength();
 					}
 					else
 					{
-						TimeJump += Sequence->SequenceLength;
+						TimeJump += Sequence->GetPlayLength();
 					}
 				}
 			}

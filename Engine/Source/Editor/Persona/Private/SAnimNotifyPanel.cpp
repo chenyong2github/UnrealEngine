@@ -1218,7 +1218,7 @@ public:
 			// Look for a snap on the first scrub handle
 			FVector2D TrackNodePos = TrackGeom.AbsoluteToLocal(EventPosition);
 			const FVector2D OriginalNodePosition = TrackNodePos;
-			float SequenceEnd = TrackScaleInfo.InputToLocalX(Sequence->SequenceLength);
+			float SequenceEnd = TrackScaleInfo.InputToLocalX(Sequence->GetPlayLength());
 
 			// Always clamp the Y to the current track
 			SelectionBeginPosition.Y = SelectionPositionClampInfo->TrackPos - 1.0f;
@@ -1331,7 +1331,7 @@ public:
 		SnapPosition = ScaleInfo.InputToLocalX(SnapPosition);
 
 		float WidgetSpaceStartPosition = ScaleInfo.InputToLocalX(0.0f);
-		float WidgetSpaceEndPosition = ScaleInfo.InputToLocalX(Sequence->SequenceLength);
+		float WidgetSpaceEndPosition = ScaleInfo.InputToLocalX(Sequence->GetPlayLength());
 
 		if(!bOutSnapped)
 		{
@@ -1779,7 +1779,7 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		if(AnimNotifyEvent && AnimNotifyEvent->EndTriggerTimeOffset != 0.f) //Do we have an offset to render?
 		{
 			float EndTime = AnimNotifyEvent->GetTime() + AnimNotifyEvent->GetDuration();
-			if(EndTime != Sequence->SequenceLength) //Don't render offset when we are at the end of the sequence, doesnt help the user
+			if(EndTime != Sequence->GetPlayLength()) //Don't render offset when we are at the end of the sequence, doesnt help the user
 			{
 				// ScrubHandle
 				float HandleCentre = NotifyDurationSizeX + (ScrubHandleSize.X - 2.0f);
@@ -1862,7 +1862,7 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 	if(AnimNotifyEvent && AnimNotifyEvent->TriggerTimeOffset != 0.f) //Do we have an offset to render?
 	{
 		float NotifyTime = AnimNotifyEvent->GetTime();
-		if(NotifyTime != 0.f && NotifyTime != Sequence->SequenceLength) //Don't render offset when we are at the start/end of the sequence, doesn't help the user
+		if(NotifyTime != 0.f && NotifyTime != Sequence->GetPlayLength()) //Don't render offset when we are at the start/end of the sequence, doesn't help the user
 		{
 			float HandleCentre = NotifyScrubHandleCentre;
 			float &Offset = AnimNotifyEvent->TriggerTimeOffset;
@@ -2296,7 +2296,7 @@ int32 SAnimNotifyTrack::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 
 FCursorReply SAnimNotifyTrack::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
 {
-	if (ViewInputMin.Get() > 0.f || ViewInputMax.Get() < Sequence->SequenceLength)
+	if (ViewInputMin.Get() > 0.f || ViewInputMax.Get() < Sequence->GetPlayLength())
 	{
 		return FCursorReply::Cursor(EMouseCursor::GrabHand);
 	}
@@ -2820,7 +2820,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 							SNew(SNumericEntryBox<float>)
 							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.MinValue(0.0f)
-							.MaxValue(Sequence->SequenceLength)
+							.MaxValue(Sequence->GetPlayLength())
 							.Value(NodeObject->GetTime())
 							.AllowSpin(false)
 							.OnValueCommitted_Lambda([this, NodeIndex](float InValue, ETextCommit::Type InCommitType)
@@ -2829,7 +2829,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 								{
 									INodeObjectInterface* LocalNodeObject = NotifyNodes[NodeIndex]->NodeObjectInterface;
 
-									float NewTime = FMath::Clamp(InValue, 0.0f, Sequence->SequenceLength - LocalNodeObject->GetDuration());
+									float NewTime = FMath::Clamp(InValue, 0.0f, Sequence->GetPlayLength() - LocalNodeObject->GetDuration());
 									LocalNodeObject->SetTime(NewTime);
 
 									if (FAnimNotifyEvent* Event = LocalNodeObject->GetNotifyEvent())
@@ -2872,7 +2872,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 								{
 									INodeObjectInterface* LocalNodeObject = NotifyNodes[NodeIndex]->NodeObjectInterface;
 
-									float NewTime = FMath::Clamp(Sequence->GetTimeAtFrame(InValue), 0.0f, Sequence->SequenceLength - LocalNodeObject->GetDuration());
+									float NewTime = FMath::Clamp(Sequence->GetTimeAtFrame(InValue), 0.0f, Sequence->GetPlayLength() - LocalNodeObject->GetDuration());
 									LocalNodeObject->SetTime(NewTime);
 
 									if (FAnimNotifyEvent* Event = LocalNodeObject->GetNotifyEvent())
@@ -2951,7 +2951,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 										if ( InCommitType == ETextCommit::OnEnter && AnimNotifies.IsValidIndex(NotifyIndex) )
 										{
 											float NewDuration = FMath::Max(InValue, SAnimNotifyNode::MinimumStateDuration);
-											float MaxDuration = Sequence->SequenceLength - AnimNotifies[NotifyIndex]->GetTime();
+											float MaxDuration = Sequence->GetPlayLength() - AnimNotifies[NotifyIndex]->GetTime();
 											NewDuration = FMath::Min(NewDuration, MaxDuration);
 											AnimNotifies[NotifyIndex]->SetDuration(NewDuration);
 
@@ -3070,7 +3070,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 					MenuBuilder.AddMenuEntry(LOCTEXT("PasteMultAbs", "Paste Multiple Absolute"), LOCTEXT("PasteMultAbsToolTip", "Paste multiple notifies beginning at the mouse cursor, maintaining absolute spacing."), FSlateIcon(), NewAction);
 				}
 
-				if(OriginalTime < Sequence->SequenceLength)
+				if(OriginalTime < Sequence->GetPlayLength())
 				{
 					NewAction.ExecuteAction.BindRaw(
 						this, &SAnimNotifyTrack::OnPasteNotifyClicked, ENotifyPasteMode::OriginalTime, ENotifyPasteMultipleMode::Absolute);
@@ -3507,7 +3507,7 @@ float SAnimNotifyTrack::CalculateTime(const FGeometry& MyGeometry, FVector2D Nod
 		NodePos = MyGeometry.AbsoluteToLocal(NodePos);
 	}
 	FTrackScaleInfo ScaleInfo(ViewInputMin.Get(), ViewInputMax.Get(), 0, 0, MyGeometry.Size);
-	return FMath::Clamp<float>(ScaleInfo.LocalXToInput(NodePos.X), 0.f, Sequence->SequenceLength);
+	return FMath::Clamp<float>(ScaleInfo.LocalXToInput(NodePos.X), 0.f, Sequence->GetPlayLength());
 }
 
 FReply SAnimNotifyTrack::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
@@ -3598,7 +3598,7 @@ void SAnimNotifyTrack::PasteSingleNotify(FString& NotifyString, float PasteTime)
 		// We have to link to the montage / sequence again, we need a correct time set and we could be pasting to a new montage / sequence
 		int32 NewSlotIndex = 0;
 		float NewNotifyTime = PasteTime != 1.0f ? PasteTime : NewNotify.GetTime();
-		NewNotifyTime = FMath::Clamp(NewNotifyTime, 0.0f, Sequence->SequenceLength);
+		NewNotifyTime = FMath::Clamp(NewNotifyTime, 0.0f, Sequence->GetPlayLength());
 
 		if(UAnimMontage* Montage = Cast<UAnimMontage>(Sequence))
 		{
@@ -3630,7 +3630,7 @@ void SAnimNotifyTrack::PasteSingleNotify(FString& NotifyString, float PasteTime)
 			NewNotify.NotifyStateClass = NewNotifyStateObject;
 			bValidNotify = NewNotifyStateObject->CanBePlaced(Sequence);
 			// Clamp duration into the sequence
-			NewNotify.SetDuration(FMath::Clamp(NewNotify.GetDuration(), 1 / 30.0f, Sequence->SequenceLength - NewNotify.GetTime()));
+			NewNotify.SetDuration(FMath::Clamp(NewNotify.GetDuration(), 1 / 30.0f, Sequence->GetPlayLength() - NewNotify.GetTime()));
 			NewNotify.EndTriggerTimeOffset = GetTriggerTimeOffsetForType(Sequence->CalculateOffsetForNotify(NewNotify.GetTime() + NewNotify.GetDuration()));
 			NewNotify.EndLink.Link(Sequence, NewNotify.EndLink.GetTime());
 		}
@@ -3677,7 +3677,7 @@ void SAnimNotifyTrack::PasteSingleSyncMarker(FString& MarkerString, float PasteT
 			}
 
 			// Make sure the notify is within the track area
-			SyncMarker.Time = FMath::Clamp(SyncMarker.Time, 0.0f, Sequence->SequenceLength);
+			SyncMarker.Time = FMath::Clamp(SyncMarker.Time, 0.0f, Sequence->GetPlayLength());
 			SyncMarker.TrackIndex = TrackIndex;
 
 			SyncMarker.Guid = FGuid::NewGuid();
@@ -4234,7 +4234,7 @@ FReply SAnimNotifyPanel::OnNotifyNodeDragStarted(TArray<TSharedPtr<SAnimNotifyNo
 
 float SAnimNotifyPanel::GetSequenceLength() const
 {
-	return Sequence->SequenceLength;
+	return Sequence->GetPlayLength();
 }
 
 void SAnimNotifyPanel::PostUndo( bool bSuccess )
@@ -4396,7 +4396,7 @@ void SAnimNotifyPanel::CopySelectedNodesToClipboard() const
 		int32 TrackSpan = MaxTrack - MinTrack + 1;
 
 		StrValue += FString::Printf(TEXT("OriginalTime=%f,"), MinTime);
-		StrValue += FString::Printf(TEXT("OriginalLength=%f,"), Sequence->SequenceLength);
+		StrValue += FString::Printf(TEXT("OriginalLength=%f,"), Sequence->GetPlayLength());
 		StrValue += FString::Printf(TEXT("TrackSpan=%d"), TrackSpan);
 
 		for(const INodeObjectInterface* NodeObject : SelectedNodes)
@@ -4578,7 +4578,7 @@ void SAnimNotifyPanel::OnPasteNodes(SAnimNotifyTrack* RequestTrack, float ClickT
 		// Scaling for relative paste
 		if(MultiplePasteType == ENotifyPasteMultipleMode::Relative)
 		{
-			ScaleMultiplier = Sequence->SequenceLength / OrigLength;
+			ScaleMultiplier = Sequence->GetPlayLength() / OrigLength;
 		}
 
 		// Process each line of the paste buffer and spawn notifies
@@ -4908,21 +4908,21 @@ void SAnimNotifyPanel::OnNotifyObjectChanged(UObject* EditorBaseObj, bool bRebui
 
 void SAnimNotifyPanel::OnNotifyTrackScrolled(float InScrollOffsetFraction)
 {
-	float Ratio = (ViewInputMax.Get() - ViewInputMin.Get()) / Sequence->SequenceLength;
+	float Ratio = (ViewInputMax.Get() - ViewInputMin.Get()) / Sequence->GetPlayLength();
 	float MaxOffset = (Ratio < 1.0f) ? 1.0f - Ratio : 0.0f;
 	InScrollOffsetFraction = FMath::Clamp(InScrollOffsetFraction, 0.0f, MaxOffset);
 
 	// Calculate new view ranges
-	float NewMin = InScrollOffsetFraction * Sequence->SequenceLength;
-	float NewMax = (InScrollOffsetFraction + Ratio) * Sequence->SequenceLength;
+	float NewMin = InScrollOffsetFraction * Sequence->GetPlayLength();
+	float NewMax = (InScrollOffsetFraction + Ratio) * Sequence->GetPlayLength();
 	
 	InputViewRangeChanged(NewMin, NewMax);
 }
 
 void SAnimNotifyPanel::InputViewRangeChanged(float ViewMin, float ViewMax)
 {
-	float Ratio = (ViewMax - ViewMin) / Sequence->SequenceLength;
-	float OffsetFraction = ViewMin / Sequence->SequenceLength;
+	float Ratio = (ViewMax - ViewMin) / Sequence->GetPlayLength();
+	float OffsetFraction = ViewMin / Sequence->GetPlayLength();
 	if(NotifyTrackScrollBar.IsValid())
 	{
 		NotifyTrackScrollBar->SetState(OffsetFraction, Ratio);

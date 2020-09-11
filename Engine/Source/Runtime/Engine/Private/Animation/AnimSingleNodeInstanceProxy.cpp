@@ -383,7 +383,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 				{
 #if WITH_EDITORONLY_DATA
 					// if montage is additive, we need to have base pose for the slot pose evaluate
-					if (bCanProcessAdditiveAnimationsLocal && Montage->PreviewBasePose && Montage->SequenceLength > 0.f)
+					if (bCanProcessAdditiveAnimationsLocal && Montage->PreviewBasePose && Montage->GetPlayLength() > 0.f)
 					{
 						Montage->PreviewBasePose->GetBonePose(LocalSourcePose, LocalSourceCurve, FAnimExtractContext(Proxy->CurrentTime));
 					}
@@ -522,7 +522,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 			if (!Proxy->bLooping)
 			{
 				const float CombinedPlayRate = NewPlayRate*Sequence->RateScale;
-				if ((CombinedPlayRate < 0.f && Proxy->CurrentTime <= 0.f) || (CombinedPlayRate > 0.f && Proxy->CurrentTime >= Sequence->SequenceLength))
+				if ((CombinedPlayRate < 0.f && Proxy->CurrentTime <= 0.f) || (CombinedPlayRate > 0.f && Proxy->CurrentTime >= Sequence->GetPlayLength()))
 				{
 					Proxy->SetPlaying(false);
 				}
@@ -539,7 +539,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 			if (!Proxy->bLooping)
 			{
 				const float CombinedPlayRate = NewPlayRate * Streamable->RateScale;
-				if ((CombinedPlayRate < 0.f && Proxy->CurrentTime <= 0.f) || (CombinedPlayRate > 0.f && Proxy->CurrentTime >= Streamable->SequenceLength))
+				if ((CombinedPlayRate < 0.f && Proxy->CurrentTime <= 0.f) || (CombinedPlayRate > 0.f && Proxy->CurrentTime >= Streamable->GetPlayLength()))
 				{
 					Proxy->SetPlaying(false);
 				}
@@ -556,7 +556,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 			if (!Proxy->bLooping)
 			{
 				const float CombinedPlayRate = NewPlayRate*Composite->RateScale;
-				if ((CombinedPlayRate < 0.f && Proxy->CurrentTime <= 0.f) || (CombinedPlayRate > 0.f && Proxy->CurrentTime >= Composite->SequenceLength))
+				if ((CombinedPlayRate < 0.f && Proxy->CurrentTime <= 0.f) || (CombinedPlayRate > 0.f && Proxy->CurrentTime >= Composite->GetPlayLength()))
 				{
 					Proxy->SetPlaying(false);
 				}
@@ -599,7 +599,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		float MoveDelta = Proxy->GetDeltaSeconds() * NewPlayRate;
 		const bool bIsPreviewPoseLooping = true;
 
-		FAnimationRuntime::AdvanceTime(bIsPreviewPoseLooping, MoveDelta, Proxy->PreviewPoseCurrentTime, PreviewBasePose->SequenceLength);
+		FAnimationRuntime::AdvanceTime(bIsPreviewPoseLooping, MoveDelta, Proxy->PreviewPoseCurrentTime, PreviewBasePose->GetPlayLength());
 	}
 #endif
 }

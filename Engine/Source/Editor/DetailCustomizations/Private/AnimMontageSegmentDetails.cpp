@@ -564,7 +564,7 @@ float SAnimationSegmentScrubPanel::GetSequenceLength() const
 	}
 	else if (LockedSequence)
 	{
-		return LockedSequence->SequenceLength;
+		return LockedSequence->GetPlayLength();
 	}
 	return 0.f;
 }

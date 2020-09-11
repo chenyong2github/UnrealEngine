@@ -7250,7 +7250,7 @@ bool UInterpTrackAnimControl::GetClosestSnapPosition(float InPosition, TArray<in
 			UAnimSequence* Seq = AnimSeqs[i].AnimSeq;
 			if(Seq)
 			{
-				SeqLength = FMath::Max((Seq->SequenceLength - (AnimSeqs[i].AnimStartOffset + AnimSeqs[i].AnimEndOffset)) / AnimSeqs[i].AnimPlayRate, 0.01f);
+				SeqLength = FMath::Max((Seq->GetPlayLength() - (AnimSeqs[i].AnimStartOffset + AnimSeqs[i].AnimEndOffset)) / AnimSeqs[i].AnimPlayRate, 0.01f);
 				SeqEndTime += SeqLength;
 			}
 
@@ -7308,7 +7308,7 @@ float UInterpTrackAnimControl::GetTrackEndTime() const
 		{
 			// When calculating the end time, we do not consider the AnimStartOffset since we 
 			// are not calculating the length of the anim key. We just want the time where it ends.
-			EndTime += FMath::Max( (AnimSequence->SequenceLength - AnimKey.AnimEndOffset) / AnimKey.AnimPlayRate, 0.01f );
+			EndTime += FMath::Max( (AnimSequence->GetPlayLength() - AnimKey.AnimEndOffset) / AnimKey.AnimPlayRate, 0.01f );
 		}
 
 	}
@@ -7358,7 +7358,7 @@ bool UInterpTrackAnimControl::GetAnimForTime(float InTime, UAnimSequence** OutAn
 			UAnimSequence *Seq = AnimSeqs[i].AnimSeq;
 			if(Seq)
 			{
-				float SeqLength = FMath::Max(Seq->SequenceLength - (AnimSeqs[i].AnimStartOffset + AnimSeqs[i].AnimEndOffset), 0.01f);
+				float SeqLength = FMath::Max(Seq->GetPlayLength() - (AnimSeqs[i].AnimStartOffset + AnimSeqs[i].AnimEndOffset), 0.01f);
 
 				if(AnimSeqs[i].bLooping)
 				{
@@ -7367,14 +7367,14 @@ bool UInterpTrackAnimControl::GetAnimForTime(float InTime, UAnimSequence** OutAn
 				}
 				else
 				{
-					OutPosition = FMath::Clamp(OutPosition + AnimSeqs[i].AnimStartOffset, 0.f, (Seq->SequenceLength - AnimSeqs[i].AnimEndOffset) + (float)KINDA_SMALL_NUMBER);
+					OutPosition = FMath::Clamp(OutPosition + AnimSeqs[i].AnimStartOffset, 0.f, (Seq->GetPlayLength() - AnimSeqs[i].AnimEndOffset) + (float)KINDA_SMALL_NUMBER);
 				}
 
 				// Reverse position if the key is set to be reversed.
 				if(AnimSeqs[i].bReverse)
 				{
 					OutPosition = ConditionallyReversePosition(AnimSeqs[i], Seq, OutPosition);
-					bResetTime = (OutPosition == (Seq->SequenceLength - AnimSeqs[i].AnimEndOffset));
+					bResetTime = (OutPosition == (Seq->GetPlayLength() - AnimSeqs[i].AnimEndOffset));
 				}
 				else
 				{
@@ -7411,7 +7411,7 @@ float UInterpTrackAnimControl::ConditionallyReversePosition(FAnimControlTrackKey
 		// Reverse the clip.
 		if(Seq)
 		{
-			const float RealLength = Seq->SequenceLength - (SeqKey.AnimStartOffset+SeqKey.AnimEndOffset);
+			const float RealLength = Seq->GetPlayLength() - (SeqKey.AnimStartOffset+SeqKey.AnimEndOffset);
 			Result = (RealLength - (InPosition-SeqKey.AnimStartOffset))+SeqKey.AnimStartOffset;	// Mirror the cropped clip.
 		}
 	}
@@ -7546,10 +7546,10 @@ void UInterpTrackAnimControl::UpdateTrack(float NewPosition, UInterpTrackInst* T
 					if(Seq)
 					{
 						// Find position we should not play beyond in this sequence.
-						float SeqEnd = (Seq->SequenceLength - CurrentEndOffset);
+						float SeqEnd = (Seq->GetPlayLength() - CurrentEndOffset);
 
 						// Find time this sequence will take to play
-						float SeqLength = FMath::Max(Seq->SequenceLength - (CurrentStartOffset + CurrentEndOffset), 0.01f);
+						float SeqLength = FMath::Max(Seq->GetPlayLength() - (CurrentStartOffset + CurrentEndOffset), 0.01f);
 
 						// Find the number of loops we make. 
 						// @todo: This will need to be updated if we decide to support notifies in reverse.
@@ -7588,7 +7588,7 @@ void UInterpTrackAnimControl::UpdateTrack(float NewPosition, UInterpTrackInst* T
 					UAnimSequence* Seq = CurrentAnimSequence;
 					if( Seq )
 					{
-						float SeqEnd = (Seq->SequenceLength - CurrentEndOffset);
+						float SeqEnd = (Seq->GetPlayLength() - CurrentEndOffset);
 						AnimPos = FMath::Clamp( AnimPos, 0.f, SeqEnd + (float)KINDA_SMALL_NUMBER );
 					}
 
@@ -7652,7 +7652,7 @@ int32 UInterpTrackAnimControl::SplitKeyAtPosition(float InPosition)
 
 	// Check we are over an actual chunk of sequence.
 	float SplitAnimPos = ((InPosition - SplitKey.StartTime) * SplitKey.AnimPlayRate) + SplitKey.AnimStartOffset;
-	if(SplitAnimPos <= SplitKey.AnimStartOffset || SplitAnimPos >= (Seq->SequenceLength - SplitKey.AnimEndOffset))
+	if(SplitAnimPos <= SplitKey.AnimStartOffset || SplitAnimPos >= (Seq->GetPlayLength() - SplitKey.AnimEndOffset))
 	{
 		return INDEX_NONE;
 	}
@@ -7666,7 +7666,7 @@ int32 UInterpTrackAnimControl::SplitKeyAtPosition(float InPosition)
 	NewKey.AnimStartOffset = SplitAnimPos; // Start position in the new animation wants to be the place we are currently at.
 	NewKey.AnimEndOffset = SplitKey.AnimEndOffset; // End place is the same as the one we are splitting.
 
-	SplitKey.AnimEndOffset = Seq->SequenceLength - SplitAnimPos; // New end position is where we are.
+	SplitKey.AnimEndOffset = Seq->GetPlayLength() - SplitAnimPos; // New end position is where we are.
 	SplitKey.bLooping = false; // Disable looping for section before the cut.
 
 	// Add new key to track.
@@ -7697,7 +7697,7 @@ int32 UInterpTrackAnimControl::CropKeyAtPosition(float InPosition, bool bCutArea
 
 	// Check we are over an actual chunk of sequence.
 	float SplitAnimPos = ((InPosition - SplitKey.StartTime) * SplitKey.AnimPlayRate) + SplitKey.AnimStartOffset;
-	if(SplitAnimPos <= SplitKey.AnimStartOffset || SplitAnimPos >= (Seq->SequenceLength - SplitKey.AnimEndOffset))
+	if(SplitAnimPos <= SplitKey.AnimStartOffset || SplitAnimPos >= (Seq->GetPlayLength() - SplitKey.AnimEndOffset))
 	{
 		return INDEX_NONE;
 	}
@@ -7710,7 +7710,7 @@ int32 UInterpTrackAnimControl::CropKeyAtPosition(float InPosition, bool bCutArea
 	}
 	else
 	{
-		SplitKey.AnimEndOffset = Seq->SequenceLength - SplitAnimPos; // New end position is where we are.
+		SplitKey.AnimEndOffset = Seq->GetPlayLength() - SplitAnimPos; // New end position is where we are.
 	}
 
 	return SplitSeqIndex;

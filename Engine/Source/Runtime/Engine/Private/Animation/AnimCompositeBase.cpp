@@ -406,9 +406,9 @@ void FAnimTrack::ValidateSegmentTimes()
 				Segment.StartPos = AnimSegments[J - 1].StartPos + AnimSegments[J - 1].GetLength();
 			}
 
-			if(Segment.AnimReference && Segment.AnimEndTime > Segment.AnimReference->SequenceLength)
+			if(Segment.AnimReference && Segment.AnimEndTime > Segment.AnimReference->GetPlayLength())
 			{
-				Segment.AnimEndTime = Segment.AnimReference->SequenceLength;
+				Segment.AnimEndTime = Segment.AnimReference->GetPlayLength();
 			}
 		}
 	}
@@ -678,7 +678,7 @@ bool FAnimTrack::IsValidToAdd(const UAnimSequenceBase* SequenceBase) const
 	// remove asset if invalid
 	if (SequenceBase)
 	{
-		if (SequenceBase->SequenceLength <= 0.f)
+		if (SequenceBase->GetPlayLength() <= 0.f)
 		{
 			UE_LOG(LogAnimation, Warning, TEXT("Remove Empty Sequence (%s)"), *SequenceBase->GetFullName());
 		}
@@ -710,13 +710,6 @@ UAnimCompositeBase::UAnimCompositeBase(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 {
 }
-
-#if WITH_EDITOR
-void UAnimCompositeBase::SetSequenceLength(float InSequenceLength)
-{
-	SequenceLength = InSequenceLength;
-}
-#endif
 
 void UAnimCompositeBase::ExtractRootMotionFromTrack(const FAnimTrack &SlotAnimTrack, float StartTrackPosition, float EndTrackPosition, FRootMotionMovementParams &RootMotion) const
 {

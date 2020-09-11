@@ -46,7 +46,7 @@ float FAnimNode_BlendSpacePlayer::GetCurrentAssetLength()
 		if (BlendSpace != nullptr)
 		{
 			const FBlendSample& Sample = BlendSpace->GetBlendSample(HighestWeightedSample->SampleDataIndex);
-			return Sample.Animation->SequenceLength;
+			return Sample.Animation->GetPlayLength();
 		}
 	}
 
@@ -158,7 +158,9 @@ void FAnimNode_BlendSpacePlayer::GatherDebugData(FNodeDebugData& DebugData)
 
 float FAnimNode_BlendSpacePlayer::GetTimeFromEnd(float CurrentTime)
 {
-	return BlendSpace != nullptr ? BlendSpace->GetMaxCurrentTime() - CurrentTime : 0.0f;
+	// Blend-spaces use normalized time value
+	const float PlayLength = 1.0f;
+	return BlendSpace != nullptr ? PlayLength - CurrentTime : 0.0f;
 }
 
 UAnimationAsset* FAnimNode_BlendSpacePlayer::GetAnimAsset()

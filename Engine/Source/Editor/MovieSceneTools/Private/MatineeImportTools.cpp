@@ -729,7 +729,7 @@ bool FMatineeImportTools::CopyInterpAnimControlTrack( UInterpTrackAnimControl* M
 		}
 		else
 		{
-			EndTime = AnimSeq.StartTime + ( ( ( AnimSeq.AnimSeq->SequenceLength - AnimSeq.AnimEndOffset ) - AnimSeq.AnimStartOffset ) / AnimSeq.AnimPlayRate );
+			EndTime = AnimSeq.StartTime + ( ( ( AnimSeq.AnimSeq->GetPlayLength() - AnimSeq.AnimEndOffset ) - AnimSeq.AnimStartOffset ) / AnimSeq.AnimPlayRate );
 
 			// Clamp to next clip's start time
 			if (i+1 < MatineeAnimControlTrack->AnimSeqs.Num())

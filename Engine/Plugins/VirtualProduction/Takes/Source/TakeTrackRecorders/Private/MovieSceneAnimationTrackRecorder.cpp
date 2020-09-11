@@ -358,7 +358,7 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 								CreateAnimationAssetAndSequence(Actor,AnimationDirectory);
 
 								AnimSequence->RecycleAnimSequence();
-								AnimSequence->SequenceLength = 0.f;
+								AnimSequence->SetSequenceLength(0.f);
 								AnimSequence->SetRawNumberOfFrame(0);
 								for (int32 TrackIndex = 0; TrackIndex < Header.AnimationTrackNames.Num(); ++TrackIndex)
 								{
@@ -379,7 +379,7 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 									}
 								}
 								AnimSequence->SetRawNumberOfFrame( InFrames.Num() );
-								AnimSequence->SequenceLength = (AnimSequence->GetRawNumberOfFrames() > 1) ? (AnimSequence->GetRawNumberOfFrames() - 1) * Header.IntervalTime : MINIMUM_ANIMATION_LENGTH;
+								AnimSequence->SetSequenceLength((AnimSequence->GetRawNumberOfFrames() > 1) ? (AnimSequence->GetRawNumberOfFrames() - 1) * Header.IntervalTime : MINIMUM_ANIMATION_LENGTH);
 
 								//fix up notifies todo notifies mz
 								AnimSequence->PostProcessSequence();

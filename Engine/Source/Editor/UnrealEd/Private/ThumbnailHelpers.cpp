@@ -605,7 +605,7 @@ bool FAnimationSequenceThumbnailScene::SetAnimation(UAnimSequenceBase* InAnimati
 				if (InAnimation->IsValidToPlay())
 				{
 					// Handle posing the mesh at the middle of the animation
-					const float AnimPosition = InAnimation->SequenceLength / 2.f;
+					const float AnimPosition = InAnimation->GetPlayLength() / 2.f;
 
 					UDebugSkelMeshComponent* MeshComponent = CastChecked<UDebugSkelMeshComponent>(PreviewActor->GetSkeletalMeshComponent());
 

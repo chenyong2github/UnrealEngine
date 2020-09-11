@@ -924,8 +924,8 @@ void UActorFactoryAnimationAsset::PostSpawnActor( UObject* Asset, AActor* NewAct
 				//If we have a negative play rate, default initial position to sequence end
 				if (AnimSeq->RateScale < 0.f)
 				{
-					NewSASComponent->AnimationData.SavedPosition = AnimSeq->SequenceLength;
-					NewSASComponent->SetPosition(AnimSeq->SequenceLength, false);
+					NewSASComponent->AnimationData.SavedPosition = AnimSeq->GetPlayLength();
+					NewSASComponent->SetPosition(AnimSeq->GetPlayLength(), false);
 				}
 			}
 			

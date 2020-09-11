@@ -131,7 +131,7 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 	float AdjustedPreviousPlayTime = CurrentData->PreviousPlayTime;
 	if (CurrentData->CurrentPlayTime < AdjustedPreviousPlayTime)
 	{
-		AdjustedPreviousPlayTime -= CurrentSequence->SequenceLength;
+		AdjustedPreviousPlayTime -= CurrentSequence->GetPlayLength();
 	}
 
 	// Did we cross the play start time? Decrement the loop counter. Once we're on the last loop, we can
@@ -170,10 +170,10 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 				float AmountPlayedSoFar = CurrentData->CurrentPlayTime - CurrentData->PlayStartTime;
 				if (AmountPlayedSoFar < 0.0f)
 				{
-					AmountPlayedSoFar += CurrentSequence->SequenceLength;
+					AmountPlayedSoFar += CurrentSequence->GetPlayLength();
 				}
 
-				float TimeRemaining = CurrentSequence->SequenceLength - AmountPlayedSoFar;
+				float TimeRemaining = CurrentSequence->GetPlayLength() - AmountPlayedSoFar;
 
 				if (TimeRemaining <= NextSequenceEntry.BlendIn.GetBlendTime())
 				{

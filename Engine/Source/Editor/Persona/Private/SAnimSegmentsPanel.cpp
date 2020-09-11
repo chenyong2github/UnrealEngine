@@ -320,7 +320,7 @@ void SAnimSegmentsPanel::AddAnimSegment( UAnimSequenceBase* NewSequenceBase, flo
 	FAnimSegment NewSegment;
 	NewSegment.AnimReference = NewSequenceBase;
 	NewSegment.AnimStartTime = 0.f;
-	NewSegment.AnimEndTime = NewSequenceBase->SequenceLength;
+	NewSegment.AnimEndTime = NewSequenceBase->GetPlayLength();
 	NewSegment.AnimPlayRate = 1.f;
 	NewSegment.LoopingCount = 1;
 	NewSegment.StartPos = NewStartPos;

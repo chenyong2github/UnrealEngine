@@ -1017,7 +1017,9 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 	// Create the ignore set for asset registry tags
 	// Making Skeleton to be private, and now GET_MEMBER_NAME_CHECKED doesn't work
 	AssetRegistryTagsToIgnore.Add(TEXT("Skeleton"));
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AssetRegistryTagsToIgnore.Add(GET_MEMBER_NAME_CHECKED(UAnimSequenceBase, SequenceLength));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	AssetRegistryTagsToIgnore.Add(GET_MEMBER_NAME_CHECKED(UAnimSequenceBase, RateScale));
 }
 

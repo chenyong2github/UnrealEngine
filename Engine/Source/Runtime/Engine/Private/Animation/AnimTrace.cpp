@@ -973,7 +973,7 @@ void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext
 		<< AnimSequencePlayer.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimSequencePlayer.NodeId(InContext.GetCurrentNodeId())
 		<< AnimSequencePlayer.Position(InNode.GetAccumulatedTime())
-		<< AnimSequencePlayer.Length(InNode.Sequence ? InNode.Sequence->SequenceLength : 0.0f)
+		<< AnimSequencePlayer.Length(InNode.Sequence ? InNode.Sequence->GetPlayLength() : 0.0f)
 		<< AnimSequencePlayer.FrameCounter(InNode.Sequence ? InNode.Sequence->GetNumberOfFrames() : 0);
 }
 

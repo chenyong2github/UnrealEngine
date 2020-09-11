@@ -637,7 +637,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		// Create animation sequence for the skeleton
 		UAnimSequence* Sequence = CreateObjectInstance<UAnimSequence>(InParent, FString::Printf(TEXT("%s_Animation"), *SkeletalMesh->GetName()), Flags);
 		Sequence->SetSkeleton(Skeleton);
-		Sequence->SequenceLength = AbcFile->GetImportLength();
+		Sequence->SetSequenceLength(AbcFile->GetImportLength());
 		Sequence->ImportFileFramerate = AbcFile->GetFramerate();
 		Sequence->ImportResampleFramerate = AbcFile->GetFramerate();
 

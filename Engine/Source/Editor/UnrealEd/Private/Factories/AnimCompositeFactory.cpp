@@ -83,13 +83,13 @@ UObject* UAnimCompositeFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 			FAnimSegment NewSegment;
 			NewSegment.AnimReference = SourceAnimation;
 			NewSegment.AnimStartTime = 0.f;
-			NewSegment.AnimEndTime = SourceAnimation->SequenceLength;
+			NewSegment.AnimEndTime = SourceAnimation->GetPlayLength();
 			NewSegment.AnimPlayRate = 1.f;
 			NewSegment.LoopingCount = 1;
 			NewSegment.StartPos = 0.f;
 
 			AnimComposite->AnimationTrack.AnimSegments.Add(NewSegment);
-			AnimComposite->SetSequenceLength( AnimComposite->AnimationTrack.GetLength() );
+			AnimComposite->SetSequenceLength(AnimComposite->AnimationTrack.GetLength());
 		}
 		
 		AnimComposite->SetSkeleton( TargetSkeleton );

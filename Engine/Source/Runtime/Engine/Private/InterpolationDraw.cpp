@@ -1024,7 +1024,7 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 		UAnimSequence* Seq = AnimSeq.AnimSeq;
 		if(Seq)
 		{
-			float ActualLength = (Seq->SequenceLength - (OriginalKey->AnimStartOffset+OriginalKey->AnimEndOffset));
+			float ActualLength = (Seq->GetPlayLength() - (OriginalKey->AnimStartOffset+OriginalKey->AnimEndOffset));
 			float ActualLengthScaled =  ActualLength / OriginalKey->AnimPlayRate;
 			switch(InputData.InputType)
 			{
@@ -1041,7 +1041,7 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 				{
 					// We are changing the offset but then scaling the animation proportionately so that the start and end times don't change
 					AnimSeq.AnimStartOffset = OriginalKey->AnimStartOffset + TimeDelta * AnimSeq.AnimPlayRate;
-					AnimSeq.AnimStartOffset = FMath::Clamp<float>(AnimSeq.AnimStartOffset, 0, Seq->SequenceLength-AnimSeq.AnimEndOffset);
+					AnimSeq.AnimStartOffset = FMath::Clamp<float>(AnimSeq.AnimStartOffset, 0, Seq->GetPlayLength() -AnimSeq.AnimEndOffset);
 
 					// Fix the play rate to keep the start and end times the same depending on how much the length of the clip actually changed by.
 					float ActualTimeChange = (AnimSeq.AnimStartOffset - OriginalKey->AnimStartOffset) / AnimSeq.AnimPlayRate;
@@ -1051,7 +1051,7 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 				else
 				{
 					AnimSeq.AnimStartOffset = OriginalKey->AnimStartOffset + TimeDelta * AnimSeq.AnimPlayRate;
-					AnimSeq.AnimStartOffset = FMath::Clamp<float>(AnimSeq.AnimStartOffset, 0, Seq->SequenceLength-AnimSeq.AnimEndOffset);
+					AnimSeq.AnimStartOffset = FMath::Clamp<float>(AnimSeq.AnimStartOffset, 0, Seq->GetPlayLength() -AnimSeq.AnimEndOffset);
 					AnimSeq.StartTime = OriginalKey->StartTime + (AnimSeq.AnimStartOffset - OriginalKey->AnimStartOffset) / AnimSeq.AnimPlayRate;
 				}
 				break;
@@ -1067,7 +1067,7 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 				{
 					// We are changing the offset but then scaling the animation proportionately so that the start and end times don't change
 					AnimSeq.AnimEndOffset = OriginalKey->AnimEndOffset - TimeDelta * AnimSeq.AnimPlayRate;
-					AnimSeq.AnimEndOffset = FMath::Clamp<float>(AnimSeq.AnimEndOffset, 0, Seq->SequenceLength-AnimSeq.AnimStartOffset);
+					AnimSeq.AnimEndOffset = FMath::Clamp<float>(AnimSeq.AnimEndOffset, 0, Seq->GetPlayLength() -AnimSeq.AnimStartOffset);
 
 					// Fix the play rate to keep the start and end times the same depending on how much the length of the clip actually changed by.
 					float ActualTimeChange = (AnimSeq.AnimEndOffset - OriginalKey->AnimEndOffset) / AnimSeq.AnimPlayRate;
@@ -1077,7 +1077,7 @@ void UInterpTrackAnimControl::ObjectDragged(FInterpEdInputData& InputData)
 				else
 				{
 					AnimSeq.AnimEndOffset = OriginalKey->AnimEndOffset - TimeDelta * AnimSeq.AnimPlayRate;
-					AnimSeq.AnimEndOffset = FMath::Clamp<float>(AnimSeq.AnimEndOffset, 0, Seq->SequenceLength-AnimSeq.AnimStartOffset);
+					AnimSeq.AnimEndOffset = FMath::Clamp<float>(AnimSeq.AnimEndOffset, 0, Seq->GetPlayLength() -AnimSeq.AnimStartOffset);
 				}
 				break;
 			}
@@ -1116,7 +1116,7 @@ void UInterpTrackAnimControl::DrawTrack( FCanvas* Canvas, UInterpGroup* Group, c
 		UAnimSequence* Seq = CurKey.AnimSeq;
 		if(Seq)
 		{
-			SeqLength = FMath::Max((Seq->SequenceLength - (CurKey.AnimStartOffset + CurKey.AnimEndOffset)) / CurKey.AnimPlayRate, 0.01f);
+			SeqLength = FMath::Max((Seq->GetPlayLength() - (CurKey.AnimStartOffset + CurKey.AnimEndOffset)) / CurKey.AnimPlayRate, 0.01f);
 			SeqEndTime += SeqLength;
 		}
 
@@ -1272,12 +1272,12 @@ void UInterpTrackAnimControl::DrawTrack( FCanvas* Canvas, UInterpGroup* Group, c
 				{
 					// Convert to the animation time values to frame numbers
 					const int32 AnimFrameOffsetFromStart = FMath::RoundToInt( CurKey.AnimStartOffset / Params.SnapAmount );
-					const int32 AnimFrameOffsetFromEnd = FMath::RoundToInt( ( Seq->SequenceLength - CurKey.AnimEndOffset ) / Params.SnapAmount );
+					const int32 AnimFrameOffsetFromEnd = FMath::RoundToInt( ( Seq->GetPlayLength() - CurKey.AnimEndOffset ) / Params.SnapAmount );
 					SeqString += FString::Printf( TEXT(" (%i->%i)"), AnimFrameOffsetFromStart, AnimFrameOffsetFromEnd );
 				}
 				else
 				{
-					SeqString += FString::Printf( TEXT(" (%2.2f->%2.2f)"), CurKey.AnimStartOffset, Seq->SequenceLength - CurKey.AnimEndOffset );
+					SeqString += FString::Printf( TEXT(" (%2.2f->%2.2f)"), CurKey.AnimStartOffset, Seq->GetPlayLength() - CurKey.AnimEndOffset );
 				}
 			}
 

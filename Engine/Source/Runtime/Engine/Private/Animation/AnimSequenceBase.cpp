@@ -102,9 +102,11 @@ void UAnimSequenceBase::PostLoad()
 	}
 }
 
-float UAnimSequenceBase::GetPlayLength()
+float UAnimSequenceBase::GetPlayLength() const
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return SequenceLength;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UAnimSequenceBase::SortNotifies()
@@ -140,7 +142,7 @@ bool UAnimSequenceBase::RemoveNotifies(const TArray<FName>& NotifiesToRemove)
 
 bool UAnimSequenceBase::IsNotifyAvailable() const
 {
-	return (Notifies.Num() != 0) && (SequenceLength > 0.f);
+	return (Notifies.Num() != 0) && (GetPlayLength() > 0.f);
 }
 
 #if WITH_EDITOR
@@ -200,8 +202,8 @@ void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& Del
 
 	do 
 	{
-		// Disable looping here. Advance to desired position, or beginning / end of animation 
-		const ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(false, DesiredDeltaMove, CurrentPosition, SequenceLength);
+		// Disable looping here. Advance to desired position, or beginning / end of animation
+		const ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(false, DesiredDeltaMove, CurrentPosition, GetPlayLength());
 
 		// Verify position assumptions
 		ensureMsgf(bPlayingBackwards ? (CurrentPosition <= PreviousPosition) : (CurrentPosition >= PreviousPosition), TEXT("in Animation %s(Skeleton %s) : bPlayingBackwards(%d), PreviousPosition(%0.2f), Current Position(%0.2f)"), 
@@ -215,7 +217,7 @@ void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& Del
 			const float ActualDeltaMove = (CurrentPosition - PreviousPosition);
 			DesiredDeltaMove -= ActualDeltaMove; 
 
-			PreviousPosition = bPlayingBackwards ? SequenceLength : 0.f;
+			PreviousPosition = bPlayingBackwards ? GetPlayLength() : 0.f;
 			CurrentPosition = PreviousPosition;
 		}
 		else
@@ -305,7 +307,7 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 		MoveDelta = PlayRate * DeltaTime;
 
 		Context.SetLeaderDelta(MoveDelta);
-		Context.SetPreviousAnimationPositionRatio(PreviousTime / SequenceLength);
+		Context.SetPreviousAnimationPositionRatio(PreviousTime / GetPlayLength());
 
 		if (MoveDelta != 0.f)
 		{
@@ -316,12 +318,12 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 			else
 			{
 				// Advance time
-				FAnimationRuntime::AdvanceTime(Instance.bLooping, MoveDelta, CurrentTime, SequenceLength);
+				FAnimationRuntime::AdvanceTime(Instance.bLooping, MoveDelta, CurrentTime, GetPlayLength());
 				UE_LOG(LogAnimMarkerSync, Log, TEXT("Leader (%s) (normal advance)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, MoveDelta, Instance.bLooping ? 1 : 0);
 			}
 		}
 
-		Context.SetAnimationPositionRatio(CurrentTime / SequenceLength);
+		Context.SetAnimationPositionRatio(CurrentTime / GetPlayLength());
 	}
 	else
 	{
@@ -337,14 +339,14 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 				const float DeltaTime = Context.GetDeltaTime();
 				const float MyMoveDelta = PlayRate * DeltaTime;
 				// If leader is not valid, advance time as normal, do not jump position and pop.
-				FAnimationRuntime::AdvanceTime(Instance.bLooping, MyMoveDelta, CurrentTime, SequenceLength);
+				FAnimationRuntime::AdvanceTime(Instance.bLooping, MyMoveDelta, CurrentTime, GetPlayLength());
 				UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (normal advance)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, MoveDelta, Instance.bLooping ? 1 : 0);
 			}
 		}
 		else
 		{
-			PreviousTime = Context.GetPreviousAnimationPositionRatio() * SequenceLength;
-			CurrentTime = Context.GetAnimationPositionRatio() * SequenceLength;
+			PreviousTime = Context.GetPreviousAnimationPositionRatio() * GetPlayLength();
+			CurrentTime = Context.GetAnimationPositionRatio() * GetPlayLength();
 			UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (normalized position advance) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, MoveDelta, Instance.bLooping ? 1 : 0);
 		}
 
@@ -357,7 +359,7 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 			// if we went against play rate, then loop around.
 			if( (MoveDelta * PlayRate) < 0.f )
 			{
-				MoveDelta += FMath::Sign<float>(PlayRate) * SequenceLength;
+				MoveDelta += FMath::Sign<float>(PlayRate) * GetPlayLength();
 			}
 		}
 	}
@@ -526,7 +528,7 @@ int32 UAnimSequenceBase::GetNumberOfFrames() const
 {
 	static float DefaultSampleRateInterval = 1.f / DEFAULT_SAMPLERATE;
 	// because of float error, add small margin at the end, so it can clamp correctly
-	return (int32)(SequenceLength / DefaultSampleRateInterval + KINDA_SMALL_NUMBER) + 1;
+	return (int32)(GetPlayLength() / DefaultSampleRateInterval + KINDA_SMALL_NUMBER) + 1;
 }
 
 #if WITH_EDITOR
@@ -546,14 +548,14 @@ void UAnimSequenceBase::InitializeNotifyTrack()
 
 int32 UAnimSequenceBase::GetFrameAtTime(const float Time) const
 {
-	const float FrameTime = GetNumberOfFrames() > 1 ? SequenceLength / (float)(GetNumberOfFrames() - 1) : 0.0f;
+	const float FrameTime = GetNumberOfFrames() > 1 ? GetPlayLength() / (float)(GetNumberOfFrames() - 1) : 0.0f;
 	return FMath::Clamp(FMath::RoundToInt(Time / FrameTime), 0, GetNumberOfFrames() - 1);
 }
 
 float UAnimSequenceBase::GetTimeAtFrame(const int32 Frame) const
 {
-	const float FrameTime = GetNumberOfFrames() > 1 ? SequenceLength / (float)(GetNumberOfFrames() - 1) : 0.0f;
-	return FMath::Clamp(FrameTime * Frame, 0.0f, SequenceLength);
+	const float FrameTime = GetNumberOfFrames() > 1 ? GetPlayLength() / (float)(GetNumberOfFrames() - 1) : 0.0f;
+	return FMath::Clamp(FrameTime * Frame, 0.0f, GetPlayLength());
 }
 
 void UAnimSequenceBase::RegisterOnNotifyChanged(const FOnNotifyChanged& Delegate)
@@ -567,10 +569,10 @@ void UAnimSequenceBase::UnregisterOnNotifyChanged(void* Unregister)
 
 void UAnimSequenceBase::ClampNotifiesAtEndOfSequence()
 {
-	const float NotifyClampTime = SequenceLength - 0.01f; //Slight offset so that notify is still draggable
+	const float NotifyClampTime = GetPlayLength() - 0.01f; //Slight offset so that notify is still draggable
 	for(int i = 0; i < Notifies.Num(); ++ i)
 	{
-		if(Notifies[i].GetTime() >= SequenceLength)
+		if(Notifies[i].GetTime() >= GetPlayLength())
 		{
 			Notifies[i].SetTime(NotifyClampTime);
 			Notifies[i].TriggerTimeOffset = GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::OffsetBefore);
@@ -584,7 +586,7 @@ EAnimEventTriggerOffsets::Type UAnimSequenceBase::CalculateOffsetForNotify(float
 	{
 		return EAnimEventTriggerOffsets::OffsetAfter;
 	}
-	else if(NotifyDisplayTime == SequenceLength)
+	else if(NotifyDisplayTime == GetPlayLength())
 	{
 		return EAnimEventTriggerOffsets::OffsetBefore;
 	}
@@ -693,7 +695,7 @@ void UAnimSequenceBase::RefreshParentAssetData()
 		NotifyEvent.EndLink.Link(this, NotifyEvent.GetTime() + NotifyEvent.Duration, NotifyEvent.GetSlotIndex());
 	}
 
-	SequenceLength = ParentSeqBase->SequenceLength;
+	SetSequenceLength(ParentSeqBase->GetPlayLength());
 	RateScale = ParentSeqBase->RateScale;
 	RawCurveData = ParentSeqBase->RawCurveData;
 

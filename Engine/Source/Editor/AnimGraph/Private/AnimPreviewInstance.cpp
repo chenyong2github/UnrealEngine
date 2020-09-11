@@ -706,9 +706,9 @@ void UAnimPreviewInstance::MontagePreview_StepForward()
 		// Advance a single frame, leaving it paused afterwards
 		int32 NumFrames = Montage->GetNumberOfFrames();
 		// Add DELTA to prefer next frame when we're close to the boundary
-		float CurrentFraction = Proxy.GetCurrentTime() / Montage->SequenceLength + DELTA;
+		float CurrentFraction = Proxy.GetCurrentTime() / Montage->GetPlayLength() + DELTA;
 		float NextFrame = FMath::Clamp<float>(FMath::FloorToFloat(CurrentFraction * NumFrames) + 1.0f, 0, NumFrames);
-		float NewTime = Montage->SequenceLength * (NextFrame / (NumFrames-1));
+		float NewTime = Montage->GetPlayLength() * (NextFrame / (NumFrames-1));
 
 		GetSkelMeshComponent()->GlobalAnimRateScale = 1.0f;
 		GetSkelMeshComponent()->TickAnimation(NewTime - Proxy.GetCurrentTime(), false);
@@ -762,9 +762,9 @@ void UAnimPreviewInstance::MontagePreview_StepBackward()
 		// Advance a single frame, leaving it paused afterwards
 		int32 NumFrames = Montage->GetNumberOfFrames();
 		// Add DELTA to prefer next frame when we're close to the boundary
-		float CurrentFraction = Proxy.GetCurrentTime() / Montage->SequenceLength + DELTA;
+		float CurrentFraction = Proxy.GetCurrentTime() / Montage->GetPlayLength() + DELTA;
 		float NextFrame = FMath::Clamp<float>(FMath::FloorToFloat(CurrentFraction * NumFrames) - 1.0f, 0, NumFrames);
-		float NewTime = Montage->SequenceLength * (NextFrame / (NumFrames-1));
+		float NewTime = Montage->GetPlayLength() * (NextFrame / (NumFrames-1));
 
 		GetSkelMeshComponent()->GlobalAnimRateScale = 1.0f;
 		GetSkelMeshComponent()->TickAnimation(FMath::Abs(NewTime - Proxy.GetCurrentTime()), false);
@@ -897,7 +897,7 @@ void UAnimPreviewInstance::MontagePreview_RemoveBlendOut()
 void UAnimPreviewInstance::MontagePreview_PreviewNormal(int32 FromSectionIdx, bool bPlay)
 {
 	UAnimMontage* Montage = Cast<UAnimMontage>(CurrentAsset);
-	if (Montage && Montage->SequenceLength > 0.0f)
+	if (Montage && Montage->GetPlayLength() > 0.0f)
 	{
 		FAnimPreviewInstanceProxy& Proxy = GetProxyOnGameThread<FAnimPreviewInstanceProxy>();
 
@@ -933,7 +933,7 @@ void UAnimPreviewInstance::MontagePreview_PreviewNormal(int32 FromSectionIdx, bo
 void UAnimPreviewInstance::MontagePreview_PreviewAllSections(bool bPlay)
 {
 	UAnimMontage* Montage = Cast<UAnimMontage>(CurrentAsset);
-	if (Montage && Montage->SequenceLength > 0.0f)
+	if (Montage && Montage->GetPlayLength() > 0.0f)
 	{
 		FAnimPreviewInstanceProxy& Proxy = GetProxyOnGameThread<FAnimPreviewInstanceProxy>();
 

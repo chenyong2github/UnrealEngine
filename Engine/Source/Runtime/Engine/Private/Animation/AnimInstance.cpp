@@ -793,7 +793,7 @@ void OutputTickRecords(const TArray<FAnimTickRecord>& Records, UCanvas* Canvas, 
 		if (UAnimSequenceBase* AnimSeqBase = Cast<UAnimSequenceBase>(Player.SourceAsset))
 		{
 			PlayerEntry += FString::Printf(TEXT(" P(%.2f/%.2f)"), 
-				Player.TimeAccumulator != nullptr ? *Player.TimeAccumulator : 0.f, AnimSeqBase->SequenceLength);
+				Player.TimeAccumulator != nullptr ? *Player.TimeAccumulator : 0.f, AnimSeqBase->GetPlayLength());
 		}
 		else
 		{
@@ -1766,11 +1766,11 @@ float UAnimInstance::PlaySlotAnimation(UAnimSequenceBase* Asset, FName SlotNodeN
 	FAnimSegment NewSegment;
 	NewSegment.AnimReference = Asset;
 	NewSegment.AnimStartTime = 0.f;
-	NewSegment.AnimEndTime = Asset->SequenceLength;
+	NewSegment.AnimEndTime = Asset->GetPlayLength();
 	NewSegment.AnimPlayRate = 1.f;
 	NewSegment.StartPos = 0.f;
 	NewSegment.LoopingCount = LoopCount;
-	NewMontage->SequenceLength = NewSegment.GetLength();
+	NewMontage->SetSequenceLength(NewSegment.GetLength());
 	NewTrack.AnimTrack.AnimSegments.Add(NewSegment);
 		
 	FCompositeSection NewSection;
@@ -1877,7 +1877,7 @@ float UAnimInstance::Montage_Play(UAnimMontage* MontageToPlay, float InPlayRate/
 {
 	LLM_SCOPE(ELLMTag::Animation);
 
-	if (MontageToPlay && (MontageToPlay->SequenceLength > 0.f) && MontageToPlay->HasValidSlotSetup())
+	if (MontageToPlay && (MontageToPlay->GetPlayLength() > 0.f) && MontageToPlay->HasValidSlotSetup())
 	{
 		if (CurrentSkeleton && CurrentSkeleton->IsCompatible(MontageToPlay->GetSkeleton()))
 		{
@@ -1901,7 +1901,7 @@ float UAnimInstance::Montage_Play(UAnimMontage* MontageToPlay, float InPlayRate/
 			FAnimMontageInstance* NewInstance = new FAnimMontageInstance(this);
 			check(NewInstance);
 
-			const float MontageLength = MontageToPlay->SequenceLength;
+			const float MontageLength = MontageToPlay->GetPlayLength();
 
 			NewInstance->Initialize(MontageToPlay);
 			NewInstance->Play(InPlayRate);

@@ -4231,7 +4231,7 @@ void FMatinee::OnExportAnimationInfoCommand()
 							
 							float AnimStartTime = Key.AnimStartOffset;
 							
-							float AnimEndTime = (Seq) ? (Seq->SequenceLength - Key.AnimEndOffset) : 0.0f;
+							float AnimEndTime = (Seq) ? (Seq->GetPlayLength() - Key.AnimEndOffset) : 0.0f;
 					
 							float AnimPlayRate = Key.AnimPlayRate;
 							bool bLooping = Key.bLooping;

@@ -74,7 +74,7 @@ void FAnimModel_AnimComposite::RecalculateSequenceLength()
 		AnimComposite->InvalidateRecursiveAsset();
 
 		float NewSequenceLength = CalculateSequenceLengthOfEditorObject();
-		if (NewSequenceLength != AnimComposite->SequenceLength)
+		if (NewSequenceLength != AnimComposite->GetPlayLength())
 		{
 			ClampToEndTime(NewSequenceLength);
 

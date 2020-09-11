@@ -292,11 +292,6 @@ class UAnimCompositeBase : public UAnimSequenceBase
 {
 	GENERATED_UCLASS_BODY()
 
-#if WITH_EDITOR
-	/** Set Sequence Length */
-	ENGINE_API void SetSequenceLength(float InSequenceLength);
-#endif
-
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	//~ End UObject Interface

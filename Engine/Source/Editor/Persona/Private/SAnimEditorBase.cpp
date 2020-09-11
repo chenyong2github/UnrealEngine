@@ -272,7 +272,7 @@ float SAnimEditorBase::GetSequenceLength() const
 {
 	if (UAnimSequenceBase* AnimSeqBase = Cast<UAnimSequenceBase>(GetEditorObject()))
 	{
-		return AnimSeqBase->SequenceLength;
+		return AnimSeqBase->GetPlayLength();
 	}
 	else if (UBlendSpaceBase* BlendSpaceBase = Cast<UBlendSpaceBase>(GetEditorObject()))
 	{

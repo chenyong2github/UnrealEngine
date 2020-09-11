@@ -108,14 +108,14 @@ bool UAnimMontage::IsWithinPos(int32 FirstIndex, int32 SecondIndex, float Curren
 	{
 		// @todo anim, I don't know if using SequenceLength is better or BIG_NUMBER
 		// I don't think that'd matter. 
-		EndTime = SequenceLength;
+		EndTime = GetPlayLength();
 	}
 
 	// since we do range of [StartTime, EndTime) (excluding EndTime) 
 	// there is blindspot of when CurrentTime becomes >= SequenceLength
 	// include that frame if CurrentTime gets there. 
 	// Otherwise, we continue to use [StartTime, EndTime)
-	if (CurrentTime >= SequenceLength)
+	if (CurrentTime >= GetPlayLength())
 	{
 		return (StartTime <= CurrentTime && EndTime >= CurrentTime);
 	}
@@ -173,7 +173,7 @@ float UAnimMontage::GetSectionTimeLeftFromPos(float Position)
 		}
 		else
 		{
-			return (SequenceLength - Position);
+			return (GetPlayLength() - Position);
 		}
 	}
 
@@ -230,7 +230,7 @@ bool UAnimMontage::IsValidSectionIndex(int32 SectionIndex) const
 void UAnimMontage::GetSectionStartAndEndTime(int32 SectionIndex, float& OutStartTime, float& OutEndTime) const
 {
 	OutStartTime = 0.f;
-	OutEndTime = SequenceLength;
+	OutEndTime = GetPlayLength();	
 	if ( IsValidSectionIndex(SectionIndex) )
 	{
 		OutStartTime = GetAnimCompositeSection(SectionIndex).GetTime();		
@@ -245,7 +245,7 @@ void UAnimMontage::GetSectionStartAndEndTime(int32 SectionIndex, float& OutStart
 float UAnimMontage::GetSectionLength(int32 SectionIndex) const
 {
 	float StartTime = 0.f;
-	float EndTime = SequenceLength;
+	float EndTime = GetPlayLength();
 	if ( IsValidSectionIndex(SectionIndex) )
 	{
 		StartTime = GetAnimCompositeSection(SectionIndex).GetTime();		
@@ -353,11 +353,10 @@ void UAnimMontage::PostLoad()
 		Track.ValidateSegmentTimes();
 
 		const float CurrentCalculatedLength = CalculateSequenceLength();
-
-		if(CurrentCalculatedLength != SequenceLength)
+		if(CurrentCalculatedLength != GetPlayLength())		
 		{
 			UE_LOG(LogAnimMontage, Display, TEXT("UAnimMontage::PostLoad: The actual sequence length for %s does not match the length stored in the asset, please resave the asset."), *GetFullName());
-			SequenceLength = CurrentCalculatedLength;
+			 SetSequenceLength(CurrentCalculatedLength);
 		}
 	}
 
@@ -1095,7 +1094,7 @@ void UAnimMontage::RefreshParentAssetData()
 			UAnimSequenceBase* TargetReference = Cast<UAnimSequenceBase>(AssetMappingTable->GetMappedAsset(SourceReference));
 			Segment.AnimReference = TargetReference;
 
-			float LengthChange = FMath::IsNearlyZero(SourceReference->SequenceLength) ? 0.f : TargetReference->SequenceLength / SourceReference->SequenceLength;
+			float LengthChange = FMath::IsNearlyZero(SourceReference->GetPlayLength()) ? 0.f : TargetReference->GetPlayLength() / SourceReference->GetPlayLength();
 			float RateChange = FMath::IsNearlyZero(SourceReference->RateScale) ? 0.f : FMath::Abs(TargetReference->RateScale / SourceReference->RateScale);
 			float TotalRateChange = FMath::IsNearlyZero(RateChange)? 0.f : (LengthChange / RateChange);
 			Segment.AnimPlayRate *= TotalRateChange;
@@ -1128,7 +1127,7 @@ void UAnimMontage::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotify
 		const float MoveDelta = Instance.Montage.MoveDelta;
 
 		Context.SetLeaderDelta(MoveDelta);
-		Context.SetPreviousAnimationPositionRatio(PreviousTime / SequenceLength);
+		Context.SetPreviousAnimationPositionRatio(PreviousTime / GetPlayLength());
 
 		if (MoveDelta != 0.f)
 		{
@@ -1174,7 +1173,7 @@ void UAnimMontage::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotify
 			}
 		}
 
-		Context.SetAnimationPositionRatio(CurrentTime / SequenceLength);
+		Context.SetAnimationPositionRatio(CurrentTime / GetPlayLength());
 	}
 
 	if (bRecordNeedsResetting && Instance.MarkerTickRecord)
@@ -1225,12 +1224,12 @@ void UAnimMontage::CollectMarkers()
 
 void UAnimMontage::GetMarkerIndicesForTime(float CurrentTime, bool bLooping, const TArray<FName>& ValidMarkerNames, FMarkerPair& OutPrevMarker, FMarkerPair& OutNextMarker) const
 {
-	MarkerData.GetMarkerIndicesForTime(CurrentTime, bLooping, ValidMarkerNames, OutPrevMarker, OutNextMarker, SequenceLength);
+	MarkerData.GetMarkerIndicesForTime(CurrentTime, bLooping, ValidMarkerNames, OutPrevMarker, OutNextMarker, GetPlayLength());
 }
 
 FMarkerSyncAnimPosition UAnimMontage::GetMarkerSyncPositionfromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime) const
 {
-	return MarkerData.GetMarkerSyncPositionfromMarkerIndicies(PrevMarker, NextMarker, CurrentTime, SequenceLength);
+	return MarkerData.GetMarkerSyncPositionfromMarkerIndicies(PrevMarker, NextMarker, CurrentTime, GetPlayLength());
 }
 
 void UAnimMontage::InvalidateRecursiveAsset()
@@ -2843,16 +2842,16 @@ UAnimMontage* UAnimMontage::CreateSlotAnimationAsDynamicMontage(UAnimSequenceBas
 	FAnimSegment NewSegment;
 	NewSegment.AnimReference = Asset;
 	NewSegment.AnimStartTime = 0.f;
-	NewSegment.AnimEndTime = Asset->SequenceLength;
+	NewSegment.AnimEndTime = Asset->GetPlayLength();
 	NewSegment.AnimPlayRate = 1.f;
 	NewSegment.StartPos = 0.f;
 	NewSegment.LoopingCount = LoopCount;
-	NewMontage->SequenceLength = NewSegment.GetLength();
+	NewMontage->SetSequenceLength(NewSegment.GetLength());
 	NewTrack.AnimTrack.AnimSegments.Add(NewSegment);
 
 	FCompositeSection NewSection;
 	NewSection.SectionName = TEXT("Default");
-	NewSection.LinkSequence(Asset, Asset->SequenceLength);
+	NewSection.LinkSequence(Asset, Asset->GetPlayLength());
 	NewSection.SetTime(0.0f);
 
 	// add new section
@@ -2891,5 +2890,7 @@ void UAnimMontage::BakeTimeStretchCurve()
 		return;
 	}
 	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TimeStretchCurve.BakeFromFloatCurve(*TimeStretchFloatCurve, SequenceLength);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

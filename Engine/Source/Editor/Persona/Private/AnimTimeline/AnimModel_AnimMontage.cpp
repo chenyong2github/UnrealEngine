@@ -213,7 +213,7 @@ void FAnimModel_AnimMontage::RecalculateSequenceLength()
 		AnimMontage->InvalidateRecursiveAsset();
 
 		float NewSequenceLength = CalculateSequenceLengthOfEditorObject();
-		if (NewSequenceLength != AnimMontage->SequenceLength)
+		if (NewSequenceLength != AnimMontage->GetPlayLength())
 		{
 			ClampToEndTime(NewSequenceLength);
 
@@ -238,12 +238,12 @@ void FAnimModel_AnimMontage::RecalculateSequenceLength()
 
 bool FAnimModel_AnimMontage::ClampToEndTime(float NewEndTime)
 {
-	float SequenceLength = AnimMontage->SequenceLength;
+	float SequenceLength = AnimMontage->GetPlayLength();
 
 	bool bClampingNeeded = (SequenceLength > 0.f && NewEndTime < SequenceLength);
 	if(bClampingNeeded)
 	{
-		float ratio = NewEndTime / AnimMontage->SequenceLength;
+		float ratio = NewEndTime / AnimMontage->GetPlayLength();
 
 		for(int32 i=0; i < AnimMontage->CompositeSections.Num(); i++)
 		{

@@ -307,7 +307,7 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 					{
 						SampleDataItem.MarkerTickRecord.Reset();
 						bResetMarkerDataOnFollowers = true;
-						SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->SequenceLength;
+						SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->GetPlayLength();
 					}
 					else if (!SampleDataItem.MarkerTickRecord.IsValid(Instance.bLooping) && Context.MarkerTickContext.GetMarkerSyncStartPosition().IsValid())
 					{
@@ -322,7 +322,7 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 						check(!Instance.bLooping || Context.MarkerTickContext.IsMarkerSyncStartValid());
 						TickFollowerSamples(SampleDataList, HighestMarkerSyncWeightIndex, Context, bResetMarkerDataOnFollowers);
 					}
-					NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->SequenceLength;
+					NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->GetPlayLength();
 					*Instance.MarkerTickRecord = SampleDataItem.MarkerTickRecord;
 				}
 				else
@@ -353,13 +353,13 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 					{
 						if(!Instance.MarkerTickRecord->IsValid(Instance.bLooping))
 						{
-							SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->SequenceLength;
+							SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->GetPlayLength();
 						}
 
 						TickFollowerSamples(SampleDataList, -1, Context, false);
 					}
 					*Instance.MarkerTickRecord = SampleDataItem.MarkerTickRecord;
-					NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->SequenceLength;
+					NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->GetPlayLength();
 				}
 				else
 				{
@@ -401,8 +401,8 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 							{
 								const float SampleNormalizedPreviousTime = MultipliedSampleRateScale >= 0.f ? ClampedNormalizedPreviousTime : 1.f - ClampedNormalizedPreviousTime;
 								const float SampleNormalizedCurrentTime = MultipliedSampleRateScale >= 0.f ? ClampedNormalizedCurrentTime : 1.f - ClampedNormalizedCurrentTime;
-								PrevSampleDataTime = SampleNormalizedPreviousTime * Sample.Animation->SequenceLength;
-								CurrentSampleDataTime = SampleNormalizedCurrentTime * Sample.Animation->SequenceLength;
+								PrevSampleDataTime = SampleNormalizedPreviousTime * Sample.Animation->GetPlayLength();
+								CurrentSampleDataTime = SampleNormalizedCurrentTime * Sample.Animation->GetPlayLength();
 							}
 							else
 							{
@@ -416,7 +416,7 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 							// if we went against play rate, then loop around.
 							if ((SampleMoveDelta * DeltaTimePosition) < 0.f)
 							{
-								DeltaTimePosition += FMath::Sign<float>(SampleMoveDelta) * Sample.Animation->SequenceLength;
+								DeltaTimePosition += FMath::Sign<float>(SampleMoveDelta) * Sample.Animation->GetPlayLength();
 							}
 
 							if( bGenerateNotifies && (!bTriggerNotifyHighestWeightedAnim || (I == HighestWeightIndex)))
@@ -610,7 +610,7 @@ void UBlendSpaceBase::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleData
 #endif // WITH_EDITOR
 			)
 			{
-				const float Time = FMath::Clamp<float>(BlendSampleDataCache[I].Time, 0.f, Sample.Animation->SequenceLength);
+				const float Time = FMath::Clamp<float>(BlendSampleDataCache[I].Time, 0.f, Sample.Animation->GetPlayLength());
 
 				// first one always fills up the source one
 				Sample.Animation->GetAnimationPose(Pose, ChildrenCurves[I], FAnimExtractContext(Time, true));
@@ -807,10 +807,10 @@ void UBlendSpaceBase::ValidateSampleData()
 
 		if (Sample.bIsValid)
 		{
-			if (Sample.Animation->SequenceLength > AnimLength)
+			if (Sample.Animation->GetPlayLength() > AnimLength)
 			{
 				// @todo : should apply scale? If so, we'll need to apply also when blend
-				AnimLength = Sample.Animation->SequenceLength;
+				AnimLength = Sample.Animation->GetPlayLength();
 			}
 
 			Sample.CachedMarkerDataUpdateCounter = Sample.Animation->GetMarkerUpdateCounter();
@@ -1118,7 +1118,7 @@ float UBlendSpaceBase::GetAnimationLengthFromSampleData(const TArray<FBlendSampl
 				//Multiple samples contribution which we would otherwise lose
 				const float MultipliedSampleRateScale = Sample.Animation->RateScale * SampleDataList[I].SamplePlayRate;
 				// apply rate scale to get actual playback time
-				BlendAnimLength += (Sample.Animation->SequenceLength / ((MultipliedSampleRateScale) != 0.0f ? FMath::Abs(MultipliedSampleRateScale) : 1.0f))*SampleDataList[I].GetWeight();
+				BlendAnimLength += (Sample.Animation->GetPlayLength() / ((MultipliedSampleRateScale) != 0.0f ? FMath::Abs(MultipliedSampleRateScale) : 1.0f))*SampleDataList[I].GetWeight();
 				UE_LOG(LogAnimation, Verbose, TEXT("[%d] - Sample Animation(%s) : Weight(%0.5f) "), I+1, *Sample.Animation->GetName(), SampleDataList[I].GetWeight());
 			}
 		}

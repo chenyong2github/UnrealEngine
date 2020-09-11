@@ -154,7 +154,7 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	, BoneCompressionSettings(InSeq->BoneCompressionSettings)
 	, TrackToSkeletonMapTable(InSeq->GetRawTrackToSkeletonMapTable())
 	, Interpolation(InSeq->Interpolation)
-	, SequenceLength(InSeq->SequenceLength)
+	, SequenceLength(InSeq->GetPlayLength())
 	, NumFrames(InSeq->GetRawNumberOfFrames())
 	, bIsValidAdditive(InSeq->IsValidAdditive())
 #if WITH_EDITORONLY_DATA

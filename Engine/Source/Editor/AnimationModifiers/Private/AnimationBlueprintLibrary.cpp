@@ -1955,7 +1955,7 @@ void UAnimationBlueprintLibrary::GetSequenceLength(const UAnimSequence* Animatio
 	Length = 0.0f;
 	if (AnimationSequence)
 	{
-		Length = AnimationSequence->SequenceLength;
+		Length = AnimationSequence->GetPlayLength();
 	}
 	else
 	{
@@ -2034,7 +2034,7 @@ void UAnimationBlueprintLibrary::IsValidTime(const UAnimSequence* AnimationSeque
 
 bool UAnimationBlueprintLibrary::IsValidTimeInternal(const UAnimSequence* AnimationSequence, const float Time)
 {
-	return FMath::IsWithinInclusive(Time, 0.0f, AnimationSequence->SequenceLength);
+	return FMath::IsWithinInclusive(Time, 0.0f, AnimationSequence->GetPlayLength());
 }
 
 void UAnimationBlueprintLibrary::FindBonePathToRoot(const UAnimSequence* AnimationSequence, FName BoneName, TArray<FName>& BonePath)

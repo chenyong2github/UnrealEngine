@@ -190,7 +190,7 @@ float FAnimModel::CalculateSequenceLengthOfEditorObject() const
 {
 	if(UAnimSequenceBase* AnimSequenceBase = GetAnimSequenceBase())
 	{
-		return AnimSequenceBase->SequenceLength;
+		return AnimSequenceBase->GetPlayLength();
 	}
 
 	return 0.0f;

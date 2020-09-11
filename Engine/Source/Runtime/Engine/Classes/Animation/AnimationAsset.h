@@ -881,7 +881,11 @@ public:
 	// this is used in editor only when used for transition getter
 	// this doesn't mean max time. In Sequence, this is SequenceLength,
 	// but for BlendSpace CurrentTime is normalized [0,1], so this is 1
-	virtual float GetMaxCurrentTime() { return 0.f; }
+	UE_DEPRECATED(5.0, "Use GetPlayLength instead")
+	virtual float GetMaxCurrentTime() { return GetPlayLength(); }
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	virtual float GetPlayLength() const { return 0.f; };
 
 	void SetSkeleton(USkeleton* NewSkeleton);
 	void ResetSkeleton(USkeleton* NewSkeleton);

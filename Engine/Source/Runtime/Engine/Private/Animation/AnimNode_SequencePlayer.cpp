@@ -26,7 +26,7 @@ float FAnimNode_SequencePlayer::GetCurrentAssetTimePlayRateAdjusted()
 
 float FAnimNode_SequencePlayer::GetCurrentAssetLength()
 {
-	return Sequence ? Sequence->SequenceLength : 0.0f;
+	return Sequence ? Sequence->GetPlayLength() : 0.0f;
 }
 
 void FAnimNode_SequencePlayer::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -47,12 +47,12 @@ void FAnimNode_SequencePlayer::Initialize_AnyThread(const FAnimationInitializeCo
 
 	if (Sequence != nullptr)
 	{
-		InternalTimeAccumulator = FMath::Clamp(StartPosition, 0.f, Sequence->SequenceLength);
+		InternalTimeAccumulator = FMath::Clamp(StartPosition, 0.f, Sequence->GetPlayLength());
 		const float AdjustedPlayRate = PlayRateScaleBiasClamp.ApplyTo(FMath::IsNearlyZero(PlayRateBasis) ? 0.f : (PlayRate / PlayRateBasis), 0.f);
 		const float EffectivePlayrate = Sequence->RateScale * AdjustedPlayRate;
 		if ((StartPosition == 0.f) && (EffectivePlayrate < 0.f))
 		{
-			InternalTimeAccumulator = Sequence->SequenceLength;
+			InternalTimeAccumulator = Sequence->GetPlayLength();
 		}
 	}
 }
@@ -75,7 +75,7 @@ void FAnimNode_SequencePlayer::UpdateAssetPlayer(const FAnimationUpdateContext& 
 
 	if ((Sequence != nullptr) && (Context.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
 	{
-		InternalTimeAccumulator = FMath::Clamp(InternalTimeAccumulator, 0.f, Sequence->SequenceLength);
+		InternalTimeAccumulator = FMath::Clamp(InternalTimeAccumulator, 0.f, Sequence->GetPlayLength());
 		const float AdjustedPlayRate = PlayRateScaleBiasClamp.ApplyTo(FMath::IsNearlyZero(PlayRateBasis) ? 0.f : (PlayRate / PlayRateBasis), Context.GetDeltaTime());
 		CreateTickRecordForNode(Context, Sequence, bLoopAnimation, AdjustedPlayRate);
 	}
@@ -83,7 +83,7 @@ void FAnimNode_SequencePlayer::UpdateAssetPlayer(const FAnimationUpdateContext& 
 #if ANIM_NODE_IDS_AVAILABLE && WITH_EDITORONLY_DATA
 	if (FAnimBlueprintDebugData* DebugData = Context.AnimInstanceProxy->GetAnimBlueprintDebugData())
 	{
-		DebugData->RecordSequencePlayer(Context.GetCurrentNodeId(), GetAccumulatedTime(), Sequence != nullptr ? Sequence->SequenceLength : 0.0f, Sequence != nullptr ? Sequence->GetNumberOfFrames() : 0);
+		DebugData->RecordSequencePlayer(Context.GetCurrentNodeId(), GetAccumulatedTime(), Sequence != nullptr ? Sequence->GetPlayLength() : 0.0f, Sequence != nullptr ? Sequence->GetNumberOfFrames() : 0);
 	}
 #endif
 
@@ -134,7 +134,7 @@ void FAnimNode_SequencePlayer::GatherDebugData(FNodeDebugData& DebugData)
 
 float FAnimNode_SequencePlayer::GetTimeFromEnd(float CurrentNodeTime)
 {
-	return Sequence->GetMaxCurrentTime() - CurrentNodeTime;
+	return Sequence->GetPlayLength() - CurrentNodeTime;
 }
 
 #undef LOCTEXT_NAMESPACE

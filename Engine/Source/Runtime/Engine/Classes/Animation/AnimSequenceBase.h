@@ -28,13 +28,22 @@ class ENGINE_API UAnimSequenceBase : public UAnimationAsset
 {
 	GENERATED_UCLASS_BODY()
 
+public:
 	/** Animation notifies, sorted by time (earliest notification first). */
 	UPROPERTY()
 	TArray<struct FAnimNotifyEvent> Notifies;
 
 	/** Length (in seconds) of this AnimSequence if played back with a speed of 1.0. */
+	UE_DEPRECATED(5.0, "Direct access to SequenceLength should be removed, use GetPlayLength or SetSequenceLength instead")
 	UPROPERTY(Category=Length, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
 	float SequenceLength;
+
+	void SetSequenceLength(float NewLength) 	
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SequenceLength = NewLength; 
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Number for tweaking playback rate of this animation globally. */
 	UPROPERTY(EditAnywhere, Category=Animation)
@@ -57,8 +66,7 @@ class ENGINE_API UAnimSequenceBase : public UAnimationAsset
 	//~ End UObject Interface
 
 	/** Returns the total play length of the montage, if played back with a speed of 1.0. */
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	virtual float GetPlayLength();
+	virtual float GetPlayLength() const override;
 
 	/** Sort the Notifies array by time, earliest first. */
 	void SortNotifies();	
@@ -156,10 +164,6 @@ public:
 
 	void TickByMarkerAsLeader(FMarkerTickRecord& Instance, FMarkerTickContext& MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping) const;
 
-	// this is used in editor only when used for transition getter
-	// this doesn't mean max time. In Sequence, this is SequenceLength,
-	// but for BlendSpace CurrentTime is normalized [0,1], so this is 1
-	virtual float GetMaxCurrentTime() override { return SequenceLength; }
 	//~ End UAnimationAsset Interface
 
 	/**
@@ -236,8 +240,6 @@ public:
 	void RegisterOnAnimTrackCurvesChanged(const FOnAnimTrackCurvesChanged& Delegate);
 	void UnregisterOnAnimTrackCurvesChanged(void* Unregister);
 #endif
-
-
 
 protected:
 	template <typename DataType>
