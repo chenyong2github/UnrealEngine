@@ -32,6 +32,7 @@ class ULightComponent;
 class UMaterialInterface;
 class UModel;
 class UMovieScene;
+class UMovieSceneSkeletalAnimationTrack;
 class UMovieScene3DTransformTrack;
 class UMovieScenePropertyTrack;
 class UMovieSceneTrack;
@@ -60,6 +61,10 @@ namespace UnFbx
 		/** Updates the runtime state of the animation track to the specified frame. */
 		virtual void UpdateAnimation(int32 LocalFrame) = 0;
 		virtual float GetFrameRate() const { return 1.f / DEFAULT_SAMPLERATE; }
+		/** The anim sequence that drives this anim track */
+		virtual UAnimSequence* GetAnimSequence(int32 LocalFrame) const { return nullptr; }
+		/** The time into the anim sequence for the given LocalFrame */
+		virtual float GetAnimTime(int32 LocalFrame) const { return 0.f; }
 	};
 
 	/** An anim track adapter for matinee. */
@@ -78,17 +83,20 @@ namespace UnFbx
 	class UNREALED_API FLevelSequenceAnimTrackAdapter : public IAnimTrackAdapter
 	{
 	public:
-		FLevelSequenceAnimTrackAdapter(IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform);
+		FLevelSequenceAnimTrackAdapter(IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform, UMovieSceneSkeletalAnimationTrack* InAnimTrack = nullptr);
 		virtual int32 GetLocalStartFrame() const override;
 		virtual int32 GetStartFrame() const override;
 		virtual int32 GetLength() const override;
 		virtual void UpdateAnimation(int32 LocalFrame) override;
 		virtual float GetFrameRate() const override;
+		virtual UAnimSequence* GetAnimSequence(int32 LocalFrame) const override;
+		virtual float GetAnimTime(int32 LocalFrame) const override;
 
 	private:
 		IMovieScenePlayer* MovieScenePlayer;
 		UMovieScene* MovieScene;
 		FMovieSceneSequenceTransform RootToLocalTransform;
+		UMovieSceneSkeletalAnimationTrack* AnimTrack;
 	};
 /**
  * Main FBX Exporter class.
