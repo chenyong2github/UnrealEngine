@@ -17,8 +17,9 @@ void FColorCorrectRegionsEditorModule::StartupModule()
 void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName)
 {
 	static FName VolumeName = FName(TEXT("Volumes"));
+	static FName AllClasses = FName(TEXT("AllClasses"));
 
-	if (CategoryName == VolumeName)
+	if (CategoryName == VolumeName || CategoryName == AllClasses)
 	{
 		IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 		UBlueprint* CCRBlueprint = Cast<UBlueprint>(FSoftObjectPath(TEXT("/ColorCorrectRegions/Blueprints/ColorCorrectRegion.ColorCorrectRegion")).TryLoad());
