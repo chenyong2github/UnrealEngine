@@ -2033,7 +2033,7 @@ namespace UnrealBuildTool
 		{
 			XmlElement Application = AppxManifestXmlDocument.CreateElement("Application");
 
-			string PackageBaseName = CreateStringValue("ApplicationName", "Package.Applications.Application[" + ApplicationIndex + "].Id", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "UE4Game", ValidateApplicationName);
+			string PackageBaseName = CreateStringValue("ApplicationName", "Package.Applications.Application[" + ApplicationIndex + "].Id", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "UnrealGame", ValidateApplicationName);
 
 			string ConfigPostfix = "";
 			if (bIncludeConfigPostfix)
@@ -2075,12 +2075,12 @@ namespace UnrealBuildTool
 			if (ConfigPostfix != null && ConfigPostfix.Length > 0)
 			{
 				DisplayName.Value = "ms-resource:AppDisplayName" + ConfigPostfix;
-				AddResourceEntry("AppDisplayName" + ConfigPostfix, "ApplicationDisplayName", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DisplayName", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "UE4Game", " - " + ConfigPostfix);
+				AddResourceEntry("AppDisplayName" + ConfigPostfix, "ApplicationDisplayName", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DisplayName", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "UnrealGame", " - " + ConfigPostfix);
 			}
 			else
 			{
 				DisplayName.Value = "ms-resource:AppDisplayName";
-				AddResourceEntry("AppDisplayName" + ConfigPostfix, "ApplicationDisplayName", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DisplayName", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "UE4Game");
+				AddResourceEntry("AppDisplayName" + ConfigPostfix, "ApplicationDisplayName", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DisplayName", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "UnrealGame");
 			}
 			VisualElements.Attributes.Append(DisplayName);
 

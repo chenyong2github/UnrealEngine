@@ -2051,9 +2051,9 @@ namespace AutomationTool
 
 			if (!bIsCodeBasedProject)
 			{
-				GameTarget = Client ? "UE4Client" : "UE4Game";
+				GameTarget = Client ? "UnrealClient" : "UnrealGame";
 				EditorTarget = "UnrealEditor";
-				ServerTarget = "UE4Server";
+				ServerTarget = "UnrealServer";
 			}
 			else if (TargetNames.Count > 0)
 			{

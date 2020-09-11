@@ -1584,8 +1584,8 @@ namespace UnrealBuildTool
 				foreach (string GPUArch in GPUArchitectures)
 				{
 					string SourceSOName = AndroidToolChain.InlineArchName(OutputPath, Arch, GPUArch);
-					// if the source binary was UE4Game, replace it with the new project name, when re-packaging a binary only build
-					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UE4Game", ProjectName);
+					// if the source binary was UnrealGame, replace it with the new project name, when re-packaging a binary only build
+					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UnrealGame", ProjectName);
 					string DestApkName = Path.Combine(ProjectDirectory, "Binaries/Android/") + ApkFilename + ".apk";
 
 					// if we making multiple Apks, we need to put the architecture into the name
@@ -3149,8 +3149,8 @@ namespace UnrealBuildTool
 			List<string> Arches = ToolChain.GetAllArchitectures();
 			List<string> GPUArchitectures = ToolChain.GetAllGPUArchitectures();
 
-			// we do not need to really build an engine UE4Game.apk so short-circuit it
-			if (ProjectName == "UE4Game" && OutputPath.Replace("\\", "/").Contains("/Engine/Binaries/Android/") && Path.GetFileNameWithoutExtension(OutputPath).StartsWith("UE4Game"))
+			// we do not need to really build an engine UnrealGame.apk so short-circuit it
+			if (ProjectName == "UnrealGame" && OutputPath.Replace("\\", "/").Contains("/Engine/Binaries/Android/") && Path.GetFileNameWithoutExtension(OutputPath).StartsWith("UnrealGame"))
 			{
 				if (!bSkipGradleBuild)
 				{
@@ -3162,7 +3162,7 @@ namespace UnrealBuildTool
 								select Tuple.Create(Arch, GPUArch);
 
 					string DestApkDirectory = Path.Combine(ProjectDirectory, "Binaries/Android");
-					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UE4Game", ProjectName);
+					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UnrealGame", ProjectName);
 
 					foreach (Tuple<string, string> target in TargetList)
 					{
@@ -3655,8 +3655,8 @@ namespace UnrealBuildTool
 				else
 				{
 					string SourceSOName = AndroidToolChain.InlineArchName(OutputPath, Arch, GPUArchitecture);
-					// if the source binary was UE4Game, replace it with the new project name, when re-packaging a binary only build
-					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UE4Game", ProjectName);
+					// if the source binary was UnrealGame, replace it with the new project name, when re-packaging a binary only build
+					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UnrealGame", ProjectName);
 					DestApkName = Path.Combine(DestApkDirectory, ApkFilename + ".apk");
 
 					// As we are always making seperate APKs we need to put the architecture into the name
@@ -4172,11 +4172,11 @@ namespace UnrealBuildTool
 					string GradlePropertiesFilename = Path.Combine(UE4BuildGradlePath, "gradle.properties");
 					string GradlePropertiesContent = File.ReadAllText(GradlePropertiesFilename);
 					GradlePropertiesContent += string.Format("\nSTORE_VERSION={0}\nOUTPUT_BUNDLEFILENAME={1}\n", BaseStoreVersion,
-						Path.GetFileNameWithoutExtension(OutputPath).Replace("UE4Game", ProjectName) + ".aab");
+						Path.GetFileNameWithoutExtension(OutputPath).Replace("UnrealGame", ProjectName) + ".aab");
 					if (bEnableUniversalAPK)
 					{
 						GradlePropertiesContent += string.Format("OUTPUT_UNIVERSALFILENAME={0}\n",
-							Path.GetFileNameWithoutExtension(OutputPath).Replace("UE4Game", ProjectName) + "_universal.apk");
+							Path.GetFileNameWithoutExtension(OutputPath).Replace("UnrealGame", ProjectName) + "_universal.apk");
 					}
 					File.WriteAllText(GradlePropertiesFilename, GradlePropertiesContent);
 

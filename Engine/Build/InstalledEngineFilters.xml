@@ -107,7 +107,7 @@
 		Engine/Content/...
 
 		<!-- Source code -->
-		Engine/Source/UE4Game.Target.cs
+		Engine/Source/UnrealGame.Target.cs
 		Engine/Source/UnrealEditor.Target.cs
 
 		<!-- Starter content -->
@@ -203,8 +203,8 @@
 		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/$(Filter);Engine/Platforms/*/$(Filter)"/>
 	</ForEach>
 	<!-- Optional target files -->
-	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Source/UE4Client.Target.cs" If="$(WithClient)"/>
-	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Source/UE4Server.Target.cs" If="$(WithServer)"/>
+	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Source/UnrealClient.Target.cs" If="$(WithClient)"/>
+	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Source/UnrealServer.Target.cs" If="$(WithServer)"/>
 	<!-- Optional API docs -->
 	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Documentation/Builds/CppAPI-HTML.tgz" If="Exists('Engine/Documentation/Builds/CppAPI-HTML.tgz')"/>
 	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Documentation/Builds/BlueprintAPI-HTML.tgz" If="Exists('Engine/Documentation/Builds/BlueprintAPI-HTML.tgz')"/>

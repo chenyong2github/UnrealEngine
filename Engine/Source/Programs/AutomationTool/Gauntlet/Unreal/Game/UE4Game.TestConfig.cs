@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Gauntlet;
 
-namespace UE4Game
+namespace UnrealGame
 {
 	/// <summary>
 	/// Default set of options for testing "DefaultGame". Options that tests can configure

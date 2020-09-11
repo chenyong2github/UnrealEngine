@@ -590,7 +590,7 @@ public partial class Project : CommandUtils
 				SC.StageFiles(StagedFileType.NonUFS, BinariesDir, "libUE4-*.so", StageFilesSearch.AllDirectories);
 				SC.StageFiles(StagedFileType.NonUFS, BinariesDir, "UE4-*.dll", StageFilesSearch.AllDirectories);
 				SC.StageFiles(StagedFileType.NonUFS, BinariesDir, "libUE4Server-*.so", StageFilesSearch.AllDirectories);
-				SC.StageFiles(StagedFileType.NonUFS, BinariesDir, "UE4Server-*.dll", StageFilesSearch.AllDirectories);
+				SC.StageFiles(StagedFileType.NonUFS, BinariesDir, "UnrealServer-*.dll", StageFilesSearch.AllDirectories);
 			}
 
 			// Put the config files into the staged dir

@@ -683,7 +683,7 @@ namespace UnrealBuildTool
 		{
 			if (TargetPlatform == UnrealTargetPlatform.IOS || TargetPlatform == UnrealTargetPlatform.TVOS)
 			{
-				if ((TargetName.StartsWith("UE4Game") || (IsProjectBuild && TargetName.StartsWith(GameProjectName)) || TargetName.StartsWith("QAGame")) && !TargetName.StartsWith("QAGameEditor"))
+				if ((TargetName.StartsWith("UnrealGame") || (IsProjectBuild && TargetName.StartsWith(GameProjectName)) || TargetName.StartsWith("QAGame")) && !TargetName.StartsWith("QAGameEditor"))
 				{
 				    return false;
 				}
@@ -695,7 +695,7 @@ namespace UnrealBuildTool
 				// Editor or game builds get all target configs
 				// The game project editor or game get all configs
 				if ((TargetName.StartsWith("UnrealEditor") && !TargetName.StartsWith("UE4EditorServices")) ||
-					TargetName.StartsWith("UE4Game") ||
+					TargetName.StartsWith("UnrealGame") ||
 					(IsProjectBuild && TargetName.StartsWith(GameProjectName)))
 				{
 					return false;

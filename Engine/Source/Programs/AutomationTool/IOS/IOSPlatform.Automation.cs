@@ -564,7 +564,7 @@ public class IOSPlatform : Platform
 		FileReference TargetReceiptFileName;
 		if (bIsUE4Game)
 		{
-			TargetReceiptFileName = TargetReceipt.GetDefaultPath(InEngineDir, "UE4Game", UnrealTargetPlatform.IOS, Config, "");
+			TargetReceiptFileName = TargetReceipt.GetDefaultPath(InEngineDir, "UnrealGame", UnrealTargetPlatform.IOS, Config, "");
 		}
 		else
 		{
@@ -589,7 +589,7 @@ public class IOSPlatform : Platform
 		string ExeName = SC.StageExecutables[0];
 		if (!SC.IsCodeBasedProject)
 		{
-			ExeName = ExeName.Replace("UE4Game", Params.RawProjectPath.GetFileNameWithoutExtension());
+			ExeName = ExeName.Replace("UnrealGame", Params.RawProjectPath.GetFileNameWithoutExtension());
 		}
 		return Path.Combine(Path.GetDirectoryName(Params.RawProjectPath.FullName), "Binaries", PlatformName,
 			((bAllowDistroPrefix && Params.Distribution) ? "Distro_" : "") + ExeName + ".ipa");
@@ -859,9 +859,9 @@ public class IOSPlatform : Platform
 			var ProjectIPA = MakeIPAFileName(TargetConfiguration, Params, SC, Params.Distribution);
 			var ProjectStub = Path.GetFullPath(ProjectGameExeFilename);
 			var IPPProjectIPA = "";
-			if (ProjectStub.Contains("UE4Game"))
+			if (ProjectStub.Contains("UnrealGame"))
 			{
-				IPPProjectIPA = Path.Combine(Path.GetDirectoryName(ProjectIPA), Path.GetFileName(ProjectIPA).Replace(Params.RawProjectPath.GetFileNameWithoutExtension(), "UE4Game"));
+				IPPProjectIPA = Path.Combine(Path.GetDirectoryName(ProjectIPA), Path.GetFileName(ProjectIPA).Replace(Params.RawProjectPath.GetFileNameWithoutExtension(), "UnrealGame"));
 			}
 
 			// package a .ipa from the now staged directory
@@ -1276,7 +1276,7 @@ public class IOSPlatform : Platform
 				// this would be FooClient when making a client-only build
 				string TargetName = SC.StageExecutables[0].Split("-".ToCharArray())[0];
 				DirectoryReference SourcePath = DirectoryReference.Combine((SC.IsCodeBasedProject ? SC.ProjectRoot : DirectoryReference.Combine(SC.LocalRoot, "Engine")), "Intermediate", PlatformName);
-				FileReference TargetPListFile = FileReference.Combine(SourcePath, (SC.IsCodeBasedProject ? TargetName : "UE4Game") + "-Info.plist");
+				FileReference TargetPListFile = FileReference.Combine(SourcePath, (SC.IsCodeBasedProject ? TargetName : "UnrealGame") + "-Info.plist");
 
 				//				if (!File.Exists(TargetPListFile))
 				{
@@ -1302,10 +1302,10 @@ public class IOSPlatform : Platform
 							TargetConfiguration,
 							(SC.IsCodeBasedProject ? SC.ProjectRoot : DirectoryReference.Combine(SC.LocalRoot, "Engine")),
 							!SC.IsCodeBasedProject,
-							(SC.IsCodeBasedProject ? SC.StageExecutables[0] : "UE4Game"),
+							(SC.IsCodeBasedProject ? SC.StageExecutables[0] : "UnrealGame"),
 							SC.IsCodeBasedProject ? false : Params.Client, // Code based projects will have Client in their executable name already
 							SC.ShortProjectName, DirectoryReference.Combine(SC.LocalRoot, "Engine"),
-							DirectoryReference.Combine((SC.IsCodeBasedProject ? SC.ProjectRoot : DirectoryReference.Combine(SC.LocalRoot, "Engine")), "Binaries", PlatformName, "Payload", (SC.IsCodeBasedProject ? SC.ShortProjectName : "UE4Game") + ".app"),
+							DirectoryReference.Combine((SC.IsCodeBasedProject ? SC.ProjectRoot : DirectoryReference.Combine(SC.LocalRoot, "Engine")), "Binaries", PlatformName, "Payload", (SC.IsCodeBasedProject ? SC.ShortProjectName : "UnrealGame") + ".app"),
 							SC.StageExecutables[0],
 							out bSupportsPortrait,
 							out bSupportsLandscape,
@@ -1495,7 +1495,7 @@ public class IOSPlatform : Platform
 
 			// copy in the dSYM if found
 			var ProjectExe = MakeIPAFileName(TargetConfiguration, Params, SC, false);
-			string dSYMName = (SC.IsCodeBasedProject ? Path.GetFileNameWithoutExtension(ProjectExe) : "UE4Game") + ".dSYM";
+			string dSYMName = (SC.IsCodeBasedProject ? Path.GetFileNameWithoutExtension(ProjectExe) : "UnrealGame") + ".dSYM";
 			string dSYMDestName = AppName + ".dSYM";
 			string dSYMSrcPath = Path.Combine(SC.ProjectBinariesFolder.FullName, dSYMName);
 			string dSYMZipSrcPath = Path.Combine(SC.ProjectBinariesFolder.FullName, dSYMName + ".zip");
@@ -1514,7 +1514,7 @@ public class IOSPlatform : Platform
 				CreateDirectory(Path.Combine(ArchiveName, "dSYMs"));
 				string dSYMDstPath = Path.Combine(ArchiveName, "dSYMs", dSYMDestName);
 				// /Volumes/MacOSDrive1/pfEpicWorkspace/Dev-Platform/Samples/Sandbox/PlatformShowcase/Binaries/IOS/PlatformShowcase.dSYM/Contents/Resources/DWARF/PlatformShowcase
-				CopyFile_NoExceptions(Path.Combine(dSYMSrcPath, "Contents", "Resources", "DWARF", SC.IsCodeBasedProject ? Path.GetFileNameWithoutExtension(ProjectExe) : "UE4Game"), dSYMDstPath);
+				CopyFile_NoExceptions(Path.Combine(dSYMSrcPath, "Contents", "Resources", "DWARF", SC.IsCodeBasedProject ? Path.GetFileNameWithoutExtension(ProjectExe) : "UnrealGame"), dSYMDstPath);
 			}
 			else if (File.Exists(dSYMSrcPath))
 			{
@@ -2141,7 +2141,7 @@ public class IOSPlatform : Platform
 	private void WriteEntitlements(ProjectParams Params, DeploymentContext SC)
 	{
 		// game name
-		string AppName = SC.IsCodeBasedProject ? SC.StageExecutables[0].Split("-".ToCharArray())[0] : "UE4Game";
+		string AppName = SC.IsCodeBasedProject ? SC.StageExecutables[0].Split("-".ToCharArray())[0] : "UnrealGame";
 
 		// mobile provisioning file
 		DirectoryReference MobileProvisionDir;

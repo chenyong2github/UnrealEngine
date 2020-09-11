@@ -102,12 +102,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** If true, this executable is able to run all games (which are loaded as DLL's) **/
 #if UE_GAME || UE_SERVER
-	// In monolithic builds, implemented by the IMPLEMENT_GAME_MODULE macro or by UE4Game module.
+	// In monolithic builds, implemented by the IMPLEMENT_GAME_MODULE macro or by UnrealGame module.
 	#if !IS_MONOLITHIC
 		bool GIsGameAgnosticExe = true;
 	#endif
 #else
-	// In monolithic Editor builds, implemented by the IMPLEMENT_GAME_MODULE macro or by UE4Game module.
+	// In monolithic Editor builds, implemented by the IMPLEMENT_GAME_MODULE macro or by UnrealGame module.
 	#if !IS_MONOLITHIC || !UE_EDITOR
 		// Otherwise only modular editors are game agnostic.
 		#if IS_PROGRAM || IS_MONOLITHIC

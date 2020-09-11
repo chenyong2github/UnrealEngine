@@ -154,7 +154,7 @@ namespace UnrealBuildTool
 
 			// Compiler version and pix flags must be reloaded from the HoloLens hive
 
-			// Currently BP-only projects don't load build-related settings from their remote ini when building UE4Game.exe
+			// Currently BP-only projects don't load build-related settings from their remote ini when building UnrealGame.exe
 			// (see TargetRules.cs, where the possibly-null project directory is passed to ConfigCache.ReadSettings).
 			// It's important for HoloLens that we *do* use the project-specific settings when building (VS 2017 vs 2015 and
 			// retail Windows Store are both examples).  Possibly this should be done on all platforms?  But in the interest

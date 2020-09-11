@@ -761,7 +761,7 @@ namespace AutomationTool
 			Type[] AllCompiledTypes = TargetsDLL.GetTypes();
 			foreach (Type TargetType in AllCompiledTypes)
 			{
-				// Find TargetRules but skip all "UnrealEditor", "UE4Game" targets.
+				// Find TargetRules but skip all "UnrealEditor", "UnrealGame" targets.
 				if (typeof(TargetRules).IsAssignableFrom(TargetType) && !TargetType.IsAbstract)
 				{
 					string TargetName = GetTargetName(TargetType);

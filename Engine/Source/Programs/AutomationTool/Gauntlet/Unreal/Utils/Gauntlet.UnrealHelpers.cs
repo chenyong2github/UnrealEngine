@@ -252,7 +252,7 @@ namespace Gauntlet
 
 			string ShortName = Regex.Replace(InProjectName, "Game", "", RegexOptions.IgnoreCase);
 
-			if (InName.StartsWith("UE4Game", StringComparison.OrdinalIgnoreCase))
+			if (InName.StartsWith("UnrealGame", StringComparison.OrdinalIgnoreCase))
 			{
 				ShortName = "UE4";
 			}

@@ -885,7 +885,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				bool bIsUE4Game = LinkEnvironment.OutputFilePath.FullName.Contains("UE4Game");
+				bool bIsUE4Game = LinkEnvironment.OutputFilePath.FullName.Contains("UnrealGame");
 				FileReference ResponsePath = FileReference.Combine(((!bIsUE4Game && ProjectFile != null) ? ProjectFile.Directory : UnrealBuildTool.EngineDirectory), "Intermediate", "Build", LinkEnvironment.Platform.ToString(), "LinkFileList_" + LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".tmp");
 				Graph.CreateIntermediateTextFile(ResponsePath, InputFileNames);
 				LinkCommandArguments += string.Format(" @\"{0}\"", ResponsePath.FullName);
@@ -1703,8 +1703,8 @@ namespace UnrealBuildTool
 		}
 
         /// <summary>
-        /// If the project is a UE4Game project, Target.ProjectDirectory refers to the engine dir, not the actual dir of the project. So this method gets the 
-        /// actual directory of the project whether it is a UE4Game project or not.
+        /// If the project is a UnrealGame project, Target.ProjectDirectory refers to the engine dir, not the actual dir of the project. So this method gets the 
+        /// actual directory of the project whether it is a UnrealGame project or not.
         /// </summary>
         /// <returns>The actual project directory.</returns>
         /// <param name="ProjectFile">The path to the project file</param>
@@ -1723,7 +1723,7 @@ namespace UnrealBuildTool
 			string FrameworkName = Target.TargetName;
 			string BundleId = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBundleID(Target.ProjectDirectory, Target.ProjectFile);
 			string EnginePath = UnrealBuildTool.EngineDirectory.ToString();
-			string SrcFrameworkPath = DirectoryReference.Combine(Target.ProjectDirectory , "Binaries", "IOS", Target.Configuration.ToString()).ToString(); // We use Target.ProjectDirectory because if it is a UE4Game we want the engine dir and not the actual project dir.
+			string SrcFrameworkPath = DirectoryReference.Combine(Target.ProjectDirectory , "Binaries", "IOS", Target.Configuration.ToString()).ToString(); // We use Target.ProjectDirectory because if it is a UnrealGame we want the engine dir and not the actual project dir.
 			string CookedDataPath = DirectoryReference.Combine(ProjectDirectory, "Saved", "StagedBuilds", "IOS", "cookeddata").ToString();
 			bool GenerateFrameworkWrapperProject = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetGenerateFrameworkWrapperProject(Target.ProjectDirectory);
 
@@ -1814,7 +1814,7 @@ namespace UnrealBuildTool
 				DirectoryReference XcodeWorkspaceDir = null;
                 if (!Target.bBuildAsFramework)
                 {
-					if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+					if (AppName == "UnrealGame" || AppName == "UnrealClient" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 					{
 						XcodeWorkspaceDir = DirectoryReference.Combine(UnrealBuildTool.RootDirectory, String.Format("UE4_{0}.xcworkspace", (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 					}
@@ -1927,11 +1927,11 @@ namespace UnrealBuildTool
 					}
 
 					string SchemeName;
-					if (AppName == "UE4Game" || AppName == "UE4Client")
+					if (AppName == "UnrealGame" || AppName == "UnrealClient")
 					{
 						if (Target.bBuildAsFramework)
 						{
-							SchemeName = "UE4Game";
+							SchemeName = "UnrealGame";
 						}
 						else
 						{
@@ -1990,7 +1990,7 @@ namespace UnrealBuildTool
 
 				if (!Target.bBuildAsFramework)
 				{
-				    if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+				    if (AppName == "UnrealGame" || AppName == "UnrealClient" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 				    {
 					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID, "-includetemptargets", "-appname=" + AppName });
 				    }

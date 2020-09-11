@@ -33,7 +33,7 @@ public class AndroidPlatform : Platform
 		return Path.Combine(Path.GetDirectoryName(Params.GetProjectExeForPlatform(UnrealTargetPlatform.Android).ToString()), DecoratedExeName) + ".so";
 	}
 
-	private static string GetFinalApkName(ProjectParams Params, string DecoratedExeName, bool bRenameUE4Game, string Architecture, string GPUArchitecture)
+	private static string GetFinalApkName(ProjectParams Params, string DecoratedExeName, bool bRenameUnrealGame, string Architecture, string GPUArchitecture)
 	{
 		string ProjectDir = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(Params.RawProjectPath.FullName)), "Binaries/Android");
 
@@ -45,13 +45,13 @@ public class AndroidPlatform : Platform
 		// Apk's go to project location, not necessarily where the .so is (content only packages need to output to their directory)
 		string ApkName = Path.Combine(ProjectDir, DecoratedExeName) + Architecture + GPUArchitecture + ".apk";
 
-		// if the source binary was UE4Game, handle using it or switching to project name
-		if (Path.GetFileNameWithoutExtension(Params.GetProjectExeForPlatform(UnrealTargetPlatform.Android).ToString()) == "UE4Game")
+		// if the source binary was UnrealGame, handle using it or switching to project name
+		if (Path.GetFileNameWithoutExtension(Params.GetProjectExeForPlatform(UnrealTargetPlatform.Android).ToString()) == "UnrealGame")
 		{
-			if (bRenameUE4Game)
+			if (bRenameUnrealGame)
 			{
-				// replace UE4Game with project name (only replace in the filename part)
-				ApkName = Path.Combine(Path.GetDirectoryName(ApkName), Path.GetFileName(ApkName).Replace("UE4Game", Params.ShortProjectName));
+				// replace UnrealGame with project name (only replace in the filename part)
+				ApkName = Path.Combine(Path.GetDirectoryName(ApkName), Path.GetFileName(ApkName).Replace("UnrealGame", Params.ShortProjectName));
 			}
 			else
 			{
@@ -922,8 +922,8 @@ public class AndroidPlatform : Platform
 						bNeedGrantStoragePermission ?"\t$ADB $DEVICE " + WritePermissionGrantCommand : "",
                         "\techo",
 						"\techo Removing old data. Failures here are usually fine - indicating the files were not on the device.",
-                        "\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UE4Game/" + Params.ShortProjectName + "'",
-						"\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UE4Game/UE4CommandLine.txt" + "'",
+                        "\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UnrealGame/" + Params.ShortProjectName + "'",
+						"\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UnrealGame/UE4CommandLine.txt" + "'",
 						"\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/" + TargetAndroidLocation + PackageName + "'",
 						"\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/Android/" + TargetAndroidLocation + PackageName + "'",
 						"\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/Download/" + TargetAndroidLocation + PackageName + "'",
@@ -977,8 +977,8 @@ public class AndroidPlatform : Platform
 						"@echo Installing existing application. Failures here indicate a problem with the device (connection or storage permissions) and are fatal.",
 						"%ADB% %DEVICE% install " + Path.GetFileName(ApkName),
 						"@if \"%ERRORLEVEL%\" NEQ \"0\" goto Error",
-                        "%ADB% %DEVICE% shell rm -r %STORAGE%/UE4Game/" + Params.ShortProjectName,
-						"%ADB% %DEVICE% shell rm -r %STORAGE%/UE4Game/UE4CommandLine.txt", // we need to delete the commandline in UE4Game or it will mess up loading
+                        "%ADB% %DEVICE% shell rm -r %STORAGE%/UnrealGame/" + Params.ShortProjectName,
+						"%ADB% %DEVICE% shell rm -r %STORAGE%/UnrealGame/UE4CommandLine.txt", // we need to delete the commandline in UnrealGame or it will mess up loading
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/" + TargetAndroidLocation + PackageName,
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/Android/" + TargetAndroidLocation + PackageName,
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/Download/" + TargetAndroidLocation + PackageName,
@@ -1036,8 +1036,8 @@ public class AndroidPlatform : Platform
 						"$ADB $DEVICE uninstall " + PackageName,
 						"echo",
 						"echo Removing old data. Failures here are usually fine - indicating the files were not on the device.",
-						"$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UE4Game/" + Params.ShortProjectName + "'",
-						"$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UE4Game/UE4CommandLine.txt" + "'",
+						"$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UnrealGame/" + Params.ShortProjectName + "'",
+						"$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UnrealGame/UE4CommandLine.txt" + "'",
 						"$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/" + TargetAndroidLocation + PackageName + "'",
 						"$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/Android/" + TargetAndroidLocation + PackageName + "'",
 						"echo",
@@ -1062,8 +1062,8 @@ public class AndroidPlatform : Platform
 						"%ADB% %DEVICE% uninstall " + PackageName,
 						"@echo.",
 						"echo Removing old data. Failures here are usually fine - indicating the files were not on the device.",
-						"%ADB% %DEVICE% shell rm -r %STORAGE%/UE4Game/" + Params.ShortProjectName,
-						"%ADB% %DEVICE% shell rm -r %STORAGE%/UE4Game/UE4CommandLine.txt", // we need to delete the commandline in UE4Game or it will mess up loading
+						"%ADB% %DEVICE% shell rm -r %STORAGE%/UnrealGame/" + Params.ShortProjectName,
+						"%ADB% %DEVICE% shell rm -r %STORAGE%/UnrealGame/UE4CommandLine.txt", // we need to delete the commandline in UnrealGame or it will mess up loading
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/" + TargetAndroidLocation + PackageName,
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/Android/" + TargetAndroidLocation + PackageName,
 						"@echo.",
@@ -1477,7 +1477,7 @@ public class AndroidPlatform : Platform
 		string DeviceStorageQueryCommand = GetStorageQueryCommand();
 		IProcessResult StorageResult = RunAdbCommand(Params, DeviceName, DeviceStorageQueryCommand, null, ERunOptions.AppMustExist);
 		String StorageLocation = StorageResult.Output.Trim();
-		string RemoteDir = StorageLocation + "/UE4Game/" + Params.ShortProjectName;
+		string RemoteDir = StorageLocation + "/UnrealGame/" + Params.ShortProjectName;
 
 		// Try retrieving the UFS files manifest files from the device
 		string UFSManifestFileName = CombinePaths(SC.StageDirectory.FullName, SC.GetUFSDeployedManifestFileName(DeviceName));
@@ -1563,7 +1563,7 @@ public class AndroidPlatform : Platform
 			string DevicePatchName = StorageLocation + "/" + GetDevicePatchName(ApkName, SC);
 			string DeviceOverflow1Name = StorageLocation + "/" + GetDeviceOverflowName(ApkName, SC, 1);
 			string DeviceOverflow2Name = StorageLocation + "/" + GetDeviceOverflowName(ApkName, SC, 2);
-			string RemoteDir = StorageLocation + "/UE4Game/" + Params.ShortProjectName;
+			string RemoteDir = StorageLocation + "/UnrealGame/" + Params.ShortProjectName;
 
             // determine if APK out of date
             string APKLastUpdateTime = new FileInfo(ApkName).LastWriteTime.ToString();
@@ -1995,10 +1995,10 @@ public class AndroidPlatform : Platform
 
                 string FinalRemoteDir = RemoteDir;
                 /*
-			    // handle the special case of the UE4Commandline.txt when using content only game (UE4Game)
+			    // handle the special case of the UE4Commandline.txt when using content only game (UnrealGame)
 			    if (!Params.IsCodeBasedProject)
 			    {
-				    FinalRemoteDir = "/mnt/sdcard/UE4Game";
+				    FinalRemoteDir = "/mnt/sdcard/UnrealGame";
 			    }
 			    */
 

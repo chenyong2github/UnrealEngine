@@ -430,7 +430,7 @@ namespace UnrealBuildTool
 				{
 					RulesObject.DefaultBuildSettings = DefaultBuildSettings.Value;
 				}
-				RulesObject.bPrecompile = (RulesObject.bTreatAsEngineModule || ModuleName.Equals("UE4Game", StringComparison.OrdinalIgnoreCase)) && Target.bPrecompile;
+				RulesObject.bPrecompile = (RulesObject.bTreatAsEngineModule || ModuleName.Equals("UnrealGame", StringComparison.OrdinalIgnoreCase)) && Target.bPrecompile;
 				RulesObject.bUsePrecompiled = bReadOnly;
 
 				// go up the type hierarchy (if there is a hierarchy), looking for any extra directories for the module

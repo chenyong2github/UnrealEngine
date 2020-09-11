@@ -554,7 +554,7 @@ namespace UnrealBuildTool
 			// if ExecSrcFile is already present,
 			// File.Copy() (called directly or via ToolChain.StripSymbols())
 			// fails to copy / overwrite ExePath to ExecSrcFile since the latter is read-only.
-			// This is because BP-only projects use UE4Game executable
+			// This is because BP-only projects use UnrealGame executable
 			// present in the Engine which is set read-only upon installation.
 			// Copying this read-only file over to the project retains the read-only
 			// flags, preventing any edit operations on it (such as stripping debug symbols).
@@ -577,7 +577,7 @@ namespace UnrealBuildTool
 			// On installed builds on Mac, for BP-only projects,
 			// objcopy is unable to update ExecSrcFile when running
 			// ToolChain.LinkSymbols() since the file is read-only.
-			// This is because BP-only projects use UE4Game executable
+			// This is because BP-only projects use UnrealGame executable
 			// present in the Engine which is set read-only upon installation.
 			// Copying this read-only file over to the project retains the read-only
 			// flags, preventing any edit operations on it (such as creating a gnu debug link).

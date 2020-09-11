@@ -9,16 +9,16 @@ using System.Threading.Tasks;
 
 namespace EditorTest
 {
-	class BootTest : UE4Game.DefaultTest
+	class BootTest : UnrealGame.DefaultTest
 	{
 		public BootTest(Gauntlet.UnrealTestContext InContext) 
 			: base(InContext)
 		{
 		}
 
-		public override UE4Game.UE4TestConfig GetConfiguration()
+		public override UnrealGame.UE4TestConfig GetConfiguration()
 		{
-			UE4Game.UE4TestConfig Config = base.GetConfiguration();
+			UnrealGame.UE4TestConfig Config = base.GetConfiguration();
 
 			Config.RequireRole(UnrealTargetRole.Editor);
 

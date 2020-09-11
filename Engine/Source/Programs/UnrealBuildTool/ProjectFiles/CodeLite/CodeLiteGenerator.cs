@@ -187,9 +187,9 @@ namespace UnrealBuildTool
 						    (CurrentTarget.TargetRules.Type == TargetType.Editor) ||
 						    (CurrentTarget.TargetRules.Type == TargetType.Game))
 						{
-							if (ProjectName.Equals("UE4Client") ||
-								ProjectName.Equals("UE4Server") ||
-								ProjectName.Equals("UE4Game") ||
+							if (ProjectName.Equals("UnrealClient") ||
+								ProjectName.Equals("UnrealServer") ||
+								ProjectName.Equals("UnrealGame") ||
 								ProjectName.Equals("UnrealEditor"))
 							{
 								if (CodeLiteWorkspaceTargetEngine == null)

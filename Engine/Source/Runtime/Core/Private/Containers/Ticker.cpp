@@ -130,7 +130,7 @@ bool FTicker::FElement::Fire(float DeltaTime)
 }
 
 #if PLATFORM_WINDOWS && PLATFORM_32BITS
-// Workaround for ICE on VC++ 2017 14.13.26128 for UE4Game Win32
+// Workaround for ICE on VC++ 2017 14.13.26128 for UnrealGame Win32
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
 

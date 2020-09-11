@@ -4,9 +4,9 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 [SupportedPlatforms(UnrealPlatformClass.All)]
-public class UE4GameTarget : TargetRules
+public class UnrealGameTarget : TargetRules
 {
-	public UE4GameTarget( TargetInfo Target ) : base(Target)
+	public UnrealGameTarget( TargetInfo Target ) : base(Target)
 	{
 		Type = TargetType.Game;
 		BuildEnvironment = TargetBuildEnvironment.Shared;

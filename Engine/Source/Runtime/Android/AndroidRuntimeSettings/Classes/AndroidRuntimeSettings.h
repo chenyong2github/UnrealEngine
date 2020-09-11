@@ -253,12 +253,12 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Allow overflow OBB files."))
 	bool bAllowOverflowOBBFiles;
 
-	// If checked, UE4Game files will be placed in ExternalFilesDir which is removed on uninstall.
+	// If checked, UnrealGame files will be placed in ExternalFilesDir which is removed on uninstall.
 	// You should also check this if you need to save you game progress without requesting runtime WRITE_EXTERNAL_STORAGE permission in android api 23+
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Use ExternalFilesDir for UE4Game files?"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Use ExternalFilesDir for UnrealGame files?"))
 	bool bUseExternalFilesDir;
 
-	// If checked, log files will always be placed in a publicly available directory (either /sdcard/Android or /sdcard/UE4Game).
+	// If checked, log files will always be placed in a publicly available directory (either /sdcard/Android or /sdcard/UnrealGame).
 	// You may require WRITE_EXTERNAL_STORAGE permission if you do not use ExternalFilesDir checkbox in android api 23+
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Make log files always publicly accessible?"))
 	bool bPublicLogFiles;

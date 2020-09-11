@@ -257,7 +257,7 @@ namespace AutomationTool
 				// If they asked for editor, client etc then give them the UE version
 				if (!string.IsNullOrEmpty(UE4Target))
 				{
-					ProjectTarget = "UE4" + UE4Target;
+					ProjectTarget = "Unreal" + UE4Target;
 				}
 				else
 				{

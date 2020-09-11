@@ -53,7 +53,7 @@ namespace iPhonePackager
 				Program.Log(String.Format("Loaded stub IPA from '{0}' ...", SourceIPAPath));
 			}
 
-			if (Program.GameName == "UE4Game")
+			if (Program.GameName == "UnrealGame")
 			{
 				WorkIPAPath = Config.RemapIPAPath(".ipa");
 			}

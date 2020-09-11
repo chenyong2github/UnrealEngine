@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Gauntlet;
 
-namespace UE4Game
+namespace UnrealGame
 {
 	/// <summary>
 	/// Implements a default node that should boot most projects and supports n number of clients

@@ -136,7 +136,7 @@ namespace iPhonePackager
 			Root = Path.GetPathRoot(BinariesDir);
 
 			string GameBranchPath;
-			if (Program.GameName == "UE4Game")
+			if (Program.GameName == "UnrealGame")
 			{
 				GameBranchPath = BranchPath;
 			}
@@ -190,10 +190,10 @@ namespace iPhonePackager
 					ProvisionWithPrefix = FileOperations.FindPrefixedFile(Config.BuildDirectory + "/NotForLicensees/", Program.GameName + ".mobileprovision");
 					if (!File.Exists(ProvisionWithPrefix))
 					{
-						ProvisionWithPrefix = FileOperations.FindPrefixedFile(Config.EngineBuildDirectory, "UE4Game.mobileprovision");
+						ProvisionWithPrefix = FileOperations.FindPrefixedFile(Config.EngineBuildDirectory, "UnrealGame.mobileprovision");
 						if (!File.Exists(ProvisionWithPrefix))
 						{
-							ProvisionWithPrefix = FileOperations.FindPrefixedFile(Config.EngineBuildDirectory + "/NotForLicensees/", "UE4Game.mobileprovision");
+							ProvisionWithPrefix = FileOperations.FindPrefixedFile(Config.EngineBuildDirectory + "/NotForLicensees/", "UnrealGame.mobileprovision");
 							if(!File.Exists(ProvisionWithPrefix))
 							{
 								OutFileName = null;
@@ -372,7 +372,7 @@ namespace iPhonePackager
 			}
 
 			string ProjectFile = Config.RootRelativePath + @"Engine\Intermediate\ProjectFiles\UE4.xcodeproj\project.pbxproj";
-			if (Program.GameName != "UE4Game")
+			if (Program.GameName != "UnrealGame")
 			{
 				ProjectFile = Path.GetDirectoryName(Config.IntermediateDirectory) + @"\ProjectFiles\" + Program.GameName + @".xcodeproj\project.pbxproj";
 			}

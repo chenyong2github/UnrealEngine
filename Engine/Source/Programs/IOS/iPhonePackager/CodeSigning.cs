@@ -83,17 +83,17 @@ namespace iPhonePackager
 			if (string.IsNullOrEmpty(CFBundleIdentifier))
 			{
 				// Load Info.plist, which guides nearly everything else
-				string plistFile = Config.EngineBuildDirectory + "/UE4Game-Info.plist";
+				string plistFile = Config.EngineBuildDirectory + "/UnrealGame-Info.plist";
 				if (!string.IsNullOrEmpty(Config.ProjectFile))
 				{
 					plistFile = Path.GetDirectoryName(Config.ProjectFile) + "/Intermediate/" + Config.OSString + "/" + Path.GetFileNameWithoutExtension(Config.ProjectFile) + "-Info.plist";
 
 					if (!File.Exists(plistFile))
 					{
-						plistFile = Config.IntermediateDirectory + "/UE4Game-Info.plist";
+						plistFile = Config.IntermediateDirectory + "/UnrealGame-Info.plist";
 						if (!File.Exists(plistFile))
 						{
-							plistFile = Config.EngineBuildDirectory + "/UE4Game-Info.plist";
+							plistFile = Config.EngineBuildDirectory + "/UnrealGame-Info.plist";
 						}
 					}
 				}

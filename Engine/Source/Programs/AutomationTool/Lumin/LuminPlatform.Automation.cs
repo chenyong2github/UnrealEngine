@@ -302,9 +302,9 @@ public class LuminPlatform : Platform
 	{
 		string ProjectDir = GetFinalPackageDirectory(Params);
 		string MpkName = SC.StageExecutables[0] + ".mpk";
-		if (MpkName.StartsWith("UE4Game"))
+		if (MpkName.StartsWith("UnrealGame"))
 		{
-			MpkName = MpkName.Replace("UE4Game", Params.ShortProjectName);
+			MpkName = MpkName.Replace("UnrealGame", Params.ShortProjectName);
 		}
 		// Package's go to project location, not necessarily where the elf is (content only packages need to output to their directory)
 		return Path.Combine(ProjectDir, MpkName);

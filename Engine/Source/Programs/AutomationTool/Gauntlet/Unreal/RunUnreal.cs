@@ -56,7 +56,7 @@ namespace Gauntlet
 				throw new AutomationException("No project specified. Use -project=ShooterGame etc");
 			}
 
-			ContextOptions.Namespaces = "Gauntlet.UnrealTest,UE4Game";
+			ContextOptions.Namespaces = "Gauntlet.UnrealTest,UnrealGame";
 			ContextOptions.UsesSharedBuildType = true;
 
 			return RunTests(ContextOptions);

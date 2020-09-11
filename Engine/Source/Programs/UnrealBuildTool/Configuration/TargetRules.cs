@@ -15,7 +15,7 @@ namespace UnrealBuildTool
 	public enum TargetType
 	{
 		/// <summary>
-		/// Cooked monolithic game executable (GameName.exe).  Also used for a game-agnostic engine executable (UE4Game.exe or RocketGame.exe)
+		/// Cooked monolithic game executable (GameName.exe).  Also used for a game-agnostic engine executable (UnrealGame.exe or RocketGame.exe)
 		/// </summary>
 		Game,
 

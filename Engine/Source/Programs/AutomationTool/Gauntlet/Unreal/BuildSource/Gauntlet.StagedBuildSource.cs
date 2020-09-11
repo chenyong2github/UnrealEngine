@@ -170,11 +170,11 @@ namespace Gauntlet
 				string EngineBinaryPath = Path.Combine(InPath, "Engine", "Binaries", InPlatform.ToString());
 				string GameBinaryPath = Path.Combine(InPath, InProjectName, "Binaries", InPlatform.ToString());
 
-				// Executable will either be Project*.exe or for content-only UE4Game.exe
+				// Executable will either be Project*.exe or for content-only UnrealGame.exe
 				string[] ExecutableMatches = new string[]
 				{
 					ShortName + "*" + InExecutableExtension,
-					"UE4Game*" + InExecutableExtension,
+					"UnrealGame*" + InExecutableExtension,
 				};
 
 				// check 
@@ -216,7 +216,7 @@ namespace Gauntlet
 						// store the exe path as relative to the staged dir path
 						T NewBuild = Activator.CreateInstance(typeof(T), new object[] { InPlatform, Config, Role, InPath, Utils.SystemHelpers.MakePathRelative(App.FullName, InPath) }) as T;
 
-						if (App.Name.StartsWith("UE4Game", StringComparison.OrdinalIgnoreCase))
+						if (App.Name.StartsWith("UnrealGame", StringComparison.OrdinalIgnoreCase))
 						{
 							NewBuild.Flags |= BuildFlags.ContentOnlyProject;
 						}

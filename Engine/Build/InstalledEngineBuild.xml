@@ -108,10 +108,10 @@
 
 	<!-- Names of the client and server targets to build -->
 	<Property Name="OptionalClientTarget" Value=""/>
-	<Property Name="OptionalClientTarget" Value="UE4Client" If="$(WithClient)"/>
+	<Property Name="OptionalClientTarget" Value="UnrealClient" If="$(WithClient)"/>
 
 	<Property Name="OptionalServerTarget" Value=""/>
-	<Property Name="OptionalServerTarget" Value="UE4Server" If="$(WithServer)"/>
+	<Property Name="OptionalServerTarget" Value="UnrealServer" If="$(WithServer)"/>
 
 	<Property Name="ExtensionPlatformDirs" Value=""/>
 	<Macro Name="AddExtensionPlatform" Arguments="PlatformDir">
@@ -244,11 +244,11 @@
 
 	<!-- Target Platforms normally built from a Win64 machine -->
 	<Agent Name="Target Win64" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game Win64" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game Win64;#UE4Game Win64 Unstripped;#UE4Game Win64 Stripped;#UE4Game Win64 Unsigned;#UE4Game Win64 Signed">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget);$(OptionalServerTarget)">
+		<Node Name="Compile UnrealGame Win64" Requires="Compile UnrealHeaderTool Win64" Produces="#UnrealGame Win64;#UnrealGame Win64 Unstripped;#UnrealGame Win64 Stripped;#UnrealGame Win64 Unsigned;#UnrealGame Win64 Signed">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget);$(OptionalServerTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="Win64" Configuration="$(Configuration)" Tag="#UE4Game Win64" Arguments="-precompile -allmodules -nolink $(VSCompilerArg) $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="Win64" Configuration="$(Configuration)" Tag="#UE4Game Win64" Arguments="-precompile $(VSCompilerArg) $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="Win64" Configuration="$(Configuration)" Tag="#UnrealGame Win64" Arguments="-precompile -allmodules -nolink $(VSCompilerArg) $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="Win64" Configuration="$(Configuration)" Tag="#UnrealGame Win64" Arguments="-precompile $(VSCompilerArg) $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
@@ -256,173 +256,173 @@
 				<!-- Embed source info into the PDB files. Should be done from this machine to ensure that paths are correct. -->
 				<Log Message="Embedding source file information into PDB files..."/>
 				<Tag Files="Engine/Source/...;Engine/Plugins/..." Filter="*.c;*.h;*.cpp;*.hpp;*.inl" Except="Engine/Source/ThirdParty/..." With="#SourceFiles"/>
-				<SrcSrv BinaryFiles="#UE4Game Win64" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(Change)"/>
+				<SrcSrv BinaryFiles="#UnrealGame Win64" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(Change)"/>
 			</Do>
 
-			<Tag Files="#UE4Game Win64" Filter="$(Win64StripFilter)" Except="$(Win64StripExceptions)" With="#UE4Game Win64 Unstripped"/>
+			<Tag Files="#UnrealGame Win64" Filter="$(Win64StripFilter)" Except="$(Win64StripExceptions)" With="#UnrealGame Win64 Unstripped"/>
 
 			<Switch>
 				<Case If="'$(WithFullDebugInfo)' == true">
 					<!-- Copy files for local debug builds -->
-					<Copy Files="#UE4Game Win64 Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
+					<Copy Files="#UnrealGame Win64 Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
 				</Case>
 				<Default>
 					<!-- Otherwise, strip the files for distribution -->
-					<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Win64" Files="#UE4Game Win64 Unstripped" Tag="#UE4Game Win64 Stripped"/>
+					<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Win64" Files="#UnrealGame Win64 Unstripped" Tag="#UnrealGame Win64 Stripped"/>
 				</Default>
 			</Switch>
 
 			<Do If="'$(SignExecutables)' == true">
-				<Tag Files="#UE4Game Win64" Filter="$(WindowsSignFilter)" With="#UE4Game Win64 Unsigned"/>
-				<Copy Files="#UE4Game Win64 Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Game_ToSign_Win64"/>
-				<Sign Files="#Game_ToSign_Win64" Tag="#UE4Game Win64 Signed"/>
+				<Tag Files="#UnrealGame Win64" Filter="$(WindowsSignFilter)" With="#UnrealGame Win64 Unsigned"/>
+				<Copy Files="#UnrealGame Win64 Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Game_ToSign_Win64"/>
+				<Sign Files="#Game_ToSign_Win64" Tag="#UnrealGame Win64 Signed"/>
 			</Do>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_Win64" Requires="Compile UE4Game Win64"/>
+	<Aggregate Name="TargetPlatforms_Win64" Requires="Compile UnrealGame Win64"/>
 
 	<Agent Name="Target Linux" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game Linux" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget);$(OptionalServerTarget)">
+		<Node Name="Compile UnrealGame Linux" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UnrealGame Linux;#UnrealGame Linux Unstripped;#UnrealGame Linux Stripped">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget);$(OptionalServerTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="Linux" Configuration="$(Configuration)" Tag="#UE4Game Linux" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="Linux" Configuration="$(Configuration)" Tag="#UE4Game Linux" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="Linux" Configuration="$(Configuration)" Tag="#UnrealGame Linux" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="Linux" Configuration="$(Configuration)" Tag="#UnrealGame Linux" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
-			<Tag Files="#UE4Game Linux" Filter="$(LinuxStripFilter)" With="#UE4Game Linux Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Linux" Files="#UE4Game Linux Unstripped" Tag="#UE4Game Linux Stripped"/>
+			<Tag Files="#UnrealGame Linux" Filter="$(LinuxStripFilter)" With="#UnrealGame Linux Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Linux" Files="#UnrealGame Linux Unstripped" Tag="#UnrealGame Linux Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_Linux" Requires="Compile UE4Game Linux"/>
+	<Aggregate Name="TargetPlatforms_Linux" Requires="Compile UnrealGame Linux"/>
 	
 	<Agent Name="Target LinuxAArch64" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game LinuxAArch64" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UE4Game LinuxAArch64;#UE4Game LinuxAArch64 Unstripped;#UE4Game LinuxAArch64 Stripped">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget);$(OptionalServerTarget)">
+		<Node Name="Compile UnrealGame LinuxAArch64" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UnrealGame LinuxAArch64;#UnrealGame LinuxAArch64 Unstripped;#UnrealGame LinuxAArch64 Stripped">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget);$(OptionalServerTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="LinuxAArch64" Configuration="$(Configuration)" Tag="#UE4Game LinuxAArch64" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="LinuxAArch64" Configuration="$(Configuration)" Tag="#UE4Game LinuxAArch64" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="LinuxAArch64" Configuration="$(Configuration)" Tag="#UnrealGame LinuxAArch64" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="LinuxAArch64" Configuration="$(Configuration)" Tag="#UnrealGame LinuxAArch64" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
-			<Tag Files="#UE4Game LinuxAArch64" Filter="$(LinuxStripFilter)" With="#UE4Game LinuxAArch64 Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="LinuxAArch64" Files="#UE4Game LinuxAArch64 Unstripped" Tag="#UE4Game LinuxAArch64 Stripped"/>
+			<Tag Files="#UnrealGame LinuxAArch64" Filter="$(LinuxStripFilter)" With="#UnrealGame LinuxAArch64 Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="LinuxAArch64" Files="#UnrealGame LinuxAArch64 Unstripped" Tag="#UnrealGame LinuxAArch64 Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_LinuxAArch64" Label="Platforms/Linux (AArch64)" Requires="Compile UE4Game LinuxAArch64"/>
+	<Aggregate Name="TargetPlatforms_LinuxAArch64" Label="Platforms/Linux (AArch64)" Requires="Compile UnrealGame LinuxAArch64"/>
 
 	<Agent Name="Target Android" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game Android" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UE4Game Android;#UE4Game Android Unstripped;#UE4Game Android Stripped">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
+		<Node Name="Compile UnrealGame Android" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UnrealGame Android;#UnrealGame Android Unstripped;#UnrealGame Android Stripped">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="Android" Configuration="$(Configuration)" Tag="#UE4Game Android" Arguments="-precompile -allmodules -nolink -architectures=$(AndroidArchitectures) $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="Android" Configuration="$(Configuration)" Tag="#UE4Game Android" Arguments="-precompile -architectures=$(AndroidArchitectures) $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="Android" Configuration="$(Configuration)" Tag="#UnrealGame Android" Arguments="-precompile -allmodules -nolink -architectures=$(AndroidArchitectures) $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="Android" Configuration="$(Configuration)" Tag="#UnrealGame Android" Arguments="-precompile -architectures=$(AndroidArchitectures) $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
-			<Tag Files="#UE4Game Android" Filter="$(AndroidStripFilter)" With="#UE4Game Android Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Android" Files="#UE4Game Android Unstripped" Tag="#UE4Game Android Stripped"/>
+			<Tag Files="#UnrealGame Android" Filter="$(AndroidStripFilter)" With="#UnrealGame Android Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Android" Files="#UnrealGame Android Unstripped" Tag="#UnrealGame Android Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_Android" Label="Platforms/Android" Requires="Compile UE4Game Android"/>
+	<Aggregate Name="TargetPlatforms_Android" Label="Platforms/Android" Requires="Compile UnrealGame Android"/>
 	
 	<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
 		<Expand Name="Agent_Target_$(Platform)_Win64_Licensee"/>
 	</ForEach>
 
 	<Agent Name="Target HoloLens" Type="HoloLens">
-		<Node Name="Compile UE4Game HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game HoloLens">
+		<Node Name="Compile UnrealGame HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UnrealGame HoloLens">
 			<ForEach Name="Configuration" Values="$(GameConfigurations)">
-				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -allmodules -nolink -architecture=arm64 $(TargetDebugInfoArg)"/>
-				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -architecture=arm64 $(TargetDebugInfoArg)" Clean="false"/>
-				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -allmodules -nolink -architecture=x64 $(TargetDebugInfoArg)"/>
-				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -architecture=x64 $(TargetDebugInfoArg)" Clean="false"/>
+				<Compile Target="UnrealGame" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UnrealGame HoloLens" Arguments="-precompile -allmodules -nolink -architecture=arm64 $(TargetDebugInfoArg)"/>
+				<Compile Target="UnrealGame" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UnrealGame HoloLens" Arguments="-precompile -architecture=arm64 $(TargetDebugInfoArg)" Clean="false"/>
+				<Compile Target="UnrealGame" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UnrealGame HoloLens" Arguments="-precompile -allmodules -nolink -architecture=x64 $(TargetDebugInfoArg)"/>
+				<Compile Target="UnrealGame" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UnrealGame HoloLens" Arguments="-precompile -architecture=x64 $(TargetDebugInfoArg)" Clean="false"/>
 			</ForEach>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_HoloLens" Label="Platforms/HoloLens" Requires="Compile UE4Game HoloLens"/>
+	<Aggregate Name="TargetPlatforms_HoloLens" Label="Platforms/HoloLens" Requires="Compile UnrealGame HoloLens"/>
 
 	<Agent Name="Target Lumin" Type="Win64_Licensee">
-		<Node Name="Compile UE4Game Lumin" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game Lumin;#UE4Game Lumin Unstripped;#UE4Game Lumin Stripped">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
+		<Node Name="Compile UnrealGame Lumin" Requires="Compile UnrealHeaderTool Win64" Produces="#UnrealGame Lumin;#UnrealGame Lumin Unstripped;#UnrealGame Lumin Stripped">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UE4Game Lumin" AllowXGE="false" Arguments="-precompile -allmodules -nolink -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UE4Game Lumin" AllowXGE="false" Arguments="-precompile -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UnrealGame Lumin" AllowXGE="false" Arguments="-precompile -allmodules -nolink -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UnrealGame Lumin" AllowXGE="false" Arguments="-precompile -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 			
-			<Tag Files="#UE4Game Lumin" Filter="$(LuminStripFilter)" With="#UE4Game Lumin Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Lumin" Files="#UE4Game Lumin Unstripped" Tag="#UE4Game Lumin Stripped"/>
+			<Tag Files="#UnrealGame Lumin" Filter="$(LuminStripFilter)" With="#UnrealGame Lumin Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Lumin" Files="#UnrealGame Lumin Unstripped" Tag="#UnrealGame Lumin Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_Lumin" Label="Platforms/Lumin" Requires="Compile UE4Game Lumin"/>
+	<Aggregate Name="TargetPlatforms_Lumin" Label="Platforms/Lumin" Requires="Compile UnrealGame Lumin"/>
 
 	<!-- Target Platforms normally built from a Mac machine -->
 	<Agent Name="Target Mac" Type="Mac_Licensee">
-		<Node Name="Compile UE4Game Mac" Requires="Compile UnrealHeaderTool Mac" Produces="#UE4Game Mac;#UE4Game Mac Unstripped;#UE4Game Mac Stripped;#UE4Game Mac Unsigned;#UE4Game Mac Signed">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget);$(OptionalServerTarget)">
+		<Node Name="Compile UnrealGame Mac" Requires="Compile UnrealHeaderTool Mac" Produces="#UnrealGame Mac;#UnrealGame Mac Unstripped;#UnrealGame Mac Stripped;#UnrealGame Mac Unsigned;#UnrealGame Mac Signed">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget);$(OptionalServerTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="Mac" Configuration="$(Configuration)" Tag="#UE4Game Mac" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="Mac" Configuration="$(Configuration)" Tag="#UE4Game Mac" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="Mac" Configuration="$(Configuration)" Tag="#UnrealGame Mac" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="Mac" Configuration="$(Configuration)" Tag="#UnrealGame Mac" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
-			<Tag Files="#UE4Game Mac" Filter="$(MacStripFilter)" With="#UE4Game Mac Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Mac" Files="#UE4Game Mac Unstripped" Tag="#UE4Game Mac Stripped"/>
+			<Tag Files="#UnrealGame Mac" Filter="$(MacStripFilter)" With="#UnrealGame Mac Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Mac" Files="#UnrealGame Mac Unstripped" Tag="#UnrealGame Mac Stripped"/>
 
 			<Do If="'$(SignExecutables)' == true">
-				<Tag Files="#UE4Game Mac" Filter="$(MacSignFilter)" With="#UE4Game Mac Unsigned"/>
-				<Copy Files="#UE4Game Mac Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Game_ToSign_Mac"/>
-				<Sign Files="#Game_ToSign_Mac" Tag="#UE4Game Mac Signed"/>
+				<Tag Files="#UnrealGame Mac" Filter="$(MacSignFilter)" With="#UnrealGame Mac Unsigned"/>
+				<Copy Files="#UnrealGame Mac Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Game_ToSign_Mac"/>
+				<Sign Files="#Game_ToSign_Mac" Tag="#UnrealGame Mac Signed"/>
 			</Do>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_Mac" Requires="Compile UE4Game Mac"/>
+	<Aggregate Name="TargetPlatforms_Mac" Requires="Compile UnrealGame Mac"/>
 
 	<Agent Name="Target IOS" Type="Mac_Licensee">
-		<Node Name="Compile UE4Game IOS" Requires="Compile UnrealHeaderTool Mac" Produces="#UE4Game IOS;#UE4Game IOS Unstripped;#UE4Game IOS Stripped">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
+		<Node Name="Compile UnrealGame IOS" Requires="Compile UnrealHeaderTool Mac" Produces="#UnrealGame IOS;#UnrealGame IOS Unstripped;#UnrealGame IOS Stripped">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="IOS" Configuration="$(Configuration)" Tag="#UE4Game IOS" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="IOS" Configuration="$(Configuration)" Tag="#UE4Game IOS" Arguments="-precompile -createstub $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="IOS" Configuration="$(Configuration)" Tag="#UnrealGame IOS" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="IOS" Configuration="$(Configuration)" Tag="#UnrealGame IOS" Arguments="-precompile -createstub $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
-			<Tag Files="#UE4Game IOS" Filter="$(IOSStripFilter)" With="#UE4Game IOS Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="IOS" Files="#UE4Game IOS Unstripped" Tag="#UE4Game IOS Stripped"/>
+			<Tag Files="#UnrealGame IOS" Filter="$(IOSStripFilter)" With="#UnrealGame IOS Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="IOS" Files="#UnrealGame IOS Unstripped" Tag="#UnrealGame IOS Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_IOS" Label="Platforms/IOS" Requires="Compile UE4Game IOS"/>
+	<Aggregate Name="TargetPlatforms_IOS" Label="Platforms/IOS" Requires="Compile UnrealGame IOS"/>
 
 	<Agent Name="Target TVOS" Type="Mac_Licensee">
-		<Node Name="Compile UE4Game TVOS" Requires="Compile UnrealHeaderTool Mac" Produces="#UE4Game TVOS;#UE4Game TVOS Unstripped;#UE4Game TVOS Stripped">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
+		<Node Name="Compile UnrealGame TVOS" Requires="Compile UnrealHeaderTool Mac" Produces="#UnrealGame TVOS;#UnrealGame TVOS Unstripped;#UnrealGame TVOS Stripped">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="TVOS" Configuration="$(Configuration)" Tag="#UE4Game TVOS" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="TVOS" Configuration="$(Configuration)" Tag="#UE4Game TVOS" Arguments="-precompile -createstub $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="TVOS" Configuration="$(Configuration)" Tag="#UnrealGame TVOS" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="TVOS" Configuration="$(Configuration)" Tag="#UnrealGame TVOS" Arguments="-precompile -createstub $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
-			<Tag Files="#UE4Game TVOS" Filter="$(TVOSStripFilter)" With="#UE4Game TVOS Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="TVOS" Files="#UE4Game TVOS Unstripped" Tag="#UE4Game TVOS Stripped"/>
+			<Tag Files="#UnrealGame TVOS" Filter="$(TVOSStripFilter)" With="#UnrealGame TVOS Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="TVOS" Files="#UnrealGame TVOS Unstripped" Tag="#UnrealGame TVOS Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_TVOS" Label="Platforms/TVOS" Requires="Compile UE4Game TVOS"/>
+	<Aggregate Name="TargetPlatforms_TVOS" Label="Platforms/TVOS" Requires="Compile UnrealGame TVOS"/>
 
 	<Agent Name="Target LuminMac" Type="Mac_Licensee">
-		<Node Name="Compile UE4Game LuminMac" Requires="Compile UnrealHeaderTool Mac" Produces="#UE4Game LuminMac;#UE4Game LuminMac Unstripped;#UE4Game LuminMac Stripped">
-			<ForEach Name="Target" Values="UE4Game;$(OptionalClientTarget)">
+		<Node Name="Compile UnrealGame LuminMac" Requires="Compile UnrealHeaderTool Mac" Produces="#UnrealGame LuminMac;#UnrealGame LuminMac Unstripped;#UnrealGame LuminMac Stripped">
+			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UE4Game LuminMac" Arguments="-precompile -allmodules -nolink -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)" AllowParallelExecutor="false"/>
-					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UE4Game LuminMac" Arguments="-precompile -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)" AllowParallelExecutor="false" Clean="false"/>
+					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UnrealGame LuminMac" Arguments="-precompile -allmodules -nolink -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)" AllowParallelExecutor="false"/>
+					<Compile Target="$(Target)" Platform="Lumin" Configuration="$(Configuration)" Tag="#UnrealGame LuminMac" Arguments="-precompile -architectures=$(LuminArchitectures) -gpuarchitectures=$(LuminGPUArchitectures) $(TargetDebugInfoArg)" AllowParallelExecutor="false" Clean="false"/>
 				</ForEach>
 			</ForEach>
 
-			<Tag Files="#UE4Game LuminMac" Filter="$(LuminStripFilter)" With="#UE4Game LuminMac Unstripped"/>
-			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Lumin" Files="#UE4Game LuminMac Unstripped" Tag="#UE4Game LuminMac Stripped"/>
+			<Tag Files="#UnrealGame LuminMac" Filter="$(LuminStripFilter)" With="#UnrealGame LuminMac Unstripped"/>
+			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Lumin" Files="#UnrealGame LuminMac Unstripped" Tag="#UnrealGame LuminMac Stripped"/>
 		</Node>
 	</Agent>
-	<Aggregate Name="TargetPlatforms_LuminMac" Label="Platforms/LuminMac" Requires="Compile UE4Game LuminMac"/>
+	<Aggregate Name="TargetPlatforms_LuminMac" Label="Platforms/LuminMac" Requires="Compile UnrealGame LuminMac"/>
 
 	<Agent Name="NotForLicensee Tools Group Win64" Type="Win64">
 		<Node Name="Build NotForLicensee Tools Win64" Requires="Compile UnrealHeaderTool Win64" Produces="#NotForLicensee Build Tools Win64">
@@ -748,14 +748,14 @@
 		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
 			<Expand Name="$(Platform)_AddInstalledRequirements"/>
 		</ForEach>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Win64;#UE4Game Win64 Unstripped;#UE4Game Win64 Stripped;#UE4Game Win64 Unsigned;#UE4Game Win64 Signed" If="'$(WithWin64)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Android;#UE4Game Android Unstripped;#UE4Game Android Stripped" If="'$(WithAndroid)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game IOS;#UE4Game IOS Unstripped;#UE4Game IOS Stripped;#Compile UnrealHeaderTool Mac" If="'$(WithIOS)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game TVOS;#UE4Game TVOS Unstripped;#UE4Game TVOS Stripped" If="'$(WithTVOS)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped;#Build Tools Linux" If="'$(WithLinux)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game LinuxAArch64;#UE4Game LinuxAArch64 Unstripped;#UE4Game LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Lumin" If="'$(WithLumin)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game HoloLens" If="'$(WithHoloLens)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame Win64;#UnrealGame Win64 Unstripped;#UnrealGame Win64 Stripped;#UnrealGame Win64 Unsigned;#UnrealGame Win64 Signed" If="'$(WithWin64)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame Android;#UnrealGame Android Unstripped;#UnrealGame Android Stripped" If="'$(WithAndroid)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame IOS;#UnrealGame IOS Unstripped;#UnrealGame IOS Stripped;#Compile UnrealHeaderTool Mac" If="'$(WithIOS)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame TVOS;#UnrealGame TVOS Unstripped;#UnrealGame TVOS Stripped" If="'$(WithTVOS)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame Linux;#UnrealGame Linux Unstripped;#UnrealGame Linux Stripped;#Build Tools Linux" If="'$(WithLinux)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame LinuxAArch64;#UnrealGame LinuxAArch64 Unstripped;#UnrealGame LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame Lumin" If="'$(WithLumin)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame HoloLens" If="'$(WithHoloLens)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#CompressedDDCWin64" If="'$(WithDDC)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#Compile Datasmith Plugins Win64;#DatasmithPluginBinaries Win64" If="$(CompileDatasmithPlugins)"/>
 		<!-- Feature packs -->
@@ -783,58 +783,58 @@
 
 			<!-- Tag enabled target platforms -->
 			<Do If="'$(WithWin64)' == true">
-				<Tag Files="#UE4Game Win64" Except="#UE4Game Win64 Unstripped;#UE4Game Win64 Unsigned" With="#Installed Win64"/>
-				<Tag Files="#UE4Game Win64 Stripped;#UE4Game Win64 Signed" With="#Saved Output"/>
+				<Tag Files="#UnrealGame Win64" Except="#UnrealGame Win64 Unstripped;#UnrealGame Win64 Unsigned" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame Win64 Stripped;#UnrealGame Win64 Signed" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)Win64;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyWin64Filter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyWin64Exceptions)"/>
 			</Do>
 			<Do If="'$(WithAndroid)' == true">
-				<Tag Files="#UE4Game Android" Except="#UE4Game Android Unstripped" With="#Installed Win64"/>
-				<Tag Files="#UE4Game Android Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame Android" Except="#UnrealGame Android Unstripped" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame Android Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)Android;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyAndroidFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyAndroidExceptions)"/>
 			</Do>
 			<Do If="'$(WithIOS)' == true">
-				<Tag Files="#UE4Game IOS;#Compile UnrealHeaderTool Mac" Except="#UE4Game IOS Unstripped" With="#Installed Win64"/>
-				<Tag Files="#UE4Game IOS Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame IOS;#Compile UnrealHeaderTool Mac" Except="#UnrealGame IOS Unstripped" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame IOS Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)IOS;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyIOSFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyIOSExceptions)"/>
 			</Do>
 			<Do If="'$(WithTVOS)' == true">
-				<Tag Files="#UE4Game TVOS" Except="#UE4Game TVOS Unstripped" With="#Installed Win64"/>
-				<Tag Files="#UE4Game TVOS Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame TVOS" Except="#UnrealGame TVOS Unstripped" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame TVOS Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)TVOS;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyTVOSFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyTVOSExceptions)"/>
 			</Do>
 			<Do If="'$(WithLinux)' == true">
-				<Tag Files="#UE4Game Linux;#Build Tools Linux" Except="#UE4Game Linux Unstripped" With="#Installed Win64"/>
-				<Tag Files="#UE4Game Linux Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame Linux;#Build Tools Linux" Except="#UnrealGame Linux Unstripped" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame Linux Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)Linux;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
 			<Do If="'$(WithLinuxAArch64)' == true">
-				<Tag Files="#UE4Game LinuxAArch64" Except="#UE4Game LinuxAArch64 Unstripped" With="#Installed Win64"/>
-				<Tag Files="#UE4Game LinuxAArch64 Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame LinuxAArch64" Except="#UnrealGame LinuxAArch64 Unstripped" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame LinuxAArch64 Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)LinuxAArch64;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
 			<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
-				<Expand Name="$(Platform)_Tag_UE4Game"/>
+				<Expand Name="$(Platform)_Tag_UnrealGame"/>
 			</ForEach>
 			<Do If="'$(WithLumin)' == true">
-				<Tag Files="#UE4Game Lumin" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame Lumin" With="#Installed Win64"/>
 				<Property Name="Platforms" Value="$(Platforms)Lumin;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLuminFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLuminExceptions)"/>
 			</Do>
 			<Do If="'$(WithHoloLens)' == true">
-				<Tag Files="#UE4Game HoloLens;#UE4Game HoloLens Includes" With="#Installed Win64"/>
+				<Tag Files="#UnrealGame HoloLens;#UnrealGame HoloLens Includes" With="#Installed Win64"/>
 				<Property Name="Platforms" Value="$(Platforms)HoloLens;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyHoloLensFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyHoloLensExceptions)"/>
@@ -907,11 +907,11 @@
 		<Property Name="FilterRequirements" Value="#Compile UnrealHeaderTool Mac;#UnrealEditor Mac WithExceptions;#UnrealEditor Mac Unstripped;#UnrealEditor Mac Stripped;#UnrealEditor Mac Unsigned;#UnrealEditor Mac Signed;#Build Tools Mac;#Build Tools CS Binaries;#Rules Assemblies"/>
 
 		<!-- Optional Target Platform requirements -->
-		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UE4Game Mac;#UE4Game Mac Unstripped;#UE4Game Mac Stripped;#UE4Game Mac Unsigned;#UE4Game Mac Signed" If="'$(WithMac)' == true"/>
-		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UE4Game Android;#UE4Game Android Unstripped;#UE4Game Android Stripped" If="'$(WithAndroid)' == true"/>
-		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UE4Game IOS;#UE4Game IOS Unstripped;#UE4Game IOS Stripped" If="'$(WithIOS)' == true"/>
-		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UE4Game TVOS;#UE4Game TVOS Unstripped;#UE4Game TVOS Stripped" If="'$(WithTVOS)' == true"/>
-		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UE4Game LuminMac;#UE4Game LuminMac Unstripped;#UE4Game LuminMac Stripped" If="'$(WithLuminMac)' == true"/>
+		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UnrealGame Mac;#UnrealGame Mac Unstripped;#UnrealGame Mac Stripped;#UnrealGame Mac Unsigned;#UnrealGame Mac Signed" If="'$(WithMac)' == true"/>
+		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UnrealGame Android;#UnrealGame Android Unstripped;#UnrealGame Android Stripped" If="'$(WithAndroid)' == true"/>
+		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UnrealGame IOS;#UnrealGame IOS Unstripped;#UnrealGame IOS Stripped" If="'$(WithIOS)' == true"/>
+		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UnrealGame TVOS;#UnrealGame TVOS Unstripped;#UnrealGame TVOS Stripped" If="'$(WithTVOS)' == true"/>
+		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UnrealGame LuminMac;#UnrealGame LuminMac Unstripped;#UnrealGame LuminMac Stripped" If="'$(WithLuminMac)' == true"/>
 		<Property Name="FilterRequirements" Value="$(FilterRequirements);#CompressedDDCMac" If="'$(WithDDC)' == true"/>
 		<Property Name="FilterRequirements" Value="$(FilterRequirements);#Compile Datasmith Plugins Mac;#DatasmithPluginBinaries Mac" If="$(CompileDatasmithPlugins)"/>
 
@@ -939,36 +939,36 @@
 
 			<!-- Tag enabled target platforms -->
 			<Do If="'$(WithMac)' == true">
-				<Tag Files="#UE4Game Mac" Except="#UE4Game Mac Unstripped;#UE4Game Mac Unsigned" With="#Installed Mac"/>
-				<Tag Files="#UE4Game Mac Stripped;#UE4Game Mac Signed" With="#Saved Output"/>
+				<Tag Files="#UnrealGame Mac" Except="#UnrealGame Mac Unstripped;#UnrealGame Mac Unsigned" With="#Installed Mac"/>
+				<Tag Files="#UnrealGame Mac Stripped;#UnrealGame Mac Signed" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)Mac;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyMacFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyMacExceptions)"/>
 			</Do>
 			<Do  If="'$(WithAndroid)' == true">
-				<Tag Files="#UE4Game Android" Except="#UE4Game Android Unstripped" With="#Installed Mac"/>
-				<Tag Files="#UE4Game Android Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame Android" Except="#UnrealGame Android Unstripped" With="#Installed Mac"/>
+				<Tag Files="#UnrealGame Android Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)Android;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyAndroidFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyAndroidExceptions)"/>
 			</Do>
 			<Do If="'$(WithIOS)' == true">
-				<Tag Files="#UE4Game IOS" Except="#UE4Game IOS Unstripped" With="#Installed Mac"/>
-				<Tag Files="#UE4Game IOS Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame IOS" Except="#UnrealGame IOS Unstripped" With="#Installed Mac"/>
+				<Tag Files="#UnrealGame IOS Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)IOS;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyIOSFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyIOSExceptions)"/>
 			</Do>
 			<Do If="'$(WithTVOS)' == true">
-				<Tag Files="#UE4Game TVOS" Except="#UE4Game TVOS Unstripped" With="#Installed Mac"/>
-				<Tag Files="#UE4Game TVOS Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame TVOS" Except="#UnrealGame TVOS Unstripped" With="#Installed Mac"/>
+				<Tag Files="#UnrealGame TVOS Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)TVOS;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyTVOSFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyTVOSExceptions)"/>
 			</Do>
 			<Do If="'$(WithLuminMac)' == true">
-				<Tag Files="#UE4Game LuminMac" Except="#UE4Game LuminMac Unstripped" With="#Installed Mac"/>
-				<Tag Files="#UE4Game LuminMac Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame LuminMac" Except="#UnrealGame LuminMac Unstripped" With="#Installed Mac"/>
+				<Tag Files="#UnrealGame LuminMac Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)Lumin;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLuminFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLuminExceptions)"/>
@@ -1037,8 +1037,8 @@
 		<Property Name="InstalledRequirements" Value="#Compile UnrealHeaderTool Linux;#UnrealEditor Linux;#UnrealEditor Linux Unstripped;#UnrealEditor Linux Stripped;#Build Tools Linux;#Build Tools CS Binaries;#Rules Assemblies"/>
 
 		<!-- Optional Target Platform requirements -->
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped" If="'$(WithLinux)' == true"/>
-		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game LinuxAArch64;#UE4Game LinuxAArch64 Unstripped;#UE4Game LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame Linux;#UnrealGame Linux Unstripped;#UnrealGame Linux Stripped" If="'$(WithLinux)' == true"/>
+		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame LinuxAArch64;#UnrealGame LinuxAArch64 Unstripped;#UnrealGame LinuxAArch64 Stripped" If="'$(WithLinuxAArch64)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#CompressedDDCLinux" If="'$(WithDDC)' == true"/>
 
 		<!-- Feature packs -->
@@ -1065,15 +1065,15 @@
 
 			<!-- Tag enabled target platforms -->
 			<Do If="'$(WithLinux)' == true">
-				<Tag Files="#UE4Game Linux;#Build Tools Linux" Except="#UE4Game Linux Unstripped" With="#Installed Linux"/>
-				<Tag Files="#UE4Game Linux Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame Linux;#Build Tools Linux" Except="#UnrealGame Linux Unstripped" With="#Installed Linux"/>
+				<Tag Files="#UnrealGame Linux Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)Linux;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
 			</Do>
 			<Do If="'$(WithLinuxAArch64)' == true">
-				<Tag Files="#UE4Game LinuxAArch64" Except="#UE4Game LinuxAArch64 Unstripped" With="#Installed Linux"/>
-				<Tag Files="#UE4Game LinuxAArch64 Stripped" With="#Saved Output"/>
+				<Tag Files="#UnrealGame LinuxAArch64" Except="#UnrealGame LinuxAArch64 Unstripped" With="#Installed Linux"/>
+				<Tag Files="#UnrealGame LinuxAArch64 Stripped" With="#Saved Output"/>
 				<Property Name="Platforms" Value="$(Platforms)LinuxAArch64;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>

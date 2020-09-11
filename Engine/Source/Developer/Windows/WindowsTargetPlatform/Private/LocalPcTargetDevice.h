@@ -245,11 +245,11 @@ public:
 		
 		if (TargetType == EBuildTargetType::Game)
 		{
-			ExecutablePath /= TEXT("UE4Game");
+			ExecutablePath /= TEXT("UnrealGame");
 		}
 		else if (TargetType == EBuildTargetType::Server)
 		{
-			ExecutablePath /= TEXT("UE4Game");
+			ExecutablePath /= TEXT("UnrealGame");
 		}
 		else if (TargetType == EBuildTargetType::Editor)
 		{

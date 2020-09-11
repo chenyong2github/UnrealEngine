@@ -778,7 +778,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 			FString TargetName;
 			if (Target == nullptr)
 			{
-				TargetName = TEXT("UE4Game");
+				TargetName = TEXT("UnrealGame");
 			}
 			else
 			{

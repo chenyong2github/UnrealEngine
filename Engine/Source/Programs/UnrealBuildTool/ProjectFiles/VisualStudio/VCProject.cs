@@ -1566,14 +1566,7 @@ namespace UnrealBuildTool
 					string BaseExeName = TargetName;
 					if (!bShouldCompileMonolithic && TargetRulesObject.Type != TargetType.Program && TargetRulesObject.BuildEnvironment != TargetBuildEnvironment.Unique)
 					{
-						if (TargetRulesObject.Type == TargetType.Editor)
-						{
-							BaseExeName = "UnrealEditor";
-						}
-						else
-						{
-							BaseExeName = "UE4" + TargetRulesObject.Type.ToString();
-						}
+						BaseExeName = "Unreal" + TargetRulesObject.Type.ToString();
 					}
 
 					// Make the output file path

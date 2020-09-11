@@ -834,7 +834,7 @@ namespace iPhonePackager
                 GameName = Path.GetFileNameWithoutExtension(GamePath);
                 if (GameName.Equals("UE4", StringComparison.InvariantCultureIgnoreCase) || GameName.Equals("Engine", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    GameName = "UE4Game";
+                    GameName = "UnrealGame";
                 }
 
                 // setup configuration

@@ -1637,7 +1637,7 @@ namespace WindowsMixedReality
 #else
 		if (enableStereo && holographicSpace == nullptr)
 		{
-			stereoWindowHandle = CreateWindow(L"STATIC", L"UE4Game_WindowsMR", 0, 0, 0, 100, 100, nullptr, nullptr, nullptr, nullptr);
+			stereoWindowHandle = CreateWindow(L"STATIC", L"UnrealGame_WindowsMR", 0, 0, 0, 100, 100, nullptr, nullptr, nullptr, nullptr);
 
 			// Go immersive on this window handle before it has been shown.
 			bool Success = CreateHolographicSpace(stereoWindowHandle);

@@ -80,7 +80,7 @@ GenerateProjectFiles.sh produces a number of "project" files, including Makefile
 project in your favorite IDE and qmake project file. Both QtCreator and KDevelop 4.6+ are known to handle the project well 
 (although the latter takes about 3-4 GB of resident RAM to load the project).
 
-The targets match the name of the resulting binary, e.g. UnrealEditor-Linux-Debug or UE4Game. You can build them
+The targets match the name of the resulting binary, e.g. UnrealEditor-Linux-Debug or UnrealGame. You can build them
 by just typing make <target> in the engine's root folder.
 
 4.8 and later versions have simplified building the editor by providing makefile targets "StandardSet" and "DebugSet", the former

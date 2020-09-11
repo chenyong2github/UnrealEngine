@@ -611,7 +611,7 @@ namespace iPhonePackager
 				if (!File.Exists(SourceName))
 				{
 					// fallback to the shared one
-					SourceName = FileOperations.FindPrefixedFile(Config.EngineBuildDirectory, "UE4Game-Info.plist");
+					SourceName = FileOperations.FindPrefixedFile(Config.EngineBuildDirectory, "UnrealGame-Info.plist");
 
 					if (!File.Exists(SourceName))
 					{

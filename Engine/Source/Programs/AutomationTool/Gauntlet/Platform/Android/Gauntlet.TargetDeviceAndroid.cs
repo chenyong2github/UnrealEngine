@@ -847,13 +847,13 @@ namespace Gauntlet
 				string StorageLocation = StorageQueryResult.Output.Trim(); // "/mnt/sdcard";
 
 				// remote dir used to save things
-				string RemoteDir = StorageLocation + "/UE4Game/" + AppConfig.ProjectName;
+				string RemoteDir = StorageLocation + "/UnrealGame/" + AppConfig.ProjectName;
 
 				// if using a non-bulk test configuration, implies com.epicgames.ue4.GameActivity.bUseExternalFilesDir = true
 				// @todo: query this from the apk? 
 				if (AppConfig.Configuration == UnrealTargetConfiguration.Test && ((Build.Flags & BuildFlags.NotBulk) == BuildFlags.NotBulk))
 				{
-					RemoteDir = StorageLocation + "/Android/data/" + Build.AndroidPackageName + "/files/UE4Game/" + AppConfig.ProjectName;
+					RemoteDir = StorageLocation + "/Android/data/" + Build.AndroidPackageName + "/files/UnrealGame/" + AppConfig.ProjectName;
 				}
 
 				string DependencyDir = RemoteDir + "/deps";

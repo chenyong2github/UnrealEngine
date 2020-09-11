@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -6,7 +6,7 @@ using System.Resources;
 
 // These are the assembly properties for all tools
 [assembly: AssemblyCompany( "Epic Games, Inc." )]
-[assembly: AssemblyProduct( "UE4" )]
+[assembly: AssemblyProduct( "UnrealEngine" )]
 [assembly: AssemblyCopyright( "Copyright Epic Games, Inc. All Rights Reserved." )]
 [assembly: AssemblyTrademark( "" )]
 

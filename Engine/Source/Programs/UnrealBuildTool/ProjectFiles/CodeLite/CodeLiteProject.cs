@@ -122,9 +122,9 @@ namespace UnrealBuildTool
 						(ProjectTargetType == TargetType.Game) ||
 						(ProjectTargetType == TargetType.Server) )
 					{
-						if (TargetName.Equals("UE4Client") ||
-							TargetName.Equals("UE4Server") ||
-							TargetName.Equals("UE4Game") ||
+						if (TargetName.Equals("UnrealClient") ||
+							TargetName.Equals("UnrealServer") ||
+							TargetName.Equals("UnrealGame") ||
 							TargetName.Equals("UnrealEditor"))
 						{
 							int Idx = UnrealBuildTool.EngineDirectory.FullName.Length;
@@ -343,7 +343,7 @@ namespace UnrealBuildTool
 							XAttribute GeneralExecutableToRunArguments = new XAttribute("CommandArguments", commandArguments);
 							CodeLiteConfigurationGeneral.Add(GeneralExecutableToRunArguments);
 						}
-					if (TargetName.Equals ("UE4Game")) {
+					if (TargetName.Equals ("UnrealGame")) {
 							XAttribute GeneralExecutableWorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
 							CodeLiteConfigurationGeneral.Add(GeneralExecutableWorkingDirectory);
 						} else {

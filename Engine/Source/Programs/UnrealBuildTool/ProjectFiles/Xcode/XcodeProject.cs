@@ -980,8 +980,8 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				bool bIsUE4Game = TargetName.Equals("UE4Game", StringComparison.InvariantCultureIgnoreCase);
-				bool bIsUE4Client = TargetName.Equals("UE4Client", StringComparison.InvariantCultureIgnoreCase);
+				bool bIsUnrealGame = TargetName.Equals("UnrealGame", StringComparison.InvariantCultureIgnoreCase);
+				bool bIsUE4Client = TargetName.Equals("UnrealClient", StringComparison.InvariantCultureIgnoreCase);
 				DirectoryReference GameDir = ProjectFile != null ? ProjectFile.Directory : null;
 				string GamePath = GameDir != null ? ConvertPath(GameDir.FullName) : null;
 
@@ -1092,7 +1092,7 @@ namespace UnrealBuildTool
 				Content.Append("\t\t\t\t\"SDKROOT[sdk=macosx]\" = macosx;" + ProjectFileGenerator.NewLine);
 				}
 
-				if (bIsUE4Game || bIsUE4Client)
+				if (bIsUnrealGame || bIsUE4Client)
 				{
 					if (IOSRunTimeVersion != null)
 					{
@@ -1153,8 +1153,8 @@ namespace UnrealBuildTool
 
 			if (!bMacOnly)
 			{
-				bool bIsUE4Game = Config.BuildTarget.Equals("UE4Game", StringComparison.InvariantCultureIgnoreCase);
-				bool bIsUE4Client = Config.BuildTarget.Equals("UE4Client", StringComparison.InvariantCultureIgnoreCase);
+				bool bIsUnrealGame = Config.BuildTarget.Equals("UnrealGame", StringComparison.InvariantCultureIgnoreCase);
+				bool bIsUE4Client = Config.BuildTarget.Equals("UnrealClient", StringComparison.InvariantCultureIgnoreCase);
 
 				DirectoryReference GameDir = ProjectFile != null ? ProjectFile.Directory : null;
 				string GamePath = GameDir != null ? ConvertPath(GameDir.FullName) : null;
@@ -1164,7 +1164,7 @@ namespace UnrealBuildTool
 				string MacInfoPlistPath = null;
 				string IOSEntitlementPath = null;
 				string TVOSEntitlementPath = null;
-				if (bIsUE4Game)
+				if (bIsUnrealGame)
 				{
 					IOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/IOS/" + Config.BuildTarget + "-Info.plist";
 					TVOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/TVOS/" + Config.BuildTarget + "-Info.plist";
@@ -1174,8 +1174,8 @@ namespace UnrealBuildTool
 				}
 				else if (bIsUE4Client)
 				{
-					IOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/IOS/UE4Game-Info.plist";
-					TVOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/TVOS/UE4Game-Info.plist";
+					IOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/IOS/UnrealGame-Info.plist";
+					TVOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/TVOS/UnrealGame-Info.plist";
 					MacInfoPlistPath = UE4Dir + "/Engine/Intermediate/Mac/" + MacExecutableFileName + "-Info.plist";
 					IOSEntitlementPath = "";
 					TVOSEntitlementPath = "";
@@ -1246,25 +1246,25 @@ namespace UnrealBuildTool
 						{
 							ProjectPath = EngineDir;
 						}
-						if (bIsUE4Game)
+						if (bIsUnrealGame)
 						{
 							ProjectPath = EngineDir;
-							GameName = "UE4Game";
-							bIsClient = (AppName == "UE4Client");
+							GameName = "UnrealGame";
+							bIsClient = (AppName == "UnrealClient");
 						}
 
 						if (bCreateMacInfoPlist)
 						{
 							Directory.CreateDirectory(Path.GetDirectoryName(MacInfoPlistPath));
-							UEDeployMac.GeneratePList(ProjectPath.FullName, bIsUE4Game, GameName, Config.BuildTarget, EngineDir.FullName, MacExecutableFileName);
+							UEDeployMac.GeneratePList(ProjectPath.FullName, bIsUnrealGame, GameName, Config.BuildTarget, EngineDir.FullName, MacExecutableFileName);
 						}
 						if (bCreateIOSInfoPlist)
 						{
 							// get the receipt
 							FileReference ReceiptFilename;
-							if (bIsUE4Game)
+							if (bIsUnrealGame)
 							{
-								ReceiptFilename = TargetReceipt.GetDefaultPath(UnrealBuildTool.EngineDirectory, "UE4Game", UnrealTargetPlatform.IOS, Config.BuildConfig, "");
+								ReceiptFilename = TargetReceipt.GetDefaultPath(UnrealBuildTool.EngineDirectory, "UnrealGame", UnrealTargetPlatform.IOS, Config.BuildConfig, "");
 							}
 							else
 							{
@@ -1276,12 +1276,12 @@ namespace UnrealBuildTool
 							TargetReceipt.TryRead(ReceiptFilename, out Receipt);
 							VersionNumber SdkVersion = UEDeployIOS.GetSdkVersion(Receipt);
 							bool bBuildAsFramework = UEDeployIOS.GetCompileAsDll(Receipt);
-							UEDeployIOS.GenerateIOSPList(ProjectFile, Config.BuildConfig, ProjectPath.FullName, bIsUE4Game, GameName, bIsClient, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/IOS/Payload", SdkVersion, null, BundleIdentifier, bBuildAsFramework, out bSupportPortrait, out bSupportLandscape, out bSkipIcons);
+							UEDeployIOS.GenerateIOSPList(ProjectFile, Config.BuildConfig, ProjectPath.FullName, bIsUnrealGame, GameName, bIsClient, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/IOS/Payload", SdkVersion, null, BundleIdentifier, bBuildAsFramework, out bSupportPortrait, out bSupportLandscape, out bSkipIcons);
 						}
 						if (bCreateTVOSInfoPlist)
 						{
 							Directory.CreateDirectory(Path.GetDirectoryName(TVOSInfoPlistPath));
-							UEDeployTVOS.GenerateTVOSPList(ProjectPath.FullName, bIsUE4Game, GameName, bIsClient, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/TVOS/Payload", null, BundleIdentifier);
+							UEDeployTVOS.GenerateTVOSPList(ProjectPath.FullName, bIsUnrealGame, GameName, bIsClient, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/TVOS/Payload", null, BundleIdentifier);
 						}
 					}
 				}
@@ -1494,14 +1494,7 @@ namespace UnrealBuildTool
 											if (!bShouldCompileMonolithic && ProjectTarget.TargetRules.Type != TargetType.Program)
 											{
 												// Figure out what the compiled binary will be called so that we can point the IDE to the correct file
-												if (ProjectTarget.TargetRules.Type == TargetType.Editor)
-												{
-													ExeName = "UnrealEditor";
-												}
-												else if (ProjectTarget.TargetRules.Type != TargetType.Game)
-												{
-													ExeName = "UE4" + ProjectTarget.TargetRules.Type.ToString();
-												}
+												ExeName = "Unreal" + ProjectTarget.TargetRules.Type.ToString();
 											}
 
                                             if (BuildPlatform.Platform == UnrealTargetPlatform.Mac)

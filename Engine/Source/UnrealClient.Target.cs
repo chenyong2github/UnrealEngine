@@ -3,9 +3,9 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-public class UE4ClientTarget : TargetRules
+public class UnrealClientTarget : TargetRules
 {
-    public UE4ClientTarget(TargetInfo Target) : base(Target)
+    public UnrealClientTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Client;
 		BuildEnvironment = TargetBuildEnvironment.Shared;

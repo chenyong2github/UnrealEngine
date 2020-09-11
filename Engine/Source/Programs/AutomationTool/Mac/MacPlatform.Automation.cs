@@ -249,7 +249,7 @@ public class MacPlatform : Platform
 			string DestInfoPlist = File.ReadAllText(DestInfoPlistPath);
 
 			string AppIdentifier = GetValueFromInfoPlist(SrcInfoPlist, "CFBundleIdentifier");
-			if (AppIdentifier == "com.epicgames.UE4Game")
+			if (AppIdentifier == "com.epicgames.UnrealGame")
 			{
 				AppIdentifier = "";
 			}
@@ -394,7 +394,7 @@ public class MacPlatform : Platform
 				File.Delete(GameExePath);
 				File.Move(UE4GamePath, GameExePath);
 
-				string DefaultIconPath = CombinePaths(BundlePath, "Contents", "Resources", "UE4Game.icns");
+				string DefaultIconPath = CombinePaths(BundlePath, "Contents", "Resources", "UnrealGame.icns");
 				string CustomIconSrcPath = CombinePaths(BundlePath, "Contents", "Resources", "Application.icns");
 				string CustomIconDestPath = CombinePaths(BundlePath, "Contents", "Resources", SC.ShortProjectName + ".icns");
 				if (File.Exists(CustomIconSrcPath))
@@ -418,7 +418,7 @@ public class MacPlatform : Platform
 				string InfoPlistPath = CombinePaths(BundlePath, "Contents", "Info.plist");
 				string InfoPlistContents = File.ReadAllText(InfoPlistPath);
 				InfoPlistContents = InfoPlistContents.Replace(ExeName, SC.ShortProjectName);
-				InfoPlistContents = InfoPlistContents.Replace("<string>UE4Game</string>", "<string>" + SC.ShortProjectName + "</string>");
+				InfoPlistContents = InfoPlistContents.Replace("<string>UnrealGame</string>", "<string>" + SC.ShortProjectName + "</string>");
 				File.Delete(InfoPlistPath);
 				File.WriteAllText(InfoPlistPath, InfoPlistContents);
 			}

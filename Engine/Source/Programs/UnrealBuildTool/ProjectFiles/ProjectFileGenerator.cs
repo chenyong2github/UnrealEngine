@@ -653,7 +653,7 @@ namespace UnrealBuildTool
 						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 						{
 							MasterProjectPath = UnrealBuildTool.EngineDirectory;
-							GameProjectName = "UE4Game";
+							GameProjectName = "UnrealGame";
 						}
 						if (!DirectoryReference.Exists(DirectoryReference.Combine(MasterProjectPath, "Source")))
 						{

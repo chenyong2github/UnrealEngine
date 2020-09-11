@@ -14,7 +14,7 @@ namespace Gauntlet.UnrealTest
 	/// <summary>
 	/// Test that waits for the client and server to get to the front-end then quits
 	/// </summary>
-	public class BootTest : UE4Game.DefaultTest
+	public class BootTest : UnrealGame.DefaultTest
 	{
 		/// <summary>
 		/// Used to track progress via logging
@@ -44,9 +44,9 @@ namespace Gauntlet.UnrealTest
 		/// Returns the configuration description for this test
 		/// </summary>
 		/// <returns></returns>
-		public override UE4Game.UE4TestConfig GetConfiguration()
+		public override UnrealGame.UE4TestConfig GetConfiguration()
 		{
-			UE4Game.UE4TestConfig Config = base.GetConfiguration();
+			UnrealGame.UE4TestConfig Config = base.GetConfiguration();
 
 			UnrealTestRole Client = Config.RequireRole(UnrealTargetRole.Client);
 

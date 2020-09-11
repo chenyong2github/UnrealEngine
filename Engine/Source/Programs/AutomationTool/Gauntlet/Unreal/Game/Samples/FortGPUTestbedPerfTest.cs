@@ -9,7 +9,7 @@ using System.IO;
 using System.IO.Compression;
 using Gauntlet;
 
-namespace UE4Game
+namespace UnrealGame
 {
 
 	/// <summary>

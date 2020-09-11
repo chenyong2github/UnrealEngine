@@ -262,7 +262,7 @@ namespace iPhonePackager
 			}
 			if (!bIsCodeBasedProject)
 			{
-				ExeName = (Program.IsClient ? "UE4Client" : "UE4Game");
+				ExeName = (Program.IsClient ? "UnrealClient" : "UnrealGame");
 			}
 			else if(Program.IsClient)
 			{
@@ -473,7 +473,7 @@ namespace iPhonePackager
 			// else we assume old school game name and look for it
 			else
 			{
-				if (Program.GameName == "UE4Game") {
+				if (Program.GameName == "UnrealGame") {
 					GameDirectory = Path.GetFullPath (Path.Combine (Config.RootRelativePath, GamePath));
 				} else {
 					GameDirectory = Path.GetFullPath (Path.Combine (Config.RootRelativePath, Program.GameName));

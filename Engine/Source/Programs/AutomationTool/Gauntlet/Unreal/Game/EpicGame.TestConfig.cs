@@ -15,7 +15,7 @@ namespace EpicGame
 	/// <summary>
 	/// An additional set of options that pertain to internal epic games.
 	/// </summary>
-	public class EpicGameTestConfig : UE4Game.UE4TestConfig, IAutoParamNotifiable
+	public class EpicGameTestConfig : UnrealGame.UE4TestConfig, IAutoParamNotifiable
 	{
 		/// <summary>
 		/// Should this test skip mcp?

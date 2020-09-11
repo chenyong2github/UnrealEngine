@@ -805,16 +805,16 @@ namespace UnrealBuildTool
 			switch(ThisRules.Type)
 			{
 				case TargetType.Game:
-					BaseTargetName = "UE4Game";
+					BaseTargetName = "UnrealGame";
 					break;
 				case TargetType.Editor:
 					BaseTargetName = "UnrealEditor";
 					break;
 				case TargetType.Client:
-					BaseTargetName = "UE4Client";
+					BaseTargetName = "UnrealClient";
 					break;
 				case TargetType.Server:
-					BaseTargetName = "UE4Server";
+					BaseTargetName = "UnrealServer";
 					break;
 				default:
 					return;
@@ -1143,11 +1143,11 @@ namespace UnrealBuildTool
 			switch(Type)
 			{
 				case TargetType.Game:
-					return "UE4";
+					return "UnrealGame";
 				case TargetType.Client:
-					return "UE4Client";
+					return "UnrealClient";
 				case TargetType.Server:
-					return "UE4Server";
+					return "UnrealServer";
 				case TargetType.Editor:
 					return "UnrealEditor";
 				default:
@@ -2000,6 +2000,9 @@ namespace UnrealBuildTool
 				}
 			}
 			Makefile.ExternalDependencies.UnionWith(Makefile.PluginFiles);
+
+			// Also track the version file
+			Makefile.ExternalDependencies.Add(FileItem.GetItemByFileReference(BuildVersion.GetDefaultFileName()));
 
 			// Add any leaf dependencies (eg. response files) to the dependencies list
 			IEnumerable<FileItem> LeafPrerequisiteItems = Makefile.Actions.SelectMany(x => x.PrerequisiteItems).Except(Makefile.Actions.SelectMany(x => x.ProducedItems));

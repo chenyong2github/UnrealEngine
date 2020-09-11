@@ -413,7 +413,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	/** Check to see if we should be verifying the files once we have them */
 	public boolean VerifyOBBOnStartUp = false;
 
-	/** Use ExternalFilesDir for UE4Game files */
+	/** Use ExternalFilesDir for UnrealGame files */
     private boolean UseExternalFilesDir = false;
 
 	/** Make log files public */
@@ -704,11 +704,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 
 		// first look for an override in the project directory
-		String filename = BaseDirectory + "/UE4Game/" + ProjectName + "/UE4CommandLine.txt";
+		String filename = BaseDirectory + "/UnrealGame/" + ProjectName + "/UE4CommandLine.txt";
 		reader = TryOpenFileReader(filename);
 		if (reader == null)
 		{
-			filename = BaseDirectory + "/UE4Game/" + ProjectName + "/ue4commandline.txt";
+			filename = BaseDirectory + "/UnrealGame/" + ProjectName + "/ue4commandline.txt";
 			reader = TryOpenFileReader(filename);
 		}
 
@@ -959,7 +959,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		byte[] configBytesAssets = getByteArrayFromAssets("configrules.bin.png");
 		byte[] configBytesInternal = getByteArrayFromFile(InternalFilesDir + "configrules.bin.png");
-		byte[] configBytesExternal = getByteArrayFromFile(android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/UE4Game/" + ProjectName + "/configrules.bin.png");
+		byte[] configBytesExternal = getByteArrayFromFile(android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/UnrealGame/" + ProjectName + "/configrules.bin.png");
 
 		int assetsVersion = getConfigRulesVersion(configBytesAssets);
 		int internalVersion = getConfigRulesVersion(configBytesInternal);

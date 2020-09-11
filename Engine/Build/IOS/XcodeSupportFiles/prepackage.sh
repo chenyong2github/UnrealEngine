@@ -63,7 +63,7 @@ then
   then
     cp -R $1-Info.plist ../../../Intermediate/IOS/$1-Info.plist
   else
-	if [ "$1" == "UE4Game" ]
+	if [ "$1" == "UnrealGame" ]
 	then
       mkdir -p ../../../../Engine/Intermediate/IOS/
       cp -R $1-Info.plist ../../../../Engine/Intermediate/IOS/$1-Info.plist
@@ -81,7 +81,7 @@ then
   then
     cp -R $1.entitlements ../../../Intermediate/IOS/$1.entitlements
   else
-	if [ "$1" == "UE4Game" ]
+	if [ "$1" == "UnrealGame" ]
 	then
       mkdir -p ../../../../Engine/Intermediate/IOS/
       cp -R $1.entitlements ../../../../Engine/Intermediate/IOS/$1.entitlements

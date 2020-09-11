@@ -106,7 +106,7 @@ FString GAPKFilename;
 bool GOverrideAndroidLogDir = false;
 static FString AndroidLogDir;
 
-#define FILEBASE_DIRECTORY "/UE4Game/"
+#define FILEBASE_DIRECTORY "/UnrealGame/"
 
 extern jobject AndroidJNI_GetJavaAssetManager();
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
@@ -1113,7 +1113,7 @@ public:
 			}
 		}
 
-		// make sure the base path directory exists (UE4Game and UE4Game/ProjectName)
+		// make sure the base path directory exists (UnrealGame and UnrealGame/ProjectName)
 		FString FileBaseDir = GFilePathBase + FString(FILEBASE_DIRECTORY);
 		mkdir(TCHAR_TO_UTF8(*FileBaseDir), 0766);
 		mkdir(TCHAR_TO_UTF8(*(FileBaseDir + GAndroidProjectName)), 0766);

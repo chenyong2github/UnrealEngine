@@ -59,7 +59,7 @@ TSharedRef<IDetailCustomization> FIOSTargetSettingsCustomization::MakeInstance()
 }
 
 FIOSTargetSettingsCustomization::FIOSTargetSettingsCustomization()
-	: EngineInfoPath(FString::Printf(TEXT("%sBuild/IOS/UE4Game-Info.plist"), *FPaths::EngineDir()))
+	: EngineInfoPath(FString::Printf(TEXT("%sBuild/IOS/UnrealGame-Info.plist"), *FPaths::EngineDir()))
 	, GameInfoPath(FString::Printf(TEXT("%sBuild/IOS/Info.plist"), *FPaths::ProjectDir()))
 	, EngineGraphicsPath(FString::Printf(TEXT("%sBuild/IOS/Resources/Graphics"), *FPaths::EngineDir()))
 	, GameGraphicsPath(FString::Printf(TEXT("%sBuild/IOS/Resources/Graphics"), *FPaths::ProjectDir()))

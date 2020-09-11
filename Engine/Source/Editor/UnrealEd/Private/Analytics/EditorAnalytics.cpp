@@ -137,7 +137,7 @@ FString FEditorAnalytics::TranslateErrorCode(int32 ErrorCode)
 	case EAnalyticsErrorCodes::FailedToDeleteStagingDirectory :
 		return TEXT("Failed to delete staging directory.  This could be because something is currently using the staging directory (ps4/xbox/etc)");
 	case EAnalyticsErrorCodes::MissingExecutable:
-		return LOCTEXT("UATErrorMissingExecutable", "Missing UE4Game binary.\nYou may have to build the UE4 project with your IDE. Alternatively, build using UnrealBuildTool with the commandline:\nUE4Game <Platform> <Configuration>").ToString();
+		return LOCTEXT("UATErrorMissingExecutable", "Missing UnrealGame binary.\nYou may have to build the UE4 project with your IDE. Alternatively, build using UnrealBuildTool with the commandline:\nUnrealGame <Platform> <Configuration>").ToString();
 	case EAnalyticsErrorCodes::FilesInstallFailed:
 		return TEXT("Failed to deploy files to device.  Check to make sure your device is connected.");
 	case EAnalyticsErrorCodes::DeviceNotSetupForDevelopment:

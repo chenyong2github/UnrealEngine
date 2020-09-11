@@ -46,9 +46,9 @@ namespace Gauntlet.SelfTest
 			BuildData[] TestData =
 			{
 				// Test a content project
-				new BuildData("ElementalDemo", "UE4Game.exe", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Win64, UnrealTargetRole.Client, true ),
-				new BuildData("ElementalDemo", "UE4Game-Win64-Test.exe", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Win64, UnrealTargetRole.Client, true ),
-				new BuildData("ElementalDemo", "UE4Game-Win64-Shippinge.exe", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Win64, UnrealTargetRole.Client, true ),
+				new BuildData("ElementalDemo", "UnrealGame.exe", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Win64, UnrealTargetRole.Client, true ),
+				new BuildData("ElementalDemo", "UnrealGame-Win64-Test.exe", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Win64, UnrealTargetRole.Client, true ),
+				new BuildData("ElementalDemo", "UnrealGame-Win64-Shippinge.exe", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Win64, UnrealTargetRole.Client, true ),
 
 				// Test a regular monolithic project
 				new BuildData("ActionRPG", "ActionRPG.exe", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Win64, UnrealTargetRole.Client ),

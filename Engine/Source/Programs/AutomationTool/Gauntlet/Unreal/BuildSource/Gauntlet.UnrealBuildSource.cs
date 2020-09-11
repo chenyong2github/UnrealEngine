@@ -625,7 +625,7 @@ namespace Gauntlet
 					string StubBinary = Path.Combine(BasePath, ExeFileName);
 					string DevBinary = Path.Combine(Environment.CurrentDirectory, ProjectBinary);
 
-					string NonCodeProjectName = "UE4Game" + Platform.GetExeExtension(TargetPlatform);
+					string NonCodeProjectName = "UnrealGame" + Platform.GetExeExtension(TargetPlatform);
 					string NonCodeProjectBinary = Path.Combine(BasePath, "Engine", "Binaries", TargetPlatform.ToString());
 					NonCodeProjectBinary = Path.Combine(NonCodeProjectBinary, NonCodeProjectName);
 

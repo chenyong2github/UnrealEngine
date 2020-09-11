@@ -164,14 +164,14 @@ namespace UnrealBuildTool
 
 			FileContent.Append("Title=BuildMeFirst\n\n");
 			FileContent.Append("[CustomBuildSystem][BuildConfig0][ToolBuild]\n");
-			FileContent.Append("Arguments=-f Makefile UnrealEditor UE4Game ShaderCompileWorker UnrealLightmass UnrealPak\n");
+			FileContent.Append("Arguments=-f Makefile UnrealEditor UnrealGame ShaderCompileWorker UnrealLightmass UnrealPak\n");
 			FileContent.Append("Enabled=true\n");
 			FileContent.Append("Environment=\n");
 			FileContent.Append("Executable=make\n");
 			FileContent.Append("Type=0\n\n");
 
 			FileContent.Append("[CustomBuildSystem][BuildConfig0][ToolClean]\n");
-			FileContent.Append("Arguments=-f Makefile UnrealEditor UE4Game ShaderCompileWorker UnrealLightmass UnrealPak -clean\n");
+			FileContent.Append("Arguments=-f Makefile UnrealEditor UnrealGame ShaderCompileWorker UnrealLightmass UnrealPak -clean\n");
 			FileContent.Append("Enabled=true\n");
 			FileContent.Append("Environment=\n");
 			FileContent.Append("Executable=make\n");

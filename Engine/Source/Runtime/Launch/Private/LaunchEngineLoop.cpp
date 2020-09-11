@@ -581,8 +581,8 @@ bool LaunchSetGameName(const TCHAR *InCmdLine, FString& OutGameProjectFilePathUn
 			}
 			FApp::SetProjectName(*LocalGameName);
 
-			// Check it's not UE4Game, otherwise assume a uproject file relative to the game project directory
-			if (LocalGameName != TEXT("UE4Game"))
+			// Check it's not UnrealGame, otherwise assume a uproject file relative to the game project directory
+			if (LocalGameName != TEXT("UnrealGame"))
 			{
 				ProjFilePath = FPaths::Combine(TEXT(".."), TEXT(".."), TEXT(".."), *LocalGameName, *FString(LocalGameName + TEXT(".") + FProjectDescriptor::GetExtension()));
 				OutGameProjectFilePathUnnormalized = ProjFilePath;

@@ -11,7 +11,7 @@ namespace AutomationTool
 {
 	/// <summary>
 	/// Commandlet to finalize the creation of an installed build - creating an InstalledBuild.txt file and writing
-	/// out installed platform entries for all platforms/configurations where a UE4Game .target file can be found
+	/// out installed platform entries for all platforms/configurations where a UnrealGame .target file can be found
 	/// </summary>
 	[Help("Command to perform additional steps to prepare an installed build.")]
 	[Help("OutputDir=<RootDirectory>", "Root Directory of the installed build data (required)")]
@@ -107,9 +107,9 @@ namespace AutomationTool
 				foreach (UnrealTargetConfiguration CodeTargetConfiguration in Enum.GetValues(typeof(UnrealTargetConfiguration)))
 				{
 					Dictionary<String, TargetType> Targets = new Dictionary<string, TargetType>() {
-						{ "UE4Game", TargetType.Game },
-						{ "UE4Client", TargetType.Client },
-						{ "UE4Server", TargetType.Server }
+						{ "UnrealGame", TargetType.Game },
+						{ "UnrealClient", TargetType.Client },
+						{ "UnrealServer", TargetType.Server }
 					};
 					foreach (KeyValuePair<string, TargetType> Target in Targets)
 					{

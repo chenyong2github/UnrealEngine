@@ -15,8 +15,8 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bSupportsPortraitOrientation = true;
 	bSupportsITunesFileSharing = false;
 	bSupportsFilesApp = false;
-	BundleDisplayName = TEXT("UE4 Game");
-	BundleName = TEXT("MyUE4Game");
+	BundleDisplayName = TEXT("UnrealGame");
+	BundleName = TEXT("MyUnrealGame");
 	BundleIdentifier = TEXT("com.YourCompany.GameNameNoSpaces");
 	VersionInfo = TEXT("1.0.0");
     FrameRateLock = EPowerUsageFrameRateLock::PUFRL_30;
