@@ -44,6 +44,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Animation")
 	static void GetAnimationTrackNames(const UAnimSequence* AnimationSequence, TArray<FName>& TrackNames);
 
+	/** Retrieves the Names of the individual float curves for the given Animation Sequence */
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Animation")
+	static void GetAnimationCurveNames(const UAnimSequence* AnimationSequence, ERawCurveTrackTypes CurveType, TArray<FName>& CurveNames);
+
 	/** Retrieves the Raw Translation Animation Data for the given Animation Track Name and Animation Sequence */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData")
 	static void GetRawTrackPositionData(const UAnimSequence* AnimationSequence, const FName TrackName, TArray<FVector>& PositionData);
