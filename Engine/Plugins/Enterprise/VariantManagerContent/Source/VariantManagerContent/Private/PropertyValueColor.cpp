@@ -45,6 +45,7 @@ TArray<uint8> UPropertyValueColor::GetDataFromResolvedObject() const
 	// Used by UAtmosphericFogComponent
 	else if (PropertySetterName == TEXT("SetDefaultLightColor"))
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UAtmosphericFogComponent* ContainerObject = (UAtmosphericFogComponent*) ParentContainerAddress;
 		if (!ContainerObject || !ContainerObject->IsValidLowLevel())
 		{
@@ -53,7 +54,8 @@ TArray<uint8> UPropertyValueColor::GetDataFromResolvedObject() const
 		}
 
 		FLinearColor Col = FLinearColor(ContainerObject->DefaultLightColor);
-		FMemory::Memcpy(CurrentData.GetData(), &Col, PropertySizeBytes);
+		FMemory::Memcpy(CurrentData.GetData(), &Col, PropertySizeBytes); 
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return CurrentData;

@@ -19,6 +19,7 @@
 #include "ObjectEditorUtils.h"
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS 
 
 //////////////////////////////////////////////////////////////////////////
 // FAtmospherePrecomputeParameters
@@ -798,3 +799,4 @@ static void AtmosphereRenderSinkFunction()
 
 FAutoConsoleVariableSink CVarAtmosphereRenderSink(FConsoleCommandDelegate::CreateStatic(&AtmosphereRenderSinkFunction));
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

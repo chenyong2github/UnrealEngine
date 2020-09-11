@@ -19,6 +19,8 @@ class FShader;
 class FViewInfo;
 class UAtmosphericFogComponent;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS 
+
 enum class EAtmosphereRenderFlag
 {
 	E_EnableAll = 0,
@@ -106,3 +108,5 @@ private:
 
 bool ShouldRenderAtmosphere(const FSceneViewFamily& Family);
 void InitAtmosphereConstantsInView(FViewInfo& View);
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
