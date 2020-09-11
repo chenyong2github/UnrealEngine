@@ -334,6 +334,14 @@ class GAMEPLAYABILITIES_API UAbilitySystemBlueprintLibrary : public UBlueprintFu
 	UFUNCTION(BlueprintPure, Category = "Ability|GameplayEffect")
 	static TArray<FGameplayEffectSpecHandle> GetAllLinkedGameplayEffectSpecHandles(FGameplayEffectSpecHandle SpecHandle);
 
+	/** manually adds a set of tags to given actor */
+	UFUNCTION(BlueprintCallable, Category="Ability|GameplayEffect")
+	static bool AddLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags);
+
+	/** manually removes a set of tags from a given actor */
+	UFUNCTION(BlueprintCallable, Category="Ability|GameplayEffect")
+	static bool RemoveLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags);
+
 	// -------------------------------------------------------------------------------
 	//		GameplayEffectSpec
 	// -------------------------------------------------------------------------------
