@@ -174,6 +174,10 @@ public:
 	static const FName SetFloatValueFunctionName;
 	static const FName GetFloatValueFunctionName;
 	static const FName SampleGridFloatFunctionName;
+	
+	static const FString AttributeIndicesBaseName;
+	static const TCHAR* VectorComponentNames[];
+
 
 #if WITH_EDITOR
 	virtual bool SupportsSetupAndTeardownHLSL() const { return true; }
@@ -185,6 +189,7 @@ public:
 #endif
 
 protected:
+	static FNiagaraTypeDefinition GetValueTypeFromFuncName(const FName& FuncName);
 	void WriteSetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
 	void WriteGetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
 	void WriteSampleHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
