@@ -102,6 +102,9 @@ struct CORE_API FReleaseObjectVersion
 		// FFieldPath will serialize the owner struct reference and only a short path to its property
 		FFieldPathOwnerSerialization,
 
+		// Pin types include a flag that propagates the 'CPF_UObjectWrapper' flag to generated properties
+		PinTypeIncludesUObjectWrapperFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
