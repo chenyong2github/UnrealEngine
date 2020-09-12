@@ -105,10 +105,12 @@ export class DescriptionParser {
 	expandedMacros: string[] = []
 	expandedMacroLines: string[] = []
 
+	errors: string[] = []
+
 	constructor(
-		private isDefaultBot: boolean, 
-		private graphBotName: string, 
-		private cl: number, 
+		private isDefaultBot: boolean,
+		private graphBotName: string,
+		private cl: number,
 		private aliasUpper: string,
 		private macros: {[name: string]: string[]}
 
@@ -172,16 +174,24 @@ export class DescriptionParser {
 		// Handle commands
 		if (command === 'ROBOMERGE') {
 
-			// completely ignore bare ROBOMERGE tags if we're not the default bot (should not affect default flow)
+			const targets = parseTargetList(value)
+			// ignore bare ROBOMERGE tags if we're not the default bot (should not affect default flow)
 			if (this.isDefaultBot) {
 				this.useDefaultFlow = false
-				for (const target of parseTargetList(value)) {
+				for (const target of targets) {
 					const macroLines = this.macros[target.toLowerCase()]
 					if (macroLines) {
 						this.expandedMacroLines = [...this.expandedMacroLines, ...macroLines]
 					}
 					else {
 						this.arguments.push(target)
+					}
+				}
+			}
+			else {
+				for (const target of targets) {
+					if (this.macros[target.toLowerCase()]) {
+						this.errors.push(`Macro (${target}) not allowed by this bot`)
 					}
 				}
 			}
@@ -228,8 +238,8 @@ export class DescriptionParser {
 		}
 		else if (command !== 'ROBOMERGE-EDIGRATE' &&
 				 command !== 'ROBOMERGE-COMMAND') {
-			// add unknown command as a branch name to force a syntax error
-			this.arguments = [command]
+			// add syntax error for unknown command
+			this.errors.push(`Unknown command '${command}`)
 		}
 	}
 }
