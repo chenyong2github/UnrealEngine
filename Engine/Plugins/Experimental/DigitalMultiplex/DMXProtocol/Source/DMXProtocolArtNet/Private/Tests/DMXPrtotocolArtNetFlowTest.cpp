@@ -17,11 +17,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDMXPrtotocolArtNetBasicFlowTest, "VirtualProdu
 
 bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
 {
-	static const uint16 UniverseID = 0;
+	static const uint16 UniverseID = 11001;
 
 	// Init Protocol and Managers
 	FDMXProtocolArtNet* DMXProtocol = static_cast<FDMXProtocolArtNet*>(IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet).Get());
+	check(DMXProtocol);
+
+	DMXProtocol->GetUniverseManager()->RemoveAll();
+	
 	FJsonObject UniverseSettings;
+	bool bReceiveEnabled = DMXProtocol->IsReceiveDMXEnabled();
+	if (!bReceiveEnabled)
+	{
+		DMXProtocol->SetReceiveDMXEnabled(true);
+	}
+
 	DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
 	DMXProtocol->AddUniverse(UniverseSettings);
 
@@ -69,7 +79,7 @@ bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
 	DMXProtocol->TransmitTodRequest(UniverseArtNet->GetPortAddress());
 	FPlatformProcess::Sleep(0.5f);
 	const FDMXProtocolArtNetTodRequest& IncomingTodRequest = DMXProtocol->GetIncomingTodRequest();
-	TestEqual(TEXT("TodRequest.AdCount should not be 1"), IncomingTodRequest.AdCount, uint8(1));
+	TestEqual(TEXT("TodRequest.AdCount should not have increased"), IncomingTodRequest.AdCount, uint8(0));
 
 	// Test ArtNet RDM
 	DMXProtocol->TransmitTodRequestToAll();
@@ -100,6 +110,9 @@ bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
 	RDMData[47] = 0x00;
 	RDMData[48] = 0xcc;
 	DMXProtocol->TransmitRDM(UniverseArtNet->GetUniverseID(), RDMData);
+
+	// Restore receive enabled state
+	DMXProtocol->SetReceiveDMXEnabled(bReceiveEnabled);
 
 	return true;
 }

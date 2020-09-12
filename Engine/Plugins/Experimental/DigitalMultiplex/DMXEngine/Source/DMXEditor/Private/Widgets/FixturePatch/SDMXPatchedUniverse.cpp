@@ -86,7 +86,7 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 			]
 		];
 
-		CreateChannelValueWidgets();
+		CreateChannelConnectors();
 
 		SetUniverseID(UniverseID);
 	}
@@ -101,6 +101,15 @@ void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
 	UDMXLibrary* Library = GetDMXLibrary();
 	if (Library)
 	{
+		// Unpatch all nodes
+		TArray<TSharedPtr<FDMXFixturePatchNode>> CachedPatchedNodes = PatchedNodes;
+		for (const TSharedPtr<FDMXFixturePatchNode>& Node : CachedPatchedNodes)
+		{
+			Unpatch(Node);
+		}
+		check(PatchedNodes.Num() == 0);
+
+		// Update what to draw
 		UniverseID = NewUniverseID;
 
 		UpdateOutOfControllersRanges();
@@ -114,41 +123,27 @@ void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
 			}
 		});
 
-		// Remove the node's widgets from the grid
-		for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)
-		{
-			RemoveNodeFromGrid(Node);
-		}
-
-		// Remove nodes that are no longer in use
-		PatchedNodes.RemoveAll([PatchesInUniverse](const TSharedPtr<FDMXFixturePatchNode>& Node) {
-			return !PatchesInUniverse.Contains(Node->GetFixturePatch());
-			});
-
 		// Add fixture patches to the grid
 		for (UDMXEntityFixturePatch* FixturePatch : PatchesInUniverse)
 		{
 			if (CanAssignFixturePatch(FixturePatch))
 			{
-				TSharedPtr<FDMXFixturePatchNode>* ExistingNode = PatchedNodes.FindByPredicate([FixturePatch](const TSharedPtr<FDMXFixturePatchNode>& Node) {
-					return Node->GetFixturePatch() == FixturePatch;
-					});
-				
-				if (ExistingNode)
-				{
-					TSharedPtr<FDMXFixturePatchNode> Node = *ExistingNode;
-					Node->Update(SharedThis(this), FixturePatch->GetStartingChannel(), FixturePatch->GetChannelSpan());
-					AddNodeToGrid(Node);
-				}
-				else
-				{
-					TSharedPtr<FDMXFixturePatchNode> Node = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
-					check(Node.IsValid());
+				TSharedPtr<FDMXFixturePatchNode> Node = FindPatchNode(FixturePatch);
 
-					Patch(Node, FixturePatch->GetStartingChannel(), false);
-					Node->SetVisiblity(EVisibility::Visible);
+				if (!Node.IsValid())
+				{
+					Node = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
 				}
+				check(Node.IsValid());
+
+				Patch(Node, FixturePatch->GetStartingChannel(), false);
 			}
+		}
+
+		// Update the channel connectors' Universe ID
+		for (const TSharedPtr<SDMXChannelConnector> Connector : ChannelConnectors)
+		{
+			Connector->SetUniverseID(NewUniverseID);
 		}
 	}
 }
@@ -165,7 +160,7 @@ void SDMXPatchedUniverse::SetShowUniverseName(bool bShow)
 	}
 }
 
-void SDMXPatchedUniverse::CreateChannelValueWidgets()
+void SDMXPatchedUniverse::CreateChannelConnectors()
 {
 	check(Grid.IsValid());
 
@@ -181,7 +176,10 @@ void SDMXPatchedUniverse::CreateChannelValueWidgets()
 			.Value(0)
 			.OnDragEnterChannel(this, &SDMXPatchedUniverse::HandleDragEnterChannel)
 			.OnDragLeaveChannel(this, &SDMXPatchedUniverse::HandleDragLeaveChannel)
-			.OnDropOntoChannel(this, &SDMXPatchedUniverse::HandleDropOntoChannel);
+			.OnDropOntoChannel(this, &SDMXPatchedUniverse::HandleDropOntoChannel)
+			.DMXEditor(DMXEditorPtr);
+
+		ChannelConnectors.Add(ChannelPatchWidget);
 
 		Grid->AddSlot(Column, Row)
 			.HAlign(HAlign_Fill)
@@ -207,20 +205,21 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 		return false;
 	}
 
-	// Mend the new starting channel and channel span
 	int32 NewChannelSpan = FixturePatch->GetChannelSpan();
+
+	// Auto assign patches that have bAutoAssignAddress set
 	if (FixturePatch->bAutoAssignAddress)
 	{
 		NewStartingChannel = FixturePatch->GetStartingChannel();
 	}
-	else if (NewStartingChannel - 1 + NewChannelSpan > DMX_UNIVERSE_SIZE)
-	{
-		NewStartingChannel = DMX_UNIVERSE_SIZE - NewChannelSpan + 1;
-	}
+
+	// Only fully valid channels are supported
+	check(NewStartingChannel > 0);
+	check(NewStartingChannel + NewChannelSpan - 1 <= DMX_UNIVERSE_SIZE);
 
 	// Unpatch from the old universe
 	TSharedPtr<SDMXPatchedUniverse> OldUniverse = Node->GetUniverse();
-	if (OldUniverse)
+	if (OldUniverse.IsValid())
 	{
 		OldUniverse->Unpatch(Node);
 	}
@@ -244,12 +243,11 @@ void SDMXPatchedUniverse::Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node)
 	check(Node.IsValid());
 	check(Grid.IsValid());
 
-	check(PatchedNodes.Contains(Node));
-
-	// We can remove single as we check for uniqueness when adding in Patch
-	PatchedNodes.RemoveSingle(Node);
-
-	RemoveNodeFromGrid(Node);
+	if (PatchedNodes.Contains(Node))
+	{
+		PatchedNodes.RemoveSingle(Node);
+		RemoveNodeFromGrid(Node);
+	}
 }
 
 void SDMXPatchedUniverse::AddNodeToGrid(const TSharedPtr<FDMXFixturePatchNode>& Node)
@@ -289,8 +287,6 @@ bool SDMXPatchedUniverse::CanAssignFixturePatch(TWeakObjectPtr<UDMXEntityFixture
 
 bool SDMXPatchedUniverse::CanAssignFixturePatch(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch, int32 StartingChannel) const
 {
-	check(StartingChannel > 0 && StartingChannel <= DMX_UNIVERSE_SIZE);
-
 	// Test for a valid and patch that has an active mode
 	FText InvalidReason;
 	if (!FixturePatch.IsValid() ||
@@ -302,12 +298,9 @@ bool SDMXPatchedUniverse::CanAssignFixturePatch(TWeakObjectPtr<UDMXEntityFixture
 
 	int32 ChannelSpan = FixturePatch->GetChannelSpan();
 
-	// Correct the staring channel if the node would span past DMX_UNIVERSE_SIZE 
-	// This is fine since FDMXFixturePatchNode::Assign does the same correction 
-	if (StartingChannel + ChannelSpan > DMX_UNIVERSE_SIZE)
-	{
-		StartingChannel = DMX_UNIVERSE_SIZE - ChannelSpan + 1;
-	}
+	// Only fully valid channels are supported
+	check(StartingChannel > 0);
+	check(StartingChannel + ChannelSpan - 1 <= DMX_UNIVERSE_SIZE);
 
 	// Test for overlapping nodes in this universe
 	for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)

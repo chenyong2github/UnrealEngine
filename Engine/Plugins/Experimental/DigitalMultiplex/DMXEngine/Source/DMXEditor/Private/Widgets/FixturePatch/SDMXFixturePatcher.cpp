@@ -4,10 +4,11 @@
 
 #include "DMXEditor.h"
 #include "DMXEditorTabs.h"
-#include "DMXEntityDragDropOp.h"
 #include "DMXFixturePatchSharedData.h"
 #include "DMXFixturePatchNode.h"
 #include "SDMXPatchedUniverse.h"
+#include "DragDrop/DMXEntityDragDropOp.h"
+#include "DragDrop/DMXEntityFixturePatchDragDropOp.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -141,19 +142,22 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 
 		// If the selected universe has no patches, try to find one with patches instead
 		UDMXLibrary* Library = GetDMXLibrary();
-		if (Library)
-		{
-			TArray<UDMXEntityFixturePatch*> Patches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-			UDMXEntityFixturePatch** ExistingPatchPtr = Patches.FindByPredicate([&](UDMXEntityFixturePatch* Patch) {
-				return Patch->UniverseID == SharedData->GetSelectedUniverse();
-				});
-			if (!ExistingPatchPtr && Patches.Num() > 0)
-			{
-				SharedData->SelectUniverse(Patches[0]->UniverseID);
-			}
-		}
+		check(Library);
 
+		TArray<UDMXEntityFixturePatch*> Patches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+		UDMXEntityFixturePatch** ExistingPatchPtr = Patches.FindByPredicate([&](UDMXEntityFixturePatch* Patch) {
+			return Patch->UniverseID == SharedData->GetSelectedUniverse();
+			});
+		if (!ExistingPatchPtr && Patches.Num() > 0)
+		{
+			SharedData->SelectUniverse(Patches[0]->UniverseID);
+		}		
+
+		// Bind to tabs being switched
 		FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXFixturePatcher::OnActiveTabChanged));
+
+		// Bind to entity updates
+		Library->GetOnEntitiesUpdated().AddSP(this, &SDMXFixturePatcher::OnEntitiesUpdated);
 
 		GEditor->RegisterForUndo(this);
 
@@ -174,10 +178,8 @@ void SDMXFixturePatcher::NotifyPropertyChanged(const FPropertyChangedEvent& Prop
 
 			SelectUniverse(FixturePatch->UniverseID);
 		}
-		else
-		{
-			RefreshFromProperties();
-		}
+
+		RefreshFromProperties();
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, bAutoAssignAddress) ||
 		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, EditorColor) ||
@@ -226,20 +228,25 @@ void SDMXFixturePatcher::SelectUniverseThatContainsSelectedPatches()
 			return;
 		}
 
-		TArray<UDMXEntityController*> Controllers = Library->GetEntitiesTypeCast<UDMXEntityController>();
-
-		int32 SelectedUniverseID = GetSelectedUniverse();
-
-		// Show a universe that contains a selected patch
-		int32 PatchInSelectedUniverseIndex = SelectedFixturePatches.IndexOfByPredicate([SelectedUniverseID](TWeakObjectPtr<UDMXEntityFixturePatch> Patch) {
+		const int32 SelectedUniverseID = GetSelectedUniverse();
+		const int32 PatchInSelectedUniverseIndex = SelectedFixturePatches.IndexOfByPredicate([SelectedUniverseID](TWeakObjectPtr<UDMXEntityFixturePatch> Patch) {
 			return 
 				Patch.IsValid() && 
 				Patch->UniverseID == SelectedUniverseID;
 			});
-
-		if (PatchInSelectedUniverseIndex == INDEX_NONE)
+		
+		const bool bIsAnySelectedPatchInSelectedUniverse = PatchInSelectedUniverseIndex != INDEX_NONE;
+		if (!bIsAnySelectedPatchInSelectedUniverse)
 		{
-			SharedData->SelectUniverse(SelectedFixturePatches[0]->UniverseID);
+			// Select arbitrary valid universe in selection
+			for(TWeakObjectPtr<UDMXEntityFixturePatch> SelectedPatch : SelectedFixturePatches)
+			{
+				if(SelectedPatch->UniverseID >= 0)
+				{
+					SharedData->SelectUniverse(SelectedPatch->UniverseID);
+				}
+				break;
+			}
 		}
 	}
 }
@@ -253,6 +260,13 @@ void SDMXFixturePatcher::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActiv
 	}
 }
 
+void SDMXFixturePatcher::OnEntitiesUpdated(UDMXLibrary* DMXLibrary)
+{
+	check(DMXLibrary == GetDMXLibrary());
+	RefreshFromLibrary();
+}
+
+
 void SDMXFixturePatcher::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	if (UniverseToSetNextTick != INDEX_NONE)
@@ -260,30 +274,6 @@ void SDMXFixturePatcher::Tick(const FGeometry& AllottedGeometry, const double In
 		SharedData->SelectUniverse(UniverseToSetNextTick);
 		UniverseToSetNextTick = INDEX_NONE;
 	}
-}
-
-void SDMXFixturePatcher::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
-{
-	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
-	if (!Operation.IsValid())
-	{
-		return;
-	}
-
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
-	{		
-		const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities = EntityDragDropOp->GetDraggedEntities();
-
-		InitDragDrop(DraggedEntities);
-	}
-}
-
-void SDMXFixturePatcher::OnDragLeave(const FDragDropEvent& DragDropEvent)
-{
-	check(DraggedNode.IsValid());
-
-	DraggedNode->SetVisiblity(EVisibility::Visible);
-	DraggedNode = nullptr;
 }
 
 FReply SDMXFixturePatcher::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
@@ -296,12 +286,6 @@ FReply SDMXFixturePatcher::OnDrop(const FGeometry& MyGeometry, const FDragDropEv
 
 	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
 	{
-		if (DraggedNode.IsValid())
-		{
-			DraggedNode->SetVisiblity(EVisibility::Visible);
-			DraggedNode.Reset();
-		}
-
 		return FReply::Handled().EndDragDrop();
 	}
 
@@ -316,53 +300,101 @@ void SDMXFixturePatcher::OnDragEnterChannel(int32 UniverseID, int32 ChannelID, c
 		return;
 	}
 
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
+	if (TSharedPtr<FDMXEntityFixturePatchDragDropOperation> FixturePatchDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityFixturePatchDragDropOperation>())
 	{
-		const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities = EntityDragDropOp->GetDraggedEntities();
-
-		if (!DraggedNode.IsValid() ||
-			!DraggedEntities.Contains(DraggedNode->GetFixturePatch()))
-		{
-			InitDragDrop(DraggedEntities);
-		}
+		const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities = FixturePatchDragDropOp->GetDraggedEntities();
 
 		if (DraggedEntities.Num() > 1)
 		{
-			EntityDragDropOp->SetFeedbackMessageError(LOCTEXT("CannotDragDropMoreThanOnePatch", "Multi asset drag drop is not supported."));
+			FixturePatchDragDropOp->SetFeedbackMessageError(LOCTEXT("CannotDragDropMoreThanOnePatch", "Multi asset drag drop is not supported."));
 		}
-		else if (DraggedNode.IsValid())
+
+		TSharedPtr<FDMXFixturePatchNode> DraggedNode = GetDraggedNode(DraggedEntities);
+
+		if (DraggedNode.IsValid())
 		{
-			const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
-			
-			bool bCreateTransaction = false;
-			if (Universe->Patch(DraggedNode, ChannelID, bCreateTransaction))
+			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]))
 			{
-				UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]);
-				TSharedRef<SWidget> DragDropDecorator = CreateDragDropDecorator(FixturePatch, ChannelID);
-				EntityDragDropOp->SetCustomFeedbackWidget(DragDropDecorator);
-			}
-			else if (!DraggedNode->IsPatched())
-			{
-				UDMXEntityFixturePatch* Patch = DraggedNode->GetFixturePatch().Get();
-				if (Patch)
+				// Compensate Drag Offset
+				int32 StartingChannel = ChannelID - FixturePatchDragDropOp->GetChannelOffset();
+				int32 ChannelSpan = FixturePatch->GetChannelSpan();
+
+				// Keep the starting channel in valid range
+				StartingChannel = ClampStartingChannel(StartingChannel, ChannelSpan);
+
+				// Update the ChannelOffset
+				int32 NewChannelOffset = ChannelID - StartingChannel;
+				FixturePatchDragDropOp->SetChannelOffset(NewChannelOffset);
+
+				// Patch the node but do not transact it (transact on drop or leave instead)
+				const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
+
+				bool bCreateTransaction = false;
+				bool bPatchSuccess = Universe->Patch(DraggedNode, StartingChannel, bCreateTransaction);
+
+				if (bPatchSuccess)
 				{
-					if (ChannelID + Patch->GetChannelSpan() > DMX_UNIVERSE_SIZE)
+					TSharedRef<SWidget> DragDropDecorator = CreateDragDropDecorator(FixturePatch, StartingChannel);
+					FixturePatchDragDropOp->SetCustomFeedbackWidget(DragDropDecorator);
+				}
+				else if (!DraggedNode->IsPatched())
+				{
+					// Inform users if the patch cannot be patched because it would exceed remaining channels
+					UDMXEntityFixturePatch* Patch = DraggedNode->GetFixturePatch().Get();
+					if (Patch)
 					{
-						EntityDragDropOp->SetFeedbackMessageError(LOCTEXT("CannotDragDropOnOccupiedChannels", "Channels range overflows max channels address (512)"));
+						if (StartingChannel + ChannelSpan > DMX_UNIVERSE_SIZE)
+						{
+							FixturePatchDragDropOp->SetFeedbackMessageError(LOCTEXT("CannotDragDropOnOccupiedChannels", "Channels range overflows max channels address (512)"));
+						}
 					}
-				}				
+				}
 			}
 		}
 	}
 }
 
-void SDMXFixturePatcher::InitDragDrop(const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities)
+FReply SDMXFixturePatcher::OnDropOntoChannel(int32 UniverseID, int32 ChannelID, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
+	if (!Operation.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	if (TSharedPtr<FDMXEntityFixturePatchDragDropOperation> FixturePatchDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityFixturePatchDragDropOperation>())
+	{
+		const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities = FixturePatchDragDropOp->GetDraggedEntities();
+
+		TSharedPtr<FDMXFixturePatchNode> DraggedNode = GetDraggedNode(DraggedEntities);
+
+		if (DraggedNode.IsValid())
+		{
+			// Compensate Drag Offset
+			ChannelID = ChannelID - FixturePatchDragDropOp->GetChannelOffset();
+
+			const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
+
+			bool bCreateTransaction = true;
+			if (Universe->Patch(DraggedNode, ChannelID, bCreateTransaction))
+			{
+				OnPatched.ExecuteIfBound();
+
+				return FReply::Handled().EndDragDrop();
+			}
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
+TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::GetDraggedNode(const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities)
 {
 	if (DraggedEntities.Num() == 1)
 	{
 		if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]))
 		{
-			DraggedNode = FindPatchNode(FixturePatch);
+			TSharedPtr<FDMXFixturePatchNode> DraggedNode = FindPatchNode(FixturePatch);
 
 			if (!DraggedNode.IsValid())
 			{
@@ -375,45 +407,11 @@ void SDMXFixturePatcher::InitDragDrop(const TArray<TWeakObjectPtr<UDMXEntity>>& 
 				DisableAutoAssignAdress(FixturePatch);
 			}
 
-			DraggedNode->SetVisiblity(EVisibility::HitTestInvisible);
-
-			return;
-		}
-	}	
-
-	DraggedNode = nullptr;
-}
-
-FReply SDMXFixturePatcher::OnDropOntoChannel(int32 UniverseID, int32 ChannelID, const FDragDropEvent& DragDropEvent)
-{
-	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
-	if (!Operation.IsValid())
-	{
-		return FReply::Unhandled();
-	}
-
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
-	{
-		const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities = EntityDragDropOp->GetDraggedEntities();
-
-		if (DraggedNode.IsValid())
-		{
-			const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
-
-			DraggedNode->SetVisiblity(EVisibility::Visible);
-
-			bool bCreateTransaction = true;
-			if (Universe->Patch(DraggedNode, ChannelID, bCreateTransaction))
-			{
-				OnPatched.ExecuteIfBound();
-
-				return FReply::Handled().EndDragDrop();
-			}
+			return DraggedNode;
 		}
 	}
 
-	DraggedNode.Reset();
-	return FReply::Unhandled();
+	return nullptr;
 }
 
 TSharedRef<SWidget> SDMXFixturePatcher::CreateDragDropDecorator(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch, int32 ChannelID) const
@@ -421,13 +419,8 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateDragDropDecorator(TWeakObjectPtr<U
 	if (FixturePatch.IsValid())
 	{
 		int32 StartingChannel = ChannelID;
-		int32 EndingChannel = ChannelID + FixturePatch->GetChannelSpan() - 1;
-
-		if (EndingChannel > DMX_UNIVERSE_SIZE)
-		{
-			StartingChannel = DMX_UNIVERSE_SIZE - FixturePatch->GetChannelSpan() + 1;
-			EndingChannel = DMX_UNIVERSE_SIZE;
-		}
+		int32 ChannelSpan = FixturePatch->GetChannelSpan();
+		int32 EndingChannel = StartingChannel + FixturePatch->GetChannelSpan() - 1;
 
 		FText PatchName = FText::Format(LOCTEXT("PatchName", "{0}"), FText::FromString(FixturePatch->GetDisplayName()));;								
 		FText ChannelRangeName = FText::Format(LOCTEXT("ChannelRangeName", "Channel {0} - {1}"), StartingChannel, EndingChannel);
@@ -507,7 +500,7 @@ void SDMXFixturePatcher::SelectUniverse(int32 NewUniverseID)
 int32 SDMXFixturePatcher::GetSelectedUniverse() const
 {
 	check(SharedData.IsValid());
-	return SharedData->GetSelectedUniverse();
+	return UniverseToSetNextTick != INDEX_NONE ? UniverseToSetNextTick : SharedData->GetSelectedUniverse();
 }
 
 void SDMXFixturePatcher::OnFixturePatchSelectionChanged()
@@ -549,22 +542,17 @@ void SDMXFixturePatcher::OnUniverseSelectionChanged()
 
 void SDMXFixturePatcher::ShowSelectedUniverse(bool bForceReconstructWidget)
 {
-	// Don't show universes if there's no controller
-	if (!HasAnyControllers())
-	{
-		PatchedUniverseScrollBox->ClearChildren();
-		PatchedUniversesByID.Reset();
-		return;
-	}
-
 	int32 SelectedUniverseID = GetSelectedUniverse();
 
-	// Create a new patched universe if required
-	if (PatchedUniversesByID.Num() != 1 || bForceReconstructWidget)
+	if (bForceReconstructWidget)
 	{
 		PatchedUniverseScrollBox->ClearChildren();
 		PatchedUniversesByID.Reset();
+	}
 
+	// Create a new patched universe if required
+	if (PatchedUniversesByID.Num() != 1)
+	{
 		TSharedRef<SDMXPatchedUniverse> NewPatchedUniverse =
 			SNew(SDMXPatchedUniverse)
 			.DMXEditor(DMXEditorPtr)
@@ -573,15 +561,9 @@ void SDMXFixturePatcher::ShowSelectedUniverse(bool bForceReconstructWidget)
 			.OnDropOntoChannel(this, &SDMXFixturePatcher::OnDropOntoChannel);
 
 		PatchedUniverseScrollBox->AddSlot()
-			.Padding(FMargin(0.0f, 3.0f, 0.0f, 0.0f))			
+			.Padding(FMargin(0.0f, 3.0f, 0.0f, 12.0f))			
 			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					NewPatchedUniverse
-				]
+				NewPatchedUniverse
 			];
 
 		PatchedUniversesByID.Add(SelectedUniverseID, NewPatchedUniverse);
@@ -606,14 +588,6 @@ void SDMXFixturePatcher::ShowSelectedUniverse(bool bForceReconstructWidget)
 void SDMXFixturePatcher::ShowAllPatchedUniverses(bool bForceReconstructWidget)
 {
 	check(PatchedUniverseScrollBox.IsValid());
-
-	// Don't show universes if there's no controller
-	if (!HasAnyControllers())
-	{
-		PatchedUniverseScrollBox->ClearChildren();
-		PatchedUniversesByID.Reset();
-		return;
-	}
 
 	if (bForceReconstructWidget)
 	{
@@ -647,7 +621,7 @@ void SDMXFixturePatcher::ShowAllPatchedUniverses(bool bForceReconstructWidget)
 				AddUniverse(Patch->UniverseID);
 			}
 		}
-				
+
 		TMap<int32, TSharedPtr<SDMXPatchedUniverse>> CachedPatchedUniversesByID = PatchedUniversesByID;
 		for (const TPair<int32, TSharedPtr<SDMXPatchedUniverse>>& UniverseByIDKvp : CachedPatchedUniversesByID)
 		{
@@ -694,7 +668,7 @@ void SDMXFixturePatcher::AddUniverse(int32 UniverseID)
 		.OnDropOntoChannel(this, &SDMXFixturePatcher::OnDropOntoChannel);
 
 	PatchedUniverseScrollBox->AddSlot()
-		.Padding(FMargin(0.0f, 3.0f, 0.0f, 0.0f))
+		.Padding(FMargin(0.0f, 3.0f, 0.0f, 12.0f))
 		[
 			PatchedUniverse
 		];
@@ -713,6 +687,7 @@ void SDMXFixturePatcher::OnToggleDisplayAllUniverses(ECheckBoxState CheckboxStat
 		return;
 
 	case ECheckBoxState::Unchecked:
+		SelectUniverseThatContainsSelectedPatches();
 		ShowSelectedUniverse(bForceReconstructWidget);
 		return;
 
@@ -732,12 +707,8 @@ bool SDMXFixturePatcher::IsUniverseSelectionEnabled() const
 		return false;
 
 	case ECheckBoxState::Unchecked:
-		if (HasAnyControllers())
-		{
-			return true;
-		}
-		return false;
-
+		return true;
+		
 	case ECheckBoxState::Undetermined:
 	default:
 		checkNoEntry();
@@ -796,6 +767,21 @@ FText SDMXFixturePatcher::GetTooltipText() const
 	}
 
 	return FText::GetEmpty();
+}
+
+int32 SDMXFixturePatcher::ClampStartingChannel(int32 StartingChannel, int32 ChannelSpan) const
+{
+	if (StartingChannel < 1)
+	{
+		StartingChannel = 1;
+	}
+
+	if (StartingChannel + ChannelSpan > DMX_UNIVERSE_SIZE)
+	{
+		StartingChannel = DMX_UNIVERSE_SIZE - ChannelSpan + 1;
+	}
+
+	return StartingChannel;
 }
 
 void SDMXFixturePatcher::DisableAutoAssignAdress(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch)

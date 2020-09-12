@@ -184,10 +184,6 @@ void SDMXEntityInspectorFixtureTypes::Construct(const FArguments& InArgs, EDMXFi
 	// Register customization for Fixture Function USTRUCT
 	FOnGetPropertyTypeCustomizationInstance FixtureFunctionDetails = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixtureFunctionDetails>, InArgs._DMXEditor);
 	GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(FDMXFixtureFunction::StaticStruct()->GetFName(), FixtureFunctionDetails);
-
-	// Register customization for Fixture Sub Function USTRUCT
-	FOnGetPropertyTypeCustomizationInstance FixtureSubFunctionDetails = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixtureSubFunctionDetails>, InArgs._DMXEditor);
-	GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(FDMXFixtureSubFunction::StaticStruct()->GetFName(), FixtureSubFunctionDetails);
 }
 
 #undef LOCTEXT_NAMESPACE

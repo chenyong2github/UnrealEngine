@@ -49,6 +49,8 @@ public:
 
 	SLATE_END_ARGS()
 
+	virtual ~SDMXActivityInUniverse();
+
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 	

@@ -40,6 +40,11 @@ int32 UDMXEntityFixturePatch::GetStartingChannel() const
 	}
 }
 
+int32 UDMXEntityFixturePatch::GetEndingChannel() const
+{
+	return GetStartingChannel() + GetChannelSpan() - 1;
+}
+
 int32 UDMXEntityFixturePatch::GetRemoteUniverse() const
 {
 	if (GetRelevantControllers().Num() > 0)
@@ -93,7 +98,7 @@ TArray<FDMXAttributeName> UDMXEntityFixturePatch::GetAllAttributesInActiveMode()
 	return NameArray;
 }
 
-TMap<FName, FDMXAttributeName> UDMXEntityFixturePatch::GetFunctionAttributes() const
+TMap<FName, FDMXAttributeName> UDMXEntityFixturePatch::GetFunctionAttributesMap() const
 {
 	TMap<FName, FDMXAttributeName> AttributeMap;
 
@@ -115,7 +120,7 @@ TMap<FName, FDMXAttributeName> UDMXEntityFixturePatch::GetFunctionAttributes() c
 	return AttributeMap;
 }
 
-TMap<FDMXAttributeName, FDMXFixtureFunction> UDMXEntityFixturePatch::GetAttributeFunctions() const
+TMap<FDMXAttributeName, FDMXFixtureFunction> UDMXEntityFixturePatch::GetAttributeFunctionsMap() const
 {
 	TMap<FDMXAttributeName, FDMXFixtureFunction> FunctionMap;
 
@@ -137,7 +142,7 @@ TMap<FDMXAttributeName, FDMXFixtureFunction> UDMXEntityFixturePatch::GetAttribut
 	return FunctionMap;
 }
 
-TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::GetFunctionDefaultMap() const
+TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::GetAttributeDefaultMap() const
 {
 	TMap<FDMXAttributeName, int32> DefaultValueMap;
 
@@ -159,7 +164,7 @@ TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::GetFunctionDefaultMap() c
 	return DefaultValueMap;
 }
 
-TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::GetFunctionChannelAssignments() const
+TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::GetAttributeChannelAssignments() const
 {
 	TMap<FDMXAttributeName, int32> ChannelMap;
 
@@ -182,7 +187,7 @@ TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::GetFunctionChannelAssignm
 	return ChannelMap;
 }
 
-TMap<FDMXAttributeName, EDMXFixtureSignalFormat> UDMXEntityFixturePatch::GetFunctionSignalFormats() const
+TMap<FDMXAttributeName, EDMXFixtureSignalFormat> UDMXEntityFixturePatch::GetAttributeSignalFormats() const
 {
 	TMap<FDMXAttributeName, EDMXFixtureSignalFormat> FormatMap;
 
@@ -204,7 +209,7 @@ TMap<FDMXAttributeName, EDMXFixtureSignalFormat> UDMXEntityFixturePatch::GetFunc
 	return FormatMap;
 }
 
-TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::ConvertRawMapToFunctionMap(const TMap<int32, uint8>& RawMap) const
+TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::ConvertRawMapToAttributeMap(const TMap<int32, uint8>& RawMap) const
 {
 	TMap<FDMXAttributeName, int32> FunctionMap;
 
@@ -244,7 +249,7 @@ TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::ConvertRawMapToFunctionMa
 	return FunctionMap;
 }
 
-TMap<int32, uint8> UDMXEntityFixturePatch::ConvertFunctionMapToRawMap(const TMap<FDMXAttributeName, int32>& FunctionMap) const
+TMap<int32, uint8> UDMXEntityFixturePatch::ConvertAttributeMapToRawMap(const TMap<FDMXAttributeName, int32>& FunctionMap) const
 {
 	TMap<int32, uint8> RawMap;
 
@@ -305,7 +310,7 @@ bool UDMXEntityFixturePatch::IsMapValid(const TMap<FDMXAttributeName, int32>& Fu
 
 	for (const TPair<FDMXAttributeName, int32>& Elem : FunctionMap)
 	{
-		if (!ContainsFunction(Elem.Key))
+		if (!ContainsAttribute(Elem.Key))
 		{
 			return false;
 		}

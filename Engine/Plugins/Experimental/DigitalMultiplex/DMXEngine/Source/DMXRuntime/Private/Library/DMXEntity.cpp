@@ -54,11 +54,11 @@ void UDMXEntityUniverseManaged::PostLoad()
 #if WITH_EDITOR
 void UDMXEntityUniverseManaged::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	static const FName NAME_Universes = GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Universes);
+	static const FName NAME_Universes = GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Endpoints);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXUniverse, UniverseNumber) 
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXCommunicationEndpoint, UniverseNumber) 
 		|| PropertyChangedEvent.GetPropertyName() == NAME_Universes
 		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, DeviceProtocol))
 	{
@@ -69,17 +69,10 @@ void UDMXEntityUniverseManaged::PostEditChangeProperty(FPropertyChangedEvent& Pr
 			const uint32 MinUniverseID = Protocol->GetMinUniverseID();
 			const uint32 MaxUniverseID = Protocol->GetMaxUniverses();
 
-			for (FDMXUniverse& Universe : Universes)
+			for (FDMXCommunicationEndpoint& Endpoint : Endpoints)
 			{
-				Universe.UniverseNumber = FMath::Clamp(Universe.UniverseNumber, MinUniverseID, MaxUniverseID);
+				Endpoint.UniverseNumber = FMath::Clamp(Endpoint.UniverseNumber, MinUniverseID, MaxUniverseID);
 			}
-		}
-
-		// New Universes will have their directionality set to Output
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd
-			&& PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Universes))
-		{
-			Universes.Last(0).DMXProtocolDirectionality = EDMXProtocolDirectionality::EOutput;
 		}
 	}
 
@@ -93,6 +86,6 @@ void UDMXEntityUniverseManaged::UpdateProtocolUniverses() const
 	if (DeviceProtocol.IsValid())
 	{
 		IDMXProtocolPtr DMXProtocol = DeviceProtocol;
-		DMXProtocol->CollectUniverses(Universes);
+		DMXProtocol->CollectUniverses(Endpoints);
 	}
 }

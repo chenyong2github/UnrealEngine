@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sequencer/MovieSceneDMXLibrarySection.h"
+
+#include "DMXProtocolCommon.h"
+#include "DMXRuntimeLog.h"
+#include "DMXSubsystem.h"
+#include "Interfaces/IDMXProtocol.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "DMXProtocolCommon.h"
-#include "Interfaces/IDMXProtocol.h"
 
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneChannelEditorData.h"
@@ -12,7 +15,7 @@
 
 DECLARE_LOG_CATEGORY_CLASS(MovieSceneDMXLibrarySectionLog, Log, All);
 
-void FDMXFixturePatchChannels::SetFixturePatch(UDMXEntityFixturePatch* InPatch, int32 InActiveMode /*= INDEX_NONE*/)
+void FDMXFixturePatchChannel::SetFixturePatch(UDMXEntityFixturePatch* InPatch, int32 InActiveMode /*= INDEX_NONE*/)
 {
 	if (InPatch != nullptr && InPatch->IsValidLowLevelFast())
 	{
@@ -23,64 +26,119 @@ void FDMXFixturePatchChannels::SetFixturePatch(UDMXEntityFixturePatch* InPatch, 
 	UpdateNumberOfChannels();
 }
 
-void FDMXFixturePatchChannels::UpdateNumberOfChannels(bool bResetDefaultValues /*= false*/)
+void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*= false*/)
 {
-	const UDMXEntityFixturePatch* Patch = Reference.GetFixturePatch();
+	// Test if the patch is still being what was recorded
+	bool bValidPatchChannel = true;
+
+	UDMXEntityFixturePatch* Patch = Reference.GetFixturePatch();
 	if (Patch == nullptr || !Patch->IsValidLowLevelFast())
 	{
-		FunctionChannels.Empty(0);
+		UE_LOG(LogDMXRuntime, Warning, TEXT("Patch removed from DMX Library. Corresponding DMX Channel removed from Sequencer."));
+		bValidPatchChannel = false;
+	}
+	
+	UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate;
+	if (FixtureType == nullptr)
+	{
+		UE_LOG(LogDMXRuntime, Warning, TEXT("%s has no valid Parent Fixture Type set. Corresponding DMX Channel removed from Sequencer."), *Patch->GetDisplayName());
+		bValidPatchChannel = false;
+	}
+
+	if (!FixtureType->Modes.IsValidIndex(ActiveMode))
+	{
+		UE_LOG(LogDMXRuntime, Warning, TEXT("Recorded Mode '%s' no longer exists in '%s'. Channel Removed from Sequencer."), *FixtureType->Modes[ActiveMode].ModeName, *FixtureType->GetDisplayName());
+		bValidPatchChannel = false;
+	}
+
+	if (!bValidPatchChannel)
+	{
+		FunctionChannels.Empty();
 		ActiveMode = INDEX_NONE;
 		return;
 	}
 
-	if (UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate)
+	const FDMXFixtureMode& Mode = FixtureType->Modes[ActiveMode];
+	if (Patch->ActiveMode != ActiveMode)
 	{
-		if (FixtureType->Modes.Num() > ActiveMode)
+		UE_LOG(LogDMXRuntime, Warning, TEXT("Active Mode of '%s' changed. Its channel in Sequencer uses recorded Mode '%s'."), *FixtureType->GetDisplayName(), *FixtureType->Modes[ActiveMode].ModeName);
+		UE_LOG(LogDMXRuntime, Warning, TEXT("Only channels with matching attribute will be displayed and played, potentially resulting in empty channels."));
+	}
+
+	const int32 PatchChannelOffset = Patch->GetStartingChannel() - 1;
+
+	int32 IdxFunctionChannel = 0;
+	for (const FDMXFixtureFunction& Function : Mode.Functions)
+	{
+		// Add channels for functions that are in mode range and have an Attribute set
+
+		if (UDMXEntityFixtureType::IsFunctionInModeRange(Function, Mode, PatchChannelOffset) &&
+			FDMXAttributeName::IsValid(Function.Attribute.GetName()))
 		{
-			const FDMXFixtureMode& Mode = FixtureType->Modes[ActiveMode];
-			const TArray<FDMXFixtureFunction>& Functions = Mode.Functions;
-
-			// Count only functions in the Mode's range and in the Universe's range
-			int32 NumValidFunctions = 0;
-			const int32 PatchChannelOffset = Patch->GetStartingChannel() - 1;
-			for (const FDMXFixtureFunction& Function : Functions)
+			bool bNewChannel = false;
+			if (!FunctionChannels.IsValidIndex(IdxFunctionChannel))
 			{
-				if (UDMXEntityFixtureType::IsFunctionInModeRange(Function, Mode, PatchChannelOffset))
+				FunctionChannels.Add(FDMXFixtureFunctionChannel());
+				bNewChannel = true;
+			}					
+
+			FunctionChannels[IdxFunctionChannel].AttributeName = Function.Attribute.GetName();
+
+			if (bResetDefaultValues || bNewChannel)
+			{
+				const int64& FunctionDefaultValue = Function.DefaultValue;
+				FunctionChannels[IdxFunctionChannel].DefaultValue = (int32)FunctionDefaultValue;
+				FunctionChannels[IdxFunctionChannel].Channel.Reset();
+				FunctionChannels[IdxFunctionChannel].Channel.SetDefault((float)FunctionDefaultValue);
+			}
+
+			++IdxFunctionChannel;
+		}
+	}
+
+	if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(Mode.PixelMatrixConfig, Mode, PatchChannelOffset))
+	{
+		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
+		check(DMXSubsystem);
+
+		int32 NumXCells = Mode.PixelMatrixConfig.XPixels;
+		int32 NumYCells = Mode.PixelMatrixConfig.YPixels;
+
+		for (int32 IdxCellX = 0; IdxCellX < NumXCells; IdxCellX++)
+		{
+			for (int32 IdxCellY = 0; IdxCellY < NumYCells; IdxCellY++)
+			{
+				FIntPoint CellCoordinates = FIntPoint(IdxCellX, IdxCellY);
+
+				for (const FDMXFixturePixelFunction& CellAttribute : Mode.PixelMatrixConfig.PixelFunctions)
 				{
-					++NumValidFunctions;
+					bool bNewChannel = false;
+					if (!FunctionChannels.IsValidIndex(IdxFunctionChannel))
+					{
+						FunctionChannels.Add(FDMXFixtureFunctionChannel());
+						bNewChannel = true;
+					}
+
+					FunctionChannels[IdxFunctionChannel].AttributeName = CellAttribute.Attribute.GetName();
+					FunctionChannels[IdxFunctionChannel].CellCoordinate = CellCoordinates;
+
+					if (bResetDefaultValues || bNewChannel)
+					{
+						const int64& FunctionDefaultValue = CellAttribute.DefaultValue;
+						FunctionChannels[IdxFunctionChannel].DefaultValue = (int32)FunctionDefaultValue;
+						FunctionChannels[IdxFunctionChannel].Channel.Reset();
+						FunctionChannels[IdxFunctionChannel].Channel.SetDefault((float)FunctionDefaultValue);
+					}
+
+					++IdxFunctionChannel;
 				}
-			}
-
-			// Shrink the Function Channels array if there are more channels than Fixture Functions
-			if (FunctionChannels.Num() > NumValidFunctions)
-			{
-				FunctionChannels.SetNum(Functions.Num());
-			}
-
-			// Reset values of existing functions, if required.
-			if (bResetDefaultValues)
-			{
-				int32 FunctionIndex = 0;
-				for (FDMXFixtureFunctionChannel& FunctionChannel : FunctionChannels)
-				{
-					const int64& FunctionDefaultValue = Functions[FunctionIndex++].DefaultValue;
-					FunctionChannel.DefaultValue = (int32)FunctionDefaultValue;
-					FunctionChannel.Channel.Reset();
-					FunctionChannel.Channel.SetDefault((float)FunctionDefaultValue);
-				}
-			}
-
-			// Add a Function Channel for each additional Fixture Function
-			while (FunctionChannels.Num() < NumValidFunctions)
-			{
-				const int32& NewChannelIndex = FunctionChannels.Emplace(FDMXFixtureFunctionChannel());
-				FDMXFixtureFunctionChannel& FunctionChannel = FunctionChannels[NewChannelIndex];
-
-				const int64& FunctionDefaultValue = Functions[NewChannelIndex].DefaultValue;
-				FunctionChannel.Channel.SetDefault((float)FunctionDefaultValue);
-				FunctionChannel.DefaultValue = (int32)FunctionDefaultValue;
 			}
 		}
+	}
+
+	if(FunctionChannels.Num() > IdxFunctionChannel + 1)
+	{
+		FunctionChannels.SetNum(IdxFunctionChannel + 1);
 	}
 }
 
@@ -108,6 +166,11 @@ void UMovieSceneDMXLibrarySection::PostEditImport()
 	UpdateChannelProxy();
 }
 
+void UMovieSceneDMXLibrarySection::RefreshChannels()
+{
+	UpdateChannelProxy();
+}
+
 void UMovieSceneDMXLibrarySection::AddFixturePatch(UDMXEntityFixturePatch* InPatch, int32 ActiveMode /*= INDEX_NONE*/)
 {
 	if (InPatch == nullptr || !InPatch->IsValidLowLevelFast())
@@ -115,23 +178,23 @@ void UMovieSceneDMXLibrarySection::AddFixturePatch(UDMXEntityFixturePatch* InPat
 		return;
 	}
 
-	FDMXFixturePatchChannels NewPatchChannels;
-	NewPatchChannels.SetFixturePatch(InPatch, ActiveMode);
-	Patches.Add(NewPatchChannels);
+	FDMXFixturePatchChannel NewPatchChannel;
+	NewPatchChannel.SetFixturePatch(InPatch, ActiveMode);
+	FixturePatchChannels.Add(NewPatchChannel);
 
 	UpdateChannelProxy();
 }
 
 void UMovieSceneDMXLibrarySection::RemoveFixturePatch(UDMXEntityFixturePatch* InPatch)
 {
-	int32 PatchIndex = Patches.IndexOfByPredicate([InPatch](const FDMXFixturePatchChannels& PatchChannels)
+	int32 PatchIndex = FixturePatchChannels.IndexOfByPredicate([InPatch](const FDMXFixturePatchChannel& PatchChannel)
 		{
-			return PatchChannels.Reference.GetFixturePatch() == InPatch;
+			return PatchChannel.Reference.GetFixturePatch() == InPatch;
 		});
 
 	if (PatchIndex != INDEX_NONE)
 	{
-		Patches.RemoveAt(PatchIndex);
+		FixturePatchChannels.RemoveAt(PatchIndex);
 
 		UpdateChannelProxy();
 	}
@@ -142,9 +205,9 @@ void UMovieSceneDMXLibrarySection::RemoveFixturePatch(const FName& InPatchName)
 	// Search for the Fixture Patch
 	const FString&& TargetPatchName = InPatchName.ToString();
 
-	for (const FDMXFixturePatchChannels& PatchChannels : Patches)
+	for (const FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		if (UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch())
+		if (UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch())
 		{
 			if (Patch->GetDisplayName().Equals(TargetPatchName))
 			{
@@ -157,9 +220,8 @@ void UMovieSceneDMXLibrarySection::RemoveFixturePatch(const FName& InPatchName)
 
 bool UMovieSceneDMXLibrarySection::ContainsFixturePatch(UDMXEntityFixturePatch* InPatch) const
 {
-	int32 PatchIndex = Patches.IndexOfByPredicate([InPatch](const FDMXFixturePatchChannels& PatchChannels)
-		{
-			return PatchChannels.Reference.GetFixturePatch() == InPatch;
+	int32 PatchIndex = FixturePatchChannels.IndexOfByPredicate([InPatch](const FDMXFixturePatchChannel& PatchChannel) {
+			return PatchChannel.Reference.GetFixturePatch() == InPatch;
 		});
 
 	return PatchIndex != INDEX_NONE;
@@ -183,58 +245,18 @@ void UMovieSceneDMXLibrarySection::SetFixturePatchActiveMode(UDMXEntityFixturePa
 		return;
 	}
 
-	// Find the PatchChannels object that represents the passed in Patch
-	for (FDMXFixturePatchChannels& PatchChannels : Patches)
+	// Find the PatchChannel object that represents the passed in Patch
+	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch();
+		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == InPatch)
 		{
-			PatchChannels.ActiveMode = InActiveMode;
+			PatchChannel.ActiveMode = InActiveMode;
 			const bool bResetFunctionChannelsValues = true;
 			UpdateChannelProxy(bResetFunctionChannelsValues);
 
 			break;
 		}
-	}
-}
-
-/**
- * Utility method to send a single DMX Function's default value when disabling
- * a function channel
- */
-void SendDefaultFunctionValueToDMX(const UDMXEntityFixturePatch* InPatch, int32 ModeIndex, int32 FunctionIndex)
-{
-	// No safety checks are done here because this function is only called locally
-	// in this file for functions already verified to exist in the fixture patch
-	
-	const int32 PatchChannelOffset = InPatch->GetStartingChannel() - 1;
-
-	// Add function default value bytes (channels) to a fragment map
-	const FDMXFixtureFunction& DMXFunction = InPatch->ParentFixtureTypeTemplate->Modes[ModeIndex].Functions[FunctionIndex];
-	const int32 FunctionChannelStart = DMXFunction.Channel + PatchChannelOffset;
-	const int32 FunctionChannelEnd = UDMXEntityFixtureType::GetFunctionLastChannel(DMXFunction) + PatchChannelOffset;
-
-	uint8 ValueBytes[4] = { 0 };
-	UDMXEntityFixtureType::FunctionValueToBytes(DMXFunction, DMXFunction.DefaultValue, ValueBytes);
-
-	IDMXFragmentMap FragmentMap;
-	int32 ByteIndex = 0;
-	for (int32 ChannelIndex = FunctionChannelStart; ChannelIndex <= FunctionChannelEnd && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
-	{
-		FragmentMap.Add(ChannelIndex, ValueBytes[ByteIndex]);
-	}
-
-	// Send the fragment map through each controller affecting the Fixture Patch
-	const TArray<UDMXEntityController*>&& Controllers = InPatch->GetRelevantControllers();
-	for (const UDMXEntityController* Controller : Controllers)
-	{
-		if (Controller == nullptr || !Controller->IsValidLowLevelFast() || !Controller->DeviceProtocol.IsValid())
-		{
-			continue;
-		}
-
-		IDMXProtocolPtr DMXProtocol = Controller->DeviceProtocol;
-		DMXProtocol->SendDMXFragment(InPatch->UniverseID + Controller->RemoteOffset, FragmentMap);
 	}
 }
 
@@ -251,33 +273,22 @@ void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(UDMXEntityFixturePa
 		return;
 	}
 
-	// Find the PatchChannels object that represents the passed in Patch
-	for (FDMXFixturePatchChannels& PatchChannels : Patches)
+	// Find the PatchChannel object that represents the passed in Patch
+	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch();
+		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == InPatch)
 		{
-			// Make sure the Channel Index is valid
-			const int32 NumFunctionsInMode = FixtureType->Modes[PatchChannels.ActiveMode].Functions.Num();
-			if (InChannelIndex < 0 || InChannelIndex >= NumFunctionsInMode)
-			{
-				return;
-			}
+			PatchChannel.UpdateNumberOfChannels();
 
-			// The channel index is valid, but the PatchChannels could be out of sync in channels count
-			if (PatchChannels.FunctionChannels.Num() != NumFunctionsInMode)
-			{
-				PatchChannels.UpdateNumberOfChannels();
-			}
-
-			FDMXFixtureFunctionChannel& FunctionChannel = PatchChannels.FunctionChannels[InChannelIndex];
+			FDMXFixtureFunctionChannel& FunctionChannel = PatchChannel.FunctionChannels[InChannelIndex];
 			FunctionChannel.bEnabled = !FunctionChannel.bEnabled;
 
 			// If disabling the function, send its default value to the fixture to undo
 			// non-default animated value changes
 			if (!FunctionChannel.bEnabled)
 			{
-				SendDefaultFunctionValueToDMX(InPatch, PatchChannels.ActiveMode, InChannelIndex);
+				SendDefaultFunctionValueToDMX(PatchChannel, FunctionChannel);
 			}
 
 			UpdateChannelProxy();
@@ -292,9 +303,9 @@ void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(const FName& InPatc
 	// Search for the Fixture Patch
 	const FString&& TargetPatchName = InPatchName.ToString();
 
-	for (FDMXFixturePatchChannels& PatchChannels : Patches)
+	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		if (UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch())
+		if (UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch())
 		{
 			if (Patch->GetDisplayName().Equals(TargetPatchName))
 			{
@@ -304,7 +315,7 @@ void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(const FName& InPatc
 					return;
 				}
 
-				if (FixtureType->Modes.Num() <= PatchChannels.ActiveMode)
+				if (FixtureType->Modes.Num() <= PatchChannel.ActiveMode)
 				{
 					return;
 				}
@@ -312,24 +323,24 @@ void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(const FName& InPatc
 				// Search for the Function index
 				const FString&& TargetFunctionName = InChannelName.ToString();
 				int32 FunctionIndex = 0;
-				for (const FDMXFixtureFunction& Function : FixtureType->Modes[PatchChannels.ActiveMode].Functions)
+				for (const FDMXFixtureFunction& Function : FixtureType->Modes[PatchChannel.ActiveMode].Functions)
 				{
 					if (Function.FunctionName.Equals(TargetFunctionName))
 					{
-						// PatchChannels could be out of sync in channels count
-						if (PatchChannels.FunctionChannels.Num() <= FunctionIndex)
+						// PatchChannel could be out of sync in channels count
+						if (PatchChannel.FunctionChannels.Num() <= FunctionIndex)
 						{
-							PatchChannels.UpdateNumberOfChannels();
+							PatchChannel.UpdateNumberOfChannels();
 						}
 
-						FDMXFixtureFunctionChannel& FunctionChannel = PatchChannels.FunctionChannels[FunctionIndex];
+						FDMXFixtureFunctionChannel& FunctionChannel = PatchChannel.FunctionChannels[FunctionIndex];
 						FunctionChannel.bEnabled = !FunctionChannel.bEnabled;
 
 						// If disabling the function, send its default value to the fixture to undo
 						// non-default animated value changes
 						if (!FunctionChannel.bEnabled)
 						{
-							SendDefaultFunctionValueToDMX(Patch, PatchChannels.ActiveMode, FunctionIndex);
+							SendDefaultFunctionValueToDMX(PatchChannel, FunctionChannel);
 						}
 						
 						UpdateChannelProxy();
@@ -357,27 +368,14 @@ bool UMovieSceneDMXLibrarySection::GetFixturePatchChannelEnabled(UDMXEntityFixtu
 		return false;
 	}
 
-	// Find the PatchChannels object that represents the passed in Patch
-	for (const FDMXFixturePatchChannels& PatchChannels : Patches)
+	// Find the PatchChannel object that represents the passed in Patch
+	for (const FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch();
-		if (Patch == InPatch)
+		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
+		if (Patch == InPatch &&
+			PatchChannel.FunctionChannels.IsValidIndex(InChannelIndex))
 		{
-			// Make sure the Channel Index is valid
-			const int32 NumFunctionsInMode = FixtureType->Modes[PatchChannels.ActiveMode].Functions.Num();
-			if (InChannelIndex < 0 || InChannelIndex >= NumFunctionsInMode)
-			{
-				return false;
-			}
-
-			// The channel index is valid, but the PatchChannels could be out of sync in channels count
-			if (PatchChannels.FunctionChannels.Num() != NumFunctionsInMode)
-			{
-				// In this case, the channel can't be seen in the track, so consider it as disabled
-				return false;
-			}
-
-			return PatchChannels.FunctionChannels[InChannelIndex].bEnabled;
+			return PatchChannel.FunctionChannels[InChannelIndex].bEnabled;
 		}
 	}
 
@@ -387,9 +385,9 @@ bool UMovieSceneDMXLibrarySection::GetFixturePatchChannelEnabled(UDMXEntityFixtu
 TArray<UDMXEntityFixturePatch*> UMovieSceneDMXLibrarySection::GetFixturePatches() const
 {
 	TArray<UDMXEntityFixturePatch*> Result;
-	Result.Reserve(Patches.Num());
+	Result.Reserve(FixturePatchChannels.Num());
 
-	for (const FDMXFixturePatchChannels& PatchRef : Patches)
+	for (const FDMXFixturePatchChannel& PatchRef : FixturePatchChannels)
 	{
 		// Add only valid patches
 		if (UDMXEntityFixturePatch* Patch = PatchRef.Reference.GetFixturePatch())
@@ -404,94 +402,243 @@ TArray<UDMXEntityFixturePatch*> UMovieSceneDMXLibrarySection::GetFixturePatches(
 	return Result;
 }
 
+FDMXFixturePatchChannel* UMovieSceneDMXLibrarySection::GetPatchChannel(UDMXEntityFixturePatch* Patch)
+{
+	return 
+		FixturePatchChannels.FindByPredicate([Patch](const FDMXFixturePatchChannel& Channel) {
+			return Channel.Reference.GetFixturePatch() == Patch;
+		});
+}
+
 void UMovieSceneDMXLibrarySection::ForEachPatchFunctionChannels(TFunctionRef<void(UDMXEntityFixturePatch*, TArray<FDMXFixtureFunctionChannel>&)> InPredicate)
 {
-	for (FDMXFixturePatchChannels& PatchChannels : Patches)
+	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		if (UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch())
+		if (UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch())
 		{
 			int32 FunctionIndex = 0;
-			InPredicate(Patch, PatchChannels.FunctionChannels);
+			InPredicate(Patch, PatchChannel.FunctionChannels);
 		}
 	}
 }
 
 void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelValues /*= false*/)
 {
-	FMovieSceneChannelProxyData Channels;
-	TArray<int32> InvalidPatchChannelsIndexes;
+	FMovieSceneChannelProxyData ChannelProxyData;
+	TArray<int32> InvalidPatchChannelIndices;
 
-	int32 PatchChannelsIndex = 0; // Safer because the ranged for ensures the array length isn't changed
-	for (FDMXFixturePatchChannels& PatchChannels : Patches)
+	int32 PatchChannelIndex = 0; // Safer because the ranged for ensures the array length isn't changed
+	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 	{
-		PatchChannels.UpdateNumberOfChannels(bResetDefaultChannelValues);
+		PatchChannel.UpdateNumberOfChannels(bResetDefaultChannelValues);
 
-		const UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch();
+		const UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == nullptr || !Patch->IsValidLowLevelFast())
 		{
 			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Removing a null Patch"), __FUNCTION__);
-			InvalidPatchChannelsIndexes.Add(PatchChannelsIndex);
+			InvalidPatchChannelIndices.Add(PatchChannelIndex);
 			continue;
 		}
 
 		// If the Patch is null, invalid, doesn't have Modes or the selected mode doesn't have any functions,
 		// FunctionChannels will be empty
-		if (PatchChannels.FunctionChannels.Num() == 0)
+		if (PatchChannel.FunctionChannels.Num() == 0)
 		{
 			// With no Function Channels to be displayed, the Patch group won't be displayed.
 			// This will give users the impression that the Patch isn't added, but it is,
 			// which prevents the user from adding it again. So, to mitigate that, we remove
 			// the Patch from the track section.
 			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Removing empty Patch %s"), __FUNCTION__, *Patch->GetDisplayName());
-			InvalidPatchChannelsIndexes.Add(PatchChannelsIndex);
+			InvalidPatchChannelIndices.Add(PatchChannelIndex);
 			continue;
 		}
 
-		const TArray<FDMXFixtureFunction>& Functions = Patch->ParentFixtureTypeTemplate->Modes[PatchChannels.ActiveMode].Functions;
-		TArray<FDMXFixtureFunctionChannel>& PatchFloatChannels = PatchChannels.FunctionChannels;
+		// const TArray<FDMXFixtureFunction>& Functions = Patch->ParentFixtureTypeTemplate->Modes[PatchChannel.ActiveMode].Functions;
+		UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate;
+		check(FixtureType);
 
-		// To use as a group for its channels
-		const FString&& PatchName = Patch->GetDisplayName();
-		const FText&& PatchNameText = FText::FromString(PatchName);
+		const TArray<FDMXFixtureFunction>& Functions = FixtureType->Modes[PatchChannel.ActiveMode].Functions;
+		TArray<FDMXFixtureFunctionChannel>& FunctionChannels = PatchChannel.FunctionChannels;
 
 		// Add a channel proxy entry for each Function channel
-		// We use the length of PatchFloatChannels because it's possible some Fixture Functions
+		// We use the length of FunctionChannels because it's possible some Fixture Functions
 		// are outside the valid range for the Mode's channels or the Universe's channels.
 		// And that's already been accounted for when generating the Function channels
 		int32 SortOrder = 0;
-		for (int32 FunctionIndex = 0; FunctionIndex < PatchFloatChannels.Num(); ++FunctionIndex)
+		for (FDMXFixtureFunctionChannel& FunctionChannel : PatchChannel.FunctionChannels)
 		{
-			if (!PatchFloatChannels[FunctionIndex].bEnabled)
+			if (!FunctionChannel.bEnabled)
 			{
 				continue;
 			}
 
-#if WITH_EDITOR
-			const FDMXFixtureFunction& Function = Functions[FunctionIndex];
 
-			const FText ChannelDisplayName(FText::FromName(Function.Attribute.GetName()));
-			const FName ChannelPropertyName(*FString::Printf(TEXT("%s.%s"), *PatchName, *Function.Attribute.GetName().ToString()));
+#if WITH_EDITOR
+			FString AttributeName = FunctionChannel.AttributeName.ToString();
+
+			FString ChannelDisplayNameString;
+			if (FunctionChannel.IsCellFunction())
+			{
+				ChannelDisplayNameString =
+					TEXT(" Cell ") +
+					FString::FromInt(FunctionChannel.CellCoordinate.X) +
+					TEXT("x") +
+					FString::FromInt(FunctionChannel.CellCoordinate.Y);
+
+				// Tabulator cosmetics
+				if (ChannelDisplayNameString.Len() < 10)
+				{
+					ChannelDisplayNameString = 
+						ChannelDisplayNameString +
+						TCString<TCHAR>::Tab(4);
+				}
+				else
+				{
+					ChannelDisplayNameString =
+						ChannelDisplayNameString +
+						TCString<TCHAR>::Tab(3);
+				}
+
+				ChannelDisplayNameString = ChannelDisplayNameString + AttributeName;
+			}
+			else
+			{
+				ChannelDisplayNameString = AttributeName;
+			}
+
+			const FText ChannelDisplayName(FText::FromString(ChannelDisplayNameString));
+			const FName ChannelPropertyName(*FString::Printf(TEXT("%s.%s"), *Patch->GetDisplayName(), *ChannelDisplayNameString));
 
 			FMovieSceneChannelMetaData MetaData;
-			MetaData.SetIdentifiers(ChannelPropertyName, ChannelDisplayName, PatchNameText);
+			MetaData.SetIdentifiers(ChannelPropertyName, ChannelDisplayName, FText::FromString(Patch->GetDisplayName()));
 			MetaData.SortOrder = SortOrder++;
 			MetaData.bCanCollapseToTrack = false;
 
-			Channels.Add(PatchFloatChannels[FunctionIndex].Channel, MetaData, TMovieSceneExternalValue<float>());
+			ChannelProxyData.Add(FunctionChannel.Channel, MetaData, TMovieSceneExternalValue<float>());
 #else
-			Channels.Add(PatchFloatChannels[FunctionIndex].Channel);
+			ChannelProxyData.Add(FunctionChannel.Channel);
 #endif // WITH_EDITOR
 		}
 
-		++PatchChannelsIndex;
+		++PatchChannelIndex;
 	}
 
-	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(ChannelProxyData));
 
 	// Remove Patches that can't be seen by users because they don't have any functions
 	// or represent an invalid Patch object
-	for (const int32& InvalidPatchChannelsIndex : InvalidPatchChannelsIndexes)
+	for (const int32& InvalidPatchChannelIndex : InvalidPatchChannelIndices)
 	{
-		Patches.RemoveAt(InvalidPatchChannelsIndex);
+		FixturePatchChannels.RemoveAt(InvalidPatchChannelIndex);
+	}
+}
+
+void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixturePatchChannel& PatchChannel, const FDMXFixtureFunctionChannel& FunctionChannel)
+{
+	UDMXEntityFixturePatch* FixturePatch = PatchChannel.Reference.GetFixturePatch();
+	check(FixturePatch);
+
+	UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate;
+	check(FixtureType);
+
+	const int32 PatchChannelOffset = FixturePatch->GetStartingChannel() - 1;
+
+	check(FixtureType->Modes.IsValidIndex(PatchChannel.ActiveMode));
+	const FDMXFixtureMode& Mode = FixtureType->Modes[PatchChannel.ActiveMode];
+
+	const FDMXFixtureFunction* FixtureFunctionPtr = Mode.Functions.FindByPredicate([FunctionChannel](const FDMXFixtureFunction& TestedFixtureFunction) {
+		return TestedFixtureFunction.Attribute == FunctionChannel.AttributeName;
+		});
+	check(FixtureFunctionPtr);
+
+	const FDMXPixelMatrix& MatrixConfig = Mode.PixelMatrixConfig;
+	const TArray<FDMXFixturePixelFunction>& PixelFunctions = MatrixConfig.PixelFunctions;
+
+	if (FunctionChannel.IsCellFunction())
+	{
+		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
+		check(DMXSubsystem);
+
+		TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+		DMXSubsystem->GetMatrixPixelChannels(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
+
+		bool bLoggedMissingAttribute = false;
+		for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
+		{
+			const FDMXFixturePixelFunction* PixelFunctionPtr = PixelFunctions.FindByPredicate([&AttributeNameChannelKvp](const FDMXFixturePixelFunction& PixelFunction) {
+				return PixelFunction.Attribute == AttributeNameChannelKvp.Key;
+				});
+
+			if (!PixelFunctionPtr)
+			{
+				if (!bLoggedMissingAttribute)
+				{
+					UE_LOG(LogDMXRuntime, Warning, TEXT("%S: Function with attribute %s from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, *FunctionChannel.AttributeName.ToString(), *FixturePatch->GetDisplayName());
+					UE_LOG(LogDMXRuntime, Warning, TEXT("%S: Further attributes may be missing. Warnings ommited to avoid overflowing the log."), __FUNCTION__);
+					bLoggedMissingAttribute = true;
+				}
+				continue;
+			}
+
+			const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
+			int32 FirstChannelAddress = AttributeNameChannelKvp.Value;
+			int32 LastChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+
+			int32 DefaultValue = PixelFunction.DefaultValue;
+
+			uint8 ValueBytes[4] = { 0 };
+			UDMXEntityFixtureType::IntToBytes(PixelFunction.DataType, PixelFunction.bUseLSBMode, DefaultValue, ValueBytes);
+
+			IDMXFragmentMap FragmentMap;
+			int32 ByteIndex = 0;
+			for (int32 ChannelIndex = FirstChannelAddress; ChannelIndex <= LastChannelAddress && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
+			{
+				FragmentMap.Add(ChannelIndex, ValueBytes[ByteIndex]);
+			}
+
+			// Send the fragment map through each controller affecting the Fixture Patch
+			const TArray<UDMXEntityController*>&& Controllers = FixturePatch->GetRelevantControllers();
+			for (const UDMXEntityController* Controller : Controllers)
+			{
+				if (Controller == nullptr || !Controller->IsValidLowLevelFast() || !Controller->DeviceProtocol.IsValid())
+				{
+					continue;
+				}
+
+				IDMXProtocolPtr DMXProtocol = Controller->DeviceProtocol;
+				DMXProtocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
+			}
+		}
+	}
+	else
+	{ 
+		const FDMXFixtureFunction& FixtureFunction = *FixtureFunctionPtr;
+
+		// Add function default value bytes (channels) to a fragment map
+		const int32 FunctionChannelStart = FixtureFunction.Channel + PatchChannelOffset;
+		const int32 FunctionChannelEnd = UDMXEntityFixtureType::GetFunctionLastChannel(FixtureFunction) + PatchChannelOffset;
+
+		uint8 ValueBytes[4] = { 0 };
+		UDMXEntityFixtureType::FunctionValueToBytes(FixtureFunction, FixtureFunction.DefaultValue, ValueBytes);
+
+		IDMXFragmentMap FragmentMap;
+		int32 ByteIndex = 0;
+		for (int32 ChannelIndex = FunctionChannelStart; ChannelIndex <= FunctionChannelEnd && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
+		{
+			FragmentMap.Add(ChannelIndex, ValueBytes[ByteIndex]);
+		}
+
+		// Send the fragment map through each controller affecting the Fixture Patch
+		const TArray<UDMXEntityController*>&& Controllers = FixturePatch->GetRelevantControllers();
+		for (const UDMXEntityController* Controller : Controllers)
+		{
+			if (Controller == nullptr || !Controller->IsValidLowLevelFast() || !Controller->DeviceProtocol.IsValid())
+			{
+				continue;
+			}
+
+			IDMXProtocolPtr DMXProtocol = Controller->DeviceProtocol;
+			DMXProtocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
+		}
 	}
 }

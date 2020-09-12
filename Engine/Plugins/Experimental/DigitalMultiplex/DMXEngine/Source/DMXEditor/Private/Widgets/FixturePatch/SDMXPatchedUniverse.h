@@ -62,8 +62,9 @@ public:
 	void SetUniverseID(int32 NewUniverseID);
 
 	/** 
-	 * Patches the node to specified channel. 
-	 * May change the starting channel to fit the patch in.
+	 * Patches the node.
+	 * Patches that have bAutoAssignAddress use their auto assigned address.
+	 * Others are assigned to the specified new starting channel
 	 * Returns false if the patch cannot be patched.
 	 */
 	bool Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, int32 NewStartingChannel, bool bCreateTransaction);
@@ -108,11 +109,11 @@ public:
 
 protected:
 	/** Creates a a new grid of channels */
-	void CreateChannelValueWidgets();
+	void CreateChannelConnectors();
 
 	/** Returns the name of the universe displayed */
 	FText GetUniverseName() const;
-
+	
 protected:
 	/** Called when drag enters a channel */
 	void HandleDragEnterChannel(int32 ChannelID, const FDragDropEvent& DragDropEvent);
@@ -152,6 +153,9 @@ protected:
 
 	/** Patches in the grid */
 	TArray<TSharedPtr<FDMXFixturePatchNode>> PatchedNodes;
+
+	/** The Channel connectors in this universe */
+	TArray<TSharedPtr<SDMXChannelConnector>> ChannelConnectors;
 
 	/** Shared data for fixture patch editors */
 	TSharedPtr<FDMXFixturePatchSharedData> SharedData;

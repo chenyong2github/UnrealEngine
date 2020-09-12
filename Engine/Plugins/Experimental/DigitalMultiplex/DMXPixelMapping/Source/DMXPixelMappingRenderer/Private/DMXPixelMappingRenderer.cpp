@@ -46,7 +46,7 @@ FDMXPixelMappingRenderer::FDMXPixelMappingRenderer()
 	// Initialize Material Renderer
 	if (!MaterialWidgetRenderer.IsValid())
 	{
-		const bool bUseGammaCorrection = true;
+		const bool bUseGammaCorrection = false;
 		MaterialWidgetRenderer = MakeShared<FWidgetRenderer>(bUseGammaCorrection);
 		check(MaterialWidgetRenderer.IsValid());
 	}
@@ -70,15 +70,19 @@ FDMXPixelMappingRenderer::FDMXPixelMappingRenderer()
 
 void FDMXPixelMappingRenderer::DownsampleRender_GameThread(
 	FTextureResource* InputTexture,
-	FTextureResource* DstTexture, 
+	FTextureResource* DstTexture,
 	FTextureRenderTargetResource* DstTextureTargetResource,
-	FVector4 PixelFactor,
-	FIntVector4 InvertPixel,
-	float X, float Y,
-	float SizeX, float SizeY,
-	float U, float V,
-	float SizeU, float SizeV,
-	FIntPoint TargetSize, FIntPoint TextureSize,
+	const FVector4& PixelFactor,
+	const FIntVector4& InvertPixel,
+	const FVector2D& Position,
+	const FVector2D& Size,
+	const FVector2D& UV,
+	const FVector2D& UVSize,
+	const FVector2D& UVCellSize,
+	const FIntPoint& TargetSize,
+	const FIntPoint& TextureSize,
+	EDMXPixelBlendingQuality PixelBlendingQuality,
+	bool bStaticCalculateUV,
 	SurfaceReadCallback ReadCallback)
 {
 	check(IsInGameThread());
@@ -91,13 +95,17 @@ void FDMXPixelMappingRenderer::DownsampleRender_GameThread(
 
 		FIntPoint(InputTexture->GetSizeX(), InputTexture->GetSizeY()),
 		FIntPoint(DstTexture->GetSizeX(), DstTexture->GetSizeY()),
-		PixelFactor,
+		Brightness * PixelFactor,
 		InvertPixel,
-		X, Y,
-		SizeX, SizeY,
-		U, V,
-		SizeU, SizeV,
-		TargetSize, TextureSize,
+		Position,
+		Size,
+		UV,
+		UVSize,
+		UVCellSize,
+		TargetSize,
+		TextureSize,
+		PixelBlendingQuality,
+		bStaticCalculateUV,
 	};
 
 	ENQUEUE_RENDER_COMMAND(DMXPixelMappingRenderer)(
@@ -268,10 +276,14 @@ void FDMXPixelMappingRenderer::Render_RenderThread(FRHICommandListImmediate& RHI
 		// Pixel Mapping usint SF_Trilinear for texture sampling,  
 		PassData.PSParameters.InputSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+		FDMXPixelMappingRendererPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FDMXPixelBlendingQualityDimension>((EDMXPixelShaderBlendingQuality)InContext.PixelBlendingQuality);
+		PermutationVector.Set<FDMXVertexUVDimension>(InContext.bStaticCalculateUV);
+		
 		// Get shaders
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-		TShaderMapRef<FDMXPixelMappingRendererVS> VertexShader(ShaderMap);
-		TShaderMapRef<FDMXPixelMappingRendererPS> PixelShader(ShaderMap);
+		TShaderMapRef<FDMXPixelMappingRendererVS> VertexShader(ShaderMap, PermutationVector);
+		TShaderMapRef<FDMXPixelMappingRendererPS> PixelShader(ShaderMap, PermutationVector);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		{
@@ -295,8 +307,8 @@ void FDMXPixelMappingRenderer::Render_RenderThread(FRHICommandListImmediate& RHI
 		}
 
 		// Set vertex shader buffer
-		PassData.VSParameters.DrawRectanglePosScaleBias = FVector4(InContext.SizeX, InContext.SizeY, InContext.X, InContext.Y);
-		PassData.VSParameters.DrawRectangleUVScaleBias = FVector4(InContext.SizeU, InContext.SizeV, InContext.U, InContext.V);
+		PassData.VSParameters.DrawRectanglePosScaleBias = FVector4(InContext.Size.X, InContext.Size.Y, InContext.Position.X, InContext.Position.Y);
+		PassData.VSParameters.DrawRectangleUVScaleBias = FVector4(InContext.UVSize.X, InContext.UVSize.Y, InContext.UV.X, InContext.UV.Y);
 		PassData.VSParameters.DrawRectangleInvTargetSizeAndTextureSize = FVector4(
 			1.0f / InContext.TargetSize.X, 1.0f / InContext.TargetSize.Y,
 			1.0f / InContext.TextureSize.X, 1.0f / InContext.TextureSize.Y);
@@ -307,6 +319,7 @@ void FDMXPixelMappingRenderer::Render_RenderThread(FRHICommandListImmediate& RHI
 		PassData.PSParameters.OutputTextureSize = InContext.OutputTextureSize;
 		PassData.PSParameters.PixelFactor = InContext.PixelFactor;
 		PassData.PSParameters.InvertPixel = InContext.InvertPixel;
+		PassData.PSParameters.UVCellSize = InContext.UVCellSize;
 		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassData.PSParameters);
 
 		// Draw a two triangle on the entire viewport.

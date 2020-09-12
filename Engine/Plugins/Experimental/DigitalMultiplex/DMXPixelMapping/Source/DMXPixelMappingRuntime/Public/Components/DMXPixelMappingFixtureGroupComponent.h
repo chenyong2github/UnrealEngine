@@ -43,7 +43,7 @@ public:
 	virtual void RenderEditorPreviewTexture() override;
 	virtual bool IsExposedToTemplate() { return true; }
 	virtual const FText GetPaletteCategory() override;
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SCanvas> InCanvas) override;
+	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 
 	virtual void UpdateWidget() override;
@@ -71,7 +71,7 @@ public:
 	UDMXLibrary* DMXLibrary;
 
 	UPROPERTY(Transient)
-	FDMXEntityFixturePatchRef SelectedFixturePatchRef;
+	TSet<FDMXEntityFixturePatchRef> SelectedFixturePatchRef;
 
 private:
 	UPROPERTY(Transient)

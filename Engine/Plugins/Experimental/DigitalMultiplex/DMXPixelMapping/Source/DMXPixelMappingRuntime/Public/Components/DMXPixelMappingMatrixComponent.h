@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Components/DMXPixelMappingExtraAttribute.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -50,7 +51,7 @@ public:
 	virtual void RenderEditorPreviewTexture() override;
 	virtual const FText GetPaletteCategory() override;
 	virtual bool IsExposedToTemplate() { return true; }
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SCanvas> InCanvas) override;
+	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 
 	virtual void UpdateWidget() override;
@@ -87,6 +88,14 @@ private:
 public:
 	UPROPERTY(EditAnywhere, Category = "Matrix Settings")
 	FDMXEntityFixturePatchRef FixturePatchMatrixRef;
+
+	/** Extra attributes for the whole Matrix Fixture */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
+
+	/** Extra attributes for each Matrix Fixture Cell */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	TArray<FDMXPixelMappingExtraAttribute> ExtraCellAttributes;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
 	EDMXColorMode ColorMode;
@@ -153,4 +162,6 @@ private:
 private:
 	static const FVector2D MinSize;
 	static const FVector2D DefaultSize;
+
+	FLinearColor PreviousEditorColor = FLinearColor::Blue;
 };

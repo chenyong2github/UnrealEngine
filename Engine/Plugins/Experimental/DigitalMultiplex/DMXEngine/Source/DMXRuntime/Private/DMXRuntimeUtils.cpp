@@ -2,6 +2,8 @@
 
 #include "DMXRuntimeUtils.h"
 
+#include "Library/DMXEntityFixturePatch.h"
+
 #define LOCTEXT_NAMESPACE "FDMXRuntimeUtils"
 
 bool FDMXRuntimeUtils::GetNameAndIndexFromString(const FString& InString, FString& OutName, int32& OutIndex)
@@ -45,6 +47,17 @@ bool FDMXRuntimeUtils::GetNameAndIndexFromString(const FString& InString, FStrin
 	}
 
 	return bHadIndex;
+}
+
+TMap<int32, TArray<UDMXEntityFixturePatch*>> FDMXRuntimeUtils::MapToUniverses(const TArray<UDMXEntityFixturePatch*>& AllPatches)
+{
+	TMap<int32, TArray<UDMXEntityFixturePatch*>> Result;
+	for (UDMXEntityFixturePatch* Patch : AllPatches)
+	{
+		TArray<UDMXEntityFixturePatch*>& UniverseGroup = Result.FindOrAdd(Patch->UniverseID);
+		UniverseGroup.Add(Patch);
+	}
+	return Result;
 }
 
 #undef LOCTEXT_NAMESPACE
