@@ -366,8 +366,11 @@ void SDMXActivityMonitor::OnInputBufferUpdated(FName Protocol, uint16 UniverseID
 
 void SDMXActivityMonitor::VisualizeInputBuffer(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
 {
-	const TSharedRef<SDMXActivityInUniverse>& ActivityWidget = GetOrCreateActivityWidget(UniverseID);
-	ActivityWidget->VisualizeInputBuffer(Values);
+	if (!IsEngineExitRequested())
+	{
+		const TSharedRef<SDMXActivityInUniverse>& ActivityWidget = GetOrCreateActivityWidget(UniverseID);
+		ActivityWidget->VisualizeInputBuffer(Values);
+	}
 }
 
 void SDMXActivityMonitor::OnOutputBufferUpdated(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
@@ -383,8 +386,11 @@ void SDMXActivityMonitor::OnOutputBufferUpdated(FName Protocol, uint16 UniverseI
 
 void SDMXActivityMonitor::VisualizeOutputBuffer(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
 {
-	const TSharedRef<SDMXActivityInUniverse>& BufferView = GetOrCreateActivityWidget(UniverseID);
-	BufferView->VisualizeOutputBuffer(Values);
+	if (!IsEngineExitRequested())
+	{
+		const TSharedRef<SDMXActivityInUniverse>& BufferView = GetOrCreateActivityWidget(UniverseID);
+		BufferView->VisualizeOutputBuffer(Values);
+	}
 }
 
 void SDMXActivityMonitor::SetProtocol(FName NewProtocolName)

@@ -106,16 +106,16 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 		[
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.FillHeight(1.0f)
-				[
-					SAssignNew(TreeViewArea, SBorder)
-					.Padding(0)
-					.BorderImage(FEditorStyle::GetBrush("NoBrush"))
-				]
-			]
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		[
+			SAssignNew(TreeViewArea, SBorder)
+			.Padding(0)
+		.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+		]
+		]
 		];
 
 	RebuildTreeView();
@@ -123,6 +123,8 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 	bRefreshRequested = true;
 
 	OnSelectedComponenetChangedHandle = InToolkit->GetOnSelectedComponenetChangedDelegate().AddRaw(this, &SDMXPixelMappingHierarchyView::OnEditorSelectionChanged);
+
+	bSelectFirstRenderer = true;
 
 	GEditor->RegisterForUndo(this);
 }
@@ -139,28 +141,36 @@ SDMXPixelMappingHierarchyView::~SDMXPixelMappingHierarchyView()
 	}
 }
 
+void SDMXPixelMappingHierarchyView::SelectFirstAvailableRenderer()
+{
+	if (TreeRootWidgets.Num() > 0)
+	{
+		FDMXPixelMappingHierarchyItemWidgetModelArr RootComponents;
+		TreeRootWidgets[0]->GatherChildren(RootComponents);
+		for (FDMXPixelMappingHierarchyItemWidgetModelPtr ItemWidgetPtr : RootComponents)
+		{
+			if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(ItemWidgetPtr->GetReference().GetComponent()))
+			{
+				CurrentSelectedItems.Empty();
+				CurrentSelectedItems.Add(ItemWidgetPtr);
+				bRefreshRequested = true;
+				break;
+			}
+		}
+	}
+}
+
 void SDMXPixelMappingHierarchyView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	if (bRebuildTreeRequested || bRefreshRequested)
+
+	// select the first available renderer (if any)
+	if (bSelectFirstRenderer && TreeRootWidgets.Num() > 0 && CurrentSelectedItems.Num() == 0)
 	{
-		if (bRebuildTreeRequested)
-		{
-			RebuildTreeView();
-		}
-
-		RefreshTree();
-
-		UpdateItemsExpansionFromModel();
-
-		for (FDMXPixelMappingHierarchyItemWidgetModelPtr& Item : CurrentSelectedItems)
-		{
-			Item->OnSelection();
-		}
-		CurrentSelectedItems.Empty();
-
-		bRefreshRequested = false;
-		bRebuildTreeRequested = false;
+		SelectFirstAvailableRenderer();
+		bSelectFirstRenderer = false;
 	}
+
+	ConditionallyUpdateTree();
 }
 
 
@@ -220,6 +230,95 @@ void SDMXPixelMappingHierarchyView::GetWidgetFilterStrings(FDMXPixelMappingHiera
 	InModelPtr->GetFilterStrings(OutStrings);
 }
 
+void SDMXPixelMappingHierarchyView::ConditionallyUpdateTree()
+{
+	struct FTreeExpansionSnapshot
+	{
+		static FTreeExpansionSnapshot TakeSnapshot(const FDMXPixelMappingHierarchyItemWidgetModelArr& InRootWidgets, TreeViewPtr InTreeView)
+		{
+			FTreeExpansionSnapshot Result;
+			for(FDMXPixelMappingHierarchyItemWidgetModelPtr Model : InRootWidgets)
+			{
+				Result.RecursiveTakeSnapshot(Model, InTreeView);
+			}
+			return Result;
+		}
+
+		void RestoreExpandedAndExpandNewModels(const FDMXPixelMappingHierarchyItemWidgetModelArr& InRootWidgets, TreeViewPtr InTreeView)
+		{
+			for (FDMXPixelMappingHierarchyItemWidgetModelPtr Model : InRootWidgets)
+			{
+				RecursiveRestoreSnapshot(Model, InTreeView);
+			}
+		}
+
+	private:
+
+		FTreeExpansionSnapshot()
+		{}
+
+		void RecursiveTakeSnapshot(FDMXPixelMappingHierarchyItemWidgetModelPtr Model, TreeViewPtr TreeView)
+		{
+			UDMXPixelMappingBaseComponent* Component = Model->GetReference().GetComponent();
+			ComponentExpansionStates.Add(Component) = TreeView->IsItemExpanded(Model);
+
+			FDMXPixelMappingHierarchyItemWidgetModelArr Children;
+			Model->GatherChildren(Children);
+
+			for (FDMXPixelMappingHierarchyItemWidgetModelPtr& ChildModel : Children)
+			{
+				RecursiveTakeSnapshot(ChildModel, TreeView);
+			}
+		}
+
+		void RecursiveRestoreSnapshot(FDMXPixelMappingHierarchyItemWidgetModelPtr Model, TreeViewPtr TreeView)
+		{
+			UDMXPixelMappingBaseComponent* Component = Model->GetReference().GetComponent();
+			bool* pPreviousExpansionState = ComponentExpansionStates.Find(Component);
+			if(pPreviousExpansionState == nullptr)
+			{
+				TreeView->SetItemExpansion(Model, true);
+			}
+			else
+			{
+				TreeView->SetItemExpansion(Model, *pPreviousExpansionState);
+			}
+
+			FDMXPixelMappingHierarchyItemWidgetModelArr Children;
+			Model->GatherChildren(Children);
+
+			for (FDMXPixelMappingHierarchyItemWidgetModelPtr& ChildModel : Children)
+			{
+				RecursiveRestoreSnapshot(ChildModel, TreeView);
+			}
+		}
+		
+		TMap<UDMXPixelMappingBaseComponent*, bool> ComponentExpansionStates;
+		
+	};
+	
+	if (bRebuildTreeRequested || bRefreshRequested)
+	{
+		FTreeExpansionSnapshot ExpansionSnapshot = FTreeExpansionSnapshot::TakeSnapshot(RootWidgets, WidgetTreeView);
+		if (bRebuildTreeRequested)
+		{
+			RebuildTreeView();
+		}
+
+		RefreshTree();
+		ExpansionSnapshot.RestoreExpandedAndExpandNewModels(RootWidgets, WidgetTreeView);
+
+		for (FDMXPixelMappingHierarchyItemWidgetModelPtr& Item : CurrentSelectedItems)
+		{
+			Item->OnSelection();
+		}
+		CurrentSelectedItems.Empty();
+
+		bRefreshRequested = false;
+		bRebuildTreeRequested = false;
+	}
+}
+
 void SDMXPixelMappingHierarchyView::RebuildTreeView()
 {
 	float OldScrollOffset = 0.0f;
@@ -248,21 +347,6 @@ void SDMXPixelMappingHierarchyView::RebuildTreeView()
 
 
 	WidgetTreeView->SetScrollOffset(OldScrollOffset);
-}
-
-void SDMXPixelMappingHierarchyView::RecursiveExpand(FDMXPixelMappingHierarchyItemWidgetModelPtr Model, EExpandBehavior ExpandBehavior)
-{
-	bool bShouldExpandItem = true;
-
-	WidgetTreeView->SetItemExpansion(Model, bShouldExpandItem);
-
-	FDMXPixelMappingHierarchyItemWidgetModelArr Children;
-	Model->GatherChildren(Children);
-
-	for (FDMXPixelMappingHierarchyItemWidgetModelPtr& ChildModel : Children)
-	{
-		RecursiveExpand(ChildModel, ExpandBehavior);
-	}
 }
 
 void SDMXPixelMappingHierarchyView::RestoreSelectedItems()
@@ -302,14 +386,6 @@ void SDMXPixelMappingHierarchyView::RefreshTree()
 	RootWidgets.Add(MakeShared<FDMXPixelMappingHierarchyItemWidgetModel>(Toolkit.Pin()));
 
 	FilterHandler->RefreshAndFilterTree();
-}
-
-void SDMXPixelMappingHierarchyView::UpdateItemsExpansionFromModel()
-{
-	for (FDMXPixelMappingHierarchyItemWidgetModelPtr& Model : RootWidgets)
-	{
-		RecursiveExpand(Model, EExpandBehavior::FromModel);
-	}
 }
 
 void SDMXPixelMappingHierarchyView::HandleAddComponent(bool bIsSuccess)
@@ -409,7 +485,7 @@ void SDMXPixelMappingHierarchyView::RecursivePaste(UDMXPixelMappingBaseComponent
 		UDMXPixelMappingBaseComponent* ChildComponent = InComponent->Children[ChildIndex];
 		if (ChildComponent)
 		{
-			const FName UniqueName = MakeUniqueObjectName(ChildComponent->GetOuter(), ChildComponent->GetClass(), ChildComponent->GetNamePrefix());
+			const FName UniqueName = MakeUniqueObjectName(ChildComponent->GetOuter(), ChildComponent->GetClass(), ChildComponent->GetFName());
 			UDMXPixelMappingBaseComponent* ChildCopy = DuplicateObject(ChildComponent, ChildComponent->GetOuter(), UniqueName);
 			if (ChildCopy)
 			{
@@ -426,7 +502,7 @@ void SDMXPixelMappingHierarchyView::RequestRebuildTree()
 	bRebuildTreeRequested = true;
 }
 
-bool SDMXPixelMappingHierarchyView::MoveComponentToComponent(UDMXPixelMappingBaseComponent* Source, UDMXPixelMappingBaseComponent* Destination)
+bool SDMXPixelMappingHierarchyView::MoveComponentToComponent(UDMXPixelMappingBaseComponent* Source, UDMXPixelMappingBaseComponent* Destination, const bool bRename)
 {
 	UDMXPixelMappingBaseComponent* NewParent = nullptr;
 	// first check if we can directly move the component
@@ -443,17 +519,23 @@ bool SDMXPixelMappingHierarchyView::MoveComponentToComponent(UDMXPixelMappingBas
 		}
 	}
 
-	if (NewParent)
+	// pasting while multiple components are selected, can
+	// cause the same children to be attached to the same parent
+	// we need to check it
+	if (NewParent != nullptr && !NewParent->Children.Contains(Source))
 	{
 		NewParent->Modify();
 		Source->Modify();
 
 		RecursivePaste(Source);
 
-		const FName UniqueName = MakeUniqueObjectName(NewParent->GetOuter(), Source->GetClass(), Source->GetNamePrefix());
-		const FString NewNameStr = UniqueName.ToString();
+		if (bRename)
+		{
+			const FName UniqueName = MakeUniqueObjectName(NewParent->GetOuter(), Source->GetClass(), Source->GetFName());
+			const FString NewNameStr = UniqueName.ToString();
 
-		Source->Rename(*NewNameStr, NewParent->GetOuter());
+			Source->Rename(*NewNameStr, NewParent->GetOuter());
+		}
 
 		NewParent->AddChild(Source);
 
@@ -484,7 +566,7 @@ void SDMXPixelMappingHierarchyView::BeginPaste()
 		UDMXPixelMappingBaseComponent* SelectedComponent = SelectedItem->GetReference().GetComponent();
 		for (UDMXPixelMappingBaseComponent* Component : NewComponents)
 		{
-			MoveComponentToComponent(Component, SelectedComponent);
+			MoveComponentToComponent(Component, SelectedComponent, true);
 		}
 	}
 
@@ -508,11 +590,11 @@ void SDMXPixelMappingHierarchyView::BeginDuplicate()
 	for (FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem : SelectedItems)
 	{
 		UDMXPixelMappingBaseComponent* SelectedComponent = SelectedItem->GetReference().GetComponent();
-		const FName UniqueName = MakeUniqueObjectName(SelectedComponent->GetOuter(), SelectedComponent->GetClass(), SelectedComponent->GetNamePrefix());
+		const FName UniqueName = MakeUniqueObjectName(SelectedComponent->GetOuter(), SelectedComponent->GetClass(), SelectedComponent->GetFName());
 		UDMXPixelMappingBaseComponent* NewComponent = DuplicateObject(SelectedComponent, SelectedComponent->GetOuter(), UniqueName);
 		if (NewComponent)
 		{
-			MoveComponentToComponent(NewComponent, SelectedComponent);
+			MoveComponentToComponent(NewComponent, SelectedComponent, false);
 		}
 	}
 }
@@ -539,23 +621,28 @@ void SDMXPixelMappingHierarchyView::BeginDelete()
 
 	const FScopedTransaction Transaction(FText::Format(LOCTEXT("DMXPixelMapping.RemoveComponents", "Remove {0}|plural(one=Component, other=Components)"), SelectedItems.Num()));
 
-	for (FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem : SelectedItems)
+	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = Toolkit.Pin())
 	{
-		UDMXPixelMappingBaseComponent* SelectedComponent = SelectedItem->GetReference().GetComponent();
-		UDMXPixelMappingBaseComponent* ParentComponent = SelectedComponent->Parent;
+		TSet<FDMXPixelMappingComponentReference> SelectedComponents;
 
-		if (ParentComponent)
+		for (FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem : SelectedItems)
 		{
-			SelectedComponent->Modify();
-			ParentComponent->Modify();
-			ParentComponent->RemoveChild(SelectedComponent);
-
-			RequestComponentRedraw(ParentComponent);
-
-			RequestRebuildTree();
+			UDMXPixelMappingBaseComponent* SelectedComponent = SelectedItem->GetReference().GetComponent();
+			if (SelectedComponent)
+			{
+				UDMXPixelMappingBaseComponent* ParentComponent = SelectedComponent->Parent;
+				if (ParentComponent)
+				{
+					ParentComponent->Modify();
+					SelectedComponent->Modify();
+					
+					SelectedComponents.Add(FDMXPixelMappingComponentReference(ToolkitPtr, SelectedComponent));
+				}
+			}
 		}
+
+		ToolkitPtr->DeleteSelectedComponents(SelectedComponents);
 	}
-	
 }
 
 void SDMXPixelMappingHierarchyView::PostUndo(bool bSuccess)

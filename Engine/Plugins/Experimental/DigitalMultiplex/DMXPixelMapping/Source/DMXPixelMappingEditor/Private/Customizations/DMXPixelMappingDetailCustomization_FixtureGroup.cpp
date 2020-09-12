@@ -55,7 +55,7 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroup::Generate
 				.Padding(2.0f)
 				.OnDragDetected(FOnDragDetected::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchDragDetected, InFixturePatchRef))
 				.Style(FEditorStyle::Get(), "UMGEditor.PaletteItem")
-				.ShowSelection(false)
+				.ShowSelection(true)
 				[
 					SNew(SBox)
 					[
@@ -69,12 +69,21 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroup::Generate
 	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable);
 }
 
-void FDMXPixelMappingDetailCustomization_FixtureGroup::OnClickFixturePatchRow(TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef)
+void FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixtureSelectionChanged(TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef, ESelectInfo::Type SelectInfo)
 {
+	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedItems;
+	FixturePatchListView->GetSelectedItems(SelectedItems);
 	UDMXPixelMappingFixtureGroupComponent* Component = GetSelectedFixtureGroupComponent();
 	if (Component != nullptr)
 	{
-		Component->SelectedFixturePatchRef = *InFixturePatchRef.Get();
+		Component->SelectedFixturePatchRef.Empty();
+		for (TSharedPtr<FDMXEntityFixturePatchRef> SelectedItem : SelectedItems)
+		{
+			if (SelectedItem.IsValid())
+			{
+				Component->SelectedFixturePatchRef.Add(*SelectedItem.Get());
+			}
+		}
 	}
 }
 
@@ -82,7 +91,7 @@ FReply FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchDragDetec
 {
 	if (UDMXPixelMappingFixtureGroupComponent* Component = GetSelectedFixtureGroupComponent())
 	{
-		Component->SelectedFixturePatchRef = *InFixturePatchRef.Get();
+		Component->SelectedFixturePatchRef.Add(*InFixturePatchRef.Get());
 		return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FixturePatchItemTemplate, Component));
 	}
 
@@ -141,7 +150,8 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::RebuildFixturePatchListVi
 {
 	SAssignNew(FixturePatchListView, SListView<TSharedPtr<FDMXEntityFixturePatchRef>>)
 		.ListItemsSource(&FixturePatchRefs)
-		.OnMouseButtonClick(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnClickFixturePatchRow)
+		.SelectionMode(ESelectionMode::Multi)
+		.OnSelectionChanged(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixtureSelectionChanged)
 		.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::GenerateFixturePatchRow);
 
 	FixturePatchListArea->SetContent(

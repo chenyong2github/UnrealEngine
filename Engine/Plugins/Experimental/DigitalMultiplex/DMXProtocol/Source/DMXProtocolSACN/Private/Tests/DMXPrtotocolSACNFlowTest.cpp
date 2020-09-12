@@ -10,6 +10,7 @@
 
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolUniverseSACN.h"
+#include "DMXProtocolSettings.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -37,9 +38,11 @@ struct DMXPrtotocolSACNHelper
 			UniverseExists = false;
 		}
 
-
-		// Call get buffer for start listening socket
-		Universe->GetInputDMXBuffer();
+		// Call tick on a single thread to force create listen sockets.
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+		bReceiveThread = ProtocolSettings->bUseSeparateReceivingThread;
+		ProtocolSettings->bUseSeparateReceivingThread = false;
+		Universe->Tick(0.f);
 	}
 
 	~DMXPrtotocolSACNHelper()
@@ -48,6 +51,9 @@ struct DMXPrtotocolSACNHelper
 		{
 			DMXProtocol->RemoveUniverseById(UniverseID);
 		}
+
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+		ProtocolSettings->bUseSeparateReceivingThread = bReceiveThread;
 	}
 
 	FDMXProtocolSACN* DMXProtocol;
@@ -56,7 +62,8 @@ struct DMXPrtotocolSACNHelper
 	uint16 UniverseID;
 	uint8 FixtureChannels[6] = { 1, 2, 3, 4, 5, 6 };
 	uint8 FixtureValues[6] = { 255, 155, 50, 100, 200, 220 };
-
+	bool bReceiveThread;
+	
 	/** Pointer to running automation test instance */
 	FAutomationTestBase* Test;
 };
@@ -150,7 +157,7 @@ bool DMXPrtotocolSACNBasicFlow_SendDiscovery_Part6::Update()
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(DMXPrtotocolSACNBasicFlowTest, "VirtualProduction.DMX.SACN.BasicFlow", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 bool DMXPrtotocolSACNBasicFlowTest::RunTest(const FString& Parameters)
 {
-	TSharedPtr<DMXPrtotocolSACNHelper> Helper = MakeShared<DMXPrtotocolSACNHelper>(34, this);
+	TSharedPtr<DMXPrtotocolSACNHelper> Helper = MakeShared<DMXPrtotocolSACNHelper>(13001, this);
 
 	// Wait the universe socket and buffer setup
 	ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.2f));
@@ -204,7 +211,7 @@ bool FDMXPrtotocolSACNConsoleCommands_CheckDMX1_Part2::Update()
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDMXPrtotocolSACNConsoleCommandsTest, "VirtualProduction.DMX.SACN.ConsoleCommands", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 bool FDMXPrtotocolSACNConsoleCommandsTest::RunTest(const FString& Parameters)
 {
-	TSharedPtr<DMXPrtotocolSACNHelper> Helper = MakeShared<DMXPrtotocolSACNHelper>(576, this);
+	TSharedPtr<DMXPrtotocolSACNHelper> Helper = MakeShared<DMXPrtotocolSACNHelper>(13002, this);
 
 	// Wait the universe socket and buffer setup
 	ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.2f));

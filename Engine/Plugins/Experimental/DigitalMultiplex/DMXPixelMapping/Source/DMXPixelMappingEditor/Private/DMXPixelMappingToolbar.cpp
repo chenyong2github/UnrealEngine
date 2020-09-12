@@ -53,15 +53,15 @@ void FDMXPixelMappingToolbar::AddPlayAndStopSection(FToolBarBuilder& ToolbarBuil
 
 	ToolbarBuilder.BeginSection("Renderers");
 	{
-		ToolbarBuilder.AddToolBarButton(FDMXPixelMappingEditorCommands::Get().AddRenderer,
+		ToolbarBuilder.AddToolBarButton(FDMXPixelMappingEditorCommands::Get().AddMapping,
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-			FSlateIcon(FDMXPixelMappingEditorStyle::GetStyleSetName(), "DMXPixelMappingEditor.AddRenderer"),
-			FName(TEXT("Add Renderer")));
+			FSlateIcon(FDMXPixelMappingEditorStyle::GetStyleSetName(), "DMXPixelMappingEditor.AddMapping"),
+			FName(TEXT("Add Mapping")));
 
-		ToolbarBuilder.AddToolBarButton(FDMXPixelMappingEditorCommands::Get().ClearRenderers,
+		ToolbarBuilder.AddToolBarButton(FDMXPixelMappingEditorCommands::Get().ClearMappings,
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-			FSlateIcon(FDMXPixelMappingEditorStyle::GetStyleSetName(), "DMXPixelMappingEditor.ClearRenderers"),
-			FName(TEXT("Clear Renderers")));
+			FSlateIcon(FDMXPixelMappingEditorStyle::GetStyleSetName(), "DMXPixelMappingEditor.ClearMappings"),
+			FName(TEXT("Clear Mappings")));
 	}
 	ToolbarBuilder.EndSection();
 

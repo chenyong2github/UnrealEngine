@@ -22,8 +22,8 @@ void FDMXPixelMappingEditorCommands::RegisterCommands()
 {
 	UI_COMMAND(SaveThumbnailImage, "Thumbnail", "Generate Thumbnail", EUserInterfaceActionType::Button, FInputChord());
 
-	UI_COMMAND(AddRenderer, "Add Renderer", "Add Renderer", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ClearRenderers, "Clear Renderers", "Clear Renderers", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AddMapping, "Add Mapping", "Add Mapping", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ClearMappings, "Clear Mappings", "Clear Mappings", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(PlayDMX, "Play DMX", "Play DMX.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(StopPlayingDMX, "Stop Playing DMX", "Stop Playing DMX.", EUserInterfaceActionType::Button, FInputChord());

@@ -2,11 +2,12 @@
 
 #include "Sequencer/TakeRecorderDMXLibrarySource.h"
 
+#include "DMXEditorLog.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Sequencer/MovieSceneDMXLibraryTrack.h"
 #include "Sequencer/MovieSceneDMXLibrarySection.h"
-#include "DMXSubsystem.h"
+#include "Sequencer/MovieSceneDMXLibraryTrack.h"
+#include "Sequencer/MovieSceneDMXLibraryTrackRecorder.h"
 
 #include "LevelSequence.h"
 #include "MovieSceneFolder.h"
@@ -16,13 +17,14 @@
 #define LOCTEXT_NAMESPACE "TakeRecorderDMXLibrarySource"
 
 UTakeRecorderDMXLibrarySource::UTakeRecorderDMXLibrarySource(const FObjectInitializer& ObjInit)
-	:Super(ObjInit)
+	: Super(ObjInit)
 	, DMXLibrary(nullptr)
+	, bReduceKeys(false)
+	, bUseSourceTimecode(true)
+	, bDiscardSamplesBeforeStart(true)
 {
-	bReduceKeys = false;
-
 	// DMX Tracks are blue
-	TrackTint = FColor(0, 125, 255, 65);
+	TrackTint = FColor(0.0f, 125.0f, 255.0f, 65.0f);
 }
 
 void UTakeRecorderDMXLibrarySource::AddAllPatches()
@@ -42,211 +44,76 @@ void UTakeRecorderDMXLibrarySource::AddAllPatches()
 		});
 }
 
+void UTakeRecorderDMXLibrarySource::OnEntitiesUpdated(UDMXLibrary* UpdatedLibrary)
+{
+	check(DMXLibrary);
+	check(UpdatedLibrary == DMXLibrary);
+
+	if (TrackRecorder)
+	{
+		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* Patch)
+			{
+				if (!FixturePatchRefs.Contains(Patch))
+				{
+					UE_LOG(LogDMXEditor, Error, TEXT("DMXLibrary %s edited while recording. Recording stopped."), *DMXLibrary->GetName());
+					TrackRecorder->StopRecording();
+					TrackRecorder->RefreshTracks();
+					return;
+				};
+			});
+	}
+}
+
 TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PreRecording(ULevelSequence* InSequence, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
-	TArray<UTakeRecorderSource*> ReturnValue;
-	CachedDMXLibraryTrack = nullptr;
-
-	if (DMXLibrary == nullptr || !DMXLibrary->IsValidLowLevelFast())
+	if (DMXLibrary)
 	{
-		return ReturnValue;
+		UMovieScene* MovieScene = InSequence->GetMovieScene();
+		TrackRecorder = NewObject<UMovieSceneDMXLibraryTrackRecorder>();
+		TrackRecorder->CreateTrack(MovieScene, DMXLibrary, FixturePatchRefs, bUseSourceTimecode, bDiscardSamplesBeforeStart, nullptr);
+	}
+	else
+	{
+		UE_LOG(LogDMXProtocol, Error, TEXT("No library specified for DMX Track Recorder."));
 	}
 
-	if (FixturePatchRefs.Num() == 0)
-	{
-		return ReturnValue;
-	}
-
-	// Search for an existing DMX Library track for the selected library
-	UMovieScene* MovieScene = InSequence->GetMovieScene();
-	for (UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
-	{
-		if (UMovieSceneDMXLibraryTrack* DMXLibraryTrack = Cast<UMovieSceneDMXLibraryTrack>(MasterTrack))
-		{
-			if (DMXLibraryTrack->GetDMXLibrary() == DMXLibrary)
-			{
-				CachedDMXLibraryTrack = DMXLibraryTrack;
-				break;
-			}
-		}
-	}
-
-	// If no DMX track was found, create one
-	if (!CachedDMXLibraryTrack.IsValid())
-	{
-		CachedDMXLibraryTrack = MovieScene->AddMasterTrack<UMovieSceneDMXLibraryTrack>();
-		check(CachedDMXLibraryTrack.IsValid());
-
-		CachedDMXLibraryTrack->SetDMXLibrary(DMXLibrary);
-
-		// The DMX track needs a single, permanent section
-		UMovieSceneSection* DMXSection = CachedDMXLibraryTrack->CreateNewSection();
-		CachedDMXLibraryTrack->AddSection(*DMXSection);
-	}
-
-	check(CachedDMXLibraryTrack->GetAllSections().Num() > 0);
-	UMovieSceneDMXLibrarySection* DMXSection = CastChecked<UMovieSceneDMXLibrarySection>(CachedDMXLibraryTrack->GetAllSections()[0]);
-
-	// Erase existing animation in the track related to the Fixture Patches we're going to record.
-	// This way, the user can record different Patches incrementally, one at a time.
-	DMXSection->ForEachPatchFunctionChannels(
-		[this](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
-		{
-			if (FixturePatchRefs.Contains(Patch))
-			{
-				for (FDMXFixtureFunctionChannel& FunctionChannel : FunctionChannels)
-				{
-					FunctionChannel.Channel.Reset();
-				}
-			}
-		}
-	);
-
-	// Resize the section to either it's remaining keyframes range or 0
-	DMXSection->SetRange(DMXSection->GetAutoSizeRange().Get(TRange<FFrameNumber>(0, 0)));
-	// Make sure it starts at frame 0, in case Auto Size removed a piece of the start
-	DMXSection->ExpandToFrame(0);
-
-	// Cache patches already in the DMX track to not add them again
-	TArray<UDMXEntityFixturePatch*>&& TrackPatches = DMXSection->GetFixturePatches();
-
-	// Cache unique patches from the ones the user selected to make sure
-	// we're not adding repeated ones
-	TArray<UDMXEntityFixturePatch*> UniquePatches;
-	UniquePatches.Reserve(FixturePatchRefs.Num());
-
-	for (const FDMXEntityFixturePatchRef& PatchRef : FixturePatchRefs)
-	{
-		UDMXEntityFixturePatch* Patch = PatchRef.GetFixturePatch();
-
-		if (Patch != nullptr && Patch->IsValidLowLevelFast() && !TrackPatches.Contains(Patch))
-		{
-			UniquePatches.AddUnique(Patch);
-		}
-	}
-	
-	// Add each new Patch to the Track
-	for (UDMXEntityFixturePatch* Patch : UniquePatches)
-	{
-		DMXSection->AddFixturePatch(Patch);
-	}
-
-	// Mark the track as recording to prevent its evaluation from sending DMX data
-	DMXSection->SetIsRecording(true);
-
-	return ReturnValue;
+	return TArray<UTakeRecorderSource*>();
 }
 
 void UTakeRecorderDMXLibrarySource::TickRecording(const FQualifiedFrameTime& CurrentTime)
 {
-	if (!CachedDMXLibraryTrack.IsValid())
+	if (TrackRecorder)
 	{
-		return;
+		TrackRecorder->RecordSample(CurrentTime);
 	}
+}
 
-	// Get the DMX Library Section from the track
-	check(CachedDMXLibraryTrack->GetAllSections().Num() > 0);
-	UMovieSceneDMXLibrarySection* DMXSection = CastChecked<UMovieSceneDMXLibrarySection>(CachedDMXLibraryTrack->GetAllSections()[0]);
-
-	// Expand the section's duration to the current frame time
-	const FFrameRate	TickResolution = CachedDMXLibraryTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
-	const FFrameNumber	CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
-	DMXSection->ExpandToFrame(CurrentFrame);
-
-	// Used to get the function->value map from each Patch
-	UDMXSubsystem* DMXSubsystem = GEngine->GetEngineSubsystem<UDMXSubsystem>();
-	if (DMXSubsystem == nullptr || !DMXSubsystem->IsValidLowLevelFast())
+void UTakeRecorderDMXLibrarySource::StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence)
+{
+	if (TrackRecorder)
 	{
-		return;
+		TrackRecorder->SetReduceKeys(bReduceKeys);
+		TrackRecorder->SetSectionStartTimecode(InSectionStartTimecode, InSectionFirstFrame);
 	}
-	
-	// Iterate over the Patches to record
-	DMXSection->ForEachPatchFunctionChannels(
-		[&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
-		{
-			if (Patch == nullptr || !Patch->IsValidLowLevelFast())
-			{
-				return;
-			}
+}
 
-			// We're only recording patches selected by the user
-			if (!FixturePatchRefs.Contains(Patch))
-			{
-				return;
-			}
-
-			// We need the Controllers to decide what protocol to use
-			TArray<UDMXEntityController*>&& Controllers = Patch->GetRelevantControllers();
-			if (!Controllers.Num())
-			{
-				return;
-			}
-
-			// Get the Patch's functions values input from DMX protocol
-			TMap<FDMXAttributeName, int32> FunctionsMap;
-			DMXSubsystem->GetFunctionsMap(Patch, FunctionsMap);
-			auto FunctionsIterator = FunctionsMap.CreateConstIterator();
-
-			// Add the value keyframe to each Function channel
-			for (FDMXFixtureFunctionChannel& FunctionChannel : FunctionChannels)
-			{
-				if (!FunctionsIterator)
-				{
-					break;
-				}
-
-				// int32 is for Blueprint compatibility only. We need to
-				// convert the value using uint32 to make it positive (as it would be
-				// reading directly from the DMX buffer) and then to float.
-				const float KeyValue = (float)(uint32)(FunctionsIterator->Value);
-				++FunctionsIterator;
-
-				FunctionChannel.Channel.AddLinearKey(CurrentFrame, KeyValue);
-			}
-		});
+void UTakeRecorderDMXLibrarySource::StopRecording(class ULevelSequence* InSequence)
+{
+	if (TrackRecorder)
+	{
+		TrackRecorder->StopRecording();
+	}
 }
 
 TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PostRecording(class ULevelSequence* InSequence, ULevelSequence* InMasterSequence)
 {
-	TArray<UTakeRecorderSource*> ReturnValue;
-
-	// Get the DMX Library Section from the track
-	check(CachedDMXLibraryTrack->GetAllSections().Num() > 0);
-	UMovieSceneDMXLibrarySection* DMXSection = CastChecked<UMovieSceneDMXLibrarySection>(CachedDMXLibraryTrack->GetAllSections()[0]);
-
-	// Re-enables track evaluation to send DMX data
-	DMXSection->SetIsRecording(false);
-
-	// Do we need to optimize?
-	if (!bReduceKeys || !CachedDMXLibraryTrack.IsValid())
+	if (TrackRecorder)
 	{
-		return ReturnValue;
+		TrackRecorder->FinalizeTrack();
 	}
 
-	DMXSection->ForEachPatchFunctionChannels(
-		[&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
-		{
-			if (Patch == nullptr || !Patch->IsValidLowLevelFast())
-			{
-				return;
-			}
-
-			// Optimize only recorded tracks
-			if (!FixturePatchRefs.Contains(Patch))
-			{
-				return;
-			}
-
-			// Optimize the keyframes for each function channel, deleting repeated values
-			FKeyDataOptimizationParams Params;
-			for (FDMXFixtureFunctionChannel& FunctionChannel : FunctionChannels)
-			{
-				UE::MovieScene::Optimize(&FunctionChannel.Channel, Params);
-			}
-		}
-	);
-
-	return ReturnValue;
+	TrackRecorder = nullptr;
+	return TArray<UTakeRecorderSource*>();
 }
 
 void UTakeRecorderDMXLibrarySource::AddContentsToFolder(UMovieSceneFolder* InFolder)

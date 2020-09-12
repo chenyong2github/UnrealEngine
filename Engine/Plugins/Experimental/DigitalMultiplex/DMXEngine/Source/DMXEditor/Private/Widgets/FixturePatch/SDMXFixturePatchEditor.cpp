@@ -117,7 +117,27 @@ void SDMXFixturePatchEditor::SelectUniverse(int32 UniverseID)
 void SDMXFixturePatchEditor::OnEntitiyListChangedAutoAssignAddress(TArray<UDMXEntityFixturePatch*> ChangedPatches)
 {
 	check(FixturePatcher.IsValid());
+	check(ChangedPatches.Num() > 0);
+	
 	FixturePatcher->RefreshFromProperties();
+
+	const bool bAllPatchesInSameUniverse = [&ChangedPatches]()
+	{
+		const int32 FirstUniverseId = ChangedPatches[0]->UniverseID;
+		for (UDMXEntityFixturePatch* Patch : ChangedPatches)
+		{
+			if(Patch->UniverseID != FirstUniverseId)
+			{
+				return false;
+			}
+		}
+		return true;
+	}();
+	if(bAllPatchesInSameUniverse
+		&& ChangedPatches[0]->UniverseID != INDEX_NONE)
+	{
+		SelectUniverse(ChangedPatches[0]->UniverseID);
+	}
 }
 
 void SDMXFixturePatchEditor::OnEntityListAddedEntities()

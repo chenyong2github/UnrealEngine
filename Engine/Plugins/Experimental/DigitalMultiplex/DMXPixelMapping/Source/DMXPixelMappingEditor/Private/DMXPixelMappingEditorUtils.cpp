@@ -58,6 +58,15 @@ bool FDMXPixelMappingEditorUtils::VerifyComponentRename(TSharedRef<FDMXPixelMapp
 			return false;
 		}
 	}
+	else
+	{
+		// check for redirectors too
+		if (FindObject<UObject>(ComponentToRename->GetOuter(), *NewNameSlug.ToString()))
+		{
+			OutErrorMessage = LOCTEXT("ExistingComponentName", "Existing Old Component Name");
+			return false;
+		}
+	}
 
 	return true;
 }
@@ -148,7 +157,7 @@ UDMXPixelMappingRendererComponent* FDMXPixelMappingEditorUtils::AddRenderer(UDMX
 
 	// Create renderer name
 	UDMXPixelMappingBaseComponent* DefaultComponent = UDMXPixelMappingRendererComponent::StaticClass()->GetDefaultObject<UDMXPixelMappingRendererComponent>();
-	FName UniqueName = MakeUniqueObjectName(RootComponent, UDMXPixelMappingRendererComponent::StaticClass(), DefaultComponent->GetNamePrefix());
+	FName UniqueName = MakeUniqueObjectName(RootComponent, UDMXPixelMappingRendererComponent::StaticClass(), FName(TEXT("OutputMapping")));
 
 	// Create new renderer and add to Root
 	UDMXPixelMappingRendererComponent* Component = NewObject<UDMXPixelMappingRendererComponent>(RootComponent, UDMXPixelMappingRendererComponent::StaticClass(), UniqueName, RF_Transactional);

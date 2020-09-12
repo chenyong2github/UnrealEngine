@@ -33,7 +33,7 @@ public:
 	TSharedPtr<FUICommandInfo> OpenChannelsMonitor;
 	TSharedPtr<FUICommandInfo> OpenActivityMonitor;
 	TSharedPtr<FUICommandInfo> OpenOutputConsole;
-
+	TSharedPtr<FUICommandInfo> ToggleReceiveDMX;
 };
 
 class DMXEDITOR_API FDMXEditorCommands

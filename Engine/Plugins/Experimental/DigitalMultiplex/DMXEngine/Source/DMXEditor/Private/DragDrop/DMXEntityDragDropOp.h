@@ -25,7 +25,14 @@ class FDMXEntityDragDropOperation
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDMXEntityDragDropOperation, FDragDropOperation)
 
-	FDMXEntityDragDropOperation(UDMXLibrary* InLibrary, TArray<TWeakObjectPtr<UDMXEntity>>&& InEntities);
+	/**
+	 * Constructs the entity drag drop operation
+	 *
+	 *
+	 *
+	 *
+	 */
+	FDMXEntityDragDropOperation(UDMXLibrary* InLibrary, const TArray<TWeakObjectPtr<UDMXEntity>>& InEntities);
 
 protected:
 	/** Constructs the tooltip widget that follows the mouse */

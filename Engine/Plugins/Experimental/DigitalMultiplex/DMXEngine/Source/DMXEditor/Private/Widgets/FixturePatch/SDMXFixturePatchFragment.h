@@ -18,8 +18,6 @@ class UDMXLibrary;
 class SDMXFixturePatchFragment
 	: public SCompoundWidget
 {
-	DECLARE_DELEGATE_OneParam(FDMXFixturePatchFragmentDelegate, TSharedRef<SDMXFixturePatchFragment>)
-
 public:
 	SLATE_BEGIN_ARGS(SDMXFixturePatchFragment)
 		: _DMXEditor(nullptr)
@@ -28,7 +26,6 @@ public:
 		, _Row(-1)
 		, _ColumnSpan(1)
 		, _bHighlight(false)
-		, _OnSelected()
 	{}
 		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
 
@@ -41,8 +38,6 @@ public:
 		SLATE_ARGUMENT(int32, ColumnSpan)
 
 		SLATE_ARGUMENT(bool, bHighlight)
-
-		SLATE_EVENT(FDMXFixturePatchFragmentDelegate, OnSelected)
 
 	SLATE_END_ARGS()
 
@@ -73,8 +68,6 @@ public:
 protected:
 	// Begin SWidget interface
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	// End SWidget interface
 
 	/** Gets the text displayed on the fragment */
@@ -88,9 +81,6 @@ protected:
 
 	/** Gets the shadow brush of the fragment, depending on wether it's selected */
 	const FSlateBrush* GetShadowBrush(bool bSelected) const;
-
-	/** Returns the DMXLibrary or nullptr if not available */
-	UDMXLibrary* GetDMXLibrary() const;
 
 	/** Column of the fragment */
 	int32 Column;
@@ -106,9 +96,6 @@ protected:
 
 	/** Size of the shadow */
 	FVector2D ShadowSize;
-
-	/** Delegate executed when the fragment got selected */
-	FDMXFixturePatchFragmentDelegate OnSelected;
 
 	/** Fixture Patch Node being displayed by this widget */
 	TSharedPtr<FDMXFixturePatchNode> PatchNode;

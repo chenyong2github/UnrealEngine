@@ -20,6 +20,13 @@ FAutoConsoleCommand FDMXProtocolArtNetModule::SendDMXCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(&FDMXProtocolArtNetModule::SendDMXCommandHandler)
 );
 
+FAutoConsoleCommand FDMXProtocolArtNetModule::ResetDMXSendUniverseCommand(
+	TEXT("DMX.ArtNet.ResetDMXSend"),
+	TEXT("Command for resetting DMX universe values."),
+	FConsoleCommandWithArgsDelegate::CreateStatic(&FDMXProtocolArtNetModule::ResetDMXSendUniverseHandler)
+	);
+
+
 IDMXProtocolPtr FDMXProtocolFactoryArtNet::CreateProtocol(const FName & ProtocolName)
 {
 	FJsonObject ProtocolSettings;
@@ -123,5 +130,30 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 	if (DMXProtocol.IsValid())
 	{
 		DMXProtocol->SendDMXFragmentCreate(UniverseID, DMXFragment);
+	}
+}
+
+void FDMXProtocolArtNetModule::ResetDMXSendUniverseHandler(const TArray<FString>& Args)
+{
+	if (Args.Num() < 1)
+	{
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Not enough arguments. It won't be sent\n"
+			"Command structure is DMX.ArtNet.ResetDMXSend [UniverseID]"));
+		return;
+	}
+
+	uint32 UniverseID = 0;
+	LexTryParseString<uint32>(UniverseID, *Args[0]);
+	if (UniverseID > ARTNET_MAX_UNIVERSES)
+	{
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("The UniverseID is bigger then the max universe value. It won't be sent. It won't be sent\n"
+			"Where Universe %d should be less then %d"), UniverseID, ARTNET_MAX_UNIVERSES);
+		return;
+	}
+
+	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
+	if (DMXProtocol.IsValid())
+	{
+		DMXProtocol->SendDMXZeroUniverse(UniverseID, true);
 	}
 }

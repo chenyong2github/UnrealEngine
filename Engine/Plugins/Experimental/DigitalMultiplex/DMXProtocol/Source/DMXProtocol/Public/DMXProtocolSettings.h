@@ -20,6 +20,8 @@ public:
 public:
 	UDMXProtocolSettings();
 
+	virtual void PostInitProperties() override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
@@ -41,13 +43,26 @@ public:
 	TSet<FName> FixtureCategories;
 
 	/** Common names to map Fixture Functions to and access them easily on Blueprints */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Function Attributes"))
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Attributes"))
 	TSet<FDMXAttribute> Attributes;
 
-	/**
-	 * DMX packets senting refresh rate.
-	 * User can set the value from 0 up to 1000
-	 */
+	/** Rate at which DMX is sent, in Hz from epsilon to 1000. 44Hz by standIf set to 0, DMX is sent instantly (not recommended). */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (ClampMin = "0", ClampMax = "1000"))
 	int32 SendingRefreshRate;
+
+	/** Whether DMX is received from the network by default.  */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (DisplayName = "Receive DMX by default"))
+	bool bDefaultReceiveDMXEnabled;
+
+	/** Rate at which DMX is received, in Hz from epsilon to 1000. If set to 0, a receive event is raised for each inbound DMX packet (not recommended). */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (ClampMin = "0", ClampMax = "1000", EditCondition = "bUseSeparateReceivingThread"))
+	int32 ReceivingRefreshRate;
+
+	/** If true, received DMX packets are handled in a separate thread */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings")
+	bool bUseSeparateReceivingThread;
+
+private:
+	/**  Helper to apply bDefaultReceiveDMXEnabled globally on property changes */
+	void GlobalSetReceiveDMXEnabled(bool bReceiveDMXEnabled);
 };

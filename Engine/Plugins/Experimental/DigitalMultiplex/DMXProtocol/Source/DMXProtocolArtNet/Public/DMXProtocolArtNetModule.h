@@ -41,7 +41,7 @@ public:
 private:
 	/**
 	 * Sending DMX through console command
-	 * Command structure is DMX.SACN.SendDMX [UniverseID] Channel:Value Channel:Value Channel:Value ...
+	 * Command structure is DMX.ArtNet.SendDMX [UniverseID] Channel:Value Channel:Value Channel:Value ...
 	 * Example:
 	 * DMX.ArtNet.SendDMX 17 10:6 11:7 12:8 13:9
 	 * It will send the DMX to Universe 17. It could be any value from 0 to 32767
@@ -51,7 +51,18 @@ private:
 	 */
 	static void SendDMXCommandHandler(const TArray<FString>& Args);
 
+	/**
+	 * Reset DMX through console command
+	 * Command structure is DMX.ArtNet.ResetDMXSend [UniverseID]
+	 * Example:
+	 * DMX.ArtNet.ResetDMXSend 7
+	 */
+	static void ResetDMXSendUniverseHandler(const TArray<FString>& Args);
+
 private:
 	/** Command for sending DMX through the console */
 	static FAutoConsoleCommand SendDMXCommand;
+
+	/** Command for reset DMX universe through the console */
+	static FAutoConsoleCommand ResetDMXSendUniverseCommand;
 };

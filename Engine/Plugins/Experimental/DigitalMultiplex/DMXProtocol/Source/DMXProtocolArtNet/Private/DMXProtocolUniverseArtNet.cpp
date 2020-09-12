@@ -2,6 +2,7 @@
 
 #include "DMXProtocolUniverseArtNet.h"
 #include "Dom/JsonObject.h"
+#include "Serialization/ArrayReader.h"
 
 #include "Interfaces/IDMXProtocol.h"
 #include "DMXProtocolConstants.h"
@@ -9,6 +10,8 @@
 #include "DMXProtocolArtNetConstants.h"
 #include "DMXProtocolArtNet.h"
 #include "DMXStats.h"
+#include "DMXProtocolSettings.h"
+#include "Packets/DMXProtocolArtNetPackets.h"
 
 // Stats
 DECLARE_MEMORY_STAT(TEXT("Art-Net Input And Output Buffer Memory"), STAT_ArtNetInputAndOutputBufferMemory, STATGROUP_DMX);
@@ -33,6 +36,7 @@ FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(IDMXProtocolPtr InDMXProt
 	INC_DWORD_STAT(STAT_ArtNetUniversesCount);
 
 	UpdateSettings(InSettings);
+
 	/* Bits 15 			Bits 14-8        | Bits 7-4      | Bits 3-0
 	* 0 				Net 			 | Sub-Net 		 | Universe
 	* 0				    (0b1111111 << 8) | (0b1111 << 4) | (0b111)
@@ -71,7 +75,7 @@ void FDMXProtocolUniverseArtNet::ZeroOutputDMXBuffer()
 	OutputDMXBuffer->ZeroDMXBuffer();
 }
 
-bool FDMXProtocolUniverseArtNet::SetDMXFragment(const IDMXFragmentMap & DMXFragment)
+bool FDMXProtocolUniverseArtNet::SetDMXFragment(const IDMXFragmentMap& DMXFragment)
 {
 	return OutputDMXBuffer->SetDMXFragment(DMXFragment);
 }
@@ -114,6 +118,41 @@ void FDMXProtocolUniverseArtNet::UpdateSettings(const FJsonObject& InSettings)
 bool FDMXProtocolUniverseArtNet::IsSupportRDM() const
 {
 	return true;
+}
+
+void FDMXProtocolUniverseArtNet::HandleReplyPacket(const FArrayReaderPtr& Buffer)
+{	
+	bool bSetDataSuccessful = false;
+	if (GetInputDMXBuffer().IsValid())
+	{
+		// ArtNet DMX packet
+		FDMXProtocolArtNetDMXPacket ArtNetDMXPacket;
+		*Buffer << ArtNetDMXPacket;
+
+		GetInputDMXBuffer()->AccessDMXData([this, &ArtNetDMXPacket, &bSetDataSuccessful](TArray<uint8>& InData)
+		{
+			// Make sure we copy same amount of data
+			if (InData.Num() == ARTNET_DMX_LENGTH)
+			{
+				GetInputDMXBuffer()->SetDMXBuffer(ArtNetDMXPacket.Data, ARTNET_DMX_LENGTH);
+				GetProtocol()->GetOnUniverseInputBufferUpdated().Broadcast(GetProtocol()->GetProtocolName(), ArtNetDMXPacket.Universe, InData);
+				bSetDataSuccessful = true;
+			}
+			else
+			{
+				UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong. Expected size: %d. Current: %d")
+					, TEXT("NETWORK ERROR Art-Net:")
+					, ARTNET_DMX_LENGTH
+					, InData.Num());
+				bSetDataSuccessful = false;
+			}
+		});
+
+		if (bSetDataSuccessful)
+		{
+			GetProtocol()->GetOnPacketReceived().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, *Buffer);
+		}
+	}
 }
 
 uint8 FDMXProtocolUniverseArtNet::GetPortID()

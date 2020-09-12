@@ -154,7 +154,6 @@ void FDMXFixturePatchNode::Update(TSharedPtr<SDMXPatchedUniverse> NewUniverse, i
 				.ColumnSpan(Fragment->ColumnSpan)
 				.bHighlight(bSelected)
 				.Visibility(EVisibility::HitTestInvisible)
-				.OnSelected(this, &FDMXFixturePatchNode::OnFragmentSelected)
 			);
 		}
 	}
@@ -187,14 +186,6 @@ void FDMXFixturePatchNode::CommitPatch(bool bTransacted)
 	{
 		FixturePatch->UniverseID = Universe->GetUniverseID();
 		FixturePatch->ManualStartingAddress = StartingChannel;
-	}
-}
-
-void FDMXFixturePatchNode::SetVisiblity(EVisibility Visibility)
-{
-	for (const TSharedPtr<SWidget>& Widget : FragmentedWidgets)
-	{
-		Widget->SetVisibility(Visibility);
 	}
 }
 
@@ -232,27 +223,6 @@ void FDMXFixturePatchNode::OnSelectionChanged()
 			}
 
 			bSelected = false;
-		}
-	}
-}
-
-void FDMXFixturePatchNode::OnFragmentSelected(TSharedRef<SDMXFixturePatchFragment> Fragment)
-{
-	if (TSharedPtr<FDMXEditor> PinnedDMXEditor = DMXEditor.Pin())
-	{
-		TSharedPtr<FDMXFixturePatchSharedData> SharedData = PinnedDMXEditor->GetFixturePatchSharedData();
-		check(SharedData.IsValid());
-
-		if (FixturePatch.IsValid())
-		{
-			if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
-			{
-				SharedData->AddFixturePatchToSelection(FixturePatch);
-			}
-			else
-			{
-				SharedData->SelectFixturePatch(FixturePatch);
-			}
 		}
 	}
 }

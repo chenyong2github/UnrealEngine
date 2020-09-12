@@ -71,7 +71,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::RemoveOutputPin(UEdGraphPin* Pin)
 
 FText UK2Node_GetDMXActiveModeFunctionValues::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("NodeTitle", "Get DMX Function Values");
+	return LOCTEXT("NodeTitle", "Get DMX Attribute Values");
 }
 
 void UK2Node_GetDMXActiveModeFunctionValues::AllocateDefaultPins()
@@ -96,7 +96,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::AllocateDefaultPins()
 	OutputFunctionsMapPinParams.ValueTerminalType.TerminalCategory = UEdGraphSchema_K2::PC_Int;
 
 	UEdGraphPin* OutputFunctionsMapPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Struct, FDMXAttributeName::StaticStruct(), OutputFunctionsMapPinName, OutputFunctionsMapPinParams);
-	K2Schema->ConstructBasicPinTooltip(*OutputFunctionsMapPin, LOCTEXT("OutputFunctionsMap", "Output Functions Map."), OutputFunctionsMapPin->PinToolTip);
+	K2Schema->ConstructBasicPinTooltip(*OutputFunctionsMapPin, LOCTEXT("OutputFunctionsMap", "Output Attribute Map."), OutputFunctionsMapPin->PinToolTip);
 
 	UEdGraphPin* OutputIsSuccessPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Boolean, TEXT(""), OutputIsSuccessPinName);
 	K2Schema->ConstructBasicPinTooltip(*OutputIsSuccessPin, LOCTEXT("OutputIsSuccessPin", "Is SuccessP"), OutputIsSuccessPin->PinToolTip);
@@ -160,7 +160,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 	UEdGraphPin* GetFunctionsMapNodeExecPin = GetFunctionsMapNode->GetExecPin();
 	UEdGraphPin* GetFunctionsMapNodeInFixturePatchPin = GetFunctionsMapNode->FindPinChecked(TEXT("InFixturePatch"));
 	//UEdGraphPin* GetFunctionsMapNodeSelectedProtocolPin = GetFunctionsMapNode->FindPinChecked(TEXT("SelectedProtocol"));
-	UEdGraphPin* GetFunctionsMapNodeOutFunctionsMapPin = GetFunctionsMapNode->FindPinChecked(TEXT("OutFunctionsMap"));
+	UEdGraphPin* GetFunctionsMapNodeOutFunctionsMapPin = GetFunctionsMapNode->FindPinChecked(TEXT("OutAttributesMap"));
 	UEdGraphPin* GetFunctionsMapNodeOutIsSuccessPin = GetFunctionsMapNode->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
 	UEdGraphPin* GetFunctionsMapNodeThenPin = GetFunctionsMapNode->GetThenPin();
 

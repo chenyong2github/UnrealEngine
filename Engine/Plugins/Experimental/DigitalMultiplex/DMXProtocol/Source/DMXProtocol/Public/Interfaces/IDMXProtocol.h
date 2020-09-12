@@ -12,17 +12,23 @@
 #include "Interfaces/IDMXProtocolTransport.h"
 
 /**
- * Delegate used when downloading of message contents has completed
+ * Delegate used when a network interface has been changed
  *
- * @param LocalUserNum the controller number of the associated user that made the request
- * @param bWasSuccessful true if the async action completed without error, false if there was an error
- * @param MessageId unique id of the message downloaded
- * @param ErrorStr string representing the error condition
+ * @param InMessage Error message
  */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkInterfaceChanged, const FString&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkInterfaceChanged, const FString& /*InMessage*/);
 typedef FOnNetworkInterfaceChanged::FDelegate FOnNetworkInterfaceChangedDelegate;
 
-struct FDMXUniverse;
+/**
+ * Delegate used when a Receiving thread settings has been changed
+ *
+ * @param InRefreshRate						Receiving refresh rate
+ * @param bInUseSeparateReceivingThread		If true, uses a separate thread to receive DMX
+ */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReceivingThreadChanged, int32 /*InRefreshRate*/, bool/*bInUseSeparateReceivingThread*/);
+typedef FOnReceivingThreadChanged::FDelegate FOnReceivingThreadChangedDelegate;
+
+struct FDMXCommunicationEndpoint;
 
 /**  Generic protocol interface, it should be inherited by all protocol implementations. */
 class DMXPROTOCOL_API IDMXProtocol 
@@ -102,6 +108,18 @@ public:
 	virtual bool IsEnabled() const = 0;
 
 	/**
+	 * Sets if DMX is received from the network
+	 * @param bEnabled	If true, receives inbound DMX signals, else ignores them.
+	 */
+	virtual void SetReceiveDMXEnabled(bool bEnabled) = 0;
+
+	 /**
+	 * Returns whether dmx is received from network.
+	 * @return Return	If true, DMX is received from the network.
+	 */
+	virtual bool IsReceiveDMXEnabled() const = 0;
+
+	/**
 	 * Add universe to the manager
 	 * @param  FJsonObject universe settings, such as UniverseID, Subnet, etc.
 	 * This is unique to each protocol implementation
@@ -114,7 +132,7 @@ public:
 	 * the protocol to be used for communication.
 	 * @param Universes The list of universes from the Entity.
 	 */
-	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) = 0;
+	virtual void CollectUniverses(const TArray<FDMXCommunicationEndpoint>& Endpoints) = 0;
 
 	/**
 	* Update the universe by id in universe manager
@@ -168,6 +186,14 @@ public:
 	virtual uint16 GetMaxUniverses() const = 0;
 
 	/**
+	 * Injects a DMX fragment directly into the input buffers. No networking involved.
+	 * @param  UniverseID ID of universe to input
+	 * @param  DMXFragment Map of DMX channel  and values
+	 * @return Return the status of sending
+	 */
+	virtual EDMXSendResult InputDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) = 0;
+
+	/**
 	 * Sets the DMX fragment for a particular universe
 	 * @param  UniverseID ID of universe to send
 	 * @param  DMXFragment Map of DMX channel  and values
@@ -183,6 +209,15 @@ public:
 	 * @return Return the status of sending
 	 */
 	virtual EDMXSendResult SendDMXFragmentCreate(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) = 0;
+
+	/**
+	 * Sets zeroed DMX universe
+	 *
+	 * @param  UniverseID ID of universe to send
+	 * @param  bForceSendDMX whether DMX should be sent over the network
+	 * @return Return the status of sending
+	 */
+	virtual EDMXSendResult SendDMXZeroUniverse(uint16 UniverseID, bool bForceSendDMX = false) = 0;
 
 	/**
 	 * Gets the final protocol universe ID to send
@@ -228,6 +263,10 @@ public:
 	virtual FOnPacketSent& GetOnPacketSent() = 0;
 
 public:
+	/** Delegate used for listening to a network interface changes  */
 	static FOnNetworkInterfaceChanged OnNetworkInterfaceChanged;
+
+	/** Delegate used for listening to a receiving thread changes  */
+	static FOnReceivingThreadChanged OnReceivingThreadChanged;
 };
 

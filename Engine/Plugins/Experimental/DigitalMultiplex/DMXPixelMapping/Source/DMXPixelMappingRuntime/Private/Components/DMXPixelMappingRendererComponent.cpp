@@ -12,9 +12,10 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/MaterialInterface.h"
 #include "Blueprint/UserWidget.h"
-#include "Widgets/SCanvas.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Widgets/Layout/SConstraintCanvas.h"
+#include "UObject/ConstructorHelpers.h"
 
 
 #if WITH_EDITOR
@@ -24,8 +25,18 @@
 
 UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
 {
+#if WITH_EDITOR
+	ConstructorHelpers::FObjectFinder<UTexture> DefaultTexture(TEXT("Texture2D'/Engine/VREditor/Devices/Vive/UE4_Logo.UE4_Logo'"), LOAD_NoWarn);
+	// Hit breakpoint instead of preventing the editor to load if not found
+	checkfSlow(DefaultTexture.Succeeded(), TEXT("Failed to load Texture2D'/Engine/VREditor/Devices/Vive/UE4_Logo.UE4_Logo'"));
+	InputTexture = DefaultTexture.Object;
+	RendererType = EDMXPixelMappingRendererType::Texture;
+#endif
+	
 	SizeX = 100.f;
 	SizeY = 100.f;
+
+	Brightness = 1.0f;
 }
 
 const FName& UDMXPixelMappingRendererComponent::GetNamePrefix()
@@ -38,6 +49,17 @@ void UDMXPixelMappingRendererComponent::PostLoad()
 {
 	Super::PostLoad();
 	Initialize();
+}
+
+void UDMXPixelMappingRendererComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	const TSharedPtr<IDMXPixelMappingRenderer>& Renderer = GetRenderer();
+	if (Renderer.IsValid())
+	{
+		Renderer->SetBrightness(Brightness);
+	}
 }
 
 #if WITH_EDITOR
@@ -54,6 +76,14 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputWidget))
 	{
 		UpdateInputWidget(InputWidget);
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, Brightness))
+	{
+		const TSharedPtr<IDMXPixelMappingRenderer>& Renderer = GetRenderer();
+		if (Renderer.IsValid())
+		{
+			Renderer->SetBrightness(Brightness);
+		}
 	}
 }
 
@@ -98,16 +128,15 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetOutputTexture()
 
 FVector2D UDMXPixelMappingRendererComponent::GetSize()
 {
-	UTextureRenderTarget2D* Target = GetOutputTexture();
-
-	return FVector2D(Target->SizeX, Target->SizeY);
+	return ComponentsCanvas->GetDesiredSize();
 }
 
 TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 {
 	if (!ComponentsCanvas.IsValid())
 	{
-		SAssignNew(ComponentsCanvas, SCanvas);
+		ComponentsCanvas =
+			SNew(SConstraintCanvas);
 	}
 
 	ComponentsCanvas->ClearChildren();

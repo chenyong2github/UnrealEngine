@@ -79,7 +79,7 @@ public:
 	FDMXProtocolName DeviceProtocol;
 
 	UPROPERTY(EditAnywhere, Category = "Universe Properties", meta = (ShowOnlyInnerProperties, DisplayPriority = 30))
-	TArray<FDMXUniverse> Universes;
+	TArray<FDMXCommunicationEndpoint> Endpoints;
 
 public:
 	UDMXEntityUniverseManaged();

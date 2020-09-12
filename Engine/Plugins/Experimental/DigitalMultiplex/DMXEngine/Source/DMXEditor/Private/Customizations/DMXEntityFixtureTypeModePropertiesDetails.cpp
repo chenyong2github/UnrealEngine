@@ -36,23 +36,55 @@ void FDMXEntityFixtureTypeModePropertiesDetails::CustomizeDetails(IDetailLayoutB
 
 		SharedData->OnModesSelected.AddSP(this, &FDMXEntityFixtureTypeModePropertiesDetails::OnModesSelected);
 
-		// Add all mode properties
 		IDetailCategoryBuilder& ModePropertiesCategory = DetailBuilder.EditCategory("Mode Properties");
 				
 		TSharedPtr<IPropertyHandle> ModesHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes));
 		check(ModesHandle.IsValid() && ModesHandle->IsValidHandle());
 		TSharedPtr<IPropertyHandleArray> ModesHandleArray = ModesHandle->AsArray();
 		check(ModesHandleArray.IsValid());
-		
+
 		FSimpleDelegate OnNumModesChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXEntityFixtureTypeModePropertiesDetails::OnNumModesChanged);
 		ModesHandleArray->SetOnNumElementsChanged(OnNumModesChangedDelegate);
 
-		uint32 NumChildren = 0;
-		if (ModesHandle->GetNumChildren(NumChildren) == FPropertyAccess::Success)
+		// Add all mode properties
+		uint32 NumModes = 0;
+		if (ModesHandle->GetNumChildren(NumModes) == FPropertyAccess::Success)
 		{
-			for (uint32 IndexOfChild = 0; IndexOfChild < NumChildren; IndexOfChild++)
+			for (uint32 IndexOfMode = 0; IndexOfMode < NumModes; IndexOfMode++)
 			{
-				TSharedRef<IPropertyHandle> ModeHandle = ModesHandleArray->GetElement(IndexOfChild);
+				TSharedRef<IPropertyHandle> ModeHandle = ModesHandleArray->GetElement(IndexOfMode);
+
+				// Hide reset to default buttons for array entries
+				ModeHandle->MarkResetToDefaultCustomized();
+				
+				// Hide reset to default buttons for Mode Members
+				uint32 NumChildrenInMode = 0;
+				ModeHandle->GetNumChildren(NumChildrenInMode);
+
+				for (uint32 IndexModeChild = 0; IndexModeChild < NumChildrenInMode; IndexModeChild++)
+				{
+					TSharedPtr<IPropertyHandle> ModeChildHandle  = ModeHandle->GetChildHandle(IndexModeChild);
+					check(ModeChildHandle.IsValid() && ModeChildHandle->IsValidHandle());
+
+					ModeChildHandle->MarkResetToDefaultCustomized();
+				}
+
+				// Hide reset to default buttons for PixelMatrixConfig
+				TSharedPtr<IPropertyHandle> PixelMatrixConfigHandle = ModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
+				check(PixelMatrixConfigHandle.IsValid());
+
+				uint32 NumChildrenInPixelMatrixConfig = 0;
+				PixelMatrixConfigHandle->GetNumChildren(NumChildrenInPixelMatrixConfig);
+
+				for (uint32 IndexPixelMatrixConfigChild = 0; IndexPixelMatrixConfigChild < NumChildrenInPixelMatrixConfig; IndexPixelMatrixConfigChild++)
+				{
+					TSharedPtr<IPropertyHandle> PixelMatrixConfigChildHandle = PixelMatrixConfigHandle->GetChildHandle(IndexPixelMatrixConfigChild);
+					check(PixelMatrixConfigChildHandle.IsValid() && PixelMatrixConfigChildHandle->IsValidHandle());
+
+					PixelMatrixConfigChildHandle->MarkResetToDefaultCustomized();
+				}
+
+				// Show only edited modes
 				TSharedPtr<IPropertyHandle> NameHandle = ModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, ModeName));
 				check(NameHandle.IsValid() && NameHandle->IsValidHandle());
 
@@ -75,6 +107,7 @@ void FDMXEntityFixtureTypeModePropertiesDetails::CustomizeDetails(IDetailLayoutB
 						.Orientation(Orient_Horizontal)
 					];
 
+				// Hide functions
 				TSharedPtr<IPropertyHandle> FunctionsHandle = ModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions));
 				check(FunctionsHandle.IsValid() && FunctionsHandle->IsValidHandle());
 				FunctionsHandle->MarkHiddenByCustomization();

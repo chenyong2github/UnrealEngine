@@ -12,6 +12,7 @@
 class ULevelSequence;
 class UMovieSceneFolder;
 class UMovieSceneDMXLibraryTrack;
+class UMovieSceneDMXLibraryTrackRecorder;
 
 /**
  * Empty struct to have it customized in DetailsView to display a button on
@@ -26,8 +27,8 @@ struct FAddAllPatchesButton
 	GENERATED_BODY()
 };
 
-/** A recording source for DMX data related to a DMX Library Patch */
-UCLASS(Category = "DMX", meta = (TakeRecorderDisplayName = "DMX Fixture Patch"))
+/** A recording source for DMX data related to a DMX Library */
+UCLASS(Category = "DMX", meta = (TakeRecorderDisplayName = "DMX Library"))
 class UTakeRecorderDMXLibrarySource
 	: public UTakeRecorderSource
 {
@@ -61,9 +62,13 @@ public:
 	void AddAllPatches();
 
 private:
-	
+	/** Called when entities were updated */
+	void OnEntitiesUpdated(UDMXLibrary* UpdatedLibrary);
+
 	//~ UTakeRecorderSource
 	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
+	virtual void StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence) override;
+	virtual void StopRecording(class ULevelSequence* InSequence) override;
 	virtual void TickRecording(const FQualifiedFrameTime& CurrentTime) override;
 	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, ULevelSequence* InMasterSequence) override;
 	virtual void AddContentsToFolder(UMovieSceneFolder* InFolder) override;
@@ -82,6 +87,16 @@ private:
 	void ResetPatchesLibrary();
 
 private:
+	/** Whether or not we use timecode time or world time*/
+	bool bUseSourceTimecode;
+
+	/** Whether to discard livelink samples with timecode that occurs before the start of recording*/
+	bool bDiscardSamplesBeforeStart;
+
+	/** Track recorder used by this source */
+	UPROPERTY()
+	UMovieSceneDMXLibraryTrackRecorder* TrackRecorder;
+
 	/**
 	 * Stores an existing DMX Library track in the Sequence to be recorded or
 	 * a new one created for recording. Set during PreRecording.

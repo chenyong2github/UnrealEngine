@@ -21,16 +21,12 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("SACN Universes Count"), STAT_SACNUniversesC
 DECLARE_CYCLE_STAT(TEXT("SACN Packages Recieved"), STAT_SACNPackagesRecieved, STATGROUP_DMX);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("SACN Packages Recieved Total"), STAT_SACNPackagesRecievedTotal, STATGROUP_DMX);
 
-const double FDMXProtocolUniverseSACN::TimeWithoutInputBufferRequest = 5.0;
-
 FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings)
 	: WeakDMXProtocol(InDMXProtocol)
+	, bShouldReceiveDMX(true)
 	, ListeningSocket(nullptr)
 	, NetworkErrorMessagePrefix(TEXT("NETWORK ERROR SACN:"))
 {
-	// Not ticking by default
-	TimeWithoutInputBufferRequestEnd = TimeWithoutInputBufferRequestStart = FPlatformTime::Seconds();
-	bIsTicking = false;
 	// Set online subsustem
 	SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	check(SocketSubsystem);
@@ -76,10 +72,6 @@ IDMXProtocolPtr FDMXProtocolUniverseSACN::GetProtocol() const
 
 FDMXBufferPtr FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
 {
-	TimeWithoutInputBufferRequestStart = FPlatformTime::Seconds();
-	TimeWithoutInputBufferRequestEnd = TimeWithoutInputBufferRequestStart + TimeWithoutInputBufferRequest;
-	bIsTicking = true;
-
 	return InputDMXBuffer;
 }
 
@@ -143,24 +135,14 @@ bool FDMXProtocolUniverseSACN::IsSupportRDM() const
 
 void FDMXProtocolUniverseSACN::Tick(float DeltaTime)
 {
-	if (!bIsTicking)
+	if (bShouldReceiveDMX)
 	{
-		return;
-	}
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 
-	if (TimeWithoutInputBufferRequestStart > TimeWithoutInputBufferRequestEnd)
-	{
-		// Stop listening and destroy the socket
-		ReleaseNetworkInterface();
-
-		bIsTicking = false;
-	}
-	else
-	{
-		// Keep listening
-		ReceiveDMXBuffer();
-
-		TimeWithoutInputBufferRequestStart = FPlatformTime::Seconds();
+		if (!ProtocolSettings->bUseSeparateReceivingThread)
+		{
+			ReceiveIncomingData();
+		}
 	}
 }
 
@@ -182,7 +164,7 @@ bool FDMXProtocolUniverseSACN::RestartNetworkInterface(const FString& InInterfac
 	ReleaseNetworkInterface();
 
 	// Set new network interface IP
-	InterfaceIPAddress = InInterfaceIPAddress;
+	InterfaceIPAddress = InInterfaceIPAddress; 
 
 	return true;
 }
@@ -198,6 +180,20 @@ void FDMXProtocolUniverseSACN::ReleaseNetworkInterface()
 	}
 }
 
+void FDMXProtocolUniverseSACN::CreateDMXListener()
+{
+	// The listener will be created on demand, see FDMXProtocolUniverseSACN::ReceiveIncomingData
+	bShouldReceiveDMX = true;
+}
+
+void FDMXProtocolUniverseSACN::DestroyDMXListener()
+{
+	bShouldReceiveDMX = false;
+
+	// Release any existing listener
+	ReleaseNetworkInterface();
+}
+
 void FDMXProtocolUniverseSACN::SetLayerPackets(const FArrayReaderPtr& Buffer)
 {
 	*Buffer << IncomingDMXRootLayer;
@@ -205,19 +201,57 @@ void FDMXProtocolUniverseSACN::SetLayerPackets(const FArrayReaderPtr& Buffer)
 	*Buffer << IncomingDMXDMPLayer;
 }
 
-bool FDMXProtocolUniverseSACN::OnDataReceived(const FArrayReaderPtr& Buffer)
+void FDMXProtocolUniverseSACN::ReceiveIncomingData()
+{
+	if (FSocket* Socket = GetOrCreateListeningSocket())
+	{
+		uint32 Size = 0;
+		int32 Read = 0;
+		FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
+
+		// Atempt to read if there is any incoming data
+		// We don't use Socket Wait() function because we might have a lot of listening sockets in the loop
+		// And it might cost the delayы in the thread
+		while (Socket->HasPendingData(Size))
+		{
+			Reader->SetNumUninitialized(FMath::Min(Size, DMX_MAX_PACKET_SIZE));
+
+			// Read buffer from socket
+			if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *ListenerInternetAddr))
+			{
+				// Stats
+				SCOPE_CYCLE_COUNTER(STAT_SACNPackagesRecieved);
+				INC_DWORD_STAT(STAT_SACNPackagesRecievedTotal);
+
+				Reader->RemoveAt(Read, Reader->Num() - Read, false);
+
+				OnDataReceived(Reader);
+			}
+			else
+			{
+				ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
+				UE_LOG_DMXPROTOCOL(Error, TEXT("Error Receiving the packet Universe ID %d, error is %d"),
+					GetUniverseID(),
+					(uint8)RecvFromError);
+			}
+		}
+	}
+}
+
+void FDMXProtocolUniverseSACN::OnDataReceived(const FArrayReaderPtr& Buffer)
 {
 	// It will be more handlers
 	switch (SACN::GetRootPacketType(Buffer))
 	{
 	case VECTOR_ROOT_E131_DATA:
-		return HandleReplyPacket(Buffer);
+		HandleReplyPacket(Buffer);
+		return;
 	default:
-		return false;
+		return;
 	}
 }
 
-bool FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr& Buffer)
+void FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr& Buffer)
 {
 	bool bCopySuccessful = false;
 
@@ -248,48 +282,6 @@ bool FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr& Buffer)
 	{
 		GetProtocol()->GetOnPacketReceived().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, *Buffer);
 	}
-
-	return bCopySuccessful;
-}
-
-bool FDMXProtocolUniverseSACN::ReceiveDMXBuffer()
-{
-	if (FSocket* Socket = GetOrCreateListeningSocket())
-	{
-		uint32 Size = 0;
-		int32 Read = 0;
-		FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
-
-		// Atempt to read if there is any incoming data
-		while (Socket->HasPendingData(Size))
-		{
-			Reader->SetNumUninitialized(FMath::Min(Size, DMX_MAX_PACKET_SIZE));
-
-			// Read buffer from socket
-			if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *ListenerInternetAddr))
-
-			{
-				// Stats
-				SCOPE_CYCLE_COUNTER(STAT_SACNPackagesRecieved);
-				INC_DWORD_STAT(STAT_SACNPackagesRecievedTotal);
-
-				Reader->RemoveAt(Read, Reader->Num() - Read, false);
-				return OnDataReceived(Reader);
-			}
-			else
-			{
-				ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
-				UE_LOG_DMXPROTOCOL(Error, TEXT("Error recieving the packet Universe ID %d, error is %d"),
-					GetUniverseID(),
-					(uint8)RecvFromError);
-			}
-		}
-	}
-	else
-	{
-		UE_LOG_DMXPROTOCOL(Error, TEXT("Error recieving. No valid socket for universe %d"), GetUniverseID());
-	}
-	return false;
 }
 
 FSocket* FDMXProtocolUniverseSACN::GetOrCreateListeningSocket()
@@ -344,5 +336,6 @@ FSocket* FDMXProtocolUniverseSACN::GetOrCreateListeningSocket()
 
 	// Save New socket;
 	ListeningSocket = NewListeningSocket;
+
 	return ListeningSocket;
 }

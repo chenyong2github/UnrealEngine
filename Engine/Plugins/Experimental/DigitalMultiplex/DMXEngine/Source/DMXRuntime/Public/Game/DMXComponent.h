@@ -8,6 +8,7 @@
 
 #include "DMXComponent.generated.h"
 
+class FBufferUpdatedReceiver;
 class UDMXLibrary;
 class UDMXEntityFixturePatch;
 
@@ -17,8 +18,9 @@ class DMXRUNTIME_API UDMXComponent
 {
 	GENERATED_BODY()
 
-DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FDMXComponentFixturePatchReceivedSignature, UDMXComponent, OnFixturePatchReceived, UDMXEntityFixturePatch*, FixturePatch, TArray<uint8>, ChannelsArray);
+	friend FBufferUpdatedReceiver;
 
+	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FDMXComponentFixturePatchReceivedSignature, UDMXComponent, OnFixturePatchReceived, UDMXEntityFixturePatch*, FixturePatch, const TArray<uint8>&, ChannelsArray);
 public:
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	FDMXEntityFixturePatchRef FixturePatchRef;
@@ -36,7 +38,6 @@ public:
 
 public:
 	UDMXComponent();
-	~UDMXComponent();
 
 protected:
 	// Called when the game starts
@@ -45,14 +46,11 @@ protected:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	void SetupPacketReceiver();
-	void ReleasePacketReceiver();
-	void ResetPacketReceiver();
-	void PacketReceiver(FName InProtocol, uint16 InUniverseID, const TArray<uint8>& InValues);
 
 private:
-	FDelegateHandle DMXComponentReceiveHandle;
-
 	TArray<uint8> ChannelBuffer;
 
 	TAtomic<bool> bBufferUpdated;
+
+	TSharedPtr<FBufferUpdatedReceiver> BufferUpdatedReceiver;
 };

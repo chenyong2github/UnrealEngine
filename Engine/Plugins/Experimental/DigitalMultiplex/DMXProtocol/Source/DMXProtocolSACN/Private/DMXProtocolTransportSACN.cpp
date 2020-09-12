@@ -14,6 +14,7 @@
 #include "HAL/Event.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "Serialization/ArrayReader.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 
@@ -37,7 +38,7 @@ FDMXProtocolSenderSACN::FDMXProtocolSenderSACN(FSocket& InSocket, FDMXProtocolSA
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
 	});
 
-	Thread = FRunnableThread::Create(this, TEXT("FDMXProtocolSenderSACN"), 128 * 1024, TPri_BelowNormal, FPlatformAffinity::GetPoolThreadMask());
+	Thread = FRunnableThread::Create(this, TEXT("FDMXProtocolSenderSACN"), 128 * 1024, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
 	// Class
 
@@ -186,4 +187,97 @@ void FDMXProtocolSenderSACN::ConsumeOutboundPackages()
 
 	// clear all packages
 	OutboundPackages.Empty();
+}
+
+FDMXProtocolReceiverSACN::FDMXProtocolReceiverSACN(FDMXProtocolSACN* InProtocol, int32 InReceivingRefreshRate)
+	: Protocol(InProtocol)
+	, Stopping(false)
+	, Thread(nullptr)
+	, UniversesNumCached(0)
+	, ReceivingRefreshRate(InReceivingRefreshRate)
+{
+	Thread = FRunnableThread::Create(this, *ThreadName, 128 * 1024, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
+}
+
+FDMXProtocolReceiverSACN::~FDMXProtocolReceiverSACN()
+{
+	if (Thread != nullptr)
+	{
+		Thread->Kill(true);
+		delete Thread;
+	}
+}
+
+FRunnableThread* FDMXProtocolReceiverSACN::GetThread() const
+{
+	return Thread;
+}
+
+bool FDMXProtocolReceiverSACN::Init()
+{
+	return true;
+}
+
+uint32 FDMXProtocolReceiverSACN::Run()
+{
+	while (!Stopping)
+	{
+		Update();
+	}
+
+	return 0;
+}
+
+void FDMXProtocolReceiverSACN::Stop()
+{
+	Stopping = true;
+}
+
+void FDMXProtocolReceiverSACN::Exit()
+{
+}
+
+void FDMXProtocolReceiverSACN::Tick()
+{
+	Update();
+}
+
+FSingleThreadRunnable* FDMXProtocolReceiverSACN::GetSingleThreadInterface()
+{
+	return this;
+}
+
+void FDMXProtocolReceiverSACN::Update()
+{
+	const TSharedPtr<FDMXProtocolUniverseManager<FDMXProtocolUniverseSACN>>& UniverseManager = Protocol->GetUniverseManager();
+
+	int32 ProtocolUniversesNum = Protocol->GetUniversesNum();
+	if (UniversesNumCached != ProtocolUniversesNum)
+	{
+		// Lock the Universe Updates
+		FScopeLock Lock(&ListeningUniversesLock);
+
+		// Copy universe to local thread buffer, this is preventing from the issue with 
+		UniversesCopy.Empty();
+		UniversesCopy = UniverseManager->GetAllUniverses();
+
+		UniversesNumCached = ProtocolUniversesNum;
+	}
+
+	for (const TPair<uint32, FDMXProtocolUniverseSACNPtr>& UniversePair : UniversesCopy)
+	{
+		if (FDMXProtocolUniverseSACNPtr Universe = UniversePair.Value)
+		{
+			Universe->ReceiveIncomingData();
+		}
+	}
+
+	if (ReceivingRefreshRate > 0)
+	{
+		FPlatformProcess::SleepNoStats(1.f / ReceivingRefreshRate);
+	}
+	else
+	{
+		FPlatformProcess::SleepNoStats(0.f);
+	}
 }

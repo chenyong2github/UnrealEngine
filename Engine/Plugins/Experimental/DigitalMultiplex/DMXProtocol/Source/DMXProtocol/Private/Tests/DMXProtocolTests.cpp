@@ -10,6 +10,7 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
 #include "DMXProtocolTypes.h"
+#include "DMXProtocolSettings.h"
 
 class FDMXProtocolTest
 	: public IDMXProtocol
@@ -25,13 +26,18 @@ public:
 	virtual const FName& GetProtocolName() const override { return ProtocolName;  }
 	virtual TSharedPtr<FJsonObject> GetSettings() const override { return Settings; }
 	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const override { return nullptr; }
+	virtual EDMXSendResult InputDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) override { return EDMXSendResult::Success; }
 	virtual EDMXSendResult SendDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) override { return EDMXSendResult::Success; }
 	virtual EDMXSendResult SendDMXFragmentCreate(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment) override { return EDMXSendResult::Success; }
+
+	virtual EDMXSendResult SendDMXZeroUniverse(uint16 UniverseID, bool bForceSendDMX /** = false */) override { return EDMXSendResult::Success; }
 	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const override { return InUniverseID; }
 	virtual bool IsEnabled() const override { return true; }
+	virtual void SetReceiveDMXEnabled(bool bEnabled) {};
+	virtual bool IsReceiveDMXEnabled() const override { return false; };
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override { return nullptr; }
 	virtual void UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSetting) override {}
-	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) override {}
+	virtual void CollectUniverses(const TArray<FDMXCommunicationEndpoint>& Endpoints) override {}
 	virtual bool RemoveUniverseById(uint32 InUniverseId) override { return true; }
 	virtual void RemoveAllUniverses() override { }
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const override { return nullptr; }
@@ -256,33 +262,62 @@ void FDMXProtocolTransportTest::GetTests(TArray<FString>& OutBeautifiedNames, TA
 bool FDMXProtocolTransportTest::RunTest(const FString& Parameters)
 {
 	static const uint32 PacketCount = 1000;
-	static const uint16 UniverseID = 10001;
-
+	static const int16 UniverseStart = 10001;
 	IDMXFragmentMap FragmentMap;
 	uint32 PacketIndex = 0;
 	uint32 FragmentIndex = 0;
 	uint8 Value = 0;
-
-	FName ProtocolName = FName(*Parameters);
+	
+	const FName ProtocolName = FName(*Parameters);
 
 	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(ProtocolName);
 	TestTrue(TEXT("Protocol not found"), DMXProtocol.IsValid());
 
-	FJsonObject UniverseSettings;
-	DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
-	DMXProtocol->AddUniverse(UniverseSettings);
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	const bool bReceiveThread = ProtocolSettings->bUseSeparateReceivingThread;
+	const int32 RefreshRate = ProtocolSettings->ReceivingRefreshRate;
+
+	// Test single thread with unlimited refresh.
+	ProtocolSettings->bUseSeparateReceivingThread = false;
+	ProtocolSettings->ReceivingRefreshRate = 0;
 
 	IDMXProtocol::FOnUniverseInputBufferUpdated& OnUniverseInputBufferUpdated = DMXProtocol->GetOnUniverseInputBufferUpdated();
-	OnUniverseInputBufferUpdated.AddStatic(DMXProtocolTransportTestHelper::ReceiveFragment);
+	static FDelegateHandle TransportHandle;
+	if (TransportHandle.IsValid())
+	{
+		OnUniverseInputBufferUpdated.Remove(TransportHandle);
+	}
+
+	DMXProtocol->Shutdown();
+	DMXProtocol->Init();
+
+	TransportHandle = OnUniverseInputBufferUpdated.AddStatic(DMXProtocolTransportTestHelper::ReceiveFragment);
+
+	TMap<uint16, int32> UniverseToIndex;
 
 	for (PacketIndex = 0; PacketIndex < PacketCount; PacketIndex++)
 	{
+		const uint16 UniverseID = UniverseStart + PacketIndex;
+		FJsonObject UniverseSettings;
+		DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
+		DMXProtocol->RemoveUniverseById(UniverseID);
+		DMXProtocol->AddUniverse(UniverseSettings);
+	}
+
+	// Tick needed for sacn to initialize sockets reliably.
+	DMXProtocol->Tick(0.f);
+	
+	for (PacketIndex = 0; PacketIndex < PacketCount; PacketIndex++)
+	{
+		// Stress test across different universes. The same universe will only send the most recent packet and the results aren't deterministic.
+		const uint16 UniverseID = UniverseStart + PacketIndex;
 		FragmentMap.Reset();
 		FragmentIndex = (PacketIndex % 16) + 2;
 		Value = (PacketIndex % 32) + 1;
 		FragmentMap.Add(1, PacketIndex % 256);
 		FragmentMap.Add(FragmentIndex, Value);
 		DMXProtocol->SendDMXFragment(UniverseID, FragmentMap);
+		UniverseToIndex.Add(UniverseID, PacketIndex);
 	}
 
 	AddCommand(new FDelayedFunctionLatentCommand([=]
@@ -290,19 +325,46 @@ bool FDMXProtocolTransportTest::RunTest(const FString& Parameters)
 			int32 PacketsReceived = 0;
 			uint32 FragmentIndexResult = 0;
 			uint8 ValueResult = 0;
+			TMap<uint16, int32> UniversesToCheck(UniverseToIndex);
 			DMXProtocolTransportTestHelper::ReceiveData Data;
 			while (DMXProtocolTransportTestHelper::ReceiveQueue.Dequeue(Data))
 			{
-				TestEqual(TEXT("Protocol names don't match"), Data.ProtocolName, ProtocolName);
-				TestEqual(TEXT("Receive Universe doesn't match send universe"), Data.UniverseID, UniverseID);
-				FragmentIndexResult = (PacketsReceived % 16) + 2;
-				ValueResult = (PacketsReceived % 32) + 1;
-				TestEqual(TEXT("Packet contents failed"), Data.Packet[0], PacketsReceived % 256);
-				TestEqual(TEXT("Packet values failed"), Data.Packet[FragmentIndexResult-1], ValueResult);
 				PacketsReceived++;
+				
+				TestEqual(TEXT("Protocol names match"), Data.ProtocolName, ProtocolName);
+				
+				const int32* FoundPacketIndex = UniversesToCheck.Find(Data.UniverseID);
+				if (!TestNotNull("Packet index found", FoundPacketIndex))
+				{
+					continue;
+				}
+				
+				const int32 CurrentPacketIndex = *FoundPacketIndex;
+				
+				FragmentIndexResult = (CurrentPacketIndex % 16) + 2;
+				ValueResult = (CurrentPacketIndex % 32) + 1;
+				TestEqual(TEXT("Packet contents match"), Data.Packet[0], CurrentPacketIndex % 256);
+				TestEqual(TEXT("Packet values match"), Data.Packet[FragmentIndexResult-1], ValueResult);
+
+				UniversesToCheck.Remove(Data.UniverseID);
 			}
-			TestEqual(TEXT("Packets missing"), PacketsReceived, PacketCount);
-			DMXProtocol->RemoveUniverseById(UniverseID);
+			TestEqual(TEXT("Correct number of packets received"), PacketsReceived, PacketCount);
+
+			for (const auto& UniverseValue : UniversesToCheck)
+			{
+				// This path shouldn't be hit unless we failed and will give us a print out of the universe ID that wasn't found.
+				TestEqual("Packet sent but not received for universe: ", UniverseValue.Key, UniverseStart - 1);
+			}
+		
+			for (uint16 Idx = UniverseStart; Idx < UniverseStart + PacketCount; ++Idx)
+			{
+				DMXProtocol->RemoveUniverseById(Idx);
+			}
+
+			DMXProtocol->GetOnUniverseInputBufferUpdated().Remove(TransportHandle);
+		
+			ProtocolSettings->bUseSeparateReceivingThread = bReceiveThread;
+			ProtocolSettings->ReceivingRefreshRate = RefreshRate;
 		}, 0.2f));
 
 	return true;
@@ -369,33 +431,51 @@ void FDMXProtocolPacketTest::GetTests(TArray<FString>& OutBeautifiedNames, TArra
 bool FDMXProtocolPacketTest::RunTest(const FString& Parameters)
 {
 	static const int32 PacketCount = 1;
-	static const uint16 UniverseID = 10001;   // Pick an universe unlikly to be used in library
+	static const uint16 UniverseID = 10001;   // Pick a universe unlikly to be used in library
 
 	IDMXFragmentMap FragmentMap;
 	uint32 PacketIndex = 0;
 	uint32 FragmentIndex = 0;
 	uint8 Value = 0;
 
-	FName ProtocolName = FName(*Parameters);
+	const FName ProtocolName = FName(*Parameters);
 
 	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(ProtocolName);
 	TestTrue(TEXT("Protocol not found"), DMXProtocol.IsValid());
 
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	const bool bReceiveThread = ProtocolSettings->bUseSeparateReceivingThread;
+	const int32 RefreshRate = ProtocolSettings->ReceivingRefreshRate;
+
+	ProtocolSettings->bUseSeparateReceivingThread = false;
+	ProtocolSettings->ReceivingRefreshRate = 0;
+
+	DMXProtocol->Shutdown();
+	DMXProtocol->Init();
+	
 	FJsonObject UniverseSettings;
 	DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
 	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = DMXProtocol->AddUniverse(UniverseSettings);
 
 	IDMXProtocol::FOnUniverseInputBufferUpdated& OnUniverseInputBufferUpdated = DMXProtocol->GetOnUniverseInputBufferUpdated();
-	OnUniverseInputBufferUpdated.AddStatic(DMXProtocolPacketTestHelper::ReceiveFragment);
+	static FDelegateHandle TransportHandle;
+	if (TransportHandle.IsValid())
+	{
+		OnUniverseInputBufferUpdated.Remove(TransportHandle);
+	}
+	TransportHandle = OnUniverseInputBufferUpdated.AddStatic(DMXProtocolPacketTestHelper::ReceiveFragment);
 
+	// Create listen sockets.
+	DMXProtocol->Tick(0.f);
+	
 	for (PacketIndex = 0; PacketIndex < PacketCount; PacketIndex++)
 	{
 		FragmentMap.Empty();
-		FragmentMap.Add(0, PacketIndex % 255);
 		for (int Index = 1; Index < 512; Index++)
 		{
-			FragmentMap.Add(Index, (Index + FragmentMap[0]) % 256);
+			FragmentMap.Add(Index, Index % 256);
 		}
+		
 		DMXProtocol->SendDMXFragment(UniverseID, FragmentMap);
 	}
 
@@ -407,21 +487,25 @@ bool FDMXProtocolPacketTest::RunTest(const FString& Parameters)
 			DMXProtocolPacketTestHelper::ReceiveData Data;
 			while (DMXProtocolPacketTestHelper::ReceiveQueue.Dequeue(Data))
 			{
-				TestEqual(TEXT("Protocol names don't match"), Data.ProtocolName, ProtocolName);
-				TestEqual(TEXT("Receive Universe doesn't match send universe"), Data.UniverseID, UniverseID);
-				TestEqual(TEXT("Packet contents failed"), Data.Packet[0], PacketsReceived % 256);
+				TestEqual(TEXT("Protocol names match"), Data.ProtocolName, ProtocolName);
+				TestEqual(TEXT("Receive Universe matches send universe"), Data.UniverseID, UniverseID);
+				TestEqual(TEXT("Packet contents match"), Data.Packet[0], 1 % 256);
 				bool Matched = true;
 				for (int Index = 1; Index < 512; Index++)
 				{
-					ValueResult = (Index + Data.Packet[0]) % 256;
-					Matched = Matched && (ValueResult == Data.Packet[Index]);
+					ValueResult = Index % 256;
+					Matched = Matched && (ValueResult == Data.Packet[Index - 1]);
 				}
-				TestTrue(TEXT("Packet data match failed"), Matched);
+				TestTrue(TEXT("Packet data match"), Matched);
 				PacketsReceived++;
 			}
 			TestEqual(TEXT("Packets received"), PacketsReceived, PacketCount);
 
 			DMXProtocol->RemoveUniverseById(UniverseID);
+			DMXProtocol->GetOnUniverseInputBufferUpdated().Remove(TransportHandle);
+
+			ProtocolSettings->bUseSeparateReceivingThread = bReceiveThread;
+			ProtocolSettings->ReceivingRefreshRate = RefreshRate;
 		}, 0.2f));
 
 	return true;

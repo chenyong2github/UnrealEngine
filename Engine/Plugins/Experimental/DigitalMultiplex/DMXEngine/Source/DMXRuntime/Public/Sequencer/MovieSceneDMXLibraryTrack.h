@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "Sections/MovieSceneParameterSection.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneNameableTrack.h"
 #include "MovieSceneDMXLibraryTrack.generated.h"
