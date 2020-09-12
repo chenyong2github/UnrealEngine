@@ -624,7 +624,7 @@ uint64 FD3D12LinearQueryHeap::ResolveAndGetResults(TArray<uint64>& QueryResults,
 
 		++Context.otherWorkCounter;
 		const int32 StartHeapIdx = TailSlot >> SlotToHeapIdxShift;
-		const int32 EndHeapIdx = LocalHead >> SlotToHeapIdxShift;
+		const int32 EndHeapIdx = (LocalHead - 1) >> SlotToHeapIdxShift;
 
 		for (int32 HeapIdx = StartHeapIdx; HeapIdx <= EndHeapIdx; ++HeapIdx)
 		{
