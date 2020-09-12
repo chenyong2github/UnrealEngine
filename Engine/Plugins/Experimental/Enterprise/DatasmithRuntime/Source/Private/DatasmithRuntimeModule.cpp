@@ -2,13 +2,14 @@
 
 #include "DatasmithRuntimeModule.h"
 
-#include "MaterialSelectors/DatasmithRevitLiveMaterialSelector.h"
+#include "DatasmithRuntimeBlueprintLibrary.h"
 
 #include "DatasmithTranslatorModule.h"
 #include "DirectLink/Network/DirectLinkEndpoint.h"
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
+#include "MaterialSelectors/DatasmithRevitLiveMaterialSelector.h"
 
-class FDatasmithRuntimeModule : public IDatasmithRuntimeModuleInterface
+class FDatasmithRuntimeModule : public IDatasmithRuntimeModuleInterface, public DirectLink::IEndpointObserver
 {
 public:
 	virtual void StartupModule() override
@@ -24,53 +25,11 @@ public:
 
 	virtual void ShutdownModule() override
 	{
-		ReceiverEndpoint.Reset();
 		FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("Revit"));
 	}
 
-	bool RegisterSceneProvider(TSharedPtr<DirectLink::ISceneProvider> SceneProvider)
-	{
-		if (!SceneProvider.IsValid())
-		{
-			return false;
-		}
-
-		if (!ReceiverEndpoint.IsValid())
-		{
-			ReceiverEndpoint.Reset();
-			bool bInit = true;
-#if !WITH_EDITOR
-			bInit = (FModuleManager::Get().LoadModule(TEXT("Messaging")))
-				 && (FModuleManager::Get().LoadModule(TEXT("Networking")))
-				 && (FModuleManager::Get().LoadModule(TEXT("UdpMessaging")));
-#endif
-
-			if (bInit)
-			{
-				ReceiverEndpoint = MakeUnique<DirectLink::FEndpoint>(TEXT("Datasmith-DatasmithRuntime"));
-				ReceiverEndpoint->SetVerbose();
-				Destination = ReceiverEndpoint->AddDestination(TEXT("exporter-noname"), DirectLink::EVisibility::Public, SceneProvider);
-				return true;
-			}
-
-		}
-
-		return false;
-	}
-
-	void UnregisterSceneProvider(TSharedPtr<DirectLink::ISceneProvider> SceneProvider)
-	{
-		if (SceneProvider.IsValid() && ReceiverEndpoint.IsValid())
-		{
-			ReceiverEndpoint->RemoveDestination(Destination);
-			ReceiverEndpoint.Reset();
-		}
-	}
-
 private:
-
-	TUniquePtr<DirectLink::FEndpoint> ReceiverEndpoint;
-	DirectLink::FDestinationHandle Destination;
+	DirectLink::FRawInfo LastRawInfo;
 };
 
 //////////////////////////////////////////////////////////////////////////

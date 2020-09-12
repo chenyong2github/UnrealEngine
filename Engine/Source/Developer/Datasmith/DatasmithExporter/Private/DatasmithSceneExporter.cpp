@@ -4,12 +4,13 @@
 
 #include "DatasmithAnimationSerializer.h"
 #include "DatasmithExportOptions.h"
+#include "DatasmithExporterManager.h"
 #include "DatasmithLogger.h"
 #include "DatasmithMaterialElements.h"
+#include "DatasmithProgressManager.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneXmlWriter.h"
 #include "DatasmithUtils.h"
-#include "DatasmithProgressManager.h"
 
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Containers/Array.h"
@@ -289,7 +290,7 @@ void FDatasmithSceneExporter::Export( TSharedRef< IDatasmithScene > DatasmithSce
 	Archive->Close();
 
 	// Run the garbage collector at this point so that we're in a good state for the next export
-	CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
+	FDatasmithExporterManager::RunGarbageCollection();
 }
 
 void FDatasmithSceneExporter::Reset()
@@ -322,7 +323,8 @@ void FDatasmithSceneExporter::SetOutputPath( const TCHAR* InOutputPath )
 	Impl->OutputPath = InOutputPath;
 	FPaths::NormalizeDirectoryName( Impl->OutputPath );
 
-	Impl->AssetsOutputPath = FPaths::Combine( Impl->OutputPath, Impl->Name + TEXT("_Assets") );
+	// Just set the AssetsOutputPath to InOutputPath, if the scene exporter has not been named
+	Impl->AssetsOutputPath = Impl->Name.IsEmpty() ? Impl->OutputPath : FPaths::Combine( Impl->OutputPath, Impl->Name + TEXT("_Assets") );
 }
 
 const TCHAR* FDatasmithSceneExporter::GetOutputPath() const

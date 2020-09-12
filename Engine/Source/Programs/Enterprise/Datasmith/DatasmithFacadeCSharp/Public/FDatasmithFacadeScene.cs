@@ -104,6 +104,38 @@ public class FDatasmithFacadeScene : global::System.IDisposable {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_AddMaterial(swigCPtr, FDatasmithFacadeBaseMaterial.getCPtr(InMaterialPtr));
   }
 
+  public int GetMaterialsCount() {
+    int ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetMaterialsCount(swigCPtr);
+    return ret;
+  }
+
+  public FDatasmithFacadeBaseMaterial GetMaterial(int MaterialIndex) {
+	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetMaterial(swigCPtr, MaterialIndex);
+	if(objectPtr == global::System.IntPtr.Zero)
+	{
+		return null;
+	}
+	else
+	{
+		FDatasmithFacadeBaseMaterial.EDatasmithMaterialType MaterialType = (new FDatasmithFacadeBaseMaterial(objectPtr, false)).GetDatasmithMaterialType();
+
+		switch(MaterialType)
+		{
+		case FDatasmithFacadeBaseMaterial.EDatasmithMaterialType.UEPbrMaterial:
+			return new FDatasmithFacadeUEPbrMaterial(objectPtr, true);
+		case FDatasmithFacadeBaseMaterial.EDatasmithMaterialType.MasterMaterial:
+			return new FDatasmithFacadeMasterMaterial(objectPtr, true);
+		case FDatasmithFacadeBaseMaterial.EDatasmithMaterialType.Unsupported:
+		default:
+			return null;
+		}
+	}
+}
+
+  public void RemoveMaterial(FDatasmithFacadeBaseMaterial InMaterialPtr) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_RemoveMaterial(swigCPtr, FDatasmithFacadeBaseMaterial.getCPtr(InMaterialPtr));
+  }
+
   public void AddMesh(FDatasmithFacadeMesh InMeshPtr) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_AddMesh(swigCPtr, FDatasmithFacadeMesh.getCPtrAndDisown(InMeshPtr));
   }
@@ -166,6 +198,15 @@ public class FDatasmithFacadeScene : global::System.IDisposable {
 
   public void BuildScene(string InSceneName) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_BuildScene(swigCPtr, InSceneName);
+  }
+
+  public void SetLabel(string InSceneLabel) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_SetLabel(swigCPtr, InSceneLabel);
+  }
+
+  public string GetLabel() {
+    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetLabel(swigCPtr));
+    return ret;
   }
 
   public enum EActorRemovalRule {

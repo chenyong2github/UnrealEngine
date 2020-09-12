@@ -2,6 +2,7 @@
 
 #include "DatasmithMeshExporter.h"
 
+#include "DatasmithExporterManager.h"
 #include "DatasmithMesh.h"
 #include "DatasmithMeshUObject.h"
 #include "DatasmithSceneFactory.h"
@@ -420,7 +421,7 @@ void FDatasmithMeshExporterImpl::ClearUDatasmithMeshPool()
 	NumberOfUMeshPendingGC += PooledMeshes.Num();
 	if (NumberOfUMeshPendingGC % 2000 == 0)
 	{
-		CollectGarbage(RF_NoFlags);
+		FDatasmithExporterManager::RunGarbageCollection();
 		NumberOfUMeshPendingGC = 0;
 	}
 }

@@ -98,7 +98,7 @@
       set PUBLISH_DIR=$(ProjectDir)..\..\..\..\..\..\Binaries\Win64\Revit\2021\
       xcopy "$(ProjectDir)$(TargetName).addin" "%25PUBLISH_DIR%25" /Y
       xcopy "$(ProjectDir)$(OutputPath)*.dll" "%25PUBLISH_DIR%25" /Y
-      xcopy "$(ProjectDir)..\Resources\Windows\DatasmithIcon32.png" "%25PUBLISH_DIR%25" /Y
+      xcopy "$(ProjectDir)..\Resources\Windows\*.png" "%25PUBLISH_DIR%25" /Y
       xcopy "$(ProjectDir)..\Resources\Windows\DatasmithBatchExporter.dyn" "%25PUBLISH_DIR%25" /Y
 </PostBuildEvent>
   </PropertyGroup>

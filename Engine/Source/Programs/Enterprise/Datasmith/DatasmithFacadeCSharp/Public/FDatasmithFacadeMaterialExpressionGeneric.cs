@@ -49,24 +49,20 @@ public class FDatasmithFacadeMaterialExpressionGeneric : FDatasmithFacadeMateria
     return ret;
   }
 
-  public void AddProperty(string PropertyName, EDatasmithFacadeKeyValuePropertyType PropertyType, string PropertyValue) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionGeneric_AddProperty(swigCPtr, PropertyName, (int)PropertyType, PropertyValue);
+  public void AddProperty(FDatasmithFacadeKeyValueProperty InPropertyPtr) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionGeneric_AddProperty(swigCPtr, FDatasmithFacadeKeyValueProperty.getCPtr(InPropertyPtr));
   }
 
-  public bool GetPropertyType(int Index, out EDatasmithFacadeKeyValuePropertyType OutPropertyType) {
-    bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionGeneric_GetPropertyType(swigCPtr, Index, out OutPropertyType);
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-    return ret;
-  }
-
-  public string GetPropertyValue(int Index) {
-    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionGeneric_GetPropertyValue(swigCPtr, Index));
-    return ret;
-  }
-
-  public string GetPropertyName(int Index) {
-    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionGeneric_GetPropertyName(swigCPtr, Index));
-    return ret;
-  }
+  public FDatasmithFacadeKeyValueProperty GetProperty(int Index) {
+	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionGeneric_GetProperty(swigCPtr, Index);
+	if(objectPtr == global::System.IntPtr.Zero)
+	{
+		return null;
+	}
+	else
+	{
+		return new FDatasmithFacadeKeyValueProperty(objectPtr, true);
+	}
+}
 
 }

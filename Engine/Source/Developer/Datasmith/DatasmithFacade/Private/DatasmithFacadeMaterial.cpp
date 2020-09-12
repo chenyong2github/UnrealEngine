@@ -2,7 +2,9 @@
 
 #include "DatasmithFacadeMaterial.h"
 
+#include "DatasmithFacadeKeyValueProperty.h"
 #include "DatasmithFacadeScene.h"
+#include "DatasmithFacadeUEPbrMaterial.h"
 
 #include "DatasmithDefinitions.h"
 #include "DatasmithUtils.h"
@@ -15,104 +17,110 @@ FDatasmithFacadeBaseMaterial::FDatasmithFacadeBaseMaterial(
 {
 }
 
+FDatasmithFacadeBaseMaterial::EDatasmithMaterialType FDatasmithFacadeBaseMaterial::GetDatasmithMaterialType() const
+{
+	return GetDatasmithMaterialType(GetDatasmithBaseMaterial());
+}
+
+FDatasmithFacadeBaseMaterial::EDatasmithMaterialType FDatasmithFacadeBaseMaterial::GetDatasmithMaterialType(
+	const TSharedRef<IDatasmithBaseMaterialElement>& InMaterial
+)
+{
+	if (InMaterial->IsA( EDatasmithElementType::UEPbrMaterial ))
+	{
+		return EDatasmithMaterialType::UEPbrMaterial;
+	}
+	else if (InMaterial->IsA(EDatasmithElementType::MasterMaterial))
+	{
+		return EDatasmithMaterialType::MasterMaterial;
+	}
+
+	return EDatasmithMaterialType::Unsupported;
+}
+
+
 void FDatasmithFacadeBaseMaterial::BuildScene(
 	FDatasmithFacadeScene& SceneRef
 )
 {
-	DatasmithSceneRef = SceneRef.GetScene();
-	ExportedTextureSetRef = SceneRef.GetExportedTextures();
-
-	for ( const TextureInfo& TextureAssetInfo : ReferencedTextureAssets )
-	{
-		// Add the referenced texture assets to the scene.
-		AddTextureElementToScene( TextureAssetInfo, SceneRef.GetScene(), SceneRef.GetExportedTextures() );
-	}
-
 	// Add the master material to the Datasmith scene.
-	SceneRef.GetScene()->AddMaterial( GetDatasmithBaseMaterial() );
+	SceneRef.GetScene()->AddMaterial(GetDatasmithBaseMaterial());
 }
 
-TSharedRef<IDatasmithBaseMaterialElement> FDatasmithFacadeBaseMaterial::GetDatasmithBaseMaterial()
+TSharedRef<IDatasmithBaseMaterialElement> FDatasmithFacadeBaseMaterial::GetDatasmithBaseMaterial() const
 {
 	return StaticCastSharedRef<IDatasmithBaseMaterialElement>( InternalDatasmithElement );
 }
 
-TSharedRef<const IDatasmithBaseMaterialElement> FDatasmithFacadeBaseMaterial::GetDatasmithBaseMaterial() const
-{
-	return StaticCastSharedRef<IDatasmithBaseMaterialElement>( InternalDatasmithElement );
-}
-
-void FDatasmithFacadeBaseMaterial::AddTextureReference(
-	const FString& InTextureName,
-	const FString& InTextureFilePath,
-	FDatasmithFacadeTexture::ETextureMode InTextureMode
+FDatasmithFacadeBaseMaterial* FDatasmithFacadeBaseMaterial::GetNewFacadeBaseMaterialFromSharedPtr(
+	const TSharedPtr<IDatasmithBaseMaterialElement>& InMaterial
 )
 {
-	const int TextureInfoIndex = ReferencedTextureAssets.Emplace( InTextureName, InTextureFilePath, InTextureMode );
-
-	TSharedPtr<TSet<FString>> UniqueTextureNames = ExportedTextureSetRef.Pin();
-	TSharedPtr<IDatasmithScene> DatasmithScene = DatasmithSceneRef.Pin();
-
-	//If the material was already added to the scene, add the new texture reference as well.
-	if ( UniqueTextureNames.IsValid() && DatasmithScene.IsValid() )
+	if (InMaterial)
 	{
-		AddTextureElementToScene( ReferencedTextureAssets[TextureInfoIndex], DatasmithScene, UniqueTextureNames );
-	}
-}
+		TSharedRef<IDatasmithBaseMaterialElement> MaterialRef = InMaterial.ToSharedRef();
+		EDatasmithMaterialType MaterialType = GetDatasmithMaterialType(MaterialRef);
 
-void FDatasmithFacadeBaseMaterial::AddTextureElementToScene(
-	const TextureInfo& TextureAssetInfo,
-	const TSharedPtr<IDatasmithScene>& DatasmithScene,
-	const TSharedPtr<TSet<FString>>& ExportedTextureSet
-)
-{
-	if ( ExportedTextureSet->Contains( TextureAssetInfo.TextureName ) )
-	{
-		return;
+		switch (MaterialType)
+		{
+		case EDatasmithMaterialType::UEPbrMaterial:
+			return new FDatasmithFacadeUEPbrMaterial(StaticCastSharedRef<IDatasmithUEPbrMaterialElement>(MaterialRef));
+		case EDatasmithMaterialType::MasterMaterial:
+			return new FDatasmithFacadeMasterMaterial(StaticCastSharedRef<IDatasmithMasterMaterialElement>(MaterialRef));
+		case EDatasmithMaterialType::Unsupported:
+		default:
+			return nullptr;
+		}
 	}
 
-	// Create a Datasmith texture element.
-	TSharedPtr<IDatasmithTextureElement> TexturePtr = FDatasmithSceneFactory::CreateTexture( *TextureAssetInfo.TextureName );
-
-	// Set the texture label used in the Unreal UI.
-	TexturePtr->SetLabel( *FPaths::GetBaseFilename( TextureAssetInfo.TextureFilePath ) );
-
-	// Set the Datasmith texture mode.
-	TexturePtr->SetTextureMode( static_cast<EDatasmithTextureMode>(TextureAssetInfo.TextureMode) );
-
-	// Set the Datasmith texture file path.
-	TexturePtr->SetFile( *TextureAssetInfo.TextureFilePath );
-
-	// Add the texture to the Datasmith scene.
-	DatasmithScene->AddTexture( TexturePtr );
-
-	// Keep track of the built Datasmith texture.
-	ExportedTextureSet->Add( TextureAssetInfo.TextureName );
+	return nullptr;
 }
 
-FDatasmithFacadeMasterMaterial::FDatasmithFacadeMasterMaterial(	const TCHAR* InElementName) 
-	:	FDatasmithFacadeBaseMaterial( FDatasmithSceneFactory::CreateMasterMaterial( InElementName ) )
+FDatasmithFacadeMasterMaterial::FDatasmithFacadeMasterMaterial(const TCHAR* InElementName) 
+	: FDatasmithFacadeBaseMaterial( FDatasmithSceneFactory::CreateMasterMaterial(InElementName))
 {
 	TSharedPtr<IDatasmithMasterMaterialElement> MasterMaterial = GetDatasmithMasterMaterial();
-	MasterMaterial->SetMaterialType( EDatasmithMasterMaterialType::Opaque );
+	MasterMaterial->SetMaterialType(EDatasmithMasterMaterialType::Opaque);
 }
 
-void FDatasmithFacadeMasterMaterial::SetMasterMaterialType(
+FDatasmithFacadeMasterMaterial::FDatasmithFacadeMasterMaterial(const TSharedRef<IDatasmithMasterMaterialElement>& InMaterialRef)
+	: FDatasmithFacadeBaseMaterial(InMaterialRef)
+{}
+
+FDatasmithFacadeMasterMaterial::EMasterMaterialType FDatasmithFacadeMasterMaterial::GetMaterialType() const
+{
+	return static_cast<EMasterMaterialType>(GetDatasmithMasterMaterial()->GetMaterialType());
+}
+
+void FDatasmithFacadeMasterMaterial::SetMaterialType(
 	EMasterMaterialType InMasterMaterialType
 )
 {
-	switch ( InMasterMaterialType )
-	{
-	case EMasterMaterialType::Opaque:
-		GetDatasmithMasterMaterial()->SetMaterialType( EDatasmithMasterMaterialType::Opaque );
-		break;
-	case EMasterMaterialType::Transparent:
-		GetDatasmithMasterMaterial()->SetMaterialType( EDatasmithMasterMaterialType::Transparent );
-		break;
-	case EMasterMaterialType::CutOut:
-		GetDatasmithMasterMaterial()->SetMaterialType( EDatasmithMasterMaterialType::CutOut );
-		break;
-	}
+	GetDatasmithMasterMaterial()->SetMaterialType(static_cast<EDatasmithMasterMaterialType>(InMasterMaterialType));
+}
+
+FDatasmithFacadeMasterMaterial::EMasterMaterialQuality FDatasmithFacadeMasterMaterial::GetQuality() const
+{
+	return static_cast<EMasterMaterialQuality>(GetDatasmithMasterMaterial()->GetQuality());
+}
+
+void FDatasmithFacadeMasterMaterial::SetQuality(
+	EMasterMaterialQuality InQuality
+)
+{
+	GetDatasmithMasterMaterial()->SetQuality(static_cast<EDatasmithMasterMaterialQuality>(InQuality));
+}
+
+const TCHAR* FDatasmithFacadeMasterMaterial::GetCustomMaterialPathName() const
+{
+	return GetDatasmithMasterMaterial()->GetCustomMaterialPathName();
+}
+
+void FDatasmithFacadeMasterMaterial::SetCustomMaterialPathName(
+	const TCHAR* InPathName
+)
+{
+	GetDatasmithMasterMaterial()->SetCustomMaterialPathName(InPathName);
 }
 
 void FDatasmithFacadeMasterMaterial::AddColor(
@@ -151,25 +159,18 @@ void FDatasmithFacadeMasterMaterial::AddColor(
 
 void FDatasmithFacadeMasterMaterial::AddTexture(
 	const TCHAR* InPropertyName,
-	const TCHAR* InTextureFilePath,
-	FDatasmithFacadeTexture::ETextureMode InTextureMode
+	const FDatasmithFacadeTexture* InTexture
 )
 {
-	if (!FString(InTextureFilePath).IsEmpty())
+	if (InTexture)
 	{
-		// Make Datasmith texture name from file name.
-		FString FileName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(InTextureFilePath));
-		FString TextureName = FString::Printf(TEXT("%ls_%d"), *FileName, int(InTextureMode));
-
 		// Create a new Datasmith material texture property.
 		TSharedPtr<IDatasmithKeyValueProperty> MaterialPropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty(InPropertyName);
 		MaterialPropertyPtr->SetPropertyType(EDatasmithKeyValuePropertyType::Texture);
-		MaterialPropertyPtr->SetValue(*TextureName);
+		MaterialPropertyPtr->SetValue(InTexture->GetName());
 
 		// Add the new property to the Datasmith material properties.
 		GetDatasmithMasterMaterial()->AddProperty(MaterialPropertyPtr);
-
-		AddTextureReference(TextureName, InTextureFilePath, InTextureMode);
 	}
 }
 
@@ -216,6 +217,39 @@ void FDatasmithFacadeMasterMaterial::AddBoolean(
 
 	// Add the new property to the Datasmith material properties.
 	GetDatasmithMasterMaterial()->AddProperty(MaterialPropertyPtr);
+}
+
+int32 FDatasmithFacadeMasterMaterial::GetPropertiesCount() const
+{
+	return GetDatasmithMasterMaterial()->GetPropertiesCount();
+}
+
+FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMasterMaterial::GetNewProperty(
+	int32 PropertyIndex
+) const
+{
+	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMasterMaterial()->GetProperty(PropertyIndex))
+	{
+		return new FDatasmithFacadeKeyValueProperty(Property.ToSharedRef());
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMasterMaterial::GetNewPropertyByName(
+	const TCHAR* PropertyName
+) const
+{
+	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMasterMaterial()->GetPropertyByName(PropertyName))
+	{
+		return new FDatasmithFacadeKeyValueProperty(Property.ToSharedRef());
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 TSharedRef<IDatasmithMasterMaterialElement> FDatasmithFacadeMasterMaterial::GetDatasmithMasterMaterial() const

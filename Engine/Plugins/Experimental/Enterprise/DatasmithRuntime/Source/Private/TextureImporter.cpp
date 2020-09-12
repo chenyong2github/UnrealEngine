@@ -26,6 +26,8 @@ namespace DatasmithRuntime
 
 	bool GetTextureData(const TCHAR* Filename, FTextureData& TextureData)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::GetTextureData);
+
 		TArray<uint8> Buffer;
 		if (!(FFileHelper::LoadFileToArray(Buffer, Filename) && Buffer.Num() > 0))
 		{
@@ -58,6 +60,8 @@ namespace DatasmithRuntime
 
 	bool CreateImageTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateImageTexture);
+
 		// Texture2D setup
 		UTexture2D* Texture2D = TextureData.GetObject<UTexture2D>();
 			
@@ -113,6 +117,8 @@ namespace DatasmithRuntime
 
 	bool CreateIESTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateIESTexture);
+
 		UTextureLightProfile* Texture = TextureData.GetObject<UTextureLightProfile>();
 
 		if (Texture == nullptr)
@@ -178,6 +184,8 @@ namespace DatasmithRuntime
 
 	EActionResult::Type FSceneImporter::CreateTexture(FSceneGraphId ElementId)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateTexture);
+
 		FTextureData& TextureData = TextureDataList[ElementId];
 
 		//#ue_liveupdate: We should not come to this point
@@ -218,6 +226,8 @@ namespace DatasmithRuntime
 
 	bool FSceneImporter::LoadTexture(FSceneGraphId ElementId)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::LoadTexture);
+
 		FTextureData& TextureData = TextureDataList[ElementId];
 
 		IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(Elements[ ElementId ].Get());
@@ -255,6 +265,9 @@ namespace DatasmithRuntime
 			}
 			TextureData.ImageData = nullptr;
 			UE_LOG(LogDatasmithRuntime, Warning, TEXT("Cannot load image file %s for texture %s"), TextureElement->GetFile(), TextureElement->GetLabel());
+
+			TextureData.bCompleted = true;
+			TextureData.Object.Reset();
 		}
 		else
 		{
@@ -267,11 +280,13 @@ namespace DatasmithRuntime
 			TasksToComplete |= EDatasmithRuntimeWorkerTask::TextureAssign;
 		}
 
-		return bSuccessfulLoad;
+		return true;
 	}
 
 	void FSceneImporter::ProcessTextureData(FSceneGraphId TextureId)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessTextureData);
+
 		// Textures are added in two steps. Make sure the associated FTextureData is created
 		if (!TextureDataList.Contains(TextureId))
 		{

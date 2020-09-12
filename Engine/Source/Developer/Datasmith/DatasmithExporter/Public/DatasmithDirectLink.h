@@ -13,6 +13,11 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithDirectLinkExporterAPI, Log, All);
 
 class IDatasmithScene;
 
+namespace DirectLink
+{
+class FEndpoint;
+}
+
 class DATASMITHEXPORTER_API FDatasmithDirectLink
 {
 public:
@@ -25,4 +30,6 @@ public:
 
 	bool InitializeForScene(TSharedRef<IDatasmithScene>& Scene);
 	bool UpdateScene(TSharedRef<IDatasmithScene>& Scene);
+
+	static TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> GetEnpoint();
 };
