@@ -225,7 +225,7 @@ bool FDMXPixelMatrix::GetChannelsFromPixel(FIntPoint Pixel, FDMXAttributeName At
 		return false;
 	}
 
-	int32 ChannelBase = FirstPixelChannel + (OrderedChannels[Pixel.X + Pixel.Y * XPixels] * PixelSize) + PixelFunctionIndex;
+	int32 ChannelBase = FirstPixelChannel + (OrderedChannels[Pixel.Y + Pixel.X * YPixels] * PixelSize) + PixelFunctionIndex;
 
 	for (int32 ChannelIndex = 0; ChannelIndex < PixelFunctionSize; ChannelIndex++)
 	{
@@ -235,7 +235,7 @@ bool FDMXPixelMatrix::GetChannelsFromPixel(FIntPoint Pixel, FDMXAttributeName At
 	return true;
 }
 
-int32 FDMXPixelMatrix::GetPixelFunctionsLastChannel()
+int32 FDMXPixelMatrix::GetPixelFunctionsLastChannel() const
 {
 	int32 PixelSize = 0;
 	for (const FDMXFixturePixelFunction& PixelFunction : PixelFunctions)
@@ -244,11 +244,14 @@ int32 FDMXPixelMatrix::GetPixelFunctionsLastChannel()
 		PixelSize += CurrentFunctionSize;
 	}
 	int32 AllPixels = XPixels * YPixels * PixelSize;
-	if (AllPixels > 0)
+	if (AllPixels == 0)
 	{
-		AllPixels--;
+		return FirstPixelChannel;
 	}
-	return FirstPixelChannel + AllPixels;
+
+	int32 LastChannel = FirstPixelChannel + AllPixels - 1;
+
+	return LastChannel;
 }
 
 uint8 UDMXEntityFixtureType::GetFunctionLastChannel(const FDMXFixtureFunction& Function)
@@ -259,7 +262,19 @@ uint8 UDMXEntityFixtureType::GetFunctionLastChannel(const FDMXFixtureFunction& F
 bool UDMXEntityFixtureType::IsFunctionInModeRange(const FDMXFixtureFunction& InFunction, const FDMXFixtureMode& InMode, int32 ChannelOffset /*= 0*/)
 {
 	const int32 LastChannel = GetFunctionLastChannel(InFunction);
-	return LastChannel <= InMode.ChannelSpan && LastChannel + ChannelOffset <= DMX_MAX_ADDRESS;
+	bool bLastChannelExceedsChannelSpan = LastChannel > InMode.ChannelSpan;
+	bool bLastChannelExceedsUniverseSize = LastChannel + ChannelOffset > DMX_MAX_ADDRESS;
+
+	return !bLastChannelExceedsChannelSpan && !bLastChannelExceedsUniverseSize;
+}
+
+bool UDMXEntityFixtureType::IsFixtureMatrixInModeRange(const FDMXPixelMatrix& InFixtureMatrix, const FDMXFixtureMode& InMode, int32 ChannelOffset /*= 0*/)
+{
+	const int32 LastChannel = InFixtureMatrix.GetPixelFunctionsLastChannel();
+	bool bLastChannelExceedsChannelSpan = LastChannel > InMode.ChannelSpan;
+	bool bLastChannelExceedsUniverseSize = LastChannel + ChannelOffset > DMX_MAX_ADDRESS;
+
+	return !bLastChannelExceedsChannelSpan && !bLastChannelExceedsUniverseSize;
 }
 
 void UDMXEntityFixtureType::ClampDefaultValue(FDMXFixtureFunction& InFunction)
@@ -271,7 +286,6 @@ uint8 UDMXEntityFixtureType::NumChannelsToOccupy(EDMXFixtureSignalFormat DataTyp
 {
 	switch (DataType)
 	{
-	case EDMXFixtureSignalFormat::E8BitSubFunctions:
 	case EDMXFixtureSignalFormat::E8Bit:
 		return 1;
 
@@ -294,7 +308,6 @@ uint32 UDMXEntityFixtureType::ClampValueToDataType(EDMXFixtureSignalFormat DataT
 {
 	switch (DataType)
 	{
-	case EDMXFixtureSignalFormat::E8BitSubFunctions:
 	case EDMXFixtureSignalFormat::E8Bit:
 		return FMath::Clamp(InValue, 0u, (uint32)MAX_uint8);
 
@@ -317,7 +330,6 @@ uint32 UDMXEntityFixtureType::GetDataTypeMaxValue(EDMXFixtureSignalFormat DataTy
 {
 	switch (DataType)
 	{
-	case EDMXFixtureSignalFormat::E8BitSubFunctions:
 	case EDMXFixtureSignalFormat::E8Bit:
 		return MAX_uint8;
 	case EDMXFixtureSignalFormat::E16Bit:
@@ -468,7 +480,8 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bPixelFunctionsEnabled) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, XPixels) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, YPixels) ||		
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, YPixels) ||	
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, FirstPixelChannel) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, bAutoChannelSpan) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, ChannelOffset) ||
@@ -586,48 +599,62 @@ void UDMXEntityFixtureType::UpdateModeChannelProperties(FDMXFixtureMode& Mode)
 {
 	if (Mode.bAutoChannelSpan)
 	{
-		int32 ChannelSpan = 0;
-
-		// Update span from common Functions
-		for (FDMXFixtureFunction& Function : Mode.Functions)
+		if (Mode.Functions.Num() == 0 &&
+			Mode.PixelMatrixConfig.PixelFunctions.Num() == 0)
 		{
-			Function.Channel = ChannelSpan + 1 + Function.ChannelOffset;
-
-			switch (Function.DataType)
-			{
-			case EDMXFixtureSignalFormat::E8Bit:
-			case EDMXFixtureSignalFormat::E8BitSubFunctions:
-				ChannelSpan = Function.Channel;
-				break;
-			case EDMXFixtureSignalFormat::E16Bit:
-				ChannelSpan = Function.Channel + 1;
-				break;
-			case EDMXFixtureSignalFormat::E24Bit:
-				ChannelSpan = Function.Channel + 2;
-				break;
-			case EDMXFixtureSignalFormat::E32Bit:
-				ChannelSpan = Function.Channel + 3;
-				break;
-			default:
-				checkNoEntry();
-				break;
-			}
+			Mode.ChannelSpan = 0;
 		}
-
-		// Update span for Pixel Functions, only if the type uses the Pixel Matrix category
-		if (bPixelFunctionsEnabled)
+		else
 		{
-			int32 PixelFunctionFirstChannel = Mode.PixelMatrixConfig.FirstPixelChannel;
-			int32 PixelFunctionLastChannel = Mode.PixelMatrixConfig.GetPixelFunctionsLastChannel();
-			if (PixelFunctionLastChannel - PixelFunctionFirstChannel > 0)
+
+			int32 ChannelSpan = 0;
+
+			// Update span from common Functions
+			for (FDMXFixtureFunction& Function : Mode.Functions)
 			{
+				Function.Channel = ChannelSpan + 1 + Function.ChannelOffset;
+
+				switch (Function.DataType)
+				{
+				case EDMXFixtureSignalFormat::E8Bit:
+					ChannelSpan = Function.Channel;
+					break;
+				case EDMXFixtureSignalFormat::E16Bit:
+					ChannelSpan = Function.Channel + 1;
+					break;
+				case EDMXFixtureSignalFormat::E24Bit:
+					ChannelSpan = Function.Channel + 2;
+					break;
+				case EDMXFixtureSignalFormat::E32Bit:
+					ChannelSpan = Function.Channel + 3;
+					break;
+				default:
+					checkNoEntry();
+					break;
+				}
+			}
+
+			// If pixel functions are enabled, add their channel span
+			int32 NumPixels = Mode.PixelMatrixConfig.XPixels * Mode.PixelMatrixConfig.YPixels;
+			if (bPixelFunctionsEnabled && NumPixels > 0)
+			{
+				// Add 'empty' channels bewtween normal functions and pixel functions to the channel span
+				ChannelSpan = FMath::Max(ChannelSpan, Mode.PixelMatrixConfig.FirstPixelChannel);
+
+				int32 PixelFunctionFirstChannel = Mode.PixelMatrixConfig.FirstPixelChannel;
+
+				// Ignore channels that are overlapping commmon functions
+				PixelFunctionFirstChannel = FMath::Max(PixelFunctionFirstChannel, ChannelSpan + 1);
+
+				int32 PixelFunctionLastChannel = Mode.PixelMatrixConfig.GetPixelFunctionsLastChannel();
+
 				ChannelSpan += PixelFunctionLastChannel - PixelFunctionFirstChannel + 1;
 			}
+
+			ChannelSpan = FMath::Max(ChannelSpan, 1);
+
+			Mode.ChannelSpan = ChannelSpan;
 		}
-
-		ChannelSpan = FMath::Clamp(ChannelSpan, 1, static_cast<int32>(DMX_UNIVERSE_SIZE));
-
-		Mode.ChannelSpan = ChannelSpan;
 
 		// Notify DataType changes
 		DataTypeChangeDelegate.Broadcast(this, Mode);

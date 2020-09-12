@@ -35,8 +35,10 @@ FName FDMXEditorStyle::GetStyleSetName()
 
 TSharedRef<FSlateStyleSet> FDMXEditorStyle::Create()
 {
+	static const FVector2D Icon16x16(16.0f, 16.0f);
 	static const FVector2D Icon40x40(40.0f, 40.0f);
 	static const FVector2D Icon34x29(34.0f, 29.0f);
+	static const FVector2D Icon51x30(51.0f, 30.0f);
 	static const FVector2D Icon51x31(51.0f, 31.0f);
 
 	TSharedRef<FSlateStyleSet> Style = MakeShared<FSlateStyleSet>(GetStyleSetName());
@@ -59,32 +61,34 @@ TSharedRef<FSlateStyleSet> FDMXEditorStyle::Create()
 	Style->Set("DMXEditor.Font.InputUniverseChannelID", FSlateFontInfo(FontRoboto, 10, FName(TEXT("Regular"))));
 	Style->Set("DMXEditor.Font.InputUniverseChannelValue", FSlateFontInfo(FontRoboto, 10, FName(TEXT("Light"))));
 	
-	Style->Set("DMXEditor.InputInfoAction", new IMAGE_BRUSH(TEXT("ButtonIcon_40x"), Icon40x40));
+	// Level editor icon
+	Style->Set("DMXEditor.LevelEditor", new IMAGE_BRUSH("Icons/LevelEditor/icon_DMXTools_40px", Icon40x40));
 
 	// Distribution Grid buttons
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.0", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_0.0", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.1", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_0.1", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.2", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_0.2", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.3", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_0.3", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.0", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_0_0_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.1", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_0_1_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.2", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_0_2_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.3", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_0_3_161x160", Icon34x29));
 
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.1.0", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_1.0", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.1.1", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_1.1", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.1.2", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_1.2", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.1.3", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_1.3", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.1.0", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_1_0_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.1.1", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_1_1_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.1.2", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_1_2_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.1.3", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_1_3_161x160", Icon34x29));
 
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.2.0", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_2.0", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.2.1", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_2.1", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.2.2", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_2.2", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.2.3", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_2.3", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.2.0", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_2_0_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.2.1", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_2_1_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.2.2", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_2_2_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.2.3", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_2_3_161x160", Icon34x29));
 
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.3.0", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_3.0", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.3.1", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_3.1", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.3.2", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_3.2", Icon34x29));
-	Style->Set("DMXEditor.PixelMapping.DistributionGrid.3.3", new IMAGE_BRUSH("Icons/DistributionGrid/PixelDirectionIcon_3.3", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.3.0", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_3_0_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.3.1", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_3_1_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.3.2", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_3_2_161x160", Icon34x29));
+	Style->Set("DMXEditor.PixelMapping.DistributionGrid.3.3", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_3_3_161x160", Icon34x29));
 
-	Style->Set("DMXEditor.OutputConsole.MacroSineWave", new IMAGE_BRUSH("Icons/MacroSineWaveIcon51x31", Icon51x31));
-	Style->Set("DMXEditor.OutputConsole.MacroMin", new IMAGE_BRUSH("Icons/MacroMinIcon51x31", Icon51x31));
-	Style->Set("DMXEditor.OutputConsole.MacroMax", new IMAGE_BRUSH("Icons/MacroMaxIcon51x31", Icon51x31));
+	// OutputConsole icons
+	Style->Set("DMXEditor.OutputConsole.MacroSineWave", new IMAGE_BRUSH("Icons/icon_MacroSineWave_51x31", Icon51x31));
+	Style->Set("DMXEditor.OutputConsole.MacroMin", new IMAGE_BRUSH("Icons/icon_MacroMin_51x30", Icon51x30));
+	Style->Set("DMXEditor.OutputConsole.MacroMax", new IMAGE_BRUSH("Icons/icon_MacroMax_51x30", Icon51x30));
 	return Style;
 }
 #undef IMAGE_BRUSH

@@ -25,9 +25,7 @@ UDMXEntity* UDMXLibrary::GetOrCreateEntityObject(const FString& InName, TSubclas
 
 	UDMXEntity* Entity = NewObject<UDMXEntity>(this, DMXEntityClass, NAME_None, RF_Transactional);
 	Entity->SetName(InName);
-	Entity->SetParentLibrary(this);
-	Entities.Add(Entity);
-
+	AddEntity(Entity);
 	OnEntitiesUpdated.Broadcast(this);
 
 	return Entity;
@@ -37,7 +35,7 @@ UDMXEntity* UDMXLibrary::FindEntity(const FString& InSearchName) const
 {
 	UDMXEntity*const* Entity = Entities.FindByPredicate([&InSearchName](const UDMXEntity* InEntity)->bool
 		{
-			return InEntity->GetDisplayName().Equals(InSearchName);
+			return InEntity && InEntity->GetDisplayName().Equals(InSearchName);
 		});
 
 	if (Entity != nullptr)
@@ -67,19 +65,19 @@ int32 UDMXLibrary::FindEntityIndex(UDMXEntity* InEntity) const
 
 void UDMXLibrary::AddEntity(UDMXEntity* InEntity)
 {
-	if (InEntity != nullptr)
-	{
-		Entities.Add(InEntity);
-		InEntity->SetParentLibrary(this);
+	check(InEntity);
+	check(!Entities.Contains(InEntity));
+	
+	Entities.Add(InEntity);
+	InEntity->SetParentLibrary(this);
 
-		// Check for unique Id
-		for (UDMXEntity* Entity : Entities)
+	// Check for unique Id
+	for (UDMXEntity* Entity : Entities)
+	{
+		if (Entity && InEntity->GetID() == Entity->GetID())
 		{
-			if (InEntity->GetID() != Entity->GetID())
-			{
-				InEntity->RefreshID();
-				break;
-			}
+			InEntity->RefreshID();
+			break;
 		}
 	}
 }
@@ -146,7 +144,7 @@ void UDMXLibrary::RemoveEntity(const FString& EntityName)
 {
 	int32 EntityIndex = Entities.IndexOfByPredicate([&EntityName] (const UDMXEntity* Entity)->bool
 		{
-			return Entity->GetDisplayName().Equals(EntityName);
+			return Entity && Entity->GetDisplayName().Equals(EntityName);
 		});
 
 	if (EntityIndex != INDEX_NONE)
@@ -161,7 +159,10 @@ void UDMXLibrary::RemoveAllEntities()
 {
 	for (UDMXEntity* Entity : Entities)
 	{
-		Entity->SetParentLibrary(nullptr);
+		if (Entity)
+		{
+			Entity->SetParentLibrary(nullptr);
+		}
 	}
 	Entities.Empty();
 	OnEntitiesUpdated.Broadcast(this);
@@ -176,7 +177,7 @@ TArray<UDMXEntity*> UDMXLibrary::GetEntitiesOfType(TSubclassOf<UDMXEntity> InEnt
 {
 	return Entities.FilterByPredicate([&InEntityClass](const UDMXEntity* Entity)
 		{
-			return Entity->IsA(InEntityClass);
+			return Entity && Entity->IsA(InEntityClass);
 		});
 }
 
@@ -221,11 +222,20 @@ void UDMXLibrary::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 
 	// Make sure all Entity children have this library as their parent
 	// and refresh their ID
+	TArray<UDMXEntity*> ValidEntities;
 	for (UDMXEntity* Entity : Entities)
 	{
-		Entity->SetParentLibrary(this);
-		Entity->RefreshID();
+		// Entity could be null
+		if (Entity)
+		{
+			Entity->SetParentLibrary(this);
+			Entity->RefreshID();
+			ValidEntities.Add(Entity);
+		}
 	}
+
+	// duplicate only valid entities
+	Entities = ValidEntities;
 }
 
 #undef LOCTEXT_NAMESPACE

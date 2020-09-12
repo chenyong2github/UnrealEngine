@@ -15,6 +15,11 @@ class UDMXEntityFixturePatch;
 class DMXEDITOR_API FDMXEditorUtils
 {
 public:
+
+	typedef TArray<UDMXEntityFixturePatch*> FUnassignedPatchesArray;
+
+	
+	
 	/**
 	 * Generates a unique name given a base one and a list of existing ones, by appending an index to
 	 * existing names. If InBaseName is an empty String, it returns "Default name".
@@ -31,7 +36,7 @@ public:
 	static FString FindUniqueEntityName(const UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> InEntityClass, const FString& InBaseName = TEXT(""));
 
 	/**
-	 * Set unique names for Fixture Types' Modes, Functions and Sub Functions when they have just been created.
+	 * Set unique names for Fixture Types' Modes and Functions when they have just been created.
 	 * We simply rename the Modes/Functions with no name. The user can't set a blank name afterwards, so it's
 	 * a good way to know which are the new ones.
 	 */
@@ -88,6 +93,20 @@ public:
 	/**  Returns the Entity class type name (e.g: Fixture Type for UDMXEntityFixtureType) in singular or plural */
 	static FText GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass, bool bPlural = false);
 
+	
+	
+// Auto Assign:
+	
+	/**
+	 * Updates starting address for the patch, if it has bAutoAssignAddress set and only if it can be assigned
+	 * to a universe in AllowedUniverses.
+	 *
+	 * If no universe can be assigned, then this patch is left unmodified.
+	 *
+	 * @return Whether Patch was auto assigned.
+	 */
+	static bool TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, const TSet<int32>& AllowedUniverses);
+	
 	/**
 	 * Updates Addresses for Fixture Patches that use specified Parent fixture type and have bAutoAssignAddress set. 
 	 *
@@ -96,19 +115,55 @@ public:
 	static void AutoAssignedAddresses(UDMXEntityFixtureType* ChangedParentFixtureType);
 
 	/**
-	 * Updates Starting Addresses for fixture patches that have bAutoAssignAddress set, ignores others.
+	 * Updates starting addresses for fixture patches that have bAutoAssignAddress set, ignores others.
 	 * Note, patches all have to reside in the same library.
 	 *
+	 * The caller is responsible to call Modify on the patches and register undo/redo.
+	 *
+	 * If bCanChangePatchUniverses = true, this function will assign patches that do not fit into the existing universes to
+	 * the next universe. MinimumAddress is ignored for the new universe, i.e. we start placing remaining patches at position 1.
+	 *
 	 * @param ChangedFixturePatches		The patches that want their channels to be auto assigned
+	 * @param MinimumAddress			All patches must be placed after this address
+	 * @param bCanChangePatchUniverses	Whether we are allowed to move a patch to another universe if the assigned universe has no space.
+	 *
+	 * @result Patches that were not assigned.
 	 */
-	static void AutoAssignedAddresses(const TArray<UDMXEntityFixturePatch*>& ChangedFixturePatches);
-
+	static FUnassignedPatchesArray AutoAssignedAddresses(const TArray<UDMXEntityFixturePatch*>& ChangedFixturePatches, int32 MinimumAddress = 1, bool bCanChangePatchUniverses = true);
+	
 	/**
 	 * Creates a unique color for all patches that use the default color FLinearColor(1.0f, 0.0f, 1.0f)
 	 *
 	 * @param Library				The library the patches resides in.
 	 */
 	static void UpdatePatchColors(UDMXLibrary* Library);
+
+	/**
+	 * Retrieve all assets for a given class via the asset registry. Will load into memory if needed.
+	 *
+	 * @param Class					The class to lookup.
+	 * @param OutObjects			All found objects.
+	 * 
+	 */
+	static void GetAllAssetsOfClass(UClass* Class, TArray<UObject*>& OutObjects);
+
+	/**
+	 * Locate universe conflicts for a given entity across all other libraries.
+	 *
+	 * @param Entity					The entity to check against other libraries.
+	 * @param OutConflictingEntities	All entities within other libraries that have universe conflicts.
+	 * @return							True if there is at least one conflict found.
+	 */
+	static bool TryGetEntityUniverseConflicts(UDMXEntity* Entity, TArray<UDMXEntity*>& OutConflictingEntities);
+
+	/**
+	 * Compare two entities to determine if they have overlapping universes.
+	 *
+	 * @param EntityA					First entity to check.
+	 * @param EntityB					Second entity to check.
+	 * @return							True if there is a conflict.
+	 */
+	static bool DoEntitiesHaveUniverseConflict(UDMXEntity* EntityA, UDMXEntity* EntityB);
 
 	// can't instantiate this class
 	FDMXEditorUtils() = delete;

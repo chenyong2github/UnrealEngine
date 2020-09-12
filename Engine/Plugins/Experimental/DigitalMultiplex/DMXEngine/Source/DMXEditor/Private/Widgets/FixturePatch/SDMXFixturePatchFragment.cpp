@@ -5,8 +5,6 @@
 #include "DMXEditor.h"
 #include "DMXFixturePatchNode.h"
 #include "DMXFixturePatchEditorDefinitions.h"
-#include "DMXEntityDragDropOp.h"
-#include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
 
 #include "EditorStyleSet.h"
@@ -34,10 +32,10 @@ void SDMXFixturePatchFragment::Construct(const FArguments& InArgs, TSharedPtr<FD
 	Row = InArgs._Row;
 	ColumnSpan = InArgs._ColumnSpan;
 	bHighlight = InArgs._bHighlight;
-	OnSelected = InArgs._OnSelected;	
+
+	SetVisibility(EVisibility::HitTestInvisible);
 
 	FMargin MinimalTextMargin = FMargin(3.0f, 2.0f, 4.0f, 1.0f);
-
 	ShadowSize = FEditorStyle::GetVector(TEXT("Graph.Node.ShadowSize"));
 
 	// We do not need graph node feats, but mimic its visuals
@@ -158,57 +156,6 @@ FSlateColor SDMXFixturePatchFragment::GetColor() const
 const FSlateBrush* SDMXFixturePatchFragment::GetShadowBrush(bool bSelected) const
 {
 	return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.VarNode.ShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.VarNode.Shadow"));
-}
-
-FReply SDMXFixturePatchFragment::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	check(PatchNode.IsValid());
-
-	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
-	{
-		check(PatchNode.IsValid());
-		UDMXEntityFixturePatch* Patch = PatchNode->GetFixturePatch().Get();
-
-		if (Patch)
-		{
-			OnSelected.ExecuteIfBound(SharedThis(this));
-			return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
-		}
-	}
-	return FReply::Unhandled();
-}
-
-FReply SDMXFixturePatchFragment::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	UDMXLibrary* DMXLibrary = GetDMXLibrary();
-
-	if (DMXLibrary)
-	{
-		check(PatchNode.IsValid());
-		UDMXEntityFixturePatch* Patch = PatchNode->GetFixturePatch().Get();
-
-		if (Patch)
-		{
-			OnSelected.ExecuteIfBound(SharedThis(this));
-
-			PatchNode->SetVisiblity(EVisibility::HitTestInvisible);
-
-			TSharedRef<FDMXEntityDragDropOperation> DragDropOp = MakeShared<FDMXEntityDragDropOperation>(DMXLibrary, TArray<TWeakObjectPtr<UDMXEntity>>{ Patch });
-
-			return FReply::Handled().BeginDragDrop(DragDropOp);
-		}
-	}
-
-	return FReply::Unhandled();
-}
-
-UDMXLibrary* SDMXFixturePatchFragment::GetDMXLibrary() const
-{
-	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
-	{
-		return DMXEditor->GetDMXLibrary();
-	}
-	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

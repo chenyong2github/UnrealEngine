@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class UDMXEntityFixturePatch;
+
 class DMXRUNTIME_API FDMXRuntimeUtils
 {
 public:
@@ -16,7 +18,15 @@ public:
 	 * @return True if there was an index on InString.
 	 */
 	static bool GetNameAndIndexFromString(const FString& InString, FString& OutName, int32& OutIndex);
-
+	/**
+	 * Maps each patch to its universe.
+	 *
+	 * @param AllPatches Patches to map
+	 *
+	 * @return Key: universe Value: patches in universe with associated key
+	 */
+	static TMap<int32, TArray<UDMXEntityFixturePatch*>> MapToUniverses(const TArray<UDMXEntityFixturePatch*>& AllPatches);
+	
 	// can't instantiate this class
 	FDMXRuntimeUtils() = delete;
 };

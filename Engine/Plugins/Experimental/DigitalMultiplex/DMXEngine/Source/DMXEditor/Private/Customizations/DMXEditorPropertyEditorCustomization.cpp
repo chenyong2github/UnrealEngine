@@ -147,13 +147,9 @@ void FDMXControllersDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout
 	DetailBuilder = &DetailLayout;
 
 	// Hide Universes for Controllers because the user should set them by range.
-	DetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Universes), UDMXEntityUniverseManaged::StaticClass());
-	
+	DetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Endpoints), UDMXEntityUniverseManaged::StaticClass());
 	// Hide device protocol to move it to top
 	DetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, DeviceProtocol), UDMXEntityUniverseManaged::StaticClass());
-	
-	// Hide communication mode to have custom combo box
-	DetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityController, CommunicationMode), UDMXEntityController::StaticClass());
 	
 	// Get and check device protocol property
 	ProtocolHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, DeviceProtocol), UDMXEntityUniverseManaged::StaticClass());
@@ -183,9 +179,6 @@ void FDMXControllersDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout
 		SNew(STextBlock)
 		.Text(FText::FromString(CommunicationModeLabels[EDMXCommunicationTypes::Multicast])));
 	
-	// Set communication modes based on selected protocol
-	GenerateCommunicationModeOptions();
-	
 	// Device protocol change event
 	FSimpleDelegate OnProtocolChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXControllersDetails::OnProtocolChanged);
 	ProtocolHandle->SetOnPropertyValueChanged(OnProtocolChangedDelegate);
@@ -194,7 +187,12 @@ void FDMXControllersDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout
 	DetailLayout.EditCategory("DMX")
 		.AddProperty(ProtocolHandle);
 	
-	// Communication mode custom combo box
+	CreateCommunicationTypeComboBox(DetailLayout);
+}
+
+void FDMXControllersDetails::CreateCommunicationTypeComboBox(IDetailLayoutBuilder& DetailLayout)
+{
+	DetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityController, CommunicationMode), UDMXEntityController::StaticClass());
 	DetailLayout.EditCategory("DMX")
 		.AddCustomRow(LOCTEXT("CommunicationMode", "Communication Mode"))
 		.NameContent()
@@ -203,79 +201,115 @@ void FDMXControllersDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout
 		]
 		.ValueContent()
 		[
-			SNew(SComboBox<TSharedPtr<EDMXCommunicationTypes>>)
+			SAssignNew(CommunicationModeComboBox, SComboBox<TSharedPtr<EDMXCommunicationTypes>>)
 			.OptionsSource(&CommunicationModeOptions)
 			.OnGenerateWidget(this, &FDMXControllersDetails::OnCommunicationModeGenerateWidget)
 			.OnSelectionChanged(this, &FDMXControllersDetails::OnCommunicationModeChanged)
-			.InitiallySelectedItem(MakeShared<EDMXCommunicationTypes>(ActiveCommunicationMode))
 			[
 				SNew(STextBlock)
 				.Text(this, &FDMXControllersDetails::GetCommunicationModeLabel)
 			]
 		];
+
+	UpdateCommunicationModeOptions();
 }
 
-void FDMXControllersDetails::GenerateCommunicationModeOptions()
+void FDMXControllersDetails::OnCommunicationModeChanged(const TSharedPtr<EDMXCommunicationTypes> InSelectedMode, ESelectInfo::Type SelectInfo)
 {
-	// Protocol name might be empty
-	TArray<const void*> RawData;
-	ProtocolHandle->AccessRawData(RawData);
-	for (const void* NamePtr : RawData)
+	if (InSelectedMode)
 	{
-		if (NamePtr != nullptr)
-		{
-			const FDMXProtocolName* ProtocolNamePtr = reinterpret_cast<const FDMXProtocolName*>(NamePtr);
-			ProtocolName = *ProtocolNamePtr;
-		}
+		CommunicationModeHandle->SetValue(static_cast<uint8>(*InSelectedMode));
 	}
+}
 
-	// Sets current activbe communication mode
-	uint8 CommunicationModeValue = static_cast<uint8>(EDMXCommunicationTypes::Unicast);
-	if (CommunicationModeHandle->GetValue(CommunicationModeValue) == FPropertyAccess::Success)
-	{
-		ActiveCommunicationMode = static_cast<EDMXCommunicationTypes>(CommunicationModeValue);
-	}
-	else 
-	{
-		ActiveCommunicationMode = EDMXCommunicationTypes::Unicast;
-	}
+void FDMXControllersDetails::OnProtocolChanged()
+{
+	UpdateCommunicationModeOptions();
+}
 
-	// Set communication modes base on selected device protocol
+void FDMXControllersDetails::UpdateCommunicationModeOptions()
+{
+	const FDMXProtocolName ProtocolName = GetProtocolNameSelected();
+
+	TArray<EDMXCommunicationTypes> SupportedOptions = GetSupportedCommunicationTypes(ProtocolName);
 	CommunicationModeOptions.Empty();
-	TMap < FName, TArray<EDMXCommunicationTypes> > CommunicationModes = {};
-	for (FName& PossibleProtocolName : FDMXProtocolName::GetPossibleValues())
+	for(EDMXCommunicationTypes Elem : SupportedOptions)
 	{
-		if (PossibleProtocolName.ToString() == DMX_PROTOCOLNAME_SACN)
-		{
-			CommunicationModes.Add(PossibleProtocolName,
-				{
-					EDMXCommunicationTypes::Unicast,
-					EDMXCommunicationTypes::Multicast
-				});
+		TSharedPtr<EDMXCommunicationTypes> SelectableOption = MakeShared<EDMXCommunicationTypes>(Elem);
+		CommunicationModeOptions.Add(SelectableOption);
 
-		}
-		else if (PossibleProtocolName.ToString() == DMX_PROTOCOLNAME_ARTNET)
+		// SComboBox expects the selected item to be an element of OptionsArray
+		if(GetCommunicationModeSelected() == Elem)
 		{
-			CommunicationModes.Add(PossibleProtocolName,
-				{
-					EDMXCommunicationTypes::Unicast,
-					EDMXCommunicationTypes::Broadcast
-				});
+			CommunicationModeComboBox->SetSelectedItem(SelectableOption);
 		}
 	}
-	
-	for (EDMXCommunicationTypes& CommunicationMode : CommunicationModes[ProtocolName.GetName()])
+	CommunicationModeComboBox->RefreshOptions();
+
+	EnsureProtocolSupportsSelectedCommuncationType();
+}
+
+TArray<EDMXCommunicationTypes> FDMXControllersDetails::GetSupportedCommunicationTypes(FName ForProtocol)
+{
+	if (ForProtocol == DMX_PROTOCOLNAME_SACN)
 	{
-		CommunicationModeOptions.Add(MakeShared<EDMXCommunicationTypes>(CommunicationMode));
+		return {EDMXCommunicationTypes::Unicast, EDMXCommunicationTypes::Multicast};
+
 	}
-	
-	if (!CommunicationModes[ProtocolName.GetName()].Contains(ActiveCommunicationMode))
+	else if (ForProtocol == DMX_PROTOCOLNAME_ARTNET)
 	{
-		ActiveCommunicationMode = EDMXCommunicationTypes::Unicast;
+		return {EDMXCommunicationTypes::Unicast, EDMXCommunicationTypes::Broadcast};
 	}
+	else
+	{
+		// Unhandled protocol type: add it above
+		checkNoEntry();
+		return {};
+	}
+}
+
+void FDMXControllersDetails::EnsureProtocolSupportsSelectedCommuncationType()
+{
+	const bool bIsCurrentCommunicationModeCompatibeWithProtocol =
+		CommunicationModeOptions.ContainsByPredicate([=](const TSharedPtr<EDMXCommunicationTypes>& Elem)
+			{
+				return *Elem.Get() == GetCommunicationModeSelected();
+			});
+	if (!bIsCurrentCommunicationModeCompatibeWithProtocol)
+	{
+		// SComboBox expects the selected item to be an element of OptionsArray
+		auto ExtractElementFromOptions = [=](EDMXCommunicationTypes ValueToFind) -> TSharedPtr<EDMXCommunicationTypes>
+		{
+			return *CommunicationModeOptions.FindByPredicate([ValueToFind](const TSharedPtr<EDMXCommunicationTypes>& Elem)
+				{
+					return *Elem.Get() == ValueToFind;
+				});
+		};
+		EDMXCommunicationTypes DefaultValueForMode = GetDefaultCommunicationMode(GetProtocolNameSelected());
+		CommunicationModeComboBox->SetSelectedItem(
+			ExtractElementFromOptions(DefaultValueForMode)
+		);
+	}
+}
+
+EDMXCommunicationTypes FDMXControllersDetails::GetDefaultCommunicationMode(FName ForProtocol)
+{
 	
-	// Sets communication mode property value
-	CommunicationModeHandle->SetValue(static_cast<uint8>(ActiveCommunicationMode));
+	if (ForProtocol == DMX_PROTOCOLNAME_SACN)
+	{
+		return EDMXCommunicationTypes::Multicast;
+
+	}
+	else if (ForProtocol == DMX_PROTOCOLNAME_ARTNET)
+	{
+		return EDMXCommunicationTypes::Broadcast;
+	}
+	else
+	{
+		// Unhandled protocol type: add it above
+		checkNoEntry();
+		return {};
+	}
 }
 
 TSharedRef<SWidget> FDMXControllersDetails::OnCommunicationModeGenerateWidget(const TSharedPtr<EDMXCommunicationTypes> InMode) const
@@ -293,18 +327,36 @@ FText FDMXControllersDetails::GetCommunicationModeLabel() const
 	return FText();
 }
 
-void FDMXControllersDetails::OnCommunicationModeChanged(const TSharedPtr<EDMXCommunicationTypes> InSelectedMode, ESelectInfo::Type SelectInfo)
+EDMXCommunicationTypes FDMXControllersDetails::GetCommunicationModeSelected() const
 {
-	if (InSelectedMode)
-	{
-		CommunicationModeHandle->SetValue(static_cast<uint8>(*InSelectedMode));
-	}
+	uint8 Result;
+	const bool bDidGetValue =
+		CommunicationModeHandle->GetValue(Result) == FPropertyAccess::Success;
+	
+	check(bDidGetValue);
+	return static_cast<EDMXCommunicationTypes>(Result);
 }
 
-void FDMXControllersDetails::OnProtocolChanged()
+void FDMXControllersDetails::SetCommunicationModeSelected(EDMXCommunicationTypes NewValue)
 {
-	// Force refreshes the panel to get communication mode updated
-	DetailBuilder->ForceRefreshDetails();
+	CommunicationModeHandle->SetValue(static_cast<uint8>(NewValue));
+}
+
+FDMXProtocolName FDMXControllersDetails::GetProtocolNameSelected() const
+{
+	TArray<const void*> RawData;
+	ProtocolHandle->AccessRawData(RawData);
+	for (const void* NamePtr : RawData)
+	{
+		if (NamePtr != nullptr)
+		{
+			const FDMXProtocolName* ProtocolNamePtr = reinterpret_cast<const FDMXProtocolName*>(NamePtr);
+			return *ProtocolNamePtr;
+		}
+	}
+	
+	checkNoEntry();
+	return FDMXProtocolName();
 }
 
 FDMXFixtureTypeFunctionsDetails::FDMXFixtureTypeFunctionsDetails(TWeakPtr<FDMXEditor> InDMXEditorPtr)
@@ -571,36 +623,6 @@ void FDMXFixtureFunctionDetails::CustomizeChildren(TSharedRef<IPropertyHandle> I
 	AddChannelInputFields(InStructBuilder);
 }
 
-void FDMXFixtureFunctionDetails::AddProperty(IDetailChildrenBuilder& InStructBuilder, const FName& PropertyName, TSharedRef<IPropertyHandle> PropertyHandle)
-{
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, SubFunctions))
-	{
-		// Conditionally control Sub Functions property visibility
-		InStructBuilder
-			.AddProperty(PropertyHandle)
-			.Visibility(MakeAttributeSP(this, &FDMXFixtureFunctionDetails::GetSubFunctionsVisibility));
-
-		return;
-	}
-
-	// Simply add the property
-	FDMXFixtureTypeFunctionsDetails::AddProperty(InStructBuilder, PropertyName, PropertyHandle);
-}
-
-EVisibility FDMXFixtureFunctionDetails::GetSubFunctionsVisibility() const
-{
-	void* DataTypePtr = nullptr;
-	if (DataTypeHandle->GetValueData(DataTypePtr) == FPropertyAccess::Success)
-	{
-		EDMXFixtureSignalFormat* DataType = reinterpret_cast<EDMXFixtureSignalFormat*>(DataTypePtr);
-		if (*DataType == EDMXFixtureSignalFormat::E8BitSubFunctions)
-		{
-			return EVisibility::Visible;
-		}
-	}
-	return EVisibility::Collapsed;
-}
-
 void FDMXFixtureFunctionDetails::AddChannelInputFields(IDetailChildrenBuilder& InStructBuilder)
 {
 	const FMargin Padding = FMargin(2.0f, 0.0f, 0.0f, 0.0f);
@@ -809,20 +831,6 @@ TArray<FString> FDMXFixtureFunctionDetails::GetExistingNames() const
 	}
 
 	return ExistingNames;
-}
-
-void FDMXFixtureSubFunctionDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& InStructBuilder, IPropertyTypeCustomizationUtils& InStructCustomizationUtils)
-{
-	// Skip parent implementation and use base's
-	FDMXFixtureTypeFunctionsDetails::CustomizeChildren(InStructPropertyHandle, InStructBuilder, InStructCustomizationUtils);
-}
-
-void FDMXFixtureSubFunctionDetails::GetCustomNameFieldSettings(FText& OutNewPropertyLabel, FName& OutNamePropertyName, FText& OutToolTip, FText& OutExistingNameError)
-{
-	OutNewPropertyLabel = LOCTEXT("FixtureSubFunctionNameLabel", "Sub Function Name");
-	OutNamePropertyName = GET_MEMBER_NAME_CHECKED(FDMXFixtureSubFunction, FunctionName);
-	OutToolTip = LOCTEXT("FixtureSubFunctionNameToolTip", "The name of this sub function");
-	OutExistingNameError = LOCTEXT("FixtureSubFunctionName_Existent", "This name is already used by another sub function in this function!");
 }
 
 void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)

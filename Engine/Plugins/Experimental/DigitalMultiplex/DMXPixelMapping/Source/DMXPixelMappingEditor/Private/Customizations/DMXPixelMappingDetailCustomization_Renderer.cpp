@@ -88,10 +88,12 @@ void FDMXPixelMappingDetailCustomization_Renderer::CustomizeDetails(IDetailLayou
 	TSharedRef<IPropertyHandle> PositionYPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY), UDMXPixelMappingOutputComponent::StaticClass());
 	TSharedRef<IPropertyHandle> IsLockInDesignerPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, bLockInDesigner), UDMXPixelMappingOutputComponent::StaticClass());
 	TSharedRef<IPropertyHandle> IsVisibleInDesignerPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, bVisibleInDesigner), UDMXPixelMappingOutputComponent::StaticClass());
+	TSharedRef<IPropertyHandle> PixelBlendingPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PixelBlendingQuality), UDMXPixelMappingOutputComponent::StaticClass());
 	DetailLayout.HideProperty(PositionXPropertyHandle);
 	DetailLayout.HideProperty(PositionYPropertyHandle);
 	DetailLayout.HideProperty(IsLockInDesignerPropertyHandle);
 	DetailLayout.HideProperty(IsVisibleInDesignerPropertyHandle);
+	DetailLayout.HideProperty(PixelBlendingPropertyHandle);
 
 	// Add properties
 	RenderSettingsSettingsCategory.AddProperty(RendererTypePropertyHandle);

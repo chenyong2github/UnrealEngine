@@ -14,7 +14,15 @@ UDMXPixelMappingOutputComponent::UDMXPixelMappingOutputComponent()
 
 	bLockInDesigner = false;
 	bVisibleInDesigner = true;
+	ZOrder = 0;
+
+	CachedWidget =
+		SNew(SBox)
+		.HeightOverride(SizeX)
+		.WidthOverride(SizeY);
 #endif // WITH_EDITOR
+
+	PixelBlendingQuality = EDMXPixelBlendingQuality::Low;
 }
 
 #if WITH_EDITOR
@@ -25,16 +33,15 @@ const FText UDMXPixelMappingOutputComponent::GetPaletteCategory()
 	return LOCTEXT("Uncategorized", "Uncategorized");
 }
 
-TSharedRef<SWidget> UDMXPixelMappingOutputComponent::BuildSlot(TSharedRef<SCanvas> InCanvas)
+TSharedRef<SWidget> UDMXPixelMappingOutputComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
 	ensureMsgf(false, TEXT("You must implement RebuildWidget() in your child class"));
 
-	CachedWidget = SNew(SBox)
-		[
-			SNew(SSpacer)
-		];
-
-	Slot = &InCanvas->AddSlot()
+	Slot = 
+		&InCanvas->AddSlot()
+		.AutoSize(true)
+		.Alignment(FVector2D::ZeroVector)
+		.ZOrder(ZOrder)
 		[
 			CachedWidget.ToSharedRef()
 		];
@@ -47,6 +54,15 @@ TSharedPtr<SWidget> UDMXPixelMappingOutputComponent::GetCachedWidget() const
 	return CachedWidget;
 }
 
+void UDMXPixelMappingOutputComponent::SetZOrder(int32 NewZOrder)
+{
+	ZOrder = NewZOrder;
+
+	if (Slot != nullptr && CachedWidget.IsValid())
+	{
+		Slot->ZOrder(NewZOrder);
+	}
+}
 
 bool UDMXPixelMappingOutputComponent::CanEditChange(const FProperty* InProperty) const
 {
@@ -132,5 +148,17 @@ bool UDMXPixelMappingOutputComponent::CanBeMovedTo(const UDMXPixelMappingBaseCom
 {
 	return false;
 }
+
+#if WITH_EDITOR
+const FLinearColor& UDMXPixelMappingOutputComponent::GetEditorColor(bool bHighlight) const
+{
+	if (bHighlight)
+	{
+		return FLinearColor::Green;
+	}
+
+	return EditorColor;
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

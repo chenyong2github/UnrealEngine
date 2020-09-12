@@ -23,9 +23,9 @@ void FDMXLibrarySection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, cons
 
 	// Begin our Patches section for the context menu
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("PatchesMenuSection", "Active Patches"));
-	for (const FDMXFixturePatchChannels& PatchChannels : DMXSection->GetFixturePatchChannels())
+	for (const FDMXFixturePatchChannel& PatchChannel : DMXSection->GetFixturePatchChannels())
 	{
-		UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch();
+		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
 		if (Patch == nullptr || !Patch->IsValidLowLevelFast())
 		{
 			continue;
@@ -38,7 +38,7 @@ void FDMXLibrarySection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, cons
 				FExecuteAction::CreateLambda([=]
 				{
 					// Set Patch active mode
-					if (PatchChannels.ActiveMode == InModeIndex)
+					if (PatchChannel.ActiveMode == InModeIndex)
 					{
 						return;
 					}
@@ -67,7 +67,7 @@ void FDMXLibrarySection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, cons
 				}),
 				FIsActionChecked::CreateLambda([=]
 				{
-					return PatchChannels.ActiveMode == InModeIndex;
+					return PatchChannel.ActiveMode == InModeIndex;
 				})
 			);
 		};
@@ -134,9 +134,9 @@ void FDMXLibrarySection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, cons
 				// Functions from Active Mode section
 				SubMenuBuilder.BeginSection(NAME_None, LOCTEXT("PatchFunctionsMenuSection", "Functions"));
 				{
-					if (PatchChannels.ActiveMode < FixtureType->Modes.Num())
+					if (PatchChannel.ActiveMode < FixtureType->Modes.Num())
 					{
-						const FDMXFixtureMode& Mode = FixtureType->Modes[PatchChannels.ActiveMode];
+						const FDMXFixtureMode& Mode = FixtureType->Modes[PatchChannel.ActiveMode];
 						int32 FunctionIndex = 0;
 						for (const FDMXFixtureFunction& Function : Mode.Functions)
 						{

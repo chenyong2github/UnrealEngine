@@ -15,6 +15,7 @@ class ITableRow;
 class STableViewBase;
 class IPropertyHandle;
 class UDMXPixelMappingFixtureGroupItemComponent;
+enum class EDMXColorMode : uint8;
 
 template <typename ItemType>
 class SListView;
@@ -23,7 +24,7 @@ class FDMXPixelMappingDetailCustomization_FixtureGroupItem
 	: public IDetailCustomization
 {
 private:
-	struct FFunctionAttribure
+	struct FFunctionAttribute
 	{
 		TSharedPtr<IPropertyHandle> Handle;
 		TSharedPtr<IPropertyHandle> ExposeHandle;
@@ -49,30 +50,32 @@ public:
 
 private:
 
-	EVisibility GetRGBAttributeRowVisibilty(FFunctionAttribure* Attribute) const;
+	EVisibility GetRGBAttributeRowVisibilty(FFunctionAttribute* Attribute) const;
 
 	EVisibility GetRGBAttributesVisibility() const;
 
-	EVisibility GetMonochromeRowVisibilty(FFunctionAttribure* Attribute) const;
+	EVisibility GetMonochromeRowVisibilty(FFunctionAttribute* Attribute) const;
 
 	EVisibility GetMonochromeAttributesVisibility() const;
 
-	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FFunctionAttribure> InAtribute, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FFunctionAttribute> InAttribute, const TSharedRef<STableViewBase>& OwnerTable);
 
 protected:
 	/** Weak reference to the DMX editor */
 	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 
+	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
+
 private:
 	IDetailLayoutBuilder* DetailLayout;
 
-	TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent> FixtureGroupItemComponent;
+	TArray<TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent>> FixtureGroupItemComponents;
 
 	TArray<TSharedPtr<FName>> ActiveModeFunctions;
 
-	TArray<TSharedPtr<FFunctionAttribure>> RGBAttributes;
+	TArray<TSharedPtr<FFunctionAttribute>> RGBAttributes;
 
-	TArray<TSharedPtr<FFunctionAttribure>> MonochromeAttributes;
+	TArray<TSharedPtr<FFunctionAttribute>> MonochromeAttributes;
 
-	TSharedPtr<SListView<TSharedPtr<FFunctionAttribure>>> ExposeAndInvertListView;
+	TSharedPtr<SListView<TSharedPtr<FFunctionAttribute>>> ExposeAndInvertListView;
 };

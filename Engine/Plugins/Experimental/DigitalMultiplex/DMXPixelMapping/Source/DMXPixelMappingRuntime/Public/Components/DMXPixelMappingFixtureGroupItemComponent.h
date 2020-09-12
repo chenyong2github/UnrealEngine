@@ -2,32 +2,13 @@
 
 #pragma once
 
+#include "Components/DMXPixelMappingExtraAttribute.h"
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "Library/DMXEntityReference.h"
-#include "DMXAttribute.h"
 #include "DMXPixelMappingFixtureGroupItemComponent.generated.h"
 
 class UTextureRenderTarget2D;
 enum class EDMXColorMode : uint8;
-
-/**
- * Struct for exposing and setting values to extra arguments
- */
-USTRUCT(BlueprintType, Blueprintable)
-struct DMXPIXELMAPPINGRUNTIME_API FDMXPixelMappingExtraAttribute
-{
-	GENERATED_BODY()
-
-	FDMXPixelMappingExtraAttribute()
-		: Value(0)
-	{}
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
-	FDMXAttributeName Attribute;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (ClampMin = "0", UIMin = "0", ClampMax = "4294967295", UIMax = "4294967295"))
-	int64 Value;
-};
 
 /**
  * Fixture Item pixel component
@@ -60,7 +41,7 @@ public:
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SCanvas> InCanvas) override;
+	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 	virtual bool IsVisibleInDesigner() const override;
 	virtual void UpdateWidget() override;
@@ -79,6 +60,8 @@ public:
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
+
+	void SetPositionFromParent(const FVector2D& InPosition);
 
 private:
 	/** Set position of Fixture Pixel inside Fixture Group Boundary Box */
@@ -143,4 +126,7 @@ private:
 
 private:
 	static const FVector2D MixPixelSize;
+
+protected:
+	bool CheckForDuplicateFixturePatch(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent, FDMXEntityFixturePatchRef InFixturePatchRef);
 };

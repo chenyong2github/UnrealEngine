@@ -190,7 +190,7 @@ bool UDMXGDTFFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 		OutFilenames.Add(GDTFReimport->SourceFilename);
 		return true;
 	}
-	return true;
+	return false;
 }
 
 void UDMXGDTFFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)

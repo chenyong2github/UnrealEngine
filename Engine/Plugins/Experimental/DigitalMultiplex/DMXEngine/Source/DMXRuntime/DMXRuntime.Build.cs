@@ -25,7 +25,6 @@ public class DMXRuntime : ModuleRules
 			{
 				"Json",
 				"MovieScene",
-				"MovieSceneTracks"
 			}
 		);
 	}

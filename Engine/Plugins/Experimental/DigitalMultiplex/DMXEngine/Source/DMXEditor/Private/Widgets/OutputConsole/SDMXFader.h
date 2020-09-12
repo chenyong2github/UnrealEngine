@@ -12,7 +12,6 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboBox.h"
 
-struct FDMXUniverse;
 class SDMXOutputFaderList;
 class IDMXProtocol;
 

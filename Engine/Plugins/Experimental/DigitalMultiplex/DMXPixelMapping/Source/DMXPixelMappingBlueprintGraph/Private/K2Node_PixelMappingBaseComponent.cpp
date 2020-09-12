@@ -23,7 +23,6 @@ void UK2Node_PixelMappingBaseComponent::AllocateDefaultPins()
 	// Input pins
 	UEdGraphPin* InPixelMappingPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UDMXPixelMapping::StaticClass(), InPixelMappingPinName);
 	K2Schema->ConstructBasicPinTooltip(*InPixelMappingPin, LOCTEXT("InPixelMappingPin", "Input Pixel Mapping"), InPixelMappingPin->PinToolTip);
-	InPixelMappingPin->bNotConnectable = true;
 
 	Super::AllocateDefaultPins();
 }
@@ -91,18 +90,6 @@ UEdGraphPin* UK2Node_PixelMappingBaseComponent::GetPixelMappingPin(const TArray<
 	return Pin;
 }
 
-void UK2Node_PixelMappingBaseComponent::EarlyValidation(FCompilerResultsLog& MessageLog) const
-{
-	Super::EarlyValidation(MessageLog);
-
-	UEdGraphPin* PixelMappingPin = GetPixelMappingPin();
-	UDMXPixelMapping* DMXPixelMapping = Cast<UDMXPixelMapping>(PixelMappingPin->DefaultObject);
-	if (!DMXPixelMapping)
-	{
-		MessageLog.Error(*LOCTEXT("NoPixelMapping ", "No PixelMapping in @@").ToString(), this);
-	}
-}
-
 void UK2Node_PixelMappingBaseComponent::AddBlueprintAction(UClass* InClass, FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
 {
 	if (ActionRegistrar.IsOpenForRegistration(InClass))
@@ -150,6 +137,12 @@ void UK2Node_PixelMappingBaseComponent::TryRefreshGraphCheckInputPins(UEdGraphPi
 void UK2Node_PixelMappingBaseComponent::ExecuteEarlyValidation(FCompilerResultsLog& MessageLog, UEdGraphPin* InComponentPin) const
 {
 	const UEdGraphPin* PixelMappingPin = GetPixelMappingPin();
+
+	if(PixelMappingPin->LinkedTo.Num() == 1)
+	{
+		return;
+	}
+	
 	UDMXPixelMapping* DMXPixelMapping = Cast<UDMXPixelMapping>(PixelMappingPin->DefaultObject);
 	if (DMXPixelMapping == nullptr)
 	{
@@ -200,7 +193,6 @@ void UK2Node_PixelMappingBaseComponent::ExecuteExpandNode(FKismetCompilerContext
 	GetMatrixComponentCallFunction->AllocateDefaultPins();
 
 	// Hook up function node inputs
-	UEdGraphPin* InPixelMappingPin = GetInPixelMappingPin();
 
 	UEdGraphPin* FunctionInDMXPixelMappingPin = GetMatrixComponentCallFunction->FindPinChecked(TEXT("InDMXPixelMapping"));
 	UEdGraphPin* FunctionInComponentNamePin = GetMatrixComponentCallFunction->FindPinChecked(TEXT("InComponentName"));
@@ -208,8 +200,18 @@ void UK2Node_PixelMappingBaseComponent::ExecuteExpandNode(FKismetCompilerContext
 	UEdGraphPin* FunctionSelfPin = GetMatrixComponentCallFunction->FindPinChecked(UEdGraphSchema_K2::PN_Self);
 
 	// Hook up input
+	UEdGraphPin* InPixelMappingPin = GetInPixelMappingPin();
 	K2Schema->TryCreateConnection(FunctionSelfPin, PixelMappingSubsystemResult);
-	K2Schema->TrySetDefaultObject(*FunctionInDMXPixelMappingPin, InPixelMappingPin->DefaultObject);
+
+	if(InPixelMappingPin->LinkedTo.Num())
+	{
+		CompilerContext.MovePinLinksToIntermediate(*InPixelMappingPin, *FunctionInDMXPixelMappingPin);
+	}
+	else
+	{
+		K2Schema->TrySetDefaultObject(*FunctionInDMXPixelMappingPin, InPixelMappingPin->DefaultObject);
+	}
+	
 	if (InComponentNamePin->LinkedTo.Num())
 	{
 		CompilerContext.MovePinLinksToIntermediate(*InComponentNamePin, *FunctionInComponentNamePin);

@@ -93,6 +93,11 @@ void UDMXPixelMappingBaseComponent::ForComponentAndChildren(UDMXPixelMappingBase
 	}
 }
 
+FString UDMXPixelMappingBaseComponent::GetWidgetName() const
+{
+	return GetName();
+}
+
 UDMXPixelMappingBaseComponent* UDMXPixelMappingBaseComponent::GetChildAt(int32 InIndex) const
 {
 	if (Children.IsValidIndex(InIndex))

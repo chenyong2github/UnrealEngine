@@ -43,6 +43,8 @@ public class DMXEditor : ModuleRules
 				"Sequencer",
 				"MovieScene",
 				"TakesCore",
+				"TakeRecorder",
+				"TakeTrackRecorders",
 				"ContentBrowser"
 			}
 		);

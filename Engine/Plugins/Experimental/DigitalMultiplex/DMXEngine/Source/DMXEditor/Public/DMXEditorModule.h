@@ -98,15 +98,6 @@ private:
 	*/
 	void RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate);
 
-	/** Called when Open Channels Montior menu command is selected */
-	void OnOpenChannelsMonitor();
-
-	/** Called when Open Universe Montior menu command is selected */
-	void OnOpenActivityMonitor();
-
-	/** Called when Open Output Console  menu command is selected */
-	void OnOpenOutputConsole();
-
 	void AddToolbarExtension(class FToolBarBuilder& InOutBuilder);
 
 	TSharedRef< class SWidget > GenerateMonitorsMenu(TSharedPtr<class FUICommandList> InCommands);
@@ -131,15 +122,6 @@ private:
 	 */
 	TSharedPtr<FUICommandList> SharedDMXEditorCommands;
 
-	/**
-	 * Command list for the DMX Monitor menu
-	 */
-	TSharedPtr<class FUICommandList> DMXMonitorCommands;
-
-	TSharedPtr<class SDMXActivityMonitor> UniverseMonitorTab;
-	TSharedPtr<class SDMXChannelsMonitor> ChannelsMonitorTab;
-	TSharedPtr<class SDMXOutputConsole> OutputConsoleTab;
-
 	static EAssetTypeCategories::Type DMXEditorAssetCategory;
 
 	/** List of registered class that we must unregister when the module shuts down */
@@ -152,4 +134,30 @@ private:
 #if WITH_DEV_AUTOMATION_TESTS
 	friend struct FDMXChannelsMonitorHelper;
 #endif
+
+private:
+	/** Called when Open Channels Montior menu command is selected */
+	void OnOpenChannelsMonitor();
+
+	/** Called when Open Universe Montior menu command is selected */
+	void OnOpenActivityMonitor();
+
+	/** Called when Open Output Console menu command is selected */
+	void OnOpenOutputConsole();
+
+	/** Called when the Toggle Receive DMX menu command is selected */
+	void OnToggleReceiveDMX();
+
+	/** Returns text for the toggle receive DMX button in the menu */
+	FText GetToggleReceiveDMXText() const;
+
+	/** Returns text for the toggle receive DMX tooltip in the menu */
+	FText GetToggleReceiveDMXTooltip() const;
+
+	/** Command list for the DMX Monitor menu */
+	TSharedPtr<class FUICommandList> DMXMonitorCommands;
+
+	TSharedPtr<class SDMXActivityMonitor> UniverseMonitorTab;
+	TSharedPtr<class SDMXChannelsMonitor> ChannelsMonitorTab;
+	TSharedPtr<class SDMXOutputConsole> OutputConsoleTab;
 };

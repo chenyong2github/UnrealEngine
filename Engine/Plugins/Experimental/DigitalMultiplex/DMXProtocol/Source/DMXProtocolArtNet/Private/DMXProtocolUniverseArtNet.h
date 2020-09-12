@@ -8,13 +8,12 @@
 struct FRDMUID;
 
 class DMXPROTOCOLARTNET_API FDMXProtocolUniverseArtNet
-
 	: public IDMXProtocolUniverse
 {
 public:
 	FDMXProtocolUniverseArtNet(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings);
 
-	//~ Begin IDMXProtocolDevice implementation
+	//~ Begin IDMXProtocolUniverse implementation
 	virtual IDMXProtocolPtr GetProtocol() const override;
 	virtual FDMXBufferPtr GetInputDMXBuffer() const override;
 	virtual FDMXBufferPtr GetOutputDMXBuffer() const override;
@@ -26,7 +25,9 @@ public:
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
 	virtual void UpdateSettings(const FJsonObject& InSettings) override;
 	virtual bool IsSupportRDM() const override;
-	//~ End IDMXProtocolDevice implementation
+
+	virtual void HandleReplyPacket(const FArrayReaderPtr& Buffer) override;
+	//~ End IDMXProtocolUniverse implementation
 
 public:
 	/**

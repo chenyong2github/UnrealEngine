@@ -49,7 +49,7 @@ public:
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
 	virtual bool IsExposedToTemplate() { return true; }
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SCanvas> InCanvas) override;
+	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 
 	virtual void UpdateWidget() override;
@@ -109,7 +109,7 @@ public:
 	EDMXPixelsDistribution Distribution;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (DisplayPriority = "1"))
-	bool bIngoneAlfaChannel;
+	bool bIgnoreAlphaChannel;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (ClampMin = "0", ClampMax = "255", UIMin = "0", UIMax = "255", DisplayPriority = "2"))
 	float PixelIntensity;

@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXEditorModule.h"
+
+#include "DMXAttribute.h"
+#include "DMXEditor.h"
+#include "DMXEditorStyle.h"
+#include "DMXProtocolTypes.h"
+#include "DMXRuntimeBlueprintLibrary.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntity.h"
 #include "Game/DMXComponent.h"
-#include "DMXEditor.h"
-#include "DMXEditorStyle.h"
-#include "DMXProtocolTypes.h"
-#include "DMXAttribute.h"
 #include "Commands/DMXEditorCommands.h"
 #include "AssetTools/AssetTypeActions_DMXEditorLibrary.h"
 #include "Customizations/DMXEditorPropertyEditorCustomization.h"
@@ -90,6 +92,11 @@ void FDMXEditorModule::StartupModule()
 	DMXMonitorCommands->MapAction(
 		FDMXEditorCommands::Get().OpenOutputConsole,
 		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenOutputConsole),
+		FCanExecuteAction()
+	);
+	DMXMonitorCommands->MapAction(
+		FDMXEditorCommands::Get().ToggleReceiveDMX,
+		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnToggleReceiveDMX),
 		FCanExecuteAction()
 	);
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LevelEditorName);
@@ -238,7 +245,7 @@ void FDMXEditorModule::AddToolbarExtension(FToolBarBuilder& InOutBuilder)
 		FOnGetContent::CreateRaw(this, &FDMXEditorModule::GenerateMonitorsMenu, SharedDMXEditorCommands),
 		LOCTEXT("InputInfo_Label", "DMX"),
 		LOCTEXT("InputInfo_ToolTip", "DMX Tools"),
-		FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.InputInfoAction")
+		FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor")
 		);
 }
 
@@ -248,7 +255,7 @@ TSharedRef<SWidget> FDMXEditorModule::GenerateMonitorsMenu(TSharedPtr<FUICommand
 	FUIAction OpenChannelsMonitor(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenChannelsMonitor));
 	FUIAction OpenActivityMonitor(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenActivityMonitor));
 	FUIAction OpenOutputConsole(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenOutputConsole));
-
+	FUIAction ToggleReceiveDMX(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnToggleReceiveDMX));
 
 	MenuBuilder.BeginSection("CustomMenu", TAttribute<FText>(FText::FromString("DMX")));
 
@@ -267,8 +274,12 @@ TSharedRef<SWidget> FDMXEditorModule::GenerateMonitorsMenu(TSharedPtr<FUICommand
 			LOCTEXT("LevelEditorMenu_OutputConsoleTooltip", "Console to generate and output DMX Signals"),
 			FSlateIcon(), OpenOutputConsole);
 
-	MenuBuilder.EndSection();
+		MenuBuilder.AddMenuEntry(
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FDMXEditorModule::GetToggleReceiveDMXText)),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FDMXEditorModule::GetToggleReceiveDMXTooltip)),
+			FSlateIcon(), ToggleReceiveDMX);
 
+	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }
@@ -325,6 +336,44 @@ void FDMXEditorModule::OnOpenOutputConsole()
 
 	check(OutputConsoleTab.IsValid());
 	OutputConsoleTab->RestoreConsole();	
+}
+
+void FDMXEditorModule::OnToggleReceiveDMX()
+{
+	bool bAffectEditor = true;
+
+	if (UDMXRuntimeBlueprintLibrary::IsReceiveDMXEnabled())
+	{
+		UDMXRuntimeBlueprintLibrary::SetReceiveDMXEnabled(false, bAffectEditor);
+	}
+	else
+	{
+		UDMXRuntimeBlueprintLibrary::SetReceiveDMXEnabled(true, bAffectEditor);
+	}
+}
+
+FText FDMXEditorModule::GetToggleReceiveDMXText() const
+{
+	if (UDMXRuntimeBlueprintLibrary::IsReceiveDMXEnabled())
+	{
+		return LOCTEXT("ReceiveDMXEnabledDMXMenuButtonText", "Pause Receive DMX");
+	}
+	else
+	{
+		return LOCTEXT("ReceiveDMXDisabledDMXMenuButtonText", "Resume Receive DMX");
+	}
+}
+
+FText FDMXEditorModule::GetToggleReceiveDMXTooltip() const
+{
+	if (UDMXRuntimeBlueprintLibrary::IsReceiveDMXEnabled())
+	{
+		return LOCTEXT("ReceiveDMXEnabledDMXMenuButtonText", "Disables inbound DMX packets in editor. Overrides DMX project settings during editor time.");
+	}
+	else
+	{
+		return LOCTEXT("ReceiveDMXDisabledDMXMenuButtonText", "Enables inbound DMX packets editor. Overrides DMX project settings during editor time.");
+	}
 }
 
 IMPLEMENT_MODULE(FDMXEditorModule, DMXEditor)

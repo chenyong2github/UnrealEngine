@@ -11,7 +11,7 @@ class IDMXPixelMappingRenderer;
 class UTextureRenderTarget2D;
 class UMaterialInterface;
 class UUserWidget;
-
+enum class EDMXPixelBlendingQuality : uint8;
 
 /**
  * FDMXPixelMappingRendererPreviewInfo holds properties for the group rendering of multiple downsampled textures
@@ -37,39 +37,39 @@ public:
 	virtual ~IDMXPixelMappingRenderer() {}
 
 	/**
-	 * Downsample and Draw input texture to Destination texture.
+	 * Downsample and Draw input texture to Destination texture. TODO: May want to refactor to use FRenderContext directly.
 	 *
-	 * @params InputTexture					Rendering resource of input texture
+	 * @param InputTexture					Rendering resource of input texture
 	 * @param DstTexture					Rendering resource of RenderTarget texture
 	 * @param DstTextureTargetResource		Rendering resource for render target
 	 * @param PixelFactor					RGBA pixel multiplicator
-	 * @param FIntVector4					RGBA pixel flag for inversion
-	 * @param X 							Position in screen pixels of the top left corner of the quad. X value
-	 * @param Y 							Position in screen pixels of the top left corner of the quad. Y value
-	 * @param SizeX    						Size in screen pixels of the quad. X value
-	 * @param SizeY 						Size in screen pixels of the quad. Y value
-	 * @param U								Position in texels of the top left corner of the quad's UV's. U value
-	 * @param V								Position in texels of the top left corner of the quad's UV's. V value
-	 * @param SizeU    						Size in texels of the quad's UV's. U value
-	 * @param SizeV		    				Size in texels of the quad's UV's. V value
-	 * @param TargetSizeX					sSize in screen pixels of the target surface. X value
-	 * @param TargetSizeY					Size in screen pixels of the target surface. Y value
-	 * @param TextureSize                   Size in texels of the source texture
-	 * @param VertexShader					The vertex shader used for rendering
-	 * @param SurfaceReadCallback			ReadSurfaceData from DstTextureTargetResource callback, it holds CPU FColor array and size of the read surface
+	 * @param InvertPixel					RGBA pixel flag for inversion
+	 * @param Position 						Position in screen pixels of the top left corner of the quad
+	 * @param Size    						Size in screen pixels of the quad
+	 * @param UV							Position in texels of the top left corner of the quad's UV's
+	 * @param UVSize    					Size in texels of the quad's total UV space
+	 * @param UVCellSize					Size in texels of UV. May match UVSize
+	 * @param TargetSize					Size in texels of the target texture
+	 * @param TextureSize					Size in texels of the source texture
+	 * @param ReadCallback					ReadSurfaceData from DstTextureTargetResource callback, it holds CPU FColor array and size of the read surface
+	 * @param PixelBlendingQuality			The quality of color samples in the pixel shader (number of samples)
+	 * @param bStaticCalculateUV			Calculates the UV point to sample purely on the UV position/size. Works best for renderers which represent a single pixel
 	 */
 	virtual void DownsampleRender_GameThread(
 		FTextureResource* InputTexture,
-		FTextureResource* DstTexture, 
+		FTextureResource* DstTexture,
 		FTextureRenderTargetResource* DstTextureTargetResource,
-		FVector4 PixelFactor,
-		FIntVector4 InvertPixel,
-		float X, float Y,
-		float SizeX, float SizeY,
-		float U, float V,
-		float SizeU, float SizeV,
-		FIntPoint TargetSize,
-		FIntPoint TextureSize,
+		const FVector4& PixelFactor,
+		const FIntVector4& InvertPixel,
+		const FVector2D& Position,
+		const FVector2D& Size,
+		const FVector2D& UV,
+		const FVector2D& UVSize,
+		const FVector2D& UVCellSize,
+		const FIntPoint& TargetSize,
+		const FIntPoint& TextureSize,
+		EDMXPixelBlendingQuality PixelBlendingQuality,
+		bool bStaticCalculateUV,
 		SurfaceReadCallback ReadCallback) = 0;
 
 	/**
@@ -83,18 +83,18 @@ public:
 	/**
 	 * Render material into the RenderTarget2D
 	 *
-	 * @param InRenderTarget		2D render target texture resource
-	 * @param UUserWidget			UMG widget to use
+	 * @param InRenderTarget				2D render target texture resource
+	 * @param InUserWidget					UMG widget to use
 	 */
 	virtual void RenderWidget(UTextureRenderTarget2D* InRenderTarget, UUserWidget* InUserWidget) const  = 0;
 
 	/**
 	 * Rendering input texture to render target
 	 *
-	 * @param InTextureResource			Input texture resource
-	 * @param InRenderTargetTexture		RenderTarget
-	 * @param InSize					Rendering size
-	 * @param bSRGBSource				If the source texture is sRGB
+	 * @param InTextureResource				Input texture resource
+	 * @param InRenderTargetTexture			RenderTarget
+	 * @param InSize						Rendering size
+	 * @param bSRGBSource					If the source texture is sRGB
 	 */
 	virtual void RenderTextureToRectangle_GameThread(const FTextureResource* InTextureResource, const FTexture2DRHIRef InRenderTargetTexture, FVector2D InSize, bool bSRGBSource) const = 0;
 
@@ -102,10 +102,18 @@ public:
 	/**
 	 * Render preview with one or multiple downsampled textures
 	 *
-	 * @param TextureResource		Rendering resource of RenderTarget texture
-	 * @param PreviewInfos			Array of input previews
+	 * @param TextureResource				Rendering resource of RenderTarget texture
+	 * @param PreviewInfos					Array of input previews
 	 */
 	virtual void RenderPreview_GameThread(FTextureResource* TextureResource, const TArray<FDMXPixelMappingRendererPreviewInfo>& PreviewInfos) const = 0;
 #endif // WITH_EDITOR
 
+	/**
+	* Sets the brigthness of the renderer
+	*/
+	void SetBrightness(float InBrightness) { Brightness = InBrightness; }
+
+protected:
+	/** Brightness multiplier for the renderer */
+	float Brightness = 1.0f;
 };
