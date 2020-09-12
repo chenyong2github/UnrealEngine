@@ -2897,6 +2897,20 @@ int32 FAndroidMisc::GetNativeDisplayRefreshRate()
 
 }
 
+bool FAndroidMisc::SupportsBackbufferSampling()
+{
+	static int32 CachedAndroidOpenGLSupportsBackbufferSampling = -1;
+	
+	if (CachedAndroidOpenGLSupportsBackbufferSampling == -1)
+	{
+		bool bAndroidOpenGLSupportsBackbufferSampling = false;
+		GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bAndroidOpenGLSupportsBackbufferSampling"), bAndroidOpenGLSupportsBackbufferSampling, GEngineIni);
+
+		CachedAndroidOpenGLSupportsBackbufferSampling = (bAndroidOpenGLSupportsBackbufferSampling || FAndroidMisc::ShouldUseVulkan()) ? 1 : 0;
+	}
+
+	return CachedAndroidOpenGLSupportsBackbufferSampling == 1;
+}
 
 
 

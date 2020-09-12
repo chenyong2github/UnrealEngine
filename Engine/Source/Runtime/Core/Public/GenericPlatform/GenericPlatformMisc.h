@@ -1454,6 +1454,11 @@ public:
 	{
 	}
 
+	FORCEINLINE static bool SupportsBackbufferSampling()
+	{
+		return true;
+	}
+
 	/**
 	 * retrieves the maximum refresh rate supported by the platform
 	 */

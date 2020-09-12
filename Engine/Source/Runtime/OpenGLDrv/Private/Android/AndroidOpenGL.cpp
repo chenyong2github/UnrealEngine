@@ -55,6 +55,7 @@ static TAutoConsoleVariable<int32> CVarDisableFBFNonCoherent(
 
 struct FPlatformOpenGLDevice
 {
+	bool TargetDirty;
 
 	void SetCurrentSharedContext();
 	void SetCurrentRenderingContext();
@@ -140,6 +141,38 @@ void* PlatformGetWindow(FPlatformOpenGLContext* Context, void** AddParam)
 
 bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport& Viewport, uint32 BackbufferSizeX, uint32 BackbufferSizeY, bool bPresent,bool bLockToVsync )
 {
+	if (FPlatformMisc::SupportsBackbufferSampling())
+	{
+		FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
+
+		if (Device->TargetDirty)
+		{
+			VERIFY_GL_SCOPE();
+			glBindFramebuffer(GL_FRAMEBUFFER, Context->ViewportFramebuffer);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Context->BackBufferTarget, Context->BackBufferResource, 0);
+
+			Device->TargetDirty = false;
+		}
+
+		{
+			VERIFY_GL_SCOPE();
+			glDisable(GL_FRAMEBUFFER_SRGB);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			FOpenGL::DrawBuffer(GL_BACK);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, Context->ViewportFramebuffer);
+			FOpenGL::ReadBuffer(GL_COLOR_ATTACHMENT0);
+
+			FOpenGL::BlitFramebuffer(
+				0, 0, BackbufferSizeX, BackbufferSizeY,
+				0, 0, BackbufferSizeX, BackbufferSizeY,
+				GL_COLOR_BUFFER_BIT,
+				GL_NEAREST
+			);
+
+			glEnable(GL_FRAMEBUFFER_SRGB);
+		}
+	}
+
 	if (bPresent && Viewport.GetCustomPresent())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FAndroidOpenGL_PlatformBlitToViewport_CustomPresent);
@@ -338,16 +371,35 @@ void PlatformDestroyOpenGLContext(FPlatformOpenGLDevice* Device, FPlatformOpenGL
 
 FRHITexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, uint32 SizeX, uint32 SizeY)
 {
-	ETextureCreateFlags Flags = TexCreate_RenderTargetable;
-	FOpenGLTexture2D* Texture2D = new FOpenGLTexture2D(OpenGLRHI, AndroidEGL::GetInstance()->GetOnScreenColorRenderBuffer(), GL_RENDERBUFFER, GL_COLOR_ATTACHMENT0, SizeX, SizeY, 0, 1, 1, 1, 1, PF_B8G8R8A8, false, false, Flags, FClearValueBinding::Transparent);
-	OpenGLTextureAllocated(Texture2D, Flags);
+	// Create the built-in back buffer if we disable backbuffer sampling.
+	// Otherwise return null and we will create an off-screen surface afterward.
+	if (!FPlatformMisc::SupportsBackbufferSampling())
+	{
+		ETextureCreateFlags Flags = TexCreate_RenderTargetable;
+		FOpenGLTexture2D* Texture2D = new FOpenGLTexture2D(OpenGLRHI, AndroidEGL::GetInstance()->GetOnScreenColorRenderBuffer(), GL_RENDERBUFFER, GL_COLOR_ATTACHMENT0, SizeX, SizeY, 0, 1, 1, 1, 1, PF_B8G8R8A8, false, false, Flags, FClearValueBinding::Transparent);
+		OpenGLTextureAllocated(Texture2D, Flags);
 
-	return Texture2D;
+		return Texture2D;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 void PlatformResizeGLContext( FPlatformOpenGLDevice* Device, FPlatformOpenGLContext* Context, uint32 SizeX, uint32 SizeY, bool bFullscreen, bool bWasFullscreen, GLenum BackBufferTarget, GLuint BackBufferResource)
 {
 	check(Context);
+	
+	Context->BackBufferResource = BackBufferResource;
+	Context->BackBufferTarget = BackBufferTarget;
+
+	if (FPlatformMisc::SupportsBackbufferSampling())
+	{
+		Device->TargetDirty = true;
+		glBindFramebuffer(GL_FRAMEBUFFER, Context->ViewportFramebuffer);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, BackBufferTarget, BackBufferResource, 0);
+	}
 
 	glViewport(0, 0, SizeX, SizeY);
 	VERIFY_GL(glViewport);

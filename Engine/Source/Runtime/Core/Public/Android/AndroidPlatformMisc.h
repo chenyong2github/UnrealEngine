@@ -293,6 +293,8 @@ public:
 	 * Returns whether or not a 16 bit index buffer should be promoted to 32 bit on load, needed for some Android devices
 	 */
 	static bool Expand16BitIndicesTo32BitOnLoad();
+
+	static bool SupportsBackbufferSampling();
 private:
 	static const ANSICHAR* CodeToString(int Signal, int si_code);
 	static EDeviceScreenOrientation DeviceOrientation;
