@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 
 class IDatasmithBaseMaterialElement;
+class IDatasmithDecalMaterialElement;
 class IDatasmithMaterialElement;
 class IDatasmithMasterMaterialElement;
 struct FDatasmithImportContext;
@@ -35,4 +36,5 @@ public:
 
 private:
 	static UMaterialInterface* ImportMasterMaterial( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithMasterMaterialElement >& MaterialElement, UMaterialInterface* ExistingMaterial );
+	static UMaterialInterface* ImportDecalMaterial( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithDecalMaterialElement >& MaterialElement, UMaterialInterface* ExistingMaterial );
 };

@@ -13,20 +13,25 @@
 #include "IDatasmithSceneElements.h"
 
 #include "ObjectTemplates/DatasmithActorTemplate.h"
+#include "ObjectTemplates/DatasmithDecalComponentTemplate.h"
 #include "ObjectTemplates/DatasmithSceneComponentTemplate.h"
 #include "ObjectTemplates/DatasmithStaticMeshComponentTemplate.h"
+#include "Utility/DatasmithImporterImpl.h"
 #include "Utility/DatasmithImporterUtils.h"
 #include "Utility/DatasmithMeshHelper.h"
 
+#include "ActorFactories/ActorFactoryDeferredDecal.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
+#include "Components/DecalComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
+#include "Engine/DecalActor.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
-#include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/Paths.h"
 #include "Misc/UObjectToken.h"
 #include "ObjectTools.h"
@@ -692,6 +697,44 @@ void FDatasmithActorImporter::OverrideStaticMeshActorMaterial( const FDatasmithI
 			StaticMeshComponentTemplate->OverrideMaterials[ MeshSubMaterialIdx ] = Material;
 		}
 	}
+}
+
+AActor * FDatasmithActorImporter::ImportDecalActor(FDatasmithImportContext& ImportContext, const TSharedRef<IDatasmithDecalActorElement>& DecalActorElement, FDatasmithActorUniqueLabelProvider& UniqueNameProvider)
+{
+	if (ImportContext.Options->OtherActorImportPolicy == EDatasmithImportActorPolicy::Ignore)
+	{
+		return nullptr;
+	}
+
+	AActor* Actor = FDatasmithActorImporter::ImportActor( ADecalActor::StaticClass(), DecalActorElement, ImportContext, ImportContext.Options->OtherActorImportPolicy );
+
+	if ( ADecalActor* DecalActor = Cast< ADecalActor >( Actor ) )
+	{
+		UDecalComponent* DecalComponent = Cast<UDecalComponent>(DecalActor->FindComponentByClass(UDecalComponent::StaticClass()));
+		check(DecalComponent);
+
+		DecalComponent->UnregisterComponent();
+
+		FDatasmithAssetsImportContext& AssetsContext = ImportContext.AssetsContext;
+
+		UDatasmithDecalComponentTemplate* DecalTemplate = NewObject< UDatasmithDecalComponentTemplate >( DecalComponent );
+
+		DecalTemplate->SortOrder = DecalActorElement->GetSortOrder();
+		DecalTemplate->DecalSize = DecalActorElement->GetDimensions();
+		DecalTemplate->Material = FDatasmithImporterUtils::FindAsset< UMaterialInterface >( AssetsContext, DecalActorElement->GetDecalMaterialPathName() );
+
+		DecalTemplate->Apply( DecalComponent );
+
+		// Init Component
+		DecalComponent->RegisterComponent();
+
+		DecalActor->UpdateComponentTransforms();
+		DecalActor->MarkPackageDirty();
+
+		return DecalActor;
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE
