@@ -43,8 +43,6 @@ enum class EDMXCommunicationTypes : uint8
 UENUM(BlueprintType, Category = "DMX")
 enum class EDMXFixtureSignalFormat : uint8
 {
-	/** Uses 1 channel (byte) and allows subdivision into sub functions */
-	E8BitSubFunctions UMETA(DisplayName = "8 Bit (Sub Functions)", Hidden),
 	/** Uses 1 channel (byte). Range: 0 to 255 */
 	E8Bit 	UMETA(DisplayName = "8 Bit"),
 	/** Uses 2 channels (bytes). Range: 0 to 65.535 */
@@ -143,28 +141,30 @@ public:
 	static FName Conv_DMXFixtureCategoryToName(const FDMXFixtureCategory& InFixtureCategory);
 };
 
-
+/**
+ * Stores to where a DMX protocol routes its data.
+ *
+ * If UnicastIpAddresses is empty, the protocol will send all data in broadcast mode to UniverseNumber.
+ * Otherwise, all traffic is routed to IPs specified in UnicastIpAddresses.
+ */
 USTRUCT()
-struct DMXPROTOCOL_API FDMXUniverse
+struct DMXPROTOCOL_API FDMXCommunicationEndpoint 
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	uint32 UniverseNumber;
 
-	UPROPERTY(EditAnywhere, meta = (DisplayName = "Address", ClampMin = 1, ClampMax = 512, UIMin = 1, UIMax = 512), Category = "DMX")
-	uint32 Channel;
-
-	UPROPERTY()
-	EDMXProtocolDirectionality DMXProtocolDirectionality;
-
 	UPROPERTY()
 	TArray<FString> UnicastIpAddresses;
 
-	FDMXUniverse()
+	bool ShouldBroadcastOnly() const
+	{
+		return UnicastIpAddresses.Num() == 0;
+	}
+
+	FDMXCommunicationEndpoint()
 		: UniverseNumber(0)
-		, Channel(1)
-		, DMXProtocolDirectionality(EDMXProtocolDirectionality::EInput)
 	{}
 };
 

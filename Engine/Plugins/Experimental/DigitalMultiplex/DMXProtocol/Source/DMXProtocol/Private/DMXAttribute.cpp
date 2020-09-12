@@ -124,3 +124,14 @@ TArray<FString> FDMXAttribute::GetKeywords() const
 
 	return CleanedKeywords;
 }
+
+void FDMXAttribute::CleanupKeywords()
+{
+	// support tabs too
+	Keywords = Keywords.ConvertTabsToSpaces(1);
+	Keywords.TrimStartAndEndInline();
+	Keywords = Keywords.Replace(TEXT(" "), TEXT(","));
+	TArray<FString> KeywordsArray;
+	Keywords.ParseIntoArray(KeywordsArray, TEXT(","), true);
+	Keywords = FString::Join(KeywordsArray, TEXT(", "));
+}

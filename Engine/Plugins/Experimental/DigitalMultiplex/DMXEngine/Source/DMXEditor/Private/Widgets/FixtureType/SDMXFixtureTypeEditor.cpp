@@ -187,10 +187,9 @@ void SDMXFixtureTypeEditor::OnFinishedChangingProperties(const FPropertyChangedE
 	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 	{
 		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes)
-			|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions)
-			|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, SubFunctions))
+			|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions))
 		{
-			// When the user adds a Mode, Function or Sub Function, their names can't be empty
+			// When the user adds a Mode or Function, their names can't be empty
 
 			const TArray<UDMXEntity*>&& SelectedEntities = EntityList->GetSelectedEntities();
 

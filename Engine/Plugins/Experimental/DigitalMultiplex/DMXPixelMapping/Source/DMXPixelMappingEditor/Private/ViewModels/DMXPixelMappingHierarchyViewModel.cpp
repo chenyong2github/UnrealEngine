@@ -36,7 +36,7 @@ FText FDMXPixelMappingHierarchyItemWidgetModel::GetText() const
 {
 	if (UDMXPixelMappingBaseComponent* Component = Reference.GetComponent())
 	{
-		return FText::FromString(Component->GetFName().ToString());
+		return FText::FromString(Component->GetWidgetName());
 	}
 
 	return FText::GetEmpty();

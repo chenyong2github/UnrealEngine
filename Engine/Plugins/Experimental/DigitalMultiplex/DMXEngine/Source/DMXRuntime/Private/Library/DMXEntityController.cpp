@@ -120,28 +120,28 @@ void UDMXEntityController::UpdateUniversesFromRange()
 {
 	const uint16 NumUniverses(UniverseLocalNum);
 
-	if (NumUniverses < Universes.Num())
+	if (NumUniverses < Endpoints.Num())
 	{
-		Universes.Reset(NumUniverses);
-		Universes.AddZeroed(NumUniverses);
+		Endpoints.Reset(NumUniverses);
+		Endpoints.AddZeroed(NumUniverses);
 	}
-	else if (NumUniverses > Universes.Num())
+	else if (NumUniverses > Endpoints.Num())
 	{
-		Universes.AddZeroed(NumUniverses - Universes.Num());
+		Endpoints.AddZeroed(NumUniverses - Endpoints.Num());
 	}
 
 	for (uint16 UniverseIndex = 0, UniverseID = UniverseRemoteStart; UniverseID <= UniverseRemoteEnd; ++UniverseIndex, ++UniverseID)
 	{
-		Universes[UniverseIndex].UniverseNumber = UniverseID;
+		Endpoints[UniverseIndex].UniverseNumber = UniverseID;
 		if (CommunicationMode == EDMXCommunicationTypes::Unicast)
 		{
 			TArray<FString> UnicastIPs;
 			UnicastIPs.Append(AdditionalUnicastIPs);
-			Universes[UniverseIndex].UnicastIpAddresses = UnicastIPs;
+			Endpoints[UniverseIndex].UnicastIpAddresses = UnicastIPs;
 		}
 		else
 		{
-			Universes[UniverseIndex].UnicastIpAddresses = { "" };
+			Endpoints[UniverseIndex].UnicastIpAddresses = { "" };
 		}
 	}
 }

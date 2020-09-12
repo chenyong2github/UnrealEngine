@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Types/SlateEnums.h"
 
 class FDMXPixelMappingToolkit;
 class ITableRow;
@@ -46,7 +47,7 @@ private:
 
 	UDMXLibrary* GetSelectedDMXLibrary();
 
-	void OnClickFixturePatchRow(TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef);
+	void OnFixtureSelectionChanged(TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef, ESelectInfo::Type SelectInfo);
 
 	void OnDMXLibraryChanged();
 

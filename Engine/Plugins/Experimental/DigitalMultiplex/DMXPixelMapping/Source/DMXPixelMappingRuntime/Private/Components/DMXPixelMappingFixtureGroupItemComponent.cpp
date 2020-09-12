@@ -27,19 +27,88 @@ UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemCompo
 
 	ColorMode = EDMXColorMode::CM_RGB;
 	AttributeRExpose = AttributeGExpose = AttributeBExpose = true;
+	AttributeR.SetFromName("Red");
+	AttributeG.SetFromName("Green");
+	AttributeB.SetFromName("Blue");
+
+	MonochromeExpose = true;
 
 #if WITH_EDITOR
 	Slot = nullptr;
+
+	bEditableEditorColor = true;
+
+	ZOrder = 2;
 #endif // WITH_EDITOR
+}
+
+bool UDMXPixelMappingFixtureGroupItemComponent::CheckForDuplicateFixturePatch(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent, FDMXEntityFixturePatchRef InFixturePatchRef)
+{
+	for(UDMXPixelMappingBaseComponent* Component : FixtureGroupComponent->Children)
+	{
+		UDMXPixelMappingFixtureGroupItemComponent* FixtureGroupItem = Cast<UDMXPixelMappingFixtureGroupItemComponent>(Component);
+		if (FixtureGroupItem)
+		{
+			if (FixtureGroupItem == this)
+			{
+				continue;
+			}
+			if (FixtureGroupItem->FixturePatchRef == InFixturePatchRef)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void UDMXPixelMappingFixtureGroupItemComponent::PostParentAssigned()
 {
 	Super::PostParentAssigned();
 
-	if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = GetFirstParentByClass<UDMXPixelMappingFixtureGroupComponent>(this))
+	UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(Parent->Parent);
+	if (RendererComponent)
 	{
-		FixturePatchRef = FixtureGroupComponent->SelectedFixturePatchRef;
+		for (UDMXPixelMappingBaseComponent* Component : RendererComponent->Children)
+		{
+			UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Component);
+			if (FixtureGroupComponent)
+			{
+				if (CheckForDuplicateFixturePatch(FixtureGroupComponent, FixturePatchRef))
+				{
+					UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("FixturePatch %s already assigned to Renderer %s"),
+						*FixturePatchRef.GetFixturePatch()->GetName(), *RendererComponent->GetName());
+				}
+			}
+		}
+	}
+
+	// first compute a non-overlapping position
+	if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Parent))
+	{
+		bool bFirstStep = true;
+		for (UDMXPixelMappingBaseComponent* Component : FixtureGroupComponent->Children)
+		{
+			// skip myself
+			if (Component == this)
+			{
+				continue;
+			}
+			if (UDMXPixelMappingFixtureGroupItemComponent* FixtureGroupItem = Cast<UDMXPixelMappingFixtureGroupItemComponent>(Component))
+			{
+				if (bFirstStep)
+				{
+					PositionX = FixtureGroupItem->PositionX + FixtureGroupItem->SizeX;
+					PositionY = FixtureGroupItem->PositionY + FixtureGroupItem->SizeY;
+					bFirstStep = false;
+				}
+				else
+				{
+					PositionX = FMath::Max(FixtureGroupItem->PositionX + FixtureGroupItem->SizeX, PositionX);
+					PositionY = FMath::Max(FixtureGroupItem->PositionY + FixtureGroupItem->SizeY, PositionY);
+				}
+			}
+		}
 	}
 
 	SetPositionInBoundaryBox(FVector2D(PositionX, PositionY));
@@ -80,17 +149,27 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeChainProperty(FPro
 	{
 		UpdateWidget();
 	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
+	{
+		Brush.TintColor = EditorColor;
+	}
 }
 
-TSharedRef<SWidget> UDMXPixelMappingFixtureGroupItemComponent::BuildSlot(TSharedRef<SCanvas> InCanvas)
+TSharedRef<SWidget> UDMXPixelMappingFixtureGroupItemComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
-	CachedWidget = SNew(SBox);
+	CachedWidget =
+		SNew(SBox)
+		.HeightOverride(SizeX)
+		.WidthOverride(SizeY);
 
-	Slot = &InCanvas->AddSlot()
+	Slot =
+		&InCanvas->AddSlot()
+		.AutoSize(true)
+		.Alignment(FVector2D::ZeroVector)
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, -20.0f))
+			.Padding(FMargin(2.0f, 2.0f))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
@@ -105,30 +184,42 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupItemComponent::BuildSlot(TShared
 			]
 		];
 
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+
+	if (FixturePatch && EditorColor == FLinearColor::Blue)
+	{
+		EditorColor = FixturePatch->EditorColor;
+	}
+
 	// Border settings
 	Brush.DrawAs = ESlateBrushDrawType::Border;
-	Brush.TintColor = FLinearColor::Blue;
+	Brush.TintColor = GetEditorColor(false);
 	Brush.Margin = FMargin(1.f);
 
-	Slot->Position(FVector2D(PositionX, PositionY));
-	Slot->Size(FVector2D(SizeX, SizeY));
+	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
+	CachedWidget->SetWidthOverride(SizeX);
+	CachedWidget->SetHeightOverride(SizeY);
 
 	UpdateWidget();
+
 
 	return CachedWidget.ToSharedRef();
 }
 
 void UDMXPixelMappingFixtureGroupItemComponent::ToggleHighlightSelection(bool bIsSelected)
 {
+	Super::ToggleHighlightSelection(bIsSelected);
+
 	if (bIsSelected)
 	{
-		Brush.Margin = FMargin(1.f);
 		Brush.TintColor = FLinearColor::Green;
 	}
 	else
 	{
-		Brush.Margin = FMargin(1.f);
-		Brush.TintColor = FLinearColor::Blue;
+		UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+		check(FixturePatch);
+
+		Brush.TintColor = FixturePatch->EditorColor;
 	}
 }
 
@@ -262,9 +353,21 @@ void UDMXPixelMappingFixtureGroupItemComponent::RendererOutputTexture()
 		{
 			GetOutputTexture();
 
-			uint32 TexureSizeX = Texture->Resource->GetSizeX();
-			uint32 TexureSizeY = Texture->Resource->GetSizeY();
+			const uint32 TexureSizeX = Texture->Resource->GetSizeX();
+			const uint32 TexureSizeY = Texture->Resource->GetSizeY();
 
+			const FVector2D Position = FVector2D(0.f, 0.f);
+			const FVector2D Size = FVector2D(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY());
+			const FVector2D UV = FVector2D(PositionX / TexureSizeX, PositionY / TexureSizeY);
+			
+			const FVector2D UVSize(SizeX / TexureSizeX, SizeY / TexureSizeY);
+			const FVector2D UVCellSize = UVSize / 2.f;
+
+			const FIntPoint TargetSize(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY());
+			const FIntPoint TextureSize(1, 1);
+
+			const bool bStaticCalculateUV = true;
+			
 			FVector4 ExposeFactor;
 			FIntVector4 InvertFactor;
 			if (ColorMode == EDMXColorMode::CM_RGB)
@@ -286,12 +389,15 @@ void UDMXPixelMappingFixtureGroupItemComponent::RendererOutputTexture()
 				OutputTarget->GameThread_GetRenderTargetResource(),
 				ExposeFactor,
 				InvertFactor,
-				0, 0,
-				OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY(),
-				PositionX / TexureSizeX, PositionY / TexureSizeY,
-				SizeX / TexureSizeX, SizeY / TexureSizeY,
-				FIntPoint(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY()),
-				FIntPoint(1, 1),
+				Position,
+				Size,
+				UV,
+				UVSize,
+				UVCellSize,
+				TargetSize,
+				TextureSize,
+				PixelBlendingQuality,
+				bStaticCalculateUV,
 				[=](TArray<FColor>& InSurfaceBuffer, FIntRect& InRect) { SetSurfaceBuffer(InSurfaceBuffer, InRect); }
 			);
 		}
@@ -323,13 +429,35 @@ FVector2D UDMXPixelMappingFixtureGroupItemComponent::GetPosition()
 
 void UDMXPixelMappingFixtureGroupItemComponent::SetPosition(const FVector2D& InPosition)
 {
-	Super::SetPosition(InPosition);
+#if WITH_EDITOR
+	if (IsLockInDesigner())
+	{
+		if (UDMXPixelMappingFixtureGroupComponent* GroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Parent))
+		{
+			if (!GroupComponent->IsLockInDesigner() &&
+				GroupComponent->IsVisibleInDesigner())
+			{
+				GroupComponent->SetPosition(InPosition);
+			}
+		}
+	}
+	else
+	{
+		PositionX = FMath::RoundHalfToZero(InPosition.X);
+		PositionY = FMath::RoundHalfToZero(InPosition.Y);
+
+		SetPositionInBoundaryBox(InPosition);
+	}
+#else
 	SetPositionInBoundaryBox(InPosition);
+#endif // WITH_EDITOR
 }
 
 void UDMXPixelMappingFixtureGroupItemComponent::SetSize(const FVector2D& InSize)
 {
-	Super::SetSize(InSize);
+	SizeX = FMath::RoundHalfToZero(InSize.X);
+	SizeY = FMath::RoundHalfToZero(InSize.Y);
+
 	SetSizeWithinBoundaryBox(InSize);
 }
 
@@ -360,13 +488,13 @@ void UDMXPixelMappingFixtureGroupItemComponent::SetPositionInBoundaryBox(const F
 	{
 		// 1. Right Border
 		float RightBorderPosition = FixtureGroupComponent->SizeX + FixtureGroupComponent->PositionX;
-		float PositionXRightBoarder = InPosition.X + SizeX;
+		float PositionXRightBorder = InPosition.X + SizeX;
 
 		// 2. Left Border
 		float LeftBorderPosition = FixtureGroupComponent->PositionX;
 		float PositionXLeftBorder = InPosition.X;
 
-		if (PositionXRightBoarder >= RightBorderPosition)
+		if (PositionXRightBorder >= RightBorderPosition)
 		{
 			PositionX = RightBorderPosition - SizeX;
 		}
@@ -395,7 +523,7 @@ void UDMXPixelMappingFixtureGroupItemComponent::SetPositionInBoundaryBox(const F
 #if WITH_EDITOR
 		if (Slot != nullptr)
 		{
-			Slot->Position(FVector2D(PositionX, PositionY));
+			Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 		}
 #endif // WITH_EDITOR
 	}
@@ -412,6 +540,19 @@ bool UDMXPixelMappingFixtureGroupItemComponent::CanBeMovedTo(const UDMXPixelMapp
 	}
 
 	return false;
+}
+
+void UDMXPixelMappingFixtureGroupItemComponent::SetPositionFromParent(const FVector2D& InPosition)
+{
+	PositionX = FMath::RoundHalfToZero(InPosition.X);
+	PositionY = FMath::RoundHalfToZero(InPosition.Y);
+
+#if WITH_EDITOR
+	if (Slot != nullptr)
+	{
+		Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
+	}
+#endif // WITH_EDITOR
 }
 
 void UDMXPixelMappingFixtureGroupItemComponent::SetSizeWithinBoundaryBox(const FVector2D& InSize)
@@ -447,7 +588,8 @@ void UDMXPixelMappingFixtureGroupItemComponent::SetSizeWithinBoundaryBox(const F
 #if WITH_EDITOR
 		if (Slot != nullptr)
 		{
-			Slot->Size(FVector2D(SizeX, SizeY));
+			CachedWidget->SetWidthOverride(SizeX);
+			CachedWidget->SetHeightOverride(SizeY);
 		}
 #endif // WITH_EDITOR
 	}

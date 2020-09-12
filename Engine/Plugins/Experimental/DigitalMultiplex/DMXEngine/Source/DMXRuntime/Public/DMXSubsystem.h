@@ -31,9 +31,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttributeName, int32> AttributeMap, EDMXSendResult& OutResult);
 
-	/**  Send DMX using channel and value raw values.
-	* NOTE: Universe Index cannot be lower than 0.
-	*/
+	/**  Send DMX using channel and raw values. NOTE: Universe Index cannot be lower than 0. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TMap<int32, uint8> AddressValueMap, EDMXSendResult& OutResult);
 
@@ -62,8 +60,8 @@ public:
 	void GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TArray<uint8>& DMXBuffer);
 
 	/**  Return map with all DMX functions and their associated values given DMX buffer and desired universe. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void GetFixtureFunctions(const UDMXEntityFixturePatch* InFixturePatch, const TArray<uint8>& DMXBuffer, TMap<FDMXAttributeName, int32>& OutResult);
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DisplayName = "Get Fixture Attributes"))
+	void GetFixtureAttributes(const UDMXEntityFixturePatch* InFixturePatch, const TArray<uint8>& DMXBuffer, TMap<FDMXAttributeName, int32>& OutResult);
 
 	/**  Return reference to array of Fixture Patch objects with a given tag. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
@@ -147,8 +145,8 @@ public:
 	 * @return	The normalized value of the passed in Int using the Function's signal format.
 	 *			-1.0 if the Function is not found in the Fixture Patch.
 	 */
-	UFUNCTION(BlueprintPure, Category = "DMX", meta = (Keywords = "float"))
-	float GetNormalizedFunctionValue(UDMXEntityFixturePatch* InFixturePatch, FDMXAttributeName InFunctionAttribute, int32 InValue) const;
+	UFUNCTION(BlueprintPure, Category = "DMX", meta = (Keywords = "float", DisplayName = "GetNormalizedAttributeValue"))
+	float GetNormalizedAttributeValue(UDMXEntityFixturePatch* InFixturePatch, FDMXAttributeName InFunctionAttribute, int32 InValue) const;
 
 	/**
 	 * Creates a literal UDMXEntityFixturePatch reference
@@ -161,30 +159,30 @@ public:
 	/**
 	 * Gets a function map based on you active mode from FixturePatch
 	 * @param	InFixturePatch Selected Patch
-	 * @param	OutFunctionsMap Function and Channel value output map
+	 * @param	OutAttributesMap Function and Channel value output map
 	 * @return	True if outputting was successfully
 	 */
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "SelectedProtocol"), Category = "DMX")
-	bool GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, TMap<FDMXAttributeName, int32>& OutFunctionsMap);
+	bool GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, TMap<FDMXAttributeName, int32>& OutAttributesMap);
 
 	/**
 	 * Gets a function map based on you active mode from FixturePatch, but instead of passing a Protocol as parameters, it looks for
 	 * the first Protocol found in the Patch's universe and use that one
 	 * @param	InFixturePatch Selected Patch
-	 * @param	OutFunctionsMap Function and Channel value output map
+	 * @param	OutAttributesMap Function and Channel value output map
 	 * @return	True if outputting was successfully
 	 */
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "SelectedProtocol"), Category = "DMX")
-	bool GetFunctionsMapForPatch(UDMXEntityFixturePatch* InFixturePatch, TMap<FDMXAttributeName, int32>& OutFunctionsMap);
+	bool GetFunctionsMapForPatch(UDMXEntityFixturePatch* InFixturePatch, TMap<FDMXAttributeName, int32>& OutAttributesMap);
 
 	/**
 	 * Gets function channel value by input function name
 	 * @param	InName Looking fixture function name
-	 * @param	InFunctionsMap Function and Channel value input map
+	 * @param	InAttributesMap Function and Channel value input map
 	 * @return	Function channel value
 	 */
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InName, InFunctionsMap"), Category = "DMX")
-	int32 GetFunctionsValue(const FName FunctionAttributeName, const TMap<FDMXAttributeName, int32>& InFunctionsMap);
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InName, InAttributesMap"), Category = "DMX")
+	int32 GetFunctionsValue(const FName FunctionAttributeName, const TMap<FDMXAttributeName, int32>& InAttributesMap);
 
 	/**
 	 * Checks if a FixturePatchs is of a given FixtureType
@@ -216,16 +214,36 @@ public:
 	FProtocolReceivedDelegate OnProtocolReceived;
 
 	/**  Set DMX Pixel value using matrix coordinates. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool SetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Pixel /* Pixel X/Y */, FDMXAttributeName Attribute, int32 Value);
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Matrix Pixel Value"), Category = "DMX")
+	bool SetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, FDMXAttributeName Attribute, int32 Value);
 
 	/**  Get DMX Pixel value using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Pixel /* Pixel X/Y */, FDMXAttributeName Attribute, int32& Value);
+	bool GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap);
 
-	/**  Get DMX Pixel Address using matrix coordinates. */
+	/**  Get DMX Pixel Channel using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixelAddress(UDMXEntityFixturePatch* FixturePatch, FIntPoint Pixel /* Pixel X/Y */, FDMXAttributeName Attribute, int32& Address, EDMXFixtureSignalFormat& DataType);
+	bool GetMatrixPixelChannels(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
+	
+	/**  Get Matrix Fixture properties. */
+	UFUNCTION(BlueprintPure, Category = "DMX")
+	bool GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXPixelMatrix& MatrixProperties);
+
+	/**  Get all atttributes for the matrix pixel. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetPixelAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& PixelAtributes);
+
+	/**  Get data for single pixel. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, FDMXPixel& Pixel);
+
+	/**  Get array of all pixels and associated data. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetAllMatrixPixels(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXPixel>& Pixels);
+
+	/**  Sort an array according to the selected distribution pattern. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	void PixelDistributionSort(EDMXPixelsDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<int32>& InUnorderedList, TArray<int32>& OutSortedList);
 
 public:
 	//~ USubsystem interface begin

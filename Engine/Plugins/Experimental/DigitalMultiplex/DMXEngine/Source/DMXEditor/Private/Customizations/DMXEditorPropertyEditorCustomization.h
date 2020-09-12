@@ -19,6 +19,8 @@ class UDMXEntityFixturePatch;
 class UDMXComponent;
 class UDMXEntity;
 
+template<typename OptionType>
+class SComboBox;
 class SEditableTextBox;
 struct EVisibility;
 
@@ -65,19 +67,23 @@ public:
 	} ;
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
-private:
-	/** Generates communication mode options based on select protocol */
-	void GenerateCommunicationModeOptions();
 	
-	/** Returns communication mode label */
-	FText GetCommunicationModeLabel() const;
+private:
 
-	/** Communication mode change event */
+	void CreateCommunicationTypeComboBox(IDetailLayoutBuilder& DetailLayout);
 	void OnCommunicationModeChanged(const TSharedPtr<EDMXCommunicationTypes> InSelectedMode, ESelectInfo::Type SelectInfo);
-
-	/** Protocol change event */
 	void OnProtocolChanged();
-
+	
+	void UpdateCommunicationModeOptions();
+	TArray<EDMXCommunicationTypes> GetSupportedCommunicationTypes(FName ForProtocol);
+	void EnsureProtocolSupportsSelectedCommuncationType();
+	EDMXCommunicationTypes GetDefaultCommunicationMode(FName ForProtocol);
+	
+	FText GetCommunicationModeLabel() const;
+	EDMXCommunicationTypes GetCommunicationModeSelected() const;
+	void SetCommunicationModeSelected(EDMXCommunicationTypes NewValue);
+	FDMXProtocolName GetProtocolNameSelected() const;
+	
 	/** communication mode widget generate event */
 	TSharedRef<SWidget> OnCommunicationModeGenerateWidget(const TSharedPtr<EDMXCommunicationTypes> InMode) const;
 
@@ -87,26 +93,21 @@ private:
 	/** Device protocol property handle */
 	TSharedPtr<IPropertyHandle> ProtocolHandle;
 	
-	/** Selected device protocol name */
-	FDMXProtocolName ProtocolName;
-	
 	/** Communication mode enums for custom combobox */
 	TArray<TSharedPtr<EDMXCommunicationTypes>> CommunicationModeOptions;
 
 	/** Communication mode property handle */
 	TSharedPtr<IPropertyHandle> CommunicationModeHandle;
 
-	/** Active communication mode */
-	EDMXCommunicationTypes ActiveCommunicationMode;
-
+	TSharedPtr<SComboBox<TSharedPtr<EDMXCommunicationTypes>>> CommunicationModeComboBox;
+	
 	/** Communication mode labels for custom combobox */
 	TMap<EDMXCommunicationTypes, FString> CommunicationModeLabels;
-
 	/** Communication mode widgets for custom combobox */
 	TMap<EDMXCommunicationTypes, TSharedRef<SWidget>> CommunicationModeWidgets;
 };
 
-/** Base class for Fixture Types' Modes, Functions and Sub Functions customizations */
+/** Base class for Fixture Types' Modes and  Functions customizations */
 class FDMXFixtureTypeFunctionsDetails
 	: public IPropertyTypeCustomization
 {
@@ -181,13 +182,10 @@ public:
 
 protected:
 	//~ FDMXFixtureTypeFunctionsDetails interface
-	virtual void AddProperty(IDetailChildrenBuilder& InStructBuilder, const FName& PropertyName, TSharedRef<IPropertyHandle> PropertyHandle) override;
 	virtual void GetCustomNameFieldSettings(FText& OutNewPropertyLabel, FName& OutNamePropertyName, FText& OutToolTip, FText& OutExistingNameError) override;
 	virtual TArray<FString> GetExistingNames() const override;
 
 private:
-	EVisibility GetSubFunctionsVisibility() const;
-	
 	void AddChannelInputFields(IDetailChildrenBuilder& InStructBuilder);
 	TSharedRef<SWidget> CreateChannelField(uint8 Channel, const FLinearColor& LabelColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
 	TOptional<uint8> GetChannelValue(uint8 Channel) const;
@@ -201,27 +199,6 @@ private:
 	TSharedPtr<IPropertyHandle> DataTypeHandle;
 	TSharedPtr<IPropertyHandle> DefaultValueHandle;
 	TSharedPtr<IPropertyHandle> UseLSBHandle;
-};
-
-/**
- * Details customization for Fixture Function's Sub Functions.
- * The GetExistingNames implementation is very similar to FDMXFixtureFunctionDetails's.
- * So we only need to override GetCustomNameFieldSettings and the rest just works. :)
- */
-class FDMXFixtureSubFunctionDetails
-	: public FDMXFixtureFunctionDetails
-{
-public:
-	/** Constructor */
-	FDMXFixtureSubFunctionDetails(TWeakPtr<FDMXEditor> InDMXEditorPtr)
-		: FDMXFixtureFunctionDetails(InDMXEditorPtr)
-	{}
-
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& InStructBuilder, IPropertyTypeCustomizationUtils& InStructCustomizationUtils) override;
-
-protected:
-	//~ FDMXFixtureTypeFunctionsDetails interface
-	virtual void GetCustomNameFieldSettings(FText& OutNewPropertyLabel, FName& OutNamePropertyName, FText& OutToolTip, FText& OutExistingNameError) override;
 };
 
 /** Details customization for FixturePatches */
@@ -333,16 +310,20 @@ private:
 
 		TArray<void*> RawData;
 		StructPropertyHandle->AccessRawData(RawData);
-		TStructType* PreviousValue = reinterpret_cast<TStructType*>(RawData[0]);
-		TStructType NewProtocolName;
-		NewProtocolName.SetFromName(NewValue);
 
-		// Export new value to text format that can be imported later
-		FString TextValue;
-		StructProperty->Struct->ExportText(TextValue, &NewProtocolName, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+		for (void* SingleRawData : RawData)
+		{
+			TStructType* PreviousValue = reinterpret_cast<TStructType*>(SingleRawData);
+			TStructType NewProtocolName;
+			NewProtocolName.SetFromName(NewValue);
 
-		// Set values on edited property handle from exported text
-		ensure(StructPropertyHandle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+			// Export new value to text format that can be imported later
+			FString TextValue;
+			StructProperty->Struct->ExportText(TextValue, &NewProtocolName, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+
+			// Set values on edited property handle from exported text
+			ensure(StructPropertyHandle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+		}
 	}
 
 	bool HasMultipleValues() const

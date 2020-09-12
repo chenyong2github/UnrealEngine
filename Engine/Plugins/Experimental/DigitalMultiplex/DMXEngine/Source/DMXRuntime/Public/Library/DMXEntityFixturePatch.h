@@ -68,6 +68,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	int32 GetStartingChannel() const;
 
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	int32 GetEndingChannel() const;
+
 	/**  Return the remote universe the patch is registered to. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	int32 GetRemoteUniverse() const;
@@ -91,46 +94,46 @@ public:
 	 * Attributes outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FName, FDMXAttributeName> GetFunctionAttributes() const;
+	TMap<FName, FDMXAttributeName> GetFunctionAttributesMap() const;
 
 	/**
 	 * Return map of attributes and function names.
 	 * Attributes outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FDMXAttributeName, FDMXFixtureFunction> GetAttributeFunctions() const;
+	TMap<FDMXAttributeName, FDMXFixtureFunction> GetAttributeFunctionsMap() const;
 
 	/**
 	 * Return map of function names and default values.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FDMXAttributeName, int32> GetFunctionDefaultMap() const;
+	TMap<FDMXAttributeName, int32> GetAttributeDefaultMap() const;
 
 	/**
 	 * Return map of function names and their assigned channels.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FDMXAttributeName, int32> GetFunctionChannelAssignments() const;
+	TMap<FDMXAttributeName, int32> GetAttributeChannelAssignments() const;
 
 	/**
 	 * Return map of function names and their Data Types.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FDMXAttributeName, EDMXFixtureSignalFormat> GetFunctionSignalFormats() const;
+	TMap<FDMXAttributeName, EDMXFixtureSignalFormat> GetAttributeSignalFormats() const;
 
 	/**  Given a <Channel Index -> Raw Value> map , return map of function names and their values. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FDMXAttributeName, int32> ConvertRawMapToFunctionMap(const TMap<int32, uint8>& RawMap) const;
+	TMap<FDMXAttributeName, int32> ConvertRawMapToAttributeMap(const TMap<int32, uint8>& RawMap) const;
 
 	/**
 	 * Return map of function channels and their values.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<int32, uint8> ConvertFunctionMapToRawMap(const TMap<FDMXAttributeName, int32>& FunctionMap) const;
+	TMap<int32, uint8> ConvertAttributeMapToRawMap(const TMap<FDMXAttributeName, int32>& FunctionMap) const;
 
 	/**  Return if given function map valid for this fixture. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
@@ -138,7 +141,7 @@ public:
 
 	/**  Return if fixture contains function. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	FORCEINLINE bool ContainsFunction(const FDMXAttributeName FunctionAttribute) const
+	FORCEINLINE bool ContainsAttribute(const FDMXAttributeName FunctionAttribute) const
 	{
 		const TArray<FDMXFixtureFunction>& Functions = ParentFixtureTypeTemplate->Modes[ActiveMode].Functions;
 		return Functions.ContainsByPredicate([&FunctionAttribute](const FDMXFixtureFunction& Function)

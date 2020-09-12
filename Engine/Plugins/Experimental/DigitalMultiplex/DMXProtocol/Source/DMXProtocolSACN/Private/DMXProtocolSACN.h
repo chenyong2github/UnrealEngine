@@ -14,6 +14,7 @@
 class FInternetAddr;
 class FSocket;
 class FDMXProtocolUniverseSACN;
+class FDMXProtocolReceiverSACN;
 
 template<class TUniverse>
 class FDMXProtocolUniverseManager;
@@ -38,14 +39,18 @@ public:
 	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const override;
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
 	virtual bool IsEnabled() const override;
+	virtual void SetReceiveDMXEnabled(bool bEnabled);
+	virtual bool IsReceiveDMXEnabled() const override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override;
-	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) override;
+	virtual void CollectUniverses(const TArray<FDMXCommunicationEndpoint>& Endpoints) override;
 	virtual void UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings) override;
 	virtual bool RemoveUniverseById(uint32 InUniverseId) override;
 	virtual void RemoveAllUniverses() override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const override;
+	virtual EDMXSendResult InputDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) override;
 	virtual EDMXSendResult SendDMXFragment(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment) override;
 	virtual EDMXSendResult SendDMXFragmentCreate(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment) override;
+	virtual EDMXSendResult SendDMXZeroUniverse(uint16 UniverseID, bool bForceSendDMX /** = false */) override;
 	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const override;
 	virtual uint32 GetUniversesNum() const override;
 	virtual uint16 GetMinUniverseID() const override;
@@ -71,6 +76,14 @@ public:
 	virtual void ReleaseNetworkInterface() override;
 	//~ End IDMXNetworkInterface implementation
 
+private:
+	/** Creates a listener for DMX packets in each ProtocolUniverseSACN */
+	void CreateDMXListenersInUniverses();
+
+	/** Destroys all listeners for DMX packets in each ProtocolUniverseSACN */
+	void DestroyDMXListenersInUniverses();
+
+public:
 	//~ Begin IDMXProtocolRDM implementation
 	virtual void SendRDMCommand(const TSharedPtr<FJsonObject>& CMD) override;
 	virtual void RDMDiscovery(const TSharedPtr<FJsonObject>& CMD) override;
@@ -84,7 +97,6 @@ public:
 
 	//~ Only the factory makes instances
 	FDMXProtocolSACN() = delete;
-
 public:
 	static uint32 GetUniverseAddrByID(uint16 InUniverseID);
 
@@ -96,6 +108,12 @@ private:
 	/** Called each tick in LaunchEngineLoop */
 	void OnEndFrame();
 
+	/** Listening for the receiving thread setting changes */
+	void OnReceivingThreadChanged(int32 ReceivingRefreshRate, bool bInUseSeparateReceivingThread);
+
+	/** Release sacn listener if exists */
+	void ReleaseSACNReceiver();
+
 private:
 	FName ProtocolName;
 
@@ -103,7 +121,12 @@ private:
 
 	TSharedPtr<FDMXProtocolUniverseManager<FDMXProtocolUniverseSACN>> UniverseManager;
 
+	/** Defines if DMX should be received */
+	bool bShouldReceiveDMX;
+
 	TSharedPtr<IDMXProtocolSender> SACNSender;
+
+	TSharedPtr<FDMXProtocolReceiverSACN> SACNReceiver;
 
 	/** Holds the network socket used to sender packages. */
 	FSocket* SenderSocket;
@@ -119,6 +142,8 @@ private:
 	FString InterfaceIPAddress;
 
 	FOnNetworkInterfaceChangedDelegate NetworkInterfaceChangedDelegate;
+
+	FOnReceivingThreadChangedDelegate ReceivingThreadChangedDelegate;
 
 	const TCHAR* NetworkErrorMessagePrefix;
 

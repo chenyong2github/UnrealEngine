@@ -22,6 +22,7 @@ void FDMXEditorCommandsImpl::RegisterCommands()
 	UI_COMMAND(OpenChannelsMonitor, "Open Channel Monitor", "Open the Monitor for all DMX Channels in a Universe", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(OpenActivityMonitor, "Open Activity Monitor", "Open the Monitor for all DMX activity in a range of Universes", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(OpenOutputConsole, "Open Output Console", "Open the Console to generate and output DMX Signals", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ToggleReceiveDMX, "Toggle receive DMX", "Sets whether DMX is received in editor irregardless of Project Settings", EUserInterfaceActionType::Button, FInputChord());
 }
 
 void FDMXEditorCommands::Register()

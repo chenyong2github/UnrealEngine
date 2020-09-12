@@ -36,7 +36,7 @@ UDMXPixelMappingScreenComponent::UDMXPixelMappingScreenComponent()
 	NumYPanels = 10;
 
 	PixelFormat = EDMXPixelFormat::PF_RGB;
-	bIngoneAlfaChannel = true;
+	bIgnoreAlphaChannel = true;
 
 	RemoteUniverse = 1;
 	StartAddress = 1;
@@ -47,6 +47,8 @@ UDMXPixelMappingScreenComponent::UDMXPixelMappingScreenComponent()
 #if WITH_EDITOR
 	bIsUpdateWidgetRequested = false;
 	Slot = nullptr;
+
+	bEditableEditorColor = true;
 #endif // WITH_EDITOR
 }
 
@@ -84,13 +86,14 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionX) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionY))
 	{
-		Slot->Position(FVector2D(PositionX, PositionY));
+		Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 	}
 
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeX) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeY))
 	{
-		Slot->Size(FVector2D(SizeX, SizeY));
+		CachedWidget->SetWidthOverride(SizeX);
+		CachedWidget->SetHeightOverride(SizeY);
 	}
 
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXPanels) ||
@@ -106,6 +109,11 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 	{
 		bIsUpdateWidgetRequested = true;
 	}
+
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
+	{
+		Brush.TintColor = EditorColor;
+	}
 }
 
 const FText UDMXPixelMappingScreenComponent::GetPaletteCategory()
@@ -113,22 +121,29 @@ const FText UDMXPixelMappingScreenComponent::GetPaletteCategory()
 	return LOCTEXT("Common", "Common");
 }
 
-TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SCanvas> InCanvas)
+TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
-	CachedWidget = SNew(SBox);
+	CachedWidget =
+		SNew(SBox)
+		.HeightOverride(SizeX)
+		.WidthOverride(SizeY);
 
-	Slot = &InCanvas->AddSlot()
+	Slot = 
+		&InCanvas->AddSlot()
+		.AutoSize(true)
+		.Alignment(FVector2D::ZeroVector)
 		[
 			CachedWidget.ToSharedRef()
 		];
 
 	// Border settings
 	Brush.DrawAs = ESlateBrushDrawType::Border;
-	Brush.TintColor = FLinearColor::Blue;
+	Brush.TintColor = GetEditorColor(false);
 	Brush.Margin = FMargin(1.f);
 
-	Slot->Position(FVector2D(PositionX, PositionY));
-	Slot->Size(FVector2D(SizeX, SizeY));
+	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
+	CachedWidget->SetWidthOverride(SizeX);
+	CachedWidget->SetHeightOverride(SizeY);
 
 	UpdateWidget();
 
@@ -137,16 +152,9 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SCanva
 
 void UDMXPixelMappingScreenComponent::ToggleHighlightSelection(bool bIsSelected)
 {
-	if (bIsSelected)
-	{
-		Brush.Margin = FMargin(1.f);
-		Brush.TintColor = FLinearColor::Green;
-	}
-	else
-	{
-		Brush.Margin = FMargin(1.f);
-		Brush.TintColor = FLinearColor::Blue;
-	}
+	Super::ToggleHighlightSelection(bIsSelected);
+
+	Brush.TintColor = GetEditorColor(bIsSelected);
 }
 
 TSharedRef<SWidget> UDMXPixelMappingScreenComponent::ConstructGrid()
@@ -306,28 +314,28 @@ void UDMXPixelMappingScreenComponent::AddColorToSendBuffer(const FColor& InColor
 		OutDMXSendBuffer.Add(InColor.R);
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.B);
-		OutDMXSendBuffer.Add(bIngoneAlfaChannel ? 0 : InColor.A);
+		OutDMXSendBuffer.Add(bIgnoreAlphaChannel ? 0 : InColor.A);
 	}
 	else if (PixelFormat == EDMXPixelFormat::PF_GBRA)
 	{
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.B);
 		OutDMXSendBuffer.Add(InColor.R);
-		OutDMXSendBuffer.Add(bIngoneAlfaChannel ? 0 : InColor.A);
+		OutDMXSendBuffer.Add(bIgnoreAlphaChannel ? 0 : InColor.A);
 	}
 	else if (PixelFormat == EDMXPixelFormat::PF_BRGA)
 	{
 		OutDMXSendBuffer.Add(InColor.B);
 		OutDMXSendBuffer.Add(InColor.R);
 		OutDMXSendBuffer.Add(InColor.G);
-		OutDMXSendBuffer.Add(bIngoneAlfaChannel ? 0 : InColor.A);
+		OutDMXSendBuffer.Add(bIgnoreAlphaChannel ? 0 : InColor.A);
 	}
 	else if (PixelFormat == EDMXPixelFormat::PF_GRBA)
 	{
 		OutDMXSendBuffer.Add(InColor.G);
 		OutDMXSendBuffer.Add(InColor.R);
 		OutDMXSendBuffer.Add(InColor.B);
-		OutDMXSendBuffer.Add(bIngoneAlfaChannel ? 0 : InColor.A);
+		OutDMXSendBuffer.Add(bIgnoreAlphaChannel ? 0 : InColor.A);
 	}
 }
 
@@ -343,7 +351,6 @@ void UDMXPixelMappingScreenComponent::ResetDMX()
 
 	SendDMX();
 }
-
 void UDMXPixelMappingScreenComponent::SendDMX()
 {
 	if (RemoteUniverse < 0)
@@ -395,11 +402,9 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 		int32 SendBufferNum = SendBuffer.Num();
 		IDMXFragmentMap DMXFragmentMapToSend;
 		for (int32 FragmentMapIndex = 0; FragmentMapIndex < SendBufferNum; FragmentMapIndex++)
-		{
+		{			
 			// ready to send here
-			if (SendDMXIndex > UniverseMaxChannels ||
-				(SendBufferNum > FragmentMapIndex + 1) == false // send dmx if next iteration is the last one
-				)
+			if (SendDMXIndex > UniverseMaxChannels)
 			{
 				Protocol->SendDMXFragmentCreate(UniverseToSend, DMXFragmentMapToSend);
 
@@ -414,6 +419,13 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 			if (SendDMXIndex > UniverseMaxChannels || SendDMXIndex < 1)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("WrongIndex FragmentMapIndex %d, SendDMXIndex %d"), FragmentMapIndex, SendDMXIndex);
+			}
+
+			// send dmx if next iteration is the last one
+			if ((SendBufferNum > FragmentMapIndex + 1) == false)
+			{
+				Protocol->SendDMXFragmentCreate(UniverseToSend, DMXFragmentMapToSend);
+				break;
 			}
 
 			SendDMXIndex++;
@@ -458,7 +470,7 @@ void UDMXPixelMappingScreenComponent::SetPosition(const FVector2D& InPosition)
 #if WITH_EDITOR
 	if (Slot != nullptr)
 	{
-		Slot->Position(FVector2D(PositionX, PositionY));
+		Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 	}
 #endif // WITH_EDITOR
 }
@@ -522,7 +534,8 @@ void UDMXPixelMappingScreenComponent::SetSizeInternal(const FVector2D& InSize)
 #if WITH_EDITOR
 	if (Slot != nullptr)
 	{
-		Slot->Size(FVector2D(SizeX, SizeY));
+		CachedWidget->SetWidthOverride(SizeX);
+		CachedWidget->SetHeightOverride(SizeY);
 	}
 #endif // WITH_EDITOR
 }
@@ -536,23 +549,38 @@ void UDMXPixelMappingScreenComponent::RendererOutputTexture()
 
 		if (Texture != nullptr && Renderer.IsValid())
 		{
-			uint32 TexureSizeX = Texture->Resource->GetSizeX();
-			uint32 TexureSizeY = Texture->Resource->GetSizeY();
-
 			GetOutputTexture();
+			
+			const uint32 TexureSizeX = Texture->Resource->GetSizeX();
+			const uint32 TexureSizeY = Texture->Resource->GetSizeY();
 
+			const FVector2D Position = FVector2D(0.f, 0.f);
+			const FVector2D Size = FVector2D(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY());
+			const FVector2D UV = FVector2D(PositionX / TexureSizeX, PositionY / TexureSizeY);
+
+			const FVector2D UVSize(SizeX / TexureSizeX, SizeY / TexureSizeY);
+			const FVector2D UVCellSize(UVSize.X / NumXPanels / 2.f, UVSize.Y / NumYPanels / 2.f);
+
+			const FIntPoint TargetSize(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY());
+			const FIntPoint TextureSize(1, 1);
+
+			const bool bStaticCalculateUV = false;
+			
 			Renderer->DownsampleRender_GameThread(
 				Texture->Resource,
 				OutputTarget->Resource,
 				OutputTarget->GameThread_GetRenderTargetResource(),
 				FVector4(1.f, 1.f, 1.f, 1.f),
 				FIntVector4(0),
-				0, 0, // X, Y Position in screen pixels of the top left corner of the quad
-				OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY(), // SizeX, SizeY	Size in screen pixels of the quad
-				PositionX / TexureSizeX, PositionY / TexureSizeY, // U, V	Position in texels of the top left corner of the quad's UV's
-				SizeX / TexureSizeX, SizeY / TexureSizeY, // SizeU, SizeV	Size in texels of the quad's UV's
-				FIntPoint(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY()), // TargetSizeX, TargetSizeY Size in screen pixels of the target surface
-				FIntPoint(1, 1), // TextureSize Size in texels of the source texture
+				Position, // X, Y Position in screen pixels of the top left corner of the quad
+				Size, // SizeX, SizeY	Size in screen pixels of the quad
+				UV, // U, V	Position in texels of the top left corner of the quad's UV's
+				UVSize, // SizeU, SizeV	Size in texels of the quad's UV's,
+				UVCellSize,
+				TargetSize, // TargetSizeX, TargetSizeY Size in screen pixels of the target surface
+				TextureSize, // TextureSize Size in texels of the source texture
+				PixelBlendingQuality,
+				bStaticCalculateUV,
 				[=](TArray<FColor>& InSurfaceBuffer, FIntRect& InRect) { SetSurfaceBuffer(InSurfaceBuffer, InRect); }
 			);
 		}

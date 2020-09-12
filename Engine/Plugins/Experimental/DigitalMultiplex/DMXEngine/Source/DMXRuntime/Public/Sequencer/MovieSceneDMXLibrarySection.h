@@ -11,14 +11,24 @@
 
 class UDMXEntityFixturePatch;
 
+
 USTRUCT()
 struct FDMXFixtureFunctionChannel
 {
 	GENERATED_BODY()
 
+	/** Attribute Name of the function */
+	FName AttributeName;
+
 	/** Function animation curve. */
 	UPROPERTY()
 	FMovieSceneFloatChannel Channel;
+
+	/** 
+	 * For Cell Functions the coordinate of the cell
+	 * For common functions -1.
+	 */
+	FIntPoint CellCoordinate = FIntPoint(-1, -1);
 
 	/** Default value to use when this Function is disabled in the track. */
 	UPROPERTY()
@@ -30,10 +40,13 @@ struct FDMXFixtureFunctionChannel
 	 */
 	UPROPERTY()
 	bool bEnabled = true;
+
+	/** True if the function is a cell function */
+	bool IsCellFunction() const { return CellCoordinate.X != -1 && CellCoordinate.Y != -1; }
 };
 
 USTRUCT()
-struct FDMXFixturePatchChannels
+struct FDMXFixturePatchChannel
 {
 	GENERATED_BODY()
 
@@ -41,7 +54,7 @@ struct FDMXFixturePatchChannels
 	UPROPERTY()
 	FDMXEntityFixturePatchRef Reference;
 
-	/** Fixture function curves */
+	/** Fixture function float channels */
 	UPROPERTY()
 	TArray<FDMXFixtureFunctionChannel> FunctionChannels;
 
@@ -58,6 +71,7 @@ struct FDMXFixturePatchChannels
 	void UpdateNumberOfChannels(bool bResetDefaultValues = false);
 };
 
+
 /** A DMX Fixture Patch section */
 UCLASS()
 class DMXRUNTIME_API UMovieSceneDMXLibrarySection
@@ -71,12 +85,15 @@ public:
 
 public:
 
-	//~ UObject interface
+	// Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
-	//~
+	// ~End UObject interface
 
 public:
+	/** Refreshes the channels. Useful e.g. when underlying DMX Library changes */
+	void RefreshChannels();
+
 	/** Add a Fixture Patch's Functions as curve channels to be animated */
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
 	void AddFixturePatch(UDMXEntityFixturePatch* InPatch, int32 ActiveMode = -1);
@@ -118,11 +135,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Scene")
 	TArray<UDMXEntityFixturePatch*> GetFixturePatches() const;
 
+	/** Returns the channel for specified patch or nullptr if the patch is not in use */
+	FDMXFixturePatchChannel* GetPatchChannel(UDMXEntityFixturePatch* Patch);
+
 	/** Get the list of animated Fixture Patches and their curve channels */
 	UFUNCTION(BlueprintPure, Category = "Movie Scene")
-	int32 GetNumPatches() const { return Patches.Num(); }
+	int32 GetNumPatches() const { return FixturePatchChannels.Num(); }
 
-	const TArray<FDMXFixturePatchChannels>& GetFixturePatchChannels() const { return Patches; }
+	const TArray<FDMXFixturePatchChannel>& GetFixturePatchChannels() const { return FixturePatchChannels; }
 
 	/**
 	 * Iterate over each Patch's Function Channels array.
@@ -135,6 +155,7 @@ public:
 	 * DMX data while recording it.
 	 */
 	void SetIsRecording(bool bNewState) { bIsRecording = bNewState; }
+	
 	/** 
 	 * Checked in evaluation to prevent sending DMX data while recording it with
 	 * the Take Recorder.
@@ -142,20 +163,23 @@ public:
 	bool GetIsRecording() const { return bIsRecording; }
 
 protected:
-
 	/** Update the displayed Patches and Function channels in the section */
 	void UpdateChannelProxy(bool bResetDefaultChannelValues = false);
 	
-protected:
+	/**
+	 * Utility method to send a single DMX Function's default value when disabling
+	 * a function channel
+	 */
+	void SendDefaultFunctionValueToDMX(const FDMXFixturePatchChannel& PatchChannel, const FDMXFixtureFunctionChannel& FunctionChannel);
 
+protected:
 	/** The Fixture Patches being controlled by this section and their respective chosen mode */
 	UPROPERTY()
-	TArray<FDMXFixturePatchChannels> Patches;
+	TArray<FDMXFixturePatchChannel> FixturePatchChannels;
 
 	/**
 	 * When recording DMX data into this track, this is set to true to prevent
 	 * track evaluation from sending data to DMX simultaneously.
 	 */
 	bool bIsRecording;
-
 };

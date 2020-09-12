@@ -45,6 +45,15 @@ void FDMXUniverseMonitorChannelItem::CreateWidget(uint8 InitialValue)
 		.Value(InitialValue);
 }
 
+SDMXActivityInUniverse::~SDMXActivityInUniverse()
+{
+	TSharedPtr<FActiveTimerHandle> PinnedTimerHandle = AnimationTimerHandle.Pin();
+	if (PinnedTimerHandle.IsValid())
+	{
+		UnRegisterActiveTimer(PinnedTimerHandle.ToSharedRef());
+	}
+}
+
 void SDMXActivityInUniverse::Construct(const FArguments& InArgs)
 {
 	SetVisibility(EVisibility::SelfHitTestInvisible);

@@ -1,20 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/SDMXPixelMappingDesignerView.h"
+#include "Widgets/SDMXPixelMappingDesignerCanvas.h"
 #include "Widgets/SDMXPixelMappingSourceTextureViewport.h"
 #include "Widgets/SDMXPixelMappingRuler.h"
 #include "Widgets/SDMXPixelMappingPreviewViewport.h"
 #include "Widgets/SDMXPixelMappingZoomPan.h"
 #include "Widgets/SDMXPixelMappingTransformHandle.h"
- #include "Components/DMXPixelMappingOutputComponent.h"
+#include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
+#include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
+#include "Components/DMXPixelMappingMatrixPixelComponent.h"
 #include "DMXPixelMapping.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "DMXPixelMappingComponentReference.h"
+#include "Library/DMXEntityFixturePatch.h"
 
+#include "Widgets/SCanvas.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -69,6 +75,7 @@ TSharedRef<FSelectedComponentDragDropOp> FSelectedComponentDragDropOp::New(TShar
 		DraggedWidget.Component = Reference.ComponentReference.GetComponent();
 		DraggedWidget.DraggedOffset = Reference.DraggedOffset;
 		Operation->DraggedWidgets.Add(DraggedWidget);
+		Operation->SetDecoratorVisibility(false);
 	}
 
 	Operation->Construct();
@@ -163,45 +170,52 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 					SAssignNew(PreviewHitTestRoot, SOverlay)
 					.Visibility(EVisibility::Visible)
 					.Clipping(EWidgetClipping::ClipToBoundsAlways)
-						+ SOverlay::Slot()
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
+						
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					[
+						SNew(SDMXPixelMappingZoomPan)
+						.ZoomAmount(this, &SDMXPixelMappingDesignerView::GetZoomAmount)
+						.ViewOffset(this, &SDMXPixelMappingDesignerView::GetViewOffset)
+						.Visibility(this, &SDMXPixelMappingDesignerView::IsZoomPanVisible)
+
 						[
-							SNew(SDMXPixelMappingZoomPan)
-							.ZoomAmount(this, &SDMXPixelMappingDesignerView::GetZoomAmount)
-							.ViewOffset(this, &SDMXPixelMappingDesignerView::GetViewOffset)
-							.Visibility(this, &SDMXPixelMappingDesignerView::IsZoomPanVisible)
+							SNew(SOverlay)
+
+							+ SOverlay::Slot()
 							[
-								SNew(SOverlay)
+								SAssignNew(SourceTextureViewport, SDMXPixelMappingSourceTextureViewport, InToolkit)
+							]
 
-								+ SOverlay::Slot()
-								[
-									SAssignNew(SourceTextureViewport, SDMXPixelMappingSourceTextureViewport, InToolkit)
-								]
+							+ SOverlay::Slot()
+							[
+								SAssignNew(PreviewSizeConstraint, SBox)
+							]
 
-								+ SOverlay::Slot()
-								[
-									SAssignNew(PreviewSizeConstraint, SBox)
-								]
+							+ SOverlay::Slot()
+							[
+								SAssignNew(DesignCanvas, SDMXPixelMappingDesignerCanvas)
 							]
 						]
+					]
 
-						// A layer in the overlay where we put all the user intractable widgets, like the reorder widgets.
-						+ SOverlay::Slot()
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
-						[
-							SAssignNew(ExtensionWidgetCanvas, SCanvas)
-							.Visibility(this, &SDMXPixelMappingDesignerView::GetExtensionCanvasVisibility)
-						]
+					// A layer in the overlay where we put all the tools for the user
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					[
+						SAssignNew(ExtensionWidgetCanvas, SCanvas)
+						.Visibility(this, &SDMXPixelMappingDesignerView::GetExtensionCanvasVisibility)
+					]
 
-						// Designer overlay UI, toolbar, status messages, zoom level...etc
-						+ SOverlay::Slot()
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
-						[
-							CreateOverlayUI()
-						]
+					// Designer overlay UI, toolbar, status messages, zoom level...etc
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					[
+						CreateOverlayUI()
+					]
 				]
 			]
 		]
@@ -325,7 +339,7 @@ FReply SDMXPixelMappingDesignerView::OnMouseMove(const FGeometry& MyGeometry, co
 		}
 	}
 
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 void SDMXPixelMappingDesignerView::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -409,14 +423,10 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 		for (FDMXPixelMappingComponentReference SelectedComponent : SelectedComponents)
 		{
 			UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(SelectedComponent.GetComponent());
-			if (OutputComponent != nullptr && 
-				OutputComponent->IsLockInDesigner() == false && 
-				OutputComponent->GetCachedWidget().IsValid()
-				)
+			if (OutputComponent != nullptr &&
+				OutputComponent->GetCachedWidget().IsValid())
 			{
-				// Determine The offset to keep the widget from the mouse while dragging
-				FArrangedWidget ArrangedWidget(SNullWidget::NullWidget, FGeometry());
-				GetArrangedWidget(OutputComponent->GetCachedWidget().ToSharedRef(), ArrangedWidget);
+				FArrangedWidget ArrangedWidget = GetArrangedWidgetFromComponent(OutputComponent);
 				SelectedWidgetContextMenuLocation = ArrangedWidget.Geometry.AbsoluteToLocal(DraggingStartPositionScreenSpace);
 
 				FDragWidget DraggingWidget;
@@ -440,7 +450,6 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 			TSharedRef<FSelectedComponentDragDropOp> DragOp = FSelectedComponentDragDropOp::New(ToolkitWeakPtr.Pin(), DraggingWidgets);
 			return FReply::Handled().BeginDragDrop(DragOp);
 		}
-
 	}
 
 	return FReply::Handled();
@@ -472,33 +481,64 @@ FReply SDMXPixelMappingDesignerView::OnDrop(const FGeometry& MyGeometry, const F
 
 	bMovingExistingWidget = false;
 
-	UDMXPixelMappingBaseComponent* Target = nullptr;
-
 	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
 	{
 		// Add 
 		if (UDMXPixelMapping* PixelMapping = ToolkitPtr->GetDMXPixelMapping())
 		{
+			using FDragWidget = FSelectedComponentDragDropOp::FDraggingWidgetReference;
+
 			TSharedPtr<FDMXPixelMappingDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
 
 			// Add from Palette
 			if (TemplateDragDropOp.IsValid() && TemplateDragDropOp->Component == nullptr)
 			{
 				// Try to get Active render component
-				Target = (TemplateDragDropOp->Parent.IsValid()) ? TemplateDragDropOp->Parent.Get() : ToolkitPtr->GetActiveRendererComponent();
+				UDMXPixelMappingBaseComponent* Target = (TemplateDragDropOp->Parent.IsValid()) ? TemplateDragDropOp->Parent.Get() : ToolkitPtr->GetActiveRendererComponent();
 
 				if (TemplateDragDropOp.IsValid())
 				{
 					if (Target != nullptr && PixelMapping->RootComponent != nullptr)
 					{
-						UDMXPixelMappingBaseComponent* Component = TemplateDragDropOp->Template->Create(PixelMapping->RootComponent);
-						Target->AddChild(Component);
-						Component->PostParentAssigned();
-
 						TSet<FDMXPixelMappingComponentReference> SelectedComponents;
-						SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));
-						ToolkitWeakPtr.Pin()->SelectComponents(SelectedComponents);
+						// special case for fixture group as we want to allow
+						// multiple patches to be created on the fly by dragging
+						if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Target))
+						{
+							for (FDMXEntityFixturePatchRef SelectedFixturePatchRef : FixtureGroupComponent->SelectedFixturePatchRef)
+							{
+								UDMXPixelMappingFixtureGroupItemComponent* Component = Cast<UDMXPixelMappingFixtureGroupItemComponent>(TemplateDragDropOp->Template->Create(PixelMapping->RootComponent));
+								if (Component)
+								{
+									Component->FixturePatchRef = SelectedFixturePatchRef;
+									const FName UniqueName = MakeUniqueObjectName(Component->GetOuter(), Component->GetClass(), FName(Component->FixturePatchRef.GetFixturePatch()->GetDisplayName()));
+									const FString NewNameStr = UniqueName.ToString();
+									Component->Rename(*NewNameStr);
 
+									Target->AddChild(Component);
+									Component->PostParentAssigned();
+									SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));
+								}
+							}
+
+							// if multiple drop, select the group
+							if (SelectedComponents.Num() > 1)
+							{
+								SelectedComponents.Empty();
+								SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(FixtureGroupComponent));
+							}
+						}
+						else
+						{
+							UDMXPixelMappingBaseComponent* Component = TemplateDragDropOp->Template->Create(PixelMapping->RootComponent);
+							Target->AddChild(Component);
+							Component->PostParentAssigned();
+
+							SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));
+							
+						}
+
+						ToolkitWeakPtr.Pin()->SelectComponents(SelectedComponents);
 						CreateExtensionWidgetsForSelection();
 					}
 				}
@@ -514,42 +554,108 @@ FReply SDMXPixelMappingDesignerView::OnDrop(const FGeometry& MyGeometry, const F
 	return FReply::Handled();
 }
 
-bool SDMXPixelMappingDesignerView::FindComponentUnderCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSubclassOf<UDMXPixelMappingBaseComponent> FindType, FComponentHitResult& HitResult)
+bool SDMXPixelMappingDesignerView::FindComponentUnderCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSubclassOf<UDMXPixelMappingOutputComponent> FindType, FComponentHitResult& HitResult)
 {
-	TArray<FWidgetAndPointer> BubblePath = HittestGrid->GetBubblePath(MouseEvent.GetScreenSpacePosition(), 0.0f, true, INDEX_NONE);
+	//TArray<FWidgetAndPointer> BubblePath = HittestGrid->GetBubblePath(MouseEvent.GetScreenSpacePosition(), 0.0f, true, INDEX_NONE);
 
 	UDMXPixelMappingBaseComponent* ComponentUnderCursor = nullptr;
 
+	TSharedPtr<SGraphNode> ResultNode;
 	if (UDMXPixelMapping* PixelMapping = ToolkitWeakPtr.Pin()->GetDMXPixelMapping())
 	{
-		// We loop through each hit slate widget until we arrive at one that we can access from the root widget.
-		for (int32 ChildIndex = BubblePath.Num() - 1; ChildIndex >= 0; ChildIndex--)
+		TArray<UDMXPixelMappingOutputComponent*> OutputComponents;
+		PixelMapping->GetAllComponentsOfClass<UDMXPixelMappingOutputComponent>(OutputComponents);
+
+		// Remove null entries
+		OutputComponents.RemoveAll([](UDMXPixelMappingOutputComponent* Component) {
+			return Component == nullptr;
+			});
+
+		// Find ZOrder Values
+		TArray<int32> ZOrderValues;
+		for (UDMXPixelMappingOutputComponent* OutputComponent : OutputComponents)
 		{
-			FArrangedWidget& Child = BubblePath[ChildIndex];
-			ComponentUnderCursor = PixelMapping->FindComponent(Child.Widget);			
+			ZOrderValues.AddUnique(OutputComponent->GetZOrder());
+		}
 
-			if (ComponentUnderCursor == nullptr)
+		ZOrderValues.Sort([](int32 A, int32 B) {
+			return A > B;
+			});
+
+		for (int32 ZOrder : ZOrderValues)
+		{
+			TSet<TSharedRef<SWidget>> SubWidgetsSet;
+			for (UDMXPixelMappingOutputComponent* OutputComponent : OutputComponents)
 			{
-				continue;
+				if (OutputComponent->GetClass()->IsChildOf(FindType) == false)
+				{
+					continue;
+				}
+
+				TSharedPtr<SWidget> Widget = OutputComponent->GetCachedWidget();
+				if (!Widget.IsValid())
+				{
+					continue;
+				}
+
+				if (OutputComponent->GetZOrder() != ZOrder)
+				{
+					continue;
+				}
+
+				check(Widget.IsValid());
+				SubWidgetsSet.Add(Widget.ToSharedRef());
 			}
 
-			if (ComponentUnderCursor->GetClass()->IsChildOf(FindType) == false)
-			{
-				ComponentUnderCursor = nullptr;
-				continue;
-			}
+			TMap<TSharedRef<SWidget>, FArrangedWidget> Result;
+			FindChildGeometries(MyGeometry, SubWidgetsSet, Result);
 
-			if (ComponentUnderCursor)
+			if (Result.Num() > 0)
 			{
-				HitResult.Component = ComponentUnderCursor;
-				HitResult.WidgetArranged = Child;
+				FArrangedChildren ArrangedChildren(EVisibility::Visible);
+				Result.GenerateValueArray(ArrangedChildren.GetInternalArray());
 
-				return true;
+				const int32 HoveredIndex = SWidget::FindChildUnderMouse(ArrangedChildren, MouseEvent);
+				if (HoveredIndex != INDEX_NONE)
+				{
+					HitResult.WidgetArranged = ArrangedChildren[HoveredIndex];
+
+					TSharedPtr<SWidget> WidgetUnderCursor = ArrangedChildren[HoveredIndex].Widget;
+					HitResult.Component = PixelMapping->FindComponent(WidgetUnderCursor);
+
+					return true;
+				}
 			}
 		}
 	}
-
+	
 	return false;
+}
+
+FArrangedWidget SDMXPixelMappingDesignerView::GetArrangedWidgetFromComponent(UDMXPixelMappingOutputComponent* OutputComponent) const
+{
+	TSharedPtr<SWidget> WidgetToArrange;
+
+	// Use the parent component for group item and pixel components if they're locked in designer
+	if (OutputComponent->bLockInDesigner)
+	{
+		if (OutputComponent->GetClass() == UDMXPixelMappingFixtureGroupItemComponent::StaticClass() ||
+			OutputComponent->GetClass() == UDMXPixelMappingMatrixPixelComponent::StaticClass())
+		{
+			UDMXPixelMappingOutputComponent* Parent = CastChecked<UDMXPixelMappingOutputComponent>(OutputComponent->Parent);
+			WidgetToArrange = Parent->GetCachedWidget();
+		}
+	}
+
+	if (!WidgetToArrange.IsValid())
+	{
+		WidgetToArrange = OutputComponent->GetCachedWidget();
+	}
+
+	FArrangedWidget ArrangedWidget(SNullWidget::NullWidget, FGeometry());
+	GetArrangedWidget(WidgetToArrange.ToSharedRef(), ArrangedWidget);
+
+	return ArrangedWidget;
 }
 
 void SDMXPixelMappingDesignerView::PopulateWidgetGeometryCache(FArrangedWidget& Root)
@@ -640,12 +746,17 @@ void SDMXPixelMappingDesignerView::UpdateOutput(bool bForceUpdate)
 	{
 		if (bForceUpdate || RendererComponent != CachedRendererComponent)
 		{
-			PreviewSizeConstraint->SetContent(RendererComponent->TakeWidget());
+			DesignCanvas->ClearChildren();
+
+			DesignCanvas->AddSlot()
+				[
+					RendererComponent->TakeWidget()
+				];
 		}
 	}
 	else
 	{
-		PreviewSizeConstraint->SetContent(SNullWidget::NullWidget);
+		DesignCanvas->ClearChildren();
 	}
 
 	CachedRendererComponent = Toolkit->GetActiveRendererComponent();
@@ -867,7 +978,7 @@ void SDMXPixelMappingDesignerView::ResolvePendingSelectedComponents(const FPoint
 	}
 }
 
-bool SDMXPixelMappingDesignerView::GetArrangedWidget(TSharedRef<SWidget> Widget, FArrangedWidget& ArrangedWidget)
+bool SDMXPixelMappingDesignerView::GetArrangedWidget(TSharedRef<SWidget> Widget, FArrangedWidget& ArrangedWidget) const
 {
 	TSharedPtr<SWindow> WidgetWindow = FSlateApplication::Get().FindWidgetWindow(Widget);
 	if (!WidgetWindow.IsValid())
@@ -900,16 +1011,30 @@ void SDMXPixelMappingDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGe
 			FVector2D ScreenSpacePosition = DragDropEvent.GetScreenSpacePosition();
 			FVector2D LocalPosition = WidgetUnderCursorGeometry.AbsoluteToLocal(ScreenSpacePosition);
 
-			FArrangedWidget ArrangedWidget(SNullWidget::NullWidget, FGeometry());
-			GetArrangedWidget(OutputComponent->GetCachedWidget().ToSharedRef(), ArrangedWidget);
-
+			FArrangedWidget ArrangedWidget = GetArrangedWidgetFromComponent(OutputComponent);
 			FVector2D Offset = DraggedWidget.DraggedOffset * ArrangedWidget.Geometry.GetLocalSize();
+
 			FVector2D NewPosition = LocalPosition - Offset;
 
 			OutputComponent->SetPosition(NewPosition);
+
+			// Assign a new ZOrder to dropped components
+			SDMXPixelMappingDesignerView::FComponentHitResult HitResult;
+			FindComponentUnderCursor(MyGeometry, DragDropEvent, UDMXPixelMappingOutputComponent::StaticClass(), HitResult);
+
+			if (UDMXPixelMappingOutputComponent* TargetOutputComponent = Cast<UDMXPixelMappingOutputComponent>(HitResult.Component))
+			{
+				if (OutputComponent != TargetOutputComponent &&
+					OutputComponent->GetZOrder() <= TargetOutputComponent->GetZOrder())
+				{
+					int32 NewZOrder = TargetOutputComponent->GetZOrder() + 1;
+
+					OutputComponent->Modify();
+					OutputComponent->SetZOrder(NewZOrder);
+				}
+			}
 		}
 	}
-
 }
 
 void SDMXPixelMappingDesignerView::ClearExtensionWidgets()

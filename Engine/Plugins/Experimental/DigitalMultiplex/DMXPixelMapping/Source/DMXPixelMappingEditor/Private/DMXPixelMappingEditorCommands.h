@@ -15,8 +15,8 @@ public:
 	virtual void RegisterCommands() override;
 
 	TSharedPtr<FUICommandInfo> SaveThumbnailImage;
-	TSharedPtr<FUICommandInfo> AddRenderer;
-	TSharedPtr<FUICommandInfo> ClearRenderers;
+	TSharedPtr<FUICommandInfo> AddMapping;
+	TSharedPtr<FUICommandInfo> ClearMappings;
 	TSharedPtr<FUICommandInfo> PlayDMX;
 	TSharedPtr<FUICommandInfo> StopPlayingDMX;
 	TSharedPtr<FUICommandInfo> bTogglePlayDMXAll;

@@ -6,6 +6,9 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FDMXEditor;
+class UDMXLibrary;
+class UDMXEntityFixturePatch;
 
 
 /** Visual representation of a connection to a channel in a dmx universe */
@@ -19,13 +22,18 @@ class SDMXChannelConnector
 public:
 	SLATE_BEGIN_ARGS(SDMXChannelConnector)
 		: _ChannelID(0)
+		, _UniverseID(-1)
 		, _Value(0.0f)
 		, _OnDragEnterChannel()
 		, _OnDragLeaveChannel()
 		, _OnDropOntoChannel()
+		, _DMXEditor()
 	{}
-		/** The channel ID this widget represents */
+		/** The channel ID this widget stands for */
 		SLATE_ARGUMENT(int32, ChannelID)
+
+		/** The Universe ID this widget resides in */
+		SLATE_ARGUMENT(int32, UniverseID)
 
 		/** The current value from the channel */
 		SLATE_ATTRIBUTE(uint8, Value)
@@ -39,12 +47,26 @@ public:
 		/** Called when dropped onto the channel */
 		SLATE_EVENT(FOnDropOntoChannel, OnDropOntoChannel)
 
+		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
+
 	SLATE_END_ARGS()
 
+	/** Constructs this widget */
 	void Construct(const FArguments& InArgs);
 
+	/** Returns the ChannelID of this connector */
+	int32 GetChannelID() const { return ChannelID; }
+
+	/** Returns the UniverseID of this connector */
+	int32 GetUniverseID() const { return UniverseID; }
+
+	/** Sets the UniverseID of this connector */
+	void SetUniverseID(int32 InUniverseID) { UniverseID = InUniverseID; }
+
 protected:
-	// Begin SWidget interface
+	// Begin SWidget interface	
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;	
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
@@ -52,10 +74,26 @@ protected:
 
 	TSharedPtr<class SDMXChannel> ChannelValueWidget;
 
+	int32 ChannelID;
+
+	int32 UniverseID;
+
+protected:
+	/** Selects the fixture patch in Shared Data */
+	void SelectFixturePatch(UDMXEntityFixturePatch* FixturePatch);
+
+	/** Returns the Fixture Patch residing on this channel */
+	UDMXEntityFixturePatch* GetFixturePatch() const;
+
+	/** Returns the DMXLibrary or nullptr if not available */
+	UDMXLibrary* GetDMXLibrary() const;
+
 	int32 Column = INDEX_NONE;
 	int32 Row = INDEX_NONE;
 
 	FOnDragOverChannel OnDragEnterChannel;
 	FOnDragOverChannel OnDragLeaveChannel;
 	FOnDropOntoChannel OnDropOntoChannel;
+
+	TWeakPtr<FDMXEditor> DMXEditorPtr;
 };

@@ -62,9 +62,6 @@ public:
 	/** Returns wether the patch uses specified channesl */
 	bool OccupiesChannels(int32 Channel, int32 Span) const;
 
-	/** Sets the visibility of the widgets */
-	void SetVisiblity(EVisibility Visibility);
-
 	/** Returns true if the node is patched in a universe */
 	bool IsPatched() const;
 
@@ -83,9 +80,6 @@ public:
 private:
 	/** Called when a patch node was selected */
 	void OnSelectionChanged();
-
-	/** Called when a patch fragment was selected */
-	void OnFragmentSelected(TSharedRef<SDMXFixturePatchFragment> Fragment);
 
 	/** Universe the patch is assigned to */
 	TSharedPtr<SDMXPatchedUniverse> Universe;

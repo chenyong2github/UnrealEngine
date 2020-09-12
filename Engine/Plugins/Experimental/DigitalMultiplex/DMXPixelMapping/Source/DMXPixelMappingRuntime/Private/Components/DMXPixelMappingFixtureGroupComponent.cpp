@@ -19,6 +19,10 @@ UDMXPixelMappingFixtureGroupComponent::UDMXPixelMappingFixtureGroupComponent()
 	SizeY = 500.f;
 	PositionXCached = PositionX = 0.f;
 	PositionYCached = PositionY = 0.f;
+
+#if WITH_EDITOR
+	bEditableEditorColor = true;
+#endif
 }
 
 void UDMXPixelMappingFixtureGroupComponent::PostLoad()
@@ -63,6 +67,20 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeChainProperty(FPropert
 		{
 			InComponent->UpdateWidget();
 		}, false);
+	}
+
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, PixelBlendingQuality))
+	{
+		// Update all children
+		ForEachComponentOfClass<UDMXPixelMappingFixtureGroupItemComponent>([&](UDMXPixelMappingFixtureGroupItemComponent* InComponent)
+		{
+			InComponent->PixelBlendingQuality = PixelBlendingQuality;
+		}, false);
+	}
+
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
+	{
+		Brush.TintColor = EditorColor;
 	}
 }
 
@@ -125,11 +143,17 @@ const FText UDMXPixelMappingFixtureGroupComponent::GetPaletteCategory()
 	return LOCTEXT("Common", "Common");
 }
 
-TSharedRef<SWidget> UDMXPixelMappingFixtureGroupComponent::BuildSlot(TSharedRef<SCanvas> InCanvas)
+TSharedRef<SWidget> UDMXPixelMappingFixtureGroupComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
-	CachedWidget = SNew(SBox);
+	CachedWidget = 
+		SNew(SBox)
+		.HeightOverride(SizeX)
+		.WidthOverride(SizeY);
 
-	Slot = &InCanvas->AddSlot()
+	Slot =
+		&InCanvas->AddSlot()
+		.AutoSize(true)
+		.Alignment(FVector2D::ZeroVector)
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
@@ -150,11 +174,12 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupComponent::BuildSlot(TSharedRef<
 
 	// Border settings
 	Brush.DrawAs = ESlateBrushDrawType::Border;
-	Brush.TintColor = FLinearColor::Blue;
+	Brush.TintColor = GetEditorColor(false);
 	Brush.Margin = FMargin(1.f);
 
-	Slot->Position(FVector2D(PositionX, PositionY));
-	Slot->Size(FVector2D(SizeX, SizeY));
+	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
+	CachedWidget->SetWidthOverride(SizeX);
+	CachedWidget->SetHeightOverride(SizeY);
 
 	UpdateWidget();
 
@@ -194,7 +219,6 @@ void UDMXPixelMappingFixtureGroupComponent::ToggleHighlightSelection(bool bIsSel
 {
 	if (bIsSelected)
 	{
-		Brush.Margin = FMargin(1.f);
 		Brush.TintColor = FLinearColor::Green;
 
 		ForEachComponentOfClass<UDMXPixelMappingFixtureGroupItemComponent>([](UDMXPixelMappingFixtureGroupItemComponent* InComponent)
@@ -204,7 +228,6 @@ void UDMXPixelMappingFixtureGroupComponent::ToggleHighlightSelection(bool bIsSel
 	}
 	else
 	{
-		Brush.Margin = FMargin(1.f);
 		Brush.TintColor = FLinearColor::Blue;
 	}
 }
@@ -283,11 +306,11 @@ void UDMXPixelMappingFixtureGroupComponent::SetPositionWithChildren()
 		FVector2D&& ComponentPosition = InComponent->GetPosition();
 		FVector2D DeltaParentPosition = FVector2D(PositionX - PositionXCached, PositionY - PositionYCached);
 		
-		InComponent->SetPosition(ComponentPosition + DeltaParentPosition);
+		InComponent->SetPositionFromParent(ComponentPosition + DeltaParentPosition);
 	}, false);
 
 #if WITH_EDITOR
-	Slot->Position(FVector2D(PositionX, PositionY));
+	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 #endif // WITH_EDITOR
 }
 
@@ -345,7 +368,8 @@ void UDMXPixelMappingFixtureGroupComponent::SetSizeWithinMinBoundaryBox()
 	}
 
 #if WITH_EDITOR
-	Slot->Size(FVector2D(SizeX, SizeY));
+	CachedWidget->SetWidthOverride(SizeX);
+	CachedWidget->SetHeightOverride(SizeY);
 #endif // WITH_EDITOR
 
 	ResizeOutputTarget(SizeX, SizeY);

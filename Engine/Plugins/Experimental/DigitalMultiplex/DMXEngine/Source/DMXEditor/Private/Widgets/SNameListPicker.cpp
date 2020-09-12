@@ -113,7 +113,8 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 		.IsFocusable(true)
 		.ContentPadding(2.0f)
 		.OnComboBoxOpened(this, &SNameListPicker::OnMenuOpened);
-
+	PickerComboButton->SetMenuContentWidgetToFocus(SearchBox);
+	
 	ChildSlot
 	[
 		PickerComboButton.ToSharedRef()
@@ -184,9 +185,9 @@ void SNameListPicker::HandleSelectionChanged(const TSharedPtr<FName> Item, ESele
 		return;
 	}
 
+	// could happens when editing multiple values
 	if (!Item.IsValid())
 	{
-		UE_LOG_DMXEDITOR(Error, TEXT("HandleProtocolChanged called with null Item pointer"));
 		return;
 	}
 
@@ -238,7 +239,6 @@ void SNameListPicker::OnMenuOpened()
 	{
 		SearchBox->SetText(FText::GetEmpty());
 		UpdateFilteredOptions(TEXT(""));
-		FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::SetDirectly);
 	}
 	else
 	{

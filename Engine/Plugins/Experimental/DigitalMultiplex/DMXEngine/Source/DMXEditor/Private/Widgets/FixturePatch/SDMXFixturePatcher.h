@@ -60,10 +60,11 @@ protected:
 	/** Called when the active tab changed */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
 
+	/** Called when entities in the library got updated */
+	void OnEntitiesUpdated(UDMXLibrary* DMXLibrary);
+
 	// Begin SWidget Interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	// ~End SWidget Interface
 
@@ -73,8 +74,8 @@ protected:
 	/** Called when drag dropped onto a channel */
 	FReply OnDropOntoChannel(int32 UniverseID, int32 ChannelID, const FDragDropEvent& DragDropEvent);
 
-	/** Initilizes drag drop. Should be called when the dragged entities no longer match the dragged node */
-	void InitDragDrop(const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities);
+	/** Initilizes the widget for an incoming dragged patch, and the patch so it can be dragged here */
+	TSharedPtr<FDMXFixturePatchNode> GetDraggedNode(const TArray<TWeakObjectPtr<UDMXEntity>>& DraggedEntities);
 	
 	/** Creates an info widget for drag dropping */
 	TSharedRef<SWidget> CreateDragDropDecorator(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch, int32 ChannelID) const;
@@ -133,6 +134,9 @@ protected:
 	FText GetTooltipText() const;
 
 protected:
+	/** Clamps the starting channel to remain within a valid channel range */
+	int32 ClampStartingChannel(int32 StartingChannel, int32 ChannelSpan) const;
+
 	/** Helper disabling bAutoAssignAdress in fixture patch transacted */
 	void DisableAutoAssignAdress(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch);
 
@@ -150,9 +154,6 @@ protected:
 
 	/** Universe widgets by ID */
 	TMap<int32, TSharedPtr<SDMXPatchedUniverse>> PatchedUniversesByID;
-
-	/** Node being dragged, may still be valid even after drag */
-	TSharedPtr<FDMXFixturePatchNode> DraggedNode;
 
 	/** Shared data for fixture patch editors */
 	TSharedPtr<FDMXFixturePatchSharedData> SharedData;
