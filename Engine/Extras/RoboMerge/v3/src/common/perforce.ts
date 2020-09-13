@@ -84,31 +84,15 @@ export interface DescribeResult {
 	2020/09/12 19:40:33 576199000 pid 23850: <-  NetTcpTransport 10.200.65.101:63841 closing 10.200.21.246:1667
  */
 
-type TraceOutput = {
-	pid: string
-	entries: [string, string][] // date stamp and text
-}
-
-
 const TRACE_OUTPUT_REGEX = /(\d\d\d\d\/\d\d\/\d\d \d\d:\d\d:\d\d \d+) pid (\d+): /
 
-function parseTrace(response: string): [TraceOutput, string] {
+function parseTrace(response: string): [string, string] {
+	const trace: string[] = []
 	const nonTrace: string[] = []
-	const output: TraceOutput = {
-		pid: '',
-		entries: []
-	}
 	for (const line of response.split('\n')) {
-		const m = line.match(TRACE_OUTPUT_REGEX)
-		if (m) {
-			output.entries.push([m[1], line.substr(m[0].length)])
-			output.pid = m[2]
-		}
-		else {
-			nonTrace.push(line)
-		}
+		(line.match(TRACE_OUTPUT_REGEX) ? trace : nonTrace).push(line)
 	}
-	return [output, nonTrace.join('\n')]
+	return [trace.join('\n'), nonTrace.join('\n')]
 }
 
 
@@ -1319,8 +1303,8 @@ export class PerforceContext {
 						if (opts.trace) {
 							const [traceResult, rest] = parseTrace(response)
 							const durationSeconds = (Date.now() - cmd_rec.start.valueOf()) / 1000
-							if (durationSeconds > 10) {
-								logger.info(`Duration: ${durationSeconds}s, pid: ${traceResult.pid}\n${traceResult.entries.join('\n')}`)
+							if (durationSeconds > 30) {
+								logger.info(`Cmd: ${cmd_rec.cmd}, duration: ${durationSeconds}s\n` + traceResult)
 							}
 							done(rest)
 						}
