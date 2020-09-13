@@ -530,7 +530,6 @@ export function computeTargetsImpl(
 		...ri.integrations
 	]
 
-	console.log(requestedMerges)
 	const branchGraph = sourceBranch.parent
 
 	// compute the targets map
