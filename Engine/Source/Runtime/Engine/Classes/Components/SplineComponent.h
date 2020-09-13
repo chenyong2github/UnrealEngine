@@ -369,6 +369,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	FVector GetScaleAtSplineInputKey(float InKey) const;
 
+	/** Get distance along the spline at the provided input key value */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	float GetDistanceAlongSplineAtSplineInputKey(float InKey) const;
+
 	/** Get a metadata property float value along the spline at spline input key */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	float GetFloatPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
