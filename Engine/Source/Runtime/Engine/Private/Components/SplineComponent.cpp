@@ -465,6 +465,29 @@ FVector USplineComponent::GetScaleAtSplineInputKey(float InKey) const
 	return Scale;
 }
 
+
+float USplineComponent::GetDistanceAlongSplineAtSplineInputKey(float InKey) const
+{
+	const int32 NumPoints = SplineCurves.Position.Points.Num();
+	const int32 NumSegments = bClosedLoop ? NumPoints : NumPoints - 1;
+
+	if ((InKey >= 0) && (InKey < NumSegments))
+	{
+		const int32 PointIndex = FMath::FloorToInt(InKey);
+		const float Fraction = InKey - PointIndex;
+		const int32 ReparamPointIndex = PointIndex * ReparamStepsPerSegment;
+		const float Distance = SplineCurves.ReparamTable.Points[ReparamPointIndex].InVal;
+		return Distance + GetSegmentLength(PointIndex, Fraction);
+	}
+	else if (InKey >= NumSegments)
+	{
+		return SplineCurves.GetSplineLength();
+	}
+
+	return 0.0f;
+}
+
+
 template<class T>
 T GetPropertyValueAtSplineInputKey(const USplineMetadata* Metadata, float InKey, FName PropertyName)
 {
