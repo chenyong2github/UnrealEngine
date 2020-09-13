@@ -116,7 +116,7 @@ public:
 
 	/** Get a list of all subjects */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	static TArray<FLiveLinkSubjectKey> GetLiveLinkSubjects(bool bIncludeDisabledSubject, bool bIncludeDisal);
+	static TArray<FLiveLinkSubjectKey> GetLiveLinkSubjects(bool bIncludeDisabledSubject, bool bIncludeVirtualSubject);
 
 	/**
 	 * Whether or not a subject from the specific source is the enabled subject.
