@@ -161,6 +161,10 @@ namespace AutomationTool
 			{
 				return false;
 			}
+			if (ModuleName.StartsWith("MPX", StringComparison.OrdinalIgnoreCase))
+			{
+				return false;
+			}
 			if (ModuleName.StartsWith("FortniteGame", StringComparison.OrdinalIgnoreCase))
 			{
 				return false;
