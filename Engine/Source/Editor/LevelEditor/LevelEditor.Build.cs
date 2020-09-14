@@ -48,6 +48,7 @@ public class LevelEditor : ModuleRules
 				"SourceControlWindows",
 				"StatsViewer",
 				"UnrealEd", 
+				"DeveloperSettings",
 				"RenderCore",
 				"DeviceProfileServices",
 				"ContentBrowser",
