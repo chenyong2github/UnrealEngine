@@ -144,7 +144,7 @@ protected:
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
 	virtual bool IsAntiAliasingSupported() const { return !bDisableMultisampleEffects; }
 	virtual int32 GetOutputFileSortingOrder() const override { return 0; }
-	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return bOutputAlpha; }
+	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return bAccumulateMultisampleAlpha; }
 	// ~UMoviePipelineRenderPass
 
 	TFunction<void(TUniquePtr<FImagePixelData>&&)> MakeForwardingEndpoint(const FMoviePipelinePassIdentifier InPassIdentifier, const FMoviePipelineRenderPassMetrics& InSampleState);
@@ -152,13 +152,13 @@ protected:
 
 public:
 	/**
-	* Should we accumulate the alpha channel and write it into the resulting image? This requires r.PostProcessing.PropagateAlpha
+	* Should we accumulate the alpha channel when using temporal/spatial sampling? This requires r.PostProcessing.PropagateAlpha
 	* to be set to 1 or 2 (see "Enable Alpha Channel Support in Post Processing" under Project Settings > Rendering). This adds
 	* ~30% cost to the accumulation so you should not enable it unless necessary. You must delete both the sky and fog to ensure
 	* that they do not make all pixels opaque.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
-	bool bOutputAlpha;
+	bool bAccumulateMultisampleAlpha;
 
 	/**
 	* Certain passes don't support post-processing effects that blend pixels together. These include effects like

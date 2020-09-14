@@ -18,7 +18,7 @@
 struct MOVIERENDERPIPELINECORE_API FMoviePipelineSurfaceReader
 {
 	/** Construct a surface reader with the given pixel format and size. This will be the output specification. */
-	FMoviePipelineSurfaceReader(EPixelFormat InPixelFormat, FIntPoint InSurfaceSize);
+	FMoviePipelineSurfaceReader(EPixelFormat InPixelFormat, FIntPoint InSurfaceSize, bool bInInvertAlpha);
 
 	~FMoviePipelineSurfaceReader();
 
@@ -65,12 +65,13 @@ protected:
 	FIntPoint Size;
 
 	bool bQueuedForCapture;
+	bool bInvertAlpha;
 };
 
 struct MOVIERENDERPIPELINECORE_API FMoviePipelineSurfaceQueue
 {
 public:
-	FMoviePipelineSurfaceQueue(FIntPoint InSurfaceSize, EPixelFormat InPixelFormat, uint32 InNumSurfaces);
+	FMoviePipelineSurfaceQueue(FIntPoint InSurfaceSize, EPixelFormat InPixelFormat, uint32 InNumSurfaces, bool bInInvertAlpha);
 	~FMoviePipelineSurfaceQueue();
 
 	// Movable
@@ -91,8 +92,8 @@ private:
 	{
 		UE_NONCOPYABLE(FResolveSurface);
 
-		FResolveSurface(const EPixelFormat InPixelFormat, const FIntPoint InSurfaceSize)
-			: Surface(InPixelFormat, InSurfaceSize)
+		FResolveSurface(const EPixelFormat InPixelFormat, const FIntPoint InSurfaceSize, const bool bInInvertAlpha)
+			: Surface(InPixelFormat, InSurfaceSize, bInInvertAlpha)
 		{
 		}
 
