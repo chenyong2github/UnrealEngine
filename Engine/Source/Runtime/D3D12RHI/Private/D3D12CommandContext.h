@@ -411,16 +411,8 @@ public:
 
 	static inline FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture, uint32 GPUIndex)
 	{
-		// If it's the dummy backbuffer then swap with actual current RHI backbuffer right now
-		FRHITexture* RHITexture = Texture;
-		if (RHITexture && RHITexture->GetFlags() & TexCreate_Presentable)
-		{
-			FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)RHITexture;
-			FD3D12Viewport* ViewPort = BufferBufferReferenceTexture->GetViewPort();
-			RHITexture = BufferBufferReferenceTexture->IsSDR() ? ViewPort->GetSDRBackBuffer_RHIThread() : ViewPort->GetBackBuffer_RHIThread();
-		}
-
-		return RHITexture ? static_cast<FD3D12TextureBase*>(RHITexture->GetTextureBaseRHI())->GetLinkedObject(GPUIndex) : nullptr;
+		FD3D12TextureBase* RHITexture = GetD3D12TextureFromRHITexture(Texture);
+		return RHITexture ? RHITexture->GetLinkedObject(GPUIndex) : nullptr;
 	}
 
 	FORCEINLINE_DEBUGGABLE FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture)

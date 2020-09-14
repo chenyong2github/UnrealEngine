@@ -74,32 +74,6 @@ private:
 };
 #endif //WITH_MGPU
 
-class FD3D12Viewport;
-
-class FD3D12BackBufferReferenceTexture2D : public FD3D12Texture2D
-{
-public:
-
-	FD3D12BackBufferReferenceTexture2D(
-		FD3D12Viewport* InViewPort,
-		bool bInIsSDR,
-		FD3D12Device* InDevice,
-		uint32 InSizeX,
-		uint32 InSizeY,
-		EPixelFormat InFormat) :
-		FD3D12Texture2D(InDevice, InSizeX, InSizeY, 1, 1, 1, InFormat, false, TexCreate_Presentable, FClearValueBinding()),
-		Viewport(InViewPort), bIsSDR(bInIsSDR)
-	{
-	}
-
-	FD3D12Viewport* GetViewPort() { return Viewport; }
-	bool IsSDR() const { return bIsSDR; }
-
-private:
-
-	FD3D12Viewport* Viewport = nullptr;
-	bool bIsSDR = false;
-};
 
 class FD3D12Viewport : public FRHIViewport, public FD3D12AdapterChild
 {

@@ -217,6 +217,11 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 	{
 		const D3D_FEATURE_LEVEL FeatureLevel = GetParentDevice()->GetParentAdapter()->GetFeatureLevel();
 
+		// Could be back buffer reference texture, so get the correct D3D12 texture here
+		// We know already that it's a FD3D12Texture2D so cast is safe
+		SourceTexture2D = (FD3D12Texture2D*) GetD3D12TextureFromRHITexture(SourceTextureRHI);
+		DestTexture2D = (FD3D12Texture2D*) GetD3D12TextureFromRHITexture(DestTextureRHI);
+
 		check(!SourceTextureCube && !DestTextureCube);
 		if (SourceTexture2D != DestTexture2D)
 		{
@@ -1263,12 +1268,10 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 
 	TArray<uint8> OutDataRaw;
 
-	// Retrieve the base texture
-	FD3D12CommandContext& CommandContext = GetRHIDevice()->GetDefaultCommandContext();
-	FD3D12TextureBase* D3D12TextureBase = CommandContext.RetrieveTextureBase(InRHITexture);
+	FD3D12TextureBase* Texture = GetD3D12TextureFromRHITexture(InRHITexture);
 
 	// Wait for the command list if needed
-	FD3D12Texture2D* DestTexture2D = static_cast<FD3D12Texture2D*>(D3D12TextureBase);
+	FD3D12Texture2D* DestTexture2D = static_cast<FD3D12Texture2D*>(Texture);
 	FD3D12CLSyncPoint SyncPoint = DestTexture2D->GetReadBackSyncPoint();
 
 	if (!!SyncPoint)
@@ -1276,7 +1279,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 		CommandListState ListState = GetRHIDevice()->GetCommandListManager().GetCommandListState(SyncPoint);
 		if (ListState == CommandListState::kOpen)
 		{
-			CommandContext.FlushCommands(true);
+			GetRHIDevice()->GetDefaultCommandContext().FlushCommands(true);
 		}
 		else
 		{
