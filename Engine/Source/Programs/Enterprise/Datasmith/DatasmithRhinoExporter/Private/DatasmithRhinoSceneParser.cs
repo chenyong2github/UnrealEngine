@@ -148,6 +148,29 @@ namespace DatasmithRhino
 		}
 	}
 
+	public class RhinoTextureInfo
+	{
+		public Texture RhinoTexture { get; private set; }
+		public string Name { get; private set; }
+		public string Label { get { return Name; } }
+		public string FilePath { get; private set; }
+
+		public RhinoTextureInfo(Texture InRhinoTexture, string InName, string InFilePath)
+		{
+			RhinoTexture = InRhinoTexture;
+			Name = InName;
+			FilePath = InFilePath;
+		}
+
+		public bool IsSupported()
+		{
+			return (RhinoTexture.Enabled 
+				&& (RhinoTexture.TextureType == TextureType.Bitmap 
+					|| RhinoTexture.TextureType == TextureType.Bump 
+					|| RhinoTexture.TextureType == TextureType.Transparency));
+		}
+	}
+
 	public class DatasmithMeshInfo
 	{
 		public List<Mesh> RhinoMeshes { get; private set; }
@@ -181,12 +204,15 @@ namespace DatasmithRhino
 		public Dictionary<InstanceDefinition, RhinoSceneHierarchyNode> InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, RhinoSceneHierarchyNode>();
 		public Dictionary<Guid, RhinoSceneHierarchyNode> GuidToHierarchyNodeDictionary = new Dictionary<Guid, RhinoSceneHierarchyNode>();
 		public Dictionary<Guid, DatasmithMeshInfo> ObjectIdToMeshInfoDictionary = new Dictionary<Guid, DatasmithMeshInfo>();
-		public Dictionary<int, string> MaterialIndexToMaterialHashDictionary = new Dictionary<int, string>();
 		public Dictionary<string, RhinoMaterialInfo> MaterialHashToMaterialInfo = new Dictionary<string, RhinoMaterialInfo>();
+		public Dictionary<string, RhinoTextureInfo> TextureHashToTextureInfo = new Dictionary<string, RhinoTextureInfo>();
 
+		private Dictionary<int, string> MaterialIndexToMaterialHashDictionary = new Dictionary<int, string>();
+		private Dictionary<Guid, string> TextureIdToTextureHash = new Dictionary<Guid, string>();
 		private List<string> GroupNameList = new List<string>();
 		private FUniqueNameGenerator ActorLabelGenerator = new FUniqueNameGenerator();
 		private FUniqueNameGenerator MaterialLabelGenerator = new FUniqueNameGenerator();
+		private FUniqueNameGenerator TextureLabelGenerator = new FUniqueNameGenerator();
 
 		public DatasmithRhinoSceneParser(RhinoDoc InDoc, Rhino.FileIO.FileWriteOptions InOptions)
 		{
@@ -211,6 +237,19 @@ namespace DatasmithRhino
 				if(MaterialHashToMaterialInfo.TryGetValue(MaterialHash, out RhinoMaterialInfo MaterialInfo))
 				{
 					return MaterialInfo;
+				}
+			}
+
+			return null;
+		}
+
+		public RhinoTextureInfo GetTextureInfoFromRhinoTexture(Guid TextureId)
+		{
+			if (TextureIdToTextureHash.TryGetValue(TextureId, out string TextureHash))
+			{
+				if (TextureHashToTextureInfo.TryGetValue(TextureHash, out RhinoTextureInfo TextureInfo))
+				{
+					return TextureInfo;
 				}
 			}
 
@@ -442,6 +481,34 @@ namespace DatasmithRhino
 				string MaterialName = FDatasmithFacadeElement.GetStringHash(MaterialLabel);
 
 				MaterialHashToMaterialInfo.Add(MaterialHash, new RhinoMaterialInfo(RhinoMaterial, MaterialName, MaterialLabel));
+
+				Texture[] MaterialTextures = RhinoMaterial.GetTextures();
+				for (int TextureIndex = 0; TextureIndex < MaterialTextures.Length; ++TextureIndex)
+				{
+					Texture RhinoTexture = MaterialTextures[TextureIndex];
+					if(RhinoTexture != null)
+					{
+						string TextureHash = FDatasmithRhinoUtilities.GetTextureHash(RhinoTexture);
+						AddTextureHashMapping(TextureHash, RhinoTexture);
+					}
+				}
+			}
+		}
+
+		private void AddTextureHashMapping(string TextureHash, Texture RhinoTexture)
+		{
+			if (!TextureIdToTextureHash.ContainsKey(RhinoTexture.Id))
+			{
+				TextureIdToTextureHash.Add(RhinoTexture.Id, TextureHash);
+
+				if (!TextureHashToTextureInfo.ContainsKey(TextureHash))
+				{
+					string TextureName, TexturePath;
+					FDatasmithRhinoUtilities.GetRhinoTextureNameAndPath(RhinoTexture, out TextureName, out TexturePath);
+					TextureName = TextureLabelGenerator.GenerateUniqueNameFromBaseName(TextureName);
+
+					TextureHashToTextureInfo.Add(TextureHash, new RhinoTextureInfo(RhinoTexture, TextureName, TexturePath));
+				}
 			}
 		}
 
