@@ -19,10 +19,10 @@ struct FRigUnit_FABRIK_WorkData
 	UPROPERTY()
 	TArray<FFABRIKChainLink> Chain;
 
-	UPROPERTY(transient)
+	UPROPERTY()
 	TArray<FCachedRigElement> CachedItems;
 
-	UPROPERTY(transient)
+	UPROPERTY()
 	FCachedRigElement CachedEffector;
 };
 
