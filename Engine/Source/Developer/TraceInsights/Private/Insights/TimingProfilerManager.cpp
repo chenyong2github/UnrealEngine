@@ -56,8 +56,6 @@ TSharedPtr<FTimingProfilerManager> FTimingProfilerManager::CreateInstance()
 FTimingProfilerManager::FTimingProfilerManager(TSharedRef<FUICommandList> InCommandList)
 	: bIsInitialized(false)
 	, bIsAvailable(false)
-	, AvailabilityCheckNextTimestamp(0)
-	, AvailabilityCheckWaitTimeSec(1.0)
 	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
@@ -86,12 +84,17 @@ void FTimingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 	}
 	bIsInitialized = true;
 
+	UE_LOG(TimingProfiler, Log, TEXT("Initialize"));
+
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FTimingProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FTimingProfilerCommands::Register();
 	BindCommands();
+
+	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &FTimingProfilerManager::OnSessionChanged);
+	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -104,12 +107,16 @@ void FTimingProfilerManager::Shutdown()
 	}
 	bIsInitialized = false;
 
+	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+
 	FTimingProfilerCommands::Unregister();
 
 	// Unregister tick function.
 	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FTimingProfilerManager::Instance.Reset();
+
+	UE_LOG(TimingProfiler, Log, TEXT("Shutdown"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -223,28 +230,27 @@ FTimingProfilerActionManager& FTimingProfilerManager::GetActionManager()
 
 bool FTimingProfilerManager::Tick(float DeltaTime)
 {
-	if (!bIsAvailable)
+	// Check if session has Timing events (to spawn the tab), but not too often.
+	if (!bIsAvailable && AvailabilityCheck.Tick())
 	{
-		// Check if session has Timing events (to spawn the tab), but not too often.
-		const uint64 Time = FPlatformTime::Cycles64();
-		if (Time > AvailabilityCheckNextTimestamp)
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
 		{
-			AvailabilityCheckWaitTimeSec += 1.0; // increase wait time with 1s
-			const uint64 WaitTime = static_cast<uint64>(AvailabilityCheckWaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
-			AvailabilityCheckNextTimestamp = Time + WaitTime;
+			bIsAvailable = true;
 
-			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-			if (Session.IsValid())
-			{
-				bIsAvailable = true;
 #if !WITH_EDITOR
-				const FName& TabId = FInsightsManagerTabs::TimingProfilerTabId;
-				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
-				{
-					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
-				}
-#endif
+			const FName& TabId = FInsightsManagerTabs::TimingProfilerTabId;
+			if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
+			{
+				UE_LOG(TimingProfiler, Log, TEXT("Opening the \"Timing Insights\" tab..."));
+				FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 			}
+#endif
+		}
+		else
+		{
+			// Do not check again until the next session changed event (see OnSessionChanged).
+			AvailabilityCheck.Disable();
 		}
 	}
 
@@ -284,9 +290,17 @@ void FTimingProfilerManager::FinishTimerButterflyAggregation()
 
 void FTimingProfilerManager::OnSessionChanged()
 {
+	UE_LOG(TimingProfiler, Log, TEXT("OnSessionChanged"));
+
 	bIsAvailable = false;
-	AvailabilityCheckNextTimestamp = 0;
-	AvailabilityCheckWaitTimeSec = 1.0;
+	if (FInsightsManager::Get()->GetSession().IsValid())
+	{
+		AvailabilityCheck.Enable(0.0);
+	}
+	else
+	{
+		AvailabilityCheck.Disable();
+	}
 
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
