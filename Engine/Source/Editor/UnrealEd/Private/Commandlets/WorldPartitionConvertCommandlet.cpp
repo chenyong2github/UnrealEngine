@@ -935,6 +935,12 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				FArchiveGatherPrivateImports Ar(Actor, PrivateRefsMap, ActorsReferencesToActors);
 				Actor->Serialize(Ar);
 
+				// Even after Foliage Partitioning it is possible some Actors still have a FoliageTag. Make sure it is removed.
+				if (FFoliageHelper::IsOwnedByFoliage(Actor))
+				{
+					FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
+				}
+
 				ChangeObjectOuter(Actor, MainLevel);
 
 				// Migrate blueprint classes
