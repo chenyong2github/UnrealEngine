@@ -6,6 +6,7 @@
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/InputSettings.h"
 #include "IOpenXRExtensionPlugin.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
@@ -528,6 +529,19 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 	}
 }
 
+namespace OpenXRInputNamespace
+{
+	FXRTimedInputActionDelegate* GetTimedInputActionDelegate(FName ActionName)
+	{
+		FXRTimedInputActionDelegate* XRTimedInputActionDelegate = UHeadMountedDisplayFunctionLibrary::OnXRTimedInputActionDelegateMap.Find(ActionName);
+		if (XRTimedInputActionDelegate && !XRTimedInputActionDelegate->IsBound())
+		{
+			XRTimedInputActionDelegate = nullptr;
+		}
+		return XRTimedInputActionDelegate;
+	}
+}
+
 void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 {
 	if (!bActionsBound)
@@ -577,6 +591,12 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 					{
 						MessageHandler->OnControllerButtonReleased(*ActionKey, 0, /*IsRepeat =*/false);
 					}
+
+					FXRTimedInputActionDelegate* const Delegate = OpenXRInputNamespace::GetTimedInputActionDelegate(Action.Name);
+					if (Delegate)
+					{
+						Delegate->Execute(State.currentState ? 1.0 : 0.0f, ToFTimespan(State.lastChangeTime));
+					}
 				}
 			}
 			break;
@@ -589,6 +609,12 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 				if (Result >= XR_SUCCESS && State.isActive && State.changedSinceLastSync)
 				{
 					MessageHandler->OnControllerAnalog(*ActionKey, 0, State.currentState);
+
+					FXRTimedInputActionDelegate* const Delegate = OpenXRInputNamespace::GetTimedInputActionDelegate(Action.Name);
+					if (Delegate)
+					{
+						Delegate->Execute(State.currentState, ToFTimespan(State.lastChangeTime));
+					}
 				}
 			}
 			break;
@@ -672,6 +698,11 @@ bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPosition(const
 
 		XrSession Session = OpenXRHMD->GetSession();
 
+		if (Session == XR_NULL_HANDLE)
+		{
+			return false;
+		}
+
 		XrActionStateGetInfo GetInfo;
 		GetInfo.type = XR_TYPE_ACTION_STATE_GET_INFO;
 		GetInfo.next = nullptr;
@@ -689,6 +720,57 @@ bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPosition(const
 			OutOrientation = FRotator(Orientation);
 			return true;
 		}
+	}
+
+	return false;
+}
+
+bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, float WorldToMetersScale) const
+{
+	OutTimeWasUsed = true;
+
+	if (ControllerIndex == 0 && IsOpenXRInputSupportedMotionSource(MotionSource))
+	{
+		if (MotionSource == OpenXRSourceNames::AnyHand)
+		{
+			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::LeftGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, WorldToMetersScale)
+				|| GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::RightGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, WorldToMetersScale);
+		}
+
+		if (MotionSource == OpenXRSourceNames::Left)
+		{
+			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::LeftGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, WorldToMetersScale);
+		}
+
+		if (MotionSource == OpenXRSourceNames::Right)
+		{
+			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::RightGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, WorldToMetersScale);
+		}
+	}
+
+	XrSession Session = OpenXRHMD->GetSession();
+
+	if (Session == XR_NULL_HANDLE)
+	{
+		return false;
+	}
+
+	XrActionStateGetInfo GetInfo;
+	GetInfo.type = XR_TYPE_ACTION_STATE_GET_INFO;
+	GetInfo.next = nullptr;
+	GetInfo.subactionPath = XR_NULL_PATH;
+	GetInfo.action = GetActionForMotionSource(MotionSource);
+
+	XrActionStatePose State;
+	State.type = XR_TYPE_ACTION_STATE_POSE;
+	State.next = nullptr;
+	XrResult Result = xrGetActionStatePose(Session, &GetInfo, &State);
+	if (Result >= XR_SUCCESS && State.isActive)
+	{
+		FQuat Orientation;
+		OpenXRHMD->GetPoseForTime(GetDeviceIDForMotionSource(MotionSource), Time, Orientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec);
+		OutOrientation = FRotator(Orientation);
+		return true;
 	}
 
 	return false;
@@ -721,6 +803,11 @@ ETrackingStatus FOpenXRInputPlugin::FOpenXRInput::GetControllerTrackingStatus(co
 		}
 
 		XrSession Session = OpenXRHMD->GetSession();
+
+		if (Session == XR_NULL_HANDLE)
+		{
+			return ETrackingStatus::NotTracked;
+		}
 
 		XrActionStateGetInfo GetInfo;
 		GetInfo.type = XR_TYPE_ACTION_STATE_GET_INFO;
