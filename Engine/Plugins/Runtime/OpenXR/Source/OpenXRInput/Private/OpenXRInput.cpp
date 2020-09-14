@@ -328,6 +328,8 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 			);
 	}
 
+	bool bGripAndAimBindingsAdded = false;
+
 	for (TPair<FString, FInteractionProfile>& Pair : Profiles)
 	{
 		FInteractionProfile& Profile = Pair.Value;
@@ -335,6 +337,8 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 		// Only suggest interaction profile bindings if the developer has provided bindings for them
 		if (Profile.Bindings.Num() > 0)
 		{
+			bGripAndAimBindingsAdded = true;
+
 			// Add the bindings for the controller pose and haptics
 			Profile.Bindings.Add(XrActionSuggestedBinding {
 				Controllers[EControllerHand::Left].GripAction, GetPath(Instance, "/user/hand/left/input/grip/pose")
@@ -367,6 +371,32 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 			InteractionProfile.suggestedBindings = Profile.Bindings.GetData();
 			XR_ENSURE(xrSuggestInteractionProfileBindings(Instance, &InteractionProfile));
 		}
+	}
+	
+	// If we have no profile bindings at all we will bind grip/aim to the Kronos Simple Controller profile, so that motion controller grip/aim poses function by default.
+	if (!bGripAndAimBindingsAdded)
+	{
+		TArray<XrActionSuggestedBinding> Bindings;
+		Bindings.Add(XrActionSuggestedBinding{
+			Controllers[EControllerHand::Left].GripAction, GetPath(Instance, "/user/hand/left/input/grip/pose")
+			});
+		Bindings.Add(XrActionSuggestedBinding{
+			Controllers[EControllerHand::Right].GripAction, GetPath(Instance, "/user/hand/right/input/grip/pose")
+			});
+		Bindings.Add(XrActionSuggestedBinding{
+			Controllers[EControllerHand::Left].AimAction, GetPath(Instance, "/user/hand/left/input/aim/pose")
+			});
+		Bindings.Add(XrActionSuggestedBinding{
+			Controllers[EControllerHand::Right].AimAction, GetPath(Instance, "/user/hand/right/input/aim/pose")
+			});
+
+		XrInteractionProfileSuggestedBinding InteractionProfile;
+		InteractionProfile.type = XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING;
+		InteractionProfile.next = nullptr;
+		InteractionProfile.interactionProfile = GetPath(Instance, "/interaction_profiles/khr/simple_controller");
+		InteractionProfile.countSuggestedBindings = Bindings.Num();
+		InteractionProfile.suggestedBindings = Bindings.GetData();
+		XR_ENSURE(xrSuggestInteractionProfileBindings(Instance, &InteractionProfile));
 	}
 
 	// Add an active set for each sub-action path so we can use the subaction paths later
