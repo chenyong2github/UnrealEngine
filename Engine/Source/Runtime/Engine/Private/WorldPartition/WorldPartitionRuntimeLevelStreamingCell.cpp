@@ -132,12 +132,6 @@ void UWorldPartitionRuntimeLevelStreamingCell::Activate() const
 		if (!LevelStreaming)
 		{
 			LevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(CreateLevelStreaming());
-
-			if (const UWorldPartitionRuntimeHLODCellData* HLODCellData = GetCellData<UWorldPartitionRuntimeHLODCellData>())
-			{
-				LevelStreaming->OnLevelShown.AddDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown);
-				LevelStreaming->OnLevelHidden.AddDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden);
-			}
 		}
 		check(LevelStreaming);
 	}
@@ -177,6 +171,12 @@ void UWorldPartitionRuntimeLevelStreamingCell::Activate() const
 
 	if (LevelStreaming)
 	{
+		if (const UWorldPartitionRuntimeHLODCellData* HLODCellData = GetCellData<UWorldPartitionRuntimeHLODCellData>())
+		{
+			LevelStreaming->OnLevelShown.AddUniqueDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown);
+			LevelStreaming->OnLevelHidden.AddUniqueDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden);
+		}
+
 		LevelStreaming->Activate();
 	}
 }
@@ -206,11 +206,11 @@ void UWorldPartitionRuntimeLevelStreamingCell::Deactivate() const
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown()
 {
 	check(LevelStreaming);
-	LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->TransitionToHLOD(this);
+	LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->OnCellShown(this);
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden()
 {
 	check(LevelStreaming);
-	LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->TransitionFromHLOD(this);
+	LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->OnCellHidden(this);
 }

@@ -19,8 +19,9 @@ FWorldPartitionActorDesc* FHLODActorDescFactory::CreateInstance(const FWorldPart
 		return nullptr;
 	}
 
-	TArray<FGuid> SubActorsGUIDs;
 	FString MetadataStr;
+
+	TArray<FGuid> SubActorsGUIDs;
 	static const FName NAME_HLODSubActors(TEXT("HLODSubActors"));
 	if (!FActorRegistry::ReadActorMetaData(NAME_HLODSubActors, MetadataStr, ActorDescInitData.AssetData))
 	{
@@ -46,7 +47,15 @@ FWorldPartitionActorDesc* FHLODActorDescFactory::CreateInstance(const FWorldPart
 		});
 	}
 
-	return new FHLODActorDesc(Data, SubActorsGUIDs);
+	FSoftObjectPath HLODLayerPath;
+	static const FName NAME_HLODLayer(TEXT("HLODLayer"));
+	if (!FActorRegistry::ReadActorMetaData(NAME_HLODLayer, MetadataStr, ActorDescInitData.AssetData))
+	{
+		return nullptr;
+	}
+	HLODLayerPath = MetadataStr;
+
+	return new FHLODActorDesc(Data, SubActorsGUIDs, HLODLayerPath);
 }
 
 FWorldPartitionActorDesc* FHLODActorDescFactory::CreateInstance(AActor* InActor)

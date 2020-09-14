@@ -9,17 +9,18 @@
 #include "HLODActor.generated.h"
 
 class UHLODLayer;
+class UHLODSubsystem;
 
 UCLASS(NotPlaceable)
 class ENGINE_API AWorldPartitionHLOD : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-public:
-	UPrimitiveComponent* GetHLODComponent();
+	friend class UHLODSubsystem;
 
-	void LinkCell(FName InCellName);
-	void UnlinkCell(FName InCellName);
+public:
+	void OnCellShown(FName InCellName);
+	void OnCellHidden(FName InCellName);
 
 	const FGuid& GetHLODGuid() const { return HLODGuid; }
 
@@ -29,28 +30,33 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	//~ End AActor Interface.
 
+#if WITH_EDITOR
 	void SetLODParent(AActor& InActor);
 	void ClearLODParent(AActor& InActor);
 	void UpdateLODParent(AActor& InActor, bool bInClear);
+#endif
+
+	UPrimitiveComponent* GetHLODComponent();
 
 public:
 #if WITH_EDITOR
-	void SetHLODPrimitive(UPrimitiveComponent* InHLODPrimitive);
+	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives, float InFadeOutDistance);
 	void SetChildrenPrimitives(const TArray<UPrimitiveComponent*>& InChildrenPrimitives);
 
 	const TArray<FGuid>& GetSubActors() const;
 
 	void SetHLODLayer(const UHLODLayer* InSubActorsHLODLayer, int32 InSubActorsHLODLevel);
+	
+	const FBox& GetHLODBounds() const;
+	void SetHLODBounds(const FBox& InBounds);
 
 protected:
-	void OnWorldPartitionActorRegistered(AActor& InActor, bool bInLoaded);
-
 	//~ Begin AActor Interface.
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void PostActorCreated() override;
-	virtual void RegisterAllComponents() override;
-	virtual void UnregisterAllComponents(const bool bForReregister) override;
+	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
+	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
 	//~ End AActor Interface.
 #endif // WITH_EDITOR
 
@@ -62,6 +68,9 @@ private:
 	UPROPERTY()
 	const UHLODLayer* SubActorsHLODLayer;
 
+	UPROPERTY()
+	FBox HLODBounds;
+
 	FDelegateHandle ActorRegisteredDelegateHandle;
 #endif
 	
@@ -70,12 +79,6 @@ private:
 
 	UPROPERTY()
 	FGuid HLODGuid;
-
-	UPROPERTY()
-	UPrimitiveComponent* HLODComponent;
-
-	UPROPERTY()
-	TArray<TSoftObjectPtr<UPrimitiveComponent>> SubPrimitivesComponents;
 };
 
 UCLASS()

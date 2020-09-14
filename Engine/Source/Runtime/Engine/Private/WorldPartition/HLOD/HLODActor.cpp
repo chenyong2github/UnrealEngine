@@ -26,33 +26,17 @@ AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitial
 
 UPrimitiveComponent* AWorldPartitionHLOD::GetHLODComponent()
 {
-	return CastChecked<UPrimitiveComponent>(RootComponent);
+	return Cast<UPrimitiveComponent>(RootComponent);
 }
 
-void AWorldPartitionHLOD::LinkCell(FName InCellName)
+void AWorldPartitionHLOD::OnCellShown(FName InCellName)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::LinkCell);
-
-	for (const TSoftObjectPtr<UPrimitiveComponent>& SubPrimitiveComponent : SubPrimitivesComponents)
-	{
-		if (SubPrimitiveComponent.IsValid())
-		{
-			SubPrimitiveComponent->SetCachedLODParentPrimitive(GetHLODComponent());
-		}
-	}
+	GetRootComponent()->SetVisibility(false, true);
 }
 
-void AWorldPartitionHLOD::UnlinkCell(FName InCellName)
+void AWorldPartitionHLOD::OnCellHidden(FName InCellName)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::UnlinkCell);
-
-	for (const TSoftObjectPtr<UPrimitiveComponent>& SubPrimitiveComponent : SubPrimitivesComponents)
-	{
-		if (SubPrimitiveComponent.IsValid())
-		{
-			SubPrimitiveComponent->SetCachedLODParentPrimitive(nullptr);
-		}
-	}
+	GetRootComponent()->SetVisibility(true, true);
 }
 
 void AWorldPartitionHLOD::BeginPlay()
@@ -68,6 +52,11 @@ void AWorldPartitionHLOD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 }
 
 #if WITH_EDITOR
+
+EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const
+{
+	return EActorGridPlacement::Location;
+}
 
 void AWorldPartitionHLOD::SetLODParent(AActor& InActor)
 {
@@ -93,44 +82,83 @@ void AWorldPartitionHLOD::UpdateLODParent(AActor& InActor, bool bInClear)
 	}
 }
 
-const float HLODACTOR_DEFAULT_MIN_DRAW_DISTANCE = 5000.0f;
-
-void AWorldPartitionHLOD::SetHLODPrimitive(UPrimitiveComponent* InHLODPrimitive)
+void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives, float InFadeOutDistance)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::SetHLODPrimitive);
+	check(!InHLODPrimitives.IsEmpty());
 
-	USceneComponent* OldRootComponent = GetRootComponent();
+	TArray<USceneComponent*> ComponentsToRemove;
+	GetComponents<USceneComponent>(ComponentsToRemove);
 
-	SetRootComponent(InHLODPrimitive);
-	AddInstanceComponent(InHLODPrimitive);
+	SetRootComponent(InHLODPrimitives[0]);
 
-	// Setup custom depth rendering to achieve a red tint using a post process material
-	const int32 CellPreviewStencilValue = 180;
-	InHLODPrimitive->bRenderCustomDepth = true;
-	InHLODPrimitive->CustomDepthStencilValue = CellPreviewStencilValue;
-	
-	InHLODPrimitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	InHLODPrimitive->SetMobility(EComponentMobility::Static);
-
-	InHLODPrimitive->MinDrawDistance = HLODACTOR_DEFAULT_MIN_DRAW_DISTANCE;
-
-	InHLODPrimitive->RegisterComponent();
-	InHLODPrimitive->MarkRenderStateDirty();
-
-	if (OldRootComponent)
+	for(UPrimitiveComponent* InHLODPrimitive : InHLODPrimitives)
 	{
-		OldRootComponent->DestroyComponent();
+		ComponentsToRemove.Remove(InHLODPrimitive);
+
+		AddInstanceComponent(InHLODPrimitive);
+
+		if (InHLODPrimitive != RootComponent)
+		{
+			InHLODPrimitive->SetupAttachment(RootComponent);
+		}
+
+		// Setup custom depth rendering to achieve a red tint using a post process material
+		const int32 CellPreviewStencilValue = 180;
+		InHLODPrimitive->bRenderCustomDepth = true;
+		InHLODPrimitive->CustomDepthStencilValue = CellPreviewStencilValue;
+	
+		InHLODPrimitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		InHLODPrimitive->SetMobility(EComponentMobility::Static);
+
+		InHLODPrimitive->MinDrawDistance = InFadeOutDistance;
+
+		InHLODPrimitive->RegisterComponent();
+		InHLODPrimitive->MarkRenderStateDirty();
 	}
+
+	for (USceneComponent* ComponentToRemove : ComponentsToRemove)
+	{
+		ComponentToRemove->DestroyComponent();
+	}
+}
+
+const FBox& AWorldPartitionHLOD::GetHLODBounds() const
+{
+	return HLODBounds;
+}
+
+void AWorldPartitionHLOD::SetHLODBounds(const FBox& InBounds)
+{
+	HLODBounds = InBounds;
+}
+
+void AWorldPartitionHLOD::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+{
+	Super::GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
+
+	FBox Bounds = FBox(Origin - BoxExtent, Origin + BoxExtent);
+	Bounds += HLODBounds;
+	Bounds.GetCenterAndExtents(Origin, BoxExtent);
+}
+
+void AWorldPartitionHLOD::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+{
+	GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
 }
 
 void AWorldPartitionHLOD::SetChildrenPrimitives(const TArray<UPrimitiveComponent*>& InChildrenPrimitives)
 {
 	TSet<FGuid> SubActorsSet;
 
+	UPrimitiveComponent* HLODComponent = GetHLODComponent();
+	check(HLODComponent);
+
 	for (UPrimitiveComponent* ChildPrimitive : InChildrenPrimitives)
 	{
-		SubPrimitivesComponents.Add(ChildPrimitive);
 		SubActorsSet.Add(ChildPrimitive->GetOwner()->GetActorGuid());
+
+		ChildPrimitive->SetCachedLODParentPrimitive(HLODComponent);
 	}
 
 	SubActors = SubActorsSet.Array();
@@ -145,18 +173,6 @@ void AWorldPartitionHLOD::SetHLODLayer(const UHLODLayer* InSubActorsHLODLayer, i
 {
 	SubActorsHLODLayer = InSubActorsHLODLayer;
 	SubActorsHLODLevel = InSubActorsHLODLevel;
-}
-
-void AWorldPartitionHLOD::OnWorldPartitionActorRegistered(AActor& InActor, bool bInLoaded)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::OnWorldPartitionActorRegistered);
-
-	UpdateLODParent(InActor, !bInLoaded);
-}
-
-EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const
-{
-	return EActorGridPlacement::Bounds;
 }
 
 void AWorldPartitionHLOD::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -177,6 +193,9 @@ void AWorldPartitionHLOD::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTag
 			static const FName NAME_HLODSubActors(TEXT("HLODSubActors"));
 			FActorRegistry::SaveActorMetaData(NAME_HLODSubActors, SubActorsGUIDsStr, OutTags);
 		}
+
+		static const FName NAME_HLODSubActors(TEXT("HLODLayer"));
+		FActorRegistry::SaveActorMetaData(NAME_HLODSubActors, FSoftObjectPath(SubActorsHLODLayer).ToString(), OutTags);
 	}
 }
 
@@ -184,67 +203,6 @@ void AWorldPartitionHLOD::PostActorCreated()
 {
 	Super::PostActorCreated();
 	HLODGuid = GetActorGuid();
-}
-
-void AWorldPartitionHLOD::RegisterAllComponents()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::RegisterAllComponents);
-
-	Super::RegisterAllComponents();
-
-	UWorld* World = GetWorld();
-	if (!World->IsGameWorld())
-	{
-		UWorldPartition* WorldPartition = World->GetWorldPartition();
-		check(WorldPartition);
-
-		check(!ActorRegisteredDelegateHandle.IsValid());
-		ActorRegisteredDelegateHandle = WorldPartition->OnActorRegisteredEvent.AddUObject(this, &AWorldPartitionHLOD::OnWorldPartitionActorRegistered);
-
-		for (const FGuid& SubActorGuid : SubActors)
-		{
-			const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
-			if (ActorDesc != nullptr)
-			{
-				if (AActor* Actor = ActorDesc->GetActor())
-				{
-					SetLODParent(*Actor);
-				}
-			}
-		}
-	}
-}
-
-void AWorldPartitionHLOD::UnregisterAllComponents(const bool bForReregister)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::UnregisterAllComponents);
-
-	UWorld* World = GetWorld();
-	if (World && !World->IsPendingKillOrUnreachable())
-	{
-		if (!World->IsGameWorld() && ActorRegisteredDelegateHandle.IsValid())
-		{
-			UWorldPartition* WorldPartition = World->GetWorldPartition();
-			check(WorldPartition);
-
-			WorldPartition->OnActorRegisteredEvent.Remove(ActorRegisteredDelegateHandle);
-			ActorRegisteredDelegateHandle.Reset();
-
-			for (const FGuid& SubActorGuid : SubActors)
-			{
-				const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
-				if (ActorDesc != nullptr)
-				{
-					if (AActor* Actor = ActorDesc->GetActor())
-					{
-						ClearLODParent(*Actor);
-					}
-				}
-			}
-		}
-	}
-
-	Super::UnregisterAllComponents();
 }
 
 void UWorldPartitionRuntimeHLODCellData::SetReferencedHLODActors(TArray<FGuid>&& InReferencedHLODActors)

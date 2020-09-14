@@ -7,8 +7,7 @@
 #include "Containers/Map.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
-class UHLODSubsystem;
-class UWorldPartition;
+class UHLODLayer;
 
 /**
  * ActorDesc for AWorldPartitionHLOD.
@@ -18,10 +17,11 @@ class ENGINE_API FHLODActorDesc : public FWorldPartitionActorDesc
 public:
 #if WITH_EDITOR
 	inline const TArray<FGuid>& GetSubActors() const { return SubActors; }
+	inline const FSoftObjectPath& GetHLODLayer() const { return HLODLayer; }
 
 protected:
 	FHLODActorDesc() = delete;
-	FHLODActorDesc(const FWorldPartitionActorDescData& DescData, const TArray<FGuid>& InSubActors);
+	FHLODActorDesc(const FWorldPartitionActorDescData& DescData, const TArray<FGuid>& InSubActors, const FSoftObjectPath& HLODLayer);
 	FHLODActorDesc(AActor* InActor);
 
 	virtual void BuildHash(FHashBuilder& HashBuilder) override;
@@ -29,5 +29,6 @@ protected:
 	friend class FHLODActorDescFactory;
 
 	TArray<FGuid> SubActors;
+	FSoftObjectPath	HLODLayer;
 #endif
 };

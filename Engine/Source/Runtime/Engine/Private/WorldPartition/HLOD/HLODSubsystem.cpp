@@ -2,6 +2,9 @@
 
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
+#include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "UObject/UObjectHash.h"
@@ -21,28 +24,153 @@ UHLODSubsystem::~UHLODSubsystem()
 {
 }
 
+bool UHLODSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+	if (UWorld* WorldOuter = Cast<UWorld>(Outer))
+	{
+		return WorldOuter->GetWorldPartition() != nullptr;
+	}
+	return false;
+}
+
 void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = Collection.InitializeDependency<UWorldPartitionSubsystem>();
+
 #if WITH_EDITOR
 	HLODActorDescFactory.Reset(new FHLODActorDescFactory());
 
-	Collection.InitializeDependency(UWorldPartitionSubsystem::StaticClass());
+	RegisterActorDescFactories(WorldPartitionSubsystem);
 
-	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
-	{
-		RegisterActorDescFactories(WorldPartitionSubsystem);
-	}
+	GetWorld()->GetWorldPartition()->OnActorRegisteredEvent.AddUObject(this, &UHLODSubsystem::OnWorldPartitionActorRegistered);
 #endif
 }
 
-void UHLODSubsystem::Deinitialize()
+#if WITH_EDITOR
+
+void UHLODSubsystem::OnWorldPartitionActorRegistered(AActor& InActor, bool bInLoaded)
 {
-	Super::Deinitialize();
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::OnWorldPartitionActorRegistered);
+
+	const FGuid& ActorGuid = InActor.GetActorGuid();
+
+	if (AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(&InActor))
+	{
+		if (bInLoaded)
+		{
+			UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition();
+
+			TArray<FGuid> SubActors;
+			PendingHLODAssignment.MultiFind(ActorGuid, SubActors);
+
+			if (!SubActors.IsEmpty())
+			{
+				for (const FGuid& SubActorGuid : SubActors)
+				{
+					const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
+					check(ActorDesc);
+
+					AActor* Actor = Cast<AWorldPartitionHLOD>(ActorDesc->GetActor());
+					if (Actor)
+					{
+						HLODActor->UpdateLODParent(*Actor, !bInLoaded);
+					}
+				}
+
+				PendingHLODAssignment.Remove(ActorGuid);
+			}
+		}
+
+		return;
+	}
+
+	const FWorldPartitionActorDesc* HLODActorDesc = GetHLODActorForActor(&InActor);
+	if (HLODActorDesc)
+	{
+		AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(HLODActorDesc->GetActor());
+		if (HLODActor)
+		{
+			HLODActor->UpdateLODParent(InActor, !bInLoaded);
+		}
+		else if (bInLoaded)
+		{
+			PendingHLODAssignment.Add(HLODActorDesc->GetGuid(), ActorGuid);
+		}
+		else
+		{
+			PendingHLODAssignment.Remove(HLODActorDesc->GetGuid(), ActorGuid);
+		}
+	}
 }
 
-#if WITH_EDITOR
+const FWorldPartitionActorDesc* UHLODSubsystem::GetHLODActorForActor(const AActor* InActor) const
+{
+	UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(InActor);
+	if (!HLODLayer)
+	{
+		return nullptr;
+	}
+
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
+	UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition();
+
+	const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(InActor->GetActorGuid());
+	check(ActorDesc);
+
+	if (ActorDesc->GetGridPlacement() == EActorGridPlacement::AlwaysLoaded)
+	{
+		return nullptr;
+	}
+
+	FVector ActorLocation = ActorDesc->GetOrigin();
+	FBox ActorBox(ActorLocation, ActorLocation);
+
+	// Find all HLODActors at that location
+	TArray<const FWorldPartitionActorDesc*> HLODActorsDescs = WorldPartitionSubsystem->GetIntersectingActorDescs(ActorBox, AWorldPartitionHLOD::StaticClass());
+
+	// Only keep the HLODActors matching our HLODLayer
+	HLODActorsDescs.RemoveAll([HLODLayer, ActorDesc](const FWorldPartitionActorDesc* InActorDesc)
+	{
+		const FHLODActorDesc* HLODActorDesc = (FHLODActorDesc*)InActorDesc;
+		return ActorDesc == HLODActorDesc || HLODActorDesc->GetHLODLayer() != HLODLayer;
+	});
+	
+	if (HLODActorsDescs.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	// Sort by bounds size
+	HLODActorsDescs.Sort([](const FWorldPartitionActorDesc& A, const FWorldPartitionActorDesc& B)
+	{
+		return A.GetBounds().GetExtent().Size() < B.GetBounds().GetExtent().Size();
+	});
+
+	const UWorldPartition::FActorCluster* ActorCluster = WorldPartition->GetClusterForActor(ActorDesc->GetGuid());
+	switch (ActorCluster->GridPlacement)
+	{
+	case EActorGridPlacement::Location:
+		return HLODActorsDescs[0];
+	
+	case EActorGridPlacement::Bounds:
+		for (const FWorldPartitionActorDesc* HLODActorDesc : HLODActorsDescs)
+		{
+			if (HLODActorDesc->GetBounds().IsInsideXY(ActorCluster->Bounds))
+			{
+				return HLODActorDesc;
+			}
+		}
+		break;
+	
+	default:
+		check(0);
+	}
+
+	return nullptr;
+}
+
 void UHLODSubsystem::RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem)
 {
 	WorldPartitionSubsystem->RegisterActorDescFactory(AWorldPartitionHLOD::StaticClass(), HLODActorDescFactory.Get());
@@ -57,14 +185,14 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 	RegisteredHLODActors.Emplace(HLODActorGUID, InWorldPartitionHLOD);
 
 	TArray<FName> Cells;
-	PendingTransitionsToHLOD.MultiFind(HLODActorGUID, Cells);
+	PendingCellsShown.MultiFind(HLODActorGUID, Cells);
 	if (Cells.Num())
 	{
 		for (FName Cell : Cells)
 		{ 
-			InWorldPartitionHLOD->LinkCell(Cell);
+			InWorldPartitionHLOD->OnCellShown(Cell);
 		}
-		PendingTransitionsToHLOD.Remove(HLODActorGUID);
+		PendingCellsShown.Remove(HLODActorGUID);
 	}
 }
 
@@ -75,11 +203,9 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 	const FGuid& HLODActorGUID = InWorldPartitionHLOD->GetHLODGuid();
 	int32 NumRemoved = RegisteredHLODActors.Remove(HLODActorGUID);
 	check(NumRemoved == 1);
-
-	check(!PendingTransitionsToHLOD.Find(HLODActorGUID));
 }
 
-void UHLODSubsystem::TransitionToHLOD(const UWorldPartitionRuntimeCell* InCell)
+void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 {
 	const UWorldPartitionRuntimeHLODCellData* HLODCellData = InCell->GetCellData<UWorldPartitionRuntimeHLODCellData>();
 	if (!ensure(HLODCellData))
@@ -92,17 +218,17 @@ void UHLODSubsystem::TransitionToHLOD(const UWorldPartitionRuntimeCell* InCell)
 		AWorldPartitionHLOD* HLODActor = RegisteredHLODActors.FindRef(HLODActorGUID);
 		if (HLODActor)
 		{
-			HLODActor->LinkCell(InCell->GetFName());
+			HLODActor->OnCellShown(InCell->GetFName());
 		}
 		else
 		{
-			// Cell was loaded before the HLOD
-			PendingTransitionsToHLOD.Add(HLODActorGUID, InCell->GetFName());
+			// Cell was shown before the HLOD
+			PendingCellsShown.Add(HLODActorGUID, InCell->GetFName());
 		}
 	}
 }
 
-void UHLODSubsystem::TransitionFromHLOD(const UWorldPartitionRuntimeCell* InCell)
+void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 {
 	const UWorldPartitionRuntimeHLODCellData* HLODCellData = InCell->GetCellData<UWorldPartitionRuntimeHLODCellData>();
 	if (!ensure(HLODCellData))
@@ -115,11 +241,12 @@ void UHLODSubsystem::TransitionFromHLOD(const UWorldPartitionRuntimeCell* InCell
 		AWorldPartitionHLOD* HLODActor = RegisteredHLODActors.FindRef(HLODActorGUID);
 		if (HLODActor)
 		{
-			HLODActor->UnlinkCell(InCell->GetFName());
+			HLODActor->OnCellHidden(InCell->GetFName());
+			check(!PendingCellsShown.Find(HLODActorGUID));
 		}
-		else 
+		else
 		{
-			PendingTransitionsToHLOD.Remove(HLODActorGUID, InCell->GetFName());
+			PendingCellsShown.Remove(HLODActorGUID, InCell->GetFName());
 		}
 	}
 }

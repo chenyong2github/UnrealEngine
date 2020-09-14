@@ -5,11 +5,11 @@
 =============================================================================*/
 
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/HLOD/HLODActor.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #endif
 
@@ -20,7 +20,7 @@ UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITOR
 
-TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, const TSet<FGuid>& InCellActors)
+TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, FBox InCellBounds, float InCellLoadingRange, const TSet<FGuid>& InCellActors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::GenerateHLODForCell);
 
@@ -41,24 +41,64 @@ TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* In
 		if (ShouldIncludeInHLOD(Actor))
 		{
 			UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(Actor);
-			HLODLayersActors.FindOrAdd(HLODLayer).Add(Actor);
+			if (HLODLayer)
+			{
+				HLODLayersActors.FindOrAdd(HLODLayer).Add(Actor);
+			}
 		}
 	}
 
 	TArray<AWorldPartitionHLOD*> HLODActors;
 	for (const auto& HLODLayerActors : HLODLayersActors)
 	{
-		UHLODLayer* HLODLayer = HLODLayerActors.Key;
-		if (!ensure(HLODLayer))
-		{
-			// No default HLOD layer, can't generate HLODs for those actors.
-			continue;
-		}
-
-		HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InCellName, HLODLayer, HLODLayerActors.Value);
+		HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InCellName, InCellBounds, InCellLoadingRange, HLODLayerActors.Key, HLODLayerActors.Value);
 	}
 	return HLODActors;
 }
+
+bool UHLODLayer::ShouldIncludeInHLOD(UPrimitiveComponent* InComponent, int32 InLevelIndex)
+{
+	if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(InComponent))
+	{
+		if (!SMC->GetStaticMesh())
+		{
+			return false;
+		}
+	}
+
+	if (InComponent->IsEditorOnly())
+	{
+		return false;
+	}
+
+	if (InComponent->bHiddenInGame)
+	{
+		return false;
+	}
+
+	if (!InComponent->ShouldGenerateAutoLOD(InLevelIndex))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
+{
+	if (UHLODLayer* HLODLayer = InActor->GetHLODLayer())
+	{
+		return HLODLayer;
+	}
+	if (UWorldPartition* WorldPartition = InActor->GetWorld()->GetWorldPartition())
+	{
+		return WorldPartition->DefaultHLODLayer;
+	}
+	return nullptr;
+}
+
+#endif // WITH_EDITOR
+
 
 bool UHLODLayer::ShouldIncludeInHLOD(AActor* InActor)
 {
@@ -106,46 +146,3 @@ bool UHLODLayer::ShouldIncludeInHLOD(AActor* InActor)
 
 	return true;
 }
-
-bool UHLODLayer::ShouldIncludeInHLOD(UPrimitiveComponent* InComponent, int32 InLevelIndex)
-{
-	if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(InComponent))
-	{
-		if (!SMC->GetStaticMesh())
-		{
-			return false;
-		}
-	}
-
-	if (InComponent->IsEditorOnly())
-	{
-		return false;
-	}
-
-	if (InComponent->bHiddenInGame)
-	{
-		return false;
-	}
-
-	if (!InComponent->ShouldGenerateAutoLOD(InLevelIndex))
-	{
-		return false;
-	}
-
-	return true;
-}
-
-UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
-{
-	if (UHLODLayer* HLODLayer = InActor->GetHLODLayer())
-	{
-		return HLODLayer;
-	}
-	if (UWorldPartition* WorldPartition = InActor->GetWorld()->GetWorldPartition())
-	{
-		return WorldPartition->DefaultHLODLayer;
-	}
-	return nullptr;
-}
-
-#endif // WITH_EDITOR

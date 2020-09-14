@@ -24,11 +24,13 @@ public:
 	 *
 	 * @param 	InWorldPartition	The WorldPartition for which we are building HLODs
 	 * @param 	InCellName			The name of the cell
+	 * @param 	InCellBounds		Bounds of the cell, will be assigned to the created HLOD actors.
+	 * @param 	InCellLoadingRange	The range at which the cell should be loaded. This is the distance where the HLOD actors should fade out.
 	 * @param 	InHLODLayer			The HLODLayer which will provide the HLOD building parameters.
 	 * @param 	InSubActors			The actors from which we'll gather geometry to generate an HLOD mesh
 	 * @return The list of HLOD actors for this cell.
 	 */
-	static TArray<AWorldPartitionHLOD*> BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors);
+	static TArray<AWorldPartitionHLOD*> BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, FBox InCellBounds, float InCellLoadingRange, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors);
 };
 
 #endif

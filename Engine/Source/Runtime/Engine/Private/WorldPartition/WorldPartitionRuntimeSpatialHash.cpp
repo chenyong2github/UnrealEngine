@@ -1181,6 +1181,13 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		GridsMapping.Add(Grid.GridName, i);
 	}
 
+	// Ignore HLODD clusters as we are rebuilding them
+	for (const FSpatialHashRuntimeGrid& HLODGrid : HLODGrids)
+	{
+		check(!GridsMapping.Contains(HLODGrid.GridName));
+		GridsMapping.Add(HLODGrid.GridName, INDEX_NONE);
+	}
+
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
 	TArray<TArray<const UWorldPartition::FActorCluster*>> GridActors;
@@ -1195,7 +1202,10 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		}
 
 		int32 GridIndex = FoundIndex ? *FoundIndex : 0;
-		GridActors[GridIndex].Add(ActorCluster);
+		if (GridIndex != INDEX_NONE)
+		{
+			GridActors[GridIndex].Add(ActorCluster);
+		}
 	}
 
 	// Keep track of all valid HLOD actors
@@ -1207,18 +1217,22 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
 		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, GridActors[GridIndex]);
 
-		PartionedActors.ForEachCells([PartionedActors, &ValidHLODActors, RuntimeGrid, WorldPartition, this](const FIntVector& CellCoord)
+		PartionedActors.ForEachCells([PartionedActors, &ValidHLODActors, RuntimeGrid, WorldPartition, WorldBounds, this](const FIntVector& CellCoord)
 		{
 			const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartionedActors.GetCell(CellCoord);
-			if (GridCell.Actors.Num() != 0)
+			const bool bIsCellAlwaysLoaded = &GridCell == &PartionedActors.GetAlwaysLoadedCell();
+
+			if (!bIsCellAlwaysLoaded && GridCell.Actors.Num() != 0)
 			{
-				FBox2D CellBounds;
-				PartionedActors.GetCellBounds(CellCoord, CellBounds);
+				FBox2D CellBounds2D;
+				PartionedActors.GetCellBounds(CellCoord, CellBounds2D);
 
 				FName CellName = GetCellName(RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y);
+				float CellLoadingRange = RuntimeGrid.LoadingRange;
+				FBox CellBounds = FBox(FVector(CellBounds2D.Min, WorldBounds.Min.Z), FVector(CellBounds2D.Max, WorldBounds.Max.Z));
 
 				TArray<AWorldPartitionHLOD*> HLODActors;
-				HLODActors = UHLODLayer::GenerateHLODForCell(WorldPartition, CellName, GridCell.Actors);
+				HLODActors = UHLODLayer::GenerateHLODForCell(WorldPartition, CellName, CellBounds, CellLoadingRange, GridCell.Actors);
 
 				ValidHLODActors.Append(HLODActors);
 			}
@@ -1233,6 +1247,8 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 			GetWorld()->DestroyActor(*ItHLOD);
 		}
 	}
+
+	CollectGarbage(RF_Standalone);
 
 	return true;
 }

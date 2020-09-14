@@ -59,12 +59,13 @@ class ENGINE_API UHLODLayer : public UObject
 public:
 	const TArray<FHLODLevelSettings>& GetLevels() const { return Levels; }
 
-	static TArray<AWorldPartitionHLOD*> GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, const TSet<FGuid>& InCellActors);
+	static TArray<AWorldPartitionHLOD*> GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, FBox InCellBounds, float InCellLoadingRange, const TSet<FGuid>& InCellActors);
 
 	static UHLODLayer* GetHLODLayer(const AActor* InActor);
-	static bool ShouldIncludeInHLOD(AActor* InActor);
 	static bool ShouldIncludeInHLOD(UPrimitiveComponent* InComponent, int32 InLevelIndex);
 #endif
+
+	static bool ShouldIncludeInHLOD(AActor* InActor);
 
 
 #if WITH_EDITORONLY_DATA

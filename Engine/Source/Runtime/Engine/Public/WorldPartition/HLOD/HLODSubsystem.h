@@ -27,15 +27,17 @@ class ENGINE_API UHLODSubsystem : public UWorldSubsystem
 public:
 	UHLODSubsystem();
 	virtual ~UHLODSubsystem();
-		
+
+	//~ Begin USubsystem Interface.
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	//~ End USubsystem Interface.
 
 	void RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD);
 	void UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD);
 
-	void TransitionToHLOD(const UWorldPartitionRuntimeCell* InCell);
-	void TransitionFromHLOD(const UWorldPartitionRuntimeCell* InCell);
+	void OnCellShown(const UWorldPartitionRuntimeCell* InCell);
+	void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
 	
 #if WITH_EDITOR
 	FHLODActorDescFactory* GetActorDescFactory() const { return HLODActorDescFactory.Get(); }
@@ -44,6 +46,8 @@ public:
 private:
 #if WITH_EDITOR
 	void RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem);
+	void OnWorldPartitionActorRegistered(AActor& InActor, bool bInLoaded);
+	const FWorldPartitionActorDesc* GetHLODActorForActor(const AActor* InActor) const;
 #endif
 
 private:
@@ -54,6 +58,10 @@ private:
 	// Mapping between an HLOD GUID & the loaded actor.
 	TMap<FGuid, AWorldPartitionHLOD*> RegisteredHLODActors;
 
-	// Cells that are waiting for their HLOD to load.
-	TMultiMap<FGuid, FName> PendingTransitionsToHLOD;
+	// Cells that where shown before their HLOD was loaded.
+	TMultiMap<FGuid, FName> PendingCellsShown;
+
+#if WITH_EDITOR
+	TMultiMap<FGuid, FGuid> PendingHLODAssignment;
+#endif
 };
