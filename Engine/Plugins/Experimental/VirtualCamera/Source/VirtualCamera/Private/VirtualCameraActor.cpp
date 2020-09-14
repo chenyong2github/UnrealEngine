@@ -505,12 +505,14 @@ bool AVirtualCameraActor::StartStreaming()
 	if (IRemoteSessionModule* RemoteSession = FModuleManager::LoadModulePtr<IRemoteSessionModule>("RemoteSession"))
 	{
 		TArray<FRemoteSessionChannelInfo> SupportedChannels;
-		SupportedChannels.Emplace(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read, FOnRemoteSessionChannelCreated::CreateUObject(this, &AVirtualCameraActor::OnInputChannelCreated));
-		SupportedChannels.Emplace(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write, FOnRemoteSessionChannelCreated::CreateUObject(this, &AVirtualCameraActor::OnImageChannelCreated));
+		SupportedChannels.Emplace(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read);
+		SupportedChannels.Emplace(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write);
 
 		RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), RemoteSessionPort);
+
 		if (RemoteSessionHost)
 		{
+			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::CreateUObject(this, &AVirtualCameraActor::OnRemoteSessionChannelChange));
 			RemoteSessionHost->Tick(0.0f);
 		}
 	}
@@ -725,7 +727,24 @@ bool AVirtualCameraActor::IsFocusVisualizationAllowed_Implementation()
 	return bAllowFocusVisualization;
 }
 
-void AVirtualCameraActor::OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode)
+void AVirtualCameraActor::OnRemoteSessionChannelChange(IRemoteSessionRole* InRole, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change)
+{
+	TSharedPtr<IRemoteSessionChannel> Pinned = Channel.Pin();
+
+	if (Pinned && Change == ERemoteSessionChannelChange::Created)
+	{
+		if (Pinned->GetType() == FRemoteSessionInputChannel::StaticType())
+		{
+			OnInputChannelCreated(Pinned);
+		}
+		else if (Pinned->GetType() == FRemoteSessionImageChannel::StaticType())
+		{
+			OnImageChannelCreated(Pinned);
+		}
+	}
+}
+
+void AVirtualCameraActor::OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance)
 {
 	TSharedPtr<FRemoteSessionImageChannel> ImageChannel = StaticCastSharedPtr<FRemoteSessionImageChannel>(Instance.Pin());
 	if (ImageChannel)
@@ -744,7 +763,7 @@ void AVirtualCameraActor::OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> 
 	}
 }
 
-void AVirtualCameraActor::OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode)
+void AVirtualCameraActor::OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance)
 {
 	TSharedPtr<FRemoteSessionInputChannel> InputChannel = StaticCastSharedPtr<FRemoteSessionInputChannel>(Instance.Pin());
 	if (InputChannel)

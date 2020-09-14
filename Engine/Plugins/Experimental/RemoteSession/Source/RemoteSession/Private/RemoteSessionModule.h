@@ -41,8 +41,6 @@ public:
 	void AddChannelFactory(const FStringView InChannelName, ERemoteSessionChannelMode InHostMode, TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker) override;
 	void RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker) override;
 
-	virtual void AddSupportedChannel(FString InType, ERemoteSessionChannelMode InMode, FOnRemoteSessionChannelCreated InOnCreated = FOnRemoteSessionChannelCreated()) override;
-
 	virtual TSharedPtr<IRemoteSessionRole>	CreateClient(const TCHAR* RemoteAddress) override;
 	virtual void StopClient(TSharedPtr<IRemoteSessionRole> InClient) override;
 
