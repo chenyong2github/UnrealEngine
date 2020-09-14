@@ -148,15 +148,15 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private FileReference GetRiderProjectLocation(TargetRules TargetRulesObject, DirectoryReference GameFolder, string GeneratedProjectName)
+		private FileReference GetRiderProjectLocation(string GeneratedProjectName)
 		{
-			if (TargetRulesObject.Type != TargetType.Program && GameFolder != null)
+			if (OnlyGameProject != null && FileReference.Exists(OnlyGameProject))
 			{
-				return FileReference.Combine(GameFolder, "Intermediate", "ProjectFiles", GeneratedProjectName + ProjectFileExtension);
+				return FileReference.Combine(OnlyGameProject.Directory, "Intermediate", "ProjectFiles", ".Rider", GeneratedProjectName);
 			}
 			else
 			{
-				return GetProjectLocation(GeneratedProjectName);
+				return FileReference.Combine( UnrealBuildTool.EngineDirectory, "Intermediate", "ProjectFiles", ".Rider", GeneratedProjectName);
 			}
 		}
 
@@ -280,7 +280,7 @@ namespace UnrealBuildTool
 					if (GeneratedProjectName == null)
 					{
 						ProjectFile ExistingProjectFile;
-						if (ProjectFileMap.TryGetValue(GetRiderProjectLocation(TargetRulesObject, GameFolder, ProjectFileNameBase), out ExistingProjectFile) &&
+						if (ProjectFileMap.TryGetValue(GetRiderProjectLocation(ProjectFileNameBase), out ExistingProjectFile) &&
 						    ExistingProjectFile.ProjectTargets.Any(x => x.TargetRules.Type == TargetRulesObject.Type))
 						{
 							GeneratedProjectName = TargetRulesObject.Name;
@@ -291,7 +291,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					FileReference ProjectFilePath = GetRiderProjectLocation(TargetRulesObject, GameFolder, GeneratedProjectName);
+					FileReference ProjectFilePath = GetRiderProjectLocation(GeneratedProjectName);
 					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client ||
 					    TargetRulesObject.Type == TargetType.Server)
 					{
@@ -443,7 +443,7 @@ namespace UnrealBuildTool
 		{
 			ConfigureProjectFileGeneration();
 
-			if (bGeneratingGameProjectFiles || UnrealBuildTool.IsEngineInstalled())
+			if (bGeneratingGameProjectFiles)
 			{
 				MasterProjectPath = OnlyGameProject.Directory;
 				MasterProjectName = OnlyGameProject.GetFileNameWithoutExtension();
