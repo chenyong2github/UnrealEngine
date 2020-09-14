@@ -4431,6 +4431,8 @@ int32 ListContainer(
 	}
 
 	TArray<FString> CsvLines;
+	TArray<TPair<uint32, FString>> ContainerCsvLines;
+
 	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, Hash"));
 
 	for (const FString& ContainerFilePath : ContainerFilePaths)
@@ -4444,6 +4446,8 @@ int32 ListContainer(
 
 		UE_LOG(LogIoStore, Display, TEXT("Listing container '%s'"), *ContainerFilePath);
 
+		ContainerCsvLines.Reset();
+
 		FString ContainerName = FPaths::GetBaseFilename(ContainerFilePath);
 		const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
 
@@ -4451,7 +4455,7 @@ int32 ListContainer(
 			FIoDirectoryIndexHandle::RootDirectory(),
 			TEXT(""),
 			IndexReader,
-			[&CsvLines, &Reader, &ContainerName ](FString Filename, const uint32 TocEntryIndex) -> bool
+			[&ContainerCsvLines, &Reader, &ContainerName ](FString Filename, uint32 TocEntryIndex) -> bool
 		{
 			TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = Reader->GetChunkInfo(TocEntryIndex);
 
@@ -4464,29 +4468,43 @@ int32 ListContainer(
 
 			if (ChunkInfo.IsOk())
 			{
-				CsvLines.Emplace(FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, 0x%s"),
+				ContainerCsvLines.Emplace(TPair<uint32, FString>(
+					TocEntryIndex,
+					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, 0x%s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
 					*Filename,
 					*ContainerName,
 					ChunkInfo.ValueOrDie().Offset,
 					ChunkInfo.ValueOrDie().Size,
-					*ChunkInfo.ValueOrDie().Hash.ToString()));
+					*ChunkInfo.ValueOrDie().Hash.ToString())));
 			}
 			else
 			{
-				CsvLines.Emplace(FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %s"),
+				ContainerCsvLines.Emplace(TPair<uint32, FString>(
+					TocEntryIndex,
+					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
 					*Filename,
 					*ContainerName,
 					0,
 					0,
-					TEXT("<NotFound>")));
+					TEXT("<NotFound>"))));
 			}
 
 			return true;
 		});
+
+		Algo::Sort(ContainerCsvLines, [](const TPair<uint32, FString>& LHS, const TPair<uint32, FString>& RHS)
+		{
+			return LHS.Get<0>() < RHS.Get<0>();
+		});
+
+		for (const TPair<uint32, FString>& CsvLine : ContainerCsvLines)
+		{
+			CsvLines.Emplace(CsvLine.Get<1>());
+		}
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Saving CSV file '%s'"), *CsvPath);
