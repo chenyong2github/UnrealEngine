@@ -838,6 +838,7 @@ void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 		UMaterialExpression* MaterialExpression = Material->Expressions[ MaterialExpressionIndex ];
 		UMaterialExpressionParameter* Param = Cast<UMaterialExpressionParameter>(MaterialExpression);
 		UMaterialExpressionTextureSampleParameter* TextureS = Cast<UMaterialExpressionTextureSampleParameter>(MaterialExpression);
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter* RVTS = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(MaterialExpression);
 		UMaterialExpressionFontSampleParameter* FontS = Cast<UMaterialExpressionFontSampleParameter>(MaterialExpression);
 		if (Param)
 		{
@@ -870,6 +871,23 @@ void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 				{
 					return GroupName == DataElement.GroupName;
 				});
+				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
+			}
+		}
+		else if (RVTS)
+		{
+			const FString& GroupName = RVTS->Group.ToString();
+			OutGroups->AddUnique(GroupName);
+			if (Material->AttemptInsertNewGroupName(GroupName))
+			{
+				UpdatedGroups.Add(FParameterGroupData(GroupName, 0));
+			}
+			else
+			{
+				FParameterGroupData* ParameterGroupDataElement = Material->ParameterGroupData.FindByPredicate([&GroupName](const FParameterGroupData& DataElement)
+					{
+						return GroupName == DataElement.GroupName;
+					});
 				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
 			}
 		}
@@ -962,6 +980,11 @@ void FMaterialEditor::CreateInternalWidgets()
 
 	MaterialDetailsView->RegisterInstancedCustomPropertyLayout( 
 		UMaterialExpressionTextureSampleParameter::StaticClass(), 
+		LayoutExpressionParameterDetails
+		);
+
+	MaterialDetailsView->RegisterInstancedCustomPropertyLayout(
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(),
 		LayoutExpressionParameterDetails
 		);
 
