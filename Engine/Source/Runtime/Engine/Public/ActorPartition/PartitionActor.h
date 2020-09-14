@@ -3,19 +3,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "InstancedObjectsActor.generated.h"
+#include "PartitionActor.generated.h"
 
 class UBoxComponent;
 
 // Actor base class for instance containers placed on a grid.
 // See UActorPartitionSubsystem.
-UCLASS(notplaceable)
-class ENGINE_API AInstancedObjectsActor: public AActor
+UCLASS(Abstract)
+class ENGINE_API APartitionActor: public AActor
 {
 	GENERATED_BODY()
 
 public:
-	AInstancedObjectsActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	APartitionActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR	
@@ -26,12 +26,13 @@ public:
 	//~ Begin AActor Interface
 #if WITH_EDITOR	
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::Location; }
+	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
 #endif
 	//~ End AActor Interface	
 
 #if WITH_EDITORONLY_DATA
 	/** The grid size this actors was generated for */
 	UPROPERTY()
-	int32 GridSize;
+	uint32 GridSize;
 #endif
 };

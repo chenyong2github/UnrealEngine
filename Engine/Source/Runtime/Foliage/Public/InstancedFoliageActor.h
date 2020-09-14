@@ -10,7 +10,7 @@
 #include "FoliageType_InstancedStaticMesh.h"
 #include "FoliageInstanceBase.h"
 #include "InstancedFoliage.h"
-#include "ActorPartition/InstancedObjectsActor.h"
+#include "ActorPartition/PartitionActor.h"
 
 #include "InstancedFoliageActor.generated.h"
 
@@ -67,7 +67,7 @@ class UProceduralFoliageComponent;
 typedef TFunction<bool(const UPrimitiveComponent*)> FFoliageTraceFilterFunc;
 
 UCLASS(notplaceable, hidecategories = (Object, Rendering, Mobility), MinimalAPI, NotBlueprintable)
-class AInstancedFoliageActor : public AInstancedObjectsActor
+class AInstancedFoliageActor : public APartitionActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -106,6 +106,8 @@ public:
 	virtual void Destroyed() override;
 	FOLIAGE_API void CleanupDeletedFoliageType();
 	FOLIAGE_API void DetectFoliageTypeChangeAndUpdate();
+
+	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override;
 
 	// Delegate type for selection change events
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSelectionChanged, bool, const TArray<AActor*>&);

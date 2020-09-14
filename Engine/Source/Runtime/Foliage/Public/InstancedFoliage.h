@@ -7,6 +7,7 @@ InstancedFoliage.h: Instanced foliage type definitions.
 
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
+#include "Misc/HashBuilder.h"
 #include "FoliageInstanceBase.h"
 
 class AInstancedFoliageActor;
@@ -295,6 +296,7 @@ struct FFoliageInfo
 	FOLIAGE_API void PostMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved, bool bFinished = false);
 	FOLIAGE_API void PostUpdateInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesUpdated, bool bReAddToHash = false, bool InUpdateSelection = false);
 	FOLIAGE_API void DuplicateInstances(AInstancedFoliageActor* InIFA, UFoliageType* InSettings, const TArray<int32>& InInstancesToDuplicate);
+	FOLIAGE_API void GetInstancesInsideBounds(const FBox& Box, TArray<int32>& OutInstances);
 	FOLIAGE_API void GetInstancesInsideSphere(const FSphere& Sphere, TArray<int32>& OutInstances);
 	FOLIAGE_API void GetInstanceAtLocation(const FVector& Location, int32& OutInstance, bool& bOutSucess);
 	FOLIAGE_API bool CheckForOverlappingSphere(const FSphere& Sphere);
@@ -328,6 +330,8 @@ struct FFoliageInfo
 	FOLIAGE_API void RemoveBaseComponentOnInstances();
 	FOLIAGE_API void IncludeActor(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, AActor* InActor);
 	FOLIAGE_API void ExcludeActors();
+
+	FOLIAGE_API FBox GetApproximatedInstanceBounds() const;
 #endif
 
 	friend FArchive& operator<<(FArchive& Ar, FFoliageInfo& MeshInfo);
@@ -351,22 +355,54 @@ private:
 // FFoliageInstanceHash
 //
 
-#define FOLIAGE_HASH_CELL_BITS 9	// 512x512 grid
+#define FOLIAGE_HASH_CELL_BITS 9	// 512x512x512 grid
 
 struct FFoliageInstanceHash
 {
 private:
-	const int32 HashCellBits;
-	TMap<uint64, TSet<int32>> CellMap;
-
-	uint64 MakeKey(int32 CellX, int32 CellY) const
+	struct FKey
 	{
-		return ((uint64)(*(uint32*)(&CellX)) << 32) | (*(uint32*)(&CellY) & 0xffffffff);
+		int32 X;
+		int32 Y;
+		int32 Z;
+
+		FKey() = default;
+
+		FKey(int32 InX, int32 InY, int32 InZ)
+			: X(InX), Y(InY), Z(InZ) {}
+
+		bool operator==(const FKey& Other) const
+		{
+			return (X == Other.X) && (Y == Other.Y) && (Z == Other.Z);
+		}
+
+		friend uint32 GetTypeHash(const FKey& Key)
+		{
+			FHashBuilder HashBuilder;
+			HashBuilder << Key.X << Key.Y << Key.Z;
+			return HashBuilder.GetHash();
+		}
+				
+		friend FArchive& operator<<(FArchive& Ar, FKey& Key)
+		{
+			Ar << Key.X;
+			Ar << Key.Y;
+			Ar << Key.Z;
+			return Ar;
+		}
+	};
+
+	const int32 HashCellBits;
+	TMap<FKey, TSet<int32>> CellMap;
+		
+	FKey MakeKey(const FVector& Location) const
+	{
+		return FKey(FMath::FloorToInt(Location.X) >> HashCellBits, FMath::FloorToInt(Location.Y) >> HashCellBits, FMath::FloorToInt(Location.Z) >> HashCellBits);
 	}
 
-	uint64 MakeKey(const FVector& Location) const
+	FVector MakeLocation(FKey CellKey) const
 	{
-		return  MakeKey(FMath::FloorToInt(Location.X) >> HashCellBits, FMath::FloorToInt(Location.Y) >> HashCellBits);
+		return FVector(CellKey.X << HashCellBits, CellKey.Y << HashCellBits, CellKey.Z << HashCellBits);
 	}
 
 public:
@@ -376,14 +412,14 @@ public:
 
 	void InsertInstance(const FVector& InstanceLocation, int32 InstanceIndex)
 	{
-		uint64 Key = MakeKey(InstanceLocation);
+		FKey Key = MakeKey(InstanceLocation);
 
 		CellMap.FindOrAdd(Key).Add(InstanceIndex);
 	}
 
 	void RemoveInstance(const FVector& InstanceLocation, int32 InstanceIndex, bool bChecked = true)
 	{
-		uint64 Key = MakeKey(InstanceLocation);
+		FKey Key = MakeKey(InstanceLocation);
 
 		if (bChecked)
 		{
@@ -398,20 +434,20 @@ public:
 
 	void GetInstancesOverlappingBox(const FBox& InBox, TArray<int32>& OutInstanceIndices) const
 	{
-		int32 MinX = FMath::FloorToInt(InBox.Min.X) >> HashCellBits;
-		int32 MinY = FMath::FloorToInt(InBox.Min.Y) >> HashCellBits;
-		int32 MaxX = FMath::FloorToInt(InBox.Max.X) >> HashCellBits;
-		int32 MaxY = FMath::FloorToInt(InBox.Max.Y) >> HashCellBits;
+		FKey MinKey = MakeKey(InBox.Min);
+		FKey MaxKey = MakeKey(InBox.Max);
 
-		for (int32 y = MinY; y <= MaxY; y++)
+		for (int32 z = MinKey.Z; z <= MaxKey.Z; ++z)
 		{
-			for (int32 x = MinX; x <= MaxX; x++)
+			for (int32 y = MinKey.Y; y <= MaxKey.Y; y++)
 			{
-				uint64 Key = MakeKey(x, y);
-				auto* SetPtr = CellMap.Find(Key);
-				if (SetPtr)
+				for (int32 x = MinKey.X; x <= MaxKey.X; x++)
 				{
-					OutInstanceIndices.Append(SetPtr->Array());
+					auto* SetPtr = CellMap.Find(FKey(x, y, z));
+					if (SetPtr)
+					{
+						OutInstanceIndices.Append(SetPtr->Array());
+					}
 				}
 			}
 		}
@@ -433,6 +469,17 @@ public:
 		}
 
 		check(HashCount == InCount);
+	}
+
+	FBox GetBounds() const
+	{
+		FBox HashBounds(ForceInit);
+		for (const auto& Pair : CellMap)
+		{
+			HashBounds += MakeLocation(Pair.Key);
+		}
+
+		return HashBounds;
 	}
 
 	void Empty()

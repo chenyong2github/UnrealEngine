@@ -1,14 +1,52 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorPartition/ActorPartitionSubsystem.h"
-#include "ActorPartition/InstancedObjectsActor.h"
-#include "WorldPartition/ActorPartition/InstancedObjectsActorDesc.h"
+#include "ActorPartition/PartitionActor.h"
+#include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorPartitionSubsystem, All, All);
 
 #if WITH_EDITOR
+
+FActorPartitionGetParams::FActorPartitionGetParams(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, ULevel* InLevelHint, const FVector& InLocationHint)
+	: ActorClass(InActorClass)
+	, bCreate(bInCreate)
+	, LocationHint(InLocationHint)
+	, LevelHint(InLevelHint)
+{
+}
+
+void FActorPartitionGridHelper::ForEachIntersectingCell(const TSubclassOf<APartitionActor>& InActorClass, const FBox& InBounds, ULevel* InLevel, TFunctionRef<bool(const UActorPartitionSubsystem::FCellCoord&, const FBox&)> InOperation)
+{
+	uint32 GridSize = InActorClass->GetDefaultObject<APartitionActor>()->GetDefaultGridSize(InLevel->GetWorld());
+	UActorPartitionSubsystem::FCellCoord MinCellCoords = UActorPartitionSubsystem::FCellCoord::GetCellCoord(InBounds.Min, InLevel, GridSize);
+	UActorPartitionSubsystem::FCellCoord MaxCellCoords = UActorPartitionSubsystem::FCellCoord::GetCellCoord(InBounds.Max, InLevel, GridSize);
+
+	for (int32 z = MinCellCoords.Z; z <= MaxCellCoords.Z; z++)
+	{
+		for (int32 y = MinCellCoords.Y; y <= MaxCellCoords.Y; y++)
+		{
+			for (int32 x = MinCellCoords.X; x <= MaxCellCoords.X; x++)
+			{
+				UActorPartitionSubsystem::FCellCoord CellCoords(x, y, z, InLevel);
+				const FVector Min = FVector(
+					CellCoords.X * GridSize,
+					CellCoords.Y * GridSize,
+					CellCoords.Z * GridSize
+				);
+				const FVector Max = Min + FVector(GridSize);
+				FBox CellBounds(Min, Max);
+
+				if (!InOperation(MoveTemp(CellCoords), MoveTemp(CellBounds)))
+				{
+					return;
+				}
+			}
+		}
+	}
+}
 
 /**
  * FActorPartitionLevel
@@ -33,30 +71,29 @@ public:
 		return UActorPartitionSubsystem::FCellCoord(0, 0, 0, SpawnLevel);
 	}
 	
-	AActor* GetActor(const FActorPartitionGetParams& GetParams, const UActorPartitionSubsystem::FCellCoord& CellCoord) override
+	APartitionActor* GetActor(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, const UActorPartitionSubsystem::FCellCoord& InCellCoord) override
 	{
-		check(GetParams.LevelHint);
-		ULevel* SpawnLevel = GetSpawnLevel(GetParams.LevelHint, GetParams.LocationHint);
-
-		AActor* FoundActor = nullptr;
-		for (AActor* Actor : SpawnLevel->Actors)
+		check(InCellCoord.Level);
+		
+		APartitionActor* FoundActor = nullptr;
+		for (AActor* Actor : InCellCoord.Level->Actors)
 		{
-			if (Actor && Actor->IsA(GetParams.ActorClass))
+			if (APartitionActor* PartitionActor = Cast<APartitionActor>(Actor))
 			{
-				FoundActor = Actor;
+				FoundActor = PartitionActor;
 				break;
 			}
 		}
 		
-		if (!FoundActor && GetParams.bCreate)
+		if (!FoundActor && bInCreate)
 		{
 			FActorSpawnParameters SpawnParams;
-			SpawnParams.OverrideLevel = SpawnLevel;
+			SpawnParams.OverrideLevel = InCellCoord.Level;
 			SpawnParams.bCreateActorPackage = true;
-			FoundActor = World->SpawnActor(GetParams.ActorClass, &GetParams.LocationHint, nullptr, SpawnParams);
+			FoundActor = CastChecked<APartitionActor>(World->SpawnActor(InActorClass, nullptr, nullptr, SpawnParams));
 		}
 
-		check(FoundActor || !GetParams.bCreate);
+		check(FoundActor || !bInCreate);
 		return FoundActor;
 	}
 
@@ -95,82 +132,66 @@ public:
 	FActorPartitionWorldPartition(UWorld* InWorld)
 		: FBaseActorPartition(InWorld)
 	{
-		WorldSettings = World->GetWorldSettings();
-		check(WorldSettings);
-
 		WorldPartition = InWorld->GetSubsystem<UWorldPartitionSubsystem>();
 		check(WorldPartition);
 	}
 
 	UActorPartitionSubsystem::FCellCoord GetActorPartitionHash(const FActorPartitionGetParams& GetParams) const override 
 	{
-		return UActorPartitionSubsystem::FCellCoord(
-			FMath::FloorToInt(GetParams.LocationHint.X / GetParams.GridSize),
-			FMath::FloorToInt(GetParams.LocationHint.Y / GetParams.GridSize),
-			FMath::FloorToInt(GetParams.LocationHint.Z / GetParams.GridSize),
-			World->PersistentLevel
-		);
+		uint32 GridSize = GetParams.ActorClass->GetDefaultObject<APartitionActor>()->GetDefaultGridSize(World);
+
+		return UActorPartitionSubsystem::FCellCoord::GetCellCoord(GetParams.LocationHint, World->PersistentLevel, GridSize);
 	}
 
-	virtual AActor* GetActor(const FActorPartitionGetParams& GetParams, const UActorPartitionSubsystem::FCellCoord& CellCoord)
+	virtual APartitionActor* GetActor(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, const UActorPartitionSubsystem::FCellCoord& InCellCoord)
 	{
-		AActor* FoundActor = nullptr;
-		
-		FBox CellBox(
-			FVector(
-				CellCoord.X * GetParams.GridSize, 
-				CellCoord.Y * GetParams.GridSize, 
-				CellCoord.Z * GetParams.GridSize
-			), 
-			FVector(
-				CellCoord.X * GetParams.GridSize + GetParams.GridSize, 
-				CellCoord.Y * GetParams.GridSize + GetParams.GridSize, 
-				CellCoord.Z * GetParams.GridSize + GetParams.GridSize
-			)
-		);
+		APartitionActor* FoundActor = nullptr;
+		const uint32 GridSize = InActorClass->GetDefaultObject<APartitionActor>()->GetDefaultGridSize(World);
+		FBox CellBounds(UActorPartitionSubsystem::FCellCoord::GetCellBounds(InCellCoord, GridSize));
 
-		TArray<const FWorldPartitionActorDesc*> InstancedObjectsActorDescs = WorldPartition->GetIntersectingActorDescs(CellBox, GetParams.ActorClass);
+		TArray<const FWorldPartitionActorDesc*> InstancedObjectsActorDescs = WorldPartition->GetIntersectingActorDescs(CellBounds, InActorClass);
 
 		for (const FWorldPartitionActorDesc* ActorDesc: InstancedObjectsActorDescs)
 		{
-			if (ActorDesc->GetActorClass() == GetParams.ActorClass)
+			if (ActorDesc->GetActorClass() == InActorClass)
 			{
-				FInstancedObjectsActorDesc* InstancedObjectsActorDesc = (FInstancedObjectsActorDesc*)ActorDesc;
-				if ((InstancedObjectsActorDesc->GridIndexX == CellCoord.X) && 
-					(InstancedObjectsActorDesc->GridIndexY == CellCoord.Y) && 
-					(InstancedObjectsActorDesc->GridIndexZ == CellCoord.Z))
+				FPartitionActorDesc* PartitionActorDesc = (FPartitionActorDesc*)ActorDesc;
+				if ((PartitionActorDesc->GridIndexX == InCellCoord.X) &&
+					(PartitionActorDesc->GridIndexY == InCellCoord.Y) &&
+					(PartitionActorDesc->GridIndexZ == InCellCoord.Z))
 				{
-					FoundActor = ActorDesc->GetActor();
+					AActor* DescActor = ActorDesc->GetActor();
 
-					if (!FoundActor)
+					if (!DescActor)
 					{
 						// Actor exists but is not loaded
 						return nullptr;
 					}
 				
-					AInstancedObjectsActor* InstancedObjectsActor = CastChecked<AInstancedObjectsActor>(FoundActor);
-					check(InstancedObjectsActor->GridSize == GetParams.GridSize);
+					FoundActor = CastChecked<APartitionActor>(DescActor);
+					check(FoundActor->GridSize == GridSize);
 				}
 			}
 		}
 
-		if (!FoundActor && GetParams.bCreate)
+		if (!FoundActor && bInCreate)
 		{
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.bCreateActorPackage = true;
-			FVector CellCenter(CellBox.GetCenter());
-			FoundActor = World->SpawnActor(GetParams.ActorClass, &CellCenter, nullptr, SpawnParams);
-
-			AInstancedObjectsActor* InstancedObjectsActor = CastChecked<AInstancedObjectsActor>(FoundActor);
-			InstancedObjectsActor->GridSize = GetParams.GridSize;
+			SpawnParams.Name = FName(*FString::Printf(TEXT("%s_%d_%d_%d"), *InActorClass->GetName(), InCellCoord.X, InCellCoord.Y, InCellCoord.Z));
+			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+							
+			FVector CellCenter(CellBounds.GetCenter());
+			FoundActor = CastChecked<APartitionActor>(World->SpawnActor(InActorClass, &CellCenter, nullptr, SpawnParams));
+			FoundActor->GridSize = GridSize;
+			FoundActor->bLockLocation = true;
 		}
 
-		check(FoundActor || !GetParams.bCreate);
+		check(FoundActor || !bInCreate);
 		return FoundActor;
 	}
 
 private:
-	AWorldSettings* WorldSettings;
 	UWorldPartitionSubsystem* WorldPartition;
 };
 
@@ -186,13 +207,19 @@ bool UActorPartitionSubsystem::IsLevelPartition() const
 }
 
 #if WITH_EDITOR
+void UActorPartitionSubsystem::InitializeForWorldPartitionConversion()
+{
+	check(IsRunningCommandlet());
+	ActorPartition.Reset(new FActorPartitionWorldPartition(GetWorld()));
+}
+
 void UActorPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Collection.InitializeDependency(UWorldPartitionSubsystem::StaticClass());
 
 	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
 	{
-		WorldPartitionSubsystem->RegisterActorDescFactory(AInstancedObjectsActor::StaticClass(), &InstancedObjectsActorDescFactory);
+		WorldPartitionSubsystem->RegisterActorDescFactory(APartitionActor::StaticClass(), &PartitionActorDescFactory);
 	}
 
 	// Will need to register to WorldPartition setup changes events here...
@@ -228,38 +255,41 @@ void UActorPartitionSubsystem::InitializeActorPartition()
 	ActorPartitionHashInvalidatedHandle = ActorPartition->GetOnActorPartitionHashInvalidated().AddUObject(this, &UActorPartitionSubsystem::OnActorPartitionHashInvalidated);
 }
 
-AActor* UActorPartitionSubsystem::GetActor(const FActorPartitionGetParams& GetParams)
+APartitionActor* UActorPartitionSubsystem::GetActor(const FActorPartitionGetParams& GetParams)
 {
-	check(GetParams.ActorClass->IsChildOf(AInstancedObjectsActor::StaticClass()));
-
 	FCellCoord CellCoord = ActorPartition->GetActorPartitionHash(GetParams);
-		
-	TMap<UClass*, TWeakObjectPtr<AActor>>* ActorsPerClass = PartitionedActors.Find(CellCoord);
-	AActor* FoundActor = nullptr;
+
+	return GetActor(GetParams.ActorClass, CellCoord, GetParams.bCreate);
+}
+
+APartitionActor* UActorPartitionSubsystem::GetActor(const TSubclassOf<APartitionActor>& InActorClass, const FCellCoord& InCellCoords, bool bInCreate)
+{
+	TMap<UClass*, TWeakObjectPtr<APartitionActor>>* ActorsPerClass = PartitionedActors.Find(InCellCoords);
+	APartitionActor* FoundActor = nullptr;
 	if (!ActorsPerClass)
 	{
-		FoundActor = ActorPartition->GetActor(GetParams, CellCoord);
+		FoundActor = ActorPartition->GetActor(InActorClass, bInCreate, InCellCoords);
 		if (FoundActor)
 		{
-			PartitionedActors.Add(CellCoord).Add(GetParams.ActorClass, FoundActor);
+			PartitionedActors.Add(InCellCoords).Add(InActorClass, FoundActor);
 			return FoundActor;
 		}
-		else if (GetParams.bCreate)
+		else if (bInCreate)
 		{
 			// Actor wasn't found and couldn't be created
 			return nullptr;
 		}
 	}
 
-	TWeakObjectPtr<AActor>* ActorPtr = ActorsPerClass->Find(GetParams.ActorClass);
+	TWeakObjectPtr<APartitionActor>* ActorPtr = ActorsPerClass->Find(InActorClass);
 	if (!ActorPtr || !ActorPtr->IsValid())
 	{
-		FoundActor = ActorPartition->GetActor(GetParams, CellCoord);
+		FoundActor = ActorPartition->GetActor(InActorClass, bInCreate, InCellCoords);
 		if (FoundActor)
 		{
 			if (!ActorPtr)
 			{
-				ActorsPerClass->Add(GetParams.ActorClass, FoundActor);
+				ActorsPerClass->Add(InActorClass, FoundActor);
 			}
 			else
 			{

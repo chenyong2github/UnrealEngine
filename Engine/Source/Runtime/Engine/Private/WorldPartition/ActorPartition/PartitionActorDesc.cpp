@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WorldPartition/ActorPartition/InstancedObjectsActorDesc.h"
-#include "ActorPartition/InstancedObjectsActor.h"
+#include "WorldPartition/ActorPartition/PartitionActorDesc.h"
+#include "ActorPartition/PartitionActor.h"
 
 #if WITH_EDITOR
 #include "Engine/Level.h"
-FInstancedObjectsActorDesc::FInstancedObjectsActorDesc(const FWorldPartitionActorDescData& DescData, int32 InGridSize, int64 InGridIndexX, int64 InGridIndexY, int64 InGridIndexZ)
+FPartitionActorDesc::FPartitionActorDesc(const FWorldPartitionActorDescData& DescData, uint32 InGridSize, int64 InGridIndexX, int64 InGridIndexY, int64 InGridIndexZ)
 	: FWorldPartitionActorDesc(DescData)
 	, GridSize(InGridSize)
 	, GridIndexX(InGridIndexX)
@@ -13,12 +13,12 @@ FInstancedObjectsActorDesc::FInstancedObjectsActorDesc(const FWorldPartitionActo
 	, GridIndexZ(InGridIndexZ)
 {}
 
-FInstancedObjectsActorDesc::FInstancedObjectsActorDesc(AActor* InActor)
+FPartitionActorDesc::FPartitionActorDesc(AActor* InActor)
 	: FWorldPartitionActorDesc(InActor)
 {
-	AInstancedObjectsActor* InstancedObjectsActor = CastChecked<AInstancedObjectsActor>(InActor);
+	APartitionActor* PartitionActor = CastChecked<APartitionActor>(InActor);
 
-	GridSize = InstancedObjectsActor->GridSize;
+	GridSize = PartitionActor->GridSize;
 
 	const FVector ActorLocation = InActor->GetActorLocation();
 	GridIndexX = FMath::FloorToInt(ActorLocation.X / GridSize);

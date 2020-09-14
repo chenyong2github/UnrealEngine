@@ -36,6 +36,8 @@
 #include "AssetRegistryModule.h"
 #include "FoliageHelper.h"
 #include "Engine/WorldComposition.h"
+#include "ActorPartition/ActorPartitionSubsystem.h"
+#include "InstancedFoliage.h"
 
 DEFINE_LOG_CATEGORY(LogWorldPartitionConvertCommandlet);
 
@@ -297,8 +299,7 @@ bool UWorldPartitionConvertCommandlet::ShouldDeleteActor(AActor* Actor, bool bMa
 {
 	if (Actor->HasAllFlags(RF_Transient) ||
 		Actor->IsA<ALODActor>() ||
-		Actor->IsA<ALevelBounds>() ||
-		Actor->IsA<AInstancedFoliageActor>())
+		Actor->IsA<ALevelBounds>())
 	{
 		return true;
 	}
@@ -757,9 +758,50 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	{
 		return 1;
 	}
+
+	// Make sure ActorPartitionSubsystem uses WorldPartition
+	UActorPartitionSubsystem* ActorPartitionSubsystem = MainWorld->GetSubsystem<UActorPartitionSubsystem>();
+	ActorPartitionSubsystem->InitializeForWorldPartitionConversion();
 	
-	auto PrepareLevelActors = [this](ULevel* Level, bool bMainLevel, EActorGridPlacement DefaultGridPlacement)
+	auto PartitionFoliage = [this, MainWorld, ActorPartitionSubsystem](AInstancedFoliageActor* IFA)
 	{
+		for (auto& Pair : IFA->FoliageInfos)
+		{
+			FFoliageInfo* FoliageInfo = &Pair.Value.Get();
+			if (FoliageInfo)
+			{
+				if (FoliageInfo->Type == EFoliageImplType::Actor)
+				{
+					// We don't support Actor Foliage in WP
+					FoliageInfo->ExcludeActors();
+				}
+				else if (FoliageInfo->Instances.Num())
+				{
+					FBox InstanceBounds = FoliageInfo->GetApproximatedInstanceBounds();
+					FActorPartitionGridHelper::ForEachIntersectingCell(AInstancedFoliageActor::StaticClass(), InstanceBounds, MainWorld->PersistentLevel, [IFA, FoliageInfo, ActorPartitionSubsystem](const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FBox& InCellBounds)
+					{
+						TArray<int32> Indices;
+						FoliageInfo->GetInstancesInsideBounds(InCellBounds, Indices);
+						if (Indices.Num())
+						{
+							AInstancedFoliageActor* CellIFA = Cast<AInstancedFoliageActor>(ActorPartitionSubsystem->GetActor(AInstancedFoliageActor::StaticClass(), InCellCoord, true));
+							check(CellIFA);
+							FoliageInfo->MoveInstances(IFA, CellIFA, TSet<int32>(Indices), false);
+						}
+
+						return true;
+					});
+					check(!FoliageInfo->Instances.Num());
+				}
+			}
+		}
+
+		IFA->GetLevel()->GetWorld()->DestroyActor(IFA);
+	};
+
+	auto PrepareLevelActors = [this, PartitionFoliage](ULevel* Level, bool bMainLevel, EActorGridPlacement DefaultGridPlacement)
+	{
+		TArray<AInstancedFoliageActor*> IFAs;
 		for (AActor* Actor: Level->Actors)
 		{
 			if (Actor && !Actor->IsPendingKill())
@@ -768,12 +810,22 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				{
 					Level->GetWorld()->DestroyActor(Actor);
 				}
+				else if (AInstancedFoliageActor* IFA = Cast<AInstancedFoliageActor>(Actor))
+				{
+					IFAs.Add(IFA);
+				}
 				// Only override default grid placement on actors that are not marked as always loaded
 				else if (Actor->GridPlacement != EActorGridPlacement::AlwaysLoaded)
 				{
 					Actor->GridPlacement = DefaultGridPlacement;
 				}
 			}
+		}
+
+		// do loop after as it may modify Level->Actors
+		for (AInstancedFoliageActor* IFA : IFAs)
+		{
+			PartitionFoliage(IFA);
 		}
 	};
 
@@ -882,12 +934,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 				FArchiveGatherPrivateImports Ar(Actor, PrivateRefsMap, ActorsReferencesToActors);
 				Actor->Serialize(Ar);
-
-				//@todo_ow: fix this
-				if (FFoliageHelper::IsOwnedByFoliage(Actor))
-				{
-					FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
-				}
 
 				ChangeObjectOuter(Actor, MainLevel);
 

@@ -2106,6 +2106,18 @@ void FFoliageInfo::ReallocateClusters(AInstancedFoliageActor* InIFA, UFoliageTyp
 	Refresh(InIFA, true, true);
 }
 
+void FFoliageInfo::GetInstancesInsideBounds(const FBox& Box, TArray<int32>& OutInstances)
+{
+	auto TempInstances = InstanceHash->GetInstancesOverlappingBox(Box);
+	for (int32 Idx : TempInstances)
+	{
+		if (Box.IsInsideOrOn(Instances[Idx].Location))
+		{
+			OutInstances.Add(Idx);
+		}
+	}
+}
+
 void FFoliageInfo::GetInstancesInsideSphere(const FSphere& Sphere, TArray<int32>& OutInstances)
 {
 	auto TempInstances = InstanceHash->GetInstancesOverlappingBox(FBox::BuildAABB(Sphere.Center, FVector(Sphere.W)));
@@ -2328,6 +2340,11 @@ TArray<int32> FFoliageInfo::GetInstancesOverlappingBox(const FBox& Box) const
 {
 	return InstanceHash->GetInstancesOverlappingBox(Box);
 }
+
+FBox FFoliageInfo::GetApproximatedInstanceBounds() const
+{
+	return InstanceHash->GetBounds();
+}
 #endif	//WITH_EDITOR
 
 //
@@ -2496,8 +2513,7 @@ AInstancedFoliageActor* AInstancedFoliageActor::Get(UWorld* InWorld, bool bCreat
 				AInstancedFoliageActor::StaticClass(), 
 				bCreateIfNone, 
 				InLevelHint, 
-				InLocationHint, 
-				InWorld->GetWorldSettings()->InstancedFoliageGridSize
+				InLocationHint
 			)
 		)
 	);
@@ -4273,6 +4289,11 @@ void AInstancedFoliageActor::DetectFoliageTypeChangeAndUpdate()
 			Info.FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
 		}
 	}
+}
+
+uint32 AInstancedFoliageActor::GetDefaultGridSize(UWorld* InWorld) const
+{
+	return InWorld->GetWorldSettings()->InstancedFoliageGridSize;
 }
 
 void AInstancedFoliageActor::OnApplyLevelTransform(const FTransform& InTransform)

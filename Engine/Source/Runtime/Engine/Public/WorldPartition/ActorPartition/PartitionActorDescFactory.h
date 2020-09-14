@@ -7,7 +7,7 @@
 
 class FWorldPartitionActorDesc;
 
-class ENGINE_API FInstancedObjectsActorDescFactory : public FWorldPartitionActorDescFactory
+class ENGINE_API FPartitionActorDescFactory : public FWorldPartitionActorDescFactory
 {
 public:
 #if WITH_EDITOR

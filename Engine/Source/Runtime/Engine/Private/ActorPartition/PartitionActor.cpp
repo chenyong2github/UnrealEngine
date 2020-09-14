@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ActorPartition/InstancedObjectsActor.h"
+#include "ActorPartition/PartitionActor.h"
 
 #if WITH_EDITOR
 #include "ActorRegistry.h"
 #include "Components/BoxComponent.h"
 #endif
 
-AInstancedObjectsActor::AInstancedObjectsActor(const FObjectInitializer& ObjectInitializer)
+APartitionActor::APartitionActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, GridSize(0)
@@ -19,12 +19,12 @@ AInstancedObjectsActor::AInstancedObjectsActor(const FObjectInitializer& ObjectI
 }
 
 #if WITH_EDITOR
-void AInstancedObjectsActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+void APartitionActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	Super::GetAssetRegistryTags(OutTags);
 
 	static const FName NAME_GridSize(TEXT("GridSize"));
-	FActorRegistry::SaveActorMetaData(NAME_GridSize, GridSize, OutTags);
+	FActorRegistry::SaveActorMetaData(NAME_GridSize, (int32)GridSize, OutTags);
 
 	const FVector ActorLocation = GetActorLocation();
 	const int64 GridIndexX = FMath::FloorToInt(ActorLocation.X / GridSize);

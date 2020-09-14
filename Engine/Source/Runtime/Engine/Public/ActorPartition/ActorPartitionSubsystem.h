@@ -5,26 +5,22 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Templates/SubclassOf.h"
 #include "Misc/HashBuilder.h"
-#include "WorldPartition/ActorPartition/InstancedObjectsActorDescFactory.h"
+#include "WorldPartition/ActorPartition/PartitionActorDescFactory.h"
 #include "ActorPartitionSubsystem.generated.h"
 
 class FBaseActorPartition;
+class APartitionActor;
 
+#if WITH_EDITOR
 /**
  * FActorPartitionGetParam
  */
-struct FActorPartitionGetParams
+struct ENGINE_API FActorPartitionGetParams
 {
-	FActorPartitionGetParams(const TSubclassOf<AActor>& InActorClass, bool bInCreate, ULevel* InLevelHint, const FVector& InLocationHint, int32 InGridSize)
-		: ActorClass(InActorClass)
-		, bCreate(bInCreate)
-		, LocationHint(InLocationHint)
-		, LevelHint(InLevelHint)
-		, GridSize(InGridSize)
-	{}
+	FActorPartitionGetParams(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, ULevel* InLevelHint, const FVector& InLocationHint);
 
 	/* Class of Actor we are getting from the subsystem. */
-	TSubclassOf<AActor> ActorClass;
+	TSubclassOf<APartitionActor> ActorClass;
 	
 	/* Tells Subsystem if it needs to create Actor if it doesn't exist. */
 	bool bCreate;
@@ -34,10 +30,9 @@ struct FActorPartitionGetParams
 	
 	/* Depending on the world LevelHint can be used to find/create the Actor. */
 	ULevel* LevelHint;
-	
-	/* Desired size of the grid to create actors on if partitioned. */
-	int32 GridSize;
 };
+
+#endif
 
 /**
  * UActorPartitionSubsystem
@@ -56,7 +51,7 @@ public:
 		FCellCoord()
 		{}
 
-		FCellCoord(int64 InX, int64 InY, int64 InZ, const ULevel* InLevel)
+		FCellCoord(int64 InX, int64 InY, int64 InZ, ULevel* InLevel)
 			: X(InX)
 			, Y(InY)
 			, Z(InZ)
@@ -66,7 +61,7 @@ public:
 		int64 X;
 		int64 Y;
 		int64 Z;
-		const ULevel* Level;
+		ULevel* Level;
 
 		bool operator==(const FCellCoord& Other) const
 		{
@@ -79,11 +74,40 @@ public:
 			HashBuilder << CellCoord.X << CellCoord.Y << CellCoord.Z << PointerHash(CellCoord.Level);
 			return HashBuilder.GetHash();
 		}
+
+		static FCellCoord GetCellCoord(FVector InPos, ULevel* InLevel, uint32 InGridSize)
+		{
+			return FCellCoord(
+				FMath::FloorToInt(InPos.X / InGridSize),
+				FMath::FloorToInt(InPos.Y / InGridSize),
+				FMath::FloorToInt(InPos.Z / InGridSize),
+				InLevel
+			);
+		}
+
+		static FBox GetCellBounds(const FCellCoord& InCellCoord, uint32 InGridSize)
+		{
+			return FBox(
+				FVector(
+					InCellCoord.X * InGridSize,
+					InCellCoord.Y * InGridSize,
+					InCellCoord.Z * InGridSize
+				),
+				FVector(
+					InCellCoord.X * InGridSize + InGridSize,
+					InCellCoord.Y * InGridSize + InGridSize,
+					InCellCoord.Z * InGridSize + InGridSize
+				)
+			);
+		}
 	};
-		
+
 #if WITH_EDITOR
-	AActor* GetActor(const FActorPartitionGetParams& GetParam);
-		
+	APartitionActor* GetActor(const FActorPartitionGetParams& GetParam);
+	APartitionActor* GetActor(const TSubclassOf<APartitionActor>& InActorClass, const FCellCoord& InCellCoords, bool bInCreate);
+
+	virtual void InitializeForWorldPartitionConversion();
+
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 #endif
@@ -96,10 +120,10 @@ private:
 
 	void InitializeActorPartition();
 
-	TMap<FCellCoord, TMap<UClass*, TWeakObjectPtr<AActor>>> PartitionedActors;
+	TMap<FCellCoord, TMap<UClass*, TWeakObjectPtr<APartitionActor>>> PartitionedActors;
 	TUniquePtr<FBaseActorPartition> ActorPartition;
 	
-	FInstancedObjectsActorDescFactory InstancedObjectsActorDescFactory;
+	FPartitionActorDescFactory PartitionActorDescFactory;
 
 	FDelegateHandle ActorPartitionHashInvalidatedHandle;
 #endif
@@ -115,7 +139,7 @@ public:
 	virtual ~FBaseActorPartition() {}
 
 	virtual UActorPartitionSubsystem::FCellCoord GetActorPartitionHash(const FActorPartitionGetParams& GetParams) const = 0;
-	virtual AActor* GetActor(const FActorPartitionGetParams& GetParams, const UActorPartitionSubsystem::FCellCoord& CellCoord) = 0;
+	virtual APartitionActor* GetActor(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, const UActorPartitionSubsystem::FCellCoord& InCellCoord) = 0;
 
 	DECLARE_EVENT_OneParam(FBaseActorPartition, FOnActorPartitionHashInvalidated, const UActorPartitionSubsystem::FCellCoord&);
 	FOnActorPartitionHashInvalidated& GetOnActorPartitionHashInvalidated() { return OnActorPartitionHashInvalidated; }
@@ -123,4 +147,14 @@ protected:
 	UWorld* World;
 
 	FOnActorPartitionHashInvalidated OnActorPartitionHashInvalidated;
+
+	friend class FActorPartitionGridHelper;
 };
+
+#if WITH_EDITOR
+class ENGINE_API FActorPartitionGridHelper
+{
+public:
+	static void ForEachIntersectingCell(const TSubclassOf<APartitionActor>& InActorClass, const FBox& InBounds, ULevel* InLevel, TFunctionRef<bool(const UActorPartitionSubsystem::FCellCoord&, const FBox&)> InOperation);
+};
+#endif

@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WorldPartition/ActorPartition/InstancedObjectsActorDescFactory.h"
-#include "WorldPartition/ActorPartition/InstancedObjectsActorDesc.h"
+#include "WorldPartition/ActorPartition/PartitionActorDescFactory.h"
+#include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "ActorRegistry.h"
 
 #if WITH_EDITOR
-FWorldPartitionActorDesc* FInstancedObjectsActorDescFactory::CreateInstance(const FWorldPartitionActorDescInitData& ActorDescInitData)
+FWorldPartitionActorDesc* FPartitionActorDescFactory::CreateInstance(const FWorldPartitionActorDescInitData& ActorDescInitData)
 {
 	FWorldPartitionActorDescData Data;
 	if (!ReadMetaData(ActorDescInitData, Data))
@@ -41,11 +41,11 @@ FWorldPartitionActorDesc* FInstancedObjectsActorDescFactory::CreateInstance(cons
 		return nullptr;
 	}
 
-	return new FInstancedObjectsActorDesc(Data, GridSize, GridIndexX, GridIndexY, GridIndexZ);
+	return new FPartitionActorDesc(Data, (uint32)GridSize, GridIndexX, GridIndexY, GridIndexZ);
 }
 
-FWorldPartitionActorDesc* FInstancedObjectsActorDescFactory::CreateInstance(AActor* InActor)
+FWorldPartitionActorDesc* FPartitionActorDescFactory::CreateInstance(AActor* InActor)
 {
-	return new FInstancedObjectsActorDesc(InActor);
+	return new FPartitionActorDesc(InActor);
 }
 #endif
