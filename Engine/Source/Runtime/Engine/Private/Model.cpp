@@ -585,12 +585,6 @@ bool UModel::Modify( bool bAlwaysMarkDirty/*=false*/ )
 
 	return bSavedToTransactionBuffer;
 }
-
-void UModel::PreEditChange(FProperty*)
-{
-	// Do not call Super! Override PreEditChange to keep the same behavior as the Modify which change the default of `bAlwaysMarkDirty`...
-	Modify(false);
-}
 #endif
 
 //

@@ -985,12 +985,6 @@ bool UPolys::Modify(bool bAlwaysMarkDirty)
 
 	return !!GUndo; // we will make a broad assumption that if we have an undo buffer, we were saved in it
 }
-
-void UPolys::PreEditChange(FProperty*)
-{
-	// Do not call Super! Override PreEditChange to keep the same behavior as the Modify which change the default of `bAlwaysMarkDirty`...
-	Modify(false);
-}
 #endif
 
 void UPolys::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
