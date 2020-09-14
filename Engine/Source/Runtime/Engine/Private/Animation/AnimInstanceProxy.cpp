@@ -553,7 +553,10 @@ void FAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent();
-	MainInstanceProxy = &InAnimInstance->GetSkelMeshComponent()->GetAnimInstance()->GetProxyOnAnyThread<FAnimInstanceProxy>();
+	if(SkeletalMeshComponent->GetAnimInstance())
+	{
+		MainInstanceProxy = &SkeletalMeshComponent->GetAnimInstance()->GetProxyOnAnyThread<FAnimInstanceProxy>();
+	}
 
 	if (SkeletalMeshComponent->SkeletalMesh != nullptr)
 	{
@@ -622,6 +625,12 @@ FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(int32 
 {
 	if (GroupIndex >= 0)
 	{
+		// If we have no main proxy, force us to local
+		if(MainInstanceProxy == nullptr)
+		{
+			Scope = EAnimSyncGroupScope::Local;
+		}
+
 		switch(Scope)
 		{
 		default:
