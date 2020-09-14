@@ -12,6 +12,8 @@
 FStageMonitorEditorStyle::FStageMonitorEditorStyle()
 	: FSlateStyleSet("StageMonitorEditorStyle")
 {
+	const FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("StageMonitoring"))->GetContentDir();
+	SetContentRoot(ContentDir);
 	SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	// ListView
@@ -23,6 +25,23 @@ FStageMonitorEditorStyle::FStageMonitorEditorStyle()
 
 		Set("TableView.CriticalStateRow", CriticalStateRow);
 	}
+
+	//Checkbox for live/preview mode
+	{
+		FCheckBoxStyle SwitchStyle = FCheckBoxStyle()
+		.SetForegroundColor(FLinearColor::White)
+		.SetUncheckedImage(FSlateImageBrush(RootToContentDir(TEXT("Switch_OFF.png")), FVector2D(28.0F, 14.0F)))
+		.SetUncheckedHoveredImage(FSlateImageBrush(RootToContentDir(TEXT("Switch_OFF.png")), FVector2D(28.0F, 14.0F)))
+		.SetUncheckedPressedImage(FSlateImageBrush(RootToContentDir(TEXT("Switch_OFF.png")), FVector2D(28.0F, 14.0F)))
+		.SetCheckedImage(FSlateImageBrush(RootToContentDir(TEXT("Switch_ON.png")), FVector2D(28.0F, 14.0F)))
+		.SetCheckedHoveredImage(FSlateImageBrush(RootToContentDir(TEXT("Switch_ON.png")), FVector2D(28.0F, 14.0F)))
+		.SetCheckedPressedImage(FSlateImageBrush(RootToContentDir(TEXT("Switch_ON.png")), FVector2D(28.0F, 14.0F)))
+		.SetPadding(FMargin(0, 0, 0, 1));
+
+		Set("ViewMode", SwitchStyle);
+
+	}
+
 	
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 

@@ -33,4 +33,7 @@ public:
 
 	/** Returns true if the Sync related functions will return valid data */
 	virtual bool IsLastSyncDataValid() const PURE_VIRTUAL(UGenlockedCustomTimeStep::IsLastSyncDataValid, return false;);
+
+	/** Returns how many sync counts are expected between ticks*/
+	virtual uint32 GetExpectedSyncCountDelta() const;
 };

@@ -3,6 +3,8 @@
 #include "StageMonitorEditorModule.h"
 
 #include "ISettingsModule.h"
+#include "PropertyEditorModule.h"
+#include "StageMessageTypeDetailCustomization.h"
 #include "StageMonitorEditorSettings.h"
 #include "StageMonitoringSettings.h"
 #include "SStageMonitorPanel.h"
@@ -31,12 +33,16 @@ void FStageMonitorEditorModule::StartupModule()
 		LOCTEXT("StageMonitorEditorName", "Stage Monitor Editor"),
 		LOCTEXT("StageMonitorEditorDescription", "Configure the editor aspects of StageMonitor plugin."),
 		GetMutableDefault<UStageMonitorEditorSettings>());
+
+	RegisterCustomizations();
 }
 
 void FStageMonitorEditorModule::ShutdownModule()
 {
 	if (!IsRunningCommandlet() && UObjectInitialized() && !IsEngineExitRequested())
 	{
+		UnregisterCustomizations();
+
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 		if (SettingsModule != nullptr)
 		{
@@ -45,6 +51,21 @@ void FStageMonitorEditorModule::ShutdownModule()
 		}
 
 		SStageMonitorPanel::UnregisterNomadTabSpawner();
+	}
+}
+
+void FStageMonitorEditorModule::RegisterCustomizations()
+{
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(FStageMessageTypeWrapper::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStageMessageTypeDetailCustomization::MakeInstance));
+}
+
+void FStageMonitorEditorModule::UnregisterCustomizations()
+{
+	FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+	if (PropertyEditorModule)
+	{
+		PropertyEditorModule->UnregisterCustomPropertyTypeLayout(FStageMessageTypeWrapper::StaticStruct()->GetFName());
 	}
 }
 

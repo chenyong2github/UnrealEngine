@@ -23,6 +23,8 @@ public class StageDataProvider : ModuleRules
 				"GameplayTags",
 				"RenderCore",
 				"StageDataCore",
+				"StageMonitorCommon",
+				"TimeManagement",
 				"VPUtilities"
 			}
 		);

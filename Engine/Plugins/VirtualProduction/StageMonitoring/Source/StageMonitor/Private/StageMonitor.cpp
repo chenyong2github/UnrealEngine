@@ -3,14 +3,16 @@
 #include "StageMonitor.h"
 
 #include "Containers/Ticker.h"
+#include "IStageMonitorSession.h"
+#include "IStageMonitorSessionManager.h"
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
-#include "StageDataCollection.h"
 #include "StageMessages.h"
 #include "StageMonitoringSettings.h"
 #include "StageMonitorModule.h"
+#include "StageMonitorUtils.h"
 #include "VPSettings.h"
 
 
@@ -26,44 +28,16 @@ FStageMonitor::~FStageMonitor()
 	FCoreDelegates::OnPreExit.RemoveAll(this);
 }
 
-TSharedPtr<IStageDataCollection> FStageMonitor::GetDataCollection() const
-{
-	return Collection;
-}
-
-bool FStageMonitor::IsStageInCriticalState() const
-{
-	return CriticalEventHandler->IsCriticalStateActive();
-}
-
-bool FStageMonitor::IsTimePartOfCriticalState(double TimeInSeconds) const
-{
-	return CriticalEventHandler->IsTimingPartOfCriticalRange(TimeInSeconds);
-}
-
-FName FStageMonitor::GetCurrentCriticalStateSource() const
-{
-	return CriticalEventHandler->GetCurrentCriticalStateSource();
-}
-
-TArray<FName> FStageMonitor::GetCriticalStateHistorySources() const
-{
-	return CriticalEventHandler->GetCriticalStateHistorySources();
-}
-
-TArray<FName> FStageMonitor::GetCriticalStateSources(double TimeInSeconds) const
-{
-	return CriticalEventHandler->GetCriticalStateSources(TimeInSeconds);
-}
-
 void FStageMonitor::Initialize()
 {
 	FCoreDelegates::OnPreExit.AddRaw(this, &FStageMonitor::OnPreExit);
 
-	Collection = MakeShared<FStageDataCollection>();
-	CriticalEventHandler = MakeShared<FStageCriticalEventHandler>();
+	Session = IStageMonitorModule::Get().GetStageMonitorSessionManager().CreateSession();
+
 	bIsActive = false;
 	Identifier = FGuid::NewGuid();
+
+	CachedDiscoveryMessage.Descriptor = StageMonitorUtils::GetInstanceDescriptor();
 }
 
 void FStageMonitor::Start()
@@ -128,15 +102,15 @@ bool FStageMonitor::Tick(float DeltaTime)
 
 void FStageMonitor::UpdateProviderState()
 {
-	const TArray<FCollectionProviderEntry>& Providers = Collection->GetProviders();
-	for (const FCollectionProviderEntry& Provider : Providers)
+	const TArray<FStageSessionProviderEntry>& Providers = Session->GetProviders();
+	for (const FStageSessionProviderEntry& Provider : Providers)
 	{
 		if (Provider.State == EStageDataProviderState::Active)
 		{
 			if (FApp::GetCurrentTime() - Provider.LastReceivedMessageTime > GetDefault<UStageMonitoringSettings>()->TimeoutInterval)
 			{
 				UE_LOG(LogStageMonitor, VeryVerbose, TEXT("Provider lost, %s"), *Provider.Descriptor.FriendlyName.ToString());
-				Collection->SetProviderState(Provider.Identifier, EStageDataProviderState::Inactive);
+				Session->SetProviderState(Provider.Identifier, EStageDataProviderState::Inactive);
 			}
 		}
 		else if (Provider.State == EStageDataProviderState::Inactive)
@@ -144,8 +118,12 @@ void FStageMonitor::UpdateProviderState()
 			if (FApp::GetCurrentTime() - Provider.LastReceivedMessageTime <= GetDefault<UStageMonitoringSettings>()->TimeoutInterval)
 			{
 				UE_LOG(LogStageMonitor, VeryVerbose, TEXT("Provider back alive, %s"), *Provider.Descriptor.FriendlyName.ToString());
-				Collection->SetProviderState(Provider.Identifier, EStageDataProviderState::Active);
+				Session->SetProviderState(Provider.Identifier, EStageDataProviderState::Active);
 			}
+		}
+		else if (Provider.State == EStageDataProviderState::Closed)
+		{
+				UE_LOG(LogStageMonitor, Log, TEXT("Provider is closed, %s"), *Provider.Descriptor.FriendlyName.ToString());
 		}
 	}
 }
@@ -155,7 +133,7 @@ void FStageMonitor::SendDiscoveryMessage()
 	if (FApp::GetCurrentTime() - LastSentDiscoveryMessage > GetDefault<UStageMonitoringSettings>()->MonitorSettings.DiscoveryMessageInterval)
 	{
 		//Broadcast discovery signal
-		PublishMessage<FStageProviderDiscoveryMessage>();
+		PublishMessage<FStageProviderDiscoveryMessage>(CachedDiscoveryMessage);
 
 		LastSentDiscoveryMessage = FApp::GetCurrentTime();
 	}
@@ -169,7 +147,7 @@ void FStageMonitor::OnPreExit()
 
 bool FStageMonitor::SendMessageInternal(FStageDataBaseMessage* Payload, UScriptStruct* Type, EStageMessageFlags InFlags)
 {
-	TArray<FMessageAddress> Addresses = Collection->GetProvidersAddress();
+	TArray<FMessageAddress> Addresses = Session->GetProvidersAddress();
 	if (Addresses.Num() > 0)
 	{
 		//Message bus requires payload to be newed and life cycle will be taken care of in MB
@@ -227,22 +205,22 @@ void FStageMonitor::HandleProviderDiscoveryResponse(const FStageProviderDiscover
 	if (!Settings->bUseSessionId || Settings->GetStageSessionId() == Message.Descriptor.SessionId)
 	{
 		const FGuid ProviderIdentifier = Message.Identifier;
-		const TArray<FCollectionProviderEntry>& Providers = Collection->GetProviders();
-		const FCollectionProviderEntry* Provider = Providers.FindByPredicate([ProviderIdentifier](const FCollectionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; });
+		const TArray<FStageSessionProviderEntry>& Providers = Session->GetProviders();
+		const FStageSessionProviderEntry* Provider = Providers.FindByPredicate([ProviderIdentifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; });
 		if (Provider)
 		{
 			//In case a provider was closed, listen back to its discovery response to update its status
 			if (Provider->State == EStageDataProviderState::Closed)
 			{
 				//Need to update data about a closed provider. Its address will certainly have changed and descriptor could also have
-				Collection->UpdateProviderDescription(ProviderIdentifier, Message.Descriptor, Context->GetSender());
-				Collection->SetProviderState(ProviderIdentifier, EStageDataProviderState::Active);
+				Session->UpdateProviderDescription(ProviderIdentifier, Message.Descriptor, Context->GetSender());
+				Session->SetProviderState(ProviderIdentifier, EStageDataProviderState::Active);
 			}
 		}
 		else
 		{
 			UE_LOG(LogStageMonitor, VeryVerbose, TEXT("Provider found, %s"), *Message.Descriptor.FriendlyName.ToString());
-			Collection->AddProvider(ProviderIdentifier, Message.Descriptor, Context->GetSender());
+			Session->AddProvider(ProviderIdentifier, Message.Descriptor, Context->GetSender());
 		}
 	}
 	else if (!InvalidDataProviders.Contains(Message.Identifier))
@@ -261,11 +239,11 @@ void FStageMonitor::HandleProviderDiscoveryResponse(const FStageProviderDiscover
 void FStageMonitor::HandleProviderCloseMessage(const FStageProviderCloseMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	const FGuid ProviderIdentifier = Message.Identifier;
-	const TArray<FCollectionProviderEntry>& Providers = Collection->GetProviders();
-	const FCollectionProviderEntry* Provider = Providers.FindByPredicate([ProviderIdentifier](const FCollectionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; });
+	const TArray<FStageSessionProviderEntry>& Providers = Session->GetProviders();
+	const FStageSessionProviderEntry* Provider = Providers.FindByPredicate([ProviderIdentifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; });
 	if (Provider)
 	{
-		Collection->SetProviderState(ProviderIdentifier, EStageDataProviderState::Closed);
+		Session->SetProviderState(ProviderIdentifier, EStageDataProviderState::Closed);
 	}
 }
 
@@ -292,13 +270,7 @@ void FStageMonitor::HandleStageData(const TSharedRef<IMessageContext, ESPMode::T
 	const FStageProviderMessage* Message = reinterpret_cast<const FStageProviderMessage*>(Context->GetMessage());
 	check(Message);
 
-	// Special handling for critical event to track stage state
-	if (MessageTypeInfo->IsChildOf(FCriticalStateProviderMessage::StaticStruct()))
-	{
-		CriticalEventHandler->HandleCriticalEventMessage(static_cast<const FCriticalStateProviderMessage*>(Message));
-	}
-
-	// Pool that message in the collection
-	Collection->AddProviderMessage(MessageTypeInfo, Message);
+	// Pool that message in the session
+	Session->AddProviderMessage(MessageTypeInfo, Message);
 }
 

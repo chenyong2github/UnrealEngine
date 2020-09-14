@@ -19,6 +19,7 @@ public class StageMonitorEditor : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"DesktopPlatform",
 				"EditorStyle",
 				"Engine",
 				"GameplayTags",
@@ -29,6 +30,7 @@ public class StageMonitorEditor : ModuleRules
 				"SlateCore",
 				"StageDataCore",
 				"StageMonitor",
+				"StageMonitorCommon",
 				"UnrealEd",
                 "WorkspaceMenuStructure",
             }
