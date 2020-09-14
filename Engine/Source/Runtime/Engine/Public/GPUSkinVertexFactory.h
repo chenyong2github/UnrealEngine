@@ -976,3 +976,20 @@ private:
 	FDataType MeshMappingData; 
 };
 
+
+template<GPUSkinBoneInfluenceType BoneInfluenceType>
+class TMultipleInfluenceClothVertexFactory : public TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>
+{
+	DECLARE_VERTEX_FACTORY_TYPE(TMultipleInfluenceClothVertexFactory<BoneInfluenceType>);
+
+	typedef TGPUSkinAPEXClothVertexFactory<BoneInfluenceType> Super;
+
+public:
+
+	TMultipleInfluenceClothVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, uint32 InNumVertices)
+		: Super(InFeatureLevel, InNumVertices)
+	{}
+
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+};
