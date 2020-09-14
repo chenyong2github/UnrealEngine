@@ -278,7 +278,7 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	CloudAmbientOcclusionExtent = 150.0f;
 	CloudAmbientOcclusionStrength = 1.0f;
 	CloudAmbientOcclusionMapResolutionScale = 1.0f;
-	CloudAmbientOcclusionApertureScale = 0.5f;
+	CloudAmbientOcclusionApertureScale = 0.05f;
 }
 
 FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const

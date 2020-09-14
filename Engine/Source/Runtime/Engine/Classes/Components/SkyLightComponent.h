@@ -189,7 +189,7 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	/**
 	 * Controls the aperture angle to integrate sky visibility over. 1 Means entire hemisphere and 0 infinitely small solid angle oriented up.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.0", UIMax = "0.1", ClampMin = "0.0", ClampMax = "1.0", SliderExponent = 2.0))
 	float CloudAmbientOcclusionApertureScale;
 
 
