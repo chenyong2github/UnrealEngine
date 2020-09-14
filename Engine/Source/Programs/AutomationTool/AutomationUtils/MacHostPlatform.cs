@@ -155,7 +155,8 @@ namespace AutomationTool
 			// @todo: add more unsupported modules here
 			List<string> UnsupportedModules = new List<string>()
 			{
-				"GauntletExtras", "Anvil", "WinAnvil", "XboxCommonAnvil", "MPX", "FortniteGame",
+				"GauntletExtras", "Anvil", "WinAnvil", "XboxCommonAnvil", "XboxOneAnvil", "MPX",
+				"FortniteGame",
 			};
 			foreach (string UnsupportedModule in UnsupportedModules)
 			{
