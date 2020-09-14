@@ -454,6 +454,19 @@ void FMaterialPropertyHelpers::TransitionAndCopyParameters(UMaterialInstanceCons
 							continue;
 						}
 					}
+
+					UDEditorRuntimeVirtualTextureParameterValue* RVTParameterValue = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Group.Parameters[ParameterIdx]);
+					if (RVTParameterValue)
+					{
+						if (RVTParameterValue->bOverride || bForceCopy)
+						{
+							FMaterialParameterInfo TransitionedTextureInfo = FMaterialParameterInfo();
+							TransitionedTextureInfo.Name = RVTParameterValue->ParameterInfo.Name;
+							ChildInstance->SetRuntimeVirtualTextureParameterValueEditorOnly(TransitionedTextureInfo, RVTParameterValue->ParameterValue);
+							continue;
+						}
+					}
+
 					UDEditorVectorParameterValue* VectorParameterValue = Cast<UDEditorVectorParameterValue>(Group.Parameters[ParameterIdx]);
 					if (VectorParameterValue)
 					{
