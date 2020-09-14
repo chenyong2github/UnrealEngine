@@ -205,6 +205,7 @@ public:
 	void UnregisterWithScalabilityManager();
 
 	void PostSystemTick_GameThread();
+	void OnSystemComplete();
 
 	public:
 
@@ -232,8 +233,7 @@ public:
 
 	TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation();
 
-	bool InitializeSystem();
-	void OnSystemComplete();
+	bool InitializeSystem();	
 	void DestroyInstance();
 
 	void OnPooledReuse(UWorld* NewWorld);

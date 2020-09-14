@@ -851,6 +851,7 @@ bool UNiagaraComponent::InitializeSystem()
 #endif
 		SystemInstance->Init(bForceSolo);
 		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
+		SystemInstance->SetOnComplete(FNiagaraSystemInstance::FOnComplete::CreateUObject(this, &UNiagaraComponent::OnSystemComplete));
 		UpdateEmitterMaterials(true); // On system reset we want to always reinit materials for now. Hopefully we can recycle the already created Mids.
 		MarkRenderStateDirty();
 		return true;
@@ -1198,16 +1199,9 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 	}
 #endif
 
-	// Check if the system got completed
-	if (IsActive() && SystemInstance->IsComplete())
-	{
-		OnSystemComplete();
-		return;
-	}
-
 	// NOTE: Since this is happening before scene visibility calculation, it's likely going to be off by a frame
 	SystemInstance->SetLastRenderTime(GetLastRenderTime());
-
+	
 	MarkRenderDynamicDataDirty();
 
 	// Check to force update our transform based on a timer or bounds expanding beyond their previous local boundaries
@@ -1227,13 +1221,11 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 void UNiagaraComponent::OnSystemComplete()
 {
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete: %p - %s"), SystemInstance.Get(), *Asset->GetName());
-
 	SetComponentTickEnabled(false);
 	SetActiveFlag(false);
 
 	MarkRenderDynamicDataDirty();
 	//TODO: Mark the render state dirty?
-
 
 	//Don't really complete if we're being culled by scalability.
 	//We want to stop ticking but not be reclaimed by the pools etc.

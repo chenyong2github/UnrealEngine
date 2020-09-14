@@ -605,6 +605,7 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		SystemInstanceAllocation->OverrideParameters = nullptr;
 		SystemInstanceAllocation->PrereqComponent = nullptr;
 		SystemInstanceAllocation->OnPostTickDelegate.Unbind();
+		SystemInstanceAllocation->OnCompleteDelegate.Unbind();
 
 		WorldManager->DestroySystemInstance(SystemInstanceAllocation);
 		check(SystemInstanceAllocation == nullptr);
@@ -657,10 +658,10 @@ void FNiagaraSystemInstance::Complete()
 	{
 		// We've already notified once, no need to do so again.
 		bNotifyOnCompletion = false;
-
-#if WITH_EDITOR
-		OnCompleteDelegate.Broadcast(this);
-#endif
+		if (OnCompleteDelegate.IsBound())
+		{
+			OnCompleteDelegate.Execute();
+		}
 	}
 }
 
@@ -2515,11 +2516,6 @@ FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)
 FNiagaraSystemInstance::FOnInitialized& FNiagaraSystemInstance::OnInitialized()
 {
 	return OnInitializedDelegate;
-}
-
-FNiagaraSystemInstance::FOnComplete& FNiagaraSystemInstance::OnComplete()
-{
-	return OnCompleteDelegate;
 }
 
 FNiagaraSystemInstance::FOnReset& FNiagaraSystemInstance::OnReset()

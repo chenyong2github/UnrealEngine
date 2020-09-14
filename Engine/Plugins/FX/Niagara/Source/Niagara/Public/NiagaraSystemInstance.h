@@ -24,10 +24,10 @@ class NIAGARA_API FNiagaraSystemInstance
 
 public:
 	DECLARE_DELEGATE(FOnPostTick);
+	DECLARE_DELEGATE(FOnComplete);
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnInitialized);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnComplete, FNiagaraSystemInstance*);
 	
 	DECLARE_MULTICAST_DELEGATE(FOnReset);
 	DECLARE_MULTICAST_DELEGATE(FOnDestroyed);
@@ -187,13 +187,12 @@ public:
 
 	/** Gets a multicast delegate which is called after this instance has finished ticking for the frame on the game thread */
 	FORCEINLINE void SetOnPostTick(const FOnPostTick& InPostTickDelegate) { OnPostTickDelegate = InPostTickDelegate; }
+	/** Gets a multicast delegate which is called whenever this instance is complete. */
+	FORCEINLINE void SetOnComplete(const FOnComplete& InOnCompleteDelegate) { OnCompleteDelegate = InOnCompleteDelegate; }
 
 #if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
 	FOnInitialized& OnInitialized();
-
-	/** Gets a multicast delegate which is called whenever this instance is complete. */
-	FOnComplete& OnComplete();
 
 	/** Gets a multicast delegate which is called whenever this instance is reset due to external changes in the source System asset. */
 	FOnReset& OnReset();
@@ -387,10 +386,10 @@ private:
 	TArray< TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > Emitters;
 
 	FOnPostTick OnPostTickDelegate;
+	FOnComplete OnCompleteDelegate;
 
 #if WITH_EDITOR
 	FOnInitialized OnInitializedDelegate;
-	FOnComplete OnCompleteDelegate;
 
 	FOnReset OnResetDelegate;
 	FOnDestroyed OnDestroyedDelegate;
