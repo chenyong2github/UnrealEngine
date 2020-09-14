@@ -27,7 +27,7 @@ namespace Chaos
 		~FClothingSimulationSolver();
 
 		// ---- Animatable property setters ----
-		void SetLocalSpaceLocation(const TVector<float, 3>& InLocalSpaceLocation) { LocalSpaceLocation = InLocalSpaceLocation; }
+		void SetLocalSpaceLocation(const TVector<float, 3>& InLocalSpaceLocation, bool bReset = false);
 		const TVector<float, 3>& GetLocalSpaceLocation() const { return LocalSpaceLocation; }
 
 		// Disables all Cloths gravity override mechanism
