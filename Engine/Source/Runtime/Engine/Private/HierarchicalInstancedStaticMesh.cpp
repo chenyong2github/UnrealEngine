@@ -3035,10 +3035,7 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		INC_DWORD_STAT_BY(STAT_FoliageInstanceBuffers, ProxySize);
 
 		// TODO: Abstract with a common helper
-		if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform) &&
-			//GRHISupportsAtomicUInt64 &&
-			GRenderNaniteMeshes != 0 &&
-			GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+		if (UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
 		{
 			return ::new Nanite::FSceneProxy(this);
 		}

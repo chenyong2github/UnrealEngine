@@ -244,15 +244,6 @@ namespace Nanite
 	extern void ListStatFilters(FSceneRenderer* SceneRenderer);
 }
 
-// Note this is used also in  ShadowDepthRendering.cpp, so can't be inlined
-bool IsNaniteEnabled(EShaderPlatform ShaderPlatform)
-{
-	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
-	static bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);
-	static bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
-	return bNaniteSupported /*&& GRHISupportsAtomicUInt64*/ && !bForwardShadingEnabled && EnableNaniteCVar->GetInt() > 0;
-}
-
 DECLARE_CYCLE_STAT(TEXT("PostInitViews FlushDel"), STAT_PostInitViews_FlushDel, STATGROUP_InitViews);
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
 
@@ -1532,7 +1523,7 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 
 	// Family pipeline state
 	{
-		FamilyPipelineState.Set(&FFamilyPipelineState::bNanite, IsNaniteEnabled(ShaderPlatform)); // TODO: Should this respect ViewFamily.EngineShowFlags.NaniteMeshes?
+		FamilyPipelineState.Set(&FFamilyPipelineState::bNanite, UseNanite(ShaderPlatform)); // TODO: Should this respect ViewFamily.EngineShowFlags.NaniteMeshes?
 
 		static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
 		FamilyPipelineState.Set(&FFamilyPipelineState::bHZBOcclusion, ICVarHZBOcc->GetInt() != 0);	
@@ -1577,7 +1568,7 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 
 void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
-	static const bool bNaniteEnabled = IsNaniteEnabled(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
+	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
 
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList, true);
 

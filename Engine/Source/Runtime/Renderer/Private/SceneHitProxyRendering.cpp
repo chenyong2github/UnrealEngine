@@ -563,7 +563,6 @@ void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList
 		DynamicReadBuffer.Commit();
 
 		TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
-		NaniteRasterResults.AddDefaulted(Views.Num());
 
 		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT, NaniteRasterResults);
 

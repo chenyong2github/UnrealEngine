@@ -955,18 +955,3 @@ uint32 FGlobalResources::GetMaxNodes()
 TGlobalResource< FGlobalResources > GGlobalResources;
 
 } // namespace Nanite
-
-bool DoesPlatformSupportNanite(EShaderPlatform Platform)
-{
-	// Make sure the current platform has DDPI definitions.
-	const bool bValidPlatform = FDataDrivenShaderPlatformInfo::IsValid(Platform);
-
-	// GPUScene is required for Nanite
-	const bool bSupportGPUScene = FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform);
-
-	// Nanite specific check
-	const bool bSupportNanite = FDataDrivenShaderPlatformInfo::GetSupportsNanite(Platform);
-
-	const bool bFullCheck = bValidPlatform && bSupportGPUScene && bSupportNanite;
-	return bFullCheck;
-}

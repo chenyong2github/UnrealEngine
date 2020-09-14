@@ -1495,3 +1495,19 @@ RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel
 		return true;
 	}
 }
+
+
+RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform)
+{
+	// Make sure the current platform has DDPI definitions.
+	const bool bValidPlatform = FDataDrivenShaderPlatformInfo::IsValid(Platform);
+
+	// GPUScene is required for Nanite
+	const bool bSupportGPUScene = FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform);
+
+	// Nanite specific check
+	const bool bSupportNanite = FDataDrivenShaderPlatformInfo::GetSupportsNanite(Platform);
+
+	const bool bFullCheck = bValidPlatform && bSupportGPUScene && bSupportNanite;
+	return bFullCheck;
+}

@@ -538,5 +538,3 @@ private:
 extern ENGINE_API TGlobalResource< FGlobalResources > GGlobalResources;
 
 } // namespace Nanite
-
-ENGINE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform);

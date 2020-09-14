@@ -596,3 +596,19 @@ RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntP
 *	Checks if virtual texturing enabled and supported
 */
 RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel, const class ITargetPlatform* TargetPlatform = nullptr);
+
+
+RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform);
+
+
+/**
+ * Returns true if Nanite rendering should be used for the given shader platform.
+ */
+inline bool UseNanite(EShaderPlatform ShaderPlatform)
+{
+	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
+	bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);
+	bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
+	return bNaniteSupported /*&& GRHISupportsAtomicUInt64*/ && !bForwardShadingEnabled && EnableNaniteCVar->GetInt() > 0;
+}
+

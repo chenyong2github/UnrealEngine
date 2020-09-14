@@ -3067,7 +3067,8 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 	// Determine if we want a virtual shadow map for this light
 	// TODO: Base this off of a light/editor parameter; for now just all spot lights get virtual shadow maps when the CVar is enabled
 	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
-	
+	const bool bNaniteEnabled = UseNanite(ShaderPlatform);
+
 	// Try to create a whole-scene projected shadow initializer for the light.
 	TArray<FWholeSceneProjectedShadowInitializer, TInlineAllocator<6> > ProjectedShadowInitializers;
 	if (LightSceneInfo->Proxy->GetWholeSceneProjectedShadowInitializer(ViewFamily, ProjectedShadowInitializers))
@@ -3179,7 +3180,8 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					SizeX = SizeY = SceneContext_ConstantsOnly.GetCubeShadowDepthZResolution(SceneContext_ConstantsOnly.GetCubeShadowDepthZIndex(MaxDesiredResolution));
 				}
 
-				const bool bNeedsVirtualShadowMap = (EnableVirtualSMCVar->GetValueOnRenderThread() != 0
+				const bool bNeedsVirtualShadowMap = bNaniteEnabled
+					&& (EnableVirtualSMCVar->GetValueOnRenderThread() != 0
 					&& LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
 					&& !ProjectedShadowInitializer.bRayTracedDistanceField;
 
@@ -4112,10 +4114,11 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 	SCOPE_CYCLE_COUNTER(STAT_AddViewDependentWholeSceneShadowsForView);
 
 	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
+	const bool bNaniteEnabled = UseNanite(ShaderPlatform);
 	// Note: it is possible for a non-directional light to set up a proxy that requests a view-dependent SM (or several),
 	const bool bDirectionalLight = LightSceneInfo.Proxy->GetLightType() == LightType_Directional;
 	// Unmodified UE does not use this, so the virtual SM ignores this path for the time being (more likely to be removed).
-	const bool bNeedsVirtualShadowMap = EnableVirtualSMCVar->GetValueOnRenderThread() != 0 && bDirectionalLight;;
+	const bool bNeedsVirtualShadowMap = bNaniteEnabled && EnableVirtualSMCVar->GetValueOnRenderThread() != 0 && bDirectionalLight;
 
 	// Allow each view to create a whole scene view dependent shadow
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)

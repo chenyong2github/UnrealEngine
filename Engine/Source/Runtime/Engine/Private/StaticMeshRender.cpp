@@ -2332,10 +2332,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 	}
 
 	// TODO: Abstract with a common helper
-	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform) &&
-		//GRHISupportsAtomicUInt64 &&
-		GRenderNaniteMeshes != 0 &&
-		GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+	if (UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
 	{
 		LLM_SCOPE(ELLMTag::StaticMesh);
 		return ::new Nanite::FSceneProxy(this);

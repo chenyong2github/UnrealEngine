@@ -525,8 +525,7 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 	}
 
 	// TODO: Abstract with a common helper
-	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform) &&
-		//GRHISupportsAtomicUInt64 &&
+	if (UseNanite(GetScene()->GetShaderPlatform()) &&
 		RestCollection->EnableNanite &&
 		GGeometryCollectionNanite != 0)
 	{
