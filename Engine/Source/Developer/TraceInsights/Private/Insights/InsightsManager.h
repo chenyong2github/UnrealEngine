@@ -29,6 +29,26 @@ class FInsightsMessageLogViewModel;
 class FInsightsTestRunner;
 class FInsightsMenuBuilder;
 
+/**
+ * Utility class used by profiler managers to limit how often they check for availability conditions.
+ */
+class FAvailabilityCheck
+{
+public:
+	/** Returns true if managers are allowed to do (slow) availability check during this tick. */
+	bool Tick();
+
+	/** Disables the "availability check" (i.e. Tick() calls will return false when disabled). */
+	void Disable();
+
+	/** Enables the "availability check" with a specified initial delay. */
+	void Enable(double InWaitTime);
+
+private:
+	double WaitTime = 0.0;
+	uint64 NextTimestamp = (uint64)-1;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * This class manages following areas:
@@ -197,7 +217,7 @@ private:
 	FSessionChangedEvent SessionChangedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-// SessionAnalysisComplete
+	// SessionAnalysisCompletedEvent
 
 public:
 	/** The event to execute when session analysis is complete. */

@@ -101,8 +101,7 @@ private:
 private:
 	bool bIsInitialized;
 	bool bIsAvailable;
-	uint64 AvailabilityCheckNextTimestamp;
-	double AvailabilityCheckWaitTimeSec;
+	FAvailabilityCheck AvailabilityCheck;
 
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
