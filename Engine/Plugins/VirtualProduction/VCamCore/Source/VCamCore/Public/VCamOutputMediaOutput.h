@@ -11,27 +11,24 @@
 
 #include "VCamOutputMediaOutput.generated.h"
 
-UCLASS(meta = (DisplayName = "MediaOutput"))
+UCLASS(meta = (DisplayName = "Media Output Provider"))
 class VCAMCORE_API UVCamOutputMediaOutput: public UVCamOutputProviderBase
 {
 	GENERATED_BODY()
 
 public:
-	virtual void InitializeSafe() override;
-	virtual void Destroy() override;
-	virtual void Tick(const float DeltaTime) override;
-	virtual void SetActive(const bool InActive) override;
+	virtual void Activate() override;
+	virtual void Deactivate() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	// Media Output configuration asset
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	UMediaOutput* OutputConfig;
 
 protected:
-	virtual void CreateUMG() override;
-
 	UPROPERTY(Transient)
 	UMediaCapture* MediaCapture = nullptr;
 
