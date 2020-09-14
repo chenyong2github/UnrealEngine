@@ -60,7 +60,8 @@ void UWidgetInteractionComponent::Activate(bool bReset)
 {
 	Super::Activate(bReset);
 
-	if ( FSlateApplication::IsInitialized() )
+	// Only create another user in a real world. FindOrCreateVirtualUser changes focus
+	if ( FSlateApplication::IsInitialized() && !GetWorld()->IsPreviewWorld())
 	{
 		if ( !VirtualUser.IsValid() )
 		{
