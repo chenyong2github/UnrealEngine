@@ -141,15 +141,16 @@ public:
 		static const FD3D12RootSignature StaticComputeRootSignature(this, FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc());
 		return &StaticComputeRootSignature;
 	}
-#else
+#else // USE_STATIC_ROOT_SIGNATURE
 	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature(){ return nullptr; }
 	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature() { return nullptr; }
+#endif // USE_STATIC_ROOT_SIGNATURE
 
 	FORCEINLINE FD3D12RootSignature* GetRootSignature(const FD3D12QuantizedBoundShaderState& QBSS) 
 	{
 		return RootSignatureManager.GetRootSignature(QBSS);
 	}
-#endif
+
 	FORCEINLINE FD3D12RootSignatureManager* GetRootSignatureManager()
 	{
 		return &RootSignatureManager;

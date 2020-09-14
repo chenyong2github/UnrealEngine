@@ -8,6 +8,10 @@
 #include "D3D12RootSignatureDefinitions.h"
 #include "RayTracingBuiltInResources.h"
 
+#ifndef FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE
+#define FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE D3D12_ROOT_SIGNATURE_FLAG_NONE
+#endif
+
 namespace
 {
 	// Root parameter costs in DWORDs as described here: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/root-signature-limits
@@ -259,6 +263,10 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 	if (QBSS.RootSignatureType == RS_RayTracingLocal)
 	{
 		Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+	}
+	else if(QBSS.RootSignatureType == RS_RayTracingGlobal)
+	{
+		Flags = FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE;
 	}
 	else if (QBSS.RootSignatureType == RS_Raster)
 #endif // D3D12_RHI_RAYTRACING
