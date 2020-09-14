@@ -27,6 +27,13 @@ namespace UnrealBuildTool
 			DirectoryReference.Combine(UnrealBuildTool.EnterpriseSourceDirectory, "Programs");
 
 		private readonly CommandLineArguments Arguments;
+		
+		/// <summary>
+		/// List of deprecated platforms.
+		/// Don't generate project model for these platforms unless they are specified in "Platforms" console arguments. 
+		/// </summary>
+		/// <returns></returns>
+		private readonly HashSet<UnrealTargetPlatform> DeprecatedPlatforms = new HashSet<UnrealTargetPlatform> { UnrealTargetPlatform.Win32};
 
 
 		/// <summary>
@@ -115,6 +122,9 @@ namespace UnrealBuildTool
 
 				List<UnrealTargetPlatform> FilteredPlatforms = PlatformsToGenerate.Where(it =>
 				{
+					// Skip deprecated platforms if they are not specified in commandline arguments directly 
+					if (DeprecatedPlatforms.Contains(it) && !Platforms.Contains(it)) return false;
+					
 					if (UEBuildPlatform.IsPlatformAvailable(it))
 						return true;
 					Log.TraceWarning(
