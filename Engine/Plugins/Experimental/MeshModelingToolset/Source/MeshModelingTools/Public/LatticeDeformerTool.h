@@ -54,6 +54,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Resolution, meta = (UIMin = "2", ClampMin = "2", EditCondition = "bCanChangeResolution", HideEditConditionToggle))
 	int ZAxisResolution = 5;
 
+	/** Relative distance the lattice extends from the mesh */
+	UPROPERTY(EditAnywhere, Category = Resolution, meta = (UIMin = "0.01", ClampMin = "0.01", UIMax = "2", ClampMax = "5", EditCondition = "bCanChangeResolution", HideEditConditionToggle))
+	float Padding = 0.01;
+
 	/** Whether to use linear or cubic interpolation to get new mesh vertex positions from the lattice */
 	UPROPERTY(EditAnywhere, Category = Interpolation )
 	ELatticeInterpolationType InterpolationType = ELatticeInterpolationType::Linear;

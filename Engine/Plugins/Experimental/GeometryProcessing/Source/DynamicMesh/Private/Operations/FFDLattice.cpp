@@ -4,17 +4,21 @@
 #include "DynamicMesh3.h"
 #include "Util/ProgressCancel.h"
 
-FFFDLattice::FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& Mesh) :
+FFFDLattice::FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& Mesh, float Padding) :
 	Dims(InDims)
 {
 	InitialBounds = Mesh.GetBounds();
 
 	// Expand the initial bounding box to make the computation of which grid cell a mesh vertex is inside of a little 
 	// less susceptible to numerical error issues.
-	// TODO: derive a better padding value than this magic number, or allow user to set it (UETOOL-2362)
-	constexpr float Padding = 10.0f;
-	InitialBounds.Min -= FVector3d{ Padding, Padding, Padding };
-	InitialBounds.Max += FVector3d{ Padding, Padding, Padding };
+
+	const float ClampedPadding = FMath::Clamp(Padding, 0.01f, 5.0f);
+	const FVector3d Center = InitialBounds.Center();
+	FVector3d Extents = InitialBounds.Extents();
+	Extents *= (1.0 + 0.5 * ClampedPadding);
+
+	InitialBounds.Min = Center - Extents;
+	InitialBounds.Max = Center + Extents;
 	
 	ComputeInitialEmbedding(Mesh);
 }

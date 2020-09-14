@@ -26,7 +26,7 @@ public:
 
 	/// Create a lattice that fits the given mesh and has the given resolution along each dimension. Also precompute
 	/// the weight of each mesh vertex inside the appropriate lattice cell.
-	FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& InMesh);
+	FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& InMesh, float Padding);
 
 	/// Using the Lattice's current control point positions and the original embedding information, compute the
 	/// deformed mesh vertex positions.
