@@ -15,8 +15,8 @@
 #include "IDesktopPlatform.h"
 #elif PLATFORM_WINDOWS
 #include "HAL/FileManager.h"
-#include "Windows/COMPointer.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/COMPointer.h"
 #include <commdlg.h>
 #include <shlobj.h>
 #include <Winver.h>
