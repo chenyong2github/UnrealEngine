@@ -9,6 +9,7 @@
 #include "Misc/CoreDelegates.h"
 #include "StageDataProviderModule.h"
 #include "StageMonitoringSettings.h"
+#include "StageMonitorUtils.h"
 #include "VPSettings.h"
 
 
@@ -142,7 +143,8 @@ void FStageDataProvider::HandleDiscoveryMessage(const FStageProviderDiscoveryMes
 		Monitors.Emplace(MoveTemp(NewMonitor));
 
 		//Discovery response will contain detailed info about this provider
-		SendMessage<FStageProviderDiscoveryResponseMessage>(EStageMessageFlags::None);
+		FStageInstanceDescriptor Desc = StageMonitorUtils::GetInstanceDescriptor();
+		SendMessage<FStageProviderDiscoveryResponseMessage>(EStageMessageFlags::None, MoveTemp(Desc));
 	}
 	else
 	{
@@ -173,4 +175,5 @@ void FStageDataProvider::VerifyTimeoutedMonitors()
 		}
 	}
 }
+
 

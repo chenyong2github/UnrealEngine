@@ -20,7 +20,7 @@ namespace BlackmagicCustomTimeStepHelpers
 	class FInputEventCallback : public BlackmagicDesign::IInputEventCallback
 	{
 	public:
-		FInputEventCallback(const BlackmagicDesign::FChannelInfo& InChannelInfo, bool bInEnableOverrunDetection)
+		FInputEventCallback(const BlackmagicDesign::FChannelInfo& InChannelInfo, bool bInEnableOverrunDetection, uint32 InExpectedSyncDelta)
 			: RefCounter(0)
 			, ChannelInfo(InChannelInfo)
 			, State(ECustomTimeStepSynchronizationState::Closed)
@@ -31,6 +31,7 @@ namespace BlackmagicCustomTimeStepHelpers
 			, bIsPreviousSyncCountValid(false)
 			, PreviousSyncCount(0)
 			, SyncCountDelta(1)
+			, ExpectedSyncCountDelta(InExpectedSyncDelta)
 		{
 		}
 
@@ -43,12 +44,12 @@ namespace BlackmagicCustomTimeStepHelpers
 		}
 
 
-		bool Initialize(const BlackmagicDesign::FInputChannelOptions& InChannelInfo)
+		bool Initialize(const BlackmagicDesign::FInputChannelOptions& InChannelOptions)
 		{
 			AddRef();
 
 			BlackmagicDesign::ReferencePtr<BlackmagicDesign::IInputEventCallback> SelfRef(this);
-			BlackmagicIdendifier = BlackmagicDesign::RegisterCallbackForChannel(ChannelInfo, InChannelInfo, SelfRef);
+			BlackmagicIdendifier = BlackmagicDesign::RegisterCallbackForChannel(ChannelInfo, InChannelOptions, SelfRef);
 			State = BlackmagicIdendifier.IsValid() ? ECustomTimeStepSynchronizationState::Synchronizing : ECustomTimeStepSynchronizationState::Error;
 			return BlackmagicIdendifier.IsValid();
 		}
@@ -99,9 +100,9 @@ namespace BlackmagicCustomTimeStepHelpers
 
 			PreviousSyncCount = NewSyncCount;
 
-			if (bEnableOverrunDetection && bIsPreviousSyncCountValid && SyncCountDelta != 1)
+			if (bEnableOverrunDetection && bIsPreviousSyncCountValid && SyncCountDelta != ExpectedSyncCountDelta)
 			{
-				UE_LOG(LogBlackmagicMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), CurrentSyncCount - PreviousSyncCount + 1);
+				UE_LOG(LogBlackmagicMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), CurrentSyncCount - PreviousSyncCount - ExpectedSyncCountDelta);
 			}
 
 			bIsPreviousSyncCountValid = true;
@@ -209,6 +210,7 @@ namespace BlackmagicCustomTimeStepHelpers
 		bool bIsPreviousSyncCountValid;
 		uint64 PreviousSyncCount;
 		uint64 SyncCountDelta;
+		uint64 ExpectedSyncCountDelta;
 	};
 }
 
@@ -246,7 +248,7 @@ bool UBlackmagicCustomTimeStep::Initialize(class UEngine* InEngine)
 	BlackmagicDesign::FChannelInfo ChannelInfo;
 	ChannelInfo.DeviceIndex = MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
 
-	InputEventCallback = new BlackmagicCustomTimeStepHelpers::FInputEventCallback(ChannelInfo, bEnableOverrunDetection);
+	InputEventCallback = new BlackmagicCustomTimeStepHelpers::FInputEventCallback(ChannelInfo, bEnableOverrunDetection, GetExpectedSyncCountDelta());
 
 	BlackmagicDesign::FInputChannelOptions ChannelOptions;
 	ChannelOptions.CallbackPriority = 1;
