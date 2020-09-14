@@ -225,8 +225,7 @@ static FGTAOHorizonSearchOutputs AddPostProcessingGTAOAsyncPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FGTAOCommonParameters& CommonParameters,
-	FScreenPassRenderTarget GTAOHorizons,
-	FScreenPassRenderTarget GTAODepths
+	FScreenPassRenderTarget GTAOHorizons
 	)
 {
 	check(CommonParameters.GTAOType == EGTAOType::EAsyncHorizonSearch || CommonParameters.GTAOType == EGTAOType::EAsyncCombinedSpatial);
@@ -244,8 +243,7 @@ static FGTAOHorizonSearchOutputs AddPostProcessingGTAOAsyncPasses(
 				CommonParameters,
 				CommonParameters.SceneDepth,
 				CommonParameters.HZBInput,
-				GTAOHorizons,
-				GTAODepths);
+				GTAOHorizons);
 	}
 	else
 	{
@@ -255,8 +253,7 @@ static FGTAOHorizonSearchOutputs AddPostProcessingGTAOAsyncPasses(
 				View,
 				CommonParameters,
 				CommonParameters.SceneDepth,
-				CommonParameters.HZBInput,
-				GTAODepths);
+				CommonParameters.HZBInput);
 
 		if (bSpatialPass)
 		{
@@ -266,7 +263,7 @@ static FGTAOHorizonSearchOutputs AddPostProcessingGTAOAsyncPasses(
 					View,
 					CommonParameters,
 					HorizonSearchOutputs.Color,
-					HorizonSearchOutputs.Depth,
+					CommonParameters.SceneDepth,
 					GTAOHorizons);
 		}
 	}
@@ -303,8 +300,8 @@ static FScreenPassTexture AddPostProcessingGTAOAllPasses(
 					GraphBuilder,
 					View,
 					CommonParameters,
-					CurrentOutput,
-					HorizonSearchOutputs.Depth);
+					CommonParameters.SceneDepth,
+					CurrentOutput);
 		}
 
 		if (bTemporalPass)
@@ -331,7 +328,7 @@ static FScreenPassTexture AddPostProcessingGTAOAllPasses(
 					View,
 					CommonParameters,
 					CurrentOutput,
-					HorizonSearchOutputs.Depth,
+					CommonParameters.SceneDepth,
 					CommonParameters.SceneVelocity,
 					HistoryColor,
 					HistoryViewport);
@@ -356,7 +353,6 @@ static FScreenPassTexture AddPostProcessingGTAOAllPasses(
 					CommonParameters,
 					CurrentOutput,
 					CommonParameters.SceneDepth,
-					HorizonSearchOutputs.Depth,
 					FinalTarget);
 		}
 	}
@@ -370,7 +366,6 @@ static FScreenPassTexture AddPostProcessingGTAOPostAsync(
 	const FViewInfo& View,
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture GTAOHorizons,
-	FScreenPassTexture GTAODepths,
 	FScreenPassRenderTarget FinalTarget)
 {
 	FSceneViewState* ViewState = View.ViewState;
@@ -398,8 +393,8 @@ static FScreenPassTexture AddPostProcessingGTAOPostAsync(
 						GraphBuilder,
 						View,
 						CommonParameters,
-						CurrentOutput,
-						GTAODepths);
+						CommonParameters.SceneDepth,
+						CurrentOutput);
 			}
 		}
 		else
@@ -432,7 +427,7 @@ static FScreenPassTexture AddPostProcessingGTAOPostAsync(
 					View,
 					CommonParameters,
 					CurrentOutput,
-					GTAODepths,
+					CommonParameters.SceneDepth,
 					CommonParameters.SceneVelocity,
 					HistoryColor,
 					HistoryViewport);
@@ -458,7 +453,6 @@ static FScreenPassTexture AddPostProcessingGTAOPostAsync(
 					CommonParameters,
 					CurrentOutput,
 					CommonParameters.SceneDepth,
-					GTAODepths,
 					FinalTarget);
 		}
 	}
@@ -649,9 +643,7 @@ void FCompositionLighting::ProcessAfterBasePass(
 					FGTAOCommonParameters Parameters = GetGTAOCommonParameters(GraphBuilder, View, SceneTexturesUniformBuffer, SceneTexturesUniformBufferRHI, GTAOType);
 
 					FScreenPassTexture GTAOHorizons(GraphBuilder.RegisterExternalTexture(SceneContext.ScreenSpaceGTAOHorizons, TEXT("GTAOHorizons")), Parameters.DownsampledViewRect);
-					FScreenPassTexture GTAODepths(GraphBuilder.RegisterExternalTexture(SceneContext.ScreenSpaceGTAODepths, TEXT("GTAODepths")), Parameters.DownsampledViewRect);
-
-					AmbientOcclusion = AddPostProcessingGTAOPostAsync(GraphBuilder, View, Parameters, GTAOHorizons, GTAODepths, FinalTarget);
+					AmbientOcclusion = AddPostProcessingGTAOPostAsync(GraphBuilder, View, Parameters, GTAOHorizons, FinalTarget);
 
 					ensureMsgf(
 						FDecalRendering::BuildVisibleDecalList(*(FScene*)View.Family->Scene, View, DRS_AmbientOcclusion, nullptr) == false,
@@ -749,7 +741,6 @@ void FCompositionLighting::ProcessAsyncSSAO(
 			FGTAOCommonParameters CommonParameters = GetGTAOCommonParameters(GraphBuilder, View, SceneTexturesUniformBuffer, SceneTexturesUniformBufferRHI, GTAOType);
 
 			FRDGTextureRef GTAOHorizonsTexture = nullptr;
-			FRDGTextureRef GTAODepthsTexture = nullptr;
 
 			{
 				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
@@ -761,8 +752,6 @@ void FCompositionLighting::ProcessAsyncSSAO(
 				{
 					Desc.Flags |= TexCreate_UAV;
 				}
-				GTAODepthsTexture = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceGTAODepths"));
-				ConvertToExternalTexture(GraphBuilder, GTAODepthsTexture, SceneContext.ScreenSpaceGTAODepths);
 
 				Desc.Format = PF_R8G8;
 				GTAOHorizonsTexture = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceGTAOHorizons"));
@@ -770,14 +759,12 @@ void FCompositionLighting::ProcessAsyncSSAO(
 			}
 
 			FScreenPassRenderTarget GTAOHorizons(GTAOHorizonsTexture, CommonParameters.DownsampledViewRect, ERenderTargetLoadAction::ENoAction);
-			FScreenPassRenderTarget GTAODepths(GTAODepthsTexture, CommonParameters.DownsampledViewRect, ERenderTargetLoadAction::ENoAction);
 
 			AddPostProcessingGTAOAsyncPasses(
 				GraphBuilder,
 				View,
 				CommonParameters,
-				GTAOHorizons,
-				GTAODepths);
+				GTAOHorizons);
 		}
 	}
 }
