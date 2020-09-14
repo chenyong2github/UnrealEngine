@@ -28,7 +28,7 @@ struct FIrradianceCache
 		FVector4 Irradiance;
 	};
 
-	const int32 IrradianceCacheMaxSize = 262144;
+	const int32 IrradianceCacheMaxSize = 1048576;
 
 	FStructuredBufferRHIRef IrradianceCacheRecords;
 	FUnorderedAccessViewRHIRef IrradianceCacheRecordsUAV;

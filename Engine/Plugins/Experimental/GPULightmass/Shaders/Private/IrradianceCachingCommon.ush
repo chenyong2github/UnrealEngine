@@ -74,6 +74,13 @@ uint3 EncodeVoxelKey(float3 VoxelPos)
 	return Key;
 }
 
+uint EncodeNormalBits(float3 WorldNormal)
+{
+	return	(WorldNormal.x >= 0 ? 4 : 0) |
+			(WorldNormal.y >= 0 ? 2 : 0) |
+			(WorldNormal.z >= 0 ? 1 : 0);
+}
+
 #define ATOMIC_ADD_FLOAT(Value, Increment) \
 { \
 	uint NewValue = asuint(Increment); \
@@ -90,13 +97,17 @@ uint3 EncodeVoxelKey(float3 VoxelPos)
 	} \
 }
 
-void EmitGeometryHitPoint(uint2 ThreadIndex, uint2 LaunchDim, uint PassIndex, FIrradianceCacheRecord HitPoint)
+void EmitGeometryHitPoint(FIrradianceCacheRecord HitPoint, uint Size)
 {
-	uint3 Key = EncodeVoxelKey(floor(HitPoint.WorldPosition.xyz / IrradianceCachingParameters.Spacing));			
+	uint3 Key = EncodeVoxelKey(floor(HitPoint.WorldPosition.xyz / Size));
+	uint NormalDirectionBits = EncodeNormalBits(HitPoint.WorldNormal);
+	
 	uint HashKey = 0;
 	HashKey = MurmurAdd( HashKey, Key.x );
 	HashKey = MurmurAdd( HashKey, Key.y );
 	HashKey = MurmurAdd( HashKey, Key.z );
+	HashKey = MurmurAdd( HashKey, NormalDirectionBits );
+	HashKey = MurmurAdd( HashKey, Size );
 	uint Index;
 	if (ICHashTableAdd(HashKey, Index))
 	{
