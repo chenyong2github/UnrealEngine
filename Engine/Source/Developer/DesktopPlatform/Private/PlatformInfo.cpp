@@ -68,7 +68,7 @@ FTargetPlatformInfo::FTargetPlatformInfo(const FString& InIniPlatformName, EBuil
 		// append UAT commandline with cook flavor
 		UATCommandLine += FString::Printf(TEXT(" -cookflavor=%s"), *InCookFlavor);
 
-		VanillaInfo->Flavors.Add(this);
+		VanillaInfo->Flavors.AddUnique(this);
 	}
 
 	// now append the build type (game type has no type suffix, all others do)
@@ -85,6 +85,8 @@ FTargetPlatformInfo::FTargetPlatformInfo(const FString& InIniPlatformName, EBuil
 		{
 			UATCommandLine += TEXT(" -client");
 		}
+
+		VanillaInfo->Flavors.AddUnique(this);
 	}
 
 	// now we can store the final values

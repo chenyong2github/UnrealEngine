@@ -79,9 +79,13 @@
 #include "ISettingsEditorModule.h"
 #include "Async/Async.h"
 #include "Misc/FileHelper.h"
+#include "Interfaces/ITurnkeySupportModule.h"
+#include "Settings/ProjectPackagingSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "DebuggerCommands"
+
+DEFINE_LOG_CATEGORY_STATIC(LogDebuggerCommands, Log, All);
 
 void SGlobalPlayWorldActions::Construct(const FArguments& InArgs)
 {
@@ -165,8 +169,6 @@ public:
 	static bool RepeatLastLaunch_CanExecute();
 	static FText GetRepeatLastLaunchToolTip();
 	static FSlateIcon GetRepeatLastLaunchIcon();
-	static void OpenProjectLauncher_Clicked();
-	static void OpenDeviceManager_Clicked();
 
 	static FSlateIcon GetResumePlaySessionImage();
 	static FText GetResumePlaySessionToolTip();
@@ -362,8 +364,6 @@ void FPlayWorldCommands::RegisterCommands()
 
 	// Launch
 	UI_COMMAND(RepeatLastLaunch, "Launch", "Launches the game on the device as the last session launched from the dropdown next to the Play on Device button on the level editor toolbar", EUserInterfaceActionType::Button, FInputChord(EKeys::P, EModifierKey::Alt | EModifierKey::Shift))
-		UI_COMMAND(OpenProjectLauncher, "Project Launcher...", "Open the Project Launcher for advanced packaging, deploying and launching of your projects", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(OpenDeviceManager, "Device Manager...", "View and manage connected devices.", EUserInterfaceActionType::Button, FInputChord());
 
 	// PIE mobile preview devices.
 	AddPIEPreviewDeviceCommands();
@@ -483,13 +483,6 @@ void FPlayWorldCommands::BindGlobalPlayWorldCommands()
 	);
 
 	// Launch
-	ActionList.MapAction(Commands.OpenProjectLauncher,
-		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::OpenProjectLauncher_Clicked)
-	);
-
-	ActionList.MapAction(Commands.OpenDeviceManager,
-		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::OpenDeviceManager_Clicked)
-	);
 
 	ActionList.MapAction(Commands.RepeatLastLaunch,
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_Clicked),
@@ -663,30 +656,15 @@ void FPlayWorldCommands::BuildToolbar(FToolMenuSection& InSection, bool bInclude
 				FUIAction LaunchMenuAction;
 				LaunchMenuAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions);
 
-				if (FParse::Param(FCommandLine::Get(), TEXT("OldLaunchOn")))
-				{
-					InDynamicSection.AddEntry(FToolMenuEntry::InitComboButton(
-						"LaunchCombo",
-						LaunchMenuAction,
-						FOnGetContent::CreateStatic(&GenerateLaunchMenuContent, GlobalPlayWorldActions.ToSharedRef()),
-						LOCTEXT("LaunchCombo_Label", "Launch Options"),
-						LOCTEXT("PODComboToolTip", "Options for launching on a device"),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.RepeatLastLaunch"),
-						true
-					));
-				}
-				else
-				{
-					InDynamicSection.AddEntry(FToolMenuEntry::InitComboButton(
-						"TurnkeyCombo",
-						LaunchMenuAction,
-						FOnGetContent::CreateStatic(&GenerateTurnkeyMenuContent, GlobalPlayWorldActions.ToSharedRef()),
-						LOCTEXT("LaunchCombo_Label", "Launch Options"),
-						LOCTEXT("PlayWithTurnkeyComboToolTip", "Options for launching on a device and manage platforms"),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.RepeatLastLaunch"),
-						true
-					));
-				}
+				InDynamicSection.AddEntry(FToolMenuEntry::InitComboButton(
+					"TurnkeyCombo",
+					LaunchMenuAction,
+					FOnGetContent::CreateLambda([] { return ITurnkeySupportModule::Get().MakeTurnkeyMenu(); }),
+					LOCTEXT("LaunchCombo_Label", "Launch Options"),
+					LOCTEXT("PlayWithTurnkeyComboToolTip", "Options for launching on a device and manage platforms"),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.RepeatLastLaunch"),
+					true
+				));
 			}
 		}));
 	}
@@ -994,876 +972,6 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	TSharedPtr<FExtender> MenuExtender = LevelEditorModule.AssembleExtenders(InCommandList, LevelEditorModule.GetAllLevelEditorToolbarPlayMenuExtenders());
 	FToolMenuContext MenuContext(InCommandList, MenuExtender);
-	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
-}
-
-/*
- * Create an All_<platform>_devices_on_<host> submenu
- * can be extended to any othe All <Platform> aggregate proxy
-*/
-static void MakeAllDevicesSubMenu(FMenuBuilder& InMenuBuilder, const PlatformInfo::FTargetPlatformInfo* InPlatformInfo, const TSharedPtr<ITargetDeviceProxy> DeviceProxy)
-{
-	ITargetDeviceServicesModule* TargetDeviceServicesModule = static_cast<ITargetDeviceServicesModule*>(FModuleManager::Get().LoadModule(TEXT("TargetDeviceServices")));
-	IProjectTargetPlatformEditorModule& ProjectTargetPlatformEditorModule = FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor");
-
-	TArray<FName> PlatformVariants;
-	DeviceProxy->GetVariants(PlatformVariants);
-	for (auto It = PlatformVariants.CreateIterator(); It; ++It)
-	{
-		FName Variant = *It;
-
-		// for an aggregate (All_<platform>_devices_on_<host>) proxy, allow only the "Android_<texture_compression>" variants
-		const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(Variant);
-		if (DeviceProxy->IsAggregated() && PlatformInfo != NULL &&
-			(Variant == PlatformInfo->VanillaInfo->Name || PlatformInfo->PlatformType != EBuildTargetType::Game))
-		{
-			continue;
-		}
-
-		FString DeviceListStr;
-		bool bVariantHasDevices = false;
-
-		const TSet<FString>& TargetDeviceIds = DeviceProxy->GetTargetDeviceIds(Variant);
-		for (TSet<FString>::TConstIterator ItDeviceId(TargetDeviceIds); ItDeviceId; ++ItDeviceId)
-		{
-			TSharedPtr<ITargetDeviceProxy> PhysicalDeviceProxy = TargetDeviceServicesModule->GetDeviceProxyManager()->FindProxyDeviceForTargetDevice(*ItDeviceId);
-
-			if (PhysicalDeviceProxy.IsValid())
-			{
-				DeviceListStr.AppendChar('\n');
-				DeviceListStr.Append(*PhysicalDeviceProxy->GetName());
-				bVariantHasDevices = true;
-			}
-		}
-
-		if (!bVariantHasDevices)
-		{
-			continue;
-		}
-
-		FString PlatformVariantStr = Variant.ToString();
-		FString PlatformId = PlatformVariantStr + TEXT("@") + PlatformVariantStr;
-
-		// create an action
-		FUIAction LaunchDeviceAction(
-			FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionExecute, PlatformId, PlatformVariantStr, false),
-			FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionCanExecute, PlatformVariantStr),
-			FIsActionChecked::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionIsChecked, PlatformVariantStr)
-		);
-
-		// generate display label
-		FText Label = FText::FromString(PlatformVariantStr);
-
-		// generate tooltip text with the devices' list
-		FFormatNamedArguments TooltipArguments;
-		TooltipArguments.Add(TEXT("DeviceList"), FText::FromString(DeviceListStr));
-		FText Tooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_LaunchOn", "Launch the game on:\n {DeviceList}"), TooltipArguments);
-
-		// add a submenu entry
-		InMenuBuilder.AddMenuEntry(
-			LaunchDeviceAction,
-			ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*InPlatformInfo, true, Label),
-			NAME_None,
-			Tooltip,
-			EUserInterfaceActionType::Check
-		);
-	}
-}
-
-static void TurnkeyInstallSdk(FString PlatformName, bool bPreferFull, bool bForceInstall, const TCHAR* DeviceName=nullptr)
-{
-//	FString CommandLine = FString::Printf(TEXT("Turnkey -command=InstallSdk -platform=%s -BestAvailable -AllowAutoSdk -EditorIO -noturnkeyvariables -utf8output -WaitForUATMutex"), *PlatformName);
-
-	FString OptionalOptions;
-	if (bPreferFull)
-	{
-		OptionalOptions += TEXT(" -PreferFull");
-	}
-	if (bForceInstall)
-	{
-		OptionalOptions += DeviceName != nullptr ? TEXT(" -ForceDeviceInstall") : TEXT(" -ForceSdkInstall");
-	}
-	if (DeviceName != nullptr)
-	{
-		OptionalOptions += FString::Printf(TEXT(" -Device=%s"), DeviceName);
-	}
-
-	FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s %s -EditorIO -noturnkeyvariables -utf8output -WaitForUATMutex"), *PlatformName, *OptionalOptions);
-
-	FText TaskName = LOCTEXT("InstallingSdk", "Installing Sdk");
-	IUATHelperModule::Get().CreateUatTask(CommandLine, FText::FromString(PlatformName), TaskName, TaskName, FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")),
-		[PlatformName](FString, double)
-	{
-		AsyncTask(ENamedThreads::GameThread, [PlatformName]()
-		{
-
-			// read in env var changes
-			// @todo turnkey move this and make it mac/linux aware
-			FString TurnkeyEnvVarsFilename = FPaths::Combine(FPaths::EngineIntermediateDir(), TEXT("Turnkey/PostTurnkeyVariables.bat"));
-
-			if (IFileManager::Get().FileExists(*TurnkeyEnvVarsFilename))
-			{
-				TArray<FString> Contents;
-				if (FFileHelper::LoadFileToStringArray(Contents, *TurnkeyEnvVarsFilename))
-				{
-					for (const FString& Line : Contents)
-					{
-						if (Line.StartsWith(TEXT("set ")))
-						{
-							// split the line
-							FString VariableLine = Line.Mid(4);
-							int Equals;
-							if (VariableLine.FindChar('=', Equals))
-							{
-								// set the key/value
-								FString Key = VariableLine.Mid(0, Equals);
-								FString Value = VariableLine.Mid(Equals + 1);
-
-								FPlatformMisc::SetEnvironmentVar(*Key, *Value);
-
-								UE_LOG(LogTemp, Display, TEXT("Turnkey setting env var: %s = %s"), *Key, *Value);
-							}
-						}
-					}
-				}
-			}
-
-			// update the Sdk status
-//			FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
-			GetTargetPlatformManager()->UpdateAfterSDKInstall(*PlatformName);
-			RenderUtilsInit();
-
-
- 			// show restart dialog
- 			FModuleManager::GetModuleChecked<ISettingsEditorModule>("SettingsEditor").OnApplicationRestartRequired();
-		});
-	}
-	);
-}
-
-static TAttribute<FText> MakeSdkStatusAttribute(FName IniPlatformName, TSharedPtr< ITargetDeviceProxy> DeviceProxy)
-{
-// 	FFormatNamedArguments LabelArguments;
-// 	LabelArguments.Add(TEXT("DeviceName"), FText::FromString(DeviceProxy->GetName()));
-// 
-// 	if (!DeviceProxy->IsConnected())
-// 	{
-// 		LabelArguments.Add(TEXT("HostUser"), LOCTEXT("DisconnectedHint", " [Disconnected]"));
-// 	}
-// 	else if (DeviceProxy->GetHostUser() != FPlatformProcess::UserName(false))
-// 	{
-// 		LabelArguments.Add(TEXT("HostUser"), FText::FromString(DeviceProxy->GetHostUser()));
-// 	}
-// 	else
-// 	{
-// 		LabelArguments.Add(TEXT("HostUser"), FText::GetEmpty());
-// 	}
-// 
-// 	OutLabel = FText::Format(LOCTEXT("LaunchDeviceLabel", "{DeviceName}{HostUser}"), LabelArguments);
-// 	TAttribute<FText> = Make
-
-
-	FString DisplayString = DeviceProxy ? DeviceProxy->GetName() : IniPlatformName.ToString();
-	FString DeviceId = DeviceProxy ? DeviceProxy->GetTargetDeviceId(NAME_None) : FString();
-
-	return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateLambda([IniPlatformName, DisplayString, DeviceId]()
-	{
-		// get the status, or Unknown if it's not there
-		const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName);
-		DDPIPlatformSdkStatus Status = DeviceId.Len() ? Info.GetStatusForDeviceId(DeviceId) : Info.GetSdkStatus(false);
-
-		// @todo turnkey: Have premade FText's by SdkStatus for speed
-		const TCHAR* Desc =
-			Status == DDPIPlatformSdkStatus::Querying ? TEXT("Querying...") :
-			Status == DDPIPlatformSdkStatus::Valid ? TEXT("Valid Sdk") :
-			Status == DDPIPlatformSdkStatus::OutOfDate ? TEXT("Outdated Sdk") :
-			Status == DDPIPlatformSdkStatus::NoSdk ? TEXT("No Sdk") :
-			Status == DDPIPlatformSdkStatus::FlashValid ? TEXT("Valid Flash") :
-			Status == DDPIPlatformSdkStatus::FlashOutOfDate ? TEXT("Outdated Flash") :
-			TEXT("???");
-		const TCHAR* CompiledStatus = FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(IniPlatformName, FDataDrivenPlatformInfoRegistry::EPlatformNameType::Ini) ? TEXT("") : TEXT(" (No Compiled Support)");
-		return FText::FromString(FString::Printf(TEXT("%s (%s)%s"), *DisplayString, Desc, CompiledStatus));
-	}));
-}
-
-
-static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatformName, ITargetDeviceServicesModule* TargetDeviceServicesModule)
-{
-	MenuBuilder.BeginSection("AllDevices", LOCTEXT("TurnkeySection_AllDevices", "All Devices"));
-
-	TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
-	TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(IniPlatformName, DeviceProxies);
-
-	const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName);
-
-	FString UBTPlatformName = Info.UBTPlatformString;
-	for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
-	{
-		FString DeviceName = Proxy->GetName();
-		MenuBuilder.AddSubMenu(
-			MakeSdkStatusAttribute(IniPlatformName, Proxy),
-			FText(),
-			FNewMenuDelegate::CreateLambda([UBTPlatformName, DeviceName](FMenuBuilder& SubMenuBuilder) {
-				SubMenuBuilder.AddMenuEntry(
-					LOCTEXT("Turnkey_RepairDevice", "Repair Device as Needed"),
-					LOCTEXT("TurnkeyTooltip_RepairDevice", "Perform any fixup that may be needed on this device. If up to date already, nothing will be done."),
-					FSlateIcon(),
-					FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, false, false, *DeviceName)
-				);
-
-				SubMenuBuilder.AddMenuEntry(
-					LOCTEXT("Turnkey_ForceRepairDevice", "Force Repair Device"),
-					LOCTEXT("TurnkeyTooltip_ForceRepairDevice", "Force repairing anything on the device needed (update firmware, etc). Will perform all steps possible, even if not needed."),
-					FSlateIcon(),
-					FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, true, false, *DeviceName)
-				);
-			})
-		);
-	}
-
-	MenuBuilder.EndSection();
-
-	MenuBuilder.BeginSection("AllDevices", LOCTEXT("TurnkeySection_Sdks", "Sdk Managment"));
-
-	const TCHAR* NoDevice = nullptr;
-	if (Info.GetSdkStatus() == DDPIPlatformSdkStatus::OutOfDate)
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Turnkey_InstallSdkMinimal", "Update Sdk (Prefer Minimal)"),
-			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to update an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
-			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, false, false, NoDevice)
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Turnkey_InstallSdkFull", "Update Sdk (Prefer Full)"),
-			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to update an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
-			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, true, false, NoDevice)
-		);
-	}
-	else if (Info.GetSdkStatus() == DDPIPlatformSdkStatus::Valid)
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Turnkey_InstallSdkMinimal", "Force Reinstall Sdk (Prefer Minimal)"),
-			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to force re-install an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
-			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, false, true, NoDevice)
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Turnkey_InstallSdkFull", "Force Reinstall (Prefer Full)"),
-			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to force re-install an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
-			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, true, true, NoDevice)
-		);
-	}
-	else
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Turnkey_InstallSdkMinimal", "Install Sdk (Prefer Minimal)"),
-			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to install an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
-			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, false, false, NoDevice)
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Turnkey_InstallSdkFull", "Install Sdk (Prefer Full)"),
-			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to install an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
-			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, true, false, NoDevice)
-		);
-	}
-}
-
-static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceProxy, FName PlatformName, FUIAction& OutAction, FText& OutTooltip)
-{
-	// 	// create an All_<platform>_devices_on_<host> submenu
-	// 	if (DeviceProxy->IsAggregated())
-	// 	{
-	// 		FString AggregateDevicedName(FString::Printf(TEXT("  %s"), *DeviceProxy->GetName())); //align with the other menu entries
-	// 		FSlateIcon AggregateDeviceIcon(FEditorStyle::GetStyleSetName(), EditorPlatformInfo->GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal));
-	// 
-	// 		MenuBuilder.AddSubMenu(
-	// 			FText::FromString(AggregateDevicedName),
-	// 			FText::FromString(AggregateDevicedName),
-	// 			FNewMenuDelegate::CreateStatic(&MakeAllDevicesSubMenu, EditorPlatformInfo, DeviceProxy),
-	// 			false, AggregateDeviceIcon, true
-	// 		);
-	// 		continue;
-	// 	}
-
-		// ... create an action...
-	OutAction = FUIAction(
-		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionExecute, DeviceProxy->GetTargetDeviceId(NAME_None), DeviceProxy->GetName(), true)
-//		, FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionCanExecute, DeviceProxy->GetName())
-//		, FIsActionChecked::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionIsChecked, DeviceProxy->GetName())
-	);
-
-	// ... generate tooltip text
-	FFormatNamedArguments TooltipArguments;
-	TooltipArguments.Add(TEXT("DeviceID"), FText::FromString(DeviceProxy->GetName()));
-	TooltipArguments.Add(TEXT("DisplayName"), FText::FromName(PlatformName));
-	OutTooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_ThisDevice", "Launch the game on this {DisplayName} device ({DeviceID})"), TooltipArguments);
-	if (!DeviceProxy->IsAuthorized())
-	{
-		OutTooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_UnauthorizedOrLocked", "{DisplayName} device ({DeviceID}) is unauthorized or locked"), TooltipArguments);
-	}
-
-	FProjectStatus ProjectStatus;
-	if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(PlatformName))
-	{
-		FText TooltipLine2 = FText::Format(LOCTEXT("LaunchDevicePlatformWarning", "{DisplayName} is not listed as a target platform for this project, so may not run as expected."), TooltipArguments);
-		OutTooltip = FText::Format(FText::FromString(TEXT("{0}\n\n{1}")), OutTooltip, TooltipLine2);
-	}
-
-}
-
-TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<FUICommandList> InCommandList)
-{
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
-
-	// shared devices section
-	ITargetDeviceServicesModule* TargetDeviceServicesModule = static_cast<ITargetDeviceServicesModule*>(FModuleManager::Get().LoadModule(TEXT("TargetDeviceServices")));
-	IProjectTargetPlatformEditorModule& ProjectTargetPlatformEditorModule = FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor");
-
-	TArray<FString> DeviceIdsToQuery;
-
-	MenuBuilder.BeginSection("LevelEditorLaunchHint", FText::FromString(TEXT("Turnkey Info")));
-	{
-		MenuBuilder.AddWidget(
-			SNew(STextBlock)
-			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-			// this is temp and doesn't need to be loc'd
-			.WrapTextAt(300)
-			.Text(FText::FromString(TEXT("The Turnkey SDK management system is now enabled for this menu. If you have any issues, run with \"-OldLaunchOn\"  on the editor commandline to use the old Launch On menu"))),
-			FText::GetEmpty()
-		);
-	}
-	MenuBuilder.EndSection();
-
-	MenuBuilder.BeginSection("LevelEditorLaunchDevices", LOCTEXT("TurnkeySection_LaunchButtonDevices", "Quick Launch"));
-	{
-		for (const auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
-		{
-			if (Pair.Value.bIsFakePlatform)
-			{
-				continue;
-			}
-
-			FName PlatformName = Pair.Key;
-			const FDataDrivenPlatformInfo& Info = Pair.Value;
-
-			// look for devices for all platforms, even if the platform isn't installed - Turnkey can install Sdk after selecting LaunchOn
-			TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
-			TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(PlatformName, DeviceProxies);
-
-			if (DeviceProxies.Num() > 0)
-			{
-				// 					Algo::Sort(DeviceProxies, [](TSharedPtr<ITargetDeviceProxy> A, TSharedPtr<ITargetDeviceProxy> B)
-				// 					{ return A->Name == LastChosen || B->Name != LastChosen && A->IsDefault(); });
-
-
-				// always use the first one, after sorting
-				FUIAction Action;
-				FText Tooltip;
-				GenerateDeviceProxyMenuParams(DeviceProxies[0], PlatformName, Action, Tooltip);
-
-				if (DeviceProxies.Num() == 1)
-				{
-					MenuBuilder.AddMenuEntry(
-						MakeSdkStatusAttribute(PlatformName, DeviceProxies[0]),
-						Tooltip,
-						FSlateIcon(FEditorStyle::GetStyleSetName(), Pair.Value.GetIconStyleName(EPlatformIconSize::Normal)),
-						Action,
-						NAME_None,
-						EUserInterfaceActionType::Button
-					);
-				}
-				else
-				{
-					MenuBuilder.AddSubMenu(
-						MakeSdkStatusAttribute(PlatformName, DeviceProxies[0]),
-						Tooltip,
-						FNewMenuDelegate::CreateLambda([TargetDeviceServicesModule, PlatformName, IconStyle=Pair.Value.GetIconStyleName(EPlatformIconSize::Normal)](FMenuBuilder& SubMenuBuilder) {
-							// re-get the proxies, just in case they changed
-							TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
-							TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(PlatformName, DeviceProxies);
-							// for each one, put an entry (even the one that was in the outer menu, for less confusion)
-							for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
-							{
-								FUIAction SubAction;
-								FText SubTooltip;
-								GenerateDeviceProxyMenuParams(Proxy, PlatformName, SubAction, SubTooltip);
-								SubMenuBuilder.AddMenuEntry(
-									MakeSdkStatusAttribute(PlatformName, Proxy),
-									SubTooltip,
-									FSlateIcon(FEditorStyle::GetStyleSetName(), IconStyle),
-									SubAction,
-									NAME_None,
-									EUserInterfaceActionType::Button
-								);
-							}
-						}),
-						Action,
-						NAME_None,
-						EUserInterfaceActionType::Check,
-						false,
-						FSlateIcon(FEditorStyle::GetStyleSetName(), Pair.Value.GetIconStyleName(EPlatformIconSize::Normal)),
-						true
-					);
-				}
-
-				// gather any unknown status devices to query at the end
-				for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
-				{
-					FString DeviceId = Proxy->GetTargetDeviceId(NAME_None);
-					if (Pair.Value.GetStatusForDeviceId(DeviceId) == DDPIPlatformSdkStatus::Unknown)
-					{
-						DeviceIdsToQuery.Add(DeviceId);
-					}
-				}
-			}
-		}
-	}
-	MenuBuilder.EndSection();
-
-	// tip section
-	MenuBuilder.BeginSection("LevelEditorLaunchHint");
-	{
-		MenuBuilder.AddWidget(
-			SNew(STextBlock)
-			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-			.Text(LOCTEXT("ZoomToFitHorizontal", "Launching a game on a different device will change your default 'Launch' device in the toolbar"))
-			.WrapTextAt(300),
-			FText::GetEmpty()
-		);
-	}
-	MenuBuilder.EndSection();
-
-	MenuBuilder.BeginSection("AllPlatforms", LOCTEXT("TurnkeyMenu_ManagePlatforms", "Sdk/Device Management"));
-	for (const auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
-	{
-		if (Pair.Value.bIsFakePlatform)
-		{
-			continue;
-		}
-
-		FName PlatformName = Pair.Key;
-		const FDataDrivenPlatformInfo& Info = Pair.Value;
-
-		FString DeviceNameToCheckForStatus;
-		MenuBuilder.AddSubMenu(
-			MakeSdkStatusAttribute(PlatformName, nullptr),
-			FText::FromString(PlatformName.ToString()),
-			FNewMenuDelegate::CreateStatic(&MakeTurnkeyPlatformMenu, PlatformName, TargetDeviceServicesModule),
-			false, 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), Pair.Value.GetIconStyleName(EPlatformIconSize::Normal)),
-			true
-		);
-	}
-
-	MenuBuilder.EndSection();
-
-
-	MenuBuilder.BeginSection("CookerSettings");
-
-	UCookerSettings* CookerSettings = GetMutableDefault<UCookerSettings>();
-
-	{
-		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateLambda([CookerSettings]
-		{
-			CookerSettings->bCookOnTheFlyForLaunchOn = !CookerSettings->bCookOnTheFlyForLaunchOn;
-			CookerSettings->Modify(true);
-
-			// Update source control
-
-			FString ConfigPath = FPaths::ConvertRelativePathToFull(CookerSettings->GetDefaultConfigFilename());
-
-			if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*ConfigPath))
-			{
-				if (ISourceControlModule::Get().IsEnabled())
-				{
-					FText ErrorMessage;
-
-					if (!SourceControlHelpers::CheckoutOrMarkForAdd(ConfigPath, FText::FromString(ConfigPath), NULL, ErrorMessage))
-					{
-						FNotificationInfo Info(ErrorMessage);
-						Info.ExpireDuration = 3.0f;
-						FSlateNotificationManager::Get().AddNotification(Info);
-					}
-				}
-				else
-				{
-					if (!FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*ConfigPath, false))
-					{
-						FNotificationInfo Info(FText::Format(LOCTEXT("FailedToMakeWritable", "Could not make {0} writable."), FText::FromString(ConfigPath)));
-						Info.ExpireDuration = 3.0f;
-						FSlateNotificationManager::Get().AddNotification(Info);
-					}
-				}
-			}
-
-			// Save settings
-			CookerSettings->UpdateSinglePropertyInConfigFile(CookerSettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UCookerSettings, bCookOnTheFlyForLaunchOn)), CookerSettings->GetDefaultConfigFilename());
-		});
-
-		UIAction.GetActionCheckState = FGetActionCheckState::CreateLambda([CookerSettings]
-		{
-			return CookerSettings->bCookOnTheFlyForLaunchOn ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-		});
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("CookOnTheFlyOnLaunch", "Enable cooking on the fly"),
-			LOCTEXT("CookOnTheFlyOnLaunchDescription", "Cook on the fly instead of cooking upfront when launching"),
-			FSlateIcon(),
-			UIAction,
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-	}
-
-	MenuBuilder.EndSection();
-
-	// options section
-	MenuBuilder.BeginSection("LevelEditorLaunchOptions");
-	{
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().OpenProjectLauncher,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Launcher.TabIcon")
-		);
-
-		MenuBuilder.AddMenuEntry(FPlayWorldCommands::Get().OpenDeviceManager,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon")
-		);
-
-		ProjectTargetPlatformEditorModule.AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
-	}
-	MenuBuilder.EndSection();
-
-	// now kick-off any devices that need to be updated
-	if (DeviceIdsToQuery.Num() > 0)
-	{
-		FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(DeviceIdsToQuery);
-	}
-
-	return MenuBuilder.MakeWidget();
-}
-
-
-
-
-void PopulateLaunchMenu(UToolMenu* Menu)
-{
-	TArray<PlatformInfo::FTargetPlatformInfo*> VanillaPlatforms = PlatformInfo::GetVanillaPlatformInfoArray();
-
-	Algo::Sort(VanillaPlatforms, [](const PlatformInfo::FTargetPlatformInfo* One, const PlatformInfo::FTargetPlatformInfo* Two) -> bool
-	{
-		return One->DisplayName.CompareTo(Two->DisplayName) < 0;
-	});
-
-	// shared devices section
-	ITargetDeviceServicesModule* TargetDeviceServicesModule = static_cast<ITargetDeviceServicesModule*>(FModuleManager::Get().LoadModule(TEXT("TargetDeviceServices")));
-	IProjectTargetPlatformEditorModule& ProjectTargetPlatformEditorModule = FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor");
-
-	TArray<FString> PlatformsToMaybeInstallLinksFor;
-	PlatformsToMaybeInstallLinksFor.Add(TEXT("Android"));
-	PlatformsToMaybeInstallLinksFor.Add(TEXT("IOS"));
-	PlatformsToMaybeInstallLinksFor.Add(TEXT("Linux"));
-	PlatformsToMaybeInstallLinksFor.Add(TEXT("Lumin"));
-	TArray<FString> PlatformsToCheckFlavorsFor;
-	PlatformsToCheckFlavorsFor.Add(TEXT("Android"));
-	PlatformsToCheckFlavorsFor.Add(TEXT("IOS"));
-	TArray<FName> PlatformsWithNoDevices;
-	TArray<const PlatformInfo::FTargetPlatformInfo*> PlatformsToAddInstallLinksFor;
-	EProjectType ProjectType = FGameProjectGenerationModule::Get().ProjectHasCodeFiles() ? EProjectType::Code : EProjectType::Content;
-
-	{
-		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchDevices", LOCTEXT("LaunchButtonDevicesSection", "Devices"));
-		for (const PlatformInfo::FTargetPlatformInfo* VanillaPlatform : VanillaPlatforms)
-		{
-			// for the Editor we are only interested in launching standalone games
-			if (VanillaPlatform->PlatformType != EBuildTargetType::Game || !VanillaPlatform->DataDrivenPlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform->DataDrivenPlatformInfo->UBTPlatformString, ProjectType))
-			{
-				continue;
-			}
-
-			if (VanillaPlatform->DataDrivenPlatformInfo->GetSdkStatus() == DDPIPlatformSdkStatus::Valid)
-			{
-				// for each platform...
-				TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
-				// the list of proxies include the "Al_Android" entry
-				TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(VanillaPlatform->Name, DeviceProxies);
-
-				// if this platform had no devices, but we want to show an extra option if not installed right
-				if (DeviceProxies.Num() == 0)
-				{
-					if (PlatformsWithNoDevices.Find(VanillaPlatform->Name) == INDEX_NONE)
-					{
-						// add an entry with a no devices found
-						PlatformsWithNoDevices.Add(VanillaPlatform->Name);
-					}
-				}
-				else
-				{
-					// for each proxy...
-					for (auto DeviceProxyIt = DeviceProxies.CreateIterator(); DeviceProxyIt; ++DeviceProxyIt)
-					{
-						TSharedPtr<ITargetDeviceProxy> DeviceProxy = *DeviceProxyIt;
-
-						// create an All_<platform>_devices_on_<host> submenu
-						if (DeviceProxy->IsAggregated())
-						{
-							FString AggregateDevicedName(FString::Printf(TEXT("  %s"), *DeviceProxy->GetName())); //align with the other menu entries
-							FSlateIcon AggregateDeviceIcon(FEditorStyle::GetStyleSetName(), VanillaPlatform->GetIconStyleName(EPlatformIconSize::Normal));
-
-							Section.AddSubMenu(
-								NAME_None,
-								FText::FromString(AggregateDevicedName),
-								FText::FromString(AggregateDevicedName),
-								FNewMenuDelegate::CreateStatic(&MakeAllDevicesSubMenu, VanillaPlatform, DeviceProxy),
-								false, AggregateDeviceIcon, true
-							);
-							continue;
-						}
-
-						// ... create an action...
-						FUIAction LaunchDeviceAction(
-							FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionExecute, DeviceProxy->GetTargetDeviceId(NAME_None), DeviceProxy->GetName(), false),
-							FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionCanExecute, DeviceProxy->GetName()),
-							FIsActionChecked::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionIsChecked, DeviceProxy->GetName())
-						);
-
-						// ... generate display label...
-						FFormatNamedArguments LabelArguments;
-						LabelArguments.Add(TEXT("DeviceName"), FText::FromString(DeviceProxy->GetName()));
-
-						if (!DeviceProxy->IsConnected())
-						{
-							LabelArguments.Add(TEXT("HostUser"), LOCTEXT("DisconnectedHint", " [Disconnected]"));
-						}
-						else if (DeviceProxy->GetHostUser() != FPlatformProcess::UserName(false))
-						{
-							LabelArguments.Add(TEXT("HostUser"), FText::FromString(DeviceProxy->GetHostUser()));
-						}
-						else
-						{
-							LabelArguments.Add(TEXT("HostUser"), FText::GetEmpty());
-						}
-
-						FText Label = FText::Format(LOCTEXT("LaunchDeviceLabel", "{DeviceName}{HostUser}"), LabelArguments);
-
-						// ... generate tooltip text
-						FFormatNamedArguments TooltipArguments;
-						TooltipArguments.Add(TEXT("DeviceID"), FText::FromString(DeviceProxy->GetName()));
-						TooltipArguments.Add(TEXT("DisplayName"), VanillaPlatform->DisplayName);
-						FText Tooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_ThisDevice", "Launch the game on this {DisplayName} device ({DeviceID})"), TooltipArguments);
-						if (!DeviceProxy->IsAuthorized())
-						{
-							Tooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_UnauthorizedOrLocked", "{DisplayName} device ({DeviceID}) is unauthorized or locked"), TooltipArguments);
-						}
-
-						FProjectStatus ProjectStatus;
-						if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(VanillaPlatform->Name))
-						{
-							FText TooltipLine2 = FText::Format(LOCTEXT("LaunchDevicePlatformWarning", "{DisplayName} is not listed as a target platform for this project, so may not run as expected."), TooltipArguments);
-							Tooltip = FText::Format(FText::FromString(TEXT("{0}\n\n{1}")), Tooltip, TooltipLine2);
-						}
-
-						// ... and add a menu entry
-						FToolMenuEntry& Entry = Section.AddEntry(FToolMenuEntry::InitMenuEntry(
-							NAME_None,
-							LaunchDeviceAction,
-							ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*VanillaPlatform, true, Label)
-						));
-						Entry.ToolTip = Tooltip;
-						Entry.UserInterfaceActionType = EUserInterfaceActionType::Check;
-					}
-				}
-			}
-			else
-			{
-				// if the platform wasn't installed, we'll add a menu item later (we never care about code in this case, since we don't compile)
-				if (PlatformsToMaybeInstallLinksFor.Find(VanillaPlatform->Name.ToString()) != INDEX_NONE)
-				{
-					PlatformsToAddInstallLinksFor.Add(VanillaPlatform);
-				}
-			}
-		}
-	}
-
-	TWeakObjectPtr<UCookerSettings> CookerSettings = GetMutableDefault<UCookerSettings>();
-
-	{
-		FToolMenuSection& Section = Menu->AddSection("CookerSettings");
-
-		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateLambda([CookerSettings]
-		{
-			CookerSettings->bCookOnTheFlyForLaunchOn = !CookerSettings->bCookOnTheFlyForLaunchOn;
-			CookerSettings->Modify(true);
-
-			// Update source control
-
-			FString ConfigPath = FPaths::ConvertRelativePathToFull(CookerSettings->GetDefaultConfigFilename());
-
-			if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*ConfigPath))
-			{
-				if (ISourceControlModule::Get().IsEnabled())
-				{
-					FText ErrorMessage;
-
-					if (!SourceControlHelpers::CheckoutOrMarkForAdd(ConfigPath, FText::FromString(ConfigPath), NULL, ErrorMessage))
-					{
-						FNotificationInfo Info(ErrorMessage);
-						Info.ExpireDuration = 3.0f;
-						FSlateNotificationManager::Get().AddNotification(Info);
-					}
-				}
-				else
-				{
-					if (!FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*ConfigPath, false))
-					{
-						FNotificationInfo Info(FText::Format(LOCTEXT("FailedToMakeWritable", "Could not make {0} writable."), FText::FromString(ConfigPath)));
-						Info.ExpireDuration = 3.0f;
-						FSlateNotificationManager::Get().AddNotification(Info);
-					}
-				}
-			}
-
-			// Save settings
-			CookerSettings->UpdateSinglePropertyInConfigFile(CookerSettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UCookerSettings, bCookOnTheFlyForLaunchOn)), CookerSettings->GetDefaultConfigFilename());
-		});
-
-		UIAction.GetActionCheckState = FGetActionCheckState::CreateLambda([CookerSettings]
-		{
-			return CookerSettings->bCookOnTheFlyForLaunchOn ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-		});
-
-		Section.AddMenuEntry(
-			"CookOnTheFlyOnLaunch",
-			LOCTEXT("CookOnTheFlyOnLaunch", "Enable cooking on the fly"),
-			LOCTEXT("CookOnTheFlyOnLaunchDescription", "Cook on the fly instead of cooking upfront when launching"),
-			FSlateIcon(),
-			UIAction,
-			EUserInterfaceActionType::ToggleButton
-		);
-	}
-
-	if (PlatformsWithNoDevices.Num() > 0)
-	{
-		{
-			FToolMenuSection& Section = Menu->AddSection("NoDevices");
-			for (int32 PlatformIndex = 0; PlatformIndex < PlatformsWithNoDevices.Num(); PlatformIndex++)
-			{
-				const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindVanillaPlatformInfo(PlatformsWithNoDevices[PlatformIndex]);
-
-				// ... generate display label...
-				FFormatNamedArguments LabelArguments;
-				LabelArguments.Add(TEXT("DisplayName"), PlatformInfo->DisplayName);
-
-				FText Label = FText::Format(LOCTEXT("NoDeviceLabel", "{DisplayName} - No Devices Found"), LabelArguments);
-
-				// ... create an action...
-				FUIAction NoDeviceAction(
-					FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleNoDeviceFoundActionExecute),
-					FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleNoDeviceFoundActionCanExecute)
-				);
-
-				// ... generate tooltip text
-				FFormatNamedArguments TooltipArguments;
-				TooltipArguments.Add(TEXT("DisplayName"), PlatformInfo->DisplayName);
-				FText Tooltip = FText::Format(LOCTEXT("LaunchNoDevicesToolTipText", "Found no connected devices for {DisplayName}"), TooltipArguments);
-
-				// ... and add a menu entry
-				FToolMenuEntry& Entry = Section.AddEntry(FToolMenuEntry::InitMenuEntry(
-					NAME_None,
-					NoDeviceAction,
-					ProjectTargetPlatformEditorModule.MakePlatformMenuItemWidget(*PlatformInfo, true, Label)
-				));
-				Entry.ToolTip = Tooltip;
-				Entry.UserInterfaceActionType = EUserInterfaceActionType::Check;
-			}
-		}
-	}
-
-	// tip section
-	{
-		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchHint");
-		Section.AddEntry(FToolMenuEntry::InitWidget(
-			"LevelEditorLaunchHint",
-			SNew(STextBlock)
-			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-			.Text(LOCTEXT("ZoomToFitHorizontal", "Launching a game on a different device will change your default 'Launch' device in the toolbar"))
-			.WrapTextAt(250),
-			FText::GetEmpty()
-		));
-	}
-
-	if (PlatformsToAddInstallLinksFor.Num() > 0)
-	{
-		{
-			FToolMenuSection& Section = Menu->AddSection("SDKUninstalledTutorials");
-			for (const PlatformInfo::FTargetPlatformInfo* Platform : PlatformsToAddInstallLinksFor)
-			{
-				FUIAction Action(FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HandleShowSDKTutorial, Platform->DisplayName.ToString(), Platform->DataDrivenPlatformInfo->SDKTutorial));
-
-				FFormatNamedArguments LabelArguments;
-				LabelArguments.Add(TEXT("PlatformName"), Platform->DisplayName);
-				FText Label = FText::Format(LOCTEXT("LaunchPlatformLabel", "{PlatformName} Support"), LabelArguments);
-
-
-				Section.AddMenuEntry(
-					NAME_None,
-					Label,
-					LOCTEXT("PlatformSDK", "Show information on setting up the platform tools"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BrowseDocumentation"),
-					Action,
-					EUserInterfaceActionType::Button);
-			}
-		}
-	}
-
-	// options section
-	{
-		FToolMenuSection& Section = Menu->AddSection("LevelEditorLaunchOptions");
-		Section.AddMenuEntry(FPlayWorldCommands::Get().OpenProjectLauncher,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Launcher.TabIcon")
-		);
-
-		Section.AddMenuEntry(FPlayWorldCommands::Get().OpenDeviceManager,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon")
-		);
-
-		Section.AddDynamicEntry("OpenProjectTargetPlatform", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* ToolMenu)
-		{
-			FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").AddOpenProjectTargetPlatformEditorMenuItem(MenuBuilder);
-		}));
-	}
-}
-
-TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent(TSharedRef<FUICommandList> InCommandList)
-{
-	static const FName MenuName("UnrealEd.PlayWorldCommands.LaunchMenu");
-
-	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
-	{
-		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(MenuName);
-		Menu->AddDynamicSection("DynamicSection", FNewToolMenuDelegate::CreateStatic(&PopulateLaunchMenu));
-	}
-
-	FToolMenuContext MenuContext(InCommandList);
 	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
 }
 
@@ -2258,7 +1366,7 @@ void FInternalPlayWorldCommandCallbacks::RepeatLastPlay_Clicked()
 
 	// Grab the play command and execute it
 	TSharedRef<FUICommandInfo> LastCommand = GetLastPlaySessionCommand();
-	UE_LOG(LogTemp, Log, TEXT("Repeating last play command: %s"), *LastCommand->GetLabel().ToString());
+	UE_LOG(LogDebuggerCommands, Log, TEXT("Repeating last play command: %s"), *LastCommand->GetLabel().ToString());
 
 	FPlayWorldCommands::GlobalPlayWorldActions->ExecuteAction(LastCommand);
 }
@@ -2560,244 +1668,8 @@ void FInternalPlayWorldCommandCallbacks::PlayInSettings_Clicked()
 	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "LevelEditor", "PlayIn");
 }
 
-void FInternalPlayWorldCommandCallbacks::OpenProjectLauncher_Clicked()
-{
-	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("ProjectLauncher"));
-}
-
-void FInternalPlayWorldCommandCallbacks::OpenDeviceManager_Clicked()
-{
-	FGlobalTabmanager::Get()->TryInvokeTab(FTabId("DeviceManager"));
-}
-
-void FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_Clicked()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-
-	switch (PlaySettings->LastExecutedLaunchModeType)
-	{
-	case LaunchMode_OnDevice:
-		if (FParse::Param(FCommandLine::Get(), TEXT("OldLaunchOn")))
-		{
-			if (IsReadyToLaunchOnDevice(PlaySettings->LastExecutedLaunchDevice))
-			{
-				LaunchOnDevice(PlaySettings->LastExecutedLaunchDevice, PlaySettings->LastExecutedLaunchName, false);
-			}
-		}
-		else
-		{
-			// @todo turnkey - remove this function completely and all the platform support, and put it into Turnkey
-//			if (IsReadyToLaunchOnDevice(PlaySettings->LastExecutedLaunchDevice))
-			{
-				LaunchOnDevice(PlaySettings->LastExecutedLaunchDevice, PlaySettings->LastExecutedLaunchName, true);
-			}
-		}
 
 
-		break;
-
-	default:
-		break;
-	}
-}
-
-
-bool FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_CanExecute()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-
-	switch (PlaySettings->LastExecutedLaunchModeType)
-	{
-	case LaunchMode_OnDevice:
-		return CanLaunchOnDevice(PlaySettings->LastExecutedLaunchName);
-
-	default:
-		return false;
-	}
-}
-
-
-FText FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchToolTip()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-
-	switch (PlaySettings->LastExecutedLaunchModeType)
-	{
-	case LaunchMode_OnDevice:
-		if (CanLaunchOnDevice(PlaySettings->LastExecutedLaunchName))
-		{
-			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("DeviceName"), FText::FromString(PlaySettings->LastExecutedLaunchName));
-
-			return FText::Format(LOCTEXT("RepeatLaunchTooltip", "Launch this level on {DeviceName}"), Arguments);
-		}
-
-		break;
-
-	default:
-		break;
-	}
-
-	return LOCTEXT("RepeatLaunchSelectOptionToolTip", "Select a play-on target from the combo menu");
-}
-
-
-FSlateIcon FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchIcon()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-
-	// @todo gmp: add play mode specific icons
-	switch (PlaySettings->LastExecutedLaunchModeType)
-	{
-	case LaunchMode_OnDevice:
-		break;
-	}
-
-	static FName RepeatLastLaunchIcon("PlayWorld.RepeatLastLaunch");
-
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), RepeatLastLaunchIcon);
-}
-
-bool FInternalPlayWorldCommandCallbacks::IsReadyToLaunchOnDevice(FString DeviceId)
-{
-	int32 Index = 0;
-	DeviceId.FindChar(TEXT('@'), Index);
-	FString PlatformName = DeviceId.Left(Index);
-
-	const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(FName(*PlatformName));
-	checkf(PlatformInfo, TEXT("Unable to find PlatformInfo for %s"), *PlatformName);
-
-	FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
-	bool bHasCode = GameProjectModule.Get().ProjectHasCodeFiles();
-
-	if (PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != DDPIPlatformSdkStatus::Valid)
-	{
-		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
-		TArray<FAnalyticsEventAttribute> ParamArray;
-		ParamArray.Add(FAnalyticsEventAttribute(TEXT("Time"), 0.0));
-		FEditorAnalytics::ReportEvent(TEXT("Editor.LaunchOn.Failed"), PlatformInfo->Name.ToString(), bHasCode, EAnalyticsErrorCodes::SDKNotFound, ParamArray);
-		return false;
-	}
-
-	const ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName);
-	if (Platform)
-	{
-		FString NotInstalledTutorialLink;
-		FString DocumentationLink;
-		FText CustomizedLogMessage;
-
-		EBuildConfiguration BuildConfiguration = GetDefault<ULevelEditorPlaySettings>()->GetLaunchBuildConfiguration();
-		bool bEnableAssetNativization = false;
-		int32 Result = Platform->CheckRequirements(bHasCode, BuildConfiguration, bEnableAssetNativization, NotInstalledTutorialLink, DocumentationLink, CustomizedLogMessage);
-
-		// report to analytics
-		FEditorAnalytics::ReportBuildRequirementsFailure(TEXT("Editor.LaunchOn.Failed"), PlatformName, bHasCode, Result);
-
-		// report to message log
-		bool UnrecoverableError = false;
-
-		if ((Result & ETargetPlatformReadyStatus::SDKNotFound) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("SdkNotFoundMessage", "Software Development Kit (SDK) not found."),
-				CustomizedLogMessage.IsEmpty() ? FText::Format(LOCTEXT("SdkNotFoundMessageDetail", "Please install the SDK for the {0} target platform!"), Platform->DisplayName()) : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::LicenseNotAccepted) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("LicenseNotAcceptedMessage", "License not accepted."),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("LicenseNotAcceptedMessageDetail", "License must be accepted in project settings to deploy your app to the device.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::ProvisionNotFound) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("ProvisionNotFoundMessage", "Provision not found."),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("ProvisionNotFoundMessageDetail", "A provision is required for deploying your app to the device.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::SigningKeyNotFound) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("SigningKeyNotFoundMessage", "Signing key not found."),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("SigningKeyNotFoundMessageDetail", "The app could not be digitally signed, because the signing key is not configured.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::ManifestNotFound) != 0)
-		{
-			AddMessageLog(
-				LOCTEXT("ManifestNotFound", "Manifest not found."),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("ManifestNotFoundMessageDetail", "The generated application manifest could not be found.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-
-			UnrecoverableError = true;
-		}
-
-		if ((Result & ETargetPlatformReadyStatus::RemoveServerNameEmpty) != 0
-			&& (bHasCode || (Result & ETargetPlatformReadyStatus::CodeBuildRequired)
-				|| (!FApp::GetEngineIsPromotedBuild() && !FApp::IsEngineInstalled())))
-		{
-			AddMessageLog(
-				LOCTEXT("RemoveServerNameNotFound", "Remote compiling requires a server name. "),
-				CustomizedLogMessage.IsEmpty() ? LOCTEXT("RemoveServerNameNotFoundDetail", "Please specify one in the Remote Server Name settings field.") : CustomizedLogMessage,
-				NotInstalledTutorialLink,
-				DocumentationLink
-			);
-			UnrecoverableError = true;
-		}
-
-		if (UnrecoverableError)
-		{
-			return false;
-		}
-
-		// report to main frame
-		if ((Result & ETargetPlatformReadyStatus::CodeUnsupported) != 0)
-		{
-			// show the message
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NotSupported_CodeBased", "Sorry, launching a code-based project for the selected platform is currently not supported. This feature may be available in a future release."));
-			return false;
-		}
-		if ((Result & ETargetPlatformReadyStatus::PluginsUnsupported) != 0)
-		{
-			// show the message
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NotSupported_Plugins", "Sorry, launching a project with third-party plugins is currently not supported for the selected platform. This feature may be available in a future release."));
-			return false;
-		}
-	}
-	else
-	{
-		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
-		return false;
-	}
-
-	return true;
-}
 
 static void PrepareLaunchOn(FString DeviceId, FString DeviceName)
 {
@@ -3213,4 +2085,261 @@ EPlayModeLocations FInternalPlayWorldCommandCallbacks::GetPlayModeLocation()
 		: PlayLocation_CurrentCameraLocation;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/////// Will move these into TurnkeySupportModule soon:
+
+
+void FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_Clicked()
+{
+	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
+
+	switch (PlaySettings->LastExecutedLaunchModeType)
+	{
+	case LaunchMode_OnDevice:
+		if (FParse::Param(FCommandLine::Get(), TEXT("OldLaunchOn")))
+		{
+			if (IsReadyToLaunchOnDevice(PlaySettings->LastExecutedLaunchDevice))
+			{
+				LaunchOnDevice(PlaySettings->LastExecutedLaunchDevice, PlaySettings->LastExecutedLaunchName, false);
+			}
+		}
+		else
+		{
+			// @todo turnkey - remove this function completely and all the platform support, and put it into Turnkey
+//			if (IsReadyToLaunchOnDevice(PlaySettings->LastExecutedLaunchDevice))
+			{
+				LaunchOnDevice(PlaySettings->LastExecutedLaunchDevice, PlaySettings->LastExecutedLaunchName, true);
+			}
+		}
+
+
+		break;
+
+	default:
+		break;
+	}
+}
+
+
+bool FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_CanExecute()
+{
+	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
+
+	switch (PlaySettings->LastExecutedLaunchModeType)
+	{
+	case LaunchMode_OnDevice:
+		return CanLaunchOnDevice(PlaySettings->LastExecutedLaunchName);
+
+	default:
+		return false;
+	}
+}
+
+
+FText FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchToolTip()
+{
+	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
+
+	switch (PlaySettings->LastExecutedLaunchModeType)
+	{
+	case LaunchMode_OnDevice:
+		if (CanLaunchOnDevice(PlaySettings->LastExecutedLaunchName))
+		{
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("DeviceName"), FText::FromString(PlaySettings->LastExecutedLaunchName));
+
+			return FText::Format(LOCTEXT("RepeatLaunchTooltip", "Launch this level on {DeviceName}"), Arguments);
+		}
+
+		break;
+
+	default:
+		break;
+	}
+
+	return LOCTEXT("RepeatLaunchSelectOptionToolTip", "Select a play-on target from the combo menu");
+}
+
+
+FSlateIcon FInternalPlayWorldCommandCallbacks::GetRepeatLastLaunchIcon()
+{
+	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
+
+	// @todo gmp: add play mode specific icons
+	switch (PlaySettings->LastExecutedLaunchModeType)
+	{
+	case LaunchMode_OnDevice:
+		break;
+	}
+
+	static FName RepeatLastLaunchIcon("PlayWorld.RepeatLastLaunch");
+
+	return FSlateIcon(FEditorStyle::GetStyleSetName(), RepeatLastLaunchIcon);
+}
+
+bool FInternalPlayWorldCommandCallbacks::IsReadyToLaunchOnDevice(FString DeviceId)
+{
+	int32 Index = 0;
+	DeviceId.FindChar(TEXT('@'), Index);
+	FString PlatformName = DeviceId.Left(Index);
+
+	const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(FName(*PlatformName));
+	checkf(PlatformInfo, TEXT("Unable to find PlatformInfo for %s"), *PlatformName);
+
+	FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
+	bool bHasCode = GameProjectModule.Get().ProjectHasCodeFiles();
+
+	if (PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != DDPIPlatformSdkStatus::Valid)
+	{
+		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
+		TArray<FAnalyticsEventAttribute> ParamArray;
+		ParamArray.Add(FAnalyticsEventAttribute(TEXT("Time"), 0.0));
+		FEditorAnalytics::ReportEvent(TEXT("Editor.LaunchOn.Failed"), PlatformInfo->Name.ToString(), bHasCode, EAnalyticsErrorCodes::SDKNotFound, ParamArray);
+		return false;
+	}
+
+	const ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName);
+	if (Platform)
+	{
+		FString NotInstalledTutorialLink;
+		FString DocumentationLink;
+		FText CustomizedLogMessage;
+
+		EBuildConfiguration BuildConfiguration = GetDefault<ULevelEditorPlaySettings>()->GetLaunchBuildConfiguration();
+		bool bEnableAssetNativization = false;
+		int32 Result = Platform->CheckRequirements(bHasCode, BuildConfiguration, bEnableAssetNativization, NotInstalledTutorialLink, DocumentationLink, CustomizedLogMessage);
+
+		// report to analytics
+		FEditorAnalytics::ReportBuildRequirementsFailure(TEXT("Editor.LaunchOn.Failed"), PlatformName, bHasCode, Result);
+
+		// report to message log
+		bool UnrecoverableError = false;
+
+		if ((Result & ETargetPlatformReadyStatus::SDKNotFound) != 0)
+		{
+			AddMessageLog(
+				LOCTEXT("SdkNotFoundMessage", "Software Development Kit (SDK) not found."),
+				CustomizedLogMessage.IsEmpty() ? FText::Format(LOCTEXT("SdkNotFoundMessageDetail", "Please install the SDK for the {0} target platform!"), Platform->DisplayName()) : CustomizedLogMessage,
+				NotInstalledTutorialLink,
+				DocumentationLink
+			);
+
+			UnrecoverableError = true;
+		}
+
+		if ((Result & ETargetPlatformReadyStatus::LicenseNotAccepted) != 0)
+		{
+			AddMessageLog(
+				LOCTEXT("LicenseNotAcceptedMessage", "License not accepted."),
+				CustomizedLogMessage.IsEmpty() ? LOCTEXT("LicenseNotAcceptedMessageDetail", "License must be accepted in project settings to deploy your app to the device.") : CustomizedLogMessage,
+				NotInstalledTutorialLink,
+				DocumentationLink
+			);
+
+			UnrecoverableError = true;
+		}
+
+		if ((Result & ETargetPlatformReadyStatus::ProvisionNotFound) != 0)
+		{
+			AddMessageLog(
+				LOCTEXT("ProvisionNotFoundMessage", "Provision not found."),
+				CustomizedLogMessage.IsEmpty() ? LOCTEXT("ProvisionNotFoundMessageDetail", "A provision is required for deploying your app to the device.") : CustomizedLogMessage,
+				NotInstalledTutorialLink,
+				DocumentationLink
+			);
+
+			UnrecoverableError = true;
+		}
+
+		if ((Result & ETargetPlatformReadyStatus::SigningKeyNotFound) != 0)
+		{
+			AddMessageLog(
+				LOCTEXT("SigningKeyNotFoundMessage", "Signing key not found."),
+				CustomizedLogMessage.IsEmpty() ? LOCTEXT("SigningKeyNotFoundMessageDetail", "The app could not be digitally signed, because the signing key is not configured.") : CustomizedLogMessage,
+				NotInstalledTutorialLink,
+				DocumentationLink
+			);
+
+			UnrecoverableError = true;
+		}
+
+		if ((Result & ETargetPlatformReadyStatus::ManifestNotFound) != 0)
+		{
+			AddMessageLog(
+				LOCTEXT("ManifestNotFound", "Manifest not found."),
+				CustomizedLogMessage.IsEmpty() ? LOCTEXT("ManifestNotFoundMessageDetail", "The generated application manifest could not be found.") : CustomizedLogMessage,
+				NotInstalledTutorialLink,
+				DocumentationLink
+			);
+
+			UnrecoverableError = true;
+		}
+
+		if ((Result & ETargetPlatformReadyStatus::RemoveServerNameEmpty) != 0
+			&& (bHasCode || (Result & ETargetPlatformReadyStatus::CodeBuildRequired)
+				|| (!FApp::GetEngineIsPromotedBuild() && !FApp::IsEngineInstalled())))
+		{
+			AddMessageLog(
+				LOCTEXT("RemoveServerNameNotFound", "Remote compiling requires a server name. "),
+				CustomizedLogMessage.IsEmpty() ? LOCTEXT("RemoveServerNameNotFoundDetail", "Please specify one in the Remote Server Name settings field.") : CustomizedLogMessage,
+				NotInstalledTutorialLink,
+				DocumentationLink
+			);
+			UnrecoverableError = true;
+		}
+
+		if (UnrecoverableError)
+		{
+			return false;
+		}
+
+		// report to main frame
+		if ((Result & ETargetPlatformReadyStatus::CodeUnsupported) != 0)
+		{
+			// show the message
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NotSupported_CodeBased", "Sorry, launching a code-based project for the selected platform is currently not supported. This feature may be available in a future release."));
+			return false;
+		}
+		if ((Result & ETargetPlatformReadyStatus::PluginsUnsupported) != 0)
+		{
+			// show the message
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NotSupported_Plugins", "Sorry, launching a project with third-party plugins is currently not supported for the selected platform. This feature may be available in a future release."));
+			return false;
+		}
+	}
+	else
+	{
+		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
+		return false;
+	}
+
+	return true;
+}
+
+
+
+
+
+
+
+
+
 #undef LOCTEXT_NAMESPACE
+

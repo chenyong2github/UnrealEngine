@@ -19,7 +19,6 @@
 #include "UnrealEdGlobals.h"
 #include "Frame/MainFrameActions.h"
 #include "Menus/LayoutsMenu.h"
-#include "Menus/PackageProjectMenu.h"
 #include "Menus/RecentProjectsMenu.h"
 #include "Menus/SettingsMenu.h"
 #include "Menus/MainFrameTranslationEditorMenu.h"
@@ -451,13 +450,6 @@ void FMainMenu::RegisterFileProjectMenu()
 		FText::Format(LOCTEXT("AddCodeToProjectTooltip", "Adds C++ code to the project. The code can only be compiled if you have {0} installed."), ShortIDEName)
 	);
 
-	Section.AddSubMenu(
-		"PackageProject",
-		LOCTEXT("PackageProjectSubMenuLabel", "Package Project"),
-		LOCTEXT("PackageProjectSubMenuToolTip", "Compile, cook and package your project and its content for distribution."),
-		FNewMenuDelegate::CreateStatic( &FPackageProjectMenu::MakeMenu ), false, FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.PackageProject")
-	);
-
 	/*
 	MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().LocalizeProject,
 		NAME_None,
@@ -499,30 +491,9 @@ void FMainMenu::RegisterFileProjectMenu()
 		OpenIDEIcon
 	);
 
-	Section.AddDynamicEntry("CookContentForPlatform", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-	{
-		// @hack GDC: this should be moved somewhere else and be less hacky
-		ITargetPlatform* RunningTargetPlatform = GetTargetPlatformManager()->GetRunningTargetPlatform();
+	Section.AddMenuEntry(FMainFrameCommands::Get().ZipUpProject);
 
-		if (RunningTargetPlatform != nullptr)
-		{
-			const FName CookedPlatformName = RunningTargetPlatform->GetTargetPlatformInfo().VanillaInfo->Name;
-			const FText CookedPlatformText = FText::FromString(CookedPlatformName.ToString());
-
-			FUIAction Action(
-				FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CookContent, CookedPlatformName),
-				FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CookContentCanExecute, CookedPlatformName)
-			);
-
-			InSection.AddMenuEntry(
-				"CookContentForPlatform",
-				FText::Format(LOCTEXT("CookContentForPlatform", "Cook Content for {0}"), CookedPlatformText),
-				FText::Format(LOCTEXT("CookContentForPlatformTooltip", "Cook your game content for debugging on the {0} platform"), CookedPlatformText),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.CookContent"),
-				Action
-			);
-		}
-	}));
+	Section.AddMenuEntry("TempNote", FText::FromString(TEXT("[See Launch for Packaging]")), FText(), FSlateIcon(), FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })), EUserInterfaceActionType::None);
 }
 
 void FMainMenu::RegisterRecentFileAndExitMenuItems()

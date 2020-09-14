@@ -110,8 +110,6 @@ public:
 
 	/** Launch on device */
 	TSharedPtr<FUICommandInfo> RepeatLastLaunch;
-	TSharedPtr<FUICommandInfo> OpenProjectLauncher;
-	TSharedPtr<FUICommandInfo> OpenDeviceManager;
 
 protected:
 
@@ -124,20 +122,6 @@ protected:
 	 * @return	Menu content widget
 	 */
 	static TSharedRef< SWidget > GeneratePlayMenuContent( TSharedRef<FUICommandList> InCommandList );
-
-	/**
-	 * Generates menu content for the Play On combo button drop down menu
-	 *
-	 * @return	Menu content widget
-	 */
-	static TSharedRef< SWidget > GenerateLaunchMenuContent( TSharedRef<FUICommandList> InCommandList );
-
-	/**
-	 * Generates menu content for the Play On combo button drop down menu
-	 *
-	 * @return	Menu content widget
-	 */
-	static TSharedRef< SWidget > GenerateTurnkeyMenuContent(TSharedRef<FUICommandList> InCommandList);
 
 	// Add mobile PIE preview device commands
 	void AddPIEPreviewDeviceCommands();

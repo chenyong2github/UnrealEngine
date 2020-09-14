@@ -14,7 +14,7 @@ struct FTargetInfo;
  * Enumerates the available build configurations for project packaging.
  */
 UENUM()
-enum EProjectPackagingBuildConfigurations
+enum class EProjectPackagingBuildConfigurations : uint8
 {
 	/** Debug configuration. */
 	PPBC_Debug UMETA(DisplayName="Debug"),
@@ -115,7 +115,7 @@ public:
 	/**
 	 * Static array of information about each configuration
 	 */
-	static const FConfigurationInfo ConfigurationInfo[PPBC_MAX];
+	static const FConfigurationInfo ConfigurationInfo[(int)EProjectPackagingBuildConfigurations::PPBC_MAX];
 
 	/** Specifies whether to build the game executable during packaging. */
 	UPROPERTY(config, EditAnywhere, Category=Project)
@@ -123,7 +123,7 @@ public:
 
 	/** The build configuration for which the project is packaged. */
 	UPROPERTY(config, EditAnywhere, Category=Project)
-	TEnumAsByte<EProjectPackagingBuildConfigurations> BuildConfiguration;
+	EProjectPackagingBuildConfigurations BuildConfiguration;
 
 	/** Name of the target to build */
 	UPROPERTY(config, EditAnywhere, Category=Project)
@@ -443,8 +443,27 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Additional Non-Asset Directories To Copy for dedicated server only", RelativeToGameContentDir))
 	TArray<FDirectoryPath> DirectoriesToAlwaysStageAsNonUFSServer;	
 
+
+
+	/**
+	 * Get and set the per-platform build config and targetplatform settings for the Turnkey/Launch on menu
+	 */
+	EProjectPackagingBuildConfigurations GetBuildConfigurationForPlatform(FName PlatformName) const;
+	void SetBuildConfigurationForPlatform(FName PlatformName, EProjectPackagingBuildConfigurations Configuration);
+
+	FName GetTargetPlatformForPlatform(FName PlatformName) const;
+	void SetTargetPlatformForPlatform(FName PlatformName, FName TargetPlatformName);
+
 private:
-	/** Helper array used to mirror Blueprint asset selections across edits */
+	/** Per platform build configuration */
+	UPROPERTY(config)
+	TMap<FName, EProjectPackagingBuildConfigurations> PerPlatformBuildConfig;
+
+	/** Per platform targetplatform cooking target */
+	UPROPERTY(config)
+	TMap<FName, FName> PerPlatformTargetPlatformName;
+
+		/** Helper array used to mirror Blueprint asset selections across edits */
 	TArray<FFilePath> CachedNativizeBlueprintAssets;
 	
 public:

@@ -1005,7 +1005,7 @@ void ULevelEditorViewportSettings::PostEditChangeProperty( struct FPropertyChang
 /* UProjectPackagingSettings interface
  *****************************************************************************/
 
-const UProjectPackagingSettings::FConfigurationInfo UProjectPackagingSettings::ConfigurationInfo[PPBC_MAX] = 
+const UProjectPackagingSettings::FConfigurationInfo UProjectPackagingSettings::ConfigurationInfo[(int)EProjectPackagingBuildConfigurations::PPBC_MAX] =
 {
 	/* PPBC_Debug */         { EBuildConfiguration::Debug, LOCTEXT("DebugConfiguration", "Debug"), LOCTEXT("DebugConfigurationTooltip", "Package the game in Debug configuration") },
 	/* PPBC_DebugGame */     { EBuildConfiguration::DebugGame, LOCTEXT("DebugGameConfiguration", "DebugGame"), LOCTEXT("DebugGameConfigurationTooltip", "Package the game in DebugGame configuration") },
@@ -1304,7 +1304,7 @@ TArray<EProjectPackagingBuildConfigurations> UProjectPackagingSettings::GetValid
 
 	// Set up all the configurations
 	TArray<EProjectPackagingBuildConfigurations> Configurations;
-	for (int32 Idx = 0; Idx < PPBC_MAX; Idx++)
+	for (int32 Idx = 0; Idx < (int)EProjectPackagingBuildConfigurations::PPBC_MAX; Idx++)
 	{
 		EProjectPackagingBuildConfigurations PackagingConfiguration = (EProjectPackagingBuildConfigurations)Idx;
 
@@ -1360,6 +1360,32 @@ int32 UProjectPackagingSettings::FindBlueprintInNativizationList(const UBlueprin
 	}
 	return ListIndex;
 }
+
+EProjectPackagingBuildConfigurations UProjectPackagingSettings::GetBuildConfigurationForPlatform(FName PlatformName) const
+{
+	const EProjectPackagingBuildConfigurations* Value = PerPlatformBuildConfig.Find(PlatformName);
+
+	return Value == nullptr ? EProjectPackagingBuildConfigurations::PPBC_Development : *Value;
+}
+
+void UProjectPackagingSettings::SetBuildConfigurationForPlatform(FName PlatformName, EProjectPackagingBuildConfigurations Configuration)
+{
+	PerPlatformBuildConfig.Add(PlatformName, Configuration);
+}
+
+FName UProjectPackagingSettings::GetTargetPlatformForPlatform(FName PlatformName) const
+{
+	const FName* Value = PerPlatformTargetPlatformName.Find(PlatformName);
+
+	// the platform name is also the name of the vanilla info
+	return Value == nullptr ? PlatformName : *Value;
+}
+
+void UProjectPackagingSettings::SetTargetPlatformForPlatform(FName PlatformName, FName TargetPlatformName)
+{
+	PerPlatformTargetPlatformName.Add(PlatformName, TargetPlatformName);
+}
+
 
 /* UCrashReporterSettings interface
 *****************************************************************************/

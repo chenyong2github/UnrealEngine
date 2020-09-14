@@ -7,7 +7,6 @@
 #include "HAL/IConsoleManager.h"
 #include "Input/Reply.h"
 #include "Framework/Commands/Commands.h"
-#include "Settings/ProjectPackagingSettings.h"
 
 class FUICommandList;
 
@@ -35,7 +34,6 @@ public:
 	TSharedPtr< FUICommandInfo > OpenIDE;
 	TSharedPtr< FUICommandInfo > RefreshCodeProject;
 	TSharedPtr< FUICommandInfo > ZipUpProject;
-	TSharedPtr< FUICommandInfo > PackagingSettings;
 	TSharedPtr< FUICommandInfo > LocalizeProject;
 	TArray< TSharedPtr< FUICommandInfo > > SwitchProjectCommands;
 
@@ -175,30 +173,6 @@ public:
 	/** Adds code to the current project if it does not already have any */
 	static void AddCodeToProject();
 
-	/** Cooks the project's content for the specified platform. */
-	static void CookContent( const FName InPlatformInfoName );
-
-	/** Checks whether a menu action for cooking the project's content can execute. */
-	static bool CookContentCanExecute( const FName PlatformInfoName );
-
-	/** Sets the project packaging build configuration. */
-	static void PackageBuildConfiguration( EProjectPackagingBuildConfigurations BuildConfiguration );
-
-	/** Determines if the packaging build configuration can be used. */
-	static bool CanPackageBuildConfiguration( EProjectPackagingBuildConfigurations BuildConfiguration );
-
-	/** Determines whether the specified build configuration option is checked. */
-	static bool PackageBuildConfigurationIsChecked( EProjectPackagingBuildConfigurations BuildConfiguration );
-
-	/** Sets the project packaging build configuration. */
-	static void PackageBuildTarget( FString TargetName );
-
-	/** Determines whether the specified build configuration option is checked. */
-	static bool PackageBuildTargetIsChecked( FString TargetName );
-
-	/** Packages the project for the specified platform. */
-	static void PackageProject( const FName InPlatformInfoName );
-
 	/** Checks whether a menu action for packaging the project can execute. */
 	static bool PackageProjectCanExecute( const FName PlatformInfoName );
 
@@ -216,9 +190,6 @@ public:
 
 	/** Zips up the project */
 	static void ZipUpProject();
-
-	/** Opens the Packaging settings tab */
-	static void PackagingSettings();
 
 	/** Opens the Project Localization Dashboard */
 	static void LocalizeProject();
