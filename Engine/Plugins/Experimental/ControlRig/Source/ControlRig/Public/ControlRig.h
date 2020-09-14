@@ -248,7 +248,7 @@ private:
 	FRigHierarchyContainer Hierarchy;
 
 	UPROPERTY()
-	TAssetPtr<UControlRigGizmoLibrary> GizmoLibrary;
+	TSoftObjectPtr<UControlRigGizmoLibrary> GizmoLibrary;
 
 	/** Runtime object binding */
 	TSharedPtr<IControlRigObjectBinding> ObjectBinding;

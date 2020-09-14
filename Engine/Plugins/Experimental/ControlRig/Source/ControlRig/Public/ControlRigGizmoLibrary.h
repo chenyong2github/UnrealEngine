@@ -26,7 +26,7 @@ struct CONTROLRIG_API FControlRigGizmoDefinition
 	FName GizmoName;
 
 	UPROPERTY(EditAnywhere, Category = "Gizmo")
-	TAssetPtr<UStaticMesh> StaticMesh;
+	TSoftObjectPtr<UStaticMesh> StaticMesh;
 
 	UPROPERTY(EditAnywhere, Category = "Gizmo")
 	FTransform Transform;
@@ -45,7 +45,7 @@ public:
 	FControlRigGizmoDefinition DefaultGizmo;
 
 	UPROPERTY(EditAnywhere, Category = "GizmoLibrary")
-	TAssetPtr<UMaterial> DefaultMaterial;
+	TSoftObjectPtr<UMaterial> DefaultMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "GizmoLibrary")
 	FName MaterialColorParameter;

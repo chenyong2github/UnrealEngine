@@ -283,7 +283,7 @@ class UPropertyEditorTestObject : public UObject
 	TSubclassOf<UTexture> SubclassOfWithDisallowed;
 
 	UPROPERTY(EditAnywhere, Category=Classes, meta=(AllowedClasses="StaticMesh,  SkeletalMesh	"))
-	TAssetPtr<UObject> AssetPointerWithAllowedAndWhitespace;
+	TSoftObjectPtr<UObject> AssetPointerWithAllowedAndWhitespace;
 
 	// Integer
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)

@@ -120,7 +120,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, config, Category = DefaultGizmo)
-	TAssetPtr<UControlRigGizmoLibrary> GizmoLibrary;
+	TSoftObjectPtr<UControlRigGizmoLibrary> GizmoLibrary;
 #endif
 
 	UPROPERTY(transient, VisibleAnywhere, Category = "VM", meta = (DisplayName = "VM Statistics", DisplayAfter = "VMCompileSettings"))

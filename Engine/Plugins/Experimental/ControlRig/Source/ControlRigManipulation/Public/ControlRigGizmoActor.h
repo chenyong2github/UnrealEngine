@@ -35,8 +35,8 @@ struct FGizmoActorCreationParam
 	FTransform	SpawnTransform;
 	FTransform  GizmoTransform;
 	FTransform  MeshTransform;
-	TAssetPtr<UStaticMesh> StaticMesh;
-	TAssetPtr<UMaterial> Material;
+	TSoftObjectPtr<UStaticMesh> StaticMesh;
+	TSoftObjectPtr<UMaterial> Material;
 	FName ColorParameterName;
 	FLinearColor Color;
 };
