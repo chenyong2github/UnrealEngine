@@ -1078,7 +1078,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Saving %d packages."), PackagesToSave.Num());
 		for (UPackage* PackageToSave : PackagesToSave)
 		{
-			if (!PackageHelper.Save(PackageToSave))
+			FString PackageFileName = SourceControlHelpers::PackageFilename(PackageToSave);
+			if (!UPackage::SavePackage(PackageToSave, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
 			{
 				return 1;
 			}
@@ -1102,7 +1103,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		}
 
 		// Save level
-		if (!PackageHelper.Save(MainPackage))
+		FString PackageFileName = SourceControlHelpers::PackageFilename(MainPackage);
+		if (!UPackage::SavePackage(MainPackage, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
 		{
 			return 1;
 		}
@@ -1111,6 +1113,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		{
 			GEditor->CleanupPhysicsSceneThatWasInitializedForSave(MainWorld, bForceInitializeWorld);
 		}
+
+		UPackage::WaitForAsyncFileWrites();
 
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("######## CONVERSION COMPLETED SUCCESSFULLY ########"));
 	}

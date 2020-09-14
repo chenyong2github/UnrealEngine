@@ -4,7 +4,7 @@
  CommandletPackageHelper.cpp: Utility class that provides tools to handle packages & source control operations.
 =============================================================================================================*/
 
-#include "Commandlets/CommandletPackageHelper.h"
+#include "PackageSourceControlHelper.h"
 #include "Logging/LogMacros.h"
 #include "UObject/Package.h"
 #include "HAL/FileManager.h"
@@ -18,26 +18,17 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCommandletPackageHelper, Log, All);
 
-FCommandletPackageHelper::FCommandletPackageHelper()
+bool FPackageSourceControlHelper::UseSourceControl() const
 {
+	return GetSourceControlProvider().IsEnabled();
 }
 
-FCommandletPackageHelper::~FCommandletPackageHelper()
-{
-	UPackage::WaitForAsyncFileWrites();
-}
-
-bool FCommandletPackageHelper::UseSourceControl() const
-{
-	return ISourceControlModule::Get().GetProvider().IsEnabled();
-}
-
-ISourceControlProvider& FCommandletPackageHelper::GetSourceControlProvider() const
+ISourceControlProvider& FPackageSourceControlHelper::GetSourceControlProvider() const
 { 
 	return ISourceControlModule::Get().GetProvider();
 }
 
-bool FCommandletPackageHelper::Delete(const FString& PackageName) const
+bool FPackageSourceControlHelper::Delete(const FString& PackageName) const
 {
 	FString Filename = SourceControlHelpers::PackageFilename(PackageName);
 
@@ -110,13 +101,13 @@ bool FCommandletPackageHelper::Delete(const FString& PackageName) const
 	return true;
 }
 
-bool FCommandletPackageHelper::Delete(UPackage* Package) const
+bool FPackageSourceControlHelper::Delete(UPackage* Package) const
 {
 	TArray<UPackage*> Packages = { Package };
 	return Delete(Packages);
 }
 
-bool FCommandletPackageHelper::Delete(const TArray<FAssetData>& Assets) const
+bool FPackageSourceControlHelper::Delete(const TArray<FAssetData>& Assets) const
 {
 	bool bAllPackagesDeleted = true;
 	for (const FAssetData& AssetToDelete : Assets)
@@ -127,7 +118,7 @@ bool FCommandletPackageHelper::Delete(const TArray<FAssetData>& Assets) const
 	return bAllPackagesDeleted;
 }
 
-bool FCommandletPackageHelper::Delete(const TArray<UPackage*>& Packages) const
+bool FPackageSourceControlHelper::Delete(const TArray<UPackage*>& Packages) const
 {
 	if (Packages.IsEmpty())
 	{
@@ -163,7 +154,7 @@ bool FCommandletPackageHelper::Delete(const TArray<UPackage*>& Packages) const
 	return bAllPackagesDeleted;
 }
 
-bool FCommandletPackageHelper::AddToSourceControl(UPackage* Package) const
+bool FPackageSourceControlHelper::AddToSourceControl(UPackage* Package) const
 {
 	if (UseSourceControl())
 	{
@@ -184,19 +175,7 @@ bool FCommandletPackageHelper::AddToSourceControl(UPackage* Package) const
 	return true;
 }
 
-bool FCommandletPackageHelper::Save(UPackage* Package) const
-{
-	FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-	if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
-	{
-		UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error saving %s"), *PackageFileName);
-		return false;
-	}
-
-	return true;
-}
-
-bool FCommandletPackageHelper::Checkout(UPackage* Package) const
+bool FPackageSourceControlHelper::Checkout(UPackage* Package) const
 {
 	if (UseSourceControl())
 	{

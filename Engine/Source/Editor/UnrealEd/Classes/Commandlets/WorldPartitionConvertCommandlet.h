@@ -5,10 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectAnnotation.h"
-
 #include "Commandlets/Commandlet.h"
-#include "Commandlets/CommandletPackageHelper.h"
-
+#include "PackageSourceControlHelper.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -79,7 +77,7 @@ protected:
 	FString LevelConfigFilename;
 	TArray<UPackage*> PackagesToSave;
 	TArray<UPackage*> PackagesToDelete;
-	FCommandletPackageHelper PackageHelper;
+	FPackageSourceControlHelper PackageHelper;
 
 	bool bDeleteSourceLevels;
 	bool bGenerateIni;
