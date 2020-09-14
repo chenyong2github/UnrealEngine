@@ -10,12 +10,29 @@ using System.Threading.Tasks;
 namespace Tools.DotNETCommon
 {
 	/// <summary>
+	/// Specifies how to format JSON output
+	/// </summary>
+	public enum JsonWriterStyle
+	{
+		/// <summary>
+		/// Omit spaces between elements
+		/// </summary>
+		Compact,
+
+		/// <summary>
+		/// Put each value on a newline, and indent output
+		/// </summary>
+		Readable
+	}
+
+	/// <summary>
 	/// Writer for JSON data, which indents the output text appropriately, and adds commas and newlines between fields
 	/// </summary>
 	public class JsonWriter : IDisposable
 	{
 		TextWriter Writer;
 		bool bLeaveOpen;
+		JsonWriterStyle Style;
 		bool bRequiresComma;
 		string Indent;
 
@@ -23,18 +40,22 @@ namespace Tools.DotNETCommon
 		/// Constructor
 		/// </summary>
 		/// <param name="FileName">File to write to</param>
-		public JsonWriter(string FileName)
+		/// <param name="Style">Should use packed JSON or not</param>
+		public JsonWriter(string FileName, JsonWriterStyle Style = JsonWriterStyle.Readable)
 			: this(new StreamWriter(FileName))
 		{
+			this.Style = Style;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="FileName">File to write to</param>
-		public JsonWriter(FileReference FileName)
+		/// <param name="Style">Should use packed JSON or not</param>
+		public JsonWriter(FileReference FileName, JsonWriterStyle Style = JsonWriterStyle.Readable)
 			: this(new StreamWriter(FileName.FullName))
 		{
+			this.Style = Style;
 		}
 
 		/// <summary>
@@ -42,10 +63,12 @@ namespace Tools.DotNETCommon
 		/// </summary>
 		/// <param name="Writer">The text writer to output to</param>
 		/// <param name="bLeaveOpen">Whether to leave the writer open when the object is disposed</param>
-		public JsonWriter(TextWriter Writer, bool bLeaveOpen = false)
+		/// <param name="Style">The output style</param>
+		public JsonWriter(TextWriter Writer, bool bLeaveOpen = false, JsonWriterStyle Style = JsonWriterStyle.Readable)
 		{
 			this.Writer = Writer;
 			this.bLeaveOpen = bLeaveOpen;
+			this.Style = Style;
 			Indent = "";
 		}
 
@@ -61,6 +84,22 @@ namespace Tools.DotNETCommon
 			}
 		}
 
+		private void IncreaseIndent()
+		{
+			if (Style == JsonWriterStyle.Readable)
+			{
+				Indent += "\t";
+			}
+		}
+		
+		private void DecreaseIndent()
+		{
+			if (Style == JsonWriterStyle.Readable)
+			{
+				Indent = Indent.Substring(0, Indent.Length - 1);
+			}
+		}
+
 		/// <summary>
 		/// Write the opening brace for an object
 		/// </summary>
@@ -71,7 +110,7 @@ namespace Tools.DotNETCommon
 			Writer.Write(Indent);
 			Writer.Write("{");
 
-			Indent += "\t";
+			IncreaseIndent();
 			bRequiresComma = false;
 		}
 
@@ -83,7 +122,8 @@ namespace Tools.DotNETCommon
 		{
 			WriteCommaNewline();
 
-			Writer.Write("{0}\"{1}\": ", Indent, ObjectName);
+			string Space = (Style == JsonWriterStyle.Readable) ? " " : "";
+			Writer.Write("{0}\"{1}\":{2}", Indent, ObjectName, Space);
 
 			bRequiresComma = false;
 
@@ -95,9 +135,9 @@ namespace Tools.DotNETCommon
 		/// </summary>
 		public void WriteObjectEnd()
 		{
-			Indent = Indent.Substring(0, Indent.Length - 1);
+			DecreaseIndent();
 
-			Writer.WriteLine();
+			WriteLine();
 			Writer.Write(Indent);
 			Writer.Write("}");
 
@@ -114,7 +154,7 @@ namespace Tools.DotNETCommon
 
 			Writer.Write("{0}[", Indent);
 
-			Indent += "\t";
+			IncreaseIndent();
 			bRequiresComma = false;
 		}
 
@@ -126,9 +166,10 @@ namespace Tools.DotNETCommon
 		{
 			WriteCommaNewline();
 
-			Writer.Write("{0}\"{1}\": [", Indent, ArrayName);
+			string Space = (Style == JsonWriterStyle.Readable) ? " " : "";
+			Writer.Write("{0}\"{1}\":{2}[", Indent, ArrayName, Space);
 
-			Indent += "\t";
+			IncreaseIndent();
 			bRequiresComma = false;
 		}
 
@@ -137,12 +178,32 @@ namespace Tools.DotNETCommon
 		/// </summary>
 		public void WriteArrayEnd()
 		{
-			Indent = Indent.Substring(0, Indent.Length - 1);
+			DecreaseIndent();
 
-			Writer.WriteLine();
+			WriteLine();
 			Writer.Write("{0}]", Indent);
 
 			bRequiresComma = true;
+		}
+
+		private void WriteLine()
+		{
+			if (Style == JsonWriterStyle.Readable)
+			{
+				Writer.WriteLine();
+			}
+		}
+		
+		private void WriteLine(string Line)
+		{
+			if (Style == JsonWriterStyle.Readable)
+			{
+				Writer.WriteLine(Line);
+			}
+			else
+			{
+				Writer.Write(Line);
+			}
 		}
 
 		/// <summary>
@@ -193,7 +254,8 @@ namespace Tools.DotNETCommon
 		{
 			WriteCommaNewline();
 
-			Writer.Write("{0}\"{1}\": ", Indent, Name);
+			string Space = (Style == JsonWriterStyle.Readable) ? " " : "";
+			Writer.Write("{0}\"{1}\":{2}", Indent, Name, Space);
 			WriteEscapedString(Value);
 
 			bRequiresComma = true;
@@ -244,11 +306,11 @@ namespace Tools.DotNETCommon
 		{
 			if (bRequiresComma)
 			{
-				Writer.WriteLine(",");
+				WriteLine(",");
 			}
 			else if (Indent.Length > 0)
 			{
-				Writer.WriteLine();
+				WriteLine();
 			}
 		}
 
@@ -256,7 +318,8 @@ namespace Tools.DotNETCommon
 		{
 			WriteCommaNewline();
 
-			Writer.Write("{0}\"{1}\": {2}", Indent, Name, Value);
+			string Space = (Style == JsonWriterStyle.Readable) ? " " : "";
+			Writer.Write("{0}\"{1}\":{2}{3}", Indent, Name, Space, Value);
 
 			bRequiresComma = true;
 		}
