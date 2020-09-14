@@ -138,7 +138,8 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		// Must set the local space location prior to adding any mesh/cloth, as otherwise the start poses would be in the wrong local space
 		const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InOwnerComponent->GetClothingSimulationContext());
 		check(Context);
-		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f));
+		static const bool bReset = true;
+		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bReset);
 	}
 	else
 	{
@@ -429,7 +430,8 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 
 	// Update new space location
 	const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InContext);
-	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f));
+	static const bool bReset = true;
+	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bReset);
 
 	// Reset stats
 	ResetStats();
@@ -728,7 +730,8 @@ static void DrawBox(FPrimitiveDrawInterface* PDI, const TBox<float, 3>& Box, con
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
 	{
-		FDebugDrawQueue::GetInstance().DrawDebugBox(Position, Box.Extents() * 0.5f, Rotation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
+		const TVector<float, 3> Center = Position + Rotation.RotateVector(Box.GetCenter());
+		FDebugDrawQueue::GetInstance().DrawDebugBox(Center, Box.Extents() * 0.5f, Rotation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
 		return;
 	}
 #endif
@@ -742,18 +745,23 @@ static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<float>& Cap
 {
 	const float Radius = Capsule.GetRadius();
 	const float HalfHeight = Capsule.GetHeight() * 0.5f + Radius;
+	const TVector<float, 3> Center = Position + Rotation.RotateVector(Capsule.GetCenter());
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
 	{
-		FDebugDrawQueue::GetInstance().DrawDebugCapsule(Position, HalfHeight, Radius, Rotation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
+		const FQuat Orientation = FQuat::FindBetweenNormals(TVector<float, 3>::UpVector, Capsule.GetAxis());
+		FDebugDrawQueue::GetInstance().DrawDebugCapsule(Center, HalfHeight, Radius, Rotation * Orientation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
 		return;
 	}
 #endif
 #if WITH_EDITOR
-	const FVector X = Rotation.RotateVector(FVector::ForwardVector);
-	const FVector Y = Rotation.RotateVector(FVector::RightVector);
-	const FVector Z = Rotation.RotateVector(FVector::UpVector);
-	DrawWireCapsule(PDI, Position, X, Y, Z, Color, Radius, HalfHeight, 12, SDPG_World, 0.0f, 0.001f, false);
+	const TVector<float, 3> Up = Capsule.GetAxis();
+	TVector<float, 3> Forward, Right;
+	Up.FindBestAxisVectors(Forward, Right);
+	const FVector X = Rotation.RotateVector(Forward);
+	const FVector Y = Rotation.RotateVector(Right);
+	const FVector Z = Rotation.RotateVector(Up);
+	DrawWireCapsule(PDI, Center, X, Y, Z, Color, Radius, HalfHeight, 12, SDPG_World, 0.0f, 0.001f, false);
 #endif
 }
 

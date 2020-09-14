@@ -110,6 +110,15 @@ FClothingSimulationSolver::~FClothingSimulationSolver()
 {
 }
 
+void FClothingSimulationSolver::SetLocalSpaceLocation(const TVector<float, 3>& InLocalSpaceLocation, bool bReset)
+{
+	LocalSpaceLocation = InLocalSpaceLocation;
+	if (bReset)
+	{
+		OldLocalSpaceLocation = InLocalSpaceLocation;
+	}
+}
+
 void FClothingSimulationSolver::SetCloths(TArray<FClothingSimulationCloth*>&& InCloths)
 {
 	// Remove old cloths
