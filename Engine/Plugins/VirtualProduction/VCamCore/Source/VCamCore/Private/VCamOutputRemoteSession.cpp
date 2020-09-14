@@ -18,21 +18,35 @@ namespace VCamOutputRemoteSession
 	static const FName LevelEditorName(TEXT("LevelEditor"));
 }
 
-void UVCamOutputRemoteSession::InitializeSafe()
+void UVCamOutputRemoteSession::Initialize()
 {
 	if (!bInitialized && (MediaOutput == nullptr))
 	{
 		MediaOutput = NewObject<URemoteSessionMediaOutput>(GetTransientPackage(), URemoteSessionMediaOutput::StaticClass());
 	}
 
-	Super::InitializeSafe();
+	Super::Initialize();
 }
 
-void UVCamOutputRemoteSession::Destroy()
+void UVCamOutputRemoteSession::Deinitialize()
 {
 	MediaOutput = nullptr;
 
-	Super::Destroy();
+	Super::Deinitialize();
+}
+
+void UVCamOutputRemoteSession::Activate()
+{
+	CreateRemoteSession();
+	
+	Super::Activate();
+}
+
+void UVCamOutputRemoteSession::Deactivate()
+{
+	DestroyRemoteSession();
+
+	Super::Deactivate();
 }
 
 void UVCamOutputRemoteSession::Tick(const float DeltaTime)
@@ -43,25 +57,6 @@ void UVCamOutputRemoteSession::Tick(const float DeltaTime)
 	}
 
 	Super::Tick(DeltaTime);
-}
-
-void UVCamOutputRemoteSession::SetActive(const bool InActive)
-{
-	if (InActive)
-	{
-		CreateRemoteSession();
-	}
-	else
-	{
-		DestroyRemoteSession();
-	}
-
-	Super::SetActive(InActive);
-}
-
-void UVCamOutputRemoteSession::CreateUMG()
-{
-	Super::CreateUMG();
 }
 
 void UVCamOutputRemoteSession::CreateRemoteSession()
@@ -87,25 +82,14 @@ void UVCamOutputRemoteSession::CreateRemoteSession()
 			{
 				RemoteSessionHost->Tick(0.0f);
 
-#if WITH_EDITOR
 				if (bUseOverrideResolution)
 				{
-					for (const FWorldContext& Context : GEngine->GetWorldContexts())
+					TSharedPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
+					if (SceneViewport.IsValid())
 					{
-						if (Context.WorldType == EWorldType::Editor)
-						{
-							if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamOutputRemoteSession::LevelEditorName))
-							{
-								TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
-								if (ActiveLevelViewport.IsValid())
-								{
-									ActiveLevelViewport->GetSharedActiveViewport()->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
-								}
-							}
-						}
+						SceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
 					}
 				}
-#endif
 			}
 		}
 	}
@@ -144,74 +128,23 @@ void UVCamOutputRemoteSession::DestroyRemoteSession()
 		{
 			if (Context.WorldType == EWorldType::Editor)
 			{
-				if (FLevelEditorViewportClient* LevelViewportClient = GetLevelViewportClient())
+				if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
 				{
 					LevelViewportClient->ViewFOV = LevelViewportClient->FOVAngle;
 					GEditor->RemovePerspectiveViewRotation(true, true, false);
 				}
-
-				if (bUseOverrideResolution)
-				{
-					if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamOutputRemoteSession::LevelEditorName))
-					{
-						TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
-						if (ActiveLevelViewport.IsValid())
-						{
-							ActiveLevelViewport->GetSharedActiveViewport()->SetFixedViewportSize(0, 0);
-						}
-					}
-				}
 			}
 		}
 #endif
-	}
-}
 
-void UVCamOutputRemoteSession::FindSceneViewport(TWeakPtr<SWindow>& OutInputWindow, TWeakPtr<FSceneViewport>& OutSceneViewport) const
-{
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		if (bUseOverrideResolution)
 		{
-			if (Context.WorldType == EWorldType::Editor)
+			TSharedPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
+			if (SceneViewport.IsValid())
 			{
-				if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamOutputRemoteSession::LevelEditorName))
-				{
-					TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveViewport();
-					if (ActiveLevelViewport.IsValid())
-					{
-						OutSceneViewport = ActiveLevelViewport->GetSharedActiveViewport();
-						OutInputWindow = FSlateApplication::Get().FindWidgetWindow(ActiveLevelViewport->AsWidget());
-					}
-				}
-			}
-			else if (Context.WorldType == EWorldType::PIE)
-			{
-				FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(Context.ContextHandle);
-				if (SlatePlayInEditorSession)
-				{
-					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
-					{
-						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
-						OutSceneViewport = DestinationLevelViewport->GetSharedActiveViewport();
-						OutInputWindow = FSlateApplication::Get().FindWidgetWindow(DestinationLevelViewport->AsWidget());
-					}
-					else if (SlatePlayInEditorSession->SlatePlayInEditorWindowViewport.IsValid())
-					{
-						OutSceneViewport = SlatePlayInEditorSession->SlatePlayInEditorWindowViewport;
-						OutInputWindow = SlatePlayInEditorSession->SlatePlayInEditorWindow;
-					}
-				}
+				SceneViewport->SetFixedViewportSize(0, 0);
 			}
 		}
-	}
-	else
-#endif
-	{
-		UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-		OutSceneViewport = GameEngine->SceneViewport;
-		OutInputWindow = GameEngine->GameViewportWindow;
 	}
 }
 
@@ -257,9 +190,7 @@ void UVCamOutputRemoteSession::OnImageChannelCreated(TWeakPtr<IRemoteSessionChan
 		}
 		else
 		{
-			TWeakPtr<SWindow> InputWindow;
-			TWeakPtr<FSceneViewport> SceneViewport;
-			FindSceneViewport(InputWindow, SceneViewport);
+			TWeakPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
 			if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
 			{
 				MediaCapture->CaptureSceneViewport(PinnedSceneViewport, Options);
@@ -286,10 +217,7 @@ void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChan
 		}
 		else
 		{
-			TWeakPtr<SWindow> InputWindow;
-			TWeakPtr<FSceneViewport> SceneViewport;
-			FindSceneViewport(InputWindow, SceneViewport);
-			InputChannel->SetPlaybackWindow(InputWindow, nullptr);
+			InputChannel->SetPlaybackWindow(GetTargetInputWindow(), nullptr);
 			InputChannel->TryRouteTouchMessageToWidget(true);
 			InputChannel->GetOnRouteTouchDownToWidgetFailedDelegate()->AddUObject(this, &UVCamOutputRemoteSession::OnTouchEventOutsideUMG);
 
@@ -320,12 +248,12 @@ void UVCamOutputRemoteSession::OnTouchEventOutsideUMG(const FVector2D& InViewpor
 			if (bHit)
 			{
 #if WITH_EDITOR
-				// @todo: This doesn't seem like the most efficient way to past click events to the editor viewport...
+				// @todo: This doesn't seem like the most efficient way to pass click events to the editor viewport...
 				if (Context.WorldType == EWorldType::Editor)
 				{
-					if (FLevelEditorViewportClient* LevelViewportClient = GetLevelViewportClient())
+					if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
 					{
-						if (FViewport* ActiveViewport = GetActiveViewport())
+						if (FViewport* ActiveViewport = LevelViewportClient->Viewport)
 						{
 							FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 								ActiveViewport,
@@ -369,9 +297,9 @@ bool UVCamOutputRemoteSession::DeprojectScreenToWorld(const FVector2D& InScreenP
 #if WITH_EDITOR
 		else if (Context.WorldType == EWorldType::Editor)
 		{
-			if (FLevelEditorViewportClient* LevelViewportClient = GetLevelViewportClient())
+			if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
 			{
-				if (FViewport* ActiveViewport = GetActiveViewport())
+				if (FViewport* ActiveViewport = LevelViewportClient->Viewport)
 				{
 					FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 						ActiveViewport,
@@ -400,36 +328,6 @@ bool UVCamOutputRemoteSession::DeprojectScreenToWorld(const FVector2D& InScreenP
 }
 
 #if WITH_EDITOR
-FLevelEditorViewportClient* UVCamOutputRemoteSession::GetLevelViewportClient() const
-{
-	FLevelEditorViewportClient* OutClient = nullptr;
-	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamOutputRemoteSession::LevelEditorName))
-	{
-		TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
-		if (ActiveLevelViewport.IsValid())
-		{
-			OutClient = &ActiveLevelViewport->GetLevelViewportClient();
-		}
-	}
-
-	return OutClient;
-}
-
-FViewport* UVCamOutputRemoteSession::GetActiveViewport() const
-{
-	FViewport* OutViewport = nullptr;
-	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamOutputRemoteSession::LevelEditorName))
-	{
-		TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveViewport();
-		if (ActiveLevelViewport.IsValid())
-		{
-			OutViewport = ActiveLevelViewport->GetActiveViewport();
-		}
-	}
-
-	return OutViewport;
-}
-
 void UVCamOutputRemoteSession::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* Property = PropertyChangedEvent.MemberProperty;

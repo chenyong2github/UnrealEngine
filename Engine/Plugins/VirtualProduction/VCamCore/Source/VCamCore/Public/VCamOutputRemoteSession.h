@@ -15,32 +15,37 @@
 
 #include "VCamOutputRemoteSession.generated.h"
 
-UCLASS(meta = (DisplayName = "RemoteSession"))
+UCLASS(meta = (DisplayName = "Remote Session Output Provider"))
 class VCAMCORE_API UVCamOutputRemoteSession : public UVCamOutputProviderBase
 {
 	GENERATED_BODY()
 
 public:
-	virtual void InitializeSafe() override;
-	virtual void Destroy() override;
+	virtual void Initialize() override;
+	virtual void Deinitialize() override;
+
+	virtual void Activate() override;
+	virtual void Deactivate() override;
+
 	virtual void Tick(const float DeltaTime) override;
-	virtual void SetActive(const bool InActive) override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	// Network port number - change this only if connecting multiple RemoteSession devices to the same PC
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 PortNumber = IRemoteSessionModule::kDefaultPort;
 
+	// Stream a separate render target instead of the default viewport (usually from Composure)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool bUseRenderTargetFromComposure = false;
 
+	// TextureRenderTarget2D asset to stream
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (EditCondition = "bUseRenderTargetFromComposure"))
 	UTextureRenderTarget2D* ComposureRenderTarget = nullptr;
 
 protected:
-	virtual void CreateUMG() override;
 
 	UPROPERTY(Transient)
 	URemoteSessionMediaOutput* MediaOutput = nullptr;
@@ -56,17 +61,10 @@ private:
 	void CreateRemoteSession();
 	void DestroyRemoteSession();
 
-	void FindSceneViewport(TWeakPtr<SWindow>& OutInputWindow, TWeakPtr<FSceneViewport>& OutSceneViewport) const;
-
 	void OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change);
 	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
 	void OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
 	void OnTouchEventOutsideUMG(const FVector2D& InViewportPosition);
 
 	bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection) const;
-
-#if WITH_EDITOR
-	FLevelEditorViewportClient* GetLevelViewportClient() const;
-	FViewport* GetActiveViewport() const;
-#endif
 };

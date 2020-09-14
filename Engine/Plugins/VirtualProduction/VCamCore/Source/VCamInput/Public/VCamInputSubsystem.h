@@ -4,23 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/EngineSubsystem.h"
-#include "EditorInputProcessor.h"
-#include "EditorInputTypes.h"
+#include "VCamInputTypes.h"
 
-#include "VCamCoreSubsystem.generated.h"
+#include "VCamInputSubsystem.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogVCamCore, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogVCamInput, Log, All);
+
+class FVCamInputProcessor;
 
 // Currently only used for the placeholder Editor Input System
 // This subsystem will be removed once the new input system is ready
 UCLASS()
-class VCAMCORE_API UVCamCoreSubsystem : public UEngineSubsystem
+class VCAMINPUT_API UVCamInputSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 public:
 
-	UVCamCoreSubsystem();
-	~UVCamCoreSubsystem();
+	UVCamInputSubsystem();
+	~UVCamInputSubsystem();
 
 	// By default the editor will use gamepads to control the editor camera
 	// Setting this to true will prevent this
@@ -58,6 +59,6 @@ private:
 	// Whether the input processor was successfully registered
 	bool bIsRegisterd = false;
 
-	TSharedPtr<FEditorInputProcessor> InputProcessor;
+	TSharedPtr<FVCamInputProcessor> InputProcessor;
 };
 
