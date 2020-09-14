@@ -8,50 +8,13 @@
 #include "GameplayCueNotify_Looping.generated.h"
 
 
-USTRUCT(BlueprintType)
-struct FGameplayCueNotify_LoopingSparseData
-{
-	GENERATED_BODY()
-
-public:
-
-	FGameplayCueNotify_LoopingSparseData() { DefaultPlacementInfo.AttachPolicy = EGameplayCueNotify_AttachPolicy::AttachToTarget; }
-
-public:
-
-	// Default condition to check before spawning anything.  Applies for all spawns unless overridden.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Defaults")
-	FGameplayCueNotify_SpawnCondition DefaultSpawnCondition;
-
-	// Default placement rules.  Applies for all spawns unless overridden.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Defaults")
-	FGameplayCueNotify_PlacementInfo DefaultPlacementInfo;
-
-	// List of effects to spawn on application.  These should not be looping effects!
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Application Effects (On Active)")
-	FGameplayCueNotify_BurstEffects ApplicationEffects;
-
-	// List of effects to spawn on loop start.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Looping Effects (While Active)")
-	FGameplayCueNotify_LoopingEffects LoopingEffects;
-
-	// List of effects to spawn for a recurring gameplay effect (e.g. each time a DOT ticks).  These should not be looping effects!
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Recurring Effects (On Execute)")
-	FGameplayCueNotify_BurstEffects RecurringEffects;
-
-	// List of effects to spawn on removal.  These should not be looping effects!
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Removal Effects (On Remove)")
-	FGameplayCueNotify_BurstEffects RemovalEffects;
-};
-
-
 /**
  * AGameplayCueNotify_Looping
  *
  *	This is an instanced gameplay cue notify for continuous looping effects.
  *	The game is responsible for defining the start/stop by adding/removing the gameplay cue.
  */
-UCLASS(Blueprintable, notplaceable, SparseClassDataTypes = GameplayCueNotify_LoopingSparseData, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Looping", ShortTooltip = "A GameplayCueNotify that has a duration that is driven by the game."))
+UCLASS(Blueprintable, notplaceable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Looping", ShortTooltip = "A GameplayCueNotify that has a duration that is driven by the game."))
 class AGameplayCueNotify_Looping : public AGameplayCueNotify_Instanced
 {
 	GENERATED_BODY()
@@ -90,17 +53,41 @@ protected:
 
 protected:
 
+	// Default condition to check before spawning anything.  Applies for all spawns unless overridden.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Defaults")
+	FGameplayCueNotify_SpawnCondition DefaultSpawnCondition;
+
+	// Default placement rules.  Applies for all spawns unless overridden.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Defaults")
+	FGameplayCueNotify_PlacementInfo DefaultPlacementInfo;
+
+	// List of effects to spawn on application.  These should not be looping effects!
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Application Effects (On Active)")
+	FGameplayCueNotify_BurstEffects ApplicationEffects;
+
 	// Results of spawned application effects.
 	UPROPERTY(BlueprintReadOnly, Category = "GCN Application Effects (On Active)")
 	FGameplayCueNotify_SpawnResult ApplicationSpawnResults;
+
+	// List of effects to spawn on loop start.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Looping Effects (While Active)")
+	FGameplayCueNotify_LoopingEffects LoopingEffects;
 
 	// Results of spawned looping effects.
 	UPROPERTY(BlueprintReadOnly, Category = "GCN Looping Effects (While Active)")
 	FGameplayCueNotify_SpawnResult LoopingSpawnResults;
 
+	// List of effects to spawn for a recurring gameplay effect (e.g. each time a DOT ticks).  These should not be looping effects!
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Recurring Effects (On Execute)")
+	FGameplayCueNotify_BurstEffects RecurringEffects;
+
 	// Results of spawned recurring effects.
 	UPROPERTY(BlueprintReadOnly, Category = "GCN Recurring Effects (On Execute)")
 	FGameplayCueNotify_SpawnResult RecurringSpawnResults;
+
+	// List of effects to spawn on removal.  These should not be looping effects!
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Removal Effects (On Remove)")
+	FGameplayCueNotify_BurstEffects RemovalEffects;
 
 	// Results of spawned removal effects.
 	UPROPERTY(BlueprintReadOnly, Category = "GCN Removal Effects (On Remove)")
