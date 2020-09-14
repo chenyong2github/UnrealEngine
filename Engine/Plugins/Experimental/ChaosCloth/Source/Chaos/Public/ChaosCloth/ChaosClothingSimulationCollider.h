@@ -83,7 +83,7 @@ namespace Chaos
 				FClothingSimulationSolver* Solver,
 				FClothingSimulationCloth* Cloth,
 				const FClothCollisionData& InClothCollisionData,
-				const float Scale = 1.f,
+				const float InScale = 1.f,
 				const TArray<int32>& UsedBoneIndices = TArray<int32>());
 			void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 
