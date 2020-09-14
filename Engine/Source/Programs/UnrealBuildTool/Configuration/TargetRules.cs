@@ -1313,6 +1313,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Macros to define across all macros in the project.
 		/// </summary>
+		[CommandLine("-ProjectDefine:")]
 		public List<string> ProjectDefinitions = new List<string>();
 
 		/// <summary>
