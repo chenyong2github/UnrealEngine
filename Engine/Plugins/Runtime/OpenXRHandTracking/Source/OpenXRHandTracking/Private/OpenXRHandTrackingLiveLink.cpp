@@ -64,17 +64,17 @@ void FOpenXRHandTracking::SetupLiveLinkData()
 	check(SkeletonDataPtr);
 
 	TArray<FName>& BoneNames = SkeletonDataPtr->BoneNames;
-	BoneNames.Reserve(EOpenXRHandKeypointCount);
+	BoneNames.Reserve(EHandKeypointCount);
 	// Array of bone indices to parent bone index
-	BoneParents.Reserve(EOpenXRHandKeypointCount);
-	BoneKeypoints.Reserve(EOpenXRHandKeypointCount);
+	BoneParents.Reserve(EHandKeypointCount);
+	BoneKeypoints.Reserve(EHandKeypointCount);
 
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EOpenXRHandKeypoint"), true);
+	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EHandKeypoint"), true);
 	check(EnumPtr != nullptr);
 	// Iterate through all of the Keypoints building the skeleton info for it
-	for (int32 Keypoint = 0; Keypoint < EOpenXRHandKeypointCount; Keypoint++)
+	for (int32 Keypoint = 0; Keypoint < EHandKeypointCount; Keypoint++)
 	{
-		BoneKeypoints.Add((EOpenXRHandKeypoint)Keypoint);
+		BoneKeypoints.Add((EHandKeypoint)Keypoint);
 		BoneNames.Add(FOpenXRHandTracking::ParseEOpenXRHandKeypointEnumName(EnumPtr->GetNameByValue(Keypoint)));
 	}
 
@@ -118,7 +118,7 @@ void FOpenXRHandTracking::UpdateLiveLinkTransforms(TArray<FTransform>& OutTransf
 {
 	// Live link transforms need to be in the hierarchical skeleton, so each in the space of its parent.
 	// The hand tracking transforms are in world space.
-	for (int32 Index = 0; Index < EOpenXRHandKeypointCount; ++Index)
+	for (int32 Index = 0; Index < EHandKeypointCount; ++Index)
 	{
 		const FTransform& BoneTransform = HandState.GetTransform(BoneKeypoints[Index]);
 		int32 ParentIndex = BoneParents[Index];
@@ -144,14 +144,14 @@ void FOpenXRHandTracking::UpdateLiveLink()
 		// One time initialization:
 		if (LeftAnimationTransforms.Num() == 0)
 		{
-			check(EOpenXRHandKeypointCount > 0); // ensure the num() test above is a valid way to detect initialization
+			check(EHandKeypointCount > 0); // ensure the num() test above is a valid way to detect initialization
 
 			SetupLiveLinkData();
 
-			LeftAnimationTransforms.Reserve(EOpenXRHandKeypointCount);
-			RightAnimationTransforms.Reserve(EOpenXRHandKeypointCount);
+			LeftAnimationTransforms.Reserve(EHandKeypointCount);
+			RightAnimationTransforms.Reserve(EHandKeypointCount);
 			// Init to identity all of the Keypoint transforms
-			for (uint32 Count = 0; Count < EOpenXRHandKeypointCount; ++Count)
+			for (uint32 Count = 0; Count < EHandKeypointCount; ++Count)
 			{
 				LeftAnimationTransforms.Add(FTransform::Identity);
 				RightAnimationTransforms.Add(FTransform::Identity);

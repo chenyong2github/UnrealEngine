@@ -119,6 +119,8 @@ public:
 		return SharedThis(this);
 	}
 
+	virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) override;
+
 	virtual float GetWorldToMetersScale() const override;
 
 protected:
