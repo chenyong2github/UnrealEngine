@@ -1604,6 +1604,9 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitAPEXClothVertexFactorie
 	const TArray<FSkelMeshRenderSection>& Sections,
 	ERHIFeatureLevel::Type InFeatureLevel)
 {
+
+	bool bUseMultipleInfluences = (VertexBuffers.APEXClothVertexBuffer->GetNumVertices() > VertexBuffers.StaticVertexBuffers->PositionVertexBuffer.GetNumVertices());
+
 	// clear existing factories (resources assumed to have been released already)
 	ClothVertexFactories.Empty(Sections.Num());
 	for( int32 FactoryIdx=0; FactoryIdx < Sections.Num(); FactoryIdx++ )
@@ -1614,11 +1617,31 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitAPEXClothVertexFactorie
 			GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
 			if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
 			{
-				CreateVertexFactoryCloth<FGPUBaseSkinAPEXClothVertexFactory, TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence> >(ClothVertexFactories, VertexBuffers, InFeatureLevel);
+				if (bUseMultipleInfluences)
+				{
+					CreateVertexFactoryCloth<FGPUBaseSkinAPEXClothVertexFactory, TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence> >(ClothVertexFactories, VertexBuffers, InFeatureLevel);
+				}
+				else
+				{
+					CreateVertexFactoryCloth
+						<FGPUBaseSkinAPEXClothVertexFactory, 
+						TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>
+						(ClothVertexFactories, VertexBuffers, InFeatureLevel);
+				}
 			}
 			else
 			{
-				CreateVertexFactoryCloth<FGPUBaseSkinAPEXClothVertexFactory, TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence> >(ClothVertexFactories, VertexBuffers, InFeatureLevel);
+				if (bUseMultipleInfluences)
+				{
+					CreateVertexFactoryCloth<FGPUBaseSkinAPEXClothVertexFactory, TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence> >(ClothVertexFactories, VertexBuffers, InFeatureLevel);
+				}
+				else
+				{
+					CreateVertexFactoryCloth
+						<FGPUBaseSkinAPEXClothVertexFactory, 
+						TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>
+						(ClothVertexFactories, VertexBuffers, InFeatureLevel);
+				}
 			}
 		}
 		else
@@ -1646,17 +1669,45 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::ReleaseAPEXClothVertexFacto
 
 void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::UpdateVertexFactoryData(const FVertexFactoryBuffers& VertexBuffers)
 {
+	bool bUseMultipleInfluences = (VertexBuffers.APEXClothVertexBuffer->GetNumVertices() > VertexBuffers.StaticVertexBuffers->PositionVertexBuffer.GetNumVertices());
+
 	GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
 	if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
 	{
 		UpdateVertexFactory<FGPUBaseSkinVertexFactory, TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>(VertexFactories, VertexBuffers);
-		UpdateVertexFactoryCloth<FGPUBaseSkinAPEXClothVertexFactory, TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>(ClothVertexFactories, VertexBuffers);
+		if (bUseMultipleInfluences)
+		{ 
+			UpdateVertexFactoryCloth
+				<FGPUBaseSkinAPEXClothVertexFactory, 
+				TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>
+				(ClothVertexFactories, VertexBuffers);
+		}
+		else
+		{
+			UpdateVertexFactoryCloth
+				<FGPUBaseSkinAPEXClothVertexFactory, 
+				TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>
+				(ClothVertexFactories, VertexBuffers);
+		}
 		UpdateVertexFactoryMorph<FGPUBaseSkinVertexFactory, TGPUSkinMorphVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>(MorphVertexFactories, VertexBuffers);
 	}
 	else
 	{
 		UpdateVertexFactory<FGPUBaseSkinVertexFactory, TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>(VertexFactories, VertexBuffers);
-		UpdateVertexFactoryCloth<FGPUBaseSkinAPEXClothVertexFactory, TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>(ClothVertexFactories, VertexBuffers);
+		if (bUseMultipleInfluences)
+		{
+			UpdateVertexFactoryCloth
+				<FGPUBaseSkinAPEXClothVertexFactory, 
+				TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>
+				(ClothVertexFactories, VertexBuffers);
+		}
+		else
+		{
+			UpdateVertexFactoryCloth
+				<FGPUBaseSkinAPEXClothVertexFactory, 
+				TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>
+				(ClothVertexFactories, VertexBuffers);
+		}
 		UpdateVertexFactoryMorph<FGPUBaseSkinVertexFactory, TGPUSkinMorphVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>(MorphVertexFactories, VertexBuffers);
 	}
 }

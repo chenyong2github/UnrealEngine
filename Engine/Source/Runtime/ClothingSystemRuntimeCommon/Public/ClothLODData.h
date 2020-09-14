@@ -19,6 +19,14 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothLODDataCommon
 	UPROPERTY(EditAnywhere, Category = Collision)
 	FClothCollisionData CollisionData;
 
+	// Whether to use multiple triangles to interpolate from simulated cloth mesh to render mesh
+	UPROPERTY()
+	bool bUseMultipleInfluences = false;
+
+	// Radius of the weighting kernel used to interpolate from simulated cloth mesh to render mesh
+	UPROPERTY()
+	float SkinningKernelRadius = 100.0f;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FClothParameterMask_Legacy> ParameterMasks_DEPRECATED;
