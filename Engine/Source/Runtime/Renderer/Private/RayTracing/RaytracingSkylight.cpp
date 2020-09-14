@@ -339,8 +339,8 @@ class FRayTracingSkyLightRGS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, UpscaleFactor)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWOcclusionMaskUAV)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, RWRayDistanceUAV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWSkyOcclusionMaskUAV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, RWSkyOcclusionRayDistanceUAV)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
@@ -561,8 +561,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		SetupSkyLightQuasiRandomParameters(*Scene, View, BlueNoiseDimensions, &SkyLightQuasiRandomData);
 
 		FRayTracingSkyLightRGS::FParameters *PassParameters = GraphBuilder.AllocParameters<FRayTracingSkyLightRGS::FParameters>();
-		PassParameters->RWOcclusionMaskUAV = SkyLightkUAV;
-		PassParameters->RWRayDistanceUAV = RayDistanceUAV;
+		PassParameters->RWSkyOcclusionMaskUAV = SkyLightkUAV;
+		PassParameters->RWSkyOcclusionRayDistanceUAV = RayDistanceUAV;
 		PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
 		PassParameters->SkyLightQuasiRandomData = SkyLightQuasiRandomData;
 		PassParameters->SkyLightVisibilityRaysData.SkyLightVisibilityRaysDimensions = SkyLightVisibilityRaysDimensions;
