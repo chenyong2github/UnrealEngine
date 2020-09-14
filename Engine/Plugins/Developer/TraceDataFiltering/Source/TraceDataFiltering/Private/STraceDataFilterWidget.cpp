@@ -118,7 +118,7 @@ void STraceDataFilterWidget::Construct(const FArguments& InArgs)
 				.FillWidth(1.0f)
 				[
 					SAssignNew(FilterPresetsListWidget, SFilterPresetList)
-					.OnPresetsChanged(this, &STraceDataFilterWidget::OnPresetsChanged)
+					.OnPresetChanged(this, &STraceDataFilterWidget::OnPresetChanged)
 					.OnSavePreset(this, &STraceDataFilterWidget::OnSavePreset)
 					.OnHighlightPreset(this, &STraceDataFilterWidget::OnHighlightPreset)
 				]
@@ -203,14 +203,11 @@ void STraceDataFilterWidget::OnSavePreset(const TSharedPtr<IFilterPreset>& Prese
 	}
 }
 
-void STraceDataFilterWidget::OnPresetsChanged()
+void STraceDataFilterWidget::OnPresetChanged(const SFilterPreset& Preset)
 {
-	TArray<TSharedPtr<IFilterPreset>> Presets;
-	FilterPresetsListWidget->GetAllEnabledPresets(Presets);
-
 	if (SessionFilterService.IsValid())
 	{
-		SessionFilterService->UpdateFilterPresets(Presets);
+		SessionFilterService->UpdateFilterPreset(Preset.GetFilterPreset(), Preset.IsEnabled());
 	}
 }
 
@@ -580,7 +577,12 @@ void STraceDataFilterWidget::SetCurrentAnalysisSession(uint32 SessionHandle, TSh
 	PreviousSessionHandle = SessionHandle;
 
 	/** Refresh presets so config loaded state is directly applied */
-	OnPresetsChanged();
+	TArray<TSharedPtr<IFilterPreset>> EnabledPresets;
+	FilterPresetsListWidget->GetAllEnabledPresets(EnabledPresets);
+	for (auto Preset : EnabledPresets)
+	{
+		SessionFilterService->UpdateFilterPreset(Preset, true);
+	}
 	/** Refresh data driving the treeview */
 	RefreshTreeviewData();
 }
