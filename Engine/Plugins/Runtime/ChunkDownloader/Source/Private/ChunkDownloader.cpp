@@ -37,7 +37,7 @@ bool FChunkDownloader::CheckFileSha1Hash(const FString& FullPathOnDisk, const FS
 	// create a SHA1 reader
 	FSHA1 HashContext;
 
-	// read in 128K chunks to prevent raising the memory high water mark too much
+	// read in 64K chunks to prevent raising the memory high water mark too much
 	{
 		static const int64 FILE_BUFFER_SIZE = 64 * 1024;
 		uint8 Buffer[FILE_BUFFER_SIZE];
