@@ -44,7 +44,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneDepth.IsValid());
 
-	const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform); // TODO: Respect r.Nanite
+	const bool bNaniteEnabled = NaniteRasterResults != nullptr;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorSelectionOutlines");
 
