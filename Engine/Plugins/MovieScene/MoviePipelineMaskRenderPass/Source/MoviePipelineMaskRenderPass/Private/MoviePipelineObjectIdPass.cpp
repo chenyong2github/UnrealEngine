@@ -120,23 +120,10 @@ void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipeli
 	{
 		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
 		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
-		if (bFirstSample)
-		{
-			// Each frame can be processed independently, so we can start processing the second frame's tasks
-			// even if the accumulation for the first frame is still happening.
-			this->TaskPrereq = nullptr;
-		}
-		FGraphEventRef* LastTask = nullptr;
-		if (this->TaskPrereq)
-		{
-			LastTask = &this->TaskPrereq;
-		}
-
+	
 		FMoviePipelineBackgroundAccumulateTask Task;
-		if (LastTask)
-		{
-			Task.LastCompletionEvent = *LastTask;
-		}
+		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
+
 		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
 		{
 			// Enqueue a encode for this frame onto our worker thread.
@@ -144,11 +131,11 @@ void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipeli
 			if (bFinalSample)
 			{
 				SampleAccumulator->bIsActive = false;
+				SampleAccumulator->TaskPrereq = nullptr;
 			}
 		});
 
 		this->OutstandingTasks.Add(Event);
-		this->TaskPrereq = Event;
 	};
 	
 	TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
