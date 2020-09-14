@@ -16,7 +16,7 @@
 class IStageMonitor;
 class SStageMonitorPanel;
 struct FDataProviderActivity;
-class IStageDataCollection;
+class IStageMonitorSession;
 class IStructureDetailsView;
 class FStructOnScope;
 class SDataProviderActivityFilter;
@@ -37,7 +37,7 @@ public:
 	SLATE_ARGUMENT(FDataProviderActivityPtr, Item)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwerTableView);
+	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwerTableView, TWeakPtr<IStageMonitorSession> InSession);
 	
 
 private:
@@ -51,6 +51,7 @@ private:
 private:
 	FDataProviderActivityPtr Item;
 	FStageInstanceDescriptor Descriptor;
+	TWeakPtr<IStageMonitorSession> Session;
 };
 
 
@@ -65,7 +66,7 @@ public:
 	SLATE_BEGIN_ARGS(SDataProviderActivities) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SStageMonitorPanel> OwnerPanel, const TWeakPtr<IStageDataCollection>& Collection);
+	void Construct(const FArguments& InArgs, TSharedPtr<SStageMonitorPanel> OwnerPanel, const TWeakPtr<IStageMonitorSession>& InSession);
 	virtual ~SDataProviderActivities();
 
 	//~ Begin SCompoundWidget interface
@@ -75,6 +76,9 @@ public:
 	/** Request a full rebuild of the list entries */
 	void RequestRebuild();
 
+	/** Refreshes session used to fetch data */
+	void RefreshMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession);
+
 private:
 	TSharedRef<ITableRow> OnGenerateActivityRowWidget(FDataProviderActivityPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnListViewSelectionChanged(FDataProviderActivityPtr InActivity, ESelectInfo::Type SelectInfo);
@@ -83,9 +87,12 @@ private:
 	void ReloadActivityHistory();
 	void OnStageDataCleared();
 
+	/** Bind useful delegate to the active session */
+	void AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession);
+
 private:
 	TWeakPtr<SStageMonitorPanel> OwnerPanel;
-	TWeakPtr<IStageDataCollection> DataCollection;
+	TWeakPtr<IStageMonitorSession> Session;
 	TSharedPtr<SListView<FDataProviderActivityPtr>> ActivityList;
 
 	TArray<FDataProviderActivityPtr> Activities;

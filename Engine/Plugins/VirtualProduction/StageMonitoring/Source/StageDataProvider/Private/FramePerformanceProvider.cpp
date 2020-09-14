@@ -11,6 +11,7 @@
 #include "StageDataProviderModule.h"
 #include "StageMessages.h"
 #include "StageMonitoringSettings.h"
+#include "StageMonitorUtils.h"
 #include "Stats/StatsData.h"
 #include "VPSettings.h"
 
@@ -27,10 +28,12 @@ FFramePerformanceProvider::FFramePerformanceProvider()
 	//Verify if conditions are met to enable sending hitch messages
 	if (!Settings->ProviderSettings.HitchDetectionSettings.bUseRoleFiltering || GetDefault<UVPSettings>()->GetRoles().HasAny(Settings->ProviderSettings.HitchDetectionSettings.SupportedRoles))
 	{
+		CachedHitchSettings = GetDefault<UStageMonitoringSettings>()->ProviderSettings.HitchDetectionSettings;
+
 		// Subscribe to Stats provider to verify hitches
-		StatsMasterEnableAdd();
-		FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
-		Stats.NewFrameDelegate.AddRaw(this, &FFramePerformanceProvider::CheckHitches);
+		//StatsMasterEnableAdd();
+		//FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
+		//Stats.NewFrameDelegate.AddRaw(this, &FFramePerformanceProvider::CheckHitches);
 	}
 #endif //STATS
 }
@@ -62,7 +65,7 @@ void FFramePerformanceProvider::CheckHitches(int64 Frame)
 	const float FullFrameTime = FMath::Max(GameThreadTimeWithWaits, RenderThreadTimeWithWaits);
 
 	// check for hitch (if application not backgrounded)
-	const float TimeThreshold = GetDefault<UStageMonitoringSettings>()->ProviderSettings.HitchDetectionSettings.TargetFrameRate.AsInterval() * 1000.0f;
+	const float TimeThreshold = CachedHitchSettings.TargetFrameRate.AsInterval() * 1000.0f;
 	if (FullFrameTime > TimeThreshold)
 	{
 		const float GameThreadTime = FPlatformTime::ToMilliseconds(GGameThreadTime);
