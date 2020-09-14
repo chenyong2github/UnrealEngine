@@ -1321,32 +1321,43 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 						if (RuntimeVirtualTexture)
 						{
 							UMaterialExpressionRuntimeVirtualTextureSampleParameter* Expression = BaseMaterial->FindExpressionByGUID<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(RuntimeVirtualTextureParameterValue->ExpressionId);
-							if (Expression->MaterialType != RuntimeVirtualTexture->GetMaterialType())
+							if (!Expression)
 							{
-								FString BaseMaterialTypeDisplayName = MaterialTypeEnum->GetDisplayNameTextByValue((int64)(Expression->MaterialType)).ToString();
-								FString OverrideMaterialTypeDisplayName = MaterialTypeEnum->GetDisplayNameTextByValue((int64)(RuntimeVirtualTexture->GetMaterialType())).ToString();
-
-								Canvas->DrawShadowedString(
+								const FText ExpressionNameText = FText::Format(LOCTEXT("MissingRVTExpression", "Warning: Runtime Virtual Texture Expression {0} not found."), FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name));
+								Canvas->DrawShadowedText(
 									5, DrawPositionY,
-									*FString::Printf(TEXT("Warning: '%s' interprets the virtual texture as '%s' not '%s'"),
-										*RuntimeVirtualTextureParameterValue->ParameterInfo.Name.ToString(),
-										*BaseMaterialTypeDisplayName,
-										*OverrideMaterialTypeDisplayName,
-										*RuntimeVirtualTexture->GetPathName()),
+									ExpressionNameText,
 									FontToUse,
 									FLinearColor(1, 1, 0));
 
 								DrawPositionY += SpacingBetweenLines;
 							}
-							if (Expression->bSinglePhysicalSpace != RuntimeVirtualTexture->GetSinglePhysicalSpace())
+							if (Expression && Expression->MaterialType != RuntimeVirtualTexture->GetMaterialType())
 							{
-								Canvas->DrawShadowedString(
+								FString BaseMaterialTypeDisplayName = MaterialTypeEnum->GetDisplayNameTextByValue((int64)(Expression->MaterialType)).ToString();
+								FString OverrideMaterialTypeDisplayName = MaterialTypeEnum->GetDisplayNameTextByValue((int64)(RuntimeVirtualTexture->GetMaterialType())).ToString();
+
+								Canvas->DrawShadowedText(
 									5, DrawPositionY,
-									*FString::Printf(TEXT("Warning: '%s' interprets the virtual texture page table packing as '%d' not '%d'"),
-										*RuntimeVirtualTextureParameterValue->ParameterInfo.Name.ToString(),
-										RuntimeVirtualTexture->GetSinglePhysicalSpace() ? 1 : 0,
-										Expression->bSinglePhysicalSpace ? 1 : 0,
-										*RuntimeVirtualTexture->GetPathName()),
+									FText::Format(LOCTEXT("MismatchedRVTType","Warning: '{0}' interprets the virtual texture as '{1}' not '{2}', {3}"),
+										FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
+										FText::FromString(BaseMaterialTypeDisplayName),
+										FText::FromString(OverrideMaterialTypeDisplayName),
+										FText::FromString(RuntimeVirtualTexture->GetPathName())),
+									FontToUse,
+									FLinearColor(1, 1, 0));
+
+								DrawPositionY += SpacingBetweenLines;
+							}
+							if (Expression && Expression->bSinglePhysicalSpace != RuntimeVirtualTexture->GetSinglePhysicalSpace())
+							{
+								Canvas->DrawShadowedText(
+									5, DrawPositionY,
+									FText::Format(LOCTEXT("VirtualTexturePagePackingWarning", "Warning: '{0}' interprets the virtual texture page table packing as {1} not {2}, {3}"),
+										FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
+										FText::FromString(RuntimeVirtualTexture->GetSinglePhysicalSpace() ?  TEXT("true") : TEXT("false")),
+										FText::FromString(Expression->bSinglePhysicalSpace ? TEXT("true") : TEXT("false")),
+										FText::FromString(RuntimeVirtualTexture->GetPathName())),
 									FontToUse,
 									FLinearColor(1, 1, 0));
 
