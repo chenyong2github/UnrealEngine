@@ -430,9 +430,12 @@ IMPLEMENT_SHADER_TYPE(, FPathTracingCompositorPS, TEXT("/Engine/Private/PathTrac
 
 void FDeferredShadingSceneRenderer::PreparePathTracing(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	// Declare all RayGen shaders that require material closest hit shaders to be bound
-	auto RayGenShader = View.ShaderMap->GetShader<FPathTracingRG>();
-	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+	if (View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing)
+	{
+		// Declare all RayGen shaders that require material closest hit shaders to be bound
+		auto RayGenShader = View.ShaderMap->GetShader<FPathTracingRG>();
+		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+	}
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingPassParameters, )

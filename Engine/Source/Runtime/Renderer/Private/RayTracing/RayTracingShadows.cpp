@@ -178,6 +178,14 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& Vi
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
+	static auto CVarRayTracingShadows = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows"));
+	const bool bRayTracingShadows = CVarRayTracingShadows != nullptr && CVarRayTracingShadows->GetInt() > 0;
+
+	if (!bRayTracingShadows)
+	{
+		return;
+	}
+
 	const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements[] =
 	{
 		IScreenSpaceDenoiser::EShadowRequirements::Bailout,
