@@ -145,8 +145,8 @@ public:
 /** Default metrics for outliner tree items */
 struct FSceneOutlinerDefaultTreeItemMetrics
 {
-	static int32	IconSize() { return 18; };
-	static FMargin	IconPadding() { return FMargin(0.f, 0.f, 6.f, 0.f); };
+	static int32	IconSize() { return 16; };
+	static FMargin	IconPadding() { return FMargin(0.f, 1.f, 6.f, 1.f); };
 };
 
 /** A struct which gets, and caches the visibility of a tree item */

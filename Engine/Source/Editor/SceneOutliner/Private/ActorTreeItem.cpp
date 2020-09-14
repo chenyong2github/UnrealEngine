@@ -91,6 +91,7 @@ struct SActorTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 						SNew(SImage)
 						.Image(this, &SActorTreeLabel::GetIcon)
 						.ToolTipText(this, &SActorTreeLabel::GetIconTooltip)
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]
 
