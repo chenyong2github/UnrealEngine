@@ -282,14 +282,16 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 
 				if (BoundParameterCounts[InstanceTypeIt][InterpIt])
 				{
-					BufferRef = RHICreateUniformBuffer(
-						Tick.GetUniformBufferSource((FNiagaraGPUSystemTick::EUniformBufferType) InstanceTypeIt, &EmitterData, !InterpIt),
-						InstanceTypeIt == FNiagaraGPUSystemTick::UBT_Emitter
-							? EmitterCBufferLayout->UBLayout
-							: EmitterData.Context->ExternalCBufferLayout->UBLayout,
-						((BoundParameterCounts[InstanceTypeIt][InterpIt] > 1) || HasMultipleStages)
+					FRHIUniformBufferLayout& Layout = InstanceTypeIt == FNiagaraGPUSystemTick::UBT_Emitter ? EmitterCBufferLayout->UBLayout : EmitterData.Context->ExternalCBufferLayout->UBLayout;
+					if (Layout.Resources.Num() > 0 || Layout.ConstantBufferSize > 0)
+					{
+						BufferRef = RHICreateUniformBuffer(
+							Tick.GetUniformBufferSource((FNiagaraGPUSystemTick::EUniformBufferType) InstanceTypeIt, &EmitterData, !InterpIt),
+							Layout,
+							((BoundParameterCounts[InstanceTypeIt][InterpIt] > 1) || HasMultipleStages)
 							? EUniformBufferUsage::UniformBuffer_SingleFrame
 							: EUniformBufferUsage::UniformBuffer_SingleDraw);
+					}
 				}
 
 				Tick.UniformBuffers.Add(BufferRef);
