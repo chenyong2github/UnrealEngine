@@ -16,6 +16,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "Shader.h"
 #include "MeshMaterialShader.h"
 #include "RenderGraphResources.h"
+#include "Algo/Unique.h"
 
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumChunks);
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumVertices);
@@ -158,6 +159,12 @@ ENGINE_API bool DoRecomputeSkinTangentsOnGPU_RT()
 	return DoesPlatformSupportGPUSkinCache(GMaxRHIShaderPlatform) && GEnableGPUSkinCacheShaders != 0 && ((GEnableGPUSkinCache && GSkinCacheRecomputeTangents != 0) || GForceRecomputeTangents != 0);
 }
 
+// determine if during DispatchUpdateSkinning caching should occur
+enum class EGPUSkinCacheDispatchFlags
+{
+	DispatchPrevPosition	= 1 << 0,
+	DispatchPosition		= 1 << 1,
+};
 
 class FGPUSkinCacheEntry
 {
@@ -203,7 +210,11 @@ public:
 		uint32 SectionIndex = -1;
 
 		// 0:normal, 1:with morph target, 2:with APEX cloth (not yet implemented)
-		uint32 SkinType = 0;
+		uint16 SkinType = 0;
+
+		// See EGPUSkinCacheDispatchFlags
+		uint16 DispatchFlags = 0;
+
 		//
 		uint32 NumBoneInfluences = 0;
 
@@ -272,6 +283,20 @@ public:
 		inline FRWBuffer* GetTangentRWBuffer()
 		{
 			return TangentBuffer;
+		}
+
+		FRWBuffer* GetActiveTangentRWBuffer()
+		{
+			bool bUseIntermediateTangentBuffer = IndexBuffer && GBlendUsingVertexColorForRecomputeTangents > 0;
+
+			if (bUseIntermediateTangentBuffer)
+			{
+				return IntermediateTangentBuffer;
+			}
+			else
+			{
+				return TangentBuffer;
+			}
 		}
 
 		void UpdateVertexFactoryDeclaration()
@@ -1165,7 +1190,20 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 	int32 BatchCount = BatchDispatches.Num();
 	INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumChunks, BatchCount);
 
-	RHICmdList.BeginUAVOverlap();
+	TArray<FRHIUnorderedAccessView*> OverlappedUAVBuffers;
+	OverlappedUAVBuffers.Reserve(BatchCount * 2);
+	{
+		for (int32 i = 0; i < BatchCount; ++i)
+		{
+			FDispatchEntry& DispatchItem = BatchDispatches[i];
+			PrepareUpdateSkinning(DispatchItem.SkinCacheEntry, DispatchItem.Section, DispatchItem.RevisionNumber, &OverlappedUAVBuffers);
+		}
+
+		Algo::Sort(OverlappedUAVBuffers, [](const FRHIUnorderedAccessView* A, const FRHIUnorderedAccessView* B){return A < B;});
+		Algo::Unique(OverlappedUAVBuffers);
+	}
+
+	RHICmdList.BeginUAVOverlap(OverlappedUAVBuffers);
 	{
 		for (int32 i = 0; i < BatchCount; ++i)
 		{
@@ -1173,7 +1211,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 			DispatchUpdateSkinning(RHICmdList, DispatchItem.SkinCacheEntry, DispatchItem.Section, DispatchItem.RevisionNumber);
 		}
 	}
-	RHICmdList.EndUAVOverlap();
+	RHICmdList.EndUAVOverlap(OverlappedUAVBuffers);
 
 	{
 		for (int32 i = 0; i < BatchCount; ++i)
@@ -1194,6 +1232,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber)
 {
 	INC_DWORD_STAT(STAT_GPUSkinCache_TotalNumChunks);
+	PrepareUpdateSkinning(SkinCacheEntry, Section, RevisionNumber, nullptr);
 	DispatchUpdateSkinning(RHICmdList, SkinCacheEntry, Section, RevisionNumber);
 	//RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DispatchData.GetRWBuffer());
 	SkinCacheEntry->UpdateVertexFactoryDeclaration(Section);
@@ -1542,6 +1581,73 @@ void FGPUSkinCache::GetShaderBindings(
 	ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, DispatchData.GetPreviousPositionRWBuffer()->SRV);
 }
 
+void FGPUSkinCache::PrepareUpdateSkinning(FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber, TArray<FRHIUnorderedAccessView*>* OverlappedUAVs)
+{
+	FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->DispatchData[Section];
+	FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = DispatchData.SourceVertexFactory->GetShaderData();
+
+	const FVertexBufferAndSRV& BoneBuffer = ShaderData.GetBoneBufferForReading(false);
+	const FVertexBufferAndSRV& PrevBoneBuffer = ShaderData.GetBoneBufferForReading(true);
+
+	uint32 CurrentRevision = ShaderData.GetRevisionNumber(false);
+	uint32 PreviousRevision = ShaderData.GetRevisionNumber(true);
+
+	DispatchData.DispatchFlags = 0;
+
+	auto BufferUpdate = [&DispatchData, OverlappedUAVs](
+		FRWBuffer*& PositionBuffer,
+		const FVertexBufferAndSRV& BoneBuffer, 
+		uint32 Revision,
+		const FVertexBufferAndSRV& PrevBoneBuffer,
+		uint32 PrevRevision,
+		uint32 UpdateFlag
+		)
+	{
+		PositionBuffer = DispatchData.PositionTracker.Find(BoneBuffer, Revision);
+		if (!PositionBuffer)
+		{
+			DispatchData.PositionTracker.Advance(BoneBuffer, Revision, PrevBoneBuffer, PrevRevision);
+			PositionBuffer = DispatchData.PositionTracker.Find(BoneBuffer, Revision);
+			check(PositionBuffer);
+
+			DispatchData.DispatchFlags |= UpdateFlag;
+
+			if (OverlappedUAVs)
+			{
+				(*OverlappedUAVs).Emplace(PositionBuffer->UAV);
+			}
+		}
+	};
+
+	BufferUpdate(
+		DispatchData.PreviousPositionBuffer,
+		PrevBoneBuffer,
+		PreviousRevision,
+		BoneBuffer,
+		CurrentRevision,
+		(uint32)EGPUSkinCacheDispatchFlags::DispatchPrevPosition
+		);
+
+	BufferUpdate(
+		DispatchData.PositionBuffer, 
+		BoneBuffer, 
+		CurrentRevision, 
+		PrevBoneBuffer, 
+		PreviousRevision, 
+		(uint32)EGPUSkinCacheDispatchFlags::DispatchPosition
+		);
+
+	DispatchData.TangentBuffer = DispatchData.PositionTracker.GetTangentBuffer();
+	DispatchData.IntermediateTangentBuffer = DispatchData.PositionTracker.GetIntermediateTangentBuffer();
+
+	if (OverlappedUAVs && DispatchData.DispatchFlags != 0 && DispatchData.GetActiveTangentRWBuffer())
+	{
+		 (*OverlappedUAVs).Emplace(DispatchData.GetActiveTangentRWBuffer()->UAV);
+	}
+
+	check(DispatchData.PreviousPositionBuffer != DispatchData.PositionBuffer);
+}
+
 void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber)
 {
 	FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->DispatchData[Section];
@@ -1659,47 +1765,26 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	uint32 CurrentRevision = ShaderData.GetRevisionNumber(false);
 	uint32 PreviousRevision = ShaderData.GetRevisionNumber(true);
 
-	bool bUseIntermediateTangentBuffer = Entry->DispatchData[Section].IndexBuffer && GBlendUsingVertexColorForRecomputeTangents > 0;
-
-	DispatchData.TangentBuffer = DispatchData.PositionTracker.GetTangentBuffer();
-	DispatchData.IntermediateTangentBuffer = DispatchData.PositionTracker.GetIntermediateTangentBuffer();
-
-	DispatchData.PreviousPositionBuffer = DispatchData.PositionTracker.Find(PrevBoneBuffer, PreviousRevision);
-	if (!DispatchData.PreviousPositionBuffer)
+	if ((DispatchData.DispatchFlags & (uint32)EGPUSkinCacheDispatchFlags::DispatchPrevPosition) != 0)
 	{
-		DispatchData.PositionTracker.Advance(PrevBoneBuffer, PreviousRevision, BoneBuffer, CurrentRevision);
-		DispatchData.PreviousPositionBuffer = DispatchData.PositionTracker.Find(PrevBoneBuffer, PreviousRevision);
-		check(DispatchData.PreviousPositionBuffer)
-
 		RHICmdList.SetComputeShader(Shader.GetComputeShader());
 
-		if (bUseIntermediateTangentBuffer)
-		{
-			Shader->SetParameters(RHICmdList, PrevBoneBuffer, Entry, DispatchData, DispatchData.GetPreviousPositionRWBuffer()->UAV, DispatchData.IntermediateTangentBuffer ? DispatchData.IntermediateTangentBuffer->UAV : nullptr);
-		}
-		else
-		{
-			Shader->SetParameters(RHICmdList, PrevBoneBuffer, Entry, DispatchData, DispatchData.GetPreviousPositionRWBuffer()->UAV, DispatchData.GetTangentRWBuffer() ? DispatchData.GetTangentRWBuffer()->UAV : nullptr);
-		}
+		Shader->SetParameters(
+			RHICmdList,
+			PrevBoneBuffer,
+			Entry,
+			DispatchData,
+			DispatchData.GetPreviousPositionRWBuffer()->UAV,
+			DispatchData.GetActiveTangentRWBuffer() ? DispatchData.GetActiveTangentRWBuffer()->UAV : nullptr
+			);
 
 		RHICmdList.Transition(FRHITransitionInfo(DispatchData.GetPreviousPositionRWBuffer()->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		AddBufferToTransition(DispatchData.GetPreviousPositionRWBuffer()->UAV);
 
-		if (bUseIntermediateTangentBuffer)
+		if (DispatchData.GetActiveTangentRWBuffer())
 		{
-			if (DispatchData.IntermediateTangentBuffer)
-			{
-				RHICmdList.Transition(FRHITransitionInfo(DispatchData.IntermediateTangentBuffer->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				AddBufferToTransition(DispatchData.IntermediateTangentBuffer->UAV);
-			}
-		}
-		else
-		{
-			if (DispatchData.TangentBuffer)
-			{
-				RHICmdList.Transition(FRHITransitionInfo(DispatchData.TangentBuffer->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				AddBufferToTransition(DispatchData.TangentBuffer->UAV);
-			}
+			RHICmdList.Transition(FRHITransitionInfo(DispatchData.GetActiveTangentRWBuffer()->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			AddBufferToTransition(DispatchData.GetActiveTangentRWBuffer()->UAV);
 		}
 
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
@@ -1709,41 +1794,26 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 
 	}
 
-	DispatchData.PositionBuffer = DispatchData.PositionTracker.Find(BoneBuffer, CurrentRevision);
-	if (!DispatchData.PositionBuffer)
+	if ((DispatchData.DispatchFlags & (uint32)EGPUSkinCacheDispatchFlags::DispatchPosition) != 0)
 	{
-		DispatchData.PositionTracker.Advance(BoneBuffer, CurrentRevision, PrevBoneBuffer, PreviousRevision);
-		DispatchData.PositionBuffer = DispatchData.PositionTracker.Find(BoneBuffer, CurrentRevision);
-		check(DispatchData.PositionBuffer);
-
 		RHICmdList.SetComputeShader(Shader.GetComputeShader());
-		if (bUseIntermediateTangentBuffer)
-		{
-			Shader->SetParameters(RHICmdList, BoneBuffer, Entry, DispatchData, DispatchData.GetPositionRWBuffer()->UAV, DispatchData.IntermediateTangentBuffer ? DispatchData.IntermediateTangentBuffer->UAV : nullptr);
-		}
-		else
-		{
-			Shader->SetParameters(RHICmdList, BoneBuffer, Entry, DispatchData, DispatchData.GetPositionRWBuffer()->UAV, DispatchData.GetTangentRWBuffer() ? DispatchData.GetTangentRWBuffer()->UAV : nullptr);
-		}
+
+		Shader->SetParameters(
+			RHICmdList, 
+			BoneBuffer, 
+			Entry, 
+			DispatchData, 
+			DispatchData.GetPositionRWBuffer()->UAV, 
+			DispatchData.GetActiveTangentRWBuffer() ? DispatchData.GetActiveTangentRWBuffer()->UAV : nullptr
+			);
 
 		RHICmdList.Transition(FRHITransitionInfo(DispatchData.GetPositionRWBuffer()->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		AddBufferToTransition(DispatchData.GetPositionRWBuffer()->UAV);
 
-		if (bUseIntermediateTangentBuffer)
+		if (DispatchData.GetActiveTangentRWBuffer())
 		{
-			if (DispatchData.IntermediateTangentBuffer)
-			{
-				RHICmdList.Transition(FRHITransitionInfo(DispatchData.IntermediateTangentBuffer->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				AddBufferToTransition(DispatchData.IntermediateTangentBuffer->UAV);
-			}
-		}
-		else
-		{
-			if (DispatchData.TangentBuffer)
-			{
-				RHICmdList.Transition(FRHITransitionInfo(DispatchData.TangentBuffer->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				AddBufferToTransition(DispatchData.TangentBuffer->UAV);
-			}
+			RHICmdList.Transition(FRHITransitionInfo(DispatchData.GetActiveTangentRWBuffer()->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			AddBufferToTransition(DispatchData.GetActiveTangentRWBuffer()->UAV);
 		}
 
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
