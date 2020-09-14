@@ -59,6 +59,18 @@ FORCEINLINE XrPosef ToXrPose(FTransform Transform, float Scale = 1.0f)
 	return XrPosef{ ToXrQuat(Transform.GetRotation()), ToXrVector(Transform.GetTranslation(), Scale) };
 }
 
+FORCEINLINE FTimespan ToFTimespan(XrTime Time)
+{
+	// XrTime is a nanosecond counter, FTimespan is a 100-nanosecond counter. 
+	// We are losing some precision here.
+	return FTimespan((Time + 50) / 100); 
+}
+
+FORCEINLINE XrTime ToXrTime(FTimespan Time)
+{
+	return Time.GetTicks() * 100;
+}
+
 /** List all OpenXR global entry points used by Unreal. */
 #define ENUM_XR_ENTRYPOINTS_GLOBAL(EnumMacro) \
 	EnumMacro(PFN_xrEnumerateApiLayerProperties,xrEnumerateApiLayerProperties) \

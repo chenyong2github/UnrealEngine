@@ -11,6 +11,7 @@
 #include "HeadMountedDisplayFunctionLibrary.generated.h"
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FXRDeviceOnDisconnectDelegate, const FString, OutReason);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FXRTimedInputActionDelegate, const float, Value, const FTimespan, Time);
 
 UCLASS()
 class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBlueprintFunctionLibrary
@@ -345,6 +346,30 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	static void DisconnectRemoteXRDevice();
 	UFUNCTION(BlueprintCallable, Category = "XR|HeadMountedDisplay")
 	static void SetXRDisconnectDelegate(const FXRDeviceOnDisconnectDelegate& InDisconnectedDelegate);
-
 	static FXRDeviceOnDisconnectDelegate OnXRDeviceOnDisconnectDelegate;
+
+	/** 
+	* Hook up a delegate to get an OpenXR action event with action time.  
+	* For a boolean input the the 'value' parameter of the delegate will be 1.0 for a press and 0.0 for a release.  For an analog input the value's range is action and platform specific.
+	* Use in combination with GetControllerTransformForTime for potentially improved temporal transform precision and velocity data. 
+	* "Left Grip" is an example of a valid ActionName.
+	* Note: this is likely to be replaced by native support for event times in the core input system at some time in the future.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
+	static void SetXRTimedInputActionDelegate(const FName& ActionName, const FXRTimedInputActionDelegate& InDelegate);
+	//** Clear a delegate to get an OpenXR action event with action time.*/
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
+	static void ClearXRTimedInputActionDelegate(const FName& ActionPath);
+	static TMap<FName, FXRTimedInputActionDelegate> OnXRTimedInputActionDelegateMap;
+
+	/**
+	* Get the transform and potentially velocity data at a specified time near the current frame in unreal world space.
+	* This is intended for use with sub-frame input action timing data from SetXRTimedInputActionDelegate, or future support for timestamps in the core input system.
+	* The valid time window is platform dependent, but the intention per OpenXR is to fetch transforms for times from, at most, the previous few frames in the past or future.  
+	* The OpenXR spec suggests that 50ms in the past should return an accurate result.  There is no guarantee for the future, but the underlying system is likely to have been
+	* designed to predict out to about 50ms as well.
+	* On some platforms this  will always just return a cached position and rotation, ignoring time.  bTimeWasUsed will be false in that case.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
+	static bool GetControllerTransformForTime(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec);
 };
