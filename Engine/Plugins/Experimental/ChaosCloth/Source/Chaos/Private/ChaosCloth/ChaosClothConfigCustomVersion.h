@@ -20,6 +20,8 @@ struct FChaosClothConfigCustomVersion
 		AddGravitySelfCollisionMigration = 3,
 		// Remove internal config parameters from UI
 		RemoveInternalConfigParameters = 4,
+		// Add a parameter to fix the backstop behavior without breaking PhysX assets backward compatibility
+		AddLegacyBackstopParameter = 5,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
