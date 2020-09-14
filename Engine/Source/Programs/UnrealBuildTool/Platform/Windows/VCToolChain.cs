@@ -542,6 +542,13 @@ namespace UnrealBuildTool
  				Arguments.Add("/wd4244");
 				Arguments.Add("/wd4838");
  			}
+
+			// If using WindowsSDK 10.0.18362.0 or later and compiling Win32 we need to add a definition
+			//   for ignoring packing mismatches.
+			if(CompileEnvironment.Platform == UnrealTargetPlatform.Win32 && EnvVars.WindowsSdkVersion >= VersionNumber.Parse("10.0.18362.0"))
+			{
+				AddDefinition(Arguments, "WINDOWS_IGNORE_PACKING_MISMATCH");
+			}
 		}
 
 		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
