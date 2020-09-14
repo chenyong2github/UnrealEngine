@@ -4322,13 +4322,6 @@ public:
 	virtual void RemoveExponentialHeightFog(class UExponentialHeightFogComponent* FogComponent) override {}
 	virtual bool HasAnyExponentialHeightFog() const override { return false; }
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual void AddAtmosphericFog(class UAtmosphericFogComponent* FogComponent) override {}
-	virtual void RemoveAtmosphericFog(class UAtmosphericFogComponent* FogComponent) override {}
-	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override {}
-	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() override { return NULL; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	virtual void AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt) override {}
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override {}
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return NULL; }
@@ -4403,6 +4396,15 @@ public:
 	}
 
 	virtual bool HasAnyLights() const override { return false; }
+
+protected:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	virtual void AddAtmosphericFog_Impl(class UAtmosphericFogComponent* FogComponent) override {}
+	virtual void RemoveAtmosphericFog_Impl(class UAtmosphericFogComponent* FogComponent) override {}
+	virtual void RemoveAtmosphericFogResource_RenderThread_Impl(FRenderResource* FogResource) override {}
+	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo_Impl() override { return NULL; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 private:
 	UWorld* World;
 	class FFXSystemInterface* FXSystem;
