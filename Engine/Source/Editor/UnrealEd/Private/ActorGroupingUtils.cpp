@@ -81,7 +81,6 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 
 					FActorSpawnParameters SpawnInfo;
 					SpawnInfo.OverrideLevel = ActorLevel;
-					SpawnInfo.bCreateActorPackage = true;
 					AGroupActor* SpawnedGroupActor = World->SpawnActor<AGroupActor>(SpawnInfo);
 
 					bool bActorsInSameFolder = true;

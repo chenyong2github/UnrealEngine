@@ -592,7 +592,6 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	}
 	
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.bCreateActorPackage = true;
 	SpawnParams.OverrideLevel = CurrentLevel;
 	ALevelInstance* NewLevelInstanceActor = GetWorld()->SpawnActor<ALevelInstance>(ALevelInstance::StaticClass(), SpawnParams);
 	check(NewLevelInstanceActor);

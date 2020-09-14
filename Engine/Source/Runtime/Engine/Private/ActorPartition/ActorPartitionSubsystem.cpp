@@ -89,7 +89,6 @@ public:
 		{
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.OverrideLevel = InCellCoord.Level;
-			SpawnParams.bCreateActorPackage = true;
 			FoundActor = CastChecked<APartitionActor>(World->SpawnActor(InActorClass, nullptr, nullptr, SpawnParams));
 		}
 
@@ -177,7 +176,6 @@ public:
 		if (!FoundActor && bInCreate)
 		{
 			FActorSpawnParameters SpawnParams;
-			SpawnParams.bCreateActorPackage = true;
 			SpawnParams.Name = FName(*FString::Printf(TEXT("%s_%d_%d_%d"), *InActorClass->GetName(), InCellCoord.X, InCellCoord.Y, InCellCoord.Z));
 			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 							

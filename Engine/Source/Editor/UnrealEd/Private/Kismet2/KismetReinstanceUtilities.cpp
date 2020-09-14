@@ -1815,6 +1815,7 @@ static void ReplaceActorHelper(AActor* OldActor, UClass* OldClass, UObject*& New
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnInfo.bDeferConstruction = true;
 	SpawnInfo.Name = OldActor->GetFName();
+	SpawnInfo.bCreateActorPackage = false;
 
 	if (!OldActor->IsListedInSceneOutliner())
 	{

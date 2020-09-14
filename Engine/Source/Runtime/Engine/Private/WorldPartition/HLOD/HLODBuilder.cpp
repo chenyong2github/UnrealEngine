@@ -40,7 +40,6 @@ public:
 		if (!HLODActor)
 		{
 			FActorSpawnParameters SpawnParams;
-			SpawnParams.bCreateActorPackage = true;
 			SpawnParams.Name = *HLODActorName;
 			HLODActor = World->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
 		}

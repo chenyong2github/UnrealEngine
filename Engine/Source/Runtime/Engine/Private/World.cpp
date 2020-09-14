@@ -180,7 +180,7 @@ FActorSpawnParameters::FActorSpawnParameters()
 #if WITH_EDITOR
 , bTemporaryEditorActor(false)
 , bHideFromSceneOutliner(false)
-, bCreateActorPackage(false)
+, bCreateActorPackage(true)
 #endif
 , NameMode(ESpawnActorNameMode::Required_Fatal)
 , ObjectFlags(RF_Transactional)

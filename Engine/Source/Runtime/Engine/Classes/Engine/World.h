@@ -568,7 +568,7 @@ public:
 	/* Determines whether or not the actor should be hidden from the Scene Outliner */
 	uint8	bHideFromSceneOutliner:1;
 
-	/** Determines whether to create a new package for the actor or not. */
+	/** Determines whether to create a new package for the actor or not, if the level supports it. */
 	uint16	bCreateActorPackage:1;
 #endif
 

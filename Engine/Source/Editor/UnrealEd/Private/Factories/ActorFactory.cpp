@@ -313,7 +313,6 @@ AActor* UActorFactory::SpawnActor( UObject* Asset, ULevel* InLevel, const FTrans
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.OverrideLevel = InLevel;
 		SpawnInfo.ObjectFlags = InObjectFlags;
-		SpawnInfo.bCreateActorPackage = true;
 		SpawnInfo.Name = Name;
 #if WITH_EDITOR
 		SpawnInfo.bTemporaryEditorActor = FLevelEditorViewportClient::IsDroppingPreviewActor();

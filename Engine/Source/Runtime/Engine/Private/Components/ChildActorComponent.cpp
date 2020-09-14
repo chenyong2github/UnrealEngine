@@ -616,6 +616,7 @@ void UChildActorComponent::CreateChildActor()
 				Params.Name = ChildActorName;
 				Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 #if WITH_EDITOR
+				Params.bCreateActorPackage = false;
 				Params.OverridePackage = GetOwner()->GetExternalPackage();
 				Params.OverrideParentComponent = this;
 				Params.OverrideActorGuid = CachedInstanceData ? CachedInstanceData->ChildActorGUID : FGuid();
