@@ -55,10 +55,16 @@ namespace UnrealBuildTool
 		HashSet<UnrealTargetConfiguration> TargetConfigurations = new HashSet<UnrealTargetConfiguration>();
 
 		/// <summary>
-		/// Projects to generate project filess for
+		/// Projects to generate project files for
 		/// </summary>
 		[CommandLine("-ProjectNames=", ListSeparator = '+')]
 		HashSet<string> ProjectNames = new HashSet<string>();
+
+		/// <summary>
+		/// Should format JSON files in human readable form, or use packed one without indents
+		/// </summary>
+		[CommandLine("-Minimize", Value = "Yes")]
+		private JsonWriterStyle Minimize = JsonWriterStyle.Readable;
 
 		public RiderProjectFileGenerator(FileReference InOnlyGameProject,
 			CommandLineArguments InArguments)
@@ -142,11 +148,14 @@ namespace UnrealBuildTool
 
 				for (int ProjectFileIndex = 0; ProjectFileIndex < ProjectsToGenerate.Count; ++ProjectFileIndex)
 				{
-					ProjectFile CurProject = ProjectsToGenerate[ProjectFileIndex];
-					if (!CurProject.WriteProjectFile(FilteredPlatforms, ConfigurationsToGenerate.ToList(),
-						PlatformProjectGenerators))
+					RiderProjectFile CurProject = ProjectsToGenerate[ProjectFileIndex] as RiderProjectFile;
+					if(CurProject != null)
 					{
-						return false;
+						if (!CurProject.WriteProjectFile(FilteredPlatforms, ConfigurationsToGenerate.ToList(),
+							PlatformProjectGenerators, Minimize))
+						{
+							return false;
+						}
 					}
 
 					Progress.Write(ProjectFileIndex + 1, TotalProjectFileCount);
