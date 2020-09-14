@@ -1821,6 +1821,7 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 }
 
 #if WITH_EDITOR
+
 void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber FrameNumber, bool bSetDefault, bool bAutoKey)
 {
 	if (ControlRig)
@@ -1924,6 +1925,16 @@ void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber Fra
 				case ERigControlType::Rotator:
 				{
 					FVector Val = RigControl.Value.Get<FVector>();
+					if (RigControl.ControlType == ERigControlType::Rotator &&
+						FloatChannels[ChannelIndex]->GetNumKeys() > 0)
+					{
+						float LastVal = FloatChannels[ChannelIndex]->GetValues()[FloatChannels[ChannelIndex]->GetNumKeys() - 1].Value;
+						FMath::WindRelativeAnglesDegrees(LastVal, Val.X);
+						LastVal = FloatChannels[ChannelIndex + 1]->GetValues()[FloatChannels[ChannelIndex + 1]->GetNumKeys() - 1].Value;
+						FMath::WindRelativeAnglesDegrees(LastVal, Val.Y);
+						LastVal = FloatChannels[ChannelIndex + 2]->GetValues()[FloatChannels[ChannelIndex + 2]->GetNumKeys() - 1].Value;
+						FMath::WindRelativeAnglesDegrees(LastVal, Val.Z);
+					}
 					if (bSetDefault)
 					{
 						FloatChannels[ChannelIndex]->SetDefault(Val.X);
@@ -1984,6 +1995,15 @@ void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber Fra
 						FloatChannels[ChannelIndex++]->AddLinearKey(FrameNumber, CurrentVector.Z);
 					}
 					CurrentVector = Val.GetRotation().Euler();
+					if (FloatChannels[ChannelIndex]->GetNumKeys() > 0)
+					{
+						float LastVal = FloatChannels[ChannelIndex]->GetValues()[FloatChannels[ChannelIndex]->GetNumKeys() - 1].Value;
+						FMath::WindRelativeAnglesDegrees(LastVal, CurrentVector.X);
+						LastVal = FloatChannels[ChannelIndex + 1]->GetValues()[FloatChannels[ChannelIndex + 1]->GetNumKeys() - 1].Value;
+						FMath::WindRelativeAnglesDegrees(LastVal, CurrentVector.Y);
+						LastVal = FloatChannels[ChannelIndex + 2]->GetValues()[FloatChannels[ChannelIndex + 2]->GetNumKeys() - 1].Value;
+						FMath::WindRelativeAnglesDegrees(LastVal, CurrentVector.Z);
+					}
 					if (bSetDefault)
 					{
 						FloatChannels[ChannelIndex]->SetDefault(CurrentVector.X);
