@@ -991,10 +991,10 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 			// Flush any remaining pending resource barriers.
 			SendAllEndOfFrameUpdates->GPUSkinCache->TransitionAllToReadable(RHICmdList);
 
-		#if RHI_RAYTRACING
 			// Once all the individual components have received their DoDeferredRenderUpdates_Concurrent()
 			// allow the GPU Skin Cache system to update.
 			SendAllEndOfFrameUpdates->GPUSkinCache->EndBatchDispatch(RHICmdList);
+		#if RHI_RAYTRACING
 			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
 		#endif
 		}
