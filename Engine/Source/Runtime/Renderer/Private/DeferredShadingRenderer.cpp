@@ -1332,8 +1332,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 	else if (Scene->AtmosphereLights[0] && Scene->HasAtmosphericFog())
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// Only one atmospheric light at one time.
 		Scene->GetAtmosphericFogSceneInfo()->PrepareSunLightProxy(*Scene->AtmosphereLights[0]);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{

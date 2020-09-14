@@ -1844,7 +1844,7 @@ bool ShouldRenderAtmosphere(const FSceneViewFamily& Family)
 // FScene
 
 
-void FScene::AddAtmosphericFog(UAtmosphericFogComponent* FogComponent)
+void FScene::AddAtmosphericFog_Impl(UAtmosphericFogComponent* FogComponent)
 {
 	check(FogComponent);
 
@@ -1858,7 +1858,7 @@ void FScene::AddAtmosphericFog(UAtmosphericFogComponent* FogComponent)
 		});
 }
 
-void FScene::RemoveAtmosphericFog(UAtmosphericFogComponent* FogComponent)
+void FScene::RemoveAtmosphericFog_Impl(UAtmosphericFogComponent* FogComponent)
 {
 	FScene* Scene = this;
 	ENQUEUE_RENDER_COMMAND(FRemoveAtmosphericFogCommand)(
@@ -1874,7 +1874,7 @@ void FScene::RemoveAtmosphericFog(UAtmosphericFogComponent* FogComponent)
 }
 
 
-void FScene::RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource)
+void FScene::RemoveAtmosphericFogResource_RenderThread_Impl(FRenderResource* FogResource)
 {
 	check(IsInRenderingThread());
 
