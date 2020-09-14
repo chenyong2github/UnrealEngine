@@ -114,8 +114,6 @@ protected:
 	/** Accessed by the Render Thread when starting up a new task. */
 	FGraphEventArray OutstandingTasks;
 
-	FGraphEventRef TaskPrereq;
-
 	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
 	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
 };
@@ -331,6 +329,7 @@ struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool : public TSharedFrom
 		int32 ActiveFrameNumber;
 		FMoviePipelinePassIdentifier ActivePassIdentifier;
 		FThreadSafeBool bIsActive;
+		FGraphEventRef TaskPrereq;
 	};
 
 	TArray<TSharedPtr<FAccumulatorInstance, ESPMode::ThreadSafe>> Accumulators;
