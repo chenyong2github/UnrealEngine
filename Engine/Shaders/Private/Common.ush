@@ -1775,8 +1775,6 @@ struct FPixelShaderOut
 #define GlobalTrilinearClampedSampler GetGlobalSampler(Trilinear, Clamped)
 #define GlobalTrilinearWrappedSampler GetGlobalSampler(Trilinear, Wrapped)
 
-#endif // SUPPORTS_INDEPENDENT_SAMPLERS
-
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 
 float4 GatherDepth(Texture2D Texture, float2 UV)
@@ -1792,3 +1790,5 @@ float4 GatherDepth(Texture2D Texture, float2 UV)
 }
 
 #endif
+
+#endif // SUPPORTS_INDEPENDENT_SAMPLERS
