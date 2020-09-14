@@ -376,12 +376,6 @@ void FLevelEditorModule::SummonWorldBrowserComposition()
 	LevelEditorInstance->TryInvokeTab(LevelEditorTabIds::WorldBrowserComposition);
 }
 
-void FLevelEditorModule::SummonWorldBrowserPartitionEditor()
-{
-	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->TryInvokeTab(LevelEditorTabIds::WorldBrowserPartitionEditor);
-}
-
 // @todo remove when world-centric mode is added
 void FLevelEditorModule::AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> SequencerAssetEditor )
 {

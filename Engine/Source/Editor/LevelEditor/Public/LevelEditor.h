@@ -101,8 +101,7 @@ public:
 	virtual void SummonWorldBrowserHierarchy();
 	virtual void SummonWorldBrowserDetails();
 	virtual void SummonWorldBrowserComposition();
-	virtual void SummonWorldBrowserPartitionEditor();
-
+	
 	// @todo remove when world-centric mode is added
 	/**
 	 * Spawns a new sequencer tab if one doesn't exist already
