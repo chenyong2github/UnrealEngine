@@ -89,7 +89,6 @@ UClass* UFbxFactory::ResolveSupportedClass()
 bool UFbxFactory::DetectImportType(const FString& InFilename)
 {
 	UnFbx::FFbxImporter* FFbxImporter = UnFbx::FFbxImporter::GetInstance();
-	UnFbx::FFbxLoggerSetter Logger(FFbxImporter);
 	int32 ImportType = FFbxImporter->GetImportType(InFilename);
 	if ( ImportType == -1)
 	{
@@ -237,6 +236,10 @@ UObject* UFbxFactory::FactoryCreateFile
 		}
 	}
 
+	// logger for all error/warnings
+	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
+	UnFbx::FFbxLoggerSetter Logger(FbxImporter);
+
 	if ( bDetectImportTypeOnImport)
 	{
 		if ( !DetectImportType(UFactory::CurrentFilename) )
@@ -246,9 +249,8 @@ UObject* UFbxFactory::FactoryCreateFile
 			return NULL;
 		}
 	}
-	// logger for all error/warnings
+	
 	// this one prints all messages that are stored in FFbxImporter
-	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 	UnFbx::FBXImportOptions* ImportOptions = FbxImporter->GetImportOptions();
 	if (bShowOption)
 	{
@@ -256,8 +258,6 @@ UObject* UFbxFactory::FactoryCreateFile
 		UnFbx::FBXImportOptions::ResetOptions(ImportOptions);
 	}
 	
-	UnFbx::FFbxLoggerSetter Logger(FbxImporter);
-
 	EFBXImportType ForcedImportType = FBXIT_StaticMesh;
 
 	bool bIsObjFormat = false;
