@@ -5567,6 +5567,11 @@ const FLandscapeLayer* ALandscape::GetLayer(const FGuid& InLayerGuid) const
 	return LandscapeLayers.FindByPredicate([&InLayerGuid](const FLandscapeLayer& Other) { return Other.Guid == InLayerGuid; });
 }
 
+const FLandscapeLayer* ALandscape::GetLayer(const FName& InLayerName) const
+{
+	return LandscapeLayers.FindByPredicate([InLayerName](const FLandscapeLayer& Layer) { return Layer.Name == InLayerName; });
+}
+
 void ALandscape::ForEachLayer(TFunctionRef<void(struct FLandscapeLayer&)> Fn)
 {
 	for (FLandscapeLayer& Layer : LandscapeLayers)
