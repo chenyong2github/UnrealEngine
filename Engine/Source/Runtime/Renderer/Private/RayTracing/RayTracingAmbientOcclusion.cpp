@@ -122,6 +122,11 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingAmbientOcclusionRGS, "/Engine/Private/RayTrac
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingAmbientOcclusion(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	if (!GRayTracingAmbientOcclusion)
+	{
+		return;
+	}
+
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	FRayTracingAmbientOcclusionRGS::FPermutationDomain PermutationVector;
 	for (uint32 TwoSidedGeometryIndex = 0; TwoSidedGeometryIndex < 2; ++TwoSidedGeometryIndex)
