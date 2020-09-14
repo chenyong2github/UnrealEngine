@@ -41,6 +41,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/LODActor.h"
+#include "WorldPartition/HLOD/HLODActor.h"
 
 #include "UnrealEngine.h"
 #include "RayTracingInstance.h"
@@ -315,6 +316,10 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	{
 		// An HLOD cluster (they count from 1, but the colors for HLOD levels start at index 2)
 		HierarchicalLODIndex = LODActorOwner->LODLevel + 1;
+	}
+	else if (AWorldPartitionHLOD* WorldPartitionHLODOwner = Cast<AWorldPartitionHLOD>(Owner))
+	{
+		HierarchicalLODIndex = 2;
 	}
 	else if (InComponent->GetLODParentPrimitive())
 	{
