@@ -224,7 +224,7 @@ namespace WindowsMixedReality
 #if WITH_INPUT_SIMULATION
 		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
-			if (IsHMDConnectedInternal())
+			if (InputSim->HasPositionalTracking())
 			{
 				return true;
 			}
@@ -235,11 +235,6 @@ namespace WindowsMixedReality
 	}
 
 	bool FWindowsMixedRealityHMD::IsHMDConnected()
-	{
-		return IsHMDConnectedInternal();
-	}
-
-	bool FWindowsMixedRealityHMD::IsHMDConnectedInternal() const
 	{
 #if WITH_WINDOWS_MIXED_REALITY
 		if (HMD->IsRemoting())
