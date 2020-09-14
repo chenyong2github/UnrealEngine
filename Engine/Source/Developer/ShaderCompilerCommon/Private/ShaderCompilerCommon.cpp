@@ -2825,36 +2825,7 @@ namespace CrossCompiler
 		FString ErrorString;
 		if (ConvertScBlobToFString(&ErrorBlob, ErrorString))
 		{
-			// Convert FString into array of FString (one for each line)
-			TArray<FString> ErrorStringLines;
-			ErrorString.ParseIntoArray(ErrorStringLines, TEXT("\n"));
-
-			// Returns whether the specified line in the 'ErrorStringLines' array has a line marker.
-			auto HasErrorLineMarker = [&ErrorStringLines](int32 LineIndex)
-			{
-				if (LineIndex + 2 < ErrorStringLines.Num())
-				{
-					return IsTextLineDxcLineMarker(ErrorStringLines[LineIndex + 2]);
-				}
-				return false;
-			};
-
-			// Iterate over all errors. Most (but not all) contain a highlighted line and line marker.
-			for (int32 LineIndex = 0; LineIndex < ErrorStringLines.Num();)
-			{
-				if (HasErrorLineMarker(LineIndex))
-				{
-					// Add current line as error with highlighted source line (LineIndex+1) and line marker (LineIndex+2)
-					OutErrors.Emplace(MoveTemp(ErrorStringLines[LineIndex]), MoveTemp(ErrorStringLines[LineIndex + 1]), MoveTemp(ErrorStringLines[LineIndex + 2]));
-					LineIndex += 3;
-				}
-				else
-				{
-					// Add current line as single error
-					OutErrors.Emplace(MoveTemp(ErrorStringLines[LineIndex]));
-					LineIndex += 1;
-				}
-			}
+			FShaderConductorContext::ConvertErrorString(ErrorString, OutErrors);
 		}
 	}
 
@@ -3181,6 +3152,40 @@ namespace CrossCompiler
 		return (Intermediates->ShaderSource.Num() > 0 ? (Intermediates->ShaderSource.Num() - 1) : 0);
 	}
 
+	void FShaderConductorContext::ConvertErrorString(const FString& InErrorString, TArray<FShaderCompilerError>& OutErrors)
+	{
+		// Convert FString into array of FString (one for each line)
+		TArray<FString> ErrorStringLines;
+		InErrorString.ParseIntoArray(ErrorStringLines, TEXT("\n"));
+
+		// Returns whether the specified line in the 'ErrorStringLines' array has a line marker.
+		auto HasErrorLineMarker = [&ErrorStringLines](int32 LineIndex)
+		{
+			if (LineIndex + 2 < ErrorStringLines.Num())
+			{
+				return IsTextLineDxcLineMarker(ErrorStringLines[LineIndex + 2]);
+			}
+			return false;
+		};
+
+		// Iterate over all errors. Most (but not all) contain a highlighted line and line marker.
+		for (int32 LineIndex = 0; LineIndex < ErrorStringLines.Num();)
+		{
+			if (HasErrorLineMarker(LineIndex))
+			{
+				// Add current line as error with highlighted source line (LineIndex+1) and line marker (LineIndex+2)
+				OutErrors.Emplace(MoveTemp(ErrorStringLines[LineIndex]), MoveTemp(ErrorStringLines[LineIndex + 1]), MoveTemp(ErrorStringLines[LineIndex + 2]));
+				LineIndex += 3;
+			}
+			else
+			{
+				// Add current line as single error
+				OutErrors.Emplace(MoveTemp(ErrorStringLines[LineIndex]));
+				LineIndex += 1;
+			}
+		}
+	}
+
 #else // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
 	FShaderConductorContext::FShaderConductorContext()
@@ -3251,6 +3256,11 @@ namespace CrossCompiler
 	int32 FShaderConductorContext::GetSourceLength() const
 	{
 		return 0; // Dummy
+	}
+
+	void FShaderConductorContext::ConvertErrorString(const FString& InErrorString, TArray<FShaderCompilerError>& OutErrors)
+	{
+		// Dummy
 	}
 
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX

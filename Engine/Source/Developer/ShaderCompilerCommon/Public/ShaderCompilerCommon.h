@@ -489,6 +489,10 @@ namespace CrossCompiler
 			return Errors;
 		}
 
+		//@todo-lh: This function should not be needed as soon as all ShaderConductor dependencies are fully replaced by this new interface in all backends.
+		/** Converts the error string from ShaderConductor to a list of FShaderCompilerError entries. */
+		static void ConvertErrorString(const FString& InErrorString, TArray<FShaderCompilerError>& OutErrors);
+
 	public:
 		struct FShaderConductorIntermediates; // Pimpl idiom
 
