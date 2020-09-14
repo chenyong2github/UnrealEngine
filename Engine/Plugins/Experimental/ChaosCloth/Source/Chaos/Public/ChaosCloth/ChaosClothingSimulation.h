@@ -47,7 +47,7 @@ namespace Chaos
 		virtual void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex) override;
 		virtual void DestroyActors() override;
 
-		virtual bool ShouldSimulate() const override { return true; }
+		virtual bool ShouldSimulate() const override;
 		virtual void Simulate(IClothingSimulationContext* InContext) override;
 		virtual void GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const override;
 
