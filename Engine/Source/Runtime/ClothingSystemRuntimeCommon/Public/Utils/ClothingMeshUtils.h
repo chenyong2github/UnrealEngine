@@ -129,7 +129,9 @@ namespace ClothingMeshUtils
 		TArray<FMeshToMeshVertData>& OutSkinningData,
 		const ClothMeshDesc& TargetMesh,
 		const TArray<FVector>* TargetTangents,
-		const ClothMeshDesc& SourceMesh);
+		const ClothMeshDesc& SourceMesh,
+		bool bUseMultipleInfluences,
+		float KernelMaxDistance);
 
 	/** 
 	 * Embeds a list of positions into a source mesh

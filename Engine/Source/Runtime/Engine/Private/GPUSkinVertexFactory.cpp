@@ -1048,6 +1048,7 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ModifyCompilationEnviron
 {
 	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_APEX_CLOTH"),TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_MULTIPLE_CLOTH_INFLUENCES"), TEXT("0"));
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
@@ -1077,6 +1078,25 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinAPEXClothVertexFacto
 
 /** bind cloth gpu skin vertex factory to its shader file and its shader parameters */
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinAPEXClothVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush", true, false, true, false, false);
+
+
+template<GPUSkinBoneInfluenceType BoneInfluenceType>
+void TMultipleInfluenceClothVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(
+	const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_MULTIPLE_CLOTH_INFLUENCES"), TEXT("1"));
+}
+
+
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+bool TMultipleInfluenceClothVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	return Super::ShouldCompilePermutation(Parameters);
+}
+
+IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TMultipleInfluenceClothVertexFactory, SF_Vertex, TGPUSkinAPEXClothVertexFactoryShaderParameters);
+IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TMultipleInfluenceClothVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush", true, false, true, false, false);
 
 #undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE
 #undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE

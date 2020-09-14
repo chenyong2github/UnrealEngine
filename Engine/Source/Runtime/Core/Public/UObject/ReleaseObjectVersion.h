@@ -105,6 +105,9 @@ struct CORE_API FReleaseObjectVersion
 		// Pin types include a flag that propagates the 'CPF_UObjectWrapper' flag to generated properties
 		PinTypeIncludesUObjectWrapperFlag,
 
+		// Added Weight member to FMeshToMeshVertData
+		WeightFMeshToMeshVertData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
