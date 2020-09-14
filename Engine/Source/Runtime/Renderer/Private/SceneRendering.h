@@ -1966,6 +1966,7 @@ private:
 	/** Dump all UPrimitiveComponents in the Scene to a CSV file */
 	void DumpPrimitives(const FViewCommands& ViewCommands);
 #endif
+	bool bShadowDepthRenderCompleted;
 };
 
 /**

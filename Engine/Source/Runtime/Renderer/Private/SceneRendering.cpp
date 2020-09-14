@@ -2185,6 +2185,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 ,	InstancedStereoWidth(0)
 ,	RootMark(nullptr)
 ,	FamilySize(0, 0)
+,	bShadowDepthRenderCompleted(false)
 {
 	check(Scene != NULL);
 

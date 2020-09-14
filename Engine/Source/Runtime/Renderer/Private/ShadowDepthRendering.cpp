@@ -130,7 +130,7 @@ namespace Nanite
 	extern FString GetFilterNameForLight(const FLightSceneProxy* LightProxy);
 }
 
-extern bool IsNaniteEnabled();
+extern bool IsNaniteEnabled(EShaderPlatform ShaderPlatform);
 
 // Multiply PackedView.LODScale by return value when rendering Nanite shadows
 static float ComputeNaniteShadowsLODScaleFactor()
@@ -1514,7 +1514,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 	bool bCanUseParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 		GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread();
 
-	const bool bNaniteEnabled = IsNaniteEnabled() && ViewFamily.EngineShowFlags.NaniteMeshes;
+	const bool bNaniteEnabled = IsNaniteEnabled(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
 
 	for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num(); AtlasIndex++)
 	{
@@ -1848,7 +1848,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 	const bool bHasVSMShadows = SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() > 0;
 	const bool bHasVSMClipMaps = SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() > 0;
-	const bool bNaniteEnabled = IsNaniteEnabled() && ViewFamily.EngineShowFlags.NaniteMeshes;
+	const bool bNaniteEnabled = IsNaniteEnabled(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
 
 	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
 	{
@@ -2435,6 +2435,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
+	bShadowDepthRenderCompleted = true;
 }
 
 template<bool bRenderReflectiveShadowMap>
