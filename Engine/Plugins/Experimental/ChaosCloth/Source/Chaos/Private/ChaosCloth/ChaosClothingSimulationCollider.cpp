@@ -25,6 +25,7 @@ void FClothingSimulationCollider::FLODData::Add(
 	FClothingSimulationSolver* Solver,
 	FClothingSimulationCloth* Cloth,
 	const FClothCollisionData& InClothCollisionData,
+	const float InScale,
 	const TArray<int32>& UsedBoneIndices)
 {
 	check(Solver);
@@ -89,57 +90,44 @@ void FClothingSimulationCollider::FLODData::Add(
 				LogChaosCloth, Warning, TEXT("Found a legacy cloth asset with a collision capsule spanning across two bones. This is not supported with the current system."));
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision capsule on bone index %d."), BoneIndices[Index]);
 
-			const TVector<float, 3> X0 = Sphere0.LocalPosition;
-			const TVector<float, 3> X1 = Sphere1.LocalPosition;
-			const TVector<float, 3> Axis = X1 - X0;
-			const float AxisSize = Axis.Size();
+			const TVector<float, 3> X0 = Sphere0.LocalPosition * InScale;
+			const TVector<float, 3> X1 = Sphere1.LocalPosition * InScale;
+			const TVector<float, 3> Center = (X0 + X1) * 0.5f;
+			const TVector<float, 3> Axis = (X1 - X0) * 0.5f;
+			const TVector<float, 3> P0 = Center - Axis;
+			const TVector<float, 3> P1 = Center + Axis;
 
-			const float Radius0 = Sphere0.Radius;
-			const float Radius1 = Sphere1.Radius;
+			const float Radius0 = Sphere0.Radius * InScale;
+			const float Radius1 = Sphere1.Radius * InScale;
 			float MinRadius, MaxRadius;
 			if (Radius0 <= Radius1) { MinRadius = Radius0; MaxRadius = Radius1; }
 			else { MinRadius = Radius1; MaxRadius = Radius0; }
 
-			if (AxisSize < KINDA_SMALL_NUMBER)
+			BaseTransforms[Index] = TRigidTransform<float, 3>::Identity;
+
+			if (Axis.SizeSquared() < SMALL_NUMBER)
 			{
 				// Sphere
-				BaseTransforms[Index] = TRigidTransform<float, 3>::Identity;
-
 				Solver->SetCollisionGeometry(CapsuleOffset, Index,
-					MakeUnique<TSphere<float, 3>>(
-						X0,
-						MaxRadius));
+					MakeUnique<TSphere<float, 3>>(Center, MaxRadius));
 			}
 			else if (MaxRadius - MinRadius < KINDA_SMALL_NUMBER)
 			{
 				// Capsule
-				const TVector<float, 3> Center = (X0 + X1) * 0.5f;  // Construct a capsule centered at the origin along the Z axis
-				const TRotation<float, 3> Rotation = TRotation<float, 3>::FromRotatedVector(
-					TVector<float, 3>::AxisVector(2),
-					Axis.GetSafeNormal());
-
-				BaseTransforms[Index] = TRigidTransform<float, 3>(Center, Rotation);
-
-				const float HalfHeight = AxisSize * 0.5f;
-				Solver->SetCollisionGeometry(CapsuleOffset, Index,
-					MakeUnique<TCapsule<float>>(
-						TVector<float, 3>(0.f, 0.f, -HalfHeight), // Min
-						TVector<float, 3>(0.f, 0.f, HalfHeight), // Max
-						MaxRadius));
+				Solver->SetCollisionGeometry(CapsuleOffset, Index, 
+					MakeUnique<TCapsule<float>>(P0, P1, MaxRadius));
 			}
 			else
 			{
 				// Tapered capsule
-				BaseTransforms[Index] = TRigidTransform<float, 3>::Identity;
-
 				TArray<TUniquePtr<FImplicitObject>> Objects;
 				Objects.Reserve(3);
 				Objects.Add(TUniquePtr<FImplicitObject>(
-					new TTaperedCylinder<float>(X0, X1, Radius0, Radius1)));
+					new TTaperedCylinder<float>(P0, P1, Radius0, Radius1)));
 				Objects.Add(TUniquePtr<FImplicitObject>(
-					new TSphere<float, 3>(X0, Radius0)));
+					new TSphere<float, 3>(P0, Radius0)));
 				Objects.Add(TUniquePtr<FImplicitObject>(
-					new TSphere<float, 3>(X1, Radius1)));
+					new TSphere<float, 3>(P1, Radius1)));
 				Solver->SetCollisionGeometry(CapsuleOffset, Index,
 					MakeUnique<FImplicitObjectUnion>(MoveTemp(Objects)));  // TODO(Kriss.Gossart): Replace this once a TTaperedCapsule implicit type is implemented (note: this tapered cylinder with spheres is an approximation of a real tapered capsule)
 			}
@@ -171,8 +159,8 @@ void FClothingSimulationCollider::FLODData::Add(
 
 			Solver->SetCollisionGeometry(SphereOffset, Index,
 				MakeUnique<TSphere<float, 3>>(
-					Sphere.LocalPosition,
-					Sphere.Radius));
+					Sphere.LocalPosition * InScale,
+					Sphere.Radius * InScale));
 
 			++Index;
 		}
@@ -218,7 +206,7 @@ void FClothingSimulationCollider::FLODData::Add(
 					if (NormalizedPlane.Normalize())
 					{
 						const TVector<float, 3> Normal(static_cast<FVector>(NormalizedPlane));
-						const TVector<float, 3> Base = Normal * NormalizedPlane.W;
+						const TVector<float, 3> Base = Normal * NormalizedPlane.W * InScale;
 
 						Planes.Add(TPlaneConcrete<float, 3>(Base, Normal));
 					}
@@ -267,7 +255,8 @@ void FClothingSimulationCollider::FLODData::Add(
 			BoneIndices[Index] = GetMappedBoneIndex(UsedBoneIndices, Box.BoneIndex);
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision box on bone index %d."), BoneIndices[Index]);
 
-			Solver->SetCollisionGeometry(BoxOffset, Index, MakeUnique<TBox<float, 3>>(-Box.HalfExtents, Box.HalfExtents));
+			const TVector<float, 3> HalfExtents = Box.HalfExtents * InScale;
+			Solver->SetCollisionGeometry(BoxOffset, Index, MakeUnique<TBox<float, 3>>(-HalfExtents, HalfExtents));
 		}
 	}
 
@@ -348,6 +337,7 @@ FClothingSimulationCollider::FClothingSimulationCollider(
 	, CollisionData(nullptr)
 	, bUseLODIndexOverride(bInUseLODIndexOverride)
 	, LODIndexOverride(InLODIndexOverride)
+	, Scale(1.f)
 {
 	// Prepare LOD array
 	const int32 NumLODs = Asset ? Asset->LodData.Num() : 0;
@@ -573,12 +563,24 @@ void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothi
 	int32& LODIndex = LODIndices.Add(FSolverClothPair(Solver, Cloth));
 	LODIndex = INDEX_NONE;
 
+	// Initialize scale
+	const FClothingSimulationContextCommon* const Context = SkeletalMeshComponent ? static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext()) : nullptr;
+	const TVector<float, 3> Scale3D = Context ? Context->ComponentToWorld.GetScale3D() : TVector<float, 3>(1.f);
+	UE_CLOG(FMath::Abs(Scale3D.X - Scale3D.Y) > KINDA_SMALL_NUMBER || FMath::Abs(Scale3D.X - Scale3D.Z) > KINDA_SMALL_NUMBER,
+		LogChaosCloth, Warning, TEXT(
+			"Actor '%s' component '%s' has a non uniform scale, and has a cloth simulation attached. "
+			"The collision volumes might no longer correctly match the shape of the mesh. "
+			"Please update this component transform scale with the same value for all scale axis."),
+		SkeletalMeshComponent->GetOwner() ? *SkeletalMeshComponent->GetOwner()->GetName() : TEXT("None"),
+		*SkeletalMeshComponent->GetName());
+	Scale = Scale3D.X;
+
 	// Create physics asset collisions, this will affect all LODs, so store it at index 0
 	FClothCollisionData PhysicsAssetCollisionData;
 	TArray<int32> UsedBoneIndices;
 	ExtractPhysicsAssetCollision(PhysicsAssetCollisionData, UsedBoneIndices);
 
-	LODData[(int32)ECollisionDataType::LODless].Add(Solver, Cloth, PhysicsAssetCollisionData, UsedBoneIndices);
+	LODData[(int32)ECollisionDataType::LODless].Add(Solver, Cloth, PhysicsAssetCollisionData, Scale, UsedBoneIndices);
 
 	// Create legacy asset LOD collisions
 	const int32 NumLODs = Asset ? Asset->LodData.Num() : 0;
@@ -588,8 +590,8 @@ void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothi
 		const FClothCollisionData& AssetCollisionData = Asset->LodData[Index].CollisionData;
 		UE_CLOG(AssetCollisionData.Spheres.Num() > 0 || AssetCollisionData.SphereConnections.Num() > 0 || AssetCollisionData.Convexes.Num() > 0,
 			LogChaosCloth, Warning, TEXT(
-				"Actor '%s' component '%s' has %d sphere, %d capsule, and %d convex collision objects for"
-				"physics authored as part of a LOD construct, probably by the Apex cloth authoring system."
+				"Actor '%s' component '%s' has %d sphere, %d capsule, and %d convex collision objects for "
+				"physics authored as part of a LOD construct, probably by the Apex cloth authoring system. "
 				"This is deprecated. Please update your asset!"),
 			SkeletalMeshComponent->GetOwner() ? *SkeletalMeshComponent->GetOwner()->GetName() : TEXT("None"),
 			*SkeletalMeshComponent->GetName(),
@@ -598,7 +600,7 @@ void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothi
 			AssetCollisionData.Convexes.Num());
 
 		// Add legacy collision
-		LODData[(int32)ECollisionDataType::LODs + Index].Add(Solver, Cloth, AssetCollisionData, Asset->UsedBoneIndices);
+		LODData[(int32)ECollisionDataType::LODs + Index].Add(Solver, Cloth, AssetCollisionData, Scale, Asset->UsedBoneIndices);
 	}
 }
 
