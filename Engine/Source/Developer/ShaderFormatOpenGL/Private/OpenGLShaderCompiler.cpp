@@ -1313,14 +1313,31 @@ static void CompileShaderDXC(FShaderCompilerInput const& Input, FShaderCompilerO
 	ShaderConductor::Compiler::ResultDesc Results = ShaderConductor::Compiler::Rewrite(SourceDesc, Options);
 	RewriteBlob = Results.target;
 
-	SourceData.clear();
-	SourceData.resize(RewriteBlob->Size());
-	FCStringAnsi::Strncpy(const_cast<char*>(SourceData.c_str()), (const char*)RewriteBlob->Data(), RewriteBlob->Size());
-
-	SourceDesc.source = SourceData.c_str();
+	bool bCompilationFailed = false;
+	if (Results.hasError)
+	{
+		if (ShaderConductor::Blob* ErrorBlob = Results.errorWarningMsg)
+		{
+			std::string ErrorText(reinterpret_cast<const char*>(ErrorBlob->Data()), ErrorBlob->Size());
+#if !PLATFORM_WINDOWS
+			ErrorLog = strdup(ErrorText.c_str());
+#else
+			ErrorLog = _strdup(ErrorText.c_str());
+#endif
+			ShaderConductor::DestroyBlob(ErrorBlob);
+		}
+		bCompilationFailed = true;
+	}
+	else
+	{
+		SourceData.clear();
+		SourceData.resize(RewriteBlob->Size());
+		FCStringAnsi::Strncpy(const_cast<char*>(SourceData.c_str()), (const char*)RewriteBlob->Data(), RewriteBlob->Size());
+		SourceDesc.source = SourceData.c_str();
+	}
 
 	const bool bDumpDebugInfo = (Input.DumpDebugInfoPath != TEXT("") && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath));
-	if (bDumpDebugInfo)
+	if (bDumpDebugInfo && !bCompilationFailed)
 	{
 		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / Input.GetSourceFilename()));
 		if (FileWriter)
@@ -1356,21 +1373,30 @@ static void CompileShaderDXC(FShaderCompilerInput const& Input, FShaderCompilerO
 
 	Options.removeUnusedGlobals = false;
 
-	ShaderConductor::Compiler::TargetDesc TargetDesc;
-	TargetDesc.language = ShaderConductor::ShadingLanguage::SpirV;
-	ShaderConductor::Compiler::ResultDesc SpirvResults = ShaderConductor::Compiler::Compile(SourceDesc, Options, TargetDesc);
-
-	if (SpirvResults.hasError && SpirvResults.errorWarningMsg)
+	ShaderConductor::Compiler::TargetDesc TargetDesc = {};
+	ShaderConductor::Compiler::ResultDesc SpirvResults = {};
+	if (!bCompilationFailed)
 	{
-		std::string ErrorText((const char*)SpirvResults.errorWarningMsg->Data(), SpirvResults.errorWarningMsg->Size());
+		TargetDesc.language = ShaderConductor::ShadingLanguage::SpirV;
+		SpirvResults = ShaderConductor::Compiler::Compile(SourceDesc, Options, TargetDesc);
+
+		if (SpirvResults.hasError)
+		{
+			bCompilationFailed = true;
+			if (ShaderConductor::Blob* ErrorBlob = SpirvResults.errorWarningMsg)
+			{
+				std::string ErrorText(reinterpret_cast<const char*>(ErrorBlob->Data()), ErrorBlob->Size());
 #if !PLATFORM_WINDOWS
-		ErrorLog = strdup(ErrorText.c_str());
+				ErrorLog = strdup(ErrorText.c_str());
 #else
-		ErrorLog = _strdup(ErrorText.c_str());
+				ErrorLog = _strdup(ErrorText.c_str());
 #endif
-		ShaderConductor::DestroyBlob(SpirvResults.errorWarningMsg);
+				ShaderConductor::DestroyBlob(ErrorBlob);
+			}
+		}
 	}
-	else if (!SpirvResults.hasError)
+
+	if (!bCompilationFailed)
 	{
 		FString MetaData;
 
@@ -2485,13 +2511,24 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input,FShaderCom
 	}
 	else
 	{
-		FString Tmp = ANSI_TO_TCHAR(ErrorLog);
-		TArray<FString> ErrorLines;
-		Tmp.ParseIntoArray(ErrorLines, TEXT("\n"), true);
-		for (int32 LineIndex = 0; LineIndex < ErrorLines.Num(); ++LineIndex)
+#if USE_DXC
+		if (bUseSC)
 		{
-			const FString& Line = ErrorLines[LineIndex];
-			CrossCompiler::ParseHlslccError(Output.Errors, Line);
+			//@todo-lh: FShaderConductorContext::ConvertErrorString() should no longer be needed as soon as the ShaderConductor dependency in the OpenGL backend has been fully replaced by FShaderConductorContext.
+			FString ErrorString = ANSI_TO_TCHAR(ErrorLog);
+			CrossCompiler::FShaderConductorContext::ConvertErrorString(ErrorString, Output.Errors);
+		}
+		else
+#endif
+		{
+			FString Tmp = ANSI_TO_TCHAR(ErrorLog);
+			TArray<FString> ErrorLines;
+			Tmp.ParseIntoArray(ErrorLines, TEXT("\n"), true);
+			for (int32 LineIndex = 0; LineIndex < ErrorLines.Num(); ++LineIndex)
+			{
+				const FString& Line = ErrorLines[LineIndex];
+				CrossCompiler::ParseHlslccError(Output.Errors, Line);
+			}
 		}
 	}
 
