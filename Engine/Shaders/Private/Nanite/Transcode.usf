@@ -247,10 +247,20 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 			uint Indices24 = BitStreamReader_Read(InputStream, 24, 24);
 			uint3 Indices = uint3(Indices24 & 0xFF, (Indices24 >> 8) & 0xFF, (Indices24 >> 16) & 0xFF);
 #endif
-			uint PackedIndices = Indices.x | (Indices.y << Cluster.BitsPerIndex) | (Indices.z << (2 * Cluster.BitsPerIndex));
+			// Rotate triangle so first vertex has the lowest index
+			if (Indices.y < min(Indices.x, Indices.z)) Indices = Indices.yzx;
+			else if (Indices.z < min(Indices.x, Indices.y)) Indices = Indices.zxy;
 
-			FBitStreamWriterState OutputStream = BitStreamWriter_Create(DstPageBuffer, DstPageBaseOffset + Cluster.IndexOffset, TriangleIndex * (Cluster.BitsPerIndex * 3));
-			BitStreamWriter_Writer(OutputStream, PackedIndices, Cluster.BitsPerIndex * 3, 24);
+			// Store triangle as one base index and two 5-bit offsets. Cluster constraints guarantee that the offsets are never larger than 5 bits.
+			uint BaseIndex = Indices.x;
+			uint Delta0 = Indices.y - BaseIndex;
+			uint Delta1 = Indices.z - BaseIndex;
+
+			uint PackedIndices = BaseIndex | (Delta0 << Cluster.BitsPerIndex) | (Delta1 << (Cluster.BitsPerIndex + 5));
+			const uint BitsPerTriangle = Cluster.BitsPerIndex + 2 * 5;
+
+			FBitStreamWriterState OutputStream = BitStreamWriter_Create(DstPageBuffer, DstPageBaseOffset + Cluster.IndexOffset, TriangleIndex * BitsPerTriangle);
+			BitStreamWriter_Writer(OutputStream, PackedIndices, BitsPerTriangle, 8 + 2*5);
 		}
 	
 		// Transcode vertices

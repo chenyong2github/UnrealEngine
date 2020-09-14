@@ -1005,18 +1005,18 @@ FUVRange GetUVRange(ByteAddressBuffer InputBuffer, uint StartOffset, uint Index)
 	return Range;
 }
 
+// Decode triangle that is represented by one base index and two 5-bit offsets.
 uint3 ReadTriangleIndices(FTriCluster Cluster, uint TriIndex)
 {
-	const uint CompileTimeBitsPerIndex = 8;
-	const uint BitsPerIndex = Cluster.BitsPerIndex;
-	
-	FBitStreamReaderState BitStreamReader = BitStreamReader_Create_Aligned(ClusterPageData, Cluster.PageBaseAddress + Cluster.IndexOffset, TriIndex * (3 * BitsPerIndex), 3 * CompileTimeBitsPerIndex);
-	
-	uint3 Indices;
-	Indices.x = BitStreamReader_Read(BitStreamReader, BitsPerIndex, CompileTimeBitsPerIndex);
-	Indices.y = BitStreamReader_Read(BitStreamReader, BitsPerIndex, CompileTimeBitsPerIndex);
-	Indices.z = BitStreamReader_Read(BitStreamReader, BitsPerIndex, CompileTimeBitsPerIndex);
-	return Indices;
+	const uint BitsPerTriangle = Cluster.BitsPerIndex + 2 * 5;
+
+	FBitStreamReaderState BitStreamReader = BitStreamReader_Create_Aligned(ClusterPageData, Cluster.PageBaseAddress + Cluster.IndexOffset, TriIndex * BitsPerTriangle, 8 + 2*5);
+
+	uint BaseIndex = BitStreamReader_Read(BitStreamReader, Cluster.BitsPerIndex, 8);
+	uint Delta0 = BitStreamReader_Read(BitStreamReader, 5, 5);
+	uint Delta1 = BitStreamReader_Read(BitStreamReader, 5, 5);
+
+	return BaseIndex + uint3(0, Delta0, Delta1);
 }
 
 uint3 UnpackToUint3(uint Value, int4 NumComponentBits)

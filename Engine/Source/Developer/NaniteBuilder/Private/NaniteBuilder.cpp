@@ -19,7 +19,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("13D0F6D6-68DA-401F-B438-8F9013E6DC45")
+#define NANITE_DERIVEDDATA_VER TEXT("13D0F6D9-69DA-432F-B439-8F9013E6DC47")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -1093,11 +1093,13 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 		Info.BitsPerAttribute += TexCoordBitsU + TexCoordBitsV;
 	}
 
+	const uint32 BitsPerTriangle = BitsPerIndex + 2 * 5;	// Base index + two 5-bit offsets
+
 	FPageSections& GpuSizes	= Info.GpuSizes;
 	GpuSizes.Cluster		= sizeof(FPackedTriCluster);
 	GpuSizes.MaterialTable	= CalcMaterialTableSize(Cluster) * sizeof(uint32);
 	GpuSizes.DecodeInfo		= NumTexCoords * sizeof(FUVRange);
-	GpuSizes.Index			= (NumClusterTris * 3 * BitsPerIndex + 31) / 32 * 4;
+	GpuSizes.Index			= (NumClusterTris * BitsPerTriangle + 31) / 32 * 4;
 	GpuSizes.Position		= (NumClusterVerts * 3 * POSITION_QUANTIZATION_BITS + 31) / 32 * 4;
 	GpuSizes.Attribute		= (NumClusterVerts * Info.BitsPerAttribute + 31) / 32 * 4;
 }
