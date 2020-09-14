@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// Default AssemlbyInfo.cs used when developping the plugin with the DatasmithRhino6.sln 
+// for fast iteration. Is not used to ship the plugin, please change GeneratedAssemblyInfo.cs.template instead.
+
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -54,9 +57,6 @@ using Rhino.PlugIns;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-
-[assembly: AssemblyVersion("4.26.0.0")]
-[assembly: AssemblyFileVersion("4.26.0.0")]
 
 // Make compatible with Rhino Installer Engine
 [assembly: AssemblyInformationalVersion("2")]
