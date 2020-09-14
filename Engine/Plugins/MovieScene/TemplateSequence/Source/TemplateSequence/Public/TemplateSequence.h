@@ -7,6 +7,8 @@
 #include "UObject/SoftObjectPtr.h"
 #include "TemplateSequence.generated.h"
 
+class MovieSceneTrack;
+
 /*
  * Movie scene animation that can be instanced multiple times inside a level sequence.
  */
@@ -38,6 +40,7 @@ public:
 #if WITH_EDITOR
 	virtual FText GetDisplayName() const override;
 
+	virtual ETrackSupport IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const override;
 	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
