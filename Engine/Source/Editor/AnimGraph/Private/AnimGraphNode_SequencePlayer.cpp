@@ -324,8 +324,18 @@ void UAnimGraphNode_SequencePlayer::ValidateAnimNodeDuringCompilation(class USke
 
 	if (SequenceToCheck == nullptr)
 	{
-		// we may have a connected node
-		if (SequencePin == nullptr || SequencePin->LinkedTo.Num() == 0)
+		// Check for bindings
+		bool bHasBinding = false;
+		if(SequencePin != nullptr)
+		{
+			if (FAnimGraphNodePropertyBinding* BindingPtr = PropertyBindings.Find(SequencePin->GetFName()))
+			{
+				bHasBinding = true;
+			}
+		}
+
+		// we may have a connected node or binding
+		if (SequencePin == nullptr || (SequencePin->LinkedTo.Num() == 0 && !bHasBinding))
 		{
 			MessageLog.Error(TEXT("@@ references an unknown sequence"), this);
 		}
