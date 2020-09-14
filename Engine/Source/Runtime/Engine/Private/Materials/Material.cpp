@@ -1949,6 +1949,14 @@ bool UMaterial::GetGroupName(const FHashedMaterialParameterInfo& ParameterInfo, 
 					return true;
 				}
 			}
+			else if (const UMaterialExpressionRuntimeVirtualTextureSampleParameter* RVTParameter = Cast<const UMaterialExpressionRuntimeVirtualTextureSampleParameter>(Expression))
+			{
+				if (RVTParameter->ParameterName == ParameterInfo.Name)
+				{
+					OutGroup = RVTParameter->Group;
+					return true;
+				}
+			}
 			else if (const UMaterialExpressionFontSampleParameter* FontParameter = Cast<const UMaterialExpressionFontSampleParameter>(Expression))
 			{
 				if (FontParameter->ParameterName == ParameterInfo.Name)
@@ -4386,6 +4394,16 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 		DestTex->SortPriority = SourceTex->SortPriority;
 #endif
 	}
+	else if (Source->IsA(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass()))
+	{
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter* SourceRVT = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)Source;
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter* DestRVT = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)Destination;
+
+		DestRVT->Modify();
+		DestRVT->VirtualTexture = SourceRVT->VirtualTexture;
+		DestRVT->Group = SourceRVT->Group;
+		DestRVT->SortPriority = SourceRVT->SortPriority;
+	}
 	else if(Source->IsA(UMaterialExpressionVectorParameter::StaticClass()))
 	{
 		UMaterialExpressionVectorParameter *SourceVec = (UMaterialExpressionVectorParameter*)Source;
@@ -5028,6 +5046,7 @@ bool UMaterial::GetParameterSortPriority(const FHashedMaterialParameterInfo& Par
 		{
 			UMaterialExpressionParameter* Parameter = Cast<UMaterialExpressionParameter>(Expression);
 			UMaterialExpressionTextureSampleParameter* TextureParameter = Cast<UMaterialExpressionTextureSampleParameter>(Expression);
+			UMaterialExpressionRuntimeVirtualTextureSampleParameter* RVTParameter = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(Expression);
 			UMaterialExpressionFontSampleParameter* FontParameter = Cast<UMaterialExpressionFontSampleParameter>(Expression);
 			UMaterialExpressionMaterialAttributeLayers* LayersParameter = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression);
 			UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
@@ -5040,6 +5059,11 @@ bool UMaterial::GetParameterSortPriority(const FHashedMaterialParameterInfo& Par
 			else if (TextureParameter && TextureParameter->GetParameterName() == ParameterInfo.Name)
 			{
 				OutSortPriority = TextureParameter->SortPriority;
+				return true;
+			}
+			else if (RVTParameter && RVTParameter->GetParameterName() == ParameterInfo.Name)
+			{
+				OutSortPriority = RVTParameter->SortPriority;
 				return true;
 			}
 			else if (FontParameter && FontParameter->GetParameterName() == ParameterInfo.Name)
