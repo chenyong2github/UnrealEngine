@@ -442,7 +442,8 @@ public:
 
 	// Rebuilds the fixed parameter on the mesh to mesh data, to be used if the editor has
 	// changed a vert to be fixed or unfixed otherwise the simulation will not work
-	void RebuildClothingSectionsFixedVerts();
+	// bInvalidateDerivedDataCache can only be false during previewing as otherwise the changes won't be correctly saved
+	void RebuildClothingSectionsFixedVerts(bool bInvalidateDerivedDataCache = true);
 
 	TArray<FVector> SkinnedSelectedClothingPositions;
 	TArray<FVector> SkinnedSelectedClothingNormals;
