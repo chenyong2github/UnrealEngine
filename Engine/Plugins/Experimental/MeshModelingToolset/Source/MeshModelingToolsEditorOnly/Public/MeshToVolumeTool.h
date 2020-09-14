@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "ConversionUtils/VolumeDynamicMeshConversion.h"
 #include "GameFramework/Volume.h"
 #include "Engine/Classes/Engine/BlockingVolume.h"
 #include "SingleSelectionTool.h"
@@ -63,13 +65,6 @@ public:
 };
 
 
-struct FModelFace
-{
-	FFrame3d Plane;
-	TArray<FVector3d> BoundaryLoop;
-};
-
-
 /**
  *
  */
@@ -112,14 +107,9 @@ protected:
 	FDynamicMesh3 InputMesh;
 
 	void RecalculateVolume();
-	void RecalculateVolume_Polygons();
-	void RecalculateVolume_Triangles();
-
 	void UpdateLineSet();
 
 	bool bVolumeValid = false;
-	TArray<FModelFace> Faces;
-
-	void BakeToVolume(AVolume* TargetVolume);
+	TArray<UE::Conversion::FDynamicMeshFace> Faces;
 
 };

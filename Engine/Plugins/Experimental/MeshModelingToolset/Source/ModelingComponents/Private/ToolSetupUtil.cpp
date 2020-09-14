@@ -178,6 +178,11 @@ UMaterialInstanceDynamic* ToolSetupUtil::GetSimpleCustomMaterial(UInteractiveToo
 	return nullptr;
 }
 
+UMaterialInterface* ToolSetupUtil::GetDefaultEditVolumeMaterial()
+{
+	return LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/VolumeEditMaterial"));
+}
+
 
 UMaterialInterface* ToolSetupUtil::GetDefaultPointComponentMaterial(bool bRoundPoints, UInteractiveToolManager* ToolManager)
 {

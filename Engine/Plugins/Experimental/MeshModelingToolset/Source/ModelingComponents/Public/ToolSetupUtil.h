@@ -48,7 +48,7 @@ namespace ToolSetupUtil
 
 
 	/**
-	 * @return default material to use for brush volume indicators
+	 * @return default material to use for brush volume indicators (for instance, a spherical sculpt brush).
 	 */
 	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetDefaultBrushVolumeMaterial(UInteractiveToolManager* ToolManager);
 
@@ -92,6 +92,11 @@ namespace ToolSetupUtil
 	 * @return Simple material with configurable color and opacity.
 	 */
 	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetSimpleCustomMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float Opacity);
+
+	/**
+	 * @return Material used when editing AVolume objects using our tools.
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultEditVolumeMaterial();
 
 	/**
 	 * @param bRoundPoints true for round points, false for square
