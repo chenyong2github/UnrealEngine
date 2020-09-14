@@ -303,7 +303,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	if (bInFixedPolygonMode)
 	{
-		if (FixedPolygonClickPoints.Num() > 0 && bInInteractiveExtrude == false)		// once we are in extrude, polygon is done
+		if (FixedPolygonClickPoints.Num() > 0)
 		{
 			FixedPolygonClickPoints.Add(PreviewVertex);
 			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
@@ -447,7 +447,7 @@ void UDrawPolygonTool::ResetPolygon()
 	PolygonVertices.Reset();
 	PolygonHolesVertices.Reset();
 	SnapEngine.Reset();
-	bHaveSurfaceHit = false;
+	bHaveSurfaceHit = false;
 	bInFixedPolygonMode = false;
 	bHaveSelfIntersection = false;
 	CurrentCurveTimestamp++;
