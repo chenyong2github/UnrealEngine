@@ -1021,7 +1021,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 		TArray<FLightmapTileRequest> TileUploadRequests = PendingTileRequests.FilterByPredicate(
 			[CurrentRevision = CurrentRevision, bDenoiseDuringInteractiveBake = bDenoiseDuringInteractiveBake](const FLightmapTileRequest& Tile)
 		{ 
-			return Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) || (bDenoiseDuringInteractiveBake && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).Revision == CurrentRevision && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).bCanBeDenoised);
+			return Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) || (bDenoiseDuringInteractiveBake && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision == CurrentRevision && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).bCanBeDenoised);
 		});
 
 		if (TileUploadRequests.Num() > 0)
@@ -1279,7 +1279,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 		PendingTileRequests = PendingTileRequests.FilterByPredicate([CurrentRevision = CurrentRevision](const FLightmapTileRequest& Tile) { return !Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision); });
 	}
 
-	PendingTileRequests = PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return !Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).bHasReadbackInFlight; });
+	PendingTileRequests = PendingTileRequests.FilterByPredicate([CurrentRevision = CurrentRevision](const FLightmapTileRequest& Tile) { return Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision; });
 
 	if (!bInsideBackgroundTick && !bOnlyBakeWhatYouSee)
 	{
@@ -1543,7 +1543,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	bool bLastFewFramesIdle = !GCurrentLevelEditingViewportClient || !GCurrentLevelEditingViewportClient->IsRealtime();
+	bool bLastFewFramesIdle = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
 	int32 NumSamplesPerFrame = (bInsideBackgroundTick && bLastFewFramesIdle) ? 8 : 1;
 
 	{
@@ -2334,7 +2334,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 			for (const FLightmapTileRequest& Tile : ConvergedTileRequests)
 			{
-				Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).bHasReadbackInFlight = true;
+				Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision = CurrentRevision;
 			}
 
 			for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
@@ -2534,7 +2534,7 @@ void FLightmapRenderer::BackgroundTick()
 				}
 
 				DenoiseGroup.TileRequest.RenderState->RetrieveTileState(DenoiseGroup.TileRequest.VirtualCoordinates).CPURevision = CurrentRevision;
-				DenoiseGroup.TileRequest.RenderState->RetrieveTileState(DenoiseGroup.TileRequest.VirtualCoordinates).bHasReadbackInFlight = false;
+				DenoiseGroup.TileRequest.RenderState->RetrieveTileState(DenoiseGroup.TileRequest.VirtualCoordinates).OngoingReadbackRevision = -1;
 
 				delete DenoiseGroup.AsyncDenoisingWork;
 
@@ -2636,7 +2636,7 @@ void FLightmapRenderer::BackgroundTick()
 				if (!bDenoiseDuringInteractiveBake)
 				{
 					Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).CPURevision = CurrentRevision;
-					Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).bHasReadbackInFlight = false;
+					Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision = -1;
 				}
 				else
 				{
@@ -2657,7 +2657,7 @@ void FLightmapRenderer::BackgroundTick()
 								TilesWaitingForDenoising.Add(TileToDenoise);
 
 								Tile.RenderState->RetrieveTileState(TileToDenoise.VirtualCoordinates).CPURevision = -1;
-								Tile.RenderState->RetrieveTileState(TileToDenoise.VirtualCoordinates).bHasReadbackInFlight = true;
+								Tile.RenderState->RetrieveTileState(TileToDenoise.VirtualCoordinates).OngoingReadbackRevision = CurrentRevision;
 							}
 						}
 					}
@@ -2795,7 +2795,7 @@ void FLightmapRenderer::BackgroundTick()
 		}
 	}
 
-	bool bLastFewFramesIdle = !GCurrentLevelEditingViewportClient || !GCurrentLevelEditingViewportClient->IsRealtime();
+	bool bLastFewFramesIdle = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
 
 	if (bLastFewFramesIdle && !bWasRunningAtFullSpeed)
 	{
@@ -2853,7 +2853,7 @@ void FLightmapRenderer::BackgroundTick()
 					{
 						FTileVirtualCoordinates VirtualCoordinates(FIntPoint(X, Y), 0);
 
-						if (!Lightmap.DoesTileHaveValidCPUData(VirtualCoordinates, CurrentRevision) && !Lightmap.RetrieveTileState(VirtualCoordinates).bHasReadbackInFlight)
+						if (!Lightmap.DoesTileHaveValidCPUData(VirtualCoordinates, CurrentRevision) && Lightmap.RetrieveTileState(VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
 						{
 							bAnyTileSelected = true;
 
@@ -2931,7 +2931,7 @@ void FLightmapRenderer::BackgroundTick()
 			{
 				for (FLightmapTileRequest& Tile : FrameRequests)
 				{
-					if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && !Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).bHasReadbackInFlight)
+					if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
 					{
 						PendingTileRequests.AddUnique(Tile);
 
