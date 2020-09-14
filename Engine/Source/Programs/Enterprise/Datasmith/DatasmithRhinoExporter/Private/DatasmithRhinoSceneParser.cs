@@ -305,12 +305,25 @@ namespace DatasmithRhino
 		{
 			foreach (RhinoObject CurrentObject in InObjects)
 			{
-				if (!ParentNode.bIsInstanceDefinition
-					&& ExportOptions.WriteSelectedObjectsOnly
-					&& CurrentObject.IsSelected(/*checkSubObjects=*/true) == 0)
+				if (CurrentObject == null
+					|| IsObjectIgnoredBySelection(CurrentObject, ParentNode)
+					|| IsUnsupportedObject(CurrentObject))
 				{
-					// The object is not selected, skip it.
+					// Skip the object.
 					continue;
+				}
+
+				RhinoSceneHierarchyNode DefinitionRootNode = null;
+				if (CurrentObject.ObjectType == ObjectType.InstanceReference)
+				{
+					InstanceObject CurrentInstance = CurrentObject as InstanceObject;
+					DefinitionRootNode = GetOrCreateDefinitionRootNode(CurrentInstance.InstanceDefinition);
+
+					if (DefinitionRootNode.GetChildrenCount() == 0)
+					{
+						// Don't instantiate empty definitions.
+						continue;
+					}
 				}
 
 				int MaterialIndex = GetObjectMaterialIndex(CurrentObject, ParentNode.Info);
@@ -319,14 +332,25 @@ namespace DatasmithRhino
 				GuidToHierarchyNodeDictionary.Add(CurrentObject.Id, ObjectNode);
 				AddObjectMaterialReference(CurrentObject);
 
-				if(CurrentObject.ObjectType == ObjectType.InstanceReference)
+				if (DefinitionRootNode != null)
 				{
-					InstanceObject CurrentInstance = CurrentObject as InstanceObject;
-					RhinoSceneHierarchyNode DefinitionRootNode = GetOrCreateDefinitionRootNode(CurrentInstance.InstanceDefinition);
-
 					InstanciateDefinition(ObjectNode, DefinitionRootNode);
 				}
 			}
+		}
+
+		private bool IsObjectIgnoredBySelection(RhinoObject InObject, RhinoSceneHierarchyNode ParentNode)
+		{
+			return !ParentNode.bIsInstanceDefinition
+					&& ExportOptions.WriteSelectedObjectsOnly
+					&& InObject.IsSelected(/*checkSubObjects=*/true) == 0;
+		}
+
+		private static bool IsUnsupportedObject(RhinoObject InObject)
+		{
+			// Geometry objects without meshes are currently not supported.
+			return InObject.ComponentType == ModelComponentType.ModelGeometry 
+				&& !InObject.IsMeshable(MeshType.Render);
 		}
 
 		private void InstanciateDefinition(RhinoSceneHierarchyNode ParentNode, RhinoSceneHierarchyNode DefinitionNode)
