@@ -112,6 +112,12 @@ TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolSACN::AddUnive
 
 	Universe = MakeShared<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>(SharedThis(this), InSettings);
 
+	// Start listening instantly if we should receive DMX
+	if (bShouldReceiveDMX)
+	{
+		Universe->CreateDMXListener();
+	}
+
 	// Lock the universe if we use separate thread
 	if (SACNReceiver.IsValid())
 	{
@@ -121,12 +127,6 @@ TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolSACN::AddUnive
 	else
 	{
 		return UniverseManager->AddUniverse(Universe->GetUniverseID(), Universe);
-	}
-
-	// Start listening instantly if we should receive DMX
-	if (bShouldReceiveDMX)
-	{
-		Universe->CreateDMXListener();
 	}
 }
 
