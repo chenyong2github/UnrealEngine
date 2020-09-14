@@ -17,17 +17,16 @@
 //#include "DrawDebugHelpers.h"
 #include "ILiveLinkClient.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
-#include "OpenXRHandTrackingFunctionLibrary.h"
 #include "IOpenXRHMDPlugin.h"
 
 #define LOCTEXT_NAMESPACE "OpenXRHandTracking"
 
 // These enum's must match.
-static_assert(EOpenXRHandKeypoint::Palm == static_cast<EOpenXRHandKeypoint>(XR_HAND_JOINT_PALM_EXT), "EOpenXRHandKeypoint enum does not match XrHandJointEXT.");
-static_assert(EOpenXRHandKeypoint::Wrist == static_cast<EOpenXRHandKeypoint>(XR_HAND_JOINT_WRIST_EXT), "EOpenXRHandKeypoint enum does not match XrHandJointEXT.");
-static_assert(EOpenXRHandKeypoint::ThumbMetacarpal == static_cast<EOpenXRHandKeypoint>(XR_HAND_JOINT_THUMB_METACARPAL_EXT), "EOpenXRHandKeypoint enum does not match XrHandJointEXT.");
-static_assert(EOpenXRHandKeypoint::IndexTip == static_cast<EOpenXRHandKeypoint>(XR_HAND_JOINT_INDEX_TIP_EXT), "EOpenXRHandKeypoint enum does not match XrHandJointEXT.");
-static_assert(EOpenXRHandKeypoint::LittleTip == static_cast<EOpenXRHandKeypoint>(XR_HAND_JOINT_LITTLE_TIP_EXT), "EOpenXRHandKeypoint enum does not match XrHandJointEXT.");
+static_assert(EHandKeypoint::Palm == static_cast<EHandKeypoint>(XR_HAND_JOINT_PALM_EXT), "EHandKeypoint enum does not match XrHandJointEXT.");
+static_assert(EHandKeypoint::Wrist == static_cast<EHandKeypoint>(XR_HAND_JOINT_WRIST_EXT), "EHandKeypoint enum does not match XrHandJointEXT.");
+static_assert(EHandKeypoint::ThumbMetacarpal == static_cast<EHandKeypoint>(XR_HAND_JOINT_THUMB_METACARPAL_EXT), "EHandKeypoint enum does not match XrHandJointEXT.");
+static_assert(EHandKeypoint::IndexTip == static_cast<EHandKeypoint>(XR_HAND_JOINT_INDEX_TIP_EXT), "EHandKeypoint enum does not match XrHandJointEXT.");
+static_assert(EHandKeypoint::LittleTip == static_cast<EHandKeypoint>(XR_HAND_JOINT_LITTLE_TIP_EXT), "EHandKeypoint enum does not match XrHandJointEXT.");
 
 //static TAutoConsoleVariable<int32> CVarEnableOpenXRHandTrackingDebug(TEXT("OpenXR.debug.EnableEyetrackingDebug"), 1, TEXT("0 - Eyetracking debug visualizations are disabled. 1 - Eyetracking debug visualizations are enabled."));
 
@@ -132,12 +131,6 @@ public:
 		bLiveLinkSourceRegistered = false;
 	}
 
-	virtual bool GetHandJointTransform(EControllerHand Hand, EOpenXRHandKeypoint Keypoint, FTransform& Transform, float& OutRadius) override
-	{
-		OutRadius = 0.0f;
-		return UOpenXRHandTrackingFunctionLibrary::GetHandJointTransform(Hand, Keypoint, Transform, OutRadius);
-	}
-
 private:
 	TSharedPtr<FOpenXRHandTracking> InputDevice;
 	bool bLiveLinkSourceRegistered;
@@ -156,6 +149,7 @@ FOpenXRHandTracking::FOpenXRHandTracking(const TSharedRef<FGenericApplicationMes
 {
 	// Register modular feature manually
 	IModularFeatures::Get().RegisterModularFeature(IMotionController::GetModularFeatureName(), static_cast<IMotionController*>(this));
+	IModularFeatures::Get().RegisterModularFeature(IHandTracker::GetModularFeatureName(), static_cast<IHandTracker*>(this));
 	IModularFeatures::Get().RegisterModularFeature(IOpenXRExtensionPlugin::GetModularFeatureName(), static_cast<IOpenXRExtensionPlugin*>(this));
 	AddKeys();
 
@@ -171,6 +165,7 @@ FOpenXRHandTracking::~FOpenXRHandTracking()
 {
 	// Unregister modular feature manually
 	IModularFeatures::Get().UnregisterModularFeature(IMotionController::GetModularFeatureName(), static_cast<IMotionController*>(this));
+	IModularFeatures::Get().UnregisterModularFeature(IHandTracker::GetModularFeatureName(), static_cast<IHandTracker*>(this));
 	IModularFeatures::Get().UnregisterModularFeature(IOpenXRExtensionPlugin::GetModularFeatureName(), static_cast<IOpenXRExtensionPlugin*>(this));
 }
 
@@ -281,17 +276,17 @@ FOpenXRHandTracking::FHandState::FHandState()
 	Locations.jointLocations = JointLocations;
 }
 
-bool FOpenXRHandTracking::FHandState::GetTransform(EOpenXRHandKeypoint Keypoint, FTransform& OutTransform) const
+bool FOpenXRHandTracking::FHandState::GetTransform(EHandKeypoint Keypoint, FTransform& OutTransform) const
 {
-	check((int32)Keypoint < EOpenXRHandKeypointCount);
+	check((int32)Keypoint < EHandKeypointCount);
 	OutTransform = KeypointTransforms[(uint32)Keypoint];
 	
 	return ReceivedJointPoses;
 }
 
-const FTransform& FOpenXRHandTracking::FHandState::GetTransform(EOpenXRHandKeypoint Keypoint) const
+const FTransform& FOpenXRHandTracking::FHandState::GetTransform(EHandKeypoint Keypoint) const
 {
-	check((int32)Keypoint < EOpenXRHandKeypointCount);
+	check((int32)Keypoint < EHandKeypointCount);
 	return KeypointTransforms[(uint32)Keypoint];
 }
 
@@ -308,19 +303,19 @@ bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 Contro
 		FTransform ControllerTransform = FTransform::Identity;
 		if (MotionSource == FName("Left"))
 		{
-			ControllerTransform = GetLeftHandState().GetTransform(EOpenXRHandKeypoint::Palm);
+			ControllerTransform = GetLeftHandState().GetTransform(EHandKeypoint::Palm);
 			bTracked = GetLeftHandState().ReceivedJointPoses;
 		}
 		else if (MotionSource == FName("Right"))
 		{
-			ControllerTransform = GetRightHandState().GetTransform(EOpenXRHandKeypoint::Palm);
+			ControllerTransform = GetRightHandState().GetTransform(EHandKeypoint::Palm);
 			bTracked = GetRightHandState().ReceivedJointPoses;
 		}
 
 		// This can only be done in the game thread since it uses the UEnum directly
 		if (IsInGameThread())
 		{
-			const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EOpenXRHandKeypoint"), true);
+			const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EHandKeypoint"), true);
 			check(EnumPtr != nullptr);
 			bool bUseRightHand = false;
 			FString SourceString = MotionSource.ToString();
@@ -335,19 +330,19 @@ bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 Contro
 				// Strip off the Left
 				SourceString.RightInline(SourceString.Len() - 4, false);
 			}
-			FName FullEnumName(*FString(TEXT("EOpenXRHandKeypoint::") + SourceString), FNAME_Find);
+			FName FullEnumName(*FString(TEXT("EHandKeypoint::") + SourceString), FNAME_Find);
 			// Get the enum value from the name
 			int32 ValueFromName = EnumPtr->GetValueByName(FullEnumName);
 			if (ValueFromName != INDEX_NONE)
 			{
 				if (bUseRightHand)
 				{
-					ControllerTransform = GetRightHandState().GetTransform((EOpenXRHandKeypoint)ValueFromName);
+					ControllerTransform = GetRightHandState().GetTransform((EHandKeypoint)ValueFromName);
 					bTracked = GetRightHandState().ReceivedJointPoses;
 				}
 				else
 				{
-					ControllerTransform = GetLeftHandState().GetTransform((EOpenXRHandKeypoint)ValueFromName);
+					ControllerTransform = GetLeftHandState().GetTransform((EHandKeypoint)ValueFromName);
 					bTracked = GetLeftHandState().ReceivedJointPoses;
 				}
 			}
@@ -379,11 +374,11 @@ bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 Contro
 
 			if (DeviceHand == EControllerHand::Left)
 			{
-				ControllerTransform = &GetLeftHandState().GetTransform(EOpenXRHandKeypoint::Palm);
+				ControllerTransform = &GetLeftHandState().GetTransform(EHandKeypoint::Palm);
 			}
 			else if (DeviceHand == EControllerHand::Right)
 			{
-				ControllerTransform = &GetRightHandState().GetTransform(EOpenXRHandKeypoint::Palm);
+				ControllerTransform = &GetRightHandState().GetTransform(EHandKeypoint::Palm);
 			}
 
 			if (ControllerTransform != nullptr)
@@ -420,13 +415,13 @@ void FOpenXRHandTracking::EnumerateSources(TArray<FMotionControllerSource>& Sour
 {
 	check(IsInGameThread());
 
-	SourcesOut.Empty(EOpenXRHandKeypointCount * 2);
+	SourcesOut.Empty(EHandKeypointCount * 2);
 
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EOpenXRHandKeypoint"), true);
+	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EHandKeypoint"), true);
 	check(EnumPtr != nullptr);
-	for (int32 Keypoint = 0; Keypoint < EOpenXRHandKeypointCount; Keypoint++)
+	for (int32 Keypoint = 0; Keypoint < EHandKeypointCount; Keypoint++)
 	{
-		static int32 EnumNameLength = FString(TEXT("EOpenXRHandKeypoint::")).Len();
+		static int32 EnumNameLength = FString(TEXT("EHandKeypoint::")).Len();
 
 		const FString EnumString = EnumPtr->GetNameByValue(Keypoint).ToString();
 		const TCHAR* EnumChars = *EnumString;
@@ -490,12 +485,17 @@ bool FOpenXRHandTracking::IsHandTrackingSupportedByDevice() const
 	return bHandTrackingAvailable;
 }
 
+FName FOpenXRHandTracking::GetHandTrackerDeviceTypeName() const
+{
+	return GetMotionControllerDeviceTypeName();
+}
+
 bool FOpenXRHandTracking::IsHandTrackingStateValid() const
 {
 	return bHandTrackingAvailable;
 }
 
-bool FOpenXRHandTracking::GetKeypointTransform(EControllerHand Hand, EOpenXRHandKeypoint Keypoint, FTransform& OutTransform) const
+bool FOpenXRHandTracking::GetKeypointState(EControllerHand Hand, EHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius) const
 {
 	if (!bHandTrackingAvailable)
 	{
@@ -503,18 +503,20 @@ bool FOpenXRHandTracking::GetKeypointTransform(EControllerHand Hand, EOpenXRHand
 	}
 
 	bool gotTransform = false;
- 
-// NOTE: currently there is no openxr input simulation implementation.  Maybe we will do that soon though?  Leaving this for reference for now.
-//#if WITH_INPUT_SIMULATION
-//	if (auto* InputSim = UOpenXRInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
-//	{
-//		gotTransform = InputSim->GetHandJointTransform(Hand, Keypoint, OutTransform);
-//	}
-//	else
-//#endif
+
+	// NOTE: currently there is no openxr input simulation implementation.  Maybe we will do that soon though?  Leaving this for reference for now.
+	//#if WITH_INPUT_SIMULATION
+	//	if (auto* InputSim = UOpenXRInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+	//	{
+	//		gotTransform = InputSim->GetHandJointTransform(Hand, Keypoint, OutTransform);
+	//		OutRadius = HandState.Radii[(uint32)Keypoint];
+	//	}
+	//	else
+	//#endif
 	{
 		const FOpenXRHandTracking::FHandState& HandState = (Hand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
 		gotTransform = HandState.GetTransform(Keypoint, OutTransform);
+		OutRadius = HandState.Radii[(uint32)Keypoint];
 	}
 	if (gotTransform)
 	{
@@ -525,36 +527,41 @@ bool FOpenXRHandTracking::GetKeypointTransform(EControllerHand Hand, EOpenXRHand
 	return gotTransform;
 }
 
-bool FOpenXRHandTracking::GetKeypointRadius(EControllerHand Hand, EOpenXRHandKeypoint Keypoint, float& OutRadius) const
+bool FOpenXRHandTracking::GetAllKeypointStates(EControllerHand Hand, TArray<struct FVector>& OutPositions, TArray<struct FQuat>& OutRotations, TArray<float>& OutRadii) const
 {
 	if (!bHandTrackingAvailable)
 	{
 		return false;
 	}
 
-// NOTE: currently there is no openxr input simulation implementation.  Maybe we will do that soon though?  Leaving this for reference for now.
-//#if WITH_INPUT_SIMULATION
-//	if (auto* InputSim = UOpenXRInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
-//	{
-//		return InputSim->GetHandJointRadius(Hand, Keypoint, OutRadius);
-//	}
-//	else
-//#endif
+	const FOpenXRHandTracking::FHandState& HandState = (Hand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
+
+	if (!HandState.ReceivedJointPoses)
 	{
-		check((int32)Keypoint < EOpenXRHandKeypointCount);
-		const FOpenXRHandTracking::FHandState& HandState = (Hand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
-		OutRadius = HandState.Radii[(uint32)Keypoint];
-		return HandState.ReceivedJointPoses;
+		return false;
 	}
+
+	OutPositions.Empty(EHandKeypointCount);
+	OutRotations.Empty(EHandKeypointCount);
+	const FTransform& TrackingToWoldTransform = XRTrackingSystem->GetTrackingToWorldTransform();
+	for (int i = 0; i < EHandKeypointCount; ++i)
+	{
+		FTransform KeypointWorldTransform = HandState.KeypointTransforms[i] * TrackingToWoldTransform;
+		OutPositions.Add(KeypointWorldTransform.GetLocation());
+		OutRotations.Add(KeypointWorldTransform.GetRotation());
+	}
+
+	OutRadii.Empty(EHandKeypointCount);
+	for (int i = 0; i < EHandKeypointCount; ++i)
+	{
+		OutRadii.Add(HandState.Radii[i]);
+	}
+
+	return true;
 }
 
 void FOpenXRHandTracking::AddKeys()
 {
-}
-
-void FOpenXRHandTracking::ConditionallyEnable()
-{
-	// @TODO: fix
 }
 
 #undef LOCTEXT_NAMESPACE
