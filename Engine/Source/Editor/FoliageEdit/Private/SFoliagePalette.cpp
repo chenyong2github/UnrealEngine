@@ -683,7 +683,8 @@ void SFoliagePalette::OnSearchTextChanged(const FText& InFilterText)
 TSharedRef<SWidget> SFoliagePalette::GetAddFoliageTypePicker()
 {
 	TArray<const UClass*> ClassFilters;
-	ClassFilters.Add(UFoliageType::StaticClass());
+
+	FoliageEditMode->GetFoliageTypeFilters(ClassFilters);
 
 	return PropertyCustomizationHelpers::MakeAssetPickerWithMenu(FAssetData(),
 		false,
@@ -867,12 +868,23 @@ EVisibility SFoliagePalette::GetFoliageDropTargetVisibility() const
 {
 	if (FSlateApplication::Get().IsDragDropping())
 	{
+		TArray<const UClass*> ClassFilters;
+		FoliageEditMode->GetFoliageTypeFilters(ClassFilters);
+		// Support StaticMesh on drag
+		ClassFilters.Add(UStaticMesh::StaticClass());
+
 		TArray<FAssetData> DraggedAssets = AssetUtil::ExtractAssetDataFromDrag(FSlateApplication::Get().GetDragDroppingContent());
 		for (const FAssetData& AssetData : DraggedAssets)
 		{
-			if (AssetData.IsValid() && (AssetData.GetClass()->IsChildOf(UStaticMesh::StaticClass()) || AssetData.GetClass()->IsChildOf(UFoliageType::StaticClass())))
+			if (AssetData.IsValid())
 			{
-				return EVisibility::Visible;
+				for (const UClass* Filter : ClassFilters)
+				{
+					if (AssetData.GetClass()->IsChildOf(Filter))
+					{
+						return EVisibility::Visible;
+					}
+				}
 			}
 		}
 	}

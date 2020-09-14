@@ -562,6 +562,9 @@ public:
 
 	/** Remove currently selected instances*/
 	void RemoveSelectedInstances(UWorld* InWorld);
+
+	/** Returns the list of valid FoliageType class filters */
+	void GetFoliageTypeFilters(TArray<const UClass*>& OutFilters) const;
 			
 private:
 

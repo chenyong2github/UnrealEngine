@@ -55,6 +55,7 @@ Level.cpp: Level-related functions
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
 #include "AssetData.h"
+#include "FoliageHelper.h"
 #endif
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
@@ -2271,6 +2272,11 @@ bool ULevel::CanConvertActorToExternalPackaging(AActor* Actor)
 	}
 
 	if (Actor->IsChildActor())
+	{
+		return false;
+	}
+
+	if (FFoliageHelper::IsOwnedByFoliage(Actor))
 	{
 		return false;
 	}
