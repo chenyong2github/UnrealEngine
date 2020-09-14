@@ -540,6 +540,7 @@ public:
 	TTypedElementOwner<struct FComponentElementData> CreateComponentElement() const;
 	void DestroyComponentElement(TTypedElementOwner<struct FComponentElementData>& InOutComponentElement) const;
 #if WITH_EDITOR
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Component")
 	FTypedElementHandle AcquireEditorElementHandle(const bool bAllowCreate = true) const;
 #endif
 

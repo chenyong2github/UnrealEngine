@@ -144,9 +144,9 @@ FTypedElementHandle UTypedElementRegistry::GetElementHandle(const FTypedElementI
 	return ElementHandle;
 }
 
-FTypedElementListPtr UTypedElementRegistry::CreateElementList(TArrayView<const FTypedElementId> InElementIds)
+UTypedElementList* UTypedElementRegistry::CreateElementList(TArrayView<const FTypedElementId> InElementIds)
 {
-	FTypedElementListPtr ElementList = CreateElementList();
+	UTypedElementList* ElementList = CreateElementList();
 
 	for (const FTypedElementId& ElementId : InElementIds)
 	{
@@ -159,9 +159,9 @@ FTypedElementListPtr UTypedElementRegistry::CreateElementList(TArrayView<const F
 	return ElementList;
 }
 
-FTypedElementListPtr UTypedElementRegistry::CreateElementList(TArrayView<const FTypedElementHandle> InElementHandles)
+UTypedElementList* UTypedElementRegistry::CreateElementList(TArrayView<const FTypedElementHandle> InElementHandles)
 {
-	FTypedElementListPtr ElementList = CreateElementList();
+	UTypedElementList* ElementList = CreateElementList();
 	ElementList->Append(InElementHandles);
 	return ElementList;
 }
@@ -170,7 +170,7 @@ void UTypedElementRegistry::NotifyElementListPendingChanges()
 {
 	FReadScopeLock ActiveElementListsLock(ActiveElementListsRW);
 
-	for (FTypedElementList* ActiveElementList : ActiveElementLists)
+	for (UTypedElementList* ActiveElementList : ActiveElementLists)
 	{
 		ActiveElementList->NotifyPendingChanges();
 	}

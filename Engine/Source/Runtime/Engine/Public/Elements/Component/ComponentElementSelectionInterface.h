@@ -5,7 +5,7 @@
 #include "TypedElementSelectionInterface.h"
 #include "ComponentElementSelectionInterface.generated.h"
 
-class FTypedElementList;
+class UTypedElementList;
 
 UCLASS()
 class ENGINE_API UComponentElementSelectionInterface : public UTypedElementSelectionInterface
@@ -15,6 +15,6 @@ class ENGINE_API UComponentElementSelectionInterface : public UTypedElementSelec
 public:
 	virtual UObject* Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle) override;
 
-	static int32 GetNumSelectedComponents(const FTypedElementList& InCurrentSelection);
-	static bool HasSelectedComponents(const FTypedElementList& InCurrentSelection);
+	static int32 GetNumSelectedComponents(const UTypedElementList* InCurrentSelection);
+	static bool HasSelectedComponents(const UTypedElementList* InCurrentSelection);
 };

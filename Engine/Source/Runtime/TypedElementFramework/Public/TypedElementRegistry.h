@@ -6,7 +6,6 @@
 #include "Misc/ScopeRWLock.h"
 #include "Containers/ArrayView.h"
 #include "Containers/SortedMap.h"
-#include "Templates/SubclassOf.h"
 #include "TypedElementHandle.h"
 #include "TypedElementList.h"
 #include "TypedElementRegistry.generated.h"
@@ -14,7 +13,7 @@
 /**
  * Registry of element types and their associated interfaces, along with the elements that represent their instances.
  */
-UCLASS()
+UCLASS(Transient)
 class TYPEDELEMENTFRAMEWORK_API UTypedElementRegistry : public UObject
 {
 	GENERATED_BODY()
@@ -39,6 +38,7 @@ public:
 	/**
 	 * Get the singleton instance of the registry used in most cases.
 	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry")
 	static UTypedElementRegistry* GetInstance();
 
 	/**
@@ -83,6 +83,15 @@ public:
 	FORCEINLINE BaseInterfaceType* GetElementInterface(const FTypedElementHandle& InElementHandle) const
 	{
 		return static_cast<BaseInterfaceType*>(GetElementInterfaceImpl(InElementHandle.GetId(), BaseInterfaceType::StaticClass()));
+	}
+
+	/**
+	 * Get the element interface supported by the given handle, or null if there is no support for this interface.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry")
+	FORCEINLINE UTypedElementInterface* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+	{
+		return GetElementInterfaceImpl(InElementHandle.GetId(), InBaseInterfaceType);
 	}
 
 	/**
@@ -176,26 +185,27 @@ public:
 	/**
 	 * Create an empty list of elements associated with this registry.
 	 */
-	FORCEINLINE FTypedElementListPtr CreateElementList()
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Registry")
+	FORCEINLINE UTypedElementList* CreateElementList()
 	{
-		return FTypedElementList::Private_CreateElementList(this);
+		return UTypedElementList::Private_CreateElementList(this);
 	}
 
 	/**
 	 * Create an empty list of elements associated with this registry, populated from the given minimal IDs that are valid.
 	 */
-	FTypedElementListPtr CreateElementList(TArrayView<const FTypedElementId> InElementIds);
+	UTypedElementList* CreateElementList(TArrayView<const FTypedElementId> InElementIds);
 
 	/**
 	 * Create an empty list of elements associated with this registry, populated from the given handles that are valid.
 	 */
-	FTypedElementListPtr CreateElementList(TArrayView<const FTypedElementHandle> InElementHandles);
+	UTypedElementList* CreateElementList(TArrayView<const FTypedElementHandle> InElementHandles);
 
 	/**
 	 * Create an empty list of elements associated with this registry, populated from the given owners that are valid.
 	 */
 	template <typename ElementDataType>
-	FORCEINLINE FTypedElementListPtr CreateElementList(const TArray<TTypedElementOwner<ElementDataType>>& InElementOwners)
+	FORCEINLINE UTypedElementList* CreateElementList(const TArray<TTypedElementOwner<ElementDataType>>& InElementOwners)
 	{
 		return CreateElementList(MakeArrayView(InElementOwners));
 	}
@@ -204,26 +214,26 @@ public:
 	 * Create an empty list of elements associated with this registry, populated from the given owners that are valid.
 	 */
 	template <typename ElementDataType>
-	FTypedElementListPtr CreateElementList(TArrayView<const TTypedElementOwner<ElementDataType>> InElementOwners)
+	UTypedElementList* CreateElementList(TArrayView<const TTypedElementOwner<ElementDataType>> InElementOwners)
 	{
-		FTypedElementListPtr ElementList = CreateElementList();
+		UTypedElementList* ElementList = CreateElementList();
 		ElementList->Append(InElementOwners);
 		return ElementList;
 	}
 
-	void Private_OnElementListCreated(FTypedElementList* InElementList)
+	void Private_OnElementListCreated(UTypedElementList* InElementList)
 	{
 		FWriteScopeLock ActiveElementListsLock(ActiveElementListsRW);
 		ActiveElementLists.Add(InElementList);
 	}
 
-	void Private_OnElementListDestroyed(FTypedElementList* InElementList)
+	void Private_OnElementListDestroyed(UTypedElementList* InElementList)
 	{
 		FWriteScopeLock ActiveElementListsLock(ActiveElementListsRW);
 		ActiveElementLists.Remove(InElementList);
 	}
 
-	// Note: Access for FTypedElementList
+	// Note: Access for UTypedElementList
 	FORCEINLINE void Private_GetElementImpl(const FTypedElementHandle& InElementHandle, const UClass* InBaseInterfaceType, FTypedElement& OutElement) const
 	{
 		GetElementImpl(InElementHandle, InBaseInterfaceType, OutElement);
@@ -393,5 +403,5 @@ private:
 	TSortedMap<FName, FTypedHandleTypeId, FDefaultAllocator, FNameFastLess> RegisteredElementTypesNameToId;
 
 	mutable FRWLock ActiveElementListsRW;
-	TSet<FTypedElementList*> ActiveElementLists;
+	TSet<UTypedElementList*> ActiveElementLists;
 };

@@ -212,10 +212,11 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TSharedRef<SWindow>& OwnerWindow )
 {
 	SelectedElements = UTypedElementRegistry::GetInstance()->CreateElementList();
+	SelectedElements->AddToRoot();
 
 	// Allow USelection to bridge to our selected element list
-	GUnrealEd->GetSelectedActors()->SetElementList(SelectedElements.Get());
-	GUnrealEd->GetSelectedComponents()->SetElementList(SelectedElements.Get());
+	GUnrealEd->GetSelectedActors()->SetElementList(SelectedElements);
+	GUnrealEd->GetSelectedComponents()->SetElementList(SelectedElements);
 
 	// Bind the level editor tab's label to the currently loaded level name string in the main frame
 	OwnerTab->SetLabel( TAttribute<FText>( this, &SLevelEditor::GetTabTitle) );
@@ -326,7 +327,12 @@ SLevelEditor::~SLevelEditor()
 		GUnrealEd->GetSelectedActors()->SetElementList(nullptr);
 		GUnrealEd->GetSelectedComponents()->SetElementList(nullptr);
 	}
-	SelectedElements.Reset();
+	if (UObjectInitialized())
+	{
+		SelectedElements->Empty();
+		SelectedElements->RemoveFromRoot();
+		SelectedElements = nullptr;
+	}
 }
 
 FText SLevelEditor::GetTabTitle() const

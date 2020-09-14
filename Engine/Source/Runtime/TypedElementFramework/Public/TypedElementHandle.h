@@ -88,7 +88,7 @@ public:
 	/**
 	 * Access the combined value of this element ID.
 	 * @note You typically don't want to store this directly as the element ID could be re-used.
-	 *       It is primarily useful as a secondary cache where something is keeping a reference to an element ID or element handle (eg, how FTypedElementList uses it internally).
+	 *       It is primarily useful as a secondary cache where something is keeping a reference to an element ID or element handle (eg, how UTypedElementList uses it internally).
 	 */
 	FORCEINLINE FTypedHandleCombinedId GetCombinedId() const
 	{
@@ -867,3 +867,47 @@ private:
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 };
 using FTypedElementOwner = TTypedElementOwner<void>;
+
+/** Script exposure for FTypedElementHandle. */
+UCLASS()
+class UTypedElementHandleLibrary : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Has this handle been initialized to a valid element?
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Handle", meta=(ScriptMethod, ScriptOperator="bool"))
+	static bool IsSet(const FTypedElementHandle& ElementHandle)
+	{
+		return ElementHandle.IsSet();
+	}
+
+	/**
+	 * Release this handle and set it back to an empty state.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Handle", meta=(ScriptMethod))
+	static void Release(UPARAM(ref) FTypedElementHandle& ElementHandle)
+	{
+		ElementHandle.Release();
+	}
+
+	/**
+	 * Are these two handles equal?
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Handle", meta=(DisplayName="Equal (TypedElementHandle)", CompactNodeTitle="==", Keywords="== equal", ScriptMethod, ScriptOperator="=="))
+	static bool Equal(const FTypedElementHandle& LHS, const FTypedElementHandle& RHS)
+	{
+		return LHS == RHS;
+	}
+
+	/**
+	 * Are these two handles not equal?
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Handle", meta=(DisplayName="NotEqual (TypedElementHandle)", CompactNodeTitle="!=", Keywords="!= not equal", ScriptMethod, ScriptOperator="!="))
+	static bool NotEqual(const FTypedElementHandle& LHS, const FTypedElementHandle& RHS)
+	{
+		return LHS != RHS;
+	}
+};

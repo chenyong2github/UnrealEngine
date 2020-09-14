@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "EditorModeManager.h"
-#include "TypedElementListPtr.h"
 
 class FPreviewScene;
+class UTypedElementList;
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetEditorModeManager
@@ -28,9 +28,9 @@ public:
 	FPreviewScene* GetPreviewScene() const;
 
 protected:
-	class USelection* ActorSet;
-	class USelection* ObjectSet;
-	class USelection* ComponentSet;
-	class FPreviewScene* PreviewScene;
-	FTypedElementListPtr SelectedElements;
+	class USelection* ActorSet = nullptr;
+	class USelection* ObjectSet = nullptr;
+	class USelection* ComponentSet = nullptr;
+	class FPreviewScene* PreviewScene = nullptr;
+	UTypedElementList* SelectedElements = nullptr;
 };

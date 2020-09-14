@@ -11,10 +11,10 @@ UObject* UActorElementSelectionInterface::Legacy_GetSelectionObject(const FTyped
 	return ActorData ? ActorData->Actor : nullptr;
 }
 
-int32 UActorElementSelectionInterface::GetNumSelectedActors(const FTypedElementList& InCurrentSelection)
+int32 UActorElementSelectionInterface::GetNumSelectedActors(const UTypedElementList* InCurrentSelection)
 {
 	int32 NumSelected = 0;
-	for (const FTypedElementHandle& SelectedElement : InCurrentSelection)
+	for (const FTypedElementHandle& SelectedElement : *InCurrentSelection)
 	{
 		if (SelectedElement.GetData<FActorElementData>(/*bSilent*/true))
 		{
@@ -24,9 +24,9 @@ int32 UActorElementSelectionInterface::GetNumSelectedActors(const FTypedElementL
 	return NumSelected;
 }
 
-bool UActorElementSelectionInterface::HasSelectedActors(const FTypedElementList& InCurrentSelection)
+bool UActorElementSelectionInterface::HasSelectedActors(const UTypedElementList* InCurrentSelection)
 {
-	for (const FTypedElementHandle& SelectedElement : InCurrentSelection)
+	for (const FTypedElementHandle& SelectedElement : *InCurrentSelection)
 	{
 		if (SelectedElement.GetData<FActorElementData>(/*bSilent*/true))
 		{

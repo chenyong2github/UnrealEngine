@@ -14,9 +14,10 @@ void GetElementImpl(const UTypedElementRegistry* InRegistry, const FTypedElement
 } // namespace TypedElementList_Private
 
 
-FTypedElementListLegacySync::FTypedElementListLegacySync(const FTypedElementList& InElementList)
+FTypedElementListLegacySync::FTypedElementListLegacySync(const UTypedElementList* InElementList)
 	: ElementList(InElementList)
 {
+	checkf(ElementList, TEXT("ElementList was null!"));
 }
 
 FTypedElementListLegacySync::FOnSyncEvent& FTypedElementListLegacySync::OnSyncEvent()
@@ -72,35 +73,47 @@ void FTypedElementListLegacySync::ForceBatchOperationDirty()
 }
 
 
-FTypedElementList::FTypedElementList(UTypedElementRegistry* InRegistry)
-	: Registry(InRegistry)
+UTypedElementList* UTypedElementList::Private_CreateElementList(UTypedElementRegistry* InRegistry)
 {
+	UTypedElementList* ElementList = NewObject<UTypedElementList>();
+	ElementList->Initialize(InRegistry);
+	return ElementList;
+}
+
+void UTypedElementList::Initialize(UTypedElementRegistry* InRegistry)
+{
+	checkf(!Registry.Get(), TEXT("Initialize has already been called!"));
+	Registry = InRegistry;
+	checkf(InRegistry, TEXT("Registry is null!"));
 	InRegistry->Private_OnElementListCreated(this);
 }
 
-FTypedElementList::~FTypedElementList()
+void UTypedElementList::BeginDestroy()
 {
+	Super::BeginDestroy();
+
 	LegacySync.Reset();
 	if (UTypedElementRegistry* RegistryPtr = Registry.Get())
 	{
 		RegistryPtr->Private_OnElementListDestroyed(this);
+		Registry = nullptr;
 	}
 }
 
-FTypedElementListPtr FTypedElementList::Private_CreateElementList(UTypedElementRegistry* InRegistry)
+UTypedElementList* UTypedElementList::Clone() const
 {
-	return FTypedElementListPtr(new FTypedElementList(InRegistry));
-}
-
-FTypedElementListPtr FTypedElementList::Clone() const
-{
-	FTypedElementListPtr ClonedElementList = Private_CreateElementList(Registry.Get());
+	UTypedElementList* ClonedElementList = Private_CreateElementList(Registry.Get());
 	ClonedElementList->ElementCombinedIds = ElementCombinedIds;
 	ClonedElementList->ElementHandles = ElementHandles;
 	return ClonedElementList;
 }
 
-bool FTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
+UTypedElementInterface* UTypedElementList::GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+{
+	return Registry->GetElementInterface(InElementHandle, InBaseInterfaceType);
+}
+
+bool UTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
 {
 	if (!InElementHandle)
 	{
@@ -119,7 +132,7 @@ bool FTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
 	return !bAlreadyAdded;
 }
 
-bool FTypedElementList::RemoveElementImpl(const FTypedElementId& InElementId)
+bool UTypedElementList::RemoveElementImpl(const FTypedElementId& InElementId)
 {
 	if (!InElementId)
 	{
@@ -145,7 +158,7 @@ bool FTypedElementList::RemoveElementImpl(const FTypedElementId& InElementId)
 	return bRemoved;
 }
 
-int32 FTypedElementList::RemoveAllElementsImpl(TFunctionRef<bool(const FTypedElementHandle&)> InPredicate)
+int32 UTypedElementList::RemoveAllElementsImpl(TFunctionRef<bool(const FTypedElementHandle&)> InPredicate)
 {
 	if (LegacySync)
 	{
@@ -175,32 +188,32 @@ int32 FTypedElementList::RemoveAllElementsImpl(TFunctionRef<bool(const FTypedEle
 	return RemovedCount;
 }
 
-bool FTypedElementList::ContainsElementImpl(const FTypedElementId& InElementId) const
+bool UTypedElementList::ContainsElementImpl(const FTypedElementId& InElementId) const
 {
 	return InElementId 
 		&& ElementCombinedIds.Contains(InElementId.GetCombinedId());
 }
 
-FTypedElementListLegacySync& FTypedElementList::Legacy_GetSync()
+FTypedElementListLegacySync& UTypedElementList::Legacy_GetSync()
 {
 	if (!LegacySync)
 	{
-		LegacySync = MakeUnique<FTypedElementListLegacySync>(*this);
+		LegacySync = MakeUnique<FTypedElementListLegacySync>(this);
 	}
 	return *LegacySync;
 }
 
-void FTypedElementList::NotifyPendingChanges()
+void UTypedElementList::NotifyPendingChanges()
 {
 	if (bHasPendingNotify)
 	{
 		bHasPendingNotify = false;
-		OnChangedDelegate.Broadcast(*this);
+		OnChangedDelegate.Broadcast(this);
 		check(!bHasPendingNotify); // This should still be false after emitting the notification!
 	}
 }
 
-void FTypedElementList::NoteListChanged(const EChangeType InChangeType, const FTypedElementHandle& InElementHandle)
+void UTypedElementList::NoteListChanged(const EChangeType InChangeType, const FTypedElementHandle& InElementHandle)
 {
 	bHasPendingNotify = true;
 

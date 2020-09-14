@@ -19,7 +19,7 @@ public:
 
 	/**
 	 * Retreive the object instance that should be selected via this handle.
-	 * @note This exists to allow the legacy USelection to bridge to an FTypedElementList instance. It should not be used in new code!
+	 * @note This exists to allow the legacy USelection to bridge to an UTypedElementList instance. It should not be used in new code!
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
 	virtual UObject* Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle) { return nullptr; }

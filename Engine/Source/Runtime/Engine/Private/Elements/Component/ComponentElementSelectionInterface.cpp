@@ -11,10 +11,10 @@ UObject* UComponentElementSelectionInterface::Legacy_GetSelectionObject(const FT
 	return ComponentData ? ComponentData->Component : nullptr;
 }
 
-int32 UComponentElementSelectionInterface::GetNumSelectedComponents(const FTypedElementList& InCurrentSelection)
+int32 UComponentElementSelectionInterface::GetNumSelectedComponents(const UTypedElementList* InCurrentSelection)
 {
 	int32 NumSelected = 0;
-	for (const FTypedElementHandle& SelectedElement : InCurrentSelection)
+	for (const FTypedElementHandle& SelectedElement : *InCurrentSelection)
 	{
 		if (SelectedElement.GetData<FComponentElementData>(/*bSilent*/true))
 		{
@@ -24,9 +24,9 @@ int32 UComponentElementSelectionInterface::GetNumSelectedComponents(const FTyped
 	return NumSelected;
 }
 
-bool UComponentElementSelectionInterface::HasSelectedComponents(const FTypedElementList& InCurrentSelection)
+bool UComponentElementSelectionInterface::HasSelectedComponents(const UTypedElementList* InCurrentSelection)
 {
-	for (const FTypedElementHandle& SelectedElement : InCurrentSelection)
+	for (const FTypedElementHandle& SelectedElement : *InCurrentSelection)
 	{
 		if (SelectedElement.GetData<FComponentElementData>(/*bSilent*/true))
 		{

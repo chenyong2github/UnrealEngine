@@ -9,18 +9,19 @@
 // FAssetEditorModeManager
 
 FAssetEditorModeManager::FAssetEditorModeManager()
-	: PreviewScene(nullptr)
-	, SelectedElements(UTypedElementRegistry::GetInstance()->CreateElementList())
 {
+	SelectedElements = UTypedElementRegistry::GetInstance()->CreateElementList();
+	SelectedElements->AddToRoot();
+
 	ActorSet = USelection::CreateActorSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
-	ActorSet->SetElementList(SelectedElements.Get());
+	ActorSet->SetElementList(SelectedElements);
 	ActorSet->AddToRoot();
 
 	ObjectSet = USelection::CreateObjectSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
 	ObjectSet->AddToRoot();
 
 	ComponentSet = USelection::CreateComponentSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
-	ComponentSet->SetElementList(SelectedElements.Get());
+	ComponentSet->SetElementList(SelectedElements);
 	ComponentSet->AddToRoot();
 }
 
@@ -42,9 +43,11 @@ FAssetEditorModeManager::~FAssetEditorModeManager()
 		ComponentSet->SetElementList(nullptr);
 		ComponentSet->RemoveFromRoot();
 		ComponentSet = nullptr;
-	}
 
-	SelectedElements.Reset();
+		SelectedElements->Empty();
+		SelectedElements->RemoveFromRoot();
+		SelectedElements = nullptr;
+	}
 }
 
 USelection* FAssetEditorModeManager::GetSelectedActors() const

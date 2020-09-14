@@ -15,7 +15,6 @@
 #include "AssetThumbnail.h"
 #include "ILevelEditor.h"
 #include "LevelViewportTabContent.h"
-#include "TypedElementListPtr.h"
 
 class IAssetEditorInstance;
 class IDetailsView;
@@ -23,6 +22,7 @@ class SActorDetails;
 class SBorder;
 class SLevelEditorModeContent;
 class SLevelEditorToolBox;
+class UTypedElementList;
 
 /**
  * Unreal editor level editor Slate widget
@@ -259,7 +259,7 @@ private:
 	UWorld* World;
 
 	// The list of selected elements (also set on the global USelection for actors and components).
-	FTypedElementListPtr SelectedElements;
+	UTypedElementList* SelectedElements = nullptr;
 
 	// The box that holds the title bar messages.
 	TSharedPtr<SHorizontalBox> TtileBarMessageBox;

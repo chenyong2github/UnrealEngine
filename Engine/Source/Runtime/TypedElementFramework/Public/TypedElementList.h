@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
+#include "Templates/SubclassOf.h"
 #include "Containers/ArrayView.h"
+#include "Templates/UniquePtr.h"
 #include "TypedElementHandle.h"
-#include "TypedElementListPtr.h"
+#include "TypedElementList.generated.h"
 
+class UTypedElementList;
 class UTypedElementRegistry;
 
 namespace TypedElementList_Private
@@ -171,11 +174,11 @@ public:
 		BatchComplete,
 	};
 	
-	FTypedElementListLegacySync(const FTypedElementList& InElementList);
+	FTypedElementListLegacySync(const UTypedElementList* InElementList);
 
 	void Private_EmitSyncEvent(const ESyncType InSyncType, const FTypedElementHandle& InElementHandle = FTypedElementHandle());
 
-	DECLARE_EVENT_FourParams(FTypedElementListLegacySync, FOnSyncEvent, const FTypedElementList& /*InElementList*/, ESyncType /*InSyncType*/, const FTypedElementHandle& /*InElementHandle*/, bool /*bIsWithinBatchOperation*/);
+	DECLARE_EVENT_FourParams(FTypedElementListLegacySync, FOnSyncEvent, const UTypedElementList* /*InElementList*/, ESyncType /*InSyncType*/, const FTypedElementHandle& /*InElementHandle*/, bool /*bIsWithinBatchOperation*/);
 	FOnSyncEvent& OnSyncEvent();
 
 	bool IsRunningBatchOperation() const;
@@ -185,7 +188,7 @@ public:
 	void ForceBatchOperationDirty();
 
 private:
-	const FTypedElementList& ElementList;
+	const UTypedElementList* ElementList;
 
 	FOnSyncEvent OnSyncEventDelegate;
 
@@ -197,30 +200,32 @@ private:
  * A list of element handles.
  * Provides high-level access to groups of elements, including accessing elements that implement specific interfaces.
  */
-class TYPEDELEMENTFRAMEWORK_API FTypedElementList
+UCLASS(Transient)
+class TYPEDELEMENTFRAMEWORK_API UTypedElementList : public UObject
 {
+	GENERATED_BODY()
+
 public:
-	FTypedElementList(const FTypedElementList&) = delete;
-	FTypedElementList& operator=(const FTypedElementList&) = delete;
+	//~ UObject interface
+	virtual void BeginDestroy() override;
 
-	FTypedElementList(FTypedElementList&&) = delete;
-	FTypedElementList& operator=(FTypedElementList&&) = delete;
-
-	~FTypedElementList();
-
-	static FTypedElementListPtr Private_CreateElementList(UTypedElementRegistry* InRegistry);
+	/**
+	 * Internal function used by the element registry to create an element list instance.
+	 */
+	static UTypedElementList* Private_CreateElementList(UTypedElementRegistry* InRegistry);
 
 	/**
 	 * Clone this list instance.
 	 * @note Only copies elements; does not copy any bindings!
 	 */
-	FTypedElementListPtr Clone() const;
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|List")
+	UTypedElementList* Clone() const;
 
 	/**
 	 * Get the element handle at the given index.
 	 * @note Use IsValidIndex to test for validity.
 	 */
-	FORCEINLINE const FTypedElementHandle& operator[](const int32 InIndex) const
+	FORCEINLINE FTypedElementHandle operator[](const int32 InIndex) const
 	{
 		return GetElementHandleAt(InIndex);
 	}
@@ -229,7 +234,8 @@ public:
 	 * Get the element handle at the given index.
 	 * @note Use IsValidIndex to test for validity.
 	 */
-	FORCEINLINE const FTypedElementHandle& GetElementHandleAt(const int32 InIndex) const
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List")
+	FORCEINLINE FTypedElementHandle GetElementHandleAt(const int32 InIndex) const
 	{
 		return ElementHandles[InIndex];
 	}
@@ -273,8 +279,24 @@ public:
 	}
 
 	/**
+	 * Get the element interface from the given handle.
+	 */
+	template <typename BaseInterfaceType>
+	BaseInterfaceType* GetElementInterface(const FTypedElementHandle& InElementHandle) const
+	{
+		return static_cast<BaseInterfaceType*>(GetElementInterface(InElementHandle, BaseInterfaceType::StaticClass()));
+	}
+
+	/**
+	 * Get the element interface from the given handle.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List")
+	UTypedElementInterface* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const;
+
+	/**
 	 * Is the given index a valid entry within this element list?
 	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List")
 	FORCEINLINE bool IsValidIndex(const int32 InIndex) const
 	{
 		return ElementHandles.IsValidIndex(InIndex);
@@ -283,6 +305,7 @@ public:
 	/**
 	 * Get the number of entries within this element list.
 	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List")
 	FORCEINLINE int32 Num() const
 	{
 		return ElementHandles.Num();
@@ -291,6 +314,7 @@ public:
 	/**
 	 * Shrink this element list storage to avoid slack.
 	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
 	FORCEINLINE void Shrink()
 	{
 		ElementCombinedIds.Shrink();
@@ -300,6 +324,7 @@ public:
 	/**
 	 * Pre-allocate enough memory in this element list to store the given number of entries.
 	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
 	FORCEINLINE void Reserve(const int32 InSize)
 	{
 		ElementCombinedIds.Reserve(InSize);
@@ -309,6 +334,7 @@ public:
 	/**
 	 * Remove all entries from this element list, potentially leaving space allocated for the given number of entries.
 	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
 	FORCEINLINE void Empty(const int32 InSlack = 0)
 	{
 		ElementCombinedIds.Empty(InSlack);
@@ -319,6 +345,7 @@ public:
 	/**
 	 * Remove all entries from this element list, preserving existing allocations.
 	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
 	FORCEINLINE void Reset()
 	{
 		ElementCombinedIds.Reset();
@@ -337,6 +364,7 @@ public:
 	/**
 	 * Does this element list contain an entry for the given element handle?
 	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List")
 	FORCEINLINE bool Contains(const FTypedElementHandle& InElementHandle) const
 	{
 		return ContainsElementImpl(InElementHandle.GetId());
@@ -355,6 +383,7 @@ public:
 	 * Add the given element handle to this element list, if it isn't already in the list.
 	 * @return True if the element handle was added, false if it is already in the list.
 	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
 	FORCEINLINE bool Add(const FTypedElementHandle& InElementHandle)
 	{
 		return AddElementImpl(CopyTemp(InElementHandle));
@@ -379,6 +408,15 @@ public:
 		return AddElementImpl(InElementOwner.AcquireHandle());
 	}
 
+	/**
+	 * Append the given element handles to this element list, for any that already in the list.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
+	FORCEINLINE void Append(const TArray<FTypedElementHandle>& InElementHandles)
+	{
+		Append(MakeArrayView(InElementHandles));
+	}
+	
 	/**
 	 * Append the given element handles to this element list, for any that already in the list.
 	 */
@@ -446,6 +484,7 @@ public:
 	 * Remove the given element handle from this element list, if it is in the list.
 	 * @return True if the element handle was removed, false if it isn't in the list.
 	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List")
 	FORCEINLINE bool Remove(const FTypedElementHandle& InElementHandle)
 	{
 		return RemoveElementImpl(InElementHandle.GetId());
@@ -489,7 +528,7 @@ public:
 	 * Access the delegate that is invoked whenever this element list has been changed.
 	 * @note This is called automatically at the end of each frame, but can also be manually invoked by NotifyPendingChanges.
 	 */
-	DECLARE_EVENT_OneParam(FTypedElementList, FOnChanged, const FTypedElementList& /*InElementList*/);
+	DECLARE_EVENT_OneParam(UTypedElementList, FOnChanged, const UTypedElementList* /*InElementList*/);
 	FOnChanged& OnChanged()
 	{
 		return OnChangedDelegate;
@@ -544,7 +583,7 @@ private:
 		Cleared,
 	};
 
-	explicit FTypedElementList(UTypedElementRegistry* InRegistry);
+	void Initialize(UTypedElementRegistry* InRegistry);
 
 	bool AddElementImpl(FTypedElementHandle&& InElementHandle);
 	bool RemoveElementImpl(const FTypedElementId& InElementId);

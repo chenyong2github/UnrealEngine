@@ -3312,6 +3312,7 @@ public:
 	TTypedElementOwner<struct FActorElementData> CreateActorElement() const;
 	void DestroyActorElement(TTypedElementOwner<struct FActorElementData>& InOutActorElement) const;
 #if WITH_EDITOR
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Actor")
 	FTypedElementHandle AcquireEditorElementHandle(const bool bAllowCreate = true) const;
 #endif
 

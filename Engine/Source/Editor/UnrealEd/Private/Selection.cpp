@@ -56,7 +56,7 @@ public:
 	explicit FObjectSelectionStore(const UClass* InObjectBaseClass);
 
 	//~ ISelectionStore interface
-	virtual void SetElementList(FTypedElementList* InElementList) override;
+	virtual void SetElementList(UTypedElementList* InElementList) override;
 	virtual int32 GetNumObjects() const override;
 	virtual UObject* GetObjectAtIndex(const int32 InIndex) const override;
 	virtual bool IsObjectSelected(const UObject* InObject) const override;
@@ -84,7 +84,7 @@ FObjectSelectionStore::FObjectSelectionStore(const UClass* InObjectBaseClass)
 {
 }
 
-void FObjectSelectionStore::SetElementList(FTypedElementList* InElementList)
+void FObjectSelectionStore::SetElementList(UTypedElementList* InElementList)
 {
 	checkf(!UE_USE_ELEMENT_LIST_SELECTION, TEXT("This selection store does not support element lists! Only actor and component selections may currently use element lists!"));
 }
@@ -201,7 +201,7 @@ public:
 	virtual ~FElementSelectionStore();
 
 	//~ ISelectionStore interface
-	virtual void SetElementList(FTypedElementList* InElementList) override;
+	virtual void SetElementList(UTypedElementList* InElementList) override;
 	virtual int32 GetNumObjects() const override;
 	virtual UObject* GetObjectAtIndex(const int32 InIndex) const override;
 	virtual bool IsValidObjectToSelect(const UObject* InObject) const override;
@@ -217,11 +217,11 @@ public:
 	virtual FTypedElementHandle GetElementHandleForObject(const UObject* InObject, const bool bAllowCreate = true) const = 0;
 
 private:
-	void OnElementListSyncEvent(const FTypedElementList& InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation);
+	void OnElementListSyncEvent(const UTypedElementList* InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation);
 	UObject* GetObjectForElementHandle(const FTypedElementHandle& InElementHandle) const;
 
 	/** External list of elements that this selection instance is bridging. This will be null unless a level editor instance exists. */
-	FTypedElementList* ElementList = nullptr;
+	UTypedElementList* ElementList = nullptr;
 };
 
 FElementSelectionStore::FElementSelectionStore(const UClass* InObjectBaseClass)
@@ -237,7 +237,7 @@ FElementSelectionStore::~FElementSelectionStore()
 	}
 }
 
-void FElementSelectionStore::SetElementList(FTypedElementList* InElementList)
+void FElementSelectionStore::SetElementList(UTypedElementList* InElementList)
 {
 	if (ElementList)
 	{
@@ -368,7 +368,7 @@ void FElementSelectionStore::ForceBatchDirty()
 	}
 }
 
-void FElementSelectionStore::OnElementListSyncEvent(const FTypedElementList& InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation)
+void FElementSelectionStore::OnElementListSyncEvent(const UTypedElementList* InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation)
 {
 	if (Sink)
 	{

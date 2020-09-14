@@ -9,7 +9,7 @@
 #include "Components/ActorComponent.h"
 #include "Selection.generated.h"
 
-class FTypedElementList;
+class UTypedElementList;
 
 namespace Selection_Private
 {
@@ -49,7 +49,7 @@ public:
 	 * Set the element list instance for this store.
 	 * @note Does nothing if element list stores aren't enabled. Asserts for non-element list stores if they are!
 	 */
-	virtual void SetElementList(FTypedElementList* InElementList) = 0;
+	virtual void SetElementList(UTypedElementList* InElementList) = 0;
 
 	/**
 	 * Get the number of objects within the underlying store.
@@ -181,7 +181,7 @@ public:
 	 * Set the element list instance for this selection set.
 	 * @note Does nothing if element list stores aren't enabled. Asserts for non-element list stores if they are!
 	 */
-	void SetElementList(FTypedElementList* InElementList)
+	void SetElementList(UTypedElementList* InElementList)
 	{
 		SelectionStore->SetElementList(InElementList);
 	}
