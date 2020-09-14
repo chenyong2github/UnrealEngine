@@ -36,6 +36,13 @@ public:
 
 	/** Whether or not this class supports auto registration or if the settings have a custom setup */
 	virtual bool SupportsAutoRegistration() const { return true; }
+
+	/** Returns a delegate that can be used to monitor for property changes to this object */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSettingsChanged, UObject*, struct FPropertyChangedEvent&);
+	FOnSettingsChanged& OnSettingChanged();
+
+	/** UObject interface */
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	/** Gets a custom widget for the settings.  This is only for very custom situations. */
@@ -53,11 +60,12 @@ protected:
 	FName SectionName;
 	
 #if WITH_EDITOR
-
 	/** Populates all properties that have 'ConsoleVariable' meta data with the respective console variable values */
 	void ImportConsoleVariableValues();
 	/** If property has 'ConsoleVariable' meta data, exports the property value to the specified console variable */
 	void ExportValuesToConsoleVariables(FProperty* PropertyThatChanged);
 
+	/** Holds a delegate that is executed after the settings section has been modified. */
+	FOnSettingsChanged SettingsChangedDelegate;
 #endif
 };
