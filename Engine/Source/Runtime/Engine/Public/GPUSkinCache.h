@@ -408,7 +408,20 @@ protected:
 	void DoDispatch(FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber);
 	void DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex);
-	void DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber);
+
+	void PrepareUpdateSkinning(
+		FGPUSkinCacheEntry* Entry, 
+		int32 Section, 
+		uint32 RevisionNumber, 
+		TArray<FRHIUnorderedAccessView*>* OverlappedUAVs
+		);
+
+	void DispatchUpdateSkinning(
+		FRHICommandListImmediate& RHICmdList, 
+		FGPUSkinCacheEntry* Entry, 
+		int32 Section, 
+		uint32 RevisionNumber
+		);
 
 	void Cleanup();
 	static void ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry);
