@@ -4402,7 +4402,9 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 		DestRVT->Modify();
 		DestRVT->VirtualTexture = SourceRVT->VirtualTexture;
 		DestRVT->Group = SourceRVT->Group;
+#if WITH_EDITORONLY_DATA
 		DestRVT->SortPriority = SourceRVT->SortPriority;
+#endif
 	}
 	else if(Source->IsA(UMaterialExpressionVectorParameter::StaticClass()))
 	{
