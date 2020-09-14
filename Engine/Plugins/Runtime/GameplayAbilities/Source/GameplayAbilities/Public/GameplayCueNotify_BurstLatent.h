@@ -8,13 +8,38 @@
 #include "GameplayCueNotify_BurstLatent.generated.h"
 
 
+USTRUCT(BlueprintType)
+struct FGameplayCueNotify_BurstLatentSparseData
+{
+	GENERATED_BODY()
+
+public:
+
+	FGameplayCueNotify_BurstLatentSparseData() {}
+
+public:
+
+	// Default condition to check before spawning anything.  Applies for all spawns unless overridden.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Defaults")
+	FGameplayCueNotify_SpawnCondition DefaultSpawnCondition;
+
+	// Default placement rules.  Applies for all spawns unless overridden.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Defaults")
+	FGameplayCueNotify_PlacementInfo DefaultPlacementInfo;
+
+	// List of effects to spawn on burst.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Effects")
+	FGameplayCueNotify_BurstEffects BurstEffects;
+};
+
+
 /**
  * AGameplayCueNotify_BurstLatent
  *
  *	This is an instanced gameplay cue notify for effects that are one-offs.
  *	Since it is instanced, it can do latent things like time lines or delays.
  */
-UCLASS(Blueprintable, notplaceable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Burst Latent", ShortTooltip = "A one-off GameplayCueNotify that can use latent actions such as timelines."))
+UCLASS(Blueprintable, notplaceable, SparseClassDataTypes = GameplayCueNotify_BurstLatentSparseData, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Burst Latent", ShortTooltip = "A one-off GameplayCueNotify that can use latent actions such as timelines."))
 class AGameplayCueNotify_BurstLatent : public AGameplayCueNotify_Instanced
 {
 	GENERATED_BODY()
@@ -38,19 +63,7 @@ protected:
 
 protected:
 
-	// Default condition to check before spawning anything.  Applies for all spawns unless overridden.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defaults")
-	FGameplayCueNotify_SpawnCondition DefaultSpawnCondition;
-
-	// Default placement rules.  Applies for all spawns unless overridden.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defaults")
-	FGameplayCueNotify_PlacementInfo DefaultPlacementInfo;
-
-	// List of effects to spawn on burst.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-	FGameplayCueNotify_BurstEffects BurstEffects;
-
 	// Results of spawned burst effects.
-	UPROPERTY(BlueprintReadOnly, Category = "Effects")
+	UPROPERTY(BlueprintReadOnly, Category = "GCN Effects")
 	FGameplayCueNotify_SpawnResult BurstSpawnResults;
 };

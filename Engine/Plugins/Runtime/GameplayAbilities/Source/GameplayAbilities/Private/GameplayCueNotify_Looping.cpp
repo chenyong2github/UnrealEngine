@@ -10,8 +10,6 @@ AGameplayCueNotify_Looping::AGameplayCueNotify_Looping()
 {
 	bAllowMultipleWhileActiveEvents = false;
 
-	DefaultPlacementInfo.AttachPolicy = EGameplayCueNotify_AttachPolicy::AttachToTarget;
-
 	Recycle();
 }
 
@@ -46,13 +44,16 @@ bool AGameplayCueNotify_Looping::OnActive_Implementation(AActor* Target, const F
 {
 	UWorld* World = GetWorld();
 
-	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
-	SpawnContext.SetDefaultSpawnCondition(&DefaultSpawnCondition);
-	SpawnContext.SetDefaultPlacementInfo(&DefaultPlacementInfo);
+	const FGameplayCueNotify_LoopingSparseData* SparseData = GetGameplayCueNotify_LoopingSparseData();
+	check(SparseData);
 
-	if (DefaultSpawnCondition.ShouldSpawn(SpawnContext))
+	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
+	SpawnContext.SetDefaultSpawnCondition(&SparseData->DefaultSpawnCondition);
+	SpawnContext.SetDefaultPlacementInfo(&SparseData->DefaultPlacementInfo);
+
+	if (SparseData->DefaultSpawnCondition.ShouldSpawn(SpawnContext))
 	{
-		ApplicationEffects.ExecuteEffects(SpawnContext, ApplicationSpawnResults);
+		SparseData->ApplicationEffects.ExecuteEffects(SpawnContext, ApplicationSpawnResults);
 
 		OnApplication(Target, Parameters, ApplicationSpawnResults);
 	}
@@ -64,15 +65,18 @@ bool AGameplayCueNotify_Looping::WhileActive_Implementation(AActor* Target, cons
 {
 	UWorld* World = GetWorld();
 
-	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
-	SpawnContext.SetDefaultSpawnCondition(&DefaultSpawnCondition);
-	SpawnContext.SetDefaultPlacementInfo(&DefaultPlacementInfo);
+	const FGameplayCueNotify_LoopingSparseData* SparseData = GetGameplayCueNotify_LoopingSparseData();
+	check(SparseData);
 
-	if (DefaultSpawnCondition.ShouldSpawn(SpawnContext))
+	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
+	SpawnContext.SetDefaultSpawnCondition(&SparseData->DefaultSpawnCondition);
+	SpawnContext.SetDefaultPlacementInfo(&SparseData->DefaultPlacementInfo);
+
+	if (SparseData->DefaultSpawnCondition.ShouldSpawn(SpawnContext))
 	{
 		bLoopingEffectsRemoved = false;
 
-		LoopingEffects.StartEffects(SpawnContext, LoopingSpawnResults);	
+		SparseData->LoopingEffects.StartEffects(SpawnContext, LoopingSpawnResults);	
 
 		OnLoopingStart(Target, Parameters, LoopingSpawnResults);
 	}
@@ -84,13 +88,16 @@ bool AGameplayCueNotify_Looping::OnExecute_Implementation(AActor* Target, const 
 {
 	UWorld* World = GetWorld();
 
-	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
-	SpawnContext.SetDefaultSpawnCondition(&DefaultSpawnCondition);
-	SpawnContext.SetDefaultPlacementInfo(&DefaultPlacementInfo);
+	const FGameplayCueNotify_LoopingSparseData* SparseData = GetGameplayCueNotify_LoopingSparseData();
+	check(SparseData);
 
-	if (DefaultSpawnCondition.ShouldSpawn(SpawnContext))
+	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
+	SpawnContext.SetDefaultSpawnCondition(&SparseData->DefaultSpawnCondition);
+	SpawnContext.SetDefaultPlacementInfo(&SparseData->DefaultPlacementInfo);
+
+	if (SparseData->DefaultSpawnCondition.ShouldSpawn(SpawnContext))
 	{
-		RecurringEffects.ExecuteEffects(SpawnContext, RecurringSpawnResults);
+		SparseData->RecurringEffects.ExecuteEffects(SpawnContext, RecurringSpawnResults);
 
 		OnRecurring(Target, Parameters, RecurringSpawnResults);
 	}
@@ -107,13 +114,16 @@ bool AGameplayCueNotify_Looping::OnRemove_Implementation(AActor* Target, const F
 	{
 		UWorld* World = GetWorld();
 
-		FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
-		SpawnContext.SetDefaultSpawnCondition(&DefaultSpawnCondition);
-		SpawnContext.SetDefaultPlacementInfo(&DefaultPlacementInfo);
+		const FGameplayCueNotify_LoopingSparseData* SparseData = GetGameplayCueNotify_LoopingSparseData();
+		check(SparseData);
 
-		if (DefaultSpawnCondition.ShouldSpawn(SpawnContext))
+		FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
+		SpawnContext.SetDefaultSpawnCondition(&SparseData->DefaultSpawnCondition);
+		SpawnContext.SetDefaultPlacementInfo(&SparseData->DefaultPlacementInfo);
+
+		if (SparseData->DefaultSpawnCondition.ShouldSpawn(SpawnContext))
 		{
-			RemovalEffects.ExecuteEffects(SpawnContext, RemovalSpawnResults);
+			SparseData->RemovalEffects.ExecuteEffects(SpawnContext, RemovalSpawnResults);
 		}
 	}
 
@@ -130,18 +140,24 @@ void AGameplayCueNotify_Looping::RemoveLoopingEffects()
 		return;
 	}
 
+	const FGameplayCueNotify_LoopingSparseData* SparseData = GetGameplayCueNotify_LoopingSparseData();
+	check(SparseData);
+
 	bLoopingEffectsRemoved = true;
 
-	LoopingEffects.StopEffects(LoopingSpawnResults);
+	SparseData->LoopingEffects.StopEffects(LoopingSpawnResults);
 }
 
 #if WITH_EDITOR
 EDataValidationResult AGameplayCueNotify_Looping::IsDataValid(TArray<FText>& ValidationErrors)
 {
-	ApplicationEffects.ValidateAssociatedAssets(this, TEXT("ApplicationEffects"), ValidationErrors);
-	LoopingEffects.ValidateAssociatedAssets(this, TEXT("LoopingEffects"), ValidationErrors);
-	RecurringEffects.ValidateAssociatedAssets(this, TEXT("RecurringEffects"), ValidationErrors);
-	RemovalEffects.ValidateAssociatedAssets(this, TEXT("RemovalEffects"), ValidationErrors);
+	const FGameplayCueNotify_LoopingSparseData* SparseData = GetGameplayCueNotify_LoopingSparseData();
+	check(SparseData);
+
+	SparseData->ApplicationEffects.ValidateAssociatedAssets(this, TEXT("ApplicationEffects"), ValidationErrors);
+	SparseData->LoopingEffects.ValidateAssociatedAssets(this, TEXT("LoopingEffects"), ValidationErrors);
+	SparseData->RecurringEffects.ValidateAssociatedAssets(this, TEXT("RecurringEffects"), ValidationErrors);
+	SparseData->RemovalEffects.ValidateAssociatedAssets(this, TEXT("RemovalEffects"), ValidationErrors);
 
 	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
 }

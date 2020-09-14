@@ -29,13 +29,16 @@ bool AGameplayCueNotify_BurstLatent::OnExecute_Implementation(AActor* Target, co
 {
 	UWorld* World = GetWorld();
 
-	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
-	SpawnContext.SetDefaultSpawnCondition(&DefaultSpawnCondition);
-	SpawnContext.SetDefaultPlacementInfo(&DefaultPlacementInfo);
+	const FGameplayCueNotify_BurstLatentSparseData* SparseData = GetGameplayCueNotify_BurstLatentSparseData();
+	check(SparseData);
 
-	if (DefaultSpawnCondition.ShouldSpawn(SpawnContext))
+	FGameplayCueNotify_SpawnContext SpawnContext(World, Target, Parameters);
+	SpawnContext.SetDefaultSpawnCondition(&SparseData->DefaultSpawnCondition);
+	SpawnContext.SetDefaultPlacementInfo(&SparseData->DefaultPlacementInfo);
+
+	if (SparseData->DefaultSpawnCondition.ShouldSpawn(SpawnContext))
 	{
-		BurstEffects.ExecuteEffects(SpawnContext, BurstSpawnResults);
+		SparseData->BurstEffects.ExecuteEffects(SpawnContext, BurstSpawnResults);
 
 		OnBurst(Target, Parameters, BurstSpawnResults);
 	}
@@ -55,7 +58,10 @@ bool AGameplayCueNotify_BurstLatent::OnExecute_Implementation(AActor* Target, co
 #if WITH_EDITOR
 EDataValidationResult AGameplayCueNotify_BurstLatent::IsDataValid(TArray<FText>& ValidationErrors)
 {
-	BurstEffects.ValidateAssociatedAssets(this, TEXT("BurstEffects"), ValidationErrors);
+	const FGameplayCueNotify_BurstLatentSparseData* SparseData = GetGameplayCueNotify_BurstLatentSparseData();
+	check(SparseData);
+
+	SparseData->BurstEffects.ValidateAssociatedAssets(this, TEXT("BurstEffects"), ValidationErrors);
 
 	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
 }

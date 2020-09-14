@@ -37,14 +37,14 @@ protected:
 protected:
 
 	// Default condition to check before spawning anything.  Applies for all spawns unless overridden.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defaults")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Defaults")
 	FGameplayCueNotify_SpawnCondition DefaultSpawnCondition;
 
 	// Default placement rules.  Applies for all spawns unless overridden.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defaults")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Defaults")
 	FGameplayCueNotify_PlacementInfo DefaultPlacementInfo;
 
 	// List of effects to spawn on burst.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GCN Effects")
 	FGameplayCueNotify_BurstEffects BurstEffects;
 };
