@@ -21,6 +21,9 @@ public:
 
 	virtual TSharedPtr<IRemoteSessionChannel> GetChannel(const TCHAR* Type) = 0;
 
+	virtual void RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate) = 0;
+	virtual void UnregisterChannelChangeDelegate(void* UserObject) = 0;
+
 	template<class T>
 	TSharedPtr<T> GetChannel()
 	{

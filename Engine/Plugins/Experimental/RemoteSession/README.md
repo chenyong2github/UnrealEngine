@@ -90,7 +90,22 @@ Once a connection to the FRemoteSessionFrameBufferChannel channel is established
     * Data is JPEG encoded.
     * ImageNum is simply an always-incrementing number.
 
+### FRemoteSessionInputChannel Channel API
 
+    Address: /MessageHandler/OnTouchStarted
+    tag: i,b
+    param: ByteCount, Data
+    Data is little endian f,f,i,i (X,Y,ID,Force)
+
+    Address: /MessageHandler/OnTouchMoved
+    tag: i,b
+    param: ByteCount, Data
+    Data is little endian f,f,i,i (X,Y,ID,Force)
+
+    Address: /MessageHandler/OnTouchEnded
+    tag: i,b
+    param: ByteCount, Data
+    Data is little endian f,f,i,i (X,Y,ID,Force)
 
 ## Tips
 
