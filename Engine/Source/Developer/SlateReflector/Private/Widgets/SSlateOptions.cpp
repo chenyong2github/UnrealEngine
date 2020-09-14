@@ -4,6 +4,7 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/IConsoleManager.h"
 #include "SlateGlobals.h"
 #include "SlateReflectorModule.h"
 #include "Styling/CoreStyle.h"
