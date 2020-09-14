@@ -18,8 +18,8 @@ float MaxRayDistance;
 float Intensity;
 float MaxNormalBias;
 RaytracingAccelerationStructure TLAS;
-RWTexture2D<float> RWOcclusionMaskUAV;
-RWTexture2D<float> RWHitDistanceUAV;
+RWTexture2D<float> RWAmbientOcclusionMaskUAV;
+RWTexture2D<float> RWAmbientOcclusionHitDistanceUAV;
 
 
 /** Returns the radius of a pixel in world space. */
@@ -236,7 +236,7 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 			RawOutput.y = ClosestRayHitDistance;
 		}
 
-		RWOcclusionMaskUAV[PixelCoord] = RawOutput.x;
-		RWHitDistanceUAV[PixelCoord] = RawOutput.y;
+		RWAmbientOcclusionMaskUAV[PixelCoord] = RawOutput.x;
+		RWAmbientOcclusionHitDistanceUAV[PixelCoord] = RawOutput.y;
 	}
 }
