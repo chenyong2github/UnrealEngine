@@ -129,6 +129,7 @@ private:
 #endif
 };
 
+#if WITH_EDITOR
 /**
  * FBaseActorPartition
  */
@@ -151,7 +152,7 @@ protected:
 	friend class FActorPartitionGridHelper;
 };
 
-#if WITH_EDITOR
+
 class ENGINE_API FActorPartitionGridHelper
 {
 public:
