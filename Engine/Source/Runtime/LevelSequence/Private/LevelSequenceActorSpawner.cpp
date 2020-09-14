@@ -96,10 +96,9 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 				// Avoid spamming output, warning only once per level
 				if (!ErrorLevels.Contains(DesiredLevelName))
 				{
-					UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into."), *DesiredLevelName.ToString(), *Spawnable.GetName());
+					UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into, defaulting to Persistent level"), *DesiredLevelName.ToString(), *Spawnable.GetName());
 					ErrorLevels.Add(DesiredLevelName);
 				}
-				return nullptr;
 			}
 		}
 	}
@@ -108,11 +107,11 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 	{
 		if (!ErrorLevels.Contains(DesiredLevelName))
 		{
-			UE_LOG(LogMovieScene, Warning, TEXT("Can't find world to spawn '%s' into."), *Spawnable.GetName());
+			UE_LOG(LogMovieScene, Warning, TEXT("Can't find world to spawn '%s' into, defaulting to Persistent level"), *Spawnable.GetName());
 			ErrorLevels.Add(DesiredLevelName);
 		}
 
-		return nullptr;
+		WorldContext = GWorld;
 	}
 
 	// Construct the object with the same name that we will set later on the actor to avoid renaming it inside SetActorLabel
