@@ -112,10 +112,8 @@ namespace ChaosTest
 		{
 			Solver->FindOrCreateCallbackProducerData(*Callback).Data.Int = Step;
 			Solver->AdvanceAndDispatch_External(Dt);
+			Solver->UpdateGameThreadStructures();
 			Time += Dt;
-
-			Solver->BufferPhysicsResults();
-			Solver->FlipBuffers();
 		}
 		
 		EXPECT_EQ(Count,10);
@@ -125,10 +123,8 @@ namespace ChaosTest
 		for(int Step = 0; Step < 10; ++Step)
 		{
 			Solver->AdvanceAndDispatch_External(Dt);
+			Solver->UpdateGameThreadStructures();
 			Time += Dt;
-
-			Solver->BufferPhysicsResults();
-			Solver->FlipBuffers();
 		}
 
 		EXPECT_EQ(Count,10);
@@ -154,9 +150,7 @@ namespace ChaosTest
 			});
 
 			Solver->AdvanceAndDispatch_External(1/30.f);
-
-			Solver->BufferPhysicsResults();
-			Solver->FlipBuffers();
+			Solver->UpdateGameThreadStructures();
 		}
 
 		EXPECT_EQ(Count,11);
