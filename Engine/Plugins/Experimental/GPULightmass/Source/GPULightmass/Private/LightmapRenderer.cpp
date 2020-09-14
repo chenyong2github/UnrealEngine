@@ -889,7 +889,7 @@ void FSceneRenderState::SetupRayTracingScene()
 
 			FRayTracingPipelineStateInitializer PSOInitializer;
 
-			PSOInitializer.MaxPayloadSizeInBytes = 60;
+			PSOInitializer.MaxPayloadSizeInBytes = 64;
 			PSOInitializer.bAllowHitGroupIndexing = true;
 
 			TArray<FRHIRayTracingShader*> RayGenShaderTable;
