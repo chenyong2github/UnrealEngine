@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.UI;
+using Microsoft.Win32;
 
 namespace DatasmithRevitExporter
 {
@@ -23,8 +25,6 @@ namespace DatasmithRevitExporter
 			UIControlledApplication InApplication // handle to the application being started
 		)
 		{
-			FDatasmithFacadeDirectLink.Init();
-
 			// Create a custom ribbon tab
 			string TabName = "Datasmith";
 			InApplication.CreateRibbonTab(TabName);
@@ -67,6 +67,30 @@ namespace DatasmithRevitExporter
 
 			DocumentClosingHandler = new EventHandler<DocumentClosingEventArgs>(OnDocumentClosing);
 			InApplication.ControlledApplication.DocumentClosing += DocumentClosingHandler;
+
+			// Setup Direct Link
+
+			string RevitEngineDir = null;
+
+			try
+			{
+				using (RegistryKey Key = Registry.LocalMachine.OpenSubKey("Software\\Wow6432Node\\EpicGames\\Unreal Engine"))
+				{
+					RevitEngineDir = Key?.GetValue("RevitEngineDir") as string;
+				}
+			}
+			finally
+			{
+				if (RevitEngineDir == null)
+				{
+					// If we could not read the registry, fallback to hardcoded engine dir
+					RevitEngineDir = "C:\\ProgramData\\Epic\\Exporter\\RevitEngine\\";
+				}
+			}
+
+			bool bDirectLinkInitOk = FDatasmithFacadeDirectLink.Init(true, RevitEngineDir);
+
+			Debug.Assert(bDirectLinkInitOk);
 
 			return Result.Succeeded;
 		}
