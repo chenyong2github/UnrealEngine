@@ -110,6 +110,8 @@ FGlobalDynamicIndexBuffer FMobileSceneRenderer::DynamicIndexBuffer;
 FGlobalDynamicVertexBuffer FMobileSceneRenderer::DynamicVertexBuffer;
 TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffer;
 
+extern bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
+
 static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 {
 	bool bUsesCustomDepthStencil = false;
@@ -362,6 +364,12 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// TODO: remove when old path is removed
 		// Create the directional light uniform buffers
 		CreateDirectionalLightUniformBuffers(View);
+
+		// Get the custom 1x1 target used to store exposure value and Toggle the two render targets used to store new and old.
+		if (IsMobileEyeAdaptationEnabled(View))
+		{
+			View.SwapEyeAdaptationBuffers();
+		}
 	}
 
 	UpdateGPUScene(RHICmdList, *Scene);

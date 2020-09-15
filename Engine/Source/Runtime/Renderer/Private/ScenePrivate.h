@@ -834,10 +834,10 @@ private:
 
 		const FExposureBufferData* GetLastBuffer(FRHICommandListImmediate& RHICmdList)
 		{
-			return GetOrCreateBuffer(RHICmdList, GetPreviousPreviousIndex());
+			return GetOrCreateBuffer(RHICmdList, 1 - CurrentBuffer);
 		}
 
-		void SwapBuffers(FRDGBuilder& GraphBuilder, bool bUpdateLastExposure);
+		void SwapBuffers(bool bUpdateLastExposure);
 
 	private:
 		const TRefCountPtr<IPooledRenderTarget>& GetTexture(uint32 TextureIndex) const;
@@ -857,8 +857,9 @@ private:
 		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[3];
 		TUniquePtr<FRHIGPUTextureReadback> ExposureTextureReadback[3];
 
-		FExposureBufferData ExposureBufferData[3];
-		TUniquePtr<FRHIGPUBufferReadback> ExposureBufferReadback[3];
+		// ES3.1 feature level. For efficent readback use buffers instead of textures
+		FExposureBufferData ExposureBufferData[2];
+		TUniquePtr<FRHIGPUBufferReadback> ExposureBufferReadback;
 
 	} EyeAdaptationManager;
 
@@ -1244,9 +1245,9 @@ public:
 		return EyeAdaptationManager.GetLastBuffer(RHICmdList);
 	}
 
-	void SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder)
+	void SwapEyeAdaptationBuffers()
 	{
-		EyeAdaptationManager.SwapBuffers(GraphBuilder, bUpdateLastExposure && bValidEyeAdaptationBuffer);
+		EyeAdaptationManager.SwapBuffers(bUpdateLastExposure && bValidEyeAdaptationBuffer);
 	}
 
 #if WITH_MGPU
@@ -1334,6 +1335,9 @@ public:
 	virtual void ReleaseDynamicRHI() override
 	{
 		HZBOcclusionTests.ReleaseDynamicRHI();
+		EyeAdaptationManager.SafeRelease();
+		bValidEyeAdaptationTexture = false;
+		bValidEyeAdaptationBuffer = false;
 	}
 
 	// FSceneViewStateInterface

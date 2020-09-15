@@ -152,6 +152,9 @@ FSceneViewState::FSceneViewState()
 	, SeparateTranslucencyTimer(TimerQueryPool)
 	, SeparateTranslucencyModulateTimer(TimerQueryPool)
 {
+	// Set FeatureLevel to a valid value, so we get Init/ReleaseDynamicRHI calls on FeatureLevel changes
+	SetFeatureLevel(GMaxRHIFeatureLevel);
+	
 	UniqueID = FSceneViewState_UniqueID.Increment();
 	OcclusionFrameCounter = 0;
 	LastRenderTime = -FLT_MAX;
