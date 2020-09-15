@@ -299,6 +299,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			else
 			{
 				InControlRigBlueprint->RebuildGraphFromModel();
+
+				// selection state does not need to be persistent, even though it is saved in the RigVM.
+				InControlRigBlueprint->Controller->ClearNodeSelection(false);
+
 				if (UPackage* Package = InControlRigBlueprint->GetOutermost())
 				{
 					Package->SetDirtyFlag(InControlRigBlueprint->bDirtyDuringLoad);
