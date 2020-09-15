@@ -32,23 +32,27 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 	bool bValidPatchChannel = true;
 
 	UDMXEntityFixturePatch* Patch = Reference.GetFixturePatch();
+
 	if (Patch == nullptr || !Patch->IsValidLowLevelFast())
 	{
 		UE_LOG(LogDMXRuntime, Warning, TEXT("Patch removed from DMX Library. Corresponding DMX Channel removed from Sequencer."));
 		bValidPatchChannel = false;
 	}
-	
-	UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate;
-	if (FixtureType == nullptr)
-	{
-		UE_LOG(LogDMXRuntime, Warning, TEXT("%s has no valid Parent Fixture Type set. Corresponding DMX Channel removed from Sequencer."), *Patch->GetDisplayName());
-		bValidPatchChannel = false;
-	}
 
-	if (!FixtureType->Modes.IsValidIndex(ActiveMode))
+	UDMXEntityFixtureType* FixtureType = nullptr;
+	if (Patch)
 	{
-		UE_LOG(LogDMXRuntime, Warning, TEXT("Recorded Mode '%s' no longer exists in '%s'. Channel Removed from Sequencer."), *FixtureType->Modes[ActiveMode].ModeName, *FixtureType->GetDisplayName());
-		bValidPatchChannel = false;
+		FixtureType = Patch->ParentFixtureTypeTemplate;
+		if (FixtureType == nullptr)
+		{
+			UE_LOG(LogDMXRuntime, Warning, TEXT("%s has no valid Parent Fixture Type set. Corresponding DMX Channel removed from Sequencer."), *Patch->GetDisplayName());
+			bValidPatchChannel = false;
+		}
+		else if (!FixtureType->Modes.IsValidIndex(ActiveMode))
+		{
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Recorded Mode '%s' no longer exists in '%s'. Channel Removed from Sequencer."), *FixtureType->Modes[ActiveMode].ModeName, *FixtureType->GetDisplayName());
+			bValidPatchChannel = false;
+		}
 	}
 
 	if (!bValidPatchChannel)
@@ -392,7 +396,7 @@ TArray<UDMXEntityFixturePatch*> UMovieSceneDMXLibrarySection::GetFixturePatches(
 		// Add only valid patches
 		if (UDMXEntityFixturePatch* Patch = PatchRef.Reference.GetFixturePatch())
 		{
-			if (Patch->IsValidLowLevelFast())
+			if (!Patch->IsValidLowLevelFast())
 			{
 				Result.Add(Patch);
 			}
@@ -560,7 +564,7 @@ void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixtu
 		check(DMXSubsystem);
 
 		TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-		DMXSubsystem->GetMatrixPixelChannels(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
+		DMXSubsystem->GetMatrixPixelChannelsAbsolute(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
 
 		bool bLoggedMissingAttribute = false;
 		for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
@@ -581,8 +585,8 @@ void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixtu
 			}
 
 			const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
-			int32 FirstChannelAddress = AttributeNameChannelKvp.Value;
-			int32 LastChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+			int32 FirstRelativeChannelAddress = AttributeNameChannelKvp.Value;
+			int32 LastRelativeChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
 
 			int32 DefaultValue = PixelFunction.DefaultValue;
 
@@ -591,7 +595,7 @@ void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixtu
 
 			IDMXFragmentMap FragmentMap;
 			int32 ByteIndex = 0;
-			for (int32 ChannelIndex = FirstChannelAddress; ChannelIndex <= LastChannelAddress && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
+			for (int32 ChannelIndex = FirstRelativeChannelAddress; ChannelIndex <= LastRelativeChannelAddress && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
 			{
 				FragmentMap.Add(ChannelIndex, ValueBytes[ByteIndex]);
 			}
@@ -605,8 +609,16 @@ void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixtu
 					continue;
 				}
 
-				IDMXProtocolPtr DMXProtocol = Controller->DeviceProtocol;
-				DMXProtocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
+				IDMXProtocolPtr Protocol = Controller->DeviceProtocol;
+				bool bCanLoopback = Protocol->IsSendDMXEnabled() && Protocol->IsReceiveDMXEnabled();
+
+				// If sent DMX will not be received via network, input it directly
+				if (!bCanLoopback)
+				{
+					Protocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
+				}
+
+				Protocol->SendDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
 			}
 		}
 	}
@@ -637,8 +649,16 @@ void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixtu
 				continue;
 			}
 
-			IDMXProtocolPtr DMXProtocol = Controller->DeviceProtocol;
-			DMXProtocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
+			IDMXProtocolPtr Protocol = Controller->DeviceProtocol;
+			bool bCanLoopback = Protocol->IsSendDMXEnabled() && Protocol->IsReceiveDMXEnabled();
+
+			// If sent DMX will not be received via network, input it directly
+			if (!bCanLoopback)
+			{
+				Protocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
+			}
+
+			Protocol->SendDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
 		}
 	}
 }

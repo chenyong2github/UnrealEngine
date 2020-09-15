@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXProtocolArtNet.h"
+
+#include "DMXProtocolBlueprintLibrary.h"
 #include "DMXProtocolTransportArtNet.h"
 #include "Common/UdpSocketBuilder.h"
 
@@ -23,8 +25,9 @@ DECLARE_CYCLE_STAT(TEXT("Art-Net Packages Enqueue To Send"), STAT_ArtNetPackages
 using namespace ArtNet;
 
 FDMXProtocolArtNet::FDMXProtocolArtNet(const FName& InProtocolName, const FJsonObject& InSettings)
-	: ProtocolName(InProtocolName)
+	: bShouldSendDMX(false)
 	, bShouldReceiveDMX(false)
+	, ProtocolName(InProtocolName)	
 	, BroadcastSocket(nullptr)
 	, ListeningSocket(nullptr)
 	, bUseSeparateReceivingThread(true)
@@ -45,7 +48,8 @@ bool FDMXProtocolArtNet::Init()
 	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 
 	InterfaceIPAddress = ProtocolSettings->InterfaceIPAddress;
-	bShouldReceiveDMX = ProtocolSettings->bDefaultReceiveDMXEnabled;
+	bShouldSendDMX = ProtocolSettings->IsSendDMXEnabled();
+	bShouldReceiveDMX = ProtocolSettings->IsReceiveDMXEnabled();
 
 	// Set Network Interface listener
 	NetworkInterfaceChangedHandle = IDMXProtocol::OnNetworkInterfaceChanged.AddRaw(this, &FDMXProtocolArtNet::OnNetworkInterfaceChanged);
@@ -77,6 +81,16 @@ bool FDMXProtocolArtNet::Shutdown()
 bool FDMXProtocolArtNet::IsEnabled() const
 {
 	return true;
+}
+
+void FDMXProtocolArtNet::SetSendDMXEnabled(bool bEnabled)
+{
+	bShouldSendDMX = true;
+}
+
+bool FDMXProtocolArtNet::IsSendDMXEnabled() const
+{
+	return bShouldSendDMX;
 }
 
 void FDMXProtocolArtNet::SetReceiveDMXEnabled(bool bEnabled)
@@ -403,6 +417,12 @@ EDMXSendResult FDMXProtocolArtNet::InputDMXFragment(uint16 UniverseID, const IDM
 
 EDMXSendResult FDMXProtocolArtNet::SendDMXFragment(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment)
 {
+	if (!bShouldSendDMX)
+	{
+		// We successfully completed the send command by not sending, when globally dmx shouldn't be sent
+		return EDMXSendResult::Success;
+	}
+
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
 	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
@@ -433,6 +453,12 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXFragment(uint16 InUniverseID, const ID
 
 EDMXSendResult FDMXProtocolArtNet::SendDMXFragmentCreate(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment)
 {
+	if (!bShouldSendDMX)
+	{
+		// We successfully completed the send command by not sending, when globally dmx shouldn't be sent
+		return EDMXSendResult::Success;
+	}
+
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
 	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->AddUniverseCreate(FinalSendUniverseID);
@@ -448,6 +474,13 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXFragmentCreate(uint16 InUniverseID, co
 
 EDMXSendResult FDMXProtocolArtNet::SendDMXZeroUniverse(uint16 InUniverseID, bool bForceSendDMX /** = false */)
 {
+	if (!bShouldSendDMX)
+	{
+		// We successfully completed the send command by not sending, when globally dmx shouldn't be sent.
+		// Note, we do ignore bForceSendDMX here to give precendence to the global setting over all subsequent
+		return EDMXSendResult::Success;
+	}
+
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
 	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
@@ -479,6 +512,8 @@ bool FDMXProtocolArtNet::Tick(float DeltaTime)
 
 EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 PortID, const FDMXBufferPtr& DMXBuffer) const
 {
+	check(bShouldSendDMX);
+
 	// Init Packager
 	FDMXProtocolPackager Packager;
 

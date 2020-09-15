@@ -23,6 +23,7 @@ public:
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 public:
@@ -50,10 +51,6 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (ClampMin = "0", ClampMax = "1000"))
 	int32 SendingRefreshRate;
 
-	/** Whether DMX is received from the network by default.  */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (DisplayName = "Receive DMX by default"))
-	bool bDefaultReceiveDMXEnabled;
-
 	/** Rate at which DMX is received, in Hz from epsilon to 1000. If set to 0, a receive event is raised for each inbound DMX packet (not recommended). */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (ClampMin = "0", ClampMax = "1000", EditCondition = "bUseSeparateReceivingThread"))
 	int32 ReceivingRefreshRate;
@@ -62,7 +59,30 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings")
 	bool bUseSeparateReceivingThread;
 
-private:
-	/**  Helper to apply bDefaultReceiveDMXEnabled globally on property changes */
-	void GlobalSetReceiveDMXEnabled(bool bReceiveDMXEnabled);
+	/** Returns whether send DMX is currently enabled, considering runtime override */
+	bool IsSendDMXEnabled() const { return bOverrideSendDMXEnabled; }
+
+	/** Overrides if send DMX is enabled at runtime */
+	void OverrideSendDMXEnabled(bool bEnabled) { bOverrideSendDMXEnabled = bEnabled; }
+
+	/** Returns whether receive DMX is currently enabled, considering runtime override */
+	bool IsReceiveDMXEnabled() const { return bOverrideReceiveDMXEnabled; }
+
+	/** Overrides if send DMX is enabled at runtime */
+	void OverrideReceiveDMXEnabled(bool bEnabled) { bOverrideReceiveDMXEnabled = bEnabled; }
+
+private:	
+	/** Whether DMX is received from the network. Recalled whenever editor or game starts. */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
+	bool bDefaultReceiveDMXEnabled;
+
+	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Receive DMX by default"))
+	bool bDefaultSendDMXEnabled;
+
+	/** Overrides the default bDefaultSendDMXEnabled at runtime */
+	bool bOverrideReceiveDMXEnabled;
+
+	/** Overrides the default bDefaultSendDMXEnabled at runtime */
+	bool bOverrideSendDMXEnabled;
 };

@@ -180,6 +180,8 @@ void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureFunction& InFunction, uin
 
 bool FDMXPixelMatrix::GetChannelsFromPixel(FIntPoint Pixel, FDMXAttributeName Attribute, TArray<int32>& Channels) const
 {
+	Channels.Reset();
+
 	TArray<int32> AllChannels;
 
 	if (Pixel.X < 0 || Pixel.X >= XPixels)
