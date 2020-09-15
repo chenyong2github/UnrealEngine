@@ -30,6 +30,8 @@ private:
 	static void OnVirtualTextureDestroyedCB(const FVirtualTextureProducerHandle& InHandle, void* Baton);
 
 public:
+	bool bHiddenInEditor;
+
 	class URuntimeVirtualTexture* RuntimeVirtualTexture;
 	class FMaterialRenderProxy* Material;
 	class UTexture2D* MinMaxTexture;

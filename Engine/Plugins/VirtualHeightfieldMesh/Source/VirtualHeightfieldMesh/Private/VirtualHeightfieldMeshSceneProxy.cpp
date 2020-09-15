@@ -333,6 +333,7 @@ const static FName NAME_VirtualHeightfieldMesh(TEXT("VirtualHeightfieldMesh"));
 
 FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHeightfieldMeshComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, NAME_VirtualHeightfieldMesh)
+	, bHiddenInEditor(InComponent->GetHiddenInEditor())
 	, RuntimeVirtualTexture(InComponent->GetVirtualTexture())
 	, MinMaxTexture(nullptr)
 	, AllocatedVirtualTexture(nullptr)
@@ -438,10 +439,11 @@ void FVirtualHeightfieldMeshSceneProxy::OnVirtualTextureDestroyedCB(const FVirtu
 FPrimitiveViewRelevance FVirtualHeightfieldMeshSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	const bool bValid = AllocatedVirtualTexture != nullptr;
+	const bool bIsHiddenInEditor = bHiddenInEditor && View->Family->EngineShowFlags.Editor;
 
 	FPrimitiveViewRelevance Result;
-	Result.bDrawRelevance = IsShown(View) && bValid;
-	Result.bShadowRelevance = IsShadowCast(View) && bValid && ShouldRenderInMainPass();
+	Result.bDrawRelevance = bValid && IsShown(View) && !bIsHiddenInEditor;
+	Result.bShadowRelevance = bValid && IsShadowCast(View) && ShouldRenderInMainPass() &&!bIsHiddenInEditor;
 	Result.bDynamicRelevance = true;
 	Result.bStaticRelevance = false;
 	Result.bRenderInMainPass = ShouldRenderInMainPass();
