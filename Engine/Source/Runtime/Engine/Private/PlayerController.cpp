@@ -4293,15 +4293,15 @@ void APlayerController::UpdateForceFeedback(IInputInterface* InputInterface, con
 
 /// @cond DOXYGEN_WARNINGS
 
-void APlayerController::ClientPlayCameraShake_Implementation( TSubclassOf<class UCameraShake> Shake, float Scale, ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot )
+void APlayerController::ClientStartCameraShake_Implementation( TSubclassOf<class UCameraShakeBase> Shake, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot )
 {
 	if (PlayerCameraManager != NULL)
 	{
-		PlayerCameraManager->PlayCameraShake(Shake, Scale, PlaySpace, UserPlaySpaceRot);
+		PlayerCameraManager->StartCameraShake(Shake, Scale, PlaySpace, UserPlaySpaceRot);
 	}
 }
 
-void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class UCameraShake> Shake, bool bImmediately )
+void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class UCameraShakeBase> Shake, bool bImmediately )
 {
 	if (PlayerCameraManager != NULL)
 	{
@@ -4309,11 +4309,11 @@ void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class 
 	}
 }
 
-void APlayerController::ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
+void APlayerController::ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent)
 {
 	if (PlayerCameraManager != NULL)
 	{
-		PlayerCameraManager->PlayCameraShakeFromSource(Shake, SourceComponent);
+		PlayerCameraManager->StartCameraShakeFromSource(Shake, SourceComponent);
 	}
 }
 
@@ -4327,7 +4327,7 @@ void APlayerController::ClientStopCameraShakesFromSource(class UCameraShakeSourc
 
 void APlayerController::ClientPlayCameraAnim_Implementation( UCameraAnim* AnimToPlay, float Scale, float Rate,
 						float BlendInTime, float BlendOutTime, bool bLoop,
-						bool bRandomStartTime, ECameraAnimPlaySpace::Type Space, FRotator CustomPlaySpace )
+						bool bRandomStartTime, ECameraShakePlaySpace Space, FRotator CustomPlaySpace )
 {
 	if (PlayerCameraManager != NULL)
 	{
