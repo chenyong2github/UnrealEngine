@@ -797,12 +797,13 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 		bool bSuccess = false;
 		FVector Position = FVector::ZeroVector;
 		FRotator Rotation = FRotator::ZeroRotator;
+		FTransform trackingToWorld = GetTrackingToWorldTransform();
 		FName AimSource = Hand == EControllerHand::Left ? FName("LeftAim") : FName("RightAim");
 		bSuccess = MotionController->GetControllerOrientationAndPosition(0, AimSource, Rotation, Position, WorldToMeters);
 		if (bSuccess)
 		{
-			MotionControllerData.AimPosition = Position;
-			MotionControllerData.AimRotation = FQuat(Rotation);
+			MotionControllerData.AimPosition = trackingToWorld.TransformPosition(Position);
+			MotionControllerData.AimRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
 		}
 		MotionControllerData.bValid |= bSuccess;
 
@@ -810,8 +811,8 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 		bSuccess = MotionController->GetControllerOrientationAndPosition(0, GripSource, Rotation, Position, WorldToMeters);
 		if (bSuccess)
 		{
-			MotionControllerData.GripPosition = Position;
-			MotionControllerData.GripRotation = FQuat(Rotation);
+			MotionControllerData.GripPosition = trackingToWorld.TransformPosition(Position);
+			MotionControllerData.GripRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
 		}
 		MotionControllerData.bValid |= bSuccess;
 
@@ -919,6 +920,51 @@ bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVect
 	{
 		CurrentOrientation = ToFQuat(Location.pose.orientation);
 		CurrentPosition = ToFVector(Location.pose.position, GetWorldToMetersScale());
+		return true;
+	}
+
+	return false;
+}
+
+bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec)
+{
+	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+
+	if (!DeviceSpaces.IsValidIndex(DeviceId))
+	{
+		return false;
+	}
+
+	XrTime TargetTime = ToXrTime(Timespan);
+
+	const FDeviceSpace& DeviceSpace = DeviceSpaces[DeviceId];
+
+	XrSpaceVelocity DeviceVelocity;
+	DeviceVelocity.type = XR_TYPE_SPACE_VELOCITY;
+	DeviceVelocity.next = nullptr;
+	XrSpaceLocation DeviceLocation;
+	DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
+	DeviceLocation.next = &DeviceVelocity;
+
+	XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, TargetTime, &DeviceLocation));
+
+	if (DeviceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT &&
+		DeviceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
+	{
+		Orientation = ToFQuat(DeviceLocation.pose.orientation);
+		Position = ToFVector(DeviceLocation.pose.position, GetWorldToMetersScale());
+
+		if (DeviceVelocity.velocityFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT)
+		{
+			bProvidedLinearVelocity = true;
+			LinearVelocity = ToFVector(DeviceVelocity.linearVelocity, GetWorldToMetersScale());
+		}
+		if (DeviceVelocity.velocityFlags & XR_SPACE_VELOCITY_ANGULAR_VALID_BIT)
+		{
+			bProvidedAngularVelocity = true;
+			AngularVelocityRadPerSec = ToFVector(DeviceVelocity.angularVelocity);
+		}
+
 		return true;
 	}
 
@@ -1696,7 +1742,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
 	// FIXME: UE4 constantly calls this function even when there is no reason to reallocate the depth texture
-	if (!bDepthExtensionSupported || !bNeedReAllocatedDepth)
+	if (!bDepthExtensionSupported)
 	{
 		return false;
 	}
