@@ -46,7 +46,7 @@ float GetMobileDepthOfFieldScale(const FViewInfo& View)
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View)
 {
-	return IsMobileHDR() && View.ViewState != nullptr && View.Family->EngineShowFlags.EyeAdaptation && CVarMobileEyeAdaptation.GetValueOnRenderThread() == 1;
+	return View.ViewState != nullptr && View.Family->EngineShowFlags.EyeAdaptation && CVarMobileEyeAdaptation.GetValueOnRenderThread() == 1;
 }
 
 //Following variations are always generated
@@ -2152,9 +2152,6 @@ IMPLEMENT_GLOBAL_SHADER(FMobileHistogramEyeAdaptationCS, "/Engine/Private/PostPr
 
 void AddMobileEyeAdaptationPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FEyeAdaptationParameters& EyeAdaptationParameters, const FMobileEyeAdaptationInputs& Inputs)
 {
-	// Get the custom 1x1 target used to store exposure value and Toggle the two render targets used to store new and old.
-	View.SwapEyeAdaptationBuffers(GraphBuilder);
-
 	const FExposureBufferData* EyeAdaptationThisFrameBuffer = View.GetEyeAdaptationBuffer(GraphBuilder.RHICmdList);
 	const FExposureBufferData* EyeAdaptationLastFrameBuffer = View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList);
 
