@@ -248,7 +248,7 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<
 
 		int32 NewTriID = Submesh.AppendTriangle(NewTriangle);
 		check(NewTriID == SubmeshToBaseT.Num());
-		SubmeshToBaseT.Add(NewTriID);
+		SubmeshToBaseT.Add(tid);
 	}
 
 	// is there a quick check we can do to ensure that we have a single connected component?
