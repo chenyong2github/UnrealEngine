@@ -1588,15 +1588,26 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand) const
 	}
 
 	const FRigVMMemoryContainer& Memory = *MemoryPtr;
-	FRigVMRegister Register = Memory[InOperand];
+
+	FString OperandLabel;
+	if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
+	{
+		const FRigVMExternalVariable& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
+		OperandLabel = FString::Printf(TEXT("Variable::%s"), *ExternalVariable.Name.ToString());
+	}
+	else
+	{
+		FRigVMRegister Register = Memory[InOperand];
+		OperandLabel = Register.Name.ToString();
+	}
 
 	if (InOperand.GetRegisterOffset() != INDEX_NONE)
 	{
-		return FString::Printf(TEXT("%s.%s"), *Register.Name.ToString(), *Memory.RegisterOffsets[InOperand.GetRegisterOffset()].CachedSegmentPath);
+		return FString::Printf(TEXT("%s.%s"), *OperandLabel, *Memory.RegisterOffsets[InOperand.GetRegisterOffset()].CachedSegmentPath);
 	}
 
-	return Register.Name.ToString();
-	}
+	return OperandLabel;
+}
 
 #endif
 
