@@ -45,6 +45,7 @@ struct FFoliageActor : public FFoliageImpl
 	virtual void SelectAllInstances(bool bSelect) override;
 	virtual void SelectInstance(bool bSelect, int32 Index) override;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;
+	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const override;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;
 

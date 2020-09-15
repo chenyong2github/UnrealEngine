@@ -502,6 +502,9 @@ public:
 	/** Set/Clear selection for foliage instances of specific type  */
 	void SelectInstances(const UFoliageType* Settings, bool bSelect);
 
+	/*Focus on selected instances*/
+	void FocusSelectedInstances() const;
+
 	/** Find and select instances that don't have valid base or 'off-ground' */
 	void SelectInvalidInstances(const TArray<const UFoliageType*>& FoliageTypes);
 

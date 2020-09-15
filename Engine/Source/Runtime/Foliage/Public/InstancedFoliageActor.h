@@ -243,6 +243,9 @@ public:
 	// Select an individual instance.
 	FOLIAGE_API bool SelectInstance(AActor* InActor, bool bToggle);
 
+	//Get the bounds of all selected instances
+	FOLIAGE_API FBox GetSelectionBoundingBox() const;
+
 	// Whether actor has selected instances
 	FOLIAGE_API bool HasSelectedInstances() const;
 

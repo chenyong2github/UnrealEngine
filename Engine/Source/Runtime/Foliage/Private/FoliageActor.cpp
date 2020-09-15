@@ -334,6 +334,16 @@ void FFoliageActor::SelectInstances(bool bSelect, const TSet<int32>& SelectedInd
 	AInstancedFoliageActor::SelectionChanged.Broadcast(bSelect, GetActorsFromSelectedIndices(SelectedIndices));
 }
 
+FBox FFoliageActor::GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const
+{
+	FBox BoundingBox(EForceInit::ForceInit);
+	TArray<AActor*> SelectedActors = GetActorsFromSelectedIndices(SelectedIndices);
+	for (auto Actor : SelectedActors)
+	{
+		BoundingBox += Actor->GetComponentsBoundingBox();
+	}
+	return BoundingBox;
+}
 void FFoliageActor::ApplySelection(bool bApply, const TSet<int32>& SelectedIndices)
 {
 	if (bApply && SelectedIndices.Num() > 0)

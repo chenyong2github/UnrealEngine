@@ -200,6 +200,7 @@ struct FFoliageImpl
 	virtual void SelectAllInstances(bool bSelect) = 0;
 	virtual void SelectInstance(bool bSelect, int32 Index) = 0;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) = 0;
+	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const = 0;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) = 0;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) = 0;
 
@@ -309,6 +310,8 @@ struct FFoliageInfo
 	FOLIAGE_API void SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect, TArray<int32>& Instances);
 
 	FOLIAGE_API void SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect);
+
+	FOLIAGE_API FBox GetSelectionBoundingBox() const;
 
 	// Get the number of placed instances
 	FOLIAGE_API int32 GetPlacedInstanceCount() const;

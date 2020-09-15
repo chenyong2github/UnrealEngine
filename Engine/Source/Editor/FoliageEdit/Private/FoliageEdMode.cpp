@@ -3,6 +3,7 @@
 #include "FoliageEdMode.h"
 #include "SceneView.h"
 #include "EditorViewportClient.h"
+#include "Editor.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "FoliageType.h"
@@ -1761,6 +1762,18 @@ void FEdModeFoliage::SelectInstances(const TArray<const UFoliageType *>& Foliage
 void FEdModeFoliage::SelectInstances(const UFoliageType* Settings, bool bSelect)
 {
 	SelectInstances(GetWorld(), Settings, bSelect);
+}
+
+void FEdModeFoliage::FocusSelectedInstances() const
+{
+	UWorld* World = GetWorld();
+	FBox SelectionBoundingBox(EForceInit::ForceInit);
+	for (TActorIterator<AInstancedFoliageActor> It(World); It; ++It)
+	{
+		AInstancedFoliageActor* IFA = *It;
+		SelectionBoundingBox += IFA->GetSelectionBoundingBox();
+	}
+	GEditor->MoveViewportCamerasToBox(SelectionBoundingBox, true);
 }
 
 void FEdModeFoliage::SelectInstances(UWorld* InWorld, bool bSelect)
@@ -3631,6 +3644,18 @@ bool FEdModeFoliage::InputKey(FEditorViewportClient* ViewportClient, FViewport* 
 			{
 				SnapSelectedInstancesToGround(GetWorld());
 
+				bHandled = true;
+			}
+		}
+	}
+
+	if (!bHandled)
+	{
+		if (Event == IE_Pressed)
+		{
+			if (Key == EKeys::F)
+			{
+				FocusSelectedInstances();
 				bHandled = true;
 			}
 		}

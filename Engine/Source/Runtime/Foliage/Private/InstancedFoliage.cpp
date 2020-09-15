@@ -116,6 +116,7 @@ struct FFoliageStaticMesh : public FFoliageImpl
 	virtual void SelectAllInstances(bool bSelect) override;
 	virtual void SelectInstance(bool bSelect, int32 Index) override;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;
+	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const override;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;
 
@@ -1043,6 +1044,18 @@ void FFoliageStaticMesh::SelectInstances(bool bSelect, const TSet<int32>& Select
 		Component->SelectInstance(bSelect, i);
 	}
 	Component->MarkRenderStateDirty();
+}
+
+FBox FFoliageStaticMesh::GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const
+{
+	FBox BoundingBox(EForceInit::ForceInit);
+	for (int32 i : SelectedIndices)
+	{
+		FTransform InstanceWorldTransform;
+		Component->GetInstanceTransform(i, InstanceWorldTransform, true);
+		BoundingBox += Component->GetStaticMesh()->GetBoundingBox().TransformBy(InstanceWorldTransform);
+	}
+	return BoundingBox;
 }
 
 void FFoliageStaticMesh::ApplySelection(bool bApply, const TSet<int32>& SelectedIndices)
@@ -2206,6 +2219,12 @@ void FFoliageInfo::SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect)
 	}
 }
 
+FBox FFoliageInfo::GetSelectionBoundingBox() const
+{
+	check(Implementation->IsInitialized());
+	return Implementation->GetSelectionBoundingBox(SelectedIndices);
+}
+
 void FFoliageInfo::SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect, TArray<int32>& InInstances)
 {
 	if (InInstances.Num())
@@ -3279,6 +3298,19 @@ bool AInstancedFoliageActor::SelectInstance(AActor* InActor, bool bToggle)
 		}
 	}
 	return true;
+}
+
+FOLIAGE_API FBox AInstancedFoliageActor::GetSelectionBoundingBox() const
+{
+	FBox SelectionBoundingBox(EForceInit::ForceInit);
+
+	for (auto& Pair : FoliageInfos)
+	{
+		const FFoliageInfo* Info = &Pair.Value.Get();
+		SelectionBoundingBox += Info->GetSelectionBoundingBox();
+	}
+
+	return SelectionBoundingBox;
 }
 
 bool AInstancedFoliageActor::HasSelectedInstances() const
