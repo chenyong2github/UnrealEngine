@@ -121,8 +121,8 @@ bool UDatasmithFileProducer::Initialize()
 	TransientPackage->FullyLoad();
 
 	// Create the transient Datasmith scene
-	DatasmithScenePtr = TStrongObjectPtr< UDatasmithScene >( NewObject< UDatasmithScene >( TransientPackage, *GetName() ) );
-	check( DatasmithScenePtr.IsValid() );
+	DatasmithScene =  NewObject< UDatasmithScene >( TransientPackage, *GetName() );
+	check( DatasmithScene->IsValidLowLevel() );
 
 	// Translate the source into a Datasmith scene element
 	FDatasmithSceneSource Source;
@@ -164,10 +164,10 @@ bool UDatasmithFileProducer::Initialize()
 	// Set import options to default
 	ImportContextPtr->Options->BaseOptions = DefaultImportOptions;
 
-	ImportContextPtr->SceneAsset = DatasmithScenePtr.Get();
+	ImportContextPtr->SceneAsset = DatasmithScene;
 	ImportContextPtr->ActorsContext.ImportWorld = Context.WorldPtr.Get();
 
-	FString SceneOuterPath = DatasmithScenePtr->GetOutermost()->GetName();
+	FString SceneOuterPath = DatasmithScene->GetOutermost()->GetName();
 	FString RootPath = FPackageName::GetLongPackagePath( SceneOuterPath );
 
 	if ( Algo::Count( RootPath, TEXT('/') ) > 1 )
@@ -366,7 +366,7 @@ void UDatasmithFileProducer::SceneElementToWorld()
 void UDatasmithFileProducer::PreventNameCollision()
 {
 	// Create packages where assets must be moved to avoid name collision
-	FString TransientFolderPath = DatasmithScenePtr->GetOutermost()->GetPathName();
+	FString TransientFolderPath = DatasmithScene->GetOutermost()->GetPathName();
 
 	// Clean up transient package path. It should be empty
 	FDatasmithFileProducerUtils::DeletePackagePath( TransientFolderPath );
@@ -426,7 +426,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 
 				// Replace unique name id with hash of package path to avoid asset's name collision
 				const FString DatasmithUniqueId = DatasmithContentLibrary->GetDatasmithUserDataValueForKey( Object, UDatasmithAssetUserData::UniqueIdMetaDataKey );
-				const FString ObjectIdent = DatasmithUniqueId + DatasmithScenePtr->GetName() + Object->GetName() + Object->GetClass()->GetName();
+				const FString ObjectIdent = DatasmithUniqueId + DatasmithScene->GetName() + Object->GetName() + Object->GetClass()->GetName();
 				FString NewUniqueId = FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectIdent), ObjectIdent.Len() * sizeof(TCHAR) );
 
 				UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(Object, *(FString(TEXT("Old")) + UDatasmithAssetUserData::UniqueIdMetaDataKey), DatasmithUniqueId );
@@ -551,7 +551,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 		{
 			if( ADatasmithSceneActor* SceneActor = Cast<ADatasmithSceneActor>( Level->Actors[i] ) )
 			{
-				if(SceneActor->Scene == DatasmithScenePtr.Get())
+				if(SceneActor->Scene == DatasmithScene)
 				{
 					// Append prefix to all children of scene actor
 					for( TPair< FName, TSoftObjectPtr< AActor > >& ActorPair : SceneActor->RelatedActors)
@@ -619,7 +619,7 @@ void UDatasmithFileProducer::OnFilePathChanged()
 
 void UDatasmithFileProducer::Reset()
 {
-	DatasmithScenePtr.Reset();
+	DatasmithScene = nullptr;
 	ImportContextPtr.Reset();
 	TranslatableSourcePtr.Reset();
 	ProgressTaskPtr.Reset();
@@ -759,7 +759,7 @@ bool UDatasmithDirProducer::Initialize()
 		return false;
 	}
 
-	FileProducer = TStrongObjectPtr< UDatasmithFileProducer >( NewObject< UDatasmithFileProducer >( GetTransientPackage(), NAME_None, RF_Transient ) );
+	FileProducer = NewObject< UDatasmithFileProducer >( GetTransientPackage(), NAME_None, RF_Transient );
 
 	return true;
 }
@@ -944,7 +944,7 @@ void UDatasmithDirProducer::FixPlmXmlHierarchy()
 void UDatasmithDirProducer::Reset()
 {
 	FilesToProcess.Empty();
-	FileProducer.Reset();
+	FileProducer = nullptr;
 
 	UDataprepContentProducer::Reset();
 }
