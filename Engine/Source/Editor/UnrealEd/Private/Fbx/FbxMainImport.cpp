@@ -1167,7 +1167,11 @@ void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 			{
 				UniqueNodeName = NodeName + FString::FromInt(CurrentNameIndex++);
 			} while (AllNodeName.Contains(UniqueNodeName));
-			Node->SetName(TCHAR_TO_UTF8(*UniqueNodeName));
+
+			FbxString UniqueName(TCHAR_TO_UTF8(*UniqueNodeName));
+			NodeUniqueNameToOriginalNameMap.FindOrAdd(UniqueName) = Node->GetName();
+			Node->SetName(UniqueName);
+			
 			if (!GIsAutomationTesting)
 			{
 				AddTokenizedErrorMessage(
