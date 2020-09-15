@@ -648,7 +648,7 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 			for (uint16 AMDDeviceIndex = 0; AMDDeviceIndex < AmdInfo.AmdGpuInfo.numDevices; ++AMDDeviceIndex)
 			{
 				const AGSDeviceInfo& DeviceInfo = AmdInfo.AmdGpuInfo.devices[AMDDeviceIndex];
-				for (uint16 AMDDisplayIndex = 0; AMDDisplayIndex < DeviceInfo.numDisplays; ++AMDDisplayIndex)
+				for (uint16 AMDDisplayIndex = 0; DeviceInfo.displays != nullptr && AMDDisplayIndex < DeviceInfo.numDisplays; ++AMDDisplayIndex)
 				{
 					const AGSDisplayInfo& DisplayInfo = DeviceInfo.displays[AMDDisplayIndex];
 					if (FCStringAnsi::Strcmp(TCHAR_TO_ANSI(OutputDesc.DeviceName), DisplayInfo.displayDeviceName) == 0)
