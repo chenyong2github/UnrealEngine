@@ -702,7 +702,7 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FDispatchInstanceList& 
 	{
 #if STATS
 		FString StageName = "SpawnUpdate";
-		if (StageIndex > 0)
+		if (DispatchInstance.StageIndex > 0)
 		{
 			for (FSimulationStageMetaData& MetaData : DispatchInstance.InstanceData->Context->SimStageInfo)
 			{
