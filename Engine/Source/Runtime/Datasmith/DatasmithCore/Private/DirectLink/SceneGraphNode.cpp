@@ -64,7 +64,7 @@ void ISceneGraphNode::RegisterReferenceProxy(IReferenceProxy& View, FName Name)
 	ReferenceProxies.Add({Name, &View});
 }
 
-int32 ISceneGraphNode::GetReferenceProxyCount()
+int32 ISceneGraphNode::GetReferenceProxyCount() const
 {
 	return ReferenceProxies.Num();
 }

@@ -31,28 +31,26 @@ struct FRawInfo
 		FString UserName;
 		FString ExecutableName;
 		FString ComputerName;
-		uint32 ProcessId;
+		bool bIsLocal = false;
+		uint32 ProcessId = 0;
 	};
 
 	struct FDataPointInfo
 	{
 		FMessageAddress EndpointAddress;
 		FString Name;
-		bool bIsSource; // as opposed to destination
-		bool bIsLocal;  // is hosted by this endpoint
-		bool bIsPublic; // if public, can be displayed as candidate for connection
+		bool bIsSource = false; // as opposed to a destination
+		bool bIsOnThisEndpoint = false;
+		bool bIsPublic = false; // if public, can be displayed as candidate for connection
 	};
 
 	struct FStreamInfo
 	{
-		int32 StreamId;
+		FStreamPort StreamId = InvalidStreamPort;
 		FGuid Source;
 		FGuid Destination;
-		bool bIsActive;
-		/**
-		 * #ue_directlink_integration Adding some sort of state reporting (ex: idle, exporting scene, Transmitting, Translating)
-		 * Add also some sort of progress report (a float).
-		 */
+		bool bIsActive = false;
+		FCommunicationStatus CommunicationStatus;
 	};
 	FMessageAddress ThisEndpointAddress;
 	TMap<FMessageAddress, FEndpointInfo> EndpointsInfo;

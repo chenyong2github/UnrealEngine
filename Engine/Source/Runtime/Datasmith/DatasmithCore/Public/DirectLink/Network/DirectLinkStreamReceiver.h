@@ -4,6 +4,8 @@
 
 
 #include "DirectLink/DirectLinkCommon.h"
+#include "DirectLink/Network/DirectLinkScenePipe.h"
+#include "DirectLink/Network/DirectLinkStreamCommunicationInterface.h"
 
 
 class FMessageEndpoint;
@@ -13,10 +15,9 @@ struct FDirectLinkMsg_DeltaMessage;
 namespace DirectLink
 {
 class ISceneReceiver;
-class FScenePipeFromNetwork;
 
 
-class DATASMITHCORE_API FStreamReceiver
+class DATASMITHCORE_API FStreamReceiver : public IStreamCommunicationInterface
 {
 public:
 	FStreamReceiver(
@@ -27,8 +28,10 @@ public:
 
 	void HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message);
 
+	virtual FCommunicationStatus GetCommunicationStatus() const override;
+
 private:
-	TSharedPtr<FScenePipeFromNetwork> PipeFromNetwork;
+	FScenePipeFromNetwork PipeFromNetwork;
 };
 
 
