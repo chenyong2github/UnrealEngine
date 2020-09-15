@@ -320,12 +320,12 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CCDHack);
-		CCDHack(Dt, Particles.GetActiveParticlesView(), InternalAcceleration);
+		CCDHack(Dt, Particles.GetActiveParticlesView(), InternalAcceleration.Get());
 	}
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_DetectCollisions);
-		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration);
+		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration.Get());
 
 		CollisionStats::FStatData StatData(bPendingHierarchyDump);
 

@@ -127,7 +127,7 @@ public:
 
 protected:
 
-	Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* SolverAccelerationStructure;
+	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
 
 	// Control module for Chaos - cached to avoid constantly hitting the module manager
 	FChaosSolversModule* ChaosModule;
@@ -149,11 +149,8 @@ protected:
 
 	//Engine interface BEGIN
 	virtual float OnStartFrame(float InDeltaTime){ return InDeltaTime; }
-	virtual void OnSyncBodies();
+	virtual void OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor);
 	//Engine interface END
-
-	template <typename RigidLambda>
-	void PullPhysicsStateForEachDirtyProxy(const int32 SyncTimestamp, const RigidLambda& DirtyRigidFunc);
 
 	float MDeltaTime;
 
