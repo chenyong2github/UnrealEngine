@@ -41,7 +41,11 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				RuntimeDependencies.Add("$(BinaryOutputDir)/laszip.dll", Path.Combine(PluginDirectory, "Source", "ThirdParty", "LasZip", "Win64", "laszip.dll"));
+				RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Source", "ThirdParty", "LasZip", "Win64", "laszip.dll"));
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Source", "ThirdParty", "LasZip", "Mac", "laszip.dylib"));
 			}
 		}
 	}

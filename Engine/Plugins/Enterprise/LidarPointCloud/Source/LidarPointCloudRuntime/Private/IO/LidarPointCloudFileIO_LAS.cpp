@@ -339,19 +339,18 @@ public:
 
 	bool OpenFile(const FString& Filename, OpenFileMode InMode)
 	{
-		const char* file_name = TCHAR_TO_ANSI(*Filename.Replace(TEXT("\\"), TEXT("/")));
+		FString ConvertedPath = Filename.Replace(TEXT("\\"), TEXT("/"));
 		Mode = InMode;
-
 		if (Mode == Reader)
 		{
 			static laszip_open_reader_def laszip_open_reader = (laszip_open_reader_def)FPlatformProcess::GetDllExport(GetDLLHandle(), TEXT("laszip_open_reader"));
 			int32 is_compressed = 1;
-			return !laszip_open_reader(laszip_ptr, file_name, &is_compressed);
+			return !laszip_open_reader(laszip_ptr, TCHAR_TO_ANSI(*ConvertedPath), &is_compressed);
 		}
 		else
 		{
 			static laszip_open_writer_def laszip_open_writer = (laszip_open_writer_def)FPlatformProcess::GetDllExport(GetDLLHandle(), TEXT("laszip_open_writer"));
-			return !laszip_open_writer(laszip_ptr, file_name, 1);
+			return !laszip_open_writer(laszip_ptr, TCHAR_TO_ANSI(*ConvertedPath), 1);
 		}
 	}
 
@@ -460,27 +459,12 @@ private:
 
 		if (!v_dllHandle)
 		{
-			FString dllDirectory = FPaths::Combine(IPluginManager::Get().FindPlugin("LidarPointCloud")->GetBaseDir(), TEXT("Source/ThirdParty/LasZip"));
-
-#if PLATFORM_LINUX
-			dllDirectory = FPaths::Combine(dllDirectory, TEXT("Linux"));
-#elif PLATFORM_MAC
-			dllDirectory = FPaths::Combine(dllDirectory, TEXT("Mac"));
+			FString DllDirectory = FPaths::Combine(IPluginManager::Get().FindPlugin("LidarPointCloud")->GetBaseDir(), TEXT("Source/ThirdParty/LasZip"));
+#if PLATFORM_MAC
+			v_dllHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(DllDirectory, TEXT("Mac/laszip.dylib")));
 #elif PLATFORM_WINDOWS
-			dllDirectory = FPaths::Combine(dllDirectory, TEXT("Win64"));
+			v_dllHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(DllDirectory, TEXT("Win64/laszip.dll")));
 #endif
-
-			FPlatformProcess::PushDllDirectory(*dllDirectory);
-			{
-#if PLATFORM_LINUX
-				
-#elif PLATFORM_MAC
-				
-#elif PLATFORM_WINDOWS
-				v_dllHandle = FPlatformProcess::GetDllHandle(TEXT("laszip.dll"));
-#endif
-			}
-			FPlatformProcess::PopDllDirectory(*dllDirectory);
 		}
 
 		return v_dllHandle;
