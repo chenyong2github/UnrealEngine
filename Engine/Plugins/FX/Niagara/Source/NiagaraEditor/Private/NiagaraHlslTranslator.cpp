@@ -3087,21 +3087,17 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 			HlslOutput += TEXT("\t\t}\n");
 
-			if (TranslationStages.Num() > 2)
+			if (bWriteInstanceCount)
 			{
-				if (bWriteInstanceCount)
-				{
-					HlslOutput += TEXT(
-						"\t\t// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
-						"\t\t// count isn't updated. In that case we must manually copy the original count here.\n"
-						"\t\tif (WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
-						"\t\t{\n"
-						"\t\t	RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
-						"\t\t}\n"
-					);
-				}
+				HlslOutput += TEXT(
+					"\t\t// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
+					"\t\t// count isn't updated. In that case we must manually copy the original count here.\n"
+					"\t\tif (WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
+					"\t\t{\n"
+					"\t\t	RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
+					"\t\t}\n"
+				);
 			}
-
 		}
 	}
 	HlslOutput += TEXT("\n}\n\n");
