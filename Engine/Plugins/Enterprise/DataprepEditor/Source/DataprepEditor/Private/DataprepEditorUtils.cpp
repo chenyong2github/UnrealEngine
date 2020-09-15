@@ -21,6 +21,7 @@
 #include "EditorStyleSet.h"
 #include "Engine/Blueprint.h"
 #include "EngineUtils.h"
+#include "Engine/StaticMesh.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"
