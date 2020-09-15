@@ -1145,8 +1145,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		return false;
 	}
 
-	// Recreate HLODGrids from known layers
-	HLODGrids.Reset();
+	TArray<FSpatialHashRuntimeGrid> NewHLODGrids;
 
 	// Gather up all HLODLayer assets
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -1156,21 +1155,41 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 	// Ensure all assets are loaded
 	for (const FAssetData& HLODLayerAsset : HLODLayerAssets)
 	{
-		if (UHLODLayer* HLODLayer = Cast<UHLODLayer>(HLODLayerAsset.GetAsset()))
+		if (const UHLODLayer* HLODLayer = Cast<UHLODLayer>(HLODLayerAsset.GetAsset()))
 		{
-			for (const FHLODLevelSettings& HLODLevel : HLODLayer->GetLevels())
-			{
-				check(HLODLevel.TargetGrid != NAME_None);
-				check(HLODLevel.LoadingRange > 0);
+			check(HLODLayer->GetLoadingRange() > 0);
 
-				FSpatialHashRuntimeGrid& HLODGrid = HLODGrids.AddDefaulted_GetRef();
-				HLODGrid.GridName = HLODLevel.TargetGrid;
-				HLODGrid.CellSize = HLODLevel.LoadingRange * 2;	// @todo_ow: Proper setup
-				HLODGrid.LoadingRange = HLODLevel.LoadingRange;
-				HLODGrid.DebugColor = FLinearColor::Red;
+			FName RuntimeGrid = HLODLayer->GetRuntimeGrid();
+			if (RuntimeGrid == NAME_None)
+			{
+				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Invalid partition grids setup"));
+				return false;
 			}
+
+			const FSpatialHashRuntimeGrid* ExistingGrid = NewHLODGrids.FindByPredicate([RuntimeGrid](const FSpatialHashRuntimeGrid& ExistingGrid) { return ExistingGrid.GridName == RuntimeGrid; });
+			if (ExistingGrid)
+			{
+				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Found two HLOD grids using the same RuntimeGrid name: %s"), *RuntimeGrid.ToString());
+				return false;
+			}
+
+			ExistingGrid = Grids.FindByPredicate([RuntimeGrid](const FSpatialHashRuntimeGrid& ExistingGrid) { return ExistingGrid.GridName == RuntimeGrid; });
+			if (ExistingGrid)
+			{
+				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("HLODLayer RuntimeGrid must not match an existing grid name: %s"), *RuntimeGrid.ToString());
+				return false;
+			}
+
+			FSpatialHashRuntimeGrid& HLODGrid = NewHLODGrids.AddDefaulted_GetRef();
+			HLODGrid.GridName = HLODLayer->GetRuntimeGrid();
+			HLODGrid.CellSize = HLODLayer->GetLoadingRange() * 2;	// @todo_ow: Proper setup
+			HLODGrid.LoadingRange = HLODLayer->GetLoadingRange();
+			HLODGrid.DebugColor = FLinearColor::Red;
 		}
 	}
+
+	// Recreate HLODGrids from known layers
+	HLODGrids = NewHLODGrids;
 
 	TMap<FName, int32> GridsMapping;
 	GridsMapping.Add(NAME_None, 0);
@@ -1181,7 +1200,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		GridsMapping.Add(Grid.GridName, i);
 	}
 
-	// Ignore HLODD clusters as we are rebuilding them
+	// Ignore HLOD clusters as we are rebuilding them
 	for (const FSpatialHashRuntimeGrid& HLODGrid : HLODGrids)
 	{
 		check(!GridsMapping.Contains(HLODGrid.GridName));

@@ -15,6 +15,7 @@
 
 UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, LoadingRange(30000)
 {
 }
 

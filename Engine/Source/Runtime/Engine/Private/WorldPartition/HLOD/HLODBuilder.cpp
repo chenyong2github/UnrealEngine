@@ -50,12 +50,12 @@ public:
 		if (!HLODPrimitives.IsEmpty())
 		{
 			HLODActor->Modify();
-			HLODActor->SetHLODLayer(HLODLayer, iLevel);
+			HLODActor->SetHLODLayer(HLODLayer, 0);
 			HLODActor->SetHLODPrimitives(HLODPrimitives, CellLoadingRange);
 			HLODActor->SetHLODBounds(CellBounds);
 			HLODActor->SetChildrenPrimitives(InSubComponents);
 			HLODActor->SetActorLabel(HLODActorName);
-			HLODActor->RuntimeGrid = GetHLODLevelSettings().TargetGrid;
+			HLODActor->RuntimeGrid = HLODLayer->GetRuntimeGrid();
 
 			WorldPartition->UpdateActorDesc(HLODActor);
 		}
@@ -90,11 +90,6 @@ public:
 		return PrimitiveComponents;
 	}
 
-	const FHLODLevelSettings& GetHLODLevelSettings() const
-	{
-		return HLODLayer->GetLevels()[iLevel];
-	}
-
 public:
 	UWorld*				World;
 	UWorldPartition*	WorldPartition;
@@ -117,9 +112,7 @@ class FHLODBuilder_Instancing : public FHLODBuilder
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_Instancing::BuildHLOD);
 
-		const FHLODLevelSettings& LevelSettings = GetHLODLevelSettings();
-
-		FCreateComponentsFunction CreateComponentLambda = [&LevelSettings, &InSubComponents](AWorldPartitionHLOD* HLODActor)
+		FCreateComponentsFunction CreateComponentLambda = [&InSubComponents](AWorldPartitionHLOD* HLODActor)
 		{
 			TArray<UPrimitiveComponent*> Components;
 
@@ -169,15 +162,13 @@ class FHLODBuilder_MeshMerge : public FHLODBuilder
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::BuildHLOD_MeshMerge);
 
-		const FHLODLevelSettings& LevelSettings = GetHLODLevelSettings();
-
-		FCreateComponentsFunction CreateComponentLambda = [&LevelSettings, &InSubComponents, this](AWorldPartitionHLOD* HLODActor)
+		FCreateComponentsFunction CreateComponentLambda = [&InSubComponents, this](AWorldPartitionHLOD* HLODActor)
 		{
 			TArray<UObject*> Assets;
 			FVector MergedActorLocation;
 
 			const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-			MeshMergeUtilities.MergeComponentsToStaticMesh(InSubComponents, HLODActor->GetWorld(), LevelSettings.MergeSetting, LevelSettings.FlattenMaterial.LoadSynchronous(), HLODActor->GetPackage(), CellName.ToString(), Assets, MergedActorLocation, 0.25f, false);
+			MeshMergeUtilities.MergeComponentsToStaticMesh(InSubComponents, HLODActor->GetWorld(), HLODLayer->GetMeshMergeSettings(), HLODLayer->GetHLODMaterial().LoadSynchronous(), HLODActor->GetPackage(), CellName.ToString(), Assets, MergedActorLocation, 0.25f, false);
 
 			// All merged mesh assets are stored in the HLOD Actor package
 			Algo::ForEach(Assets, [](UObject* Asset) { Asset->ClearFlags(RF_Public | RF_Standalone); });
@@ -207,9 +198,7 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::BuildHLOD_MeshProxy);
 
-		const FHLODLevelSettings& LevelSettings = GetHLODLevelSettings();
-
-		FCreateComponentsFunction CreateComponentLambda = [&LevelSettings, &InSubComponents, this] (AWorldPartitionHLOD* HLODActor)
+		FCreateComponentsFunction CreateComponentLambda = [&InSubComponents, this] (AWorldPartitionHLOD* HLODActor)
 		{
 			TArray<UObject*> Assets;
 			FCreateProxyDelegate ProxyDelegate;
@@ -219,7 +208,7 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 			Algo::TransformIf(InSubComponents, StaticMeshComponents, [](UPrimitiveComponent* InPrimitiveComponent) { return InPrimitiveComponent->IsA<UStaticMeshComponent>(); }, [](UPrimitiveComponent* InPrimitiveComponent) { return Cast<UStaticMeshComponent>(InPrimitiveComponent); });
 
 			const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-			MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, LevelSettings.ProxySetting, LevelSettings.FlattenMaterial.LoadSynchronous(), HLODActor->GetPackage(), CellName.ToString(), FGuid::NewGuid(), ProxyDelegate, true);
+			MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, HLODLayer->GetMeshSimplifySettings(), HLODLayer->GetHLODMaterial().LoadSynchronous(), HLODActor->GetPackage(), CellName.ToString(), FGuid::NewGuid(), ProxyDelegate, true);
 
 			// All merged mesh assets are stored in the HLOD Actor package
 			Algo::ForEach(Assets, [](UObject* Asset) { Asset->ClearFlags(RF_Public | RF_Standalone); });
@@ -241,49 +230,42 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 
 TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, FBox InCellBounds, float InCellLoadingRange, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors)
 {
-	const TArray<FHLODLevelSettings>& LevelsSettings = InHLODLayer->GetLevels();
+	TUniquePtr<FHLODBuilder> HLODBuilder = nullptr;
 
+	EHLODLayerType HLODLevelType = InHLODLayer->GetLayerType();
+	switch (HLODLevelType)
+	{
+	case EHLODLayerType::Instancing:
+		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_Instancing());
+		break;
+
+	case EHLODLayerType::MeshMerge:
+		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshMerge());
+		break;
+
+	case EHLODLayerType::MeshSimplify:
+		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshSimplify());
+		break;
+
+	default:
+		checkf(false, TEXT("Unsupported type"));
+	}
+
+	TArray<UPrimitiveComponent*> SubComponents = FHLODBuilder::GatherPrimitiveComponents(0, InSubActors);
 	TArray<AWorldPartitionHLOD*> HLODActors;
 
-	for (int32 iLevel = 0; iLevel < LevelsSettings.Num(); ++iLevel)
+	if (HLODBuilder && !SubComponents.IsEmpty())
 	{
-		TUniquePtr<FHLODBuilder> HLODBuilder = nullptr;
+		HLODBuilder->World = InWorldPartition->GetWorld();
+		HLODBuilder->WorldPartition = InWorldPartition;
+		HLODBuilder->HLODLayer = InHLODLayer;
+		HLODBuilder->CellName = InCellName;
+		HLODBuilder->CellBounds = InCellBounds;
+		HLODBuilder->CellLoadingRange = InCellLoadingRange;
 
-		EHLODLevelType HLODLevelType = LevelsSettings[iLevel].LevelType;
-		switch (HLODLevelType)
-		{
-		case EHLODLevelType::Instancing:
-			HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_Instancing());
-			break;
-
-		case EHLODLevelType::MeshMerge:
-			HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshMerge());
-			break;
-
-		case EHLODLevelType::MeshSimplify:
-			HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshSimplify());
-			break;
-
-		default:
-			checkf(false, TEXT("Unsupported type"));
-		}
-
-		TArray<UPrimitiveComponent*> SubComponents = FHLODBuilder::GatherPrimitiveComponents(iLevel, InSubActors);
-
-		if (HLODBuilder && !SubComponents.IsEmpty())
-		{
-			HLODBuilder->World = InWorldPartition->GetWorld();
-			HLODBuilder->WorldPartition = InWorldPartition;
-			HLODBuilder->HLODLayer = InHLODLayer;
-			HLODBuilder->iLevel = iLevel;
-			HLODBuilder->CellName = InCellName;
-			HLODBuilder->CellBounds = InCellBounds;
-			HLODBuilder->CellLoadingRange = InCellLoadingRange;
-
-			HLODBuilder->Build(SubComponents);
+		HLODBuilder->Build(SubComponents);
 			
-			HLODActors += HLODBuilder->HLODActors;
-		}
+		HLODActors = HLODBuilder->HLODActors;
 	}
 
 	return HLODActors;
