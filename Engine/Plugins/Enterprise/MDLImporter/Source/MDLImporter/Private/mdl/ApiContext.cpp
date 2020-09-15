@@ -20,9 +20,12 @@ MDLSDK_INCLUDES_START
 #include "mi/neuraylib/ifactory.h"
 #include "mi/neuraylib/imaterial_definition.h"
 #include "mi/neuraylib/imdl_compiler.h"
+#include "mi/neuraylib/imdl_configuration.h"
 #include "mi/neuraylib/imdl_factory.h"
+#include "mi/neuraylib/imdl_impexp_api.h"
 #include "mi/neuraylib/imodule.h"
 #include "mi/neuraylib/ineuray.h"
+#include <mi/neuraylib/iplugin_configuration.h>
 #include "mi/neuraylib/iscope.h"
 #include "mi/neuraylib/iversion.h"
 #include <mi/base/ilogger.h>
@@ -58,7 +61,7 @@ namespace Mdl
 	class FLogger : public mi::base::Interface_implement_singleton<mi::base::ILogger>
 	{
 	public:
-		virtual void message(mi::base::Message_severity Level, const char* ModuleCategory, const char* Message) override
+		virtual void message(mi::base::Message_severity Level, const char* ModuleCategory, const mi::base::Message_details&, const char* Message) override
 		{
 			switch (Level)
 			{
@@ -127,9 +130,12 @@ namespace Mdl
 		NeurayHandle = Neuray;
 
 		mi::neuraylib::IMdl_compiler* Compiler = NeurayHandle->get_api_component<mi::neuraylib::IMdl_compiler>();
-		FilePath                               = FPaths::Combine(LibrariesPath, TEXT("nv_freeimage" MI_BASE_DLL_FILE_EXT));
-		mi::Sint32 Result                      = Compiler->load_plugin_library(TCHAR_TO_ANSI(*FilePath));
-		if (Result)
+
+		// Load the FreeImage plugin.
+		mi::base::Handle<mi::neuraylib::IPlugin_configuration> PluginConfig(NeurayHandle->get_api_component<mi::neuraylib::IPlugin_configuration>());
+		FString FreeimageModulePath = FPaths::Combine(LibrariesPath, TEXT("nv_freeimage" MI_BASE_DLL_FILE_EXT));
+		mi::Sint32 Result = PluginConfig->load_plugin_library(TCHAR_TO_ANSI(*FreeimageModulePath));
+		if ( Result != 0)
 		{
 			UE_LOG(LogMDLImporter, Error, TEXT("mi::neuraylib::IMdl_compiler::load_plugin_library() failed with return code %d."), Result);
 			return false;
@@ -147,10 +153,12 @@ namespace Mdl
 		FactoryHandle  = NeurayHandle->get_api_component<mi::neuraylib::IMdl_factory>();
 		DistillerPtr.Reset(new FMaterialDistiller(NeurayHandle));
 
-		AddSearchPath(ModulesPath);
-
 		LoggerPtr = new FLogger();
-		Compiler->set_logger(LoggerPtr);
+
+		ConfigHandle = NeurayHandle->get_api_component<mi::neuraylib::IMdl_configuration>();
+		ConfigHandle->set_logger(LoggerPtr);
+
+		AddSearchPath(ModulesPath);
 
 		LogInfo();
 
@@ -165,6 +173,7 @@ namespace Mdl
 			return;
 		}
 		DistillerPtr.Reset();
+		ConfigHandle.reset();
 		CompilerHandle.reset();
 		DatabaseHandle.reset();
 		FactoryHandle.reset();
@@ -189,7 +198,7 @@ namespace Mdl
 
 		const FString ModuleAbsolutePath = FPaths::GetPath(ModulesPath) + TEXT("/");
 		const char*   PathANSI           = TCHAR_TO_ANSI(*ModuleAbsolutePath);
-		MDL_CHECK_RESULT()               = CompilerHandle->add_module_path(PathANSI);
+		MDL_CHECK_RESULT()               = ConfigHandle->add_mdl_path(PathANSI);
 	}
 
 	void FApiContext::RemoveSearchPath(const FString& ModulesPath)
@@ -199,7 +208,7 @@ namespace Mdl
 
 		const FString ModuleAbsolutePath = FPaths::GetPath(ModulesPath) + TEXT("/");
 		const char*   PathANSI           = TCHAR_TO_ANSI(*ModuleAbsolutePath);
-		MDL_CHECK_RESULT()               = CompilerHandle->remove_module_path(PathANSI);
+		MDL_CHECK_RESULT()               = ConfigHandle->remove_mdl_path(PathANSI);
 	}
 
 	void FApiContext::AddResourceSearchPath(const FString& ResourcesPath)
@@ -209,7 +218,7 @@ namespace Mdl
 
 		const FString AbsolutePath = FPaths::GetPath(ResourcesPath) + TEXT("/");
 		const char*   PathANSI     = TCHAR_TO_ANSI(*AbsolutePath);
-		MDL_CHECK_RESULT()         = CompilerHandle->add_resource_path(PathANSI);
+		MDL_CHECK_RESULT()         = ConfigHandle->add_resource_path(PathANSI);
 	}
 
 	void FApiContext::RemoveResourceSearchPath(const FString& ResourcesPath)
@@ -219,7 +228,7 @@ namespace Mdl
 
 		const FString AbsolutePath = FPaths::GetPath(ResourcesPath) + TEXT("/");
 		const char*   PathANSI     = TCHAR_TO_ANSI(*AbsolutePath);
-		MDL_CHECK_RESULT()         = CompilerHandle->remove_resource_path(PathANSI);
+		MDL_CHECK_RESULT()         = ConfigHandle->remove_resource_path(PathANSI);
 	}
 
 	bool FApiContext::LoadModule(const FString& FilePath, FMaterialCollection& OutMaterials)
@@ -235,7 +244,7 @@ namespace Mdl
 		const mi::base::Handle<mi::neuraylib::IScope>       Scope(DatabaseHandle->get_global_scope());
 		const mi::base::Handle<mi::neuraylib::ITransaction> Transaction(Scope->create_transaction());
 
-		mi::Sint32 Result = CompilerHandle->add_module_path(TCHAR_TO_ANSI(*ModulePath));
+		mi::Sint32 Result = ConfigHandle->add_mdl_path(TCHAR_TO_ANSI(*ModulePath));
 		if (Result)
 		{
 			UE_LOG(LogMDLImporter, Error, TEXT("Invalid MDL filepath (%u): %s %s"), Result, *FilePath);
@@ -243,8 +252,10 @@ namespace Mdl
 			return false;
 		}
 
-		Result = CompilerHandle->load_module(Transaction.get(), TCHAR_TO_ANSI(*ModuleName));
-		if (Result != 0 && Result != 1)
+		mi::base::Handle<mi::neuraylib::IMdl_impexp_api> MdlImpExpApi(NeurayHandle->get_api_component<mi::neuraylib::IMdl_impexp_api>());
+
+		Result = MdlImpExpApi->load_module(Transaction.get(), TCHAR_TO_ANSI(*ModuleName));
+		if (Result < 0)
 		{
 			UE_LOG(LogMDLImporter, Error, TEXT("Failed to load MDL file (%u): %s"), Result, *FilePath);
 			MDL_CHECK_RESULT() = Transaction->commit();
@@ -284,7 +295,7 @@ namespace Mdl
 		}
 		MDL_CHECK_RESULT() = Transaction->commit();
 
-		MDL_CHECK_RESULT() = CompilerHandle->remove_module_path(TCHAR_TO_ANSI(*ModulePath));
+		MDL_CHECK_RESULT() = ConfigHandle->remove_mdl_path(TCHAR_TO_ANSI(*ModulePath));
 
 		return true;
 	}
