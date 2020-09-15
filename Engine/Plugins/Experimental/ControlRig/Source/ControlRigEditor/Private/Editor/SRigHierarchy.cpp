@@ -1080,7 +1080,7 @@ void SRigHierarchy::OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem)
 {
 	if (TreeView->IsItemExpanded(InItem))
 	{
-		TreeView->SetItemExpansion(InItem, false);
+		SetExpansionRecursive(InItem, false, false);
 	}
 	else
 	{
