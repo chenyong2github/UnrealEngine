@@ -123,12 +123,18 @@ const FPinConnectionResponse UOptimusEditorGraphSchema::CanCreateConnection(
 void UOptimusEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const
 {
 	UOptimusEditorGraphNode* GraphNode = Cast<UOptimusEditorGraphNode>(TargetPin.GetOwningNode());
-	check(GraphNode != nullptr);
-	if (GraphNode != nullptr)
-	{
-		UOptimusEditorGraph* Graph = Cast<UOptimusEditorGraph>(GraphNode->GetGraph());
+	UOptimusEditorGraph* EditorGraph = Cast<UOptimusEditorGraph>(GraphNode->GetGraph());
 
-		// Graph->BreakLinksToPin(&TargetPin);
+	if (ensure(EditorGraph))
+	{
+		UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+
+		UOptimusNodePin *TargetModelPin = GraphNode->FindModelPinFromGraphPin(&TargetPin);
+
+		if (ensure(TargetModelPin))
+		{
+			ModelGraph->RemoveAllLinks(TargetModelPin);
+		}
 	}
 }
 

@@ -22,6 +22,14 @@ enum class EOptimusNodePinDirection : uint8
 	Output
 };
 
+/** Specifies the storage type of the pin data */
+UENUM()
+enum class EOptimusNodePinStorageType : uint8
+{
+	Value,				/** Plain value of some type */
+	Resource			/** Resource binding of some type */
+};
+
 
 UCLASS(BlueprintType)
 class OPTIMUSCORE_API UOptimusNodePin : public UObject
@@ -54,6 +62,9 @@ public:
 	/// E.g: Direction.X
 	FName GetUniqueName() const;
 
+	/** Returns a user-friendly display name for this pin */
+	FText GetDisplayName() const;
+
 	/// Returns the path of the pin from the graph collection owner root.
 	/// E.g: SetupGraph/LinearBlendSkinning1.Direction.X
 	FString GetPinPath() const;
@@ -64,8 +75,13 @@ public:
 	/** Return the registered Optimus data type associated with this pin */
 	FOptimusDataTypeHandle GetDataType() const { return DataType.Resolve(); }
 
-	/// Returns the FProperty object for this pin. This can be used to directly address the
-	/// node data represented by this pin.
+	/** Returns the storage type for this pin, either a value or a bound resource */
+	EOptimusNodePinStorageType GetStorageType() const { return StorageType; }
+
+	/** Returns the FProperty object for this pin. This can be used to directly address the
+	  * node data represented by this pin. Not all pins have an underlying resource so this can
+	  * return nullptr.
+	  */
 	FProperty *GetPropertyFromPin() const;
 
 	/// Returns the current value of this pin, including sub-values if necessary, as a string.
@@ -93,8 +109,9 @@ protected:
 	friend class UOptimusNode;
 
 	// Initialize the pin data from the given direction and property.
-	void SetDirectionAndDataType(
+	void Initialize(
 		EOptimusNodePinDirection InDirection, 
+		EOptimusNodePinStorageType InStorageType,
 		FOptimusDataTypeRef InDataTypeRef
 		);
 
@@ -102,6 +119,8 @@ protected:
 		UOptimusNodePin* InSubPin);
 
 private:
+	uint8 *GetPropertyValuePtr() const;
+
 	void Notify(EOptimusGraphNotifyType InNotifyType);
 
 	UOptimusActionStack* GetActionStack() const;
@@ -110,11 +129,11 @@ private:
 	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 
 	UPROPERTY()
+	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;
+
+	UPROPERTY()
 	FOptimusDataTypeRef DataType;
 
 	UPROPERTY()
 	TArray<UOptimusNodePin*> SubPins;
-
-	/// The invalid pin. Used as a sentinel.
-	static UOptimusNodePin* InvalidPin;
 };

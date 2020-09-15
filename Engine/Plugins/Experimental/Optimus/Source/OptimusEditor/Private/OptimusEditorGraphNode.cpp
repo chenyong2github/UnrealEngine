@@ -13,28 +13,31 @@
 
 void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 {
-	check(InModelNode);
-
-	ModelNode = InModelNode;
-
-	NodePosX = int(InModelNode->GetGraphPosition().X);
-	NodePosY = int(InModelNode->GetGraphPosition().Y);
-
-	// Start with all input pins
-	for (const UOptimusNodePin* ModelPin : ModelNode->GetPins())
+	if (ensure(InModelNode))
 	{
-		if (ModelPin->GetDirection() == EOptimusNodePinDirection::Input)
+		ModelNode = InModelNode;
+
+		NodePosX = int(InModelNode->GetGraphPosition().X);
+		NodePosY = int(InModelNode->GetGraphPosition().Y);
+
+		UpdateTopLevelPins();
+
+		// Start with all input pins
+		for (const UOptimusNodePin* ModelPin : ModelNode->GetPins())
 		{
-			CreateGraphPinFromModelPin(ModelPin, EGPD_Input);
+			if (ModelPin->GetDirection() == EOptimusNodePinDirection::Input)
+			{
+				CreateGraphPinFromModelPin(ModelPin, EGPD_Input);
+			}
 		}
-	}
 
-	// Then all output pins
-	for (const UOptimusNodePin* ModelPin : ModelNode->GetPins())
-	{
-		if (ModelPin->GetDirection() == EOptimusNodePinDirection::Output)
+		// Then all output pins
+		for (const UOptimusNodePin* ModelPin : ModelNode->GetPins())
 		{
-			CreateGraphPinFromModelPin(ModelPin, EGPD_Output);
+			if (ModelPin->GetDirection() == EOptimusNodePinDirection::Output)
+			{
+				CreateGraphPinFromModelPin(ModelPin, EGPD_Output);
+			}
 		}
 	}
 }
@@ -115,10 +118,11 @@ void UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 	}
 
 	FEdGraphPinType PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
+
 	FName PinPath = InModelPin->GetUniqueName();
 	UEdGraphPin *GraphPin = CreatePin(InDirection, PinType, PinPath);
 
-	GraphPin->PinFriendlyName = FText::FromName(InModelPin->GetFName());
+	GraphPin->PinFriendlyName = InModelPin->GetDisplayName();
 
 	if (InParentPin)
 	{
@@ -140,6 +144,28 @@ void UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 		for (const UOptimusNodePin* ModelSubPin : InModelPin->GetSubPins())
 		{
 			CreateGraphPinFromModelPin(ModelSubPin, InDirection, GraphPin);
+		}
+	}
+}
+
+
+void UOptimusEditorGraphNode::UpdateTopLevelPins()
+{
+	TopLevelInputPins.Empty();
+	TopLevelOutputPins.Empty();
+
+	if (ensure(ModelNode))
+	{
+		for (UOptimusNodePin* Pin : ModelNode->GetPins())
+		{
+			if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
+			{
+				TopLevelInputPins.Add(Pin);
+			}
+			else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+			{
+				TopLevelOutputPins.Add(Pin);			
+			}
 		}
 	}
 }

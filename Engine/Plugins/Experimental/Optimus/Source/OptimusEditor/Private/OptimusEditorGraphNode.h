@@ -29,8 +29,16 @@ public:
 	// UEdGraphNode overrides
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 
+	
+	// FIXME: Move to private and add accessor function.
 	UPROPERTY()
 	UOptimusNode *ModelNode = nullptr;
+
+protected:
+	friend class SOptimusEditorGraphNode;
+
+	const TArray<UOptimusNodePin*>* GetTopLevelInputPins() const { return &TopLevelInputPins; }
+	const TArray<UOptimusNodePin*>* GetTopLevelOutputPins() const { return &TopLevelOutputPins; }
 
 private:
 	void CreateGraphPinFromModelPin(
@@ -39,6 +47,13 @@ private:
 		UEdGraphPin *InParentPin = nullptr
 	);
 
+	void UpdateTopLevelPins();
+
 	TMap<FName, UOptimusNodePin*> PathToModelPinMap;
 	TMap<FName, UEdGraphPin*> PathToGraphPinMap;
+
+	// These need to be always-living arrays because of the way STreeView works. See
+	// SOptimusEditorGraphNode for usage.
+	TArray<UOptimusNodePin*> TopLevelInputPins;
+	TArray<UOptimusNodePin*> TopLevelOutputPins;
 };

@@ -7,6 +7,7 @@
 #include "OptimusEditorCommands.h"
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
+#include "OptimusEditorStyle.h"
 #include "SOptimusEditorGraphExplorer.h"
 #include "OptimusDetailsCustomization.h"
 
@@ -31,6 +32,7 @@ void FOptimusEditorModule::StartupModule()
 
 	FOptimusEditorCommands::Register();
 	FOptimusEditorGraphExplorerCommands::Register();
+	FOptimusEditorStyle::Register();
 
 	GraphNodeFactory = MakeShared<FOptimusEditorGraphNodeFactory>();
 	FEdGraphUtilities::RegisterVisualNodeFactory(GraphNodeFactory);
@@ -48,6 +50,7 @@ void FOptimusEditorModule::ShutdownModule()
 	FEdGraphUtilities::UnregisterVisualPinFactory(GraphPinFactory);
 	FEdGraphUtilities::UnregisterVisualNodeFactory(GraphNodeFactory);
 
+	FOptimusEditorStyle::Unregister();
 	FOptimusEditorGraphExplorerCommands::Unregister();
 	FOptimusEditorCommands::Unregister();
 

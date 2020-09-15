@@ -11,8 +11,6 @@
 
 #include "UObject/Package.h"
 
-static UOptimusNodePin* InvalidPin = nullptr;
-
 
 UOptimusNodePin* UOptimusNodePin::GetParentPin()
 {
@@ -38,7 +36,7 @@ UOptimusNodePin* UOptimusNodePin::GetRootPin()
 const UOptimusNodePin* UOptimusNodePin::GetRootPin() const
 {
 	const UOptimusNodePin* CurrentPin = this;
-	while (const UOptimusNodePin* ParentPin = GetParentPin())
+	while (const UOptimusNodePin* ParentPin = CurrentPin->GetParentPin())
 	{
 		CurrentPin = ParentPin;
 	}
@@ -78,6 +76,14 @@ TArray<FName> UOptimusNodePin::GetPinNamePath() const
 FName UOptimusNodePin::GetUniqueName() const
 {
 	return *FString::JoinBy(GetPinNamePath(), TEXT("."), [](const FName& N) { return N.ToString(); });
+}
+
+
+FText UOptimusNodePin::GetDisplayName() const
+{
+	// So bool.
+	const bool bIsBool = (CastField<FBoolProperty>(GetPropertyFromPin()) != nullptr);
+	return FText::FromString(FName::NameToDisplayString(GetName(), bIsBool));
 }
 
 
@@ -149,6 +155,43 @@ FProperty* UOptimusNodePin::GetPropertyFromPin() const
 	return Property;
 }
 
+// Returns a pointer to the property represented by this pin. If the function returns nullptr
+// then there's no editable property here. Accounts for nested pins.
+uint8* UOptimusNodePin::GetPropertyValuePtr() const
+{
+	// Collect properties up the chain.
+	TArray<const FProperty*> PropertyHierarchy;
+	PropertyHierarchy.Reserve(4);
+	const UOptimusNodePin* CurrentPin = this;
+	while (CurrentPin)
+	{
+		const FProperty *Property = CurrentPin->GetPropertyFromPin();
+		if (!Property)
+		{
+			return nullptr;
+		}
+
+		PropertyHierarchy.Add(Property);
+		CurrentPin = CurrentPin->GetParentPin();
+	}
+	
+	UObject* NodeObject = GetNode();
+	uint8 *NodeData = nullptr;
+	for (int32 Index = PropertyHierarchy.Num(); Index-- > 0; /**/)
+	{
+		const FProperty* Property = PropertyHierarchy[Index];
+		if (NodeData)
+		{
+			NodeData = Property->ContainerPtrToValuePtr<uint8>(NodeData);
+		}
+		else
+		{
+			NodeData = Property->ContainerPtrToValuePtr<uint8>(NodeObject);
+		}
+	}
+	return NodeData;
+}
+
 
 FString UOptimusNodePin::GetValueAsString() const
 {
@@ -156,10 +199,15 @@ FString UOptimusNodePin::GetValueAsString() const
 	FString ValueString;
 
 	// We can have pins with no underlying properties (e.g. Get/Set Resource nodes).
-	if (const FProperty *Property = GetPropertyFromPin())
+	// FIXME: Change to support nested properties.
+	if (GetParentPin() == nullptr)
 	{
-		const uint8 *NodeData = Property->ContainerPtrToValuePtr<const uint8>(NodeObject);
-		Property->ExportTextItem(ValueString, NodeData, nullptr, NodeObject, PPF_None);
+		const FProperty *Property = GetPropertyFromPin();
+		const uint8 *ValueData = GetPropertyValuePtr();
+		if (Property && ValueData)
+		{
+			Property->ExportTextItem(ValueString, ValueData, nullptr, NodeObject, PPF_None);
+		}
 	}
 
 	return ValueString;
@@ -177,9 +225,11 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 {
 	UOptimusNode* Node = GetNode();
 	FProperty* Property = GetPropertyFromPin();
+	uint8* ValueData = GetPropertyValuePtr();
+
 	bool bSuccess = false;
 
-	if (ensure(Property))
+	if (ensure(Property) && ValueData)
 	{
 		FEditPropertyChain PropertyChain;
 		PropertyChain.AddHead(Property);
@@ -187,8 +237,7 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 
 		// FIXME: We need a way to sanitize the input. Trying and failing is not good, since
 		// it's unknown whether this may leave the property in an indeterminate state.
-		uint8 *NodeData = Property->ContainerPtrToValuePtr<uint8>(Node);
-		bSuccess = Property->ImportText(*InStringValue, NodeData, PPF_None, Node) != nullptr;
+		bSuccess = Property->ImportText(*InStringValue, ValueData, PPF_None, Node) != nullptr;
 
 		// We notify that the value change occurred, whether that's true or not. This way
 		// the graph pin value sync will ensure that if an invalid value was entered, it will
@@ -262,7 +311,19 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	{
 		if (OutReason)
 		{
-			*OutReason = TEXT("Connection would form a graph cycle.");
+			*OutReason = TEXT("Connection results in a cycle.");
+		}
+		return false;
+	}
+
+	// We don't allow resource -> value connections. All other combos are legit. 
+	// Value -> Resource just means the resource gets filled with the value.
+	if (OutputPin->StorageType == EOptimusNodePinStorageType::Resource &&
+		InputPin->StorageType == EOptimusNodePinStorageType::Value)
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("Can't connect a resource output into a value input.");
 		}
 		return false;
 	}
@@ -271,12 +332,14 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 }
 
 
-void UOptimusNodePin::SetDirectionAndDataType(
-	EOptimusNodePinDirection InDirection, 
-	FOptimusDataTypeRef InDataTypeRef
+void UOptimusNodePin::Initialize(
+    EOptimusNodePinDirection InDirection,
+    EOptimusNodePinStorageType InStorageType,
+    FOptimusDataTypeRef InDataTypeRef
 	)
 {
 	Direction = InDirection;
+	StorageType = InStorageType;
 	DataType = InDataTypeRef;
 }
 

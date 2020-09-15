@@ -259,7 +259,6 @@ void FOptimusEditor::DeleteSelectedNodes()
 	}
 
 	GraphEditorWidget->ClearSelectionSet();
-	GraphEditorWidget->NotifyGraphChanged();
 }
 
 

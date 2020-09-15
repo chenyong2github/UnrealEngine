@@ -136,8 +136,6 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 				Modify();
 
 				AddGraphNodeFromModelNode(ModelNode);
-
-				NotifyGraphChanged();
 			}
 		}
 		break;
@@ -152,7 +150,6 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			{
 				Modify();
 				RemoveNode(GraphNode, true);
-				NotifyGraphChanged();
 			}
 		}
 		break;

@@ -46,5 +46,7 @@ public:
 	void TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified = true) const override;
 
 	FLinearColor GetPinTypeColor(const FEdGraphPinType& InPinType) const override;
-	
+
+	// Don't re-create the entire graph on node add/remove.
+	bool ShouldAlwaysPurgeOnModification() const override { return false; }	
 };

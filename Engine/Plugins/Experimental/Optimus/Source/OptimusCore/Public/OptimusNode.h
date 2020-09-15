@@ -11,6 +11,7 @@
 #include "OptimusNode.generated.h"
 
 enum class EOptimusNodePinDirection : uint8;
+enum class EOptimusNodePinStorageType : uint8;
 class UOptimusActionStack;
 class UOptimusNodeGraph;
 class UOptimusNodePin;
@@ -38,7 +39,6 @@ public:
 	{
 		static const FName Attributes;
 		static const FName Deformers;
-		static const FName Events;
 		static const FName Meshes;
 		static const FName Resources;
 		static const FName Variables;
@@ -137,9 +137,11 @@ protected:
 
 	UOptimusNodePin* CreatePinFromDataType(
 		FName InName,
+	    EOptimusNodePinDirection InDirection,
+	    EOptimusNodePinStorageType InStorageType,
 		FOptimusDataTypeRef InDataType,
-	    UOptimusNodePin* InParentPin,
-	    EOptimusNodePinDirection InDirection);
+	    UOptimusNodePin* InParentPin = nullptr
+		);
 
 private:
 	void Notify(
@@ -152,9 +154,9 @@ private:
 		);
 
 	UOptimusNodePin* CreatePinFromProperty(
+	    EOptimusNodePinDirection InDirection,
 		const FProperty* InProperty,
-		UOptimusNodePin* InParentPin,
-		EOptimusNodePinDirection InDirection
+		UOptimusNodePin* InParentPin = nullptr
 	);
 
 	UPROPERTY()

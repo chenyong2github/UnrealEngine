@@ -18,7 +18,6 @@
 
 
 const FName UOptimusNode::CategoryName::Attributes("Attributes");
-const FName UOptimusNode::CategoryName::Events("Events");
 const FName UOptimusNode::CategoryName::Meshes("Meshes");
 const FName UOptimusNode::CategoryName::Deformers("Deformers");
 const FName UOptimusNode::CategoryName::Resources("Resources");
@@ -26,6 +25,7 @@ const FName UOptimusNode::CategoryName::Variables("Variables");
 
 const FName UOptimusNode::PropertyMeta::Input("Input");
 const FName UOptimusNode::PropertyMeta::Output("Output");
+const FName UOptimusNode::PropertyMeta::Resource("Resource");
 
 
 // Cached list of node classes
@@ -34,6 +34,7 @@ TArray<UClass*> UOptimusNode::CachedNodesClasses;
 
 UOptimusNode::UOptimusNode()
 {
+	// TODO: Clean up properties (i.e. remove EditAnywhere, VisibleAnywhere for outputs).
 }
 
 
@@ -240,16 +241,17 @@ void UOptimusNode::CreatePins()
 
 
 UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
-	FName InName,
-	FOptimusDataTypeRef InDataType, 
-	UOptimusNodePin* InParentPin, 
-	EOptimusNodePinDirection InDirection
+    FName InName,
+    EOptimusNodePinDirection InDirection,
+    EOptimusNodePinStorageType InStorageType,
+    FOptimusDataTypeRef InDataType,
+    UOptimusNodePin* InParentPin
 	)
 {
 	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
 	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName, RF_Public | RF_Transactional);
 
-	Pin->SetDirectionAndDataType(InDirection, InDataType);
+	Pin->Initialize(InDirection, InStorageType, InDataType);
 
 	if (InParentPin)
 	{
@@ -260,8 +262,9 @@ UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
 		Pins.Add(Pin);
 	}
 
-	// Add sub-pins, if the registered type is set to show them.
-	if (EnumHasAnyFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
+	// Add sub-pins, if the registered type is set to show them but only for value types.
+	if (InStorageType == EOptimusNodePinStorageType::Value &&
+		EnumHasAnyFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
 	{
 		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InDataType->TypeObject))
 		{
@@ -283,7 +286,7 @@ void UOptimusNode::CreatePinsFromStructLayout(
 		if (InParentPin)
 		{
 			// Sub-pins keep the same direction as the parent.
-			CreatePinFromProperty(Property, InParentPin, InParentPin->GetDirection());
+			CreatePinFromProperty(InParentPin->GetDirection(), Property, InParentPin);
 		}
 		else if (Property->HasMetaData(PropertyMeta::Input))
 		{
@@ -293,20 +296,20 @@ void UOptimusNode::CreatePinsFromStructLayout(
 					*GetName(), *Property->GetName());
 			}
 
-			CreatePinFromProperty(Property, InParentPin, EOptimusNodePinDirection::Input);
+			CreatePinFromProperty(EOptimusNodePinDirection::Input, Property, InParentPin);
 		}
 		else if (Property->HasMetaData(PropertyMeta::Output))
 		{
-			CreatePinFromProperty(Property, InParentPin, EOptimusNodePinDirection::Output);
+			CreatePinFromProperty(EOptimusNodePinDirection::Output, Property, InParentPin);
 		}
 	}
 }
 
 
 UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
+    EOptimusNodePinDirection InDirection,
 	const FProperty* InProperty,
-	UOptimusNodePin* InParentPin,
-	EOptimusNodePinDirection InDirection
+	UOptimusNodePin* InParentPin
 	)
 {
 	if (!ensure(InProperty))
@@ -325,7 +328,27 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 		return nullptr;
 	}
 
-	return CreatePinFromDataType(InProperty->GetFName(), DataType, InParentPin, InDirection);
+	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;
+	if (InProperty->HasMetaData(PropertyMeta::Resource))
+	{
+		if (!ensure(!InParentPin))
+		{
+			UE_LOG(LogOptimusCore, Error, TEXT("Pin '%s' marked as resource cannot have sub-pins."), *InProperty->GetName());
+			return nullptr;
+		}
+
+		// Ensure that the data type for the property allows it to be used as a resource.
+		if (!EnumHasAnyFlags(DataType->UsageFlags, EOptimusDataTypeUsageFlags::Resource))
+		{
+			UE_LOG(LogOptimusCore, Error, TEXT("Pin '%s' marked as resource but data type is not compatible."), *InProperty->GetName());
+			return nullptr;
+		}
+
+		StorageType = EOptimusNodePinStorageType::Resource;
+	}
+
+
+	return CreatePinFromDataType(InProperty->GetFName(), InDirection, StorageType, DataType, InParentPin);
 }
 
 UOptimusActionStack* UOptimusNode::GetActionStack() const

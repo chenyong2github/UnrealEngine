@@ -35,6 +35,10 @@ void UOptimusNode_GetVariable::CreatePins()
 	UOptimusVariableDescription *Var = VariableDesc.Get();
 	if (Var)
 	{
-		CreatePinFromDataType(Var->VariableName, Var->DataType, nullptr, EOptimusNodePinDirection::Output);
+		CreatePinFromDataType(
+			Var->VariableName, 
+			EOptimusNodePinDirection::Output,
+		    EOptimusNodePinStorageType::Value,
+			Var->DataType);
 	}
 }
