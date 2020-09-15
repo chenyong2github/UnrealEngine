@@ -41,6 +41,48 @@ protected:
 	TMap<FString, FBlockDelimiters> StructParameters;
 };
 
+USTRUCT()
+struct FRCRequestWrapper : public FRCRequest
+{
+	GENERATED_BODY()
+	
+	FRCRequestWrapper()
+	{
+		AddStructParameter(BodyLabel());
+	}
+
+	/**
+	 * Get the label for the parameters struct.
+	 */
+	static FString BodyLabel() { return TEXT("Body"); }
+	
+	UPROPERTY()
+	FString URL;
+
+	UPROPERTY()
+	FName Verb;
+
+	UPROPERTY()
+	int32 RequestId;
+
+	TArray<uint8> BodyData;
+};
+
+/**
+ * Holds a request that wraps multiple requests..
+ */
+USTRUCT()
+struct FRCBatchRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	/**
+	 * The list of batched requests.
+	 */
+	UPROPERTY()
+	TArray<FRCRequestWrapper> Requests;
+};
+
 UENUM()
 enum class ERemoteControlEvent : uint8
 {
@@ -196,7 +238,179 @@ private:
 };
 
 /**
- * Holds a request made to the remote control server.
+ * Holds a request to set a property on a preset
+ */
+USTRUCT()
+struct FRCPresetSetPropertyRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCPresetSetPropertyRequest()
+	{
+		AddStructParameter(PropertyValueLabel());
+	}
+
+	/**
+	 * Get the label for the PropertyValue struct.
+	 */
+	static FString PropertyValueLabel() { return TEXT("PropertyValue"); }
+
+	/**
+	 * Whether a transaction should be created for the call.
+	 */
+	UPROPERTY()
+	bool GenerateTransaction = false;
+};
+
+/**
+ * Holds a request to call a function on a preset
+ */
+USTRUCT()
+struct FRCPresetCallRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCPresetCallRequest()
+	{
+		AddStructParameter(ParametersLabel());
+	}
+
+	/**
+	 * Get the label for the parameters struct.
+	 */
+	static FString ParametersLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * Whether a transaction should be created for the call.
+	 */
+	UPROPERTY()
+	bool GenerateTransaction = false;
+};
+
+/**
+ * Holds a request to describe an object using its path.
+ */
+USTRUCT()
+struct FDescribeObjectRequest: public FRCRequest
+{
+	GENERATED_BODY()
+
+	FDescribeObjectRequest()
+	{
+	}
+
+	/**
+	 * The target object's path.
+	 */
+	UPROPERTY()
+	FString ObjectPath;
+};
+
+/**
+ * Holds a request to search for an asset.
+ */
+USTRUCT()
+struct FSearchAssetRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FSearchAssetRequest()
+		: Limit(100)
+	{
+	}
+
+	/*
+	 * The search query.
+	 */
+	UPROPERTY()
+	FString Query;
+	
+	/**
+	 * The type of asset to search.
+	 */
+	UPROPERTY()
+	FString Type;
+
+	/**
+	 * The maximum number of search results returned.
+	 */
+	UPROPERTY()
+	int32 Limit;
+};
+
+/**
+ * Holds a request to search for an actor.
+ */
+USTRUCT()
+struct FSearchActorRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FSearchActorRequest()
+		: Limit(100)
+	{
+	}
+
+	/*
+	 * The search query.
+	 */
+	UPROPERTY()
+	FString Query;
+
+	/**
+	 * The target actor's class. 
+	 */
+	UPROPERTY()
+	FString Class;
+
+	/**
+	 * The maximum number of search results returned.
+	 */
+	UPROPERTY()
+	int32 Limit;
+};
+
+/**
+ * Holds a request to search for an asset.
+ */
+USTRUCT()
+struct FSearchObjectRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FSearchObjectRequest()
+		: Limit(100)
+	{
+	}
+
+	/*
+	 * The search query.
+	 */
+	UPROPERTY()
+	FString Query;
+
+	/**
+	 * The target object's class.
+	 */
+	UPROPERTY()
+	FString Class;
+
+	/**
+	 * The search target's outer object.
+	 */
+	UPROPERTY()
+	FString Outer;
+
+	/**
+	 * The maximum number of search results returned.
+	 */
+	UPROPERTY()
+	int32 Limit;
+};
+
+
+/**
+ * Holds a request made for web socket.
  */
 USTRUCT()
 struct FRCWebSocketRequest : public FRCRequest
@@ -223,5 +437,30 @@ struct FRCWebSocketRequest : public FRCRequest
 	 * (Optional) Id of the incoming message, used to identify a deferred response to the clients.
 	 */
 	UPROPERTY()
-	int32 Id = -1;
+	int32 Id = INDEX_NONE;
+};
+
+/**
+ * Holds a request made for web socket.
+ */
+USTRUCT()
+struct FRCWebSocketPresetRegisterBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketPresetRegisterBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * Name of the preset its registering.
+	 */
+	UPROPERTY()
+	FString PresetName;
 };

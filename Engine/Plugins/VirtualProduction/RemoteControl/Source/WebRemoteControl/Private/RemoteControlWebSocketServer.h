@@ -33,7 +33,7 @@ private:
 	 * @param MessageName the name of the message to dispatch, used to find its handler.
 	 * @param TCHARMessage the payload to dispatch.
 	 */
-	void Dispatch(const struct FWebSocketMessage& Message);
+	void Dispatch(const struct FRemoteControlWebSocketMessage& Message);
 
 private:
 	/** The dispatch table used to keep track of message handlers. */
@@ -67,12 +67,23 @@ public:
 
 	/**
 	 * Send a message to all clients currently connected to the server.
-	 * @param Message the message to broadcast to connected client
+	 * @param InUTF8Payload the payload to broadcast to connected clients.
 	 */
-	void Broadcast(const FString& Message);
+	void Broadcast(const TArray<uint8>& InUTF8Payload);
+
+	/**
+	 * Send a message to a client.
+	 * @param InTargetClientId the target client's id.
+	 * @param InUTF8Payload the payload to send.
+	 */
+	void Send(const FGuid& InTargetClientId, const TArray<uint8>& InUTF8Payload);
 
 	/** Returns whether the server is currently listening for messages. */
 	bool IsRunning() const;
+	
+	/** Callback when a socket is closed */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConnectionClosed, FGuid /*ClientId*/);
+	FOnConnectionClosed& OnConnectionClosed() { return OnConnectionClosedDelegate; }
 
 private:
 	bool Tick(float DeltaTime);
@@ -81,7 +92,7 @@ private:
 	void OnWebSocketClientConnected(INetworkingWebSocket* Socket);
 
 	/** Handles sending the received packet to the message router. */
-	void ReceivedRawPacket(void* Data, int32 Size);
+	void ReceivedRawPacket(void* Data, int32 Size, FGuid ClientId);
 
 	void OnSocketClose(INetworkingWebSocket* Socket);
 
@@ -93,10 +104,12 @@ private:
 
 		explicit FWebSocketConnection(INetworkingWebSocket* InSocket)
 			: Socket(InSocket)
+			, Id(FGuid::NewGuid())
 		{
 		}
 
 		FWebSocketConnection(FWebSocketConnection&& WebSocketConnection)
+			: Id(WebSocketConnection.Id)
 		{
 			Socket = WebSocketConnection.Socket;
 			WebSocketConnection.Socket = nullptr;
@@ -117,7 +130,12 @@ private:
 
 		/** Underlying WebSocket. */
 		INetworkingWebSocket* Socket = nullptr;
+
+		/** Generated ID for this client. */
+		FGuid Id;
 	};
+
+
 
 private:
 	/** Handle to the tick delegate. */
@@ -131,4 +149,7 @@ private:
 
 	/** Holds the router responsible for dispatching messages received by this server. */
 	TSharedPtr<FWebsocketMessageRouter> Router;
+
+	/** Delegate triggered when a connection is closed */
+	FOnConnectionClosed OnConnectionClosedDelegate;
 };

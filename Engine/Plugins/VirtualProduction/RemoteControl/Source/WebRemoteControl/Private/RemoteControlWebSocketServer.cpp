@@ -10,22 +10,15 @@
 
 #define LOCTEXT_NAMESPACE "RCWebSocketServer"
 
-struct FWebSocketMessage
-{
-	FString MessageName;
-	int32 Id = -1;
-	TArrayView<uint8> RequestPayload;
-};
-
 namespace RemoteControlWebSocketServer
 {
 	static const FString MessageNameFieldName = TEXT("MessageName");
 	static const FString PayloadFieldName = TEXT("Parameters");
 
-	TOptional<FWebSocketMessage> ParseWebsocketMessage(TArrayView<uint8> InPayload)
+	TOptional<FRemoteControlWebSocketMessage> ParseWebsocketMessage(TArrayView<uint8> InPayload)
 	{
 		FRCWebSocketRequest Request;
-		WebRemoteControlUtils::DeserializeRequestPayload(InPayload, nullptr, Request);
+		bool bSuccess = WebRemoteControlUtils::DeserializeRequestPayload(InPayload, nullptr, Request);
 
 		FString ErrorText;
 		if (Request.MessageName.IsEmpty())
@@ -39,14 +32,20 @@ namespace RemoteControlWebSocketServer
 			ErrorText = FString::Printf(TEXT("Missing %s field."), *FRCWebSocketRequest::ParametersFieldLabel());
 		}
 
-		TOptional<FWebSocketMessage> ParsedMessage;
-		if (!ErrorText.IsEmpty())
+		TOptional<FRemoteControlWebSocketMessage> ParsedMessage;
+		if (!bSuccess)
 		{
 			UE_LOG(LogRemoteControl, Error, TEXT("%s"), *FString::Format(TEXT("Encountered error while deserializing websocket message. \r\n{0}"), { *ErrorText }));
 		}
 		else
 		{
-			FWebSocketMessage Message = { MoveTemp(Request.MessageName), Request.Id, MakeArrayView(InPayload).Slice(PayloadDelimiters.BlockStart, PayloadDelimiters.BlockEnd - PayloadDelimiters.BlockStart)};
+			FRemoteControlWebSocketMessage Message;
+			Message.MessageId = Request.Id;
+			if (PayloadDelimiters.BlockStart != PayloadDelimiters.BlockEnd)
+			{
+				Message.RequestPayload = MakeArrayView(InPayload).Slice(PayloadDelimiters.BlockStart, PayloadDelimiters.BlockEnd - PayloadDelimiters.BlockStart);
+			}
+			Message.MessageName = MoveTemp(Request.MessageName);
 			ParsedMessage = MoveTemp(Message);
 		}
 
@@ -54,11 +53,11 @@ namespace RemoteControlWebSocketServer
 	}
 }
 
-void FWebsocketMessageRouter::Dispatch(const FWebSocketMessage& Message)
+void FWebsocketMessageRouter::Dispatch(const FRemoteControlWebSocketMessage& Message)
 {
 	if (FWebSocketMessageDelegate* Callback = DispatchTable.Find(Message.MessageName))
 	{
-		Callback->ExecuteIfBound(Message.Id, Message.RequestPayload);
+		Callback->ExecuteIfBound(Message);
 	}
 }
 
@@ -106,17 +105,22 @@ FRCWebSocketServer::~FRCWebSocketServer()
 	Stop();
 }
 
-void FRCWebSocketServer::Broadcast(const FString& Message)
+void FRCWebSocketServer::Broadcast(const TArray<uint8>& InUTF8Payload)
 {
-	TArray<uint8> SendBuffer;
-	WebRemoteControlUtils::ConvertToUTF8(Message, SendBuffer);
-
 	for (FWebSocketConnection& Connection : Connections)
 	{
 		if (Connection.Socket)
 		{
-			Connection.Socket->Send(SendBuffer.GetData(), SendBuffer.Num());
+			Connection.Socket->Send(InUTF8Payload.GetData(), InUTF8Payload.Num());
 		}
+	}
+}
+
+void FRCWebSocketServer::Send(const FGuid& InTargetClientId, const TArray<uint8>& InUTF8Payload)
+{
+	if (FWebSocketConnection* Connection = Connections.FindByPredicate([&InTargetClientId](const FWebSocketConnection& InConnection) { return InConnection.Id == InTargetClientId; }))
+	{
+		Connection->Socket->Send(InUTF8Payload.GetData(), InUTF8Payload.Num());
 	}
 }
 
@@ -138,7 +142,7 @@ void FRCWebSocketServer::OnWebSocketClientConnected(INetworkingWebSocket* Socket
 		FWebSocketConnection Connection = FWebSocketConnection{ Socket };
 			
 		FWebSocketPacketReceivedCallBack ReceiveCallBack;
-		ReceiveCallBack.BindRaw(this, &FRCWebSocketServer::ReceivedRawPacket);
+		ReceiveCallBack.BindRaw(this, &FRCWebSocketServer::ReceivedRawPacket, Connection.Id);
 		Socket->SetReceiveCallBack(ReceiveCallBack);
 
 		FWebSocketInfoCallBack CloseCallback;
@@ -149,7 +153,7 @@ void FRCWebSocketServer::OnWebSocketClientConnected(INetworkingWebSocket* Socket
 	}
 }
 
-void FRCWebSocketServer::ReceivedRawPacket(void* Data, int32 Size)
+void FRCWebSocketServer::ReceivedRawPacket(void* Data, int32 Size, FGuid ClientId)
 {
 	if (!Router)
 	{
@@ -159,8 +163,9 @@ void FRCWebSocketServer::ReceivedRawPacket(void* Data, int32 Size)
 	TArray<uint8> Payload;
 	WebRemoteControlUtils::ConvertToTCHAR(MakeArrayView(static_cast<uint8*>(Data), Size), Payload);
 
-	if (TOptional<FWebSocketMessage> Message = RemoteControlWebSocketServer::ParseWebsocketMessage(Payload))
+	if (TOptional<FRemoteControlWebSocketMessage> Message = RemoteControlWebSocketServer::ParseWebsocketMessage(Payload))
 	{
+		Message->ClientId = ClientId;
 		Router->Dispatch(*Message);
 	}
 }
@@ -170,6 +175,7 @@ void FRCWebSocketServer::OnSocketClose(INetworkingWebSocket* Socket)
 	int32 Index = Connections.IndexOfByPredicate([Socket](const FWebSocketConnection& Connection) { return Connection.Socket == Socket; });
 	if (Index != INDEX_NONE)
 	{
+		OnConnectionClosed().Broadcast(Connections[Index].Id);
 		Connections.RemoveAtSwap(Index);
 	}
 }

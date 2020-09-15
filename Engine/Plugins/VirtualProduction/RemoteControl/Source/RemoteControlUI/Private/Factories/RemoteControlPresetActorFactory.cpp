@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "RemoteControlPresetActorFactory.h"
-#include "GameFramework/Actor.h"
 #include "AssetData.h"
 #include "Engine/Level.h"
-#include "RemoteControlPresetActor.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "GameFramework/Actor.h"
+#include "IRemoteControlModule.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlPresetActor.h"
 #include "UObject/UObjectGlobals.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 URemoteControlPresetActorFactory::URemoteControlPresetActorFactory()
 {
@@ -18,6 +21,19 @@ bool URemoteControlPresetActorFactory::CanCreateActorFrom( const FAssetData& Ass
 	if (AssetData.IsValid() && !AssetData.GetClass()->IsChildOf(URemoteControlPreset::StaticClass()))
 	{
 		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoRemoteControlPresetAsset", "A valid remote control preset asset must be specified.");
+		return false;
+	}
+
+	if (IRemoteControlModule::Get().ResolvePreset(AssetData.AssetName))
+	{
+		OutErrorMsg = NSLOCTEXT("CanCreateActor", "PresetAlreadyExists", "An actor already linked with this preset already exists in the level.");
+
+		if (!ActiveNotification.IsValid())
+		{
+			FNotificationInfo NotificationInfo(OutErrorMsg);
+			NotificationInfo.ExpireDuration = 5.0f;
+			//ActiveNotification = FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		}
 		return false;
 	}
 
