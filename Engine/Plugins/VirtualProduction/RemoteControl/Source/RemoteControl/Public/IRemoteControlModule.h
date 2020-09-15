@@ -11,6 +11,10 @@ REMOTECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControl, Log, All);
 
 class IStructDeserializerBackend;
 class IStructSerializerBackend;
+class URemoteControlPreset;
+struct FExposedProperty;
+
+
 
 /**
  * Reference to a function in a UObject
@@ -47,6 +51,15 @@ struct FRCCall
 };
 
 /**
+ * Object to hold information necessary to resolve a preset property/function.
+ */
+struct FResolvePresetFieldArgs
+{
+	FString PresetName;
+	FString FieldLabel;
+};
+
+/**
  * Requested access mode to a remote property
  */
 UENUM()
@@ -67,16 +80,31 @@ struct FRCObjectReference
 		: Access(ERCAccess::NO_ACCESS)
 		, Object(nullptr)
 		, Property(nullptr)
+		, ContainerAdress(nullptr)
 	{}
 
 	bool IsValid() const
 	{
-		return Object.IsValid();
+		return Object.IsValid() && ContainerType.IsValid() && ContainerAdress != nullptr;
 	}
 
+	/** Type of access on this object (read, write) */
 	ERCAccess Access;
+
+	/** UObject owning the target property */
 	TWeakObjectPtr<UObject> Object;
+
+	/** Actual property that is being referenced */
 	TWeakFieldPtr<FProperty> Property;
+
+	/** Address of the container of the property for serialization purposes in case of a nested property */
+	void* ContainerAdress;
+
+	/** Type of the container where the property resides */
+	TWeakObjectPtr<UStruct> ContainerType;
+
+	/** Path to the property under the Object */
+	TArray<FString> NestedPath;
 };
 
 /**
@@ -96,6 +124,23 @@ public:
 		static const FName ModuleName = "RemoteControl";
 		return FModuleManager::LoadModuleChecked<IRemoteControlModule>(ModuleName);
 	}
+
+	/** Delegate triggered when a preset has been registered */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetRegistered, FName /*PresetName*/);
+	virtual FOnPresetRegistered& OnPresetRegistered() = 0;
+
+	/** Delegate triggered when a preset has been unregistered */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetUnregistered, FName /*PresetName*/);
+	virtual FOnPresetUnregistered& OnPresetUnregistered() = 0;
+
+	/**
+	 * Register the preset with the module, enabling using the preset remotely using its name.
+	 * @return whether registration was successful.
+	 */
+	virtual bool RegisterPreset(FName Name, URemoteControlPreset* Preset) = 0;
+
+	/** Unregister a preset */
+	virtual void UnregisterPreset(FName Name) = 0;
 
 	/**
 	 * Resolve a RemoteCall Object and Function.
@@ -131,6 +176,17 @@ public:
 	virtual bool ResolveObject(ERCAccess AccessType, const FString& ObjectPath, const FString& PropertyName, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) = 0;
 
 	/**
+	 * Resolve a remote object reference to a property
+	 * @param AccessType the requested access to the object, (i.e. read or write)
+	 * @param Object the object to resolve the property on
+	 * @param PropertyName the property to resolve, if any (specifying no property will return back the whole object when getting/setting it)
+	 * @param OutObjectRef the object reference to resolve into
+	 * @param OutErrorText an optional error string pointer to write errors into.
+	 * @return true if resolving the object and its property succeeded or just the object if no property was specified.
+	 */
+	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, const FString& PropertyName, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) = 0;
+
+	/**
 	 * Serialize the Object Reference into the specified backend.
 	 * @param ObjectAccess the object reference to serialize, it should be a read access reference.
 	 * @param Backend the struct serializer backend to use to serialize the object properties.
@@ -152,4 +208,28 @@ public:
 	 * @return true if the reset succeeded.
 	 */
 	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess) = 0;
+
+	/**
+	 * Resolve the underlying function from a preset.
+	 * @return the underlying function and objects that the property is exposed on.
+	 */
+	virtual TOptional<struct FExposedFunction> ResolvePresetFunction(const FResolvePresetFieldArgs& Args) const = 0;
+
+	/**
+	 * Resolve the underlying property from a preset.
+	 * @return the underlying property and objects that the property is exposed on.
+	 */
+	virtual TOptional<struct FExposedProperty> ResolvePresetProperty(const FResolvePresetFieldArgs& Args) const = 0;
+
+	/**
+	 * Get a preset that's in the current level using its name.
+	 * @arg PresetName name of the preset to resolve.
+	 * @return the preset if found.
+	 */
+	virtual URemoteControlPreset* ResolvePreset(FName PresetName) const = 0;
+
+	/**
+	 * Get all the presets currently registered with the module.
+	 */
+	virtual TArray<URemoteControlPreset*> GetPresets() = 0;
 };

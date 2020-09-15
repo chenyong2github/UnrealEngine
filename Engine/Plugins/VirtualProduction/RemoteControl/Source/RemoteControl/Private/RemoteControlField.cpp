@@ -6,40 +6,48 @@
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
 
-FRemoteControlField::FRemoteControlField(UObject* FieldOwner, EExposedFieldType InType, FName InFieldName) 
+FRemoteControlField::FRemoteControlField(EExposedFieldType InType, FName InLabel, FFieldPathInfo&& FieldPathInfo)
 	: FieldType(InType)
-	, FieldName(InFieldName)
-	, FieldId(FGuid::NewGuid())
+	, FieldName(FieldPathInfo.GetFieldName())
+	, Label(InLabel)
+	, Id(FGuid::NewGuid())
+	, PathRelativeToOwner(FieldPathInfo.GetPathRelativeToOwner())
+	, ComponentHierarchy(FieldPathInfo.GetComponentHierarchy())
 {
-	check(FieldOwner);
-	
-	// If the field is on an actor component, we need to keep the relative path of the component to its owner
-	// in order to allow field grouping.
-	if (FieldOwner->IsA<UActorComponent>())
-	{
-		PathRelativeToOwner = FieldOwner->GetPathName(Cast<UActorComponent>(FieldOwner)->GetOwner());
-	}
-
-	FieldOwnerClass = FieldOwner->GetClass();
 }
 
-TArray<UObject*> FRemoteControlField::ResolveFieldOwners(const TArray<UObject*>& SectionObjects)
+TArray<UObject*> FRemoteControlField::ResolveFieldOwners(const TArray<UObject*>& SectionObjects) const
 {
 	TArray<UObject*> FieldOwners;
 	FieldOwners.Reserve(SectionObjects.Num());
 
 	for (UObject* Object : SectionObjects)
 	{
-		if (!PathRelativeToOwner.IsEmpty())
+		//If component hierarchy is not empty, we need to walk it to find the child object
+		if (!ComponentHierarchy.IsEmpty())
 		{
-			if (UObject* ResolvedFieldOwner = FindObject<UObject>(Object, *PathRelativeToOwner))
+			UObject* Outer = Object;
+			TArray<FString> Components;
+			ComponentHierarchy.ParseIntoArray(Components, TEXT("."));
+			for (const FString& Component : Components)
 			{
-				FieldOwners.Add(ResolvedFieldOwner);
+				if (UObject* ResolvedFieldOwner = FindObject<UObject>(Outer, *Component))
+				{
+					Outer = ResolvedFieldOwner;
+				}
+				else
+				{
+					// This can happen when one of the grouped actors has a component named DefaultSceneRoot and one has a component StaticMeshComponent.
+					// @todo: Change to a log if this situation can occur under normal conditions. (ie. Blueprint reinstanced)
+					ensureAlwaysMsgf(false, TEXT("Could not resolve field owner for field %s"), *Object->GetName());
+					Outer = nullptr;
+					break;
+				}
 			}
-			else
+			
+			if (Outer)
 			{
-				// @todo: Change to a log if this situation can occur under normal conditions. (ie. Blueprint reinstanced)
-				ensureAlwaysMsgf(false, TEXT("Could not resolve field owner for field %s"), *Object->GetName());
+				FieldOwners.Add(Outer);
 			}
 		}
 		else
@@ -51,35 +59,37 @@ TArray<UObject*> FRemoteControlField::ResolveFieldOwners(const TArray<UObject*>&
 	return FieldOwners;
 }
 
-bool FRemoteControlField::operator==(const FRemoteControlField& InField) const
+FString FRemoteControlField::GetQualifiedFieldName() const
 {
-	// Functions can be exposed multiple times so we cannot rely on field name and type to differentiate
-	if (InField.FieldType == EExposedFieldType::Function)
+	FString QualifiedFieldName = FieldName.ToString();
+	if (!PathRelativeToOwner.IsEmpty())
 	{
-		return InField.FieldId == FieldId;
+		QualifiedFieldName = FString::Printf(TEXT("%s.%s"), *PathRelativeToOwner, *QualifiedFieldName);
 	}
-	else
-	{
-		return InField.FieldType == FieldType && InField.FieldName == FieldName;
-	}
+	return QualifiedFieldName;
 }
 
-bool FRemoteControlField::operator==(const FGuid& InFieldId) const
+bool FRemoteControlField::operator==(const FRemoteControlField& InField) const
 {
-	return FieldId == InFieldId;
+	return InField.Id == Id;
+}
+
+bool FRemoteControlField::operator==(FGuid InFieldId) const
+{
+	return InFieldId == Id;
 }
 
 uint32 GetTypeHash(const FRemoteControlField& InField)
 {
-	return GetTypeHash(InField.FieldId);
+	return GetTypeHash(InField.Id);
 }
 
-FRemoteControlProperty::FRemoteControlProperty(UObject* FieldOwner, FName InPropertyName)
-	: FRemoteControlField(FieldOwner, EExposedFieldType::Property, InPropertyName)
+FRemoteControlProperty::FRemoteControlProperty(FName InLabel, FFieldPathInfo FieldPathInfo)
+	: FRemoteControlField(EExposedFieldType::Property, InLabel, MoveTemp(FieldPathInfo))
 {}
 
-FRemoteControlFunction::FRemoteControlFunction(UObject* FieldOwner, UFunction* InFunction)
-	: FRemoteControlField(FieldOwner, EExposedFieldType::Function, InFunction->GetFName())
+FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FFieldPathInfo FieldPathInfo, UFunction* InFunction)
+	: FRemoteControlField(EExposedFieldType::Function, InLabel, MoveTemp(FieldPathInfo))
 	, Function(InFunction)
 {
 	FunctionArguments = MakeShared<FStructOnScope>(Function);
@@ -104,7 +114,10 @@ FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 		RCFunction.FunctionArguments = MakeShared<FStructOnScope>(RCFunction.Function);
 	}
 
-	RCFunction.Function->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), RCFunction.Function, nullptr);
+	if (ensure(RCFunction.Function))
+	{
+		RCFunction.Function->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), RCFunction.Function, nullptr);
+	}
 
 	return Ar;
 }
