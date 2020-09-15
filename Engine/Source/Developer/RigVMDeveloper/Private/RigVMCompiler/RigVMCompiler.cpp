@@ -454,9 +454,11 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 	}
 }
 
-void URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
+int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
 	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InExpr->GetNode());
+
+	int32 InstructionIndex = INDEX_NONE;
 
 	if (WorkData.bSetupMemory)
 	{
@@ -523,9 +525,10 @@ void URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, F
 		// setup the instruction
 		int32 FunctionIndex = WorkData.VM->AddRigVMFunction(StructNode->GetScriptStruct(), StructNode->GetMethodName());
 		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
+		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			StructNode->InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+			StructNode->InstructionIndex = InstructionIndex;
 		}
 
 		ensure(InExpr->NumChildren() == StructNode->Pins.Num());
@@ -551,6 +554,8 @@ void URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, F
 			}
 		}
 	}
+
+	return InstructionIndex;
 }
 
 void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
@@ -577,8 +582,7 @@ void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRig
 	WorkData.VM->GetByteCode().AddZeroOp(IndexOperand);
 
 	// call the for loop compute
-	TraverseCallExtern(InExpr, WorkData);
-	int32 ForLoopInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+	int32 ForLoopInstructionIndex = TraverseCallExtern(InExpr, WorkData);
 
 	// set up the jump forward (jump out of the loop)
 	const FRigVMVarExprAST* ContinueLoopExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopContinuePinName);
