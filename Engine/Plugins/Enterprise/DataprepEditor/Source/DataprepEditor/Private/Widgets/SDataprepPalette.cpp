@@ -189,23 +189,29 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 	AssetRegistryModule.Get().OnAssetRenamed().AddSP( this, &SDataprepPalette::RenameAssetFromRegistry );
 }
 
-TSharedRef<SWidget> SDataprepPalette::ConstructAddActionMenu() const
+TSharedRef<SWidget> SDataprepPalette::ConstructAddActionMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr, nullptr, /*bCloseSelfOnly=*/true);
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("DataprepPaletteLabel", "Dataprep Palette"));
 	{
 		MenuBuilder.AddMenuEntry(LOCTEXT("CreateNewFilterLabel", "Create New Filter"), LOCTEXT("CreateNewFilterTooltip", "Create new user-defined filter"), FSlateIcon(), 
-			FUIAction(FExecuteAction::CreateStatic(&FDataprepEditorUtils::CreateUserDefinedFilter),
-				FCanExecuteAction(),
-				FGetActionCheckState()
-			)
+			FUIAction(FExecuteAction::CreateLambda([this]()
+			{
+				if (FDataprepEditorUtils::CreateUserDefinedFilter())
+				{
+					RefreshActionsList(true);
+				}
+			}))
 		);
 		MenuBuilder.AddMenuEntry(LOCTEXT("CreateNewOperatorLabel", "Create New Operator"), LOCTEXT("CreateNewOperatorTooltip", "Create new user-defined operator"), FSlateIcon(), 
-			FUIAction(FExecuteAction::CreateLambda(&FDataprepEditorUtils::CreateUserDefinedOperation),
-				FCanExecuteAction(),
-				FGetActionCheckState()
-			)
+			FUIAction(FExecuteAction::CreateLambda([this]()
+			{
+				if (FDataprepEditorUtils::CreateUserDefinedOperation())
+				{
+					RefreshActionsList(true);
+				}
+			}))
 		);
 	}
 	MenuBuilder.EndSection();

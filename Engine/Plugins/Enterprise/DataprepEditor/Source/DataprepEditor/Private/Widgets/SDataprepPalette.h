@@ -39,7 +39,7 @@ private:
 
 	void RefreshAssetInRegistry(const FAssetData& InAssetData);
 
-	TSharedRef<SWidget> ConstructAddActionMenu() const;
+	TSharedRef<SWidget> ConstructAddActionMenu();
 	TSharedPtr<SWidget> OnContextMenuOpening();
 
 	// The options for the category selection
