@@ -341,6 +341,8 @@ protected:
 	/** @return the color to use for the tab color */
 	virtual FLinearColor GetDefaultTabColor() const;
 
+	virtual void CreateEditorModeManager() override;
+
 private:
 	/** Spawns the toolbar tab */
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);

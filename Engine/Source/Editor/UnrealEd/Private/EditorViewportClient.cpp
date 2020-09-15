@@ -339,6 +339,12 @@ void FEditorViewportClient::SetCameraSpeedScalar(float SpeedScalar)
 	CameraSpeedScalar = FMath::Clamp<float>(SpeedScalar, 1.0f, TNumericLimits <float>::Max());
 }
 
+void FEditorViewportClient::TakeOwnershipOfModeManager(TSharedPtr<FEditorModeTools>& ModeManagerPtr)
+{
+	check(bOwnsModeTools);
+	ModeManagerPtr = MakeShareable(ModeTools);
+	bOwnsModeTools = false;
+}
 
 float const FEditorViewportClient::SafePadding = 0.075f;
 

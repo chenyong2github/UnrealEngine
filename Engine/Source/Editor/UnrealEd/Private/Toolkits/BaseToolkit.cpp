@@ -133,9 +133,10 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost,
 {
 	check( InitToolkitHost.IsValid() );
 
-	ToolkitMode = EToolkitMode::WorldCentric;
+	ToolkitMode = EToolkitMode::Type::Standalone;
 	ToolkitHost = InitToolkitHost;
 	OwningEditorMode = InOwningMode;
+	EditorModeManager = InitToolkitHost->GetEditorModeManager().AsShared();
 
 	UInteractiveToolManager* ToolManager = GetEditorModeManager().GetInteractiveToolsContext()->ToolManager;
 	ToolManager->OnToolStarted.AddSP(this, &FModeToolkit::OnToolStarted);

@@ -59,6 +59,7 @@ protected:
 	void BindCommands();
 	void ExtendMenu();
 	void ExtendToolbar();
+	virtual void CreateEditorModeManager() override;
 
 	void OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 

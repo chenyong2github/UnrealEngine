@@ -249,6 +249,10 @@ FEditorModeTools& SStandaloneAssetEditorToolkitHost::GetEditorModeManager() cons
 
 SStandaloneAssetEditorToolkitHost::~SStandaloneAssetEditorToolkitHost()
 {
+	// Reset the mode manager so that any modes from the HostedAssetEditorToolkit are exited
+	GetEditorModeManager().SetDefaultMode(FBuiltinEditorModes::EM_Default);
+	GetEditorModeManager().DeactivateAllModes();
+
 	// Let the toolkit manager know that we're going away now
 	FToolkitManager::Get().OnToolkitHostDestroyed( this );
 	HostedToolkits.Reset();

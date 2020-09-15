@@ -16,6 +16,7 @@
 #include "TileMapEditing/STileMapEditorViewportToolbar.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "TileMapEditor"
 
@@ -482,6 +483,16 @@ void FTileMapEditor::ExtendToolbar()
 		);
 
 	AddToolbarExtender(ToolbarExtender);
+}
+
+void FTileMapEditor::CreateEditorModeManager()
+{
+	check(ViewportPtr.IsValid());
+	TSharedPtr<FEditorViewportClient> ViewportClient = ViewportPtr->GetViewportClient();
+	check(ViewportClient.IsValid());
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ViewportClient->TakeOwnershipOfModeManager(EditorModeManager);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FTileMapEditor::SetTileMapBeingEdited(UPaperTileMap* NewTileMap)

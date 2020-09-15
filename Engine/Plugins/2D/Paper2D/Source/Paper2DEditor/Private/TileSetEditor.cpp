@@ -15,6 +15,7 @@
 #include "PaperEditorShared/SpriteGeometryEditCommands.h"
 #include "IDetailsView.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "TileSetEditor"
 
@@ -287,6 +288,14 @@ void FTileSetEditor::ExtendToolbar()
 		);
 
 	AddToolbarExtender(ToolbarExtender);
+}
+
+void FTileSetEditor::CreateEditorModeManager()
+{
+	check(TileEditorViewportClient.IsValid());
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TileEditorViewportClient->TakeOwnershipOfModeManager(EditorModeManager);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FTileSetEditor::OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent)

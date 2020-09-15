@@ -24,6 +24,7 @@
 #include "Widgets/Docking/SDockTab.h"
 
 #include "ExtractSprites/SPaperExtractSpritesDialog.h"
+#include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "SpriteEditor"
 
@@ -569,6 +570,16 @@ void FSpriteEditor::ExtendToolbar()
 
  	IPaper2DEditorModule* Paper2DEditorModule = &FModuleManager::LoadModuleChecked<IPaper2DEditorModule>("Paper2DEditor");
 	AddToolbarExtender(Paper2DEditorModule->GetSpriteEditorToolBarExtensibilityManager()->GetAllExtenders());
+}
+
+void FSpriteEditor::CreateEditorModeManager()
+{
+	check(ViewportPtr.IsValid());
+	TSharedPtr<FEditorViewportClient> ViewportClient = ViewportPtr->GetViewportClient();
+	check(ViewportClient.IsValid());
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ViewportClient->TakeOwnershipOfModeManager(EditorModeManager);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FSpriteEditor::SetSpriteBeingEdited(UPaperSprite* NewSprite)

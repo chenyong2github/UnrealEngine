@@ -17,7 +17,6 @@ FPaperEditorViewportClient::FPaperEditorViewportClient(const TWeakPtr<SEditorVie
 	ZoomAmount = 1.0f;
 
 	//ModifyCheckerboardTextureColors();
-	//@TODO: ModeTools->SetToolkitHost
 
 	//@TODO: Pretty lame hardcoding
 	//@TODO: Doesn't handle negatives either (not really)

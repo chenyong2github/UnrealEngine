@@ -127,7 +127,6 @@ FSpriteEditorViewportClient::FSpriteEditorViewportClient(TWeakPtr<FSpriteEditor>
 void FSpriteEditorViewportClient::ActivateEditMode()
 {
 	// Activate the sprite geometry edit mode
-	ModeTools->SetToolkitHost(SpriteEditorPtr.Pin()->GetToolkitHost());
 	ModeTools->SetDefaultMode(FSpriteGeometryEditMode::EM_SpriteGeometry);
 	ModeTools->ActivateDefaultMode();
 

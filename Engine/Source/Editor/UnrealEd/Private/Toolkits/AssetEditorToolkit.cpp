@@ -707,6 +707,11 @@ FLinearColor FAssetEditorToolkit::GetDefaultTabColor() const
 	return TabColor;
 }
 
+void FAssetEditorToolkit::CreateEditorModeManager()
+{
+	EditorModeManager = MakeShared<FEditorModeTools>();
+}
+
 FAssetEditorModeManager* FAssetEditorToolkit::GetAssetEditorModeManager() const
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS

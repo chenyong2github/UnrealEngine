@@ -64,7 +64,6 @@ FTileMapEditorViewportClient::FTileMapEditorViewportClient(TWeakPtr<FTileMapEdit
 void FTileMapEditorViewportClient::ActivateEditMode()
 {
 	// Activate the tile map edit mode
-	ModeTools->SetToolkitHost(TileMapEditorPtr.Pin()->GetToolkitHost());
 	ModeTools->SetDefaultMode(FEdModeTileMap::EM_TileMap);
 	ModeTools->ActivateDefaultMode();
 	

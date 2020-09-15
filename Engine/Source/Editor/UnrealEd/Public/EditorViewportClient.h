@@ -1092,6 +1092,10 @@ public:
 		return ModeTools;
 	}
 
+	/** Legacy adapter for a toolkit to take ownership of a mode manager that may have been created by this viewport client */
+	UE_DEPRECATED(5.0, "This function is meant for legacy edge cases (pre-UAssetEditor), where the toolkit may not be the original owner of the mode manager.")
+	void TakeOwnershipOfModeManager(TSharedPtr<FEditorModeTools>& ModeManagerPtr);
+
 	/** Get the editor viewport widget */
 	TSharedPtr<SEditorViewport> GetEditorViewportWidget() const { return EditorViewportWidget.Pin(); }
 

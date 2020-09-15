@@ -296,7 +296,6 @@ int32 FSingleTileEditorViewportClient::GetTileIndex() const
 void FSingleTileEditorViewportClient::ActivateEditMode(TSharedPtr<FUICommandList> InCommandList)
 {
 	// Activate the sprite geometry edit mode
-	//@TODO: ModeTools->SetToolkitHost(SpriteEditorPtr.Pin()->GetToolkitHost());
 	ModeTools->SetDefaultMode(FSpriteGeometryEditMode::EM_SpriteGeometry);
 	ModeTools->ActivateDefaultMode();
 	ModeTools->SetWidgetMode(UE::Widget::WM_Translate);
