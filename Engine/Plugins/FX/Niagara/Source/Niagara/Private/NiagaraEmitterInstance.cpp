@@ -998,6 +998,10 @@ bool FNiagaraEmitterInstance::HandleCompletion(bool bForce)
 
 	if (IsComplete())
 	{
+		if( GPUExecContext )
+		{
+			GPUExecContext->Reset(Batcher);
+		}
 		ParticleDataSet->ResetBuffers();
 		if (EventInstanceData.IsValid())
 		{
