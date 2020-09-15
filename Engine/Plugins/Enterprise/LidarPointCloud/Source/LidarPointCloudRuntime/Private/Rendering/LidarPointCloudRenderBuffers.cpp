@@ -83,6 +83,10 @@ void FLidarPointCloudRenderBuffer::Resize(const uint32& RequestedCapacity)
 		Capacity = RequestedCapacity;
 		InitResource();
 	}
+	else if (!IsInitialized())
+	{
+		InitResource();
+	}
 }
 
 void FLidarPointCloudRenderBuffer::InitRHI()
