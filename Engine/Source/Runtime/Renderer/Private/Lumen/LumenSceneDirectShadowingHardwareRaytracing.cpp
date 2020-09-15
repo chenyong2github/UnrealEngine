@@ -83,12 +83,9 @@ namespace Lumen
 		bool bUseHardwareRayTracedShadows = false;
 
 #if RHI_RAYTRACING
-		static IConsoleVariable* CVarRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
 		static IConsoleVariable* CVarDirectLightingHardwareRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.DirectLighting.HardwareRayTracing"));
 		static IConsoleVariable* CVarRayTracingShadows = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows"));
 
-		const bool bProjectRayTracingEnabled = (CVarRayTracing ? (CVarRayTracing->GetInt() != 0) : false);
-		const bool bPlatformSupportRayTracing = IsRayTracingEnabled();
 		const bool bLumenDirectLightingPassCanUseHardwareRayTracing = CVarDirectLightingHardwareRayTracing ? (CVarDirectLightingHardwareRayTracing->GetInt() != 0): false;
 		
 		const bool bRayTracingShadows = CVarRayTracingShadows ? (CVarRayTracingShadows->GetInt() != 0) : false;
@@ -96,14 +93,13 @@ namespace Lumen
 		if (bRayTracingShadows)
 		{
 			// Force to use raytracing shadows if r.RayTracing.Shadows = 1
-			bUseHardwareRayTracedShadows = bProjectRayTracingEnabled && bPlatformSupportRayTracing;
+			bUseHardwareRayTracedShadows = IsRayTracingEnabled();
 		}
 		else
 		{   // When hardware raytracing shadows is turned off, our direct lighting pass can still use hardware raytraced shadow 
 			// if Lumen direct lighting pass has turned on hardware raytracing. In this configuration, we could use CSM for other
 			// rendering passes.
-			bUseHardwareRayTracedShadows = bProjectRayTracingEnabled && bPlatformSupportRayTracing && 
-																		bLumenDirectLightingPassCanUseHardwareRayTracing;
+			bUseHardwareRayTracedShadows = IsRayTracingEnabled() && bLumenDirectLightingPassCanUseHardwareRayTracing;
 		}
 
 		// Turn raytracing off if no rendering feature is enabled.
