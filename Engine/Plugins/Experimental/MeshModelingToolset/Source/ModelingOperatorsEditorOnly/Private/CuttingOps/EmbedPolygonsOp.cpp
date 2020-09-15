@@ -335,10 +335,15 @@ void FEmbedPolygonsOp::RecordEmbeddedEdges(TArray<int>& PathVertIDs)
 {
 	for (int LastIdx = PathVertIDs.Num() - 1, Idx = 0; Idx < PathVertIDs.Num(); LastIdx = Idx++)
 	{
-		int EID = ResultMesh->FindEdge(PathVertIDs[LastIdx], PathVertIDs[Idx]);
-		if (ResultMesh->IsEdge(EID))
+		int A = PathVertIDs[LastIdx];
+		int B = PathVertIDs[Idx];
+		if (ResultMesh->IsVertex(A) && ResultMesh->IsVertex(B))
 		{
-			EmbeddedEdges.Add(EID);
+			int EID = ResultMesh->FindEdge(A, B);
+			if (ResultMesh->IsEdge(EID))
+			{
+				EmbeddedEdges.Add(EID);
+			}
 		}
 	}
 }
