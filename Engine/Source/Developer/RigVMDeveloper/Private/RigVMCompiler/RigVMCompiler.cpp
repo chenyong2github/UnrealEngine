@@ -232,6 +232,8 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 					return *InstructionIndexPtr;
 				}
 
+				InOutKnownInstructionIndex.Add(InNode, INDEX_NONE);
+
 				if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode))
 				{
 					TArray<URigVMNode*> TargetNodes = RerouteNode->GetLinkedTargetNodes();
@@ -269,7 +271,6 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 					}
 				}
 
-				InOutKnownInstructionIndex.FindOrAdd(InNode) = INDEX_NONE;
 				return INDEX_NONE;
 			}
 		};
