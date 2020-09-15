@@ -53,17 +53,17 @@ class UVolumetricCloudComponent : public USceneComponent
 	FColor GroundAlbedo;
 
 	/** The material describing the cloud volume. It must be a Volume domain material. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloud Material")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Material")
 	UMaterialInterface* Material;
 
 	/** Wether to apply atmosphere transmittance per sample, instead of using the light global transmittance. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloud Tracing")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing")
 	uint32 bUsePerSampleAtmosphericLightTransmittance : 1; 
 	// bUsePerSampleAtmosphericLightTransmittance is there on the cloud component and not on the light because otherwise we would need optimisation permutations of the cloud shader.
 	// And this for the two atmospheric lights ON or OFF. Keeping it simple for now because this changes the look of the cloud, so it is an art/look decision.
 
 	/** Occlude the sky light contribution at the bottom of the cloud layer. This is a fast appoximation to sky lighting being occluded by cloud without having ot trace rays or sample AO texture. Ignored if the cloud material explicitely sets the ambient occlusion value. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloud Tracing", meta = (UIMin = 0.0f, UIMax = 1.0f, ClampMin = 0.0f, ClampMax = 1.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", meta = (UIMin = 0.0f, UIMax = 1.0f, ClampMin = 0.0f, ClampMax = 1.0f))
 	float SkyLightCloudBottomOcclusion;
 
 	/**
