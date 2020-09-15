@@ -8,6 +8,7 @@
 
 #include "Containers/Set.h"
 
+
 FRotator FRBFEntry::AsRotator(int32 Index) const
 {
 	FRotator Result = FRotator::ZeroRotator;
@@ -156,7 +157,16 @@ static float GetWeightedValue(
 		case ERBFFunctionType::Linear:
 		case ERBFFunctionType::DefaultFunction:
 		default:
-			return Value;
+			if (bBackCompFix)
+			{
+				// This is how the old code formulated it. It has no control over the falloff
+				// but ignores all values that have a distance greater than 1.0.
+				return FMath::Max(1.0f - Value, 0.0f);
+			}
+			else
+			{
+				return RBFKernel::Linear(Value, KernelWidth);
+			}
 
 		case ERBFFunctionType::Gaussian:
 			if (bBackCompFix)
