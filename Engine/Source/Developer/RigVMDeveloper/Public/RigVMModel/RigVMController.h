@@ -429,13 +429,17 @@ public:
 	FRigVMController_ShouldStructUnfoldDelegate UnfoldStructDelegate;
 
 	int32 DetachLinksFromPinObjects();
-	int32 ReattachLinksToPinObjects();
+	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false);
 	void AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath);
 
 	// Removes nodes which went stale.
 	void RemoveStaleNodes();
 
 #if WITH_EDITOR
+
+	bool ShouldRedirectPin(UScriptStruct* InOwningStruct, const FString& InOldRelativePinPath, FString& InOutNewRelativePinPath) const;
+	bool ShouldRedirectPin(const FString& InOldPinPath, FString& InOutNewPinPath) const;
+
 	void RepopulatePinsOnNode(URigVMNode* InNode);
 #endif
 
@@ -524,6 +528,39 @@ private:
 	// only valid between Detach & ReattachLinksToPinObjects
 	TMap<FString, FString> InputPinRedirectors;
 	TMap<FString, FString> OutputPinRedirectors;
+
+	struct FControlRigStructPinRedirectorKey
+	{
+		FControlRigStructPinRedirectorKey()
+		{
+		}
+
+		FControlRigStructPinRedirectorKey(UScriptStruct* InScriptStruct, const FString& InPinPathInNode)
+		: Struct(InScriptStruct)
+		, PinPathInNode(InPinPathInNode)
+		{
+		}
+
+		friend FORCEINLINE uint32 GetTypeHash(const FControlRigStructPinRedirectorKey& Cache)
+		{
+			return GetTypeHash(Cache.Struct) * 13 + GetTypeHash(Cache.PinPathInNode);
+		}
+
+		FORCEINLINE bool operator ==(const FControlRigStructPinRedirectorKey& Other) const
+		{
+			return Struct == Other.Struct && PinPathInNode == Other.PinPathInNode;
+		}
+
+		FORCEINLINE bool operator !=(const FControlRigStructPinRedirectorKey& Other) const
+		{
+			return Struct != Other.Struct || PinPathInNode != Other.PinPathInNode;
+		}
+
+		UScriptStruct* Struct;
+		FString PinPathInNode;
+	};
+
+	static TMap<FControlRigStructPinRedirectorKey, FString> PinPathCoreRedirectors;
 
 	friend class URigVMGraph;
 	friend class URigVMActionStack;
