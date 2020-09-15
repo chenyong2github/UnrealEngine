@@ -42,6 +42,7 @@ private:
 	ENiagaraScriptUsage GetUsage() const;
 	ENiagaraStatEvaluationType GetEvaluationType() const;
 	bool IsInterpolatedSpawnEnabled() const;
+	bool IsGpuEmitter() const;
 	
 	float CalculateGroupOverallTime(FString StatScopeName) const;
 	float CalculateStackEntryTime() const;

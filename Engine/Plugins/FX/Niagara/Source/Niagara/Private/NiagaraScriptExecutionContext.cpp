@@ -28,14 +28,6 @@ static FAutoConsoleVariableRef CVarNiagaraExecVMScripts(
 	ECVF_Default
 );
 
-static int32 GbMaxStatRecordedFrames = 120;
-static FAutoConsoleVariableRef CVarDetailedVMScriptStats(
-    TEXT("fx.Niagara.MaxStatRecordedFrames"),
-    GbMaxStatRecordedFrames,
-    TEXT("The number of frames recorded for the stat performance display of VectorVM scripts. \n"),
-    ECVF_Default
-);
-
 FNiagaraScriptExecutionContextBase::FNiagaraScriptExecutionContextBase()
 	: Script(nullptr)
 {
@@ -106,12 +98,6 @@ void FNiagaraScriptExecutionContextBase::BindData(int32 Index, FNiagaraDataBuffe
 }
 
 #if STATS
-
-FStatExecutionTimer::FStatExecutionTimer()
-{
-	AccumulatedCycles = TSimpleRingBuffer<uint64>(GbMaxStatRecordedFrames);
-}
-
 void FNiagaraScriptExecutionContextBase::CreateStatScopeData()
 {
 	StatScopeData.Empty();
@@ -123,30 +109,16 @@ void FNiagaraScriptExecutionContextBase::CreateStatScopeData()
 
 TMap<TStatIdData const*, float> FNiagaraScriptExecutionContextBase::ReportStats()
 {
-	TMap<TStatIdData const*, float> CapturedData;
-
 	// Process recorded times
 	for (FStatScopeData& ScopeData : StatScopeData)
 	{
 		uint64 ExecCycles = ScopeData.ExecutionCycleCount.exchange(0);
 		if (ExecCycles > 0)
 		{
-			ExecutionTimings.FindOrAdd(ScopeData.StatId.GetRawPointer()).AccumulatedCycles.WriteNewElementUninitialized() = ExecCycles;
+			ExecutionTimings.FindOrAdd(ScopeData.StatId.GetRawPointer()) = ExecCycles;
 		}
 	}
-	
-	for (auto& Entry : ExecutionTimings)
-	{
-		// accumulate times from previous frames
-		int32 ValueCount = Entry.Value.AccumulatedCycles.Num();
-		float Sum = 0;
-		for (int32 i = 0; i < ValueCount; i++)
-		{
-			Sum += Entry.Value.AccumulatedCycles(i);
-		}
-		CapturedData.Add(Entry.Key, ValueCount == 0 ? 0 : Sum / ValueCount);
-	}
-	return CapturedData;
+	return ExecutionTimings;
 }
 #endif
 

@@ -7,8 +7,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "UObject/ObjectMacros.h"
 #include "NiagaraTypes.h"
-#include "UObject/SoftObjectPath.h"
-#include "RHI.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "NiagaraCore.h"
 #include "UObject/ObjectKey.h"
 #include "UObject/WeakFieldPtr.h"
@@ -804,6 +803,16 @@ enum ENiagaraBindingSource
 };
 
 #if STATS
+
+template<typename ElementType> class TSimpleRingBuffer;
+
+struct FStatExecutionTimer
+{
+	TSimpleRingBuffer<float>* CapturedTimings;
+
+	FStatExecutionTimer();
+};
+
 /** Combines all stat reporting and evaluation of niagara instances (emitter or system).
  * This is then used by the SNiagaraStackRowPerfWidget to display the data in the ui.
  */
@@ -828,7 +837,7 @@ struct NIAGARA_API FNiagaraStatDatabase
 
 private:
 	/** The captured runtime stat data. The first key is a combination of reporter handle and script usage, the second key is the stat id which correlates to a single recorded scope. */
-	TMap<FStatReportKey, TMap<TStatIdData const*, float>> StatCaptures;
+	TMap<FStatReportKey, TMap<TStatIdData const*, FStatExecutionTimer>> StatCaptures;
 	FCriticalSection CriticalSection;
 };
 #endif
