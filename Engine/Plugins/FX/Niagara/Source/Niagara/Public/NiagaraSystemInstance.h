@@ -512,6 +512,7 @@ public:
 
 	int32 GPUDataInterfaceInstanceDataSize = 0;
 	bool GPUParamIncludeInterpolation = false;
+	TArray<TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>> GPUDataInterfaces;
 
 	struct FInstanceParameters
 	{
