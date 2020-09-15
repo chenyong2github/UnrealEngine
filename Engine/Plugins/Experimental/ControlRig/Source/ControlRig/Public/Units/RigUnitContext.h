@@ -8,6 +8,8 @@
 #include "ControlRigLog.h"
 #include "AnimationDataSource.h"
 #include "Drawing/ControlRigDrawInterface.h"
+#include "GameFramework/Actor.h"
+#include "Components/SceneComponent.h"
 
 /** Current state of rig
 *	What  state Control Rig currently is
@@ -33,6 +35,10 @@ struct FRigUnitContext
 		, State(EControlRigState::Invalid)
 		, Hierarchy(nullptr)
 		, bDuringInteraction(false)
+		, ToWorldSpaceTransform(FTransform::Identity)
+		, OwningComponent(nullptr)
+		, OwningActor(nullptr)
+		, World(nullptr)
 #if WITH_EDITOR
 		, Log(nullptr)
 #endif
@@ -68,6 +74,15 @@ struct FRigUnitContext
 
 	/** The current transform going from rig (global) space to world space */
 	FTransform ToWorldSpaceTransform;
+
+	/** The current component this rig is owned by */
+	USceneComponent* OwningComponent;
+
+	/** The current actor this rig is owned by */
+	AActor* OwningActor;
+
+	/** The world this rig is running in */
+	UWorld* World;
 
 #if WITH_EDITOR
 	/** A handle to the compiler log */
