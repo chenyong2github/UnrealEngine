@@ -34,7 +34,7 @@ namespace FBIKConstraintLib
 
 			for (int32 Index = 0; Index < Constraints->Num(); ++Index)
 			{
-				return Visit([&](auto& Obj) { Obj.ApplyConstraint(InOutLinkData, LocalTransforms); }, (*Constraints)[Index]);
+				Visit([&](auto& Obj) { Obj.ApplyConstraint(InOutLinkData, LocalTransforms); }, (*Constraints)[Index]);
 			}
 		}
 	}
