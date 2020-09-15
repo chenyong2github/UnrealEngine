@@ -624,10 +624,9 @@ namespace DatasmithNavisworks
 				InstanceList = new List<GeometryInstance>();
 			}
 
-			public GeometryInstance CreateInstance(Node Node)
+			public GeometryInstance CreateInstance(SceneItem Item)
 			{
-				GeometryInstance Instance = new GeometryInstance(this, Node.SceneItem, InstancedGeometry.FragmentGeometryCount);
-				Node.Instance = Instance;
+				GeometryInstance Instance = new GeometryInstance(this, Item, InstancedGeometry.FragmentGeometryCount);
 				// TODO: remove comment - instances added to Instance's List when they are collected for export(if not merged)
 				// InstanceList.Add(Instance); 
 				return Instance;
@@ -1210,7 +1209,7 @@ namespace DatasmithNavisworks
 				// Geometry nodes will be added as MeshActors
 				if ((CurrentNode.Children.Count > 0) || CurrentNode.HasMetadata() || (Item.Parent == null))
 				{
-					Item.CreateDatasmithActor(SceneContext);
+					CurrentNode.CreateDatasmithActor(SceneContext);
 				}
 			}
 		}
@@ -1336,7 +1335,7 @@ namespace DatasmithNavisworks
 					return true;
 				}
 
-				GeometryInstance Instance = Instanced.CreateInstance(InNode);
+				GeometryInstance Instance = Instanced.CreateInstance(InNode.SceneItem);
 				foreach (TransformMatrix Transform in Transforms)
 				{
 					Instance.AddTransform(Transform);
@@ -1345,7 +1344,6 @@ namespace DatasmithNavisworks
 				{
 					Instance.AddAppearance(Appearance);
 				}
-
 				// Replace node geometry and remove children
 				InNode.Instance = Instance;
 				InNode.Children.Clear();
@@ -1612,14 +1610,16 @@ namespace DatasmithNavisworks
 					// Merge meshes that have same transform
 					if (Instances.WithSameTransform.Count > 0)
 					{
-						foreach (var AppearanceListAndInstances in Instances.WithSameTransform)
+						foreach (var AppearanceListAndInstances in Instances.WithSameTransform.Select((Value, Index) =>
+							new {Index, AppearanceList = Value.Key, GeometryInstances = Value.Value}))
 						{
 							MultiFragmentsGeometryInstances.AppearanceList AppearanceList =
-								AppearanceListAndInstances.Key;
+								AppearanceListAndInstances.AppearanceList;
+							List<GeometryInstance> GeometryInstances = AppearanceListAndInstances.GeometryInstances;
 
 							// TODO: Potential optimization - same mesh might have different set of appearances
 							// Right now we are creating separate mesh for each appearance list, might want to make override materials on mesh actor
-							FDatasmithFacadeMesh MergedDatasmithMesh = CreateDatasmithMeshForItem(SceneContext, InstancedGeometry.Item, 0);
+							FDatasmithFacadeMesh MergedDatasmithMesh = CreateDatasmithMeshForItem(SceneContext, InstancedGeometry.Item, AppearanceListAndInstances.Index); // Instantiate mesh with different name for each appearance
 							TotalMergedMeshes++;
 
 							int SlotCount = AssignAppearancesListToDatasmithMesh(SceneContext, MergedDatasmithMesh, AppearanceList.Appearances, out List<int> SlotRemap);
@@ -1635,7 +1635,7 @@ namespace DatasmithNavisworks
 								}
 							}
 
-							foreach (GeometryInstance Instance in AppearanceListAndInstances.Value)
+							foreach (GeometryInstance Instance in GeometryInstances)
 							{
 								if (ProgressBar.IsCanceled)
 								{
@@ -1839,6 +1839,12 @@ namespace DatasmithNavisworks
 			{
 				return Instance?.Metadata != null;
 			}
+
+			public void CreateDatasmithActor(SceneContext SceneContext)
+			{
+				Debug.Assert(SceneItem.DatasmithActor == null);
+				SceneItem.DatasmithActor = CreateDatasmithActorForSceneItem(SceneContext, SceneItem);
+			}
 		};
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
@@ -1919,7 +1925,6 @@ namespace DatasmithNavisworks
 				case 1:
 				{
 					// Remove empty intermediate actor with single child, keeping the child
-
 					SceneItem NodeSceneItem = InOutNode.SceneItem;
 					InOutNode = InOutNode.Children[0];
 					// Use ancestor node SceneItem for optimized node
@@ -1941,20 +1946,47 @@ namespace DatasmithNavisworks
 					return;
 				}
 
-				SceneItem Item = Node.SceneItem;
+				FDatasmithFacadeActor DatasmithActor = Node.SceneItem.DatasmithActor;
 
-				if (GetSceneItemComPath(SceneContext, Item, out InwOaPath ComPath))
+				if (DatasmithActor != null)
 				{
-					GuiProperties GuiProperties = new GuiProperties();
-					ExtractProperties(SceneContext, ComPath, GuiProperties);
+					AddMetadataForSceneItemToDatasmithActor(SceneContext, Node.SceneItem, DatasmithActor);
+				}
 
-					FDatasmithFacadeActor DatasmithActor = Item.DatasmithActor??Node.Instance.MeshActor;
-					FDatasmithFacadeMetaData DatasmithMetaData = CreateDatasmithMetadata(DatasmithActor, GuiProperties);
-					if(DatasmithMetaData != null)
+				FDatasmithFacadeActor DatasmithMeshActor = Node.Instance?.MeshActor;
+				if (DatasmithMeshActor != null)
+				{
+					// Add metadata to MeshActor, if it was built for different SceneItem(this happens when scene was optimized so that single child geometry instance was moved to parent)
+					// or Node's DatasmithActor is not present(it's omitted when there's nothing else in the hierarchy except maybe a single MeshActor)
+					SceneItem InstanceSceneItem = Node.Instance.SceneItem;
+					if (((InstanceSceneItem != Node.SceneItem) || DatasmithActor == null))
 					{
-						SceneContext.DatasmithScene.AddMetaData(DatasmithMetaData);
+						AddMetadataForSceneItemToDatasmithActor(SceneContext, InstanceSceneItem, DatasmithMeshActor);
 					}
 				}
+			}
+		}
+
+		private static void AddMetadataForSceneItemToDatasmithActor(SceneContext SceneContext, SceneItem Item,
+			FDatasmithFacadeActor DatasmithActor)
+		{
+			if (!GetSceneItemComPath(SceneContext, Item, out InwOaPath ComPath))
+			{
+				return;
+			}
+
+			GuiProperties GuiProperties = new GuiProperties();
+			ExtractProperties(SceneContext, ComPath, GuiProperties);
+
+			if (DatasmithActor == null)
+			{
+				return;
+			}
+
+			FDatasmithFacadeMetaData DatasmithMetaData = CreateDatasmithMetadata(DatasmithActor, GuiProperties);
+			if (DatasmithMetaData != null)
+			{
+				SceneContext.DatasmithScene.AddMetaData(DatasmithMetaData);
 			}
 		}
 
@@ -2029,7 +2061,8 @@ namespace DatasmithNavisworks
 			}
 
 			// Create Instance for Instanced geometry, setting up Transform and Appearance for each fragment
-			GeometryInstance Instance = NodeInstances.SharedInstancedRef.CreateInstance(Node);
+			GeometryInstance Instance = NodeInstances.SharedInstancedRef.CreateInstance(Node.SceneItem);
+			Node.Instance = Instance;
 			foreach (NavisworksFragmentInstance NavisworksFragmentInstance in NodeInstances.GetFragmentInstances(Item.Path))
 			{
 				Instance.AddTransform(NavisworksFragmentInstance.FragmentTransform);
@@ -2236,7 +2269,7 @@ namespace DatasmithNavisworks
 
 					string PropertyName = Property.UserName;
 					string PropertyValue = null;
-					try 
+					try
 					{
 						PropertyValue = Property.value?.ToString();
 					}
@@ -2617,15 +2650,6 @@ namespace DatasmithNavisworks
 				BoundingBox.Max.X = (float)Box3F.max_pos.data1;
 				BoundingBox.Max.Y = (float)Box3F.max_pos.data2;
 				BoundingBox.Max.Z = (float)Box3F.max_pos.data3;
-			}
-
-			public void CreateDatasmithActor(SceneContext SceneContext)
-			{
-				if (DatasmithActor == null)
-				{
-					DatasmithActor = CreateDatasmithActorForSceneItem(SceneContext, this);
-				}
-
 			}
 
 			public int Index;
