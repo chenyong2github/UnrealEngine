@@ -585,7 +585,7 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 	else if (Selection.SelectedCornerIDs.Num() > 0)
 	{
 		// Point is a corner
-		TopologyElementIDOut = Selection.SelectedCornerIDs[0];
+		TopologyElementIDOut = Selection.GetASelectedCornerID();
 		bIsCornerOut = true;
 		PointOut.bIsVertex = true;
 		PointOut.ElementID = CurrentTopology->GetCornerVertexID(TopologyElementIDOut);
@@ -599,7 +599,7 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 		// Point is an edge. We'll need to calculate the t value and some other things.
 		check(Selection.SelectedEdgeIDs.Num() > 0);
 
-		TopologyElementIDOut = Selection.SelectedEdgeIDs[0];
+		TopologyElementIDOut = Selection.GetASelectedEdgeID();
 		bIsCornerOut = false;
 
 		const FGroupTopology::FGroupEdge& GroupEdge = CurrentTopology->Edges[TopologyElementIDOut];
