@@ -21,6 +21,7 @@
 #include "IPlatformFilePak.h"
 #include "Stats/StatsMisc.h"
 #include "Internationalization/PackageLocalizationManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
 #if WITH_EDITOR
@@ -2740,6 +2741,8 @@ void UAssetManager::ScanPrimaryAssetTypesFromConfig()
 		ScanPathsForPrimaryAssets(TypeInfo.PrimaryAssetType, TypeInfo.AssetScanPaths, TypeInfo.AssetBaseClassLoaded, TypeInfo.bHasBlueprintClasses, TypeInfo.bIsEditorOnly, false);
 
 		SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, TypeInfo.Rules);
+
+		FPlatformApplicationMisc::PumpMessages(IsInGameThread());
 	}
 
 	StopBulkScanning();
