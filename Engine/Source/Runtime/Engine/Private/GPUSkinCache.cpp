@@ -1200,7 +1200,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 		}
 
 		Algo::Sort(OverlappedUAVBuffers, [](const FRHIUnorderedAccessView* A, const FRHIUnorderedAccessView* B){return A < B;});
-		Algo::Unique(OverlappedUAVBuffers);
+		OverlappedUAVBuffers.SetNum(Algo::Unique(OverlappedUAVBuffers));
 	}
 
 	RHICmdList.BeginUAVOverlap(OverlappedUAVBuffers);
