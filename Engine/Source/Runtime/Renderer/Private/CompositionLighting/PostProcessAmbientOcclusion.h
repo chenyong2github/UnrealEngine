@@ -40,6 +40,36 @@ enum class EGTAOType
 	ENonAsync,
 };
 
+enum EGTAOPass
+{
+	EGTAOPass_None						= 0x0,
+	EGTAOPass_HorizonSearch				= 0x1,
+	EGTAOPass_HorizonSearchIntegrate	= 0x2,
+	EGTAOPass_Integrate					= 0x4,
+	EGTAOPass_SpatialFilter				= 0x8,
+	EGTAOPass_TemporalFilter			= 0x10,
+	EGTAOPass_Upsample					= 0x20,
+};
+
+class FGTAOContext
+{
+public:
+	EGTAOType GTAOType;
+	uint32 FinalPass;
+	uint32 DownsampleFactor;
+
+	bool bUseNormals;
+	bool bHalfRes;
+	bool bHasSpatialFilter;
+	bool bHasTemporalFilter;
+
+	FGTAOContext(EGTAOType Type);
+	FGTAOContext();
+
+	bool IsFinalPass(EGTAOPass);
+};
+
+
 class FSSAOHelper
 {
 public:
@@ -141,7 +171,6 @@ struct FGTAOCommonParameters
 struct FGTAOHorizonSearchOutputs
 {
 	FScreenPassTexture Color;
-	FScreenPassTexture Depth;
 };
 
 FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
@@ -150,8 +179,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture SceneDepth,
 	FScreenPassTexture HZBInput,
-	FScreenPassRenderTarget HorizonOutput,
-	FScreenPassRenderTarget DepthOutput);
+	FScreenPassRenderTarget HorizonOutput);
 
 FScreenPassTexture AddGTAOInnerIntegratePass(
 	FRDGBuilder& GraphBuilder,
@@ -165,8 +193,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 	const FViewInfo& View,
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture SceneDepth,
-	FScreenPassTexture HZBInput,
-	FScreenPassRenderTarget DepthOutput = FScreenPassRenderTarget());
+	FScreenPassTexture HZBInput);
 
 struct FGTAOTemporalOutputs
 {
@@ -181,7 +208,7 @@ FGTAOTemporalOutputs AddGTAOTemporalPass(
 	const FViewInfo& View,
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture Input,
-	FScreenPassTexture GTAODepths,
+	FScreenPassTexture SceneDepth,
 	FScreenPassTexture SceneVelocity,
 	FScreenPassTexture HistoryColor,
 	FScreenPassTextureViewport HistoryViewport);
@@ -200,5 +227,4 @@ FScreenPassTexture AddGTAOUpsamplePass(
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture Input,
 	FScreenPassTexture SceneDepth,
-	FScreenPassTexture GTAODepths,
 	FScreenPassRenderTarget Output);
