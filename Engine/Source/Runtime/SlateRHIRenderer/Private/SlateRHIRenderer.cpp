@@ -466,7 +466,8 @@ void FSlateRHIRenderer::UpdateFullscreenState(const TSharedRef<SWindow> Window, 
 		uint32 ResX = OverrideResX ? OverrideResX : GSystemResolution.ResX;
 		uint32 ResY = OverrideResY ? OverrideResY : GSystemResolution.ResY;
 
-		if ((GIsEditor && Window->IsViewportSizeDrivenByWindow()) || (Window->GetWindowMode() == EWindowMode::WindowedFullscreen))
+		bool bIsRenderingStereo = GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
+		if ((GIsEditor && Window->IsViewportSizeDrivenByWindow()) || (Window->GetWindowMode() == EWindowMode::WindowedFullscreen) || bIsRenderingStereo)
 		{
 			ResX = ViewInfo->DesiredWidth;
 			ResY = ViewInfo->DesiredHeight;
