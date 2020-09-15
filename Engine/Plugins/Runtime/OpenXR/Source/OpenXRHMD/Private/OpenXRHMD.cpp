@@ -27,6 +27,7 @@
 #include "Engine/GameEngine.h"
 #include "BuildSettings.h"
 #include "ARSystem.h"
+#include "IHandTracker.h"
 
 #if PLATFORM_ANDROID
 #include <android_native_app_glue.h>
@@ -395,7 +396,7 @@ bool FOpenXRHMDPlugin::EnableExtensions(const TArray<const ANSICHAR*>& RequiredE
 		}
 		else
 		{
-			UE_LOG(LogHMD, Error, TEXT("Required extension %s is not available"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Warning, TEXT("Required extension %s is not available"), ANSI_TO_TCHAR(Ext));
 			ExtensionMissing = true;
 		}
 	}
@@ -550,6 +551,7 @@ bool FOpenXRHMDPlugin::PreInit()
 		if (!EnableExtensions(RequiredExtensions, OptionalExtensions, Extensions))
 		{
 			// Ignore the plugin if the required extension could not be enabled
+			UE_LOG(LogHMD, Warning, TEXT("Could not enable all required OpenXR extensions for OpenXRExtensionPlugin.  This plugin will be ignored."));
 			continue;
 		}
 		ExtensionSet.Append(Extensions);
@@ -755,6 +757,77 @@ bool FOpenXRHMD::FVulkanExtensions::GetVulkanDeviceExtensionsRequired(VkPhysical
 	}
 #endif
 	return true;
+}
+
+void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData)
+{
+	MotionControllerData.DeviceName = GetSystemName();
+	MotionControllerData.ApplicationInstanceID = FApp::GetInstanceId();
+	MotionControllerData.DeviceVisualType = EXRVisualType::Controller;
+	MotionControllerData.TrackingStatus = ETrackingStatus::NotTracked;
+
+	FName HandTrackerName("OpenXRHandTracking");
+	TArray<IHandTracker*> HandTrackers = IModularFeatures::Get().GetModularFeatureImplementations<IHandTracker>(IHandTracker::GetModularFeatureName());
+	IHandTracker* HandTracker = nullptr;
+	for (auto Itr : HandTrackers)
+	{
+		if (Itr->GetHandTrackerDeviceTypeName() == HandTrackerName)
+		{
+			HandTracker = Itr;
+			break;
+		}
+	}
+
+	FName MotionControllerName("OpenXR");
+	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+	IMotionController* MotionController = nullptr;
+	for (auto Itr : MotionControllers)
+	{
+		if (Itr->GetMotionControllerDeviceTypeName() == MotionControllerName)
+		{
+			MotionController = Itr;
+			break;
+		}
+	}
+
+	if (MotionController)
+	{
+		const float WorldToMeters = GetWorldToMetersScale();
+
+		bool bSuccess = false;
+		FVector Position = FVector::ZeroVector;
+		FRotator Rotation = FRotator::ZeroRotator;
+		FName AimSource = Hand == EControllerHand::Left ? FName("LeftAim") : FName("RightAim");
+		bSuccess = MotionController->GetControllerOrientationAndPosition(0, AimSource, Rotation, Position, WorldToMeters);
+		if (bSuccess)
+		{
+			MotionControllerData.AimPosition = Position;
+			MotionControllerData.AimRotation = FQuat(Rotation);
+		}
+		MotionControllerData.bValid |= bSuccess;
+
+		FName GripSource = Hand == EControllerHand::Left ? FName("LeftGrip") : FName("RightGrip");
+		bSuccess = MotionController->GetControllerOrientationAndPosition(0, GripSource, Rotation, Position, WorldToMeters);
+		if (bSuccess)
+		{
+			MotionControllerData.GripPosition = Position;
+			MotionControllerData.GripRotation = FQuat(Rotation);
+		}
+		MotionControllerData.bValid |= bSuccess;
+
+		MotionControllerData.TrackingStatus = MotionController->GetControllerTrackingStatus(0, GripSource);
+	}
+
+	if (HandTracker && HandTracker->IsHandTrackingStateValid())
+	{
+		MotionControllerData.DeviceVisualType = EXRVisualType::Hand;
+
+		MotionControllerData.bValid = HandTracker->GetAllKeypointStates(Hand, MotionControllerData.HandKeyPositions, MotionControllerData.HandKeyRotations, MotionControllerData.HandKeyRadii);
+		check(!MotionControllerData.bValid || (MotionControllerData.HandKeyPositions.Num() == EHandKeypointCount && MotionControllerData.HandKeyRotations.Num() == EHandKeypointCount && MotionControllerData.HandKeyRadii.Num() == EHandKeypointCount));
+	}
+
+	//TODO: this is reportedly a wmr specific convenience function for rapid prototyping.  Not sure it is useful for openxr.
+	MotionControllerData.bIsGrasped = false;
 }
 
 float FOpenXRHMD::GetWorldToMetersScale() const

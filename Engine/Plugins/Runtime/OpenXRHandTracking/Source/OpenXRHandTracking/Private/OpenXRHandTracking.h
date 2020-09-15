@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/IInputInterface.h"
-//#include "OpenXRStatics.h"
-#include "OpenXRHandTrackingTypes.h"
+#include "HeadMountedDisplayTypes.h"
 #include "XRMotionControllerBase.h"
 #include "InputCoreTypes.h"
 #include "ILiveLinkSource.h"
 #include "IInputDevice.h"
+#include "IHandTracker.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
 #include "IOpenXRExtensionPlugin.h"
@@ -22,6 +22,7 @@ class FOpenXRHandTracking :
 	public IOpenXRExtensionPlugin,
 	public IInputDevice,
 	public FXRMotionControllerBase,
+	public IHandTracker,
 	public ILiveLinkSource
 {
 public:
@@ -36,12 +37,12 @@ public:
 		XrHandJointLocationsEXT Locations{ XR_TYPE_HAND_JOINT_LOCATIONS_EXT };
 
 		// Transforms are cached in Unreal Tracking Space
-		FTransform KeypointTransforms[EOpenXRHandKeypointCount];
-		float Radii[EOpenXRHandKeypointCount];
+		FTransform KeypointTransforms[EHandKeypointCount];
+		float Radii[EHandKeypointCount];
 		bool ReceivedJointPoses = false;
 
-		bool GetTransform(EOpenXRHandKeypoint KeyPoint, FTransform& OutTransform) const;
-		const FTransform& GetTransform(EOpenXRHandKeypoint KeyPoint) const;
+		bool GetTransform(EHandKeypoint KeyPoint, FTransform& OutTransform) const;
+		const FTransform& GetTransform(EHandKeypoint KeyPoint) const;
 	};
 
 public:
@@ -80,6 +81,12 @@ public:
 	virtual void SetChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override {};
 	virtual bool IsGamepadAttached() const override;
 
+	/** IHandTracker */
+	virtual FName GetHandTrackerDeviceTypeName() const override;
+	virtual bool IsHandTrackingStateValid() const override;
+	virtual bool GetKeypointState(EControllerHand Hand, EHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius) const override;
+	virtual bool GetAllKeypointStates(EControllerHand Hand, TArray<struct FVector>& OutPositions, TArray<struct FQuat>& OutRotations, TArray<float>& OutRadii) const override;
+
 private:
 	FHandState& GetLeftHandState();
 	FHandState& GetRightHandState();
@@ -87,22 +94,17 @@ public:
 	const FHandState& GetLeftHandState() const;
 	const FHandState& GetRightHandState() const;
 	bool IsHandTrackingSupportedByDevice() const;
-	bool IsHandTrackingStateValid() const;
-
-	bool GetKeypointTransform(EControllerHand Hand, EOpenXRHandKeypoint Keypoint, FTransform& OutTransform) const;
-	bool GetKeypointRadius(EControllerHand Hand, EOpenXRHandKeypoint Keypoint, float& OutRadius) const;
 
 	/** Parses the enum name removing the prefix */
 	static FName ParseEOpenXRHandKeypointEnumName(FName EnumName)
 	{
-		static int32 EnumNameLength = FString(TEXT("EOpenXRHandKeypoint::")).Len();
+		static int32 EnumNameLength = FString(TEXT("EHandKeypoint::")).Len();
 		FString EnumString = EnumName.ToString();
 		return FName(*EnumString.Right(EnumString.Len() - EnumNameLength));
 	}
 
 private:
 	void AddKeys();
-	void ConditionallyEnable();
 	
 	void SetupLiveLinkData();
 	void UpdateLiveLink();
@@ -122,7 +124,7 @@ private:
 	int32 CurrentHandTrackingDataIndex = 0;
 
 	TArray<int32> BoneParents;
-	TArray<EOpenXRHandKeypoint> BoneKeypoints;
+	TArray<EHandKeypoint> BoneKeypoints;
 
 	FHandState HandStates[2];
 
