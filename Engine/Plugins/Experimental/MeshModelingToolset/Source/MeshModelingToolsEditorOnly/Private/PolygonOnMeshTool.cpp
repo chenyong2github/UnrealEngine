@@ -299,6 +299,8 @@ void UPolygonOnMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UPolygonOnMeshTool::OnTick(float DeltaTime)
 {
+	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(this->CameraState);
+
 	PlaneMechanic->Tick(DeltaTime);
 	Preview->Tick(DeltaTime);
 
