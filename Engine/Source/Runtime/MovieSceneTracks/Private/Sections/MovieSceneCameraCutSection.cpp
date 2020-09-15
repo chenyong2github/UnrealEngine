@@ -3,9 +3,7 @@
 #include "Sections/MovieSceneCameraCutSection.h"
 
 #include "MovieScene.h"
-#include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
-#include "Tracks/MovieSceneTransformTrack.h"
 #include "MovieScene.h"
 #include "IMovieScenePlayer.h"
 #include "Camera/CameraComponent.h"
@@ -14,8 +12,13 @@
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "EntitySystem/TrackInstance/MovieSceneTrackInstanceSystem.h"
+#include "Systems/MovieSceneComponentTransformSystem.h"
 #include "TrackInstances/MovieSceneCameraCutTrackInstance.h"
+#include "Tracks/MovieScene3DTransformTrack.h"
+#include "Tracks/MovieSceneTransformTrack.h"
 #include "UObject/LinkerLoad.h"
 
 /* UMovieSceneCameraCutSection interface
@@ -85,7 +88,6 @@ UCameraComponent* UMovieSceneCameraCutSection::GetFirstCamera(IMovieScenePlayer&
 	return nullptr;
 }
 
-
 #if WITH_EDITOR
 
 void UMovieSceneCameraCutSection::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -115,4 +117,68 @@ void UMovieSceneCameraCutSection::ImportEntityImpl(UMovieSceneEntitySystemLinker
 		.AddTag(FBuiltInComponentTypes::Get()->Tags.Master)
 		.Add(FBuiltInComponentTypes::Get()->TrackInstance, TrackInstance)
 	);
+}
+
+void UMovieSceneCameraCutSection::ComputeInitialCameraCutTransform()
+{
+	using namespace UE::MovieScene;
+
+	// Clear the compiled transform value.
+	bHasInitialCameraCutTransform = false;
+
+	// Is there even an initial time for us to compute a transform?
+	if (!GetRange().HasLowerBound())
+	{
+		return;
+	}
+
+	// Find the transform track for our bound camera.
+	UMovieScene3DTransformTrack* CameraTransformTrack = nullptr;
+	if (CameraBindingID.IsValid())
+	{
+		UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+		check(MovieScene);
+
+		for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
+		{
+			if (Binding.GetObjectGuid() == CameraBindingID.GetGuid())
+			{
+				for (UMovieSceneTrack* Track : Binding.GetTracks())
+				{
+					CameraTransformTrack = Cast<UMovieScene3DTransformTrack>(Track);
+					if (CameraTransformTrack)
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	// Does the bound camera have a transform track?
+	if (CameraTransformTrack == nullptr)
+	{
+		return;
+	}
+
+	// Ok, let's evaluate the transform track at our start time.
+	FSystemInterrogator Interrogator;
+
+	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
+
+	Interrogator.ImportTrack(CameraTransformTrack, FInterrogationChannel::Default());
+
+	Interrogator.AddInterrogation(GetTrueRange().GetLowerBoundValue());
+
+	Interrogator.Update();
+
+	TArray<FTransform> TempTransforms;
+	Interrogator.QueryWorldSpaceTransforms(FInterrogationChannel::Default(), TempTransforms);
+
+	if (TempTransforms.Num() > 0)
+	{
+		// Store it so we can place it on our imported entities.
+		InitialCameraCutTransform = TempTransforms[0];
+		bHasInitialCameraCutTransform = true;
+	}
 }
