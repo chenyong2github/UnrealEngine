@@ -95,9 +95,6 @@ private:
 	/** Get the current name of the plugin */
 	FText GetCurrentPluginName() const;
 
-	/** Get the full path of the .plugin file we will create */
-	FString GetPluginFilenameWithPath() const;
-
 	/**
 	 * Whether we will create a plugin in the engine directory
 	 */
