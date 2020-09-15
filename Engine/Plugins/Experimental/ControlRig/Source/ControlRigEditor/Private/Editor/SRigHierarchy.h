@@ -214,6 +214,7 @@ private:
 	TSharedPtr< SWidget > CreateContextMenu();
 	void OnItemClicked(TSharedPtr<FRigTreeElement> InItem);
 	void OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem);
+	void OnSetExpansionRecursive(TSharedPtr<FRigTreeElement> InItem, bool bShouldBeExpanded);
 
 	// FEditorUndoClient
 	virtual void PostUndo(bool bSuccess) override;
@@ -286,7 +287,7 @@ private:
 
 	FName CreateUniqueName(const FName& InBaseName, ERigElementType InElementType) const;
 
-	void SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElements, bool bTowardsParent);
+	void SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement, bool bTowardsParent, bool bShouldBeExpanded);
 
 	void ClearDetailPanel() const;
 
