@@ -718,6 +718,8 @@ void FControlRigEditor::ToggleSetupMode()
 		{
 			EditMode->RecreateGizmoActors(RigBlueprint->HierarchyContainer.CurrentSelection());
 		}
+
+		EditMode->Settings->bDisplaySpaces = bSetupModeEnabled;
 	}
 
 	if (PreviousSelection.Num() > 0)
@@ -2151,6 +2153,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 						SNew(SBox)
 						.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 						.WidthOverride(100.0f)
+						.IsEnabled(this, &FControlRigEditor::IsToolbarDrawSpacesEnabled)
 						[
 							SNew(SCheckBox)
 							.IsChecked(this, &FControlRigEditor::GetToolbarDrawSpaces)
@@ -2281,6 +2284,18 @@ void FControlRigEditor::OnToolbarDrawAxesOnSelectionChanged(ECheckBoxState InNew
 	{
 		EditMode->Settings->bDisplayAxesOnSelection = InNewValue == ECheckBoxState::Checked;
 	}
+}
+
+bool FControlRigEditor::IsToolbarDrawSpacesEnabled() const
+{
+	if (ControlRig)
+	{
+		if (!ControlRig->IsSetupModeEnabled())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 ECheckBoxState FControlRigEditor::GetToolbarDrawSpaces() const
