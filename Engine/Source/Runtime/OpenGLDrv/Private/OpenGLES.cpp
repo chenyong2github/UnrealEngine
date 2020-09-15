@@ -30,6 +30,7 @@ namespace GLFuncPointers
 	PFNGLLABELOBJECTEXTPROC					glLabelObjectEXT = NULL;
 	PFNGLGETOBJECTLABELEXTPROC				glGetObjectLabelEXT = NULL;
 
+	PFNGLBUFFERSTORAGEEXTPROC				glBufferStorageEXT = NULL;
 	// KHR_debug
 	PFNGLDEBUGMESSAGECONTROLKHRPROC			glDebugMessageControlKHR = NULL;
 	PFNGLDEBUGMESSAGEINSERTKHRPROC			glDebugMessageInsertKHR = NULL;
@@ -119,6 +120,9 @@ bool FOpenGLES::bRequiresDisabledEarlyFragmentTests = false;
 /* This is to avoid a bug in Adreno drivers that define GL_ARM_shader_framebuffer_fetch_depth_stencil even when device does not support this extension  */
 bool FOpenGLES::bRequiresARMShaderFramebufferFetchDepthStencilUndef = false;
 
+/** GL_EXT_buffer_storage */
+bool FOpenGLES::bSupportsBufferStorage = false;
+
 bool FOpenGLES::bHasHardwareHiddenSurfaceRemoval = false;
 bool FOpenGLES::bSupportsMobileMultiView = false;
 GLint FOpenGLES::MaxMSAASamplesTileMem = 1;
@@ -205,6 +209,7 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 	bSupportsMultisampledRenderToTexture = ExtensionsString.Contains(TEXT("GL_EXT_multisampled_render_to_texture"));
 	bSupportsDXT = ExtensionsString.Contains(TEXT("GL_NV_texture_compression_s3tc")) || ExtensionsString.Contains(TEXT("GL_EXT_texture_compression_s3tc"));
 	bSupportsNVFrameBufferBlit = ExtensionsString.Contains(TEXT("GL_NV_framebuffer_blit"));
+	bSupportsBufferStorage = ExtensionsString.Contains(TEXT("GL_EXT_buffer_storage"));
 
 	// Report shader precision
 	int Range[2];
@@ -230,6 +235,11 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 	{
 		glLabelObjectEXT = (PFNGLLABELOBJECTEXTPROC)((void*)eglGetProcAddress("glLabelObjectEXT"));
 		glGetObjectLabelEXT = (PFNGLGETOBJECTLABELEXTPROC)((void*)eglGetProcAddress("glGetObjectLabelEXT"));
+	}
+
+	if (bSupportsBufferStorage)
+	{
+		glBufferStorageEXT = (PFNGLBUFFERSTORAGEEXTPROC)((void*)eglGetProcAddress("glBufferStorageEXT"));
 	}
 
 	if (ExtensionsString.Contains(TEXT("GL_EXT_multisampled_render_to_texture")))
