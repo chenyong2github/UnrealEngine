@@ -268,7 +268,8 @@ namespace PluginUtils
 
 	TSharedPtr<IPlugin> MountPluginInternal(const FString& PluginName, const FString& PluginLocation, const FPluginUtils::FMountPluginParams& MountParams, FText& FailReason, const bool bIsNewPlugin)
 	{
-		// Make sure the plugin location is under the search path and refresh plugins.
+		ensure(!PluginLocation.IsEmpty());
+
 		FPluginUtils::AddToPluginSearchPathIfNeeded(PluginLocation, /*bRefreshPlugins*/ false, MountParams.bUpdateProjectPluginSearchPath);
 
 		IPluginManager::Get().RefreshPluginsList();
@@ -278,6 +279,15 @@ namespace PluginUtils
 		if (!Plugin)
 		{
 			FailReason = FText::Format(LOCTEXT("FailedToRegisterPlugin", "Failed to register plugin\n\n{0}"), FText::FromString(FPluginUtils::GetPluginFilePath(PluginLocation, PluginName, /*bFullPath*/ true)));
+			return nullptr;
+		}
+
+		// Double check the path matches
+		const FString PluginFilePath = FPluginUtils::GetPluginFilePath(PluginLocation, PluginName, /*bFullPath*/ true);
+		if (!FPaths::IsSamePath(Plugin->GetDescriptorFileName(), PluginFilePath))
+		{
+			const FString PluginFilePathFull = FPaths::ConvertRelativePathToFull(Plugin->GetDescriptorFileName());
+			FailReason = FText::Format(LOCTEXT("PluginNameAlreadyUsed", "There's already a plugin named {0} at this location: '{1}'"), FText::FromString(PluginName), FText::FromString(PluginFilePathFull));
 			return nullptr;
 		}
 
@@ -529,8 +539,7 @@ TSharedPtr<IPlugin> FPluginUtils::MountPlugin(const FString& PluginName, const F
 		return nullptr;
 	}
 
-	// Validate that there isn't a registered plugin with that name at a different location.
-	if (!FPluginUtils::ValidateNewPluginNameAndLocation(PluginName, FString(), &FailReason))
+	if (!IsValidPluginName(PluginName, &FailReason))
 	{
 		return nullptr;
 	}
