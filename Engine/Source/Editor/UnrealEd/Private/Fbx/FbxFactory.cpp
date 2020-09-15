@@ -871,7 +871,8 @@ void UFbxFactory::CancelObjectCreation(UnFbx::FFbxImporter* FbxImporter) const
 
 	//Make sure the content browser is in sync after we delete, to avoid stale references.
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	ContentBrowserModule.Get().SyncBrowserToAssets(AssetsToDelete);
+	const bool bAllowLockedBrowser = true;
+	ContentBrowserModule.Get().SyncBrowserToAssets(AssetsToDelete, bAllowLockedBrowser);
 }
 
 UObject* UFbxFactory::RecursiveImportNode(UnFbx::FFbxImporter* FbxImporter, void* VoidNode, UObject* InParent, FName InName, EObjectFlags Flags, FScopedSlowTask& SlowTask, TArray<UObject*>& OutNewAssets)
