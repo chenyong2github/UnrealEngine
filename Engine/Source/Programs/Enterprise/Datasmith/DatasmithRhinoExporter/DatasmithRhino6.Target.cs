@@ -41,10 +41,13 @@ public abstract class DatasmithRhinoBaseTarget : TargetRules
 		bHasExports = true;
 		bForceEnableExceptions = true;
 
+		AddVersionUpdatePostSteps(Target);
+
 		// Define post-build step
 		// Since the Datasmith Rhino Exporter is a C# project, build in batch the release configuration of the Visual Studio C# project file.
 		string ProjectFile = Path.Combine(RhinoExporterPath, ProjectName, ProjectName+".csproj");
-		string BuildCommand = string.Format(@"$(EngineDir)\Build\BatchFiles\MSBuild.bat /t:Build /p:Configuration={1} {0}", ProjectFile, Target.Configuration);
+		string CustomAssemblyInfoPath = Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfo.cs");
+		string BuildCommand = string.Format(@"$(EngineDir)\Build\BatchFiles\MSBuild.bat /t:Build /p:Configuration={1} /p:AssemblyInfo=""{2}"" {0}", ProjectFile, Target.Configuration, CustomAssemblyInfoPath);
 		string ErrorMsg = string.Format("Cannot build {0}: Environment variable {1} is not defined.", ProjectName, RhinoEnvVarName);
 
 		// If the environment variable RHINO<version>_PATH is set we use it to find the Rhino SDK location, otherwise we look if the SDK is in the ThirdParty folder, if not we look for it in an eventual Rhino installation
@@ -53,6 +56,29 @@ public abstract class DatasmithRhinoBaseTarget : TargetRules
 
 		PostBuildSteps.Add(string.Format(@"echo {0}", BuildCommand));
 		PostBuildSteps.Add(BuildCommand);
+
+	}
+
+	private static string GetPropertiesPath()
+	{
+		return Path.Combine("$(EngineDir)", "Source", "Programs", "Enterprise", "Datasmith", "DatasmithRhinoExporter", "Properties");
+	}
+
+	private void AddVersionUpdatePostSteps(TargetInfo Target)
+	{
+		ReadOnlyBuildVersion BuildVersion = Target.Version;
+		string VersionString = string.Format("{0}.{1}.{2}.{3}", BuildVersion.MajorVersion, BuildVersion.MinorVersion, BuildVersion.PatchVersion, BuildVersion.Changelist);
+		string CustomAssemblyInfoPath = Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfo.cs");
+		string CustomAssemblyTemplatePath = Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfo.cs.Template");
+		string Disclaimer = "// Warning. This is an AUTO-GENERATED file used for automatic version management. Please add your changes to GeneratedAssemblyInfo.cs.template.";
+
+		PostBuildSteps.Add(string.Format(@"echo Generating custom AssemblyInfo.cs with assembly version: {0}", VersionString));
+		PostBuildSteps.Add(string.Format("copy /Y {0} {1}", CustomAssemblyTemplatePath, CustomAssemblyInfoPath));
+		// Add a disclaimer on the auto-generated file.
+		PostBuildSteps.Add(string.Format(@"powershell -Command ""(gc {0}) -replace '<AutoGenerationDisclaimer>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, Disclaimer));
+		// Update the assembly version of the plugin.
+		PostBuildSteps.Add(string.Format(@"powershell -Command ""(gc {0}) -replace '<AssemblyVersion>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, VersionString));
+		PostBuildSteps.Add(string.Format(@"powershell -Command ""(gc {0}) -replace '<AssemblyFileVersion>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, VersionString));
 	}
 
 	public string GetRhinoThirdPartyFolder()
