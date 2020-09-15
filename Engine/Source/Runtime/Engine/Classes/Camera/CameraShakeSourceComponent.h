@@ -8,7 +8,7 @@
 #include "UObject/ObjectMacros.h"
 #include "CameraShakeSourceComponent.generated.h"
 
-class UCameraShake;
+class UCameraShakeBase;
 class UTexture2D;
 
 UENUM(BlueprintType)
@@ -40,7 +40,7 @@ private:
 	void UpdateEditorSpriteTexture();
 
 #if WITH_EDITOR
-	TSubclassOf<UCameraShake> PreviousCameraShake;
+	TSubclassOf<UCameraShakeBase> PreviousCameraShake;
 #endif
 
 public:
@@ -57,10 +57,10 @@ public:
 	float OuterAttenuationRadius;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CameraShake)
-	TSubclassOf<UCameraShake> CameraShake;
+	TSubclassOf<UCameraShakeBase> CameraShake;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CameraShake)
-	bool bAutoPlay;
+	bool bAutoStart;
 
 #if WITH_EDITORONLY_DATA
 	/** Sprite to display in the editor. */
@@ -74,15 +74,15 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	void Play();
+	void Start();
 
 	/** Starts a new camera shake originating from this source, and apply it on all player controllers */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	void PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake, float Scale=1.f, enum ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	void StartCameraShake(TSubclassOf<UCameraShakeBase> InCameraShake, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** Stops a camera shake originating from this source */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	void StopAllCameraShakesOfType(TSubclassOf<UCameraShake> InCameraShake, bool bImmediately = true);
+	void StopAllCameraShakesOfType(TSubclassOf<UCameraShakeBase> InCameraShake, bool bImmediately = true);
 
 	/** Stops all currently active camera shakes that are originating from this source from all player controllers */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)

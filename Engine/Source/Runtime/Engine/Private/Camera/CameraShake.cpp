@@ -7,8 +7,6 @@
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 
-DECLARE_CYCLE_STAT(TEXT("CameraShakePlayShake"), STAT_PlayShake, STATGROUP_Game);
-
 //////////////////////////////////////////////////////////////////////////
 // FFOscillator
 
@@ -52,9 +50,9 @@ float FFOscillator::GetOffsetAtTime(FFOscillator const& Osc, float InitialOffset
 }
 
 //////////////////////////////////////////////////////////////////////////
-// UCameraShake
+// UMatineeCameraShake
 
-UCameraShake::UCameraShake(const FObjectInitializer& ObjectInitializer)
+UMatineeCameraShake::UMatineeCameraShake(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	AnimPlayRate = 1.0f;
@@ -65,8 +63,15 @@ UCameraShake::UCameraShake(const FObjectInitializer& ObjectInitializer)
 	OscillationBlendOutTime = 0.2f;
 }
 
-void UCameraShake::StopShake(bool bImmediately)
+void UMatineeCameraShake::GetShakeInfoImpl(FCameraShakeInfo& OutInfo) const
 {
+	OutInfo.Duration = FCameraShakeDuration::Custom();
+}
+
+void UMatineeCameraShake::StopShakeImpl(bool bImmediately)
+{
+	APlayerCameraManager* CameraOwner = GetCameraManager();
+
 	if (bImmediately)
 	{
 		// stop cam anim if playing
@@ -116,13 +121,8 @@ void UCameraShake::StopShake(bool bImmediately)
 	ReceiveStopShake(bImmediately);
 }
 
-void UCameraShake::PlayShake(APlayerCameraManager* Camera, float Scale, ECameraAnimPlaySpace::Type InPlaySpace, FRotator UserPlaySpaceRot)
+void UMatineeCameraShake::StartShakeImpl()
 {
-	SCOPE_CYCLE_COUNTER(STAT_PlayShake);
-
-	ShakeScale = Scale;
-	CameraOwner = Camera;
-
 	const float EffectiveOscillationDuration = (OscillationDuration > 0.f) ? OscillationDuration : TNumericLimits<float>::Max();
 
 	// init oscillations
@@ -178,12 +178,13 @@ void UCameraShake::PlayShake(APlayerCameraManager* Camera, float Scale, ECameraA
 	}
 
 	// init cameraanim shakes
+	APlayerCameraManager* CameraOwner = GetCameraManager();
 	if (Anim != nullptr)
 	{
 		if (AnimInst)
 		{
 			float const Duration = bRandomAnimSegment ? RandomAnimSegmentDuration : 0.f;
-			float const FinalAnimScale = Scale * AnimScale;
+			float const FinalAnimScale = ShakeScale * AnimScale;
 			AnimInst->Update(AnimPlayRate, FinalAnimScale, AnimBlendInTime, AnimBlendOutTime, Duration);
 		}
 		else
@@ -198,12 +199,15 @@ void UCameraShake::PlayShake(APlayerCameraManager* Camera, float Scale, ECameraA
 				Duration = RandomAnimSegmentDuration;
 			}
 
-			float const FinalAnimScale = Scale * AnimScale;
+			float const FinalAnimScale = ShakeScale * AnimScale;
 			if (FinalAnimScale > 0.f)
 			{
+				ECameraShakePlaySpace AnimPlaySpace = GetPlaySpace();
+				FRotator UserPlaySpaceRot = GetUserPlaySpaceMatrix().Rotator();
+
 				if (CameraOwner)
 				{
-					AnimInst = CameraOwner->PlayCameraAnim(Anim, AnimPlayRate, FinalAnimScale, AnimBlendInTime, AnimBlendOutTime, bLoop, bRandomStart, Duration, InPlaySpace, UserPlaySpaceRot);
+					AnimInst = CameraOwner->PlayCameraAnim(Anim, AnimPlayRate, FinalAnimScale, AnimBlendInTime, AnimBlendOutTime, bLoop, bRandomStart, Duration, AnimPlaySpace, UserPlaySpaceRot);
 				}
 				else
 				{
@@ -214,26 +218,20 @@ void UCameraShake::PlayShake(APlayerCameraManager* Camera, float Scale, ECameraA
 						// note: we don't have a temp camera actor necessary for evaluating a camera anim.
 						// caller is responsible in this case for providing one by calling SetTempCameraAnimActor() on the shake instance before playing the shake
 						AnimInst->Play(Anim, TempCameraActorForCameraAnims, AnimPlayRate, FinalAnimScale, AnimBlendInTime, AnimBlendOutTime, bLoop, bRandomStart, Duration);
-						AnimInst->SetPlaySpace(InPlaySpace, UserPlaySpaceRot);
+						AnimInst->SetPlaySpace(AnimPlaySpace, UserPlaySpaceRot);
 					}
 				}
 			}
 		}
 	}
 
-	PlaySpace = InPlaySpace;
-	if (InPlaySpace == ECameraAnimPlaySpace::UserDefined)
-	{
-		UserPlaySpaceMatrix = FRotationMatrix(UserPlaySpaceRot);
-	}
-
-	ReceivePlayShake(Scale);
+	ReceivePlayShake(ShakeScale);
 }
 
-void UCameraShake::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMinimalViewInfo& InOutPOV)
+void UMatineeCameraShake::UpdateShakeImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
-	// this is the base scale for the whole shake, anim and oscillation alike
-	float const BaseShakeScale = FMath::Max<float>(Alpha * ShakeScale, 0.0f);
+	const float DeltaTime = Params.DeltaTime;
+	const float BaseShakeScale = Params.TotalScale;
 
 	// update anims with any desired scaling
 	if (AnimInst)
@@ -314,6 +312,8 @@ void UCameraShake::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMini
 			LocOffset.Z = FFOscillator::UpdateOffset(LocOscillation.Z, LocSinOffset.Z, DeltaTime);
 			LocOffset *= OscillationScale;
 
+			OutResult.Location = LocOffset;
+
 			// View rotation offset, compute sin wave value for each component
 			FRotator RotOffset;
 			RotOffset.Pitch = FFOscillator::UpdateOffset(RotOscillation.Pitch, RotSinOffset.X, DeltaTime) * OscillationScale;
@@ -324,59 +324,38 @@ void UCameraShake::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMini
 			if (!GEngine->XRSystem.IsValid() || !GEngine->XRSystem->IsHeadTrackingAllowed())
 			{
 				// Find normalized result when combined, and remove any offset that would push it past the limit.
-				const float NormalizedInputPitch = FRotator::NormalizeAxis(InOutPOV.Rotation.Pitch);
+				const float NormalizedInputPitch = FRotator::NormalizeAxis(Params.POV.Rotation.Pitch);
 				RotOffset.Pitch = FRotator::NormalizeAxis(RotOffset.Pitch);
 				RotOffset.Pitch = FMath::ClampAngle(NormalizedInputPitch + RotOffset.Pitch, -89.9f, 89.9f) - NormalizedInputPitch;
 			}
 
-			if (PlaySpace == ECameraAnimPlaySpace::CameraLocal)
-			{
-				// the else case will handle this as well, but this is the faster, cleaner, most common code path
-
-				// apply loc offset relative to camera orientation
-				FRotationMatrix CamRotMatrix(InOutPOV.Rotation);
-				InOutPOV.Location += CamRotMatrix.TransformVector(LocOffset);
-
-				// apply rot offset relative to camera orientation
-				FRotationMatrix const AnimRotMat(RotOffset);
-				InOutPOV.Rotation = (AnimRotMat * FRotationMatrix(InOutPOV.Rotation)).Rotator();
-			}
-			else
-			{
-				// find desired space
-				FMatrix const PlaySpaceToWorld = (PlaySpace == ECameraAnimPlaySpace::UserDefined) ? UserPlaySpaceMatrix : FMatrix::Identity;
-
-				// apply loc offset relative to desired space
-				InOutPOV.Location += PlaySpaceToWorld.TransformVector(LocOffset);
-
-				// apply rot offset relative to desired space
-
-				// find transform from camera to the "play space"
-				FRotationMatrix const CamToWorld(InOutPOV.Rotation);
-				FMatrix const CameraToPlaySpace = CamToWorld * PlaySpaceToWorld.Inverse();			// CameraToWorld * WorldToPlaySpace
-
-				// find transform from anim (applied in playspace) back to camera
-				FRotationMatrix const AnimToPlaySpace(RotOffset);
-				FMatrix const AnimToCamera = AnimToPlaySpace * CameraToPlaySpace.Inverse();			// AnimToPlaySpace * PlaySpaceToCamera
-
-				// RCS = rotated camera space, meaning camera space after it's been animated
-				// this is what we're looking for, the diff between rotated cam space and regular cam space.
-				// apply the transform back to camera space from the post-animated transform to get the RCS
-				FMatrix const RCSToCamera = CameraToPlaySpace * AnimToCamera;
-
-				// now apply to real camera
-				InOutPOV.Rotation = (RCSToCamera * CamToWorld).Rotator();
-			}
+			OutResult.Rotation = RotOffset;
 
 			// Compute FOV change
-			InOutPOV.FOV += OscillationScale * FFOscillator::UpdateOffset(FOVOscillation, FOVSinOffset, DeltaTime);
+			OutResult.FOV = OscillationScale * FFOscillator::UpdateOffset(FOVOscillation, FOVSinOffset, DeltaTime);
 		}
 	}
 
-	BlueprintUpdateCameraShake(DeltaTime, Alpha, InOutPOV, InOutPOV);
+	// Apply the playspace so we have an absolute result we can pass to the legacy blueprint API.
+	ApplyPlaySpace(Params, OutResult);
+	check(EnumHasAnyFlags(OutResult.Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute));
+
+	// Call the legacy blueprint API. We need to convert back and forth.
+	{
+		FMinimalViewInfo InOutPOV(Params.POV);
+		InOutPOV.Location = OutResult.Location;
+		InOutPOV.Rotation = OutResult.Rotation;
+		InOutPOV.FOV = OutResult.FOV;
+
+		BlueprintUpdateCameraShake(DeltaTime, Params.DynamicScale, InOutPOV, InOutPOV);
+
+		OutResult.Location = InOutPOV.Location;
+		OutResult.Rotation = InOutPOV.Rotation;
+		OutResult.FOV = InOutPOV.FOV;
+	}
 }
 
-bool UCameraShake::IsFinished() const
+bool UMatineeCameraShake::IsFinishedImpl() const
 {
 	return ((OscillatorTimeRemaining <= 0.f) &&							// oscillator is finished
 		((AnimInst == nullptr) || AnimInst->bFinished) &&				// anim is finished
@@ -386,19 +365,19 @@ bool UCameraShake::IsFinished() const
 
 /// @cond DOXYGEN_WARNINGS
 
-bool UCameraShake::ReceiveIsFinished_Implementation() const
+bool UMatineeCameraShake::ReceiveIsFinished_Implementation() const
 {
 	return true;
 }
 
 /// @endcond
 
-bool UCameraShake::IsLooping() const
+bool UMatineeCameraShake::IsLooping() const
 {
 	return OscillationDuration < 0.0f;
 }
 
-void UCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV)
+void UMatineeCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV)
 {
 	// reset to start and advance to desired point
 	LocSinOffset = InitialLocSinOffset;
@@ -431,35 +410,3 @@ void UCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& 
 	}
 }
 
-float UCameraShake::GetCameraShakeDuration() const
-{
-	if (Anim != nullptr)
-	{
-		if (bRandomAnimSegment)
-		{
-			return RandomAnimSegmentDuration;
-		}
-		else
-		{
-			return Anim->AnimLength;
-		}
-	}
-	else
-	{
-		return OscillationDuration;
-	}
-}
-
-void UCameraShake::GetCameraShakeBlendTimes(float& OutBlendIn, float& OutBlendOut) const
-{
-	if (Anim != nullptr)
-	{
-		OutBlendIn = AnimBlendInTime;
-		OutBlendOut = AnimBlendOutTime;
-	}
-	else
-	{
-		OutBlendIn = OscillationBlendInTime;
-		OutBlendOut = OscillationBlendOutTime;
-	}
-}
