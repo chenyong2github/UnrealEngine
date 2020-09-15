@@ -52,6 +52,8 @@ public:
 	virtual bool Supersede(const UDataprepContentProducer* OtherProducer) const override;
 	virtual bool CanAddToProducersArray(bool bIsAutomated) override;
 
+	UPackage* TransientPackage = nullptr;
+
 protected:
 	virtual bool Initialize() override;
 	virtual bool Execute(TArray< TWeakObjectPtr< UObject > >& OutAssets) override;

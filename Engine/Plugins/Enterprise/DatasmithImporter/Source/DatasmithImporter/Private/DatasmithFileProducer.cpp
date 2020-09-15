@@ -112,7 +112,12 @@ bool UDatasmithFileProducer::Initialize()
 		return false;
 	}
 
-	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( Context.RootPackagePtr->GetPathName(), *GetName() ), RF_Transient );
+	// Create transient package if it wasn't specified
+	if (!TransientPackage)
+	{
+		TransientPackage = NewObject< UPackage >(nullptr, *FPaths::Combine(Context.RootPackagePtr->GetPathName(), *GetName()), RF_Transient);
+	}
+
 	TransientPackage->FullyLoad();
 
 	// Create the transient Datasmith scene
@@ -849,15 +854,22 @@ bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakOb
 	FileProducer->FilePath = PlmXmlFileName;
 	FileProducer->UpdateName();
 
-	if (!FileProducer->Produce(Context, OutAssets))
+	// Set transient package to be the root package, overriding default behavior - this way we avoid extra 'PlmXml' folder  in content folder hierarchy
+	FileProducer->TransientPackage = RootPackage;
+
+	bool bSuccess = FileProducer->Produce(Context, OutAssets);
+	if (bSuccess)
+	{
+		FixPlmXmlHierarchy();
+	}
+	else
 	{
 		FText ErrorReport = FText::Format(LOCTEXT("DatasmithPlmXmlProducer_FailedProduce", "Failed to produce assets with PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
 		LogError(ErrorReport);
-		return false;
 	}
+	FileProducer->TransientPackage = nullptr;
 
-	FixPlmXmlHierarchy();
-	return true;
+	return bSuccess;
 }
 
 void UDatasmithDirProducer::FixPlmXmlHierarchy()
