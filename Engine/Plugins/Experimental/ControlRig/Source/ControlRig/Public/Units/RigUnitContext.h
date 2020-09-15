@@ -79,10 +79,10 @@ struct FRigUnitContext
 	USceneComponent* OwningComponent;
 
 	/** The current actor this rig is owned by */
-	AActor* OwningActor;
+	const AActor* OwningActor;
 
 	/** The world this rig is running in */
-	UWorld* World;
+	const UWorld* World;
 
 #if WITH_EDITOR
 	/** A handle to the compiler log */
