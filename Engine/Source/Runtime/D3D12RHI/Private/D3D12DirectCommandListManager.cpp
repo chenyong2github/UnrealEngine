@@ -12,11 +12,7 @@ static TAutoConsoleVariable<int32> CVarD3D12GPUTimeout(
 	ECVF_ReadOnly
 );
 
-#if PLATFORM_WINDOWS
-static int32 GD3D12ExecuteCommandListTask = 1;
-#else
 static int32 GD3D12ExecuteCommandListTask = 0;
-#endif
 static TAutoConsoleVariable<int32> CVarD3D12ExecuteCommandListTask(
 	TEXT("r.D3D12.ExecuteCommandListTask"),
 	GD3D12ExecuteCommandListTask,
