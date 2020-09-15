@@ -342,6 +342,9 @@ public:
 	virtual bool HasTickGroupPrereqs() const { return false; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const { return NiagaraFirstTickGroup; }
 
+	/** Used to determine if we need to create GPU resources for the emitter. */
+	bool IsUsedWithGPUEmitter(class FNiagaraSystemInstance* SystemInstance) const;
+
 	/** Determines if this type definition matches to a known data interface type.*/
 	static bool IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef);
 

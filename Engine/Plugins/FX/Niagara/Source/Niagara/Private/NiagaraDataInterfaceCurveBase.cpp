@@ -330,6 +330,7 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 		RT_Proxy->LUTInvTimeRange = rtLUTInvTimeRange;
 		RT_Proxy->CurveLUTNumMinusOne = rtCurveLUTNumMinusOne;
 
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->CurveLUT.NumBytes);
 		RT_Proxy->CurveLUT.Release();
 
 		check(rtShaderLUT.Num());
@@ -338,6 +339,7 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 		FPlatformMemory::Memcpy(BufferData, rtShaderLUT.GetData(), BufferSize);
 		RHIUnlockVertexBuffer(RT_Proxy->CurveLUT.Buffer);
+		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->CurveLUT.NumBytes);
 	});
 }
 
