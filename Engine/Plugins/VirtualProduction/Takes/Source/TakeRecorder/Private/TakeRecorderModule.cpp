@@ -230,6 +230,11 @@ FTakeRecorderModule::FTakeRecorderModule()
 {
 }
 
+UTakePreset* FTakeRecorderModule::GetPendingTake() const
+{
+	return FindObject<UTakePreset>(nullptr, TEXT("/Temp/TakeRecorder/PendingTake.PendingTake"));
+}
+
 void FTakeRecorderModule::StartupModule()
 {
 	FTakeRecorderStyle::Get();
