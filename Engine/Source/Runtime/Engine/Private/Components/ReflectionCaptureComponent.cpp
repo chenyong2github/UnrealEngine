@@ -753,7 +753,7 @@ void UReflectionCaptureComponent::SendRenderTransform_Concurrent()
 void UReflectionCaptureComponent::OnRegister()
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GetWorld()->FeatureLevel;
-	const bool bEncodedDataRequired = (FeatureLevel == ERHIFeatureLevel::ES3_1);
+	const bool bEncodedDataRequired = (FeatureLevel == ERHIFeatureLevel::ES3_1) && !IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
 
 	if (bEncodedDataRequired)
 	{
@@ -763,7 +763,7 @@ void UReflectionCaptureComponent::OnRegister()
 		{
 			UTextureCube* CubeTest = MapBuildData->EncodedCaptureData;
 			EncodedHDRCubemap = CubeTest == nullptr ? nullptr : CubeTest->CreateResource();
-			if(EncodedHDRCubemap != nullptr)
+			if (EncodedHDRCubemap != nullptr)
 			{
 				BeginInitResource(EncodedHDRCubemap);
 			}

@@ -330,13 +330,13 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, ILCTaskData);
 	}
 
-	const bool bMobileDeferredShading = IsMobileDeferredShading();
+	const bool bDeferredShading = IsMobileDeferredShadingEnabled(ShaderPlatform);
 	// initialize per-view uniform buffer.  Pass in shadow info as necessary.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
 		
-		if (bMobileDeferredShading)
+		if (bDeferredShading)
 		{
 			if (View.ViewState)
 			{
@@ -402,7 +402,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
 		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
 	}
-	if (bMobileDeferredShading)
+	if (bDeferredShading)
 	{
 		SetupSceneReflectionCaptureBuffer(RHICmdList);
 	}
@@ -466,7 +466,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FViewInfo& View = Views[0];
 
 	const bool bGammaSpace = !IsMobileHDR();
-	const bool bDeferredShading = IsMobileDeferredShading();
+	const bool bDeferredShading = IsMobileDeferredShadingEnabled(ShaderPlatform);
 
 	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
 	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > FamilySize.X || (int32)RenderTargetSize.Y > FamilySize.Y);
@@ -1233,7 +1233,7 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 		return false;
 	}
 
-	if (IsMobileDeferredShading())
+	if (IsMobileDeferredShadingEnabled(ShaderPlatform))
 	{
 		// TODO: add GL support
 		return true;

@@ -544,7 +544,10 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 
 void FIOSTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const
 {
-	if (SupportsMetalMRT())
+	static auto* MobileShadingPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ShadingPath"));
+	const bool bMobileDeferredShading = (MobileShadingPathCvar->GetValueOnAnyThread() == 1);
+
+	if (SupportsMetalMRT() || bMobileDeferredShading)
 	{
 		OutFormats.Add(FName(TEXT("FullHDR")));
 	}
