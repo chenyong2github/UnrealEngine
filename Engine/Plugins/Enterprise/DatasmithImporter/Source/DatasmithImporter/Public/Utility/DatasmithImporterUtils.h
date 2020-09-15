@@ -214,6 +214,8 @@ public:
 	{
 		return (T*)FDatasmithImporterUtils::StaticDuplicateObject(SourceObject, Outer, Name);
 	}
+
+	static bool CreatePlmXmlSceneFromCADFiles(FString PlmXmlFileName, const TSet<FString>& FilesToProcess, TArray<FString>& FilesNotProcessed);
 };
 
 template< typename ObjectType >
@@ -226,7 +228,7 @@ struct FDatasmithFindAssetTypeHelper< UStaticMesh >
 {
 	static const TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
 	{
-		return AssetsContext.ParentContext.ImportedStaticMeshes;
+		return AssetsContext.GetParentContext().ImportedStaticMeshes;
 	}
 
 	static UPackage* GetFinalPackage( const FDatasmithAssetsImportContext& AssetsContext )
@@ -241,7 +243,7 @@ struct FDatasmithFindAssetTypeHelper< UStaticMesh >
 
 	static const TSharedRef<IDatasmithMeshElement>* GetImportedElementByName( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
 	{
-		return AssetsContext.ParentContext.ImportedStaticMeshesByName.Find(ObjectPathName);
+		return AssetsContext.GetParentContext().ImportedStaticMeshesByName.Find(ObjectPathName);
 	}
 };
 
@@ -250,7 +252,7 @@ struct FDatasmithFindAssetTypeHelper< UTexture >
 {
 	static const TMap< TSharedRef< IDatasmithTextureElement >, UTexture* >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
 	{
-		return AssetsContext.ParentContext.ImportedTextures;
+		return AssetsContext.GetParentContext().ImportedTextures;
 	}
 
 	static UPackage* GetFinalPackage( const FDatasmithAssetsImportContext& AssetsContext )
@@ -274,7 +276,7 @@ struct FDatasmithFindAssetTypeHelper< UMaterialFunction >
 {
 	static const TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* >& GetImportedAssetsMap(const FDatasmithAssetsImportContext& AssetsContext)
 	{
-		return AssetsContext.ParentContext.ImportedMaterialFunctions;
+		return AssetsContext.GetParentContext().ImportedMaterialFunctions;
 	}
 
 	static UPackage* GetFinalPackage(const FDatasmithAssetsImportContext& AssetsContext)
@@ -289,7 +291,7 @@ struct FDatasmithFindAssetTypeHelper< UMaterialFunction >
 	
 	static const TSharedRef<IDatasmithBaseMaterialElement>* GetImportedElementByName( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
 	{
-		return AssetsContext.ParentContext.ImportedMaterialFunctionsByName.Find(ObjectPathName);
+		return AssetsContext.GetParentContext().ImportedMaterialFunctionsByName.Find(ObjectPathName);
 	}
 };
 
@@ -298,7 +300,7 @@ struct FDatasmithFindAssetTypeHelper< UMaterialInterface >
 {
 	static const TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
 	{
-		return AssetsContext.ParentContext.ImportedMaterials;
+		return AssetsContext.GetParentContext().ImportedMaterials;
 	}
 
 	static UPackage* GetFinalPackage( const FDatasmithAssetsImportContext& AssetsContext )
@@ -388,7 +390,7 @@ inline ObjectType* FDatasmithImporterUtils::FindAsset( const FDatasmithAssetsImp
 		}
 
 		{
-			const auto* AssetsMap = FDatasmithFindAssetTypeHelper< ObjectType >::GetAssetsMap( AssetsContext.ParentContext.SceneAsset );
+			const auto* AssetsMap = FDatasmithFindAssetTypeHelper< ObjectType >::GetAssetsMap( AssetsContext.GetParentContext().SceneAsset );
 
 			// Check if the AssetsMap is already tracking our asset
 			if ( AssetsMap && AssetsMap->Contains( ObjectPathName ) )

@@ -827,122 +827,16 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
  */
 bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakObjectPtr<UObject>>& OutAssets, TArray<FString>& FilesNotProcessed)
 {
-	// Find out which translator can import CAD files by retrieving translator for a JT file(this is expected to be 'DatasmithCADTranslator').
-	// And then accept files which have this translator returned as compatible.
-	FDatasmithSceneSource SomeCADFileSource;
-	SomeCADFileSource.SetSourceFile("test.jt");
-	TSharedPtr<IDatasmithTranslator> TranslatorForCADFiles = FDatasmithTranslatorManager::Get().SelectFirstCompatible(SomeCADFileSource);
-	if (!TranslatorForCADFiles.IsValid())
-	{
-		return false;
-	}
-
-	FName CADTranslatorName = TranslatorForCADFiles->GetFName();
-	TArray<FString> FilesToProcessWithPlmXml;
-	for (const FString& FileName : FilesToProcess)
-	{
-		FDatasmithSceneSource Source;
-		Source.SetSourceFile(FileName);
-		TSharedPtr<IDatasmithTranslator> Translator = FDatasmithTranslatorManager::Get().SelectFirstCompatible(Source);
-
-		bool bIsCADFile = Translator.IsValid() && (Translator->GetFName() == CADTranslatorName);
-		if (bIsCADFile)
-		{
-			FilesToProcessWithPlmXml.Add(FileName);
-		}
-		else
-		{
-			FilesNotProcessed.Add(FileName);
-		}
-	}
-
-	// skip plmxml processing for single file
-	if (FilesToProcessWithPlmXml.Num() <= 1)
-	{
-		return false;
-	}
-
-	FString TempDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithProducerTemp"));
+	FString PlmXmlFileName;
+	FString TempDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithDirProducerTemp"));
 	if (!IFileManager::Get().DirectoryExists(*TempDir))
 	{
 		IFileManager::Get().MakeDirectory(*TempDir);
 	}
-	FString PlmXmlFileName = FPaths::Combine(TempDir, FPaths::GetBaseFilename(FolderPath) + TEXT(".plmxml"));
+	PlmXmlFileName = FPaths::Combine(TempDir, FPaths::GetBaseFilename(FolderPath) + TEXT(".plmxml"));
 
-	class FXmlWriter
+	if (!FDatasmithImporterUtils::CreatePlmXmlSceneFromCADFiles(PlmXmlFileName, FilesToProcess, FilesNotProcessed))
 	{
-	public:
-		FString Buffer;
-
-		FXmlWriter()
-		{
-			Buffer = TEXT("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-			Buffer += LINE_TERMINATOR;
-		}
-
-		class FTagGuard
-		{
-		public:
-			FTagGuard(FXmlWriter& InWriter, FString Opening, FString InClosing)
-				: Writer(InWriter)
-				, Closing(InClosing)
-			{
-				Writer.Buffer += Opening;
-				Writer.Buffer += LINE_TERMINATOR;
-			}
-			~FTagGuard()
-			{
-				Writer.Buffer += Closing;
-				Writer.Buffer += LINE_TERMINATOR;
-			}
-		private:
-			FXmlWriter& Writer;
-			FString Closing;
-		};
-	};
-
-	FXmlWriter Writer;
-	FString& Buffer = Writer.Buffer;
-
-	// Creating PLMXML file where each of files to process is referenced from a ProductRevisionView
-	{
-		FXmlWriter::FTagGuard PLMXMLTag(Writer, TEXT("<PLMXML xmlns=\"http://www.plmxml.org/Schemas/PLMXMLSchema\">"), "</PLMXML>");
-		FXmlWriter::FTagGuard ProductDefTag(Writer, TEXT("<ProductDef id=\"id1\">"), TEXT("</ProductDef>"));
-
-		// Used to assign unique ids to PLMXML entities being created
-		int32 CurrentId = 2;
-
-		// Collect all InstanceId to reference from InstanceGraph rootRefs
-		TArray<FString> InstanceIds;
-		InstanceIds.Reserve(FilesToProcessWithPlmXml.Num());
-		for (const FString& FileName : FilesToProcessWithPlmXml)
-		{
-			InstanceIds.Add(FString::Printf(TEXT("id%d"), CurrentId++));
-		}
-		FXmlWriter::FTagGuard InstanceGraphTag(Writer, FString::Printf(TEXT("<InstanceGraph id=\"id2\" rootRefs=\"%s\">"), *FString::Join(InstanceIds, TEXT(" "))), TEXT("</InstanceGraph>"));
-
-		for (int32 FileIndex = 0; FileIndex < FilesToProcessWithPlmXml.Num(); ++FileIndex)
-		{
-			const FString& FileName = FilesToProcessWithPlmXml[FileIndex];
-			FString InstanceId = InstanceIds[FileIndex];
-			FString InstanceName = FPaths::GetBaseFilename(FileName);
-			FString PartId = FString::Printf(TEXT("id%d"), CurrentId++);
-			FString RepresentationId = FString::Printf(TEXT("id%d"), CurrentId++);
-			{
-				FXmlWriter::FTagGuard ProductInstanceTag(Writer, FString::Printf(TEXT("<ProductInstance id=\"%s\" name=\"%s\" partRef=\"#%s\">"), *InstanceId, *InstanceName, *PartId), TEXT("</ProductInstance>"));
-			}
-			{
-				FXmlWriter::FTagGuard ProductRevisionViewTag(Writer, FString::Printf(TEXT("<ProductRevisionView id=\"%s\" name=\"%s\">"), *PartId, *InstanceName), TEXT("</ProductRevisionView>"));
-				//  omitting 'format' attribute, it's optional anyway
-				FXmlWriter::FTagGuard RepresentationTag(Writer, FString::Printf(TEXT("<Representation id=\"%s\" location=\"%s\">"), *RepresentationId, *FileName), TEXT("</Representation>"));
-			}
-		}
-	}
-
-	if (!FFileHelper::SaveStringToFile(Buffer, *PlmXmlFileName, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
-	{
-		FText ErrorReport = FText::Format(LOCTEXT("DatasmithPlmXmlProducer_FailedCreate", "Failed to create PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
-		LogError(ErrorReport);
 		return false;
 	}
 
@@ -963,7 +857,6 @@ bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakOb
 	}
 
 	FixPlmXmlHierarchy();
-
 	return true;
 }
 
