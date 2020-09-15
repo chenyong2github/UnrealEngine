@@ -96,6 +96,6 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 	DiffuseExitantRadiance.rgb *= View.PreExposure;
 #endif
 
-	RWOcclusionMaskUAV[DispatchThreadId] = float4(ClampToHalfFloatRange(DiffuseExitantRadiance.rgb), AmbientOcclusion);
+	RWSkyOcclusionMaskUAV[DispatchThreadId] = float4(ClampToHalfFloatRange(DiffuseExitantRadiance.rgb), AmbientOcclusion);
 	RWSkyOcclusionRayDistanceUAV[DispatchThreadId] = float2(HitDistance, SamplesPerPixel);
 }
