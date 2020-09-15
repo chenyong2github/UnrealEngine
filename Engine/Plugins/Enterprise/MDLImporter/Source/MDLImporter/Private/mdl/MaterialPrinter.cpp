@@ -44,7 +44,7 @@ namespace
 
 	bool IsArrayIndexOperator(mi::neuraylib::IFunction_definition::Semantics Semantic)
 	{
-		return Semantic == mi::neuraylib::IFunction_definition::DS_INTRINSIC_DAG_INDEX_ACCESS;
+		return Semantic == mi::neuraylib::IFunction_definition::DS_ARRAY_INDEX;
 	}
 
 	bool IsUnaryOperator(mi::neuraylib::IFunction_definition::Semantics Semantic)
