@@ -2626,7 +2626,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 		for (int32 LODIndex = 0; LODIndex < SkelMeshLODCount; ++LODIndex)
 		{
 			//Construct temporary LODInfo editor object
-			ULODInfoUILayout* LODInfoUILayout = NewObject<ULODInfoUILayout>(GetTransientPackage(), FName(*(FGuid::NewGuid().ToString())), RF_Standalone | RF_Transactional);
+			ULODInfoUILayout* LODInfoUILayout = NewObject<ULODInfoUILayout>(GetTransientPackage(), FName(*(FGuid::NewGuid().ToString())), RF_Standalone);
 			LODInfoUILayout->AddToRoot();
 			FSkeletalMeshLODInfo* LODInfoPtr = SkelMesh->GetLODInfo(LODIndex);
 			if (!LODInfoPtr || !SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
