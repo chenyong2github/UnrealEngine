@@ -769,7 +769,10 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(int32, StereoPassIndex) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, GlobalVolumeCenterAndExtent, [GMaxGlobalDistanceFieldClipmaps]) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, GlobalVolumeWorldToUVAddAndMul, [GMaxGlobalDistanceFieldClipmaps]) \
-	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector, GlobalDistanceFieldPageTableScrollOffset, [GMaxGlobalDistanceFieldClipmaps]) \
+	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector, GlobalDistanceFieldMipWorldToUVScale, [GMaxGlobalDistanceFieldClipmaps]) \
+	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector, GlobalDistanceFieldMipWorldToUVBias, [GMaxGlobalDistanceFieldClipmaps]) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalDistanceFieldMipFactor) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalDistanceFieldMipTransition) \
 	VIEW_UNIFORM_BUFFER_MEMBER(int32, GlobalDistanceFieldClipmapSizeInPages) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, GlobalDistanceFieldInvPageAtlasSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalVolumeDimension) \
@@ -843,6 +846,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 
 	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldPageAtlasTexture)
 	SHADER_PARAMETER_TEXTURE(Texture3D<uint>, GlobalDistanceFieldPageTableTexture)
+	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldMipTexture)
 
 	SHADER_PARAMETER_TEXTURE(Texture2D, AtmosphereTransmittanceTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AtmosphereTransmittanceTextureSampler)

@@ -583,6 +583,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> PageAtlasTexture;
 	TRefCountPtr<IPooledRenderTarget> PageTableCombinedTexture;
 	TRefCountPtr<IPooledRenderTarget> PageTableLayerTextures[GDF_Num];
+	TRefCountPtr<IPooledRenderTarget> MipTexture;
 
 	void UpdateParameterData(float MaxOcclusionDistance);
 };

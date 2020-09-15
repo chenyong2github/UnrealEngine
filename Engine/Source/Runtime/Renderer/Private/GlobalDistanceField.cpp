@@ -197,6 +197,14 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldAverageCulledObjectsPerPage(
 	ECVF_RenderThreadSafe
 );
 
+int32 GAOGlobalDistanceFieldMipFactor = 4;
+FAutoConsoleVariableRef CVarAOGlobalDistanceFieldMipFactor(
+	TEXT("r.AOGlobalDistanceField.MipFactor"),
+	GAOGlobalDistanceFieldMipFactor,
+	TEXT("Resolution divider for the mip map of a distance field clipmap."),
+	ECVF_RenderThreadSafe
+);
+
 // Approximation of margin added to SDF objects during generation inside FMeshUtilities::GenerateSignedDistanceFieldVolumeData.
 constexpr float MESH_SDF_APPROX_MARGIN = 0.7f;
 
@@ -236,6 +244,8 @@ const int32 GGlobalDistanceFieldInfluenceRangeInVoxels = 4;
 namespace GlobalDistanceField
 {
 	int32 GetClipmapResolution();
+	int32 GetMipFactor();
+	int32 GetClipmapMipResolution();
 	float GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene);
 	FIntVector GetPageAtlasSizeInPages();
 	FIntVector GetPageAtlasSize();
@@ -254,6 +264,17 @@ int32 GlobalDistanceField::GetClipmapResolution()
 	}
 
 	return FMath::DivideAndRoundUp(DFResolution, GGlobalDistanceFieldPageResolution) * GGlobalDistanceFieldPageResolution;
+}
+
+int32 GlobalDistanceField::GetMipFactor()
+{
+	return FMath::Clamp(GAOGlobalDistanceFieldMipFactor, 1, 8);
+}
+
+int32 GlobalDistanceField::GetClipmapMipResolution()
+{
+	const int32 ClipmapResolutution = GetClipmapResolution();
+	return FMath::DivideAndRoundUp(GlobalDistanceField::GetClipmapResolution(), GetMipFactor());
 }
 
 float GlobalDistanceField::GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene)
@@ -337,6 +358,7 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance)
 {
 	ParameterData.PageTableTexture = nullptr;
 	ParameterData.PageAtlasTexture = nullptr;
+	ParameterData.MipTexture = nullptr;
 	ParameterData.MaxPageNum = GlobalDistanceField::GetMaxPageNum();
 
 	if (Clipmaps.Num() > 0)
@@ -351,6 +373,11 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance)
 			ParameterData.PageTableTexture = PageTableCombinedTexture->GetRenderTargetItem().ShaderResourceTexture;
 		}
 
+		if (MipTexture)
+		{
+			ParameterData.MipTexture = MipTexture->GetRenderTargetItem().ShaderResourceTexture;
+		}
+
 		for (int32 ClipmapIndex = 0; ClipmapIndex < GMaxGlobalDistanceFieldClipmaps; ClipmapIndex++)
 		{
 			if (ClipmapIndex < Clipmaps.Num())
@@ -363,16 +390,27 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance)
 				// WorldToUVAdd = (GlobalVolumeScollOffset[ClipmapIndex].xyz - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f
 				const FVector WorldToUVAdd = (Clipmap.ScrollOffset - Clipmap.Bounds.GetCenter()) / (Clipmap.Bounds.GetExtent().X * 2) + FVector(.5f);
 				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4(WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2));
+
+				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Bounds.GetExtent());
+				ParameterData.MipWorldToUVBias[ClipmapIndex] = (-Clipmap.Bounds.Min) / (2.0f * Clipmap.Bounds.GetExtent());
+
+				ParameterData.MipWorldToUVScale[ClipmapIndex].Z = ParameterData.MipWorldToUVScale[ClipmapIndex].Z / Clipmaps.Num();
+				ParameterData.MipWorldToUVBias[ClipmapIndex].Z = (ParameterData.MipWorldToUVBias[ClipmapIndex].Z + ClipmapIndex) / Clipmaps.Num();
+
 				ParameterData.PageTableScrollOffset[ClipmapIndex] = Clipmap.ScrollOffset / Clipmap.Bounds.GetSize();
 			}
 			else
 			{
 				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4(0);
 				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4(0);
+				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector(0);
+				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector(0);
 				ParameterData.PageTableScrollOffset[ClipmapIndex] = FVector(0);
 			}
 		}
 
+		ParameterData.MipFactor = GlobalDistanceField::GetMipFactor();
+		ParameterData.MipTransition = (GGlobalDistanceFieldInfluenceRangeInVoxels + ParameterData.MipFactor / GGlobalDistanceFieldInfluenceRangeInVoxels) / (2.0f * GGlobalDistanceFieldInfluenceRangeInVoxels);
 		ParameterData.ClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution().X;
 		ParameterData.InvPageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetPageAtlasSize());
 		ParameterData.GlobalDFResolution = GlobalDistanceField::GetClipmapResolution();
@@ -700,6 +738,42 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 			GlobalDistanceFieldInfo.PageTableCombinedTexture = PageTableTexture;
 		}
 
+		{
+			const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution();
+			const FIntVector MipTextureResolution = FIntVector(ClipmapMipResolution, ClipmapMipResolution, ClipmapMipResolution * GetNumGlobalDistanceFieldClipmaps());
+			TRefCountPtr<IPooledRenderTarget>& MipTexture = View.ViewState->GlobalDistanceFieldMipTexture;
+
+			if (!MipTexture
+				|| MipTexture->GetDesc().Extent.X != MipTextureResolution.X
+				|| MipTexture->GetDesc().Extent.Y != MipTextureResolution.Y
+				|| MipTexture->GetDesc().Depth != MipTextureResolution.Z)
+			{
+				FPooledRenderTargetDesc VolumeDesc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
+					MipTextureResolution.X,
+					MipTextureResolution.Y,
+					MipTextureResolution.Z,
+					PF_R8,
+					FClearValueBinding::None,
+					0,
+					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
+					false));
+				VolumeDesc.AutoWritable = false;
+
+				GRenderTargetPool.FindFreeElement(
+					RHICmdList,
+					VolumeDesc,
+					MipTexture,
+					TEXT("GlobalSDFMipTexture"),
+					true,
+					ERenderTargetTransience::NonTransient
+				);
+
+				bSharedDataReallocated = true;
+			}
+
+			GlobalDistanceFieldInfo.MipTexture = MipTexture;
+		}
+
 		for (uint32 CacheType = 0; CacheType < GDF_Num; CacheType++)
 		{
 			const FIntVector PageTableTextureResolution = GlobalDistanceField::GetPageTableTextureResolution();
@@ -747,7 +821,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 			const float ClipmapExtent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene);
 			const float ClipmapVoxelSize = (2.0f * ClipmapExtent) / ClipmapResolution;
 			const float ClipmapPageSize = GGlobalDistanceFieldPageResolution * ClipmapVoxelSize;
-			float ClipmapInfluenceRadius = GGlobalDistanceFieldInfluenceRangeInVoxels * ClipmapVoxelSize;
+			const float ClipmapInfluenceRadius = GGlobalDistanceFieldInfluenceRangeInVoxels * ClipmapVoxelSize;
 
 			// Accumulate primitive modifications in the viewstate in case we don't update the clipmap this frame
 			for (uint32 CacheType = 0; CacheType < GDF_Num; CacheType++)
@@ -968,8 +1042,11 @@ void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUnif
 	{
 		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = FVector4(0);
 		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = FVector4(0);
-		ViewUniformShaderParameters.GlobalDistanceFieldPageTableScrollOffset[Index] = FVector(0);
+		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = FVector(0);
+		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = FVector(0);
 	}
+	ViewUniformShaderParameters.GlobalDistanceFieldMipFactor = 1.0f;
+	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = 0.0f;
 	ViewUniformShaderParameters.GlobalDistanceFieldClipmapSizeInPages = 1;
 	ViewUniformShaderParameters.GlobalDistanceFieldInvPageAtlasSize = FVector(1.0f, 1.0f, 1.0f);
 	ViewUniformShaderParameters.GlobalVolumeDimension = 0.0f;
@@ -979,6 +1056,7 @@ void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUnif
 
 	ViewUniformShaderParameters.GlobalDistanceFieldPageAtlasTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
 	ViewUniformShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
+	ViewUniformShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
 }
 
 void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters) const
@@ -989,8 +1067,11 @@ void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShad
 	{
 		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = GlobalDistanceFieldInfo.ParameterData.CenterAndExtent[Index];
 		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = GlobalDistanceFieldInfo.ParameterData.WorldToUVAddAndMul[Index];
-		ViewUniformShaderParameters.GlobalDistanceFieldPageTableScrollOffset[Index] = GlobalDistanceFieldInfo.ParameterData.PageTableScrollOffset[Index];
+		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = GlobalDistanceFieldInfo.ParameterData.MipWorldToUVScale[Index];
+		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = GlobalDistanceFieldInfo.ParameterData.MipWorldToUVBias[Index];
 	}
+	ViewUniformShaderParameters.GlobalDistanceFieldMipFactor = GlobalDistanceFieldInfo.ParameterData.MipFactor;
+	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = GlobalDistanceFieldInfo.ParameterData.MipTransition;
 	ViewUniformShaderParameters.GlobalDistanceFieldClipmapSizeInPages = GlobalDistanceFieldInfo.ParameterData.ClipmapSizeInPages;
 	ViewUniformShaderParameters.GlobalDistanceFieldInvPageAtlasSize = GlobalDistanceFieldInfo.ParameterData.InvPageAtlasSize;
 	ViewUniformShaderParameters.GlobalVolumeDimension = GlobalDistanceFieldInfo.ParameterData.GlobalDFResolution;
@@ -1000,6 +1081,7 @@ void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShad
 
 	ViewUniformShaderParameters.GlobalDistanceFieldPageAtlasTexture = OrBlack3DIfNull(GlobalDistanceFieldInfo.ParameterData.PageAtlasTexture);
 	ViewUniformShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DIfNull(GlobalDistanceFieldInfo.ParameterData.PageTableTexture);
+	ViewUniformShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(GlobalDistanceFieldInfo.ParameterData.MipTexture);
 }
 
 void ReadbackDistanceFieldClipmap(FRHICommandListImmediate& RHICmdList, FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
@@ -1410,6 +1492,52 @@ class FPageFreeListReturnCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FPageFreeListReturnCS, "/Engine/Private/GlobalDistanceField.usf", "PageFreeListReturnCS", SF_Compute);
 
+class FPropagateMipDistanceCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPropagateMipDistanceCS);
+	SHADER_USE_PARAMETER_STRUCT(FPropagateMipDistanceCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWMipTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float>, PrevMipTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, PageTableCombinedTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float>, PageAtlasTexture)
+		SHADER_PARAMETER(FVector, GlobalDistanceFieldInvPageAtlasSize)
+		SHADER_PARAMETER(uint32, GlobalDistanceFieldClipmapSizeInPages)
+		SHADER_PARAMETER(uint32, ClipmapMipResolution)
+		SHADER_PARAMETER(uint32, ClipmapIndex)
+		SHADER_PARAMETER(uint32, PrevClipmapOffsetZ)
+		SHADER_PARAMETER(uint32, ClipmapOffsetZ)
+		SHADER_PARAMETER(FVector, ClipmapUVScrollOffset)
+		SHADER_PARAMETER(float, CoarseDistanceFieldValueScale)
+		SHADER_PARAMETER(float, CoarseDistanceFieldValueBias)
+	END_SHADER_PARAMETER_STRUCT()
+
+	class FReadPages : SHADER_PERMUTATION_BOOL("READ_PAGES");
+	using FPermutationDomain = TShaderPermutationDomain<FReadPages>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+	}
+
+	static FIntVector GetGroupSize()
+	{
+		return FIntVector(4, 4, 4);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_X"), GetGroupSize().X);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Y"), GetGroupSize().Y);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Z"), GetGroupSize().Z);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FPropagateMipDistanceCS, "/Engine/Private/GlobalDistanceFieldMip.usf", "PropagateMipDistanceCS", SF_Compute);
+
 /** 
  * Updates the global distance field for a view.  
  * Typically issues updates for just the newly exposed regions of the volume due to camera movement.
@@ -1480,6 +1608,28 @@ void UpdateGlobalDistanceFieldVolume(
 			if (GlobalDistanceFieldInfo.PageTableCombinedTexture)
 			{
 				PageTableCombinedTexture = GraphBuilder.RegisterExternalTexture(GlobalDistanceFieldInfo.PageTableCombinedTexture, TEXT("PageTableCombined"));
+			}
+
+			FRDGTextureRef MipTexture = nullptr;
+			if (GlobalDistanceFieldInfo.MipTexture)
+			{
+				MipTexture = GraphBuilder.RegisterExternalTexture(GlobalDistanceFieldInfo.MipTexture, TEXT("GlobalSDFMips"));
+			}
+
+			FRDGTextureRef TempMipTexture = nullptr;
+			{
+				const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution();
+				FPooledRenderTargetDesc TempMipDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
+					ClipmapMipResolution,
+					ClipmapMipResolution,
+					ClipmapMipResolution,
+					PF_R8,
+					FClearValueBinding::Black,
+					TexCreate_None,
+					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling,
+					false));
+
+				TempMipTexture = GraphBuilder.CreateTexture(TempMipDesc, TEXT("TempMip"));
 			}
 
 			FRDGTextureRef PageTableLayerTextures[GDF_Num] = {};
@@ -2011,7 +2161,7 @@ void UpdateGlobalDistanceFieldVolume(
 							}
 						}
 
-						// Compose the mesh SDFs field into allocated pages
+						// Compose the mesh SDFs into allocated pages
 						{
 							const FVector PageVoxelExtent = 0.5f * ClipmapSize / FVector(ClipmapResolution);
 							const FVector PageCoordToVoxelCenterScale = ClipmapSize / FVector(ClipmapResolution);
@@ -2126,11 +2276,62 @@ void UpdateGlobalDistanceFieldVolume(
 								}
 							}
 						}
+
+						if (MipTexture && CacheType == GDF_Full)
+						{
+							RDG_EVENT_SCOPE(GraphBuilder, "Coarse Clipmap");
+
+							const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution();
+
+							// Propagate distance field
+							const int32 NumPropagationSteps = 5;
+							for (int32 StepIndex = 0; StepIndex < NumPropagationSteps; ++StepIndex)
+							{
+								FRDGTextureRef PrevTexture = TempMipTexture;
+								FRDGTextureRef NextTexture = MipTexture;
+								uint32 PrevClipmapOffsetZ = 0;
+								uint32 NextClipmapOffsetZ = ClipmapIndex * ClipmapMipResolution;
+
+								if (StepIndex % 2 == 0)
+								{
+									Swap(PrevTexture, NextTexture);
+									Swap(PrevClipmapOffsetZ, NextClipmapOffsetZ);
+								}
+
+								FPropagateMipDistanceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPropagateMipDistanceCS::FParameters>();
+								PassParameters->View = View.ViewUniformBuffer;
+								PassParameters->RWMipTexture = GraphBuilder.CreateUAV(NextTexture);
+								PassParameters->PageTableCombinedTexture = PageTableCombinedTexture;
+								PassParameters->PageAtlasTexture = PageAtlasTexture;
+								PassParameters->GlobalDistanceFieldInvPageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetPageAtlasSize());
+								PassParameters->GlobalDistanceFieldClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution().X;
+								PassParameters->PrevMipTexture = PrevTexture;
+								PassParameters->ClipmapMipResolution = ClipmapMipResolution;
+								PassParameters->ClipmapIndex = ClipmapIndex;
+								PassParameters->PrevClipmapOffsetZ = PrevClipmapOffsetZ;
+								PassParameters->ClipmapOffsetZ = NextClipmapOffsetZ;
+								PassParameters->ClipmapUVScrollOffset = Clipmap.ScrollOffset / ClipmapSize;
+								PassParameters->CoarseDistanceFieldValueScale = 1.0f / GlobalDistanceField::GetMipFactor();
+								PassParameters->CoarseDistanceFieldValueBias = 0.5f - 0.5f / GlobalDistanceField::GetMipFactor();
+
+								FPropagateMipDistanceCS::FPermutationDomain PermutationVector;
+								PermutationVector.Set<FPropagateMipDistanceCS::FReadPages>(StepIndex == 0);
+								auto ComputeShader = View.ShaderMap->GetShader<FPropagateMipDistanceCS>(PermutationVector);
+
+								FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(FIntVector(ClipmapMipResolution), FPropagateMipDistanceCS::GetGroupSize());
+
+								FComputeShaderUtils::AddPass(
+									GraphBuilder,
+									RDG_EVENT_NAME("Propagate step %d", StepIndex),
+									ComputeShader,
+									PassParameters,
+									GroupSize);
+							}
+						}
 					}
 				}
 			}
 
-			// Extract PageTableLayerTextures
 			for (int32 CacheType = StartCacheType; CacheType < GDF_Num; CacheType++)
 			{
 				if (PageTableLayerTextures[CacheType])
@@ -2157,6 +2358,11 @@ void UpdateGlobalDistanceFieldVolume(
 			if (PageTableCombinedTexture)
 			{
 				GraphBuilder.QueueTextureExtraction(PageTableCombinedTexture, &GlobalDistanceFieldInfo.PageTableCombinedTexture);
+			}
+
+			if (MipTexture)
+			{
+				GraphBuilder.QueueTextureExtraction(MipTexture, &GlobalDistanceFieldInfo.MipTexture);
 			}
 		}
 

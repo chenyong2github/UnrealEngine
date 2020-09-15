@@ -75,7 +75,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 
 	// Bias
 	float RayStartDistance = max(TraceInput.MinTraceDistance, GlobalVolumeCenterAndExtent[MinClipmapIndex].w * GlobalVolumeTexelSize);
-	float MinRayTime = RayStartDistance / TraceInput.MaxTraceDistance;
+	float MinRayTime = RayStartDistance;
 
 	LOOP
 	for (uint ClipmapIndex = MinClipmapIndex; ClipmapIndex < NumGlobalSDFClipmaps && TraceResult.HitTime < 0.0f; ++ClipmapIndex)
@@ -88,6 +88,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 		float GlobalVolumeExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w - ClipmapVoxelExtent;
 		float3 WorldRayEnd = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * TraceInput.MaxTraceDistance;
 		float2 IntersectionTimes = LineBoxIntersect(TraceInput.WorldRayStart, WorldRayEnd, GlobalVolumeCenter - GlobalVolumeExtent.xxx, GlobalVolumeCenter + GlobalVolumeExtent.xxx);
+		IntersectionTimes.xy *= TraceInput.MaxTraceDistance;
 		IntersectionTimes.x = max(IntersectionTimes.x, MinRayTime);
 
 		// Update the trace start for the next clipmap
@@ -95,7 +96,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 
 		if (IntersectionTimes.x < IntersectionTimes.y)
 		{
-			float SampleRayTime = IntersectionTimes.x * TraceInput.MaxTraceDistance;
+			float SampleRayTime = IntersectionTimes.x;
 			const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 
 			uint StepIndex = 0;
@@ -106,13 +107,15 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 			{
 				float3 SampleWorldPosition = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * SampleRayTime;
 
-				float DistanceField = ClipmapInfluenceRange;
+				float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, ClipmapIndex);
+				float3 MipUV = ComputeGlobalMipUV(SampleWorldPosition, ClipmapIndex);
 
-				float3 ClipmapVolumeUV = frac(ComputeGlobalUV(SampleWorldPosition, ClipmapIndex));
+				float DistanceFieldMipValue = Texture3DSampleLevel(GlobalDistanceFieldMipTexture, GlobalTrilinearWrappedSampler, MipUV, 0).x;
+				float DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldMipValue, GlobalDistanceFieldMipFactor * ClipmapInfluenceRange);
 				uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
-
-				if (PageIndex < 0xFFFF)
+				if (PageIndex < 0xFFFF && DistanceFieldMipValue < GlobalDistanceFieldMipTransition)
 				{
+
 					float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex);
 					float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
 					DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldValue, ClipmapInfluenceRange);
@@ -135,7 +138,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 				SampleRayTime += StepDistance;
 
 				// Terminate the trace if we went past the end of the ray or achieved enough occlusion
-				if (SampleRayTime > IntersectionTimes.y * TraceInput.MaxTraceDistance || TraceResult.HitTime >= 0.0f)
+				if (SampleRayTime > IntersectionTimes.y || TraceResult.HitTime >= 0.0f)
 				{
 					break;
 				}

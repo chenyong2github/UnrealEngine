@@ -27,9 +27,14 @@ public:
 
 	FVector4 CenterAndExtent[GMaxGlobalDistanceFieldClipmaps];
 	FVector4 WorldToUVAddAndMul[GMaxGlobalDistanceFieldClipmaps];
+	FVector MipWorldToUVScale[GMaxGlobalDistanceFieldClipmaps];
+	FVector MipWorldToUVBias[GMaxGlobalDistanceFieldClipmaps];
+	float MipFactor;
+	float MipTransition;
 	FVector PageTableScrollOffset[GMaxGlobalDistanceFieldClipmaps];
 	FRHITexture* PageAtlasTexture;
 	FRHITexture* PageTableTexture;
+	FRHITexture* MipTexture;
 	int32 ClipmapSizeInPages;
 	FVector InvPageAtlasSize;
 	int32 MaxPageNum;
@@ -46,9 +51,13 @@ public:
 	{
 		GlobalDistanceFieldPageAtlasTexture.Bind(ParameterMap, TEXT("GlobalDistanceFieldPageAtlasTexture"));
 		GlobalDistanceFieldPageTableTexture.Bind(ParameterMap, TEXT("GlobalDistanceFieldPageTableTexture"));
-		GlobalVolumeCenterAndExtent.Bind(ParameterMap,TEXT("GlobalVolumeCenterAndExtent"));
-		GlobalVolumeWorldToUVAddAndMul.Bind(ParameterMap,TEXT("GlobalVolumeWorldToUVAddAndMul"));
-		GlobalDistanceFieldPageTableScrollOffset.Bind(ParameterMap, TEXT("GlobalDistanceFieldPageTableScrollOffset"));
+		GlobalDistanceFieldMipTexture.Bind(ParameterMap, TEXT("GlobalDistanceFieldMipTexture"));
+		GlobalDistanceFieldMipFactor.Bind(ParameterMap, TEXT("GlobalDistanceFieldMipFactor"));
+		GlobalDistanceFieldMipTransition.Bind(ParameterMap, TEXT("GlobalDistanceFieldMipTransition"));
+		GlobalVolumeCenterAndExtent.Bind(ParameterMap, TEXT("GlobalVolumeCenterAndExtent"));
+		GlobalVolumeWorldToUVAddAndMul.Bind(ParameterMap, TEXT("GlobalVolumeWorldToUVAddAndMul"));
+		GlobalDistanceFieldMipWorldToUVScale.Bind(ParameterMap, TEXT("GlobalDistanceFieldMipWorldToUVScale"));
+		GlobalDistanceFieldMipWorldToUVBias.Bind(ParameterMap, TEXT("GlobalDistanceFieldMipWorldToUVBias"));
 		GlobalDistanceFieldClipmapSizeInPages.Bind(ParameterMap, TEXT("GlobalDistanceFieldClipmapSizeInPages"));
 		GlobalDistanceFieldInvPageAtlasSize.Bind(ParameterMap, TEXT("GlobalDistanceFieldInvPageAtlasSize"));
 		GlobalVolumeDimension.Bind(ParameterMap,TEXT("GlobalVolumeDimension"));
@@ -66,9 +75,13 @@ public:
 	{
 		Ar << Parameters.GlobalDistanceFieldPageAtlasTexture;
 		Ar << Parameters.GlobalDistanceFieldPageTableTexture;
+		Ar << Parameters.GlobalDistanceFieldMipTexture;
+		Ar << Parameters.GlobalDistanceFieldMipFactor;
+		Ar << Parameters.GlobalDistanceFieldMipTransition;
 		Ar << Parameters.GlobalVolumeCenterAndExtent;
 		Ar << Parameters.GlobalVolumeWorldToUVAddAndMul;
-		Ar << Parameters.GlobalDistanceFieldPageTableScrollOffset;
+		Ar << Parameters.GlobalDistanceFieldMipWorldToUVScale;
+		Ar << Parameters.GlobalDistanceFieldMipWorldToUVBias;
 		Ar << Parameters.GlobalDistanceFieldClipmapSizeInPages;
 		Ar << Parameters.GlobalDistanceFieldInvPageAtlasSize;
 		Ar << Parameters.GlobalVolumeDimension;
@@ -85,10 +98,14 @@ public:
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldPageAtlasTexture, ParameterData.PageAtlasTexture ? ParameterData.PageAtlasTexture : GBlackVolumeTexture->TextureRHI.GetReference());
 			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldPageTableTexture, ParameterData.PageTableTexture ? ParameterData.PageTableTexture : GBlackVolumeTexture->TextureRHI.GetReference());
+			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldMipTexture, ParameterData.MipTexture ? ParameterData.MipTexture : GBlackVolumeTexture->TextureRHI.GetReference());
 
 			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeCenterAndExtent, ParameterData.CenterAndExtent, GMaxGlobalDistanceFieldClipmaps);
 			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeWorldToUVAddAndMul, ParameterData.WorldToUVAddAndMul, GMaxGlobalDistanceFieldClipmaps);
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldPageTableScrollOffset, ParameterData.PageTableScrollOffset, GMaxGlobalDistanceFieldClipmaps);
+			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldMipWorldToUVScale, ParameterData.MipWorldToUVScale, GMaxGlobalDistanceFieldClipmaps);
+			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldMipWorldToUVBias, ParameterData.MipWorldToUVBias, GMaxGlobalDistanceFieldClipmaps);
+			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldMipFactor, ParameterData.MipFactor);
+			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldMipTransition, ParameterData.MipTransition);
 			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldClipmapSizeInPages, ParameterData.ClipmapSizeInPages);
 			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldInvPageAtlasSize, ParameterData.InvPageAtlasSize);
 			SetShaderValue(RHICmdList, ShaderRHI, GlobalVolumeDimension, ParameterData.GlobalDFResolution);
@@ -102,9 +119,13 @@ private:
 
 	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldPageAtlasTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldPageTableTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, GlobalDistanceFieldMipTexture)
+	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipFactor)
+	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipTransition)
 	LAYOUT_FIELD(FShaderParameter, GlobalVolumeCenterAndExtent)
 	LAYOUT_FIELD(FShaderParameter, GlobalVolumeWorldToUVAddAndMul)
-	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldPageTableScrollOffset)
+	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipWorldToUVScale)
+	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldMipWorldToUVBias)
 	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldClipmapSizeInPages)	
 	LAYOUT_FIELD(FShaderParameter, GlobalDistanceFieldInvPageAtlasSize)
 	LAYOUT_FIELD(FShaderParameter, GlobalVolumeDimension)

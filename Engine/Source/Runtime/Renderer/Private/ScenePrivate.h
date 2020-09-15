@@ -1060,7 +1060,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageAtlasTexture;
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableCombinedTexture;
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableLayerTextures[GDF_Num];
-
+	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldMipTexture;
+	
 	FRadianceCacheState RadianceCacheState;
 
 	FVertexBufferRHIRef IndirectShadowCapsuleShapesVertexBuffer;

@@ -737,6 +737,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	GlobalDistanceFieldPageAtlasTexture = BlackVolume;
 	GlobalDistanceFieldPageTableTexture = BlackVolume;
+	GlobalDistanceFieldMipTexture = BlackVolume;
 
 	SharedPointWrappedSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	SharedPointClampedSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

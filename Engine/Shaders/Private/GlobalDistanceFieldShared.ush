@@ -26,21 +26,30 @@ float MaxGlobalDFAOConeDistance;
     // for materials, these are in the view UB
 	#define GlobalDistanceFieldPageAtlasTexture			View.GlobalDistanceFieldPageAtlasTexture
 	#define GlobalDistanceFieldPageTableTexture			View.GlobalDistanceFieldPageTableTexture
+	#define GlobalDistanceFieldMipTexture				View.GlobalDistanceFieldMipTexture
 	#define GlobalVolumeCenterAndExtent					View.GlobalVolumeCenterAndExtent
 	#define GlobalVolumeWorldToUVAddAndMul				View.GlobalVolumeWorldToUVAddAndMul
-	#define GlobalDistanceFieldPageTableScrollOffset	View.GlobalDistanceFieldPageTableScrollOffset
+	#define GlobalDistanceFieldMipWorldToUVScale		View.GlobalDistanceFieldMipWorldToUVScale
+	#define GlobalDistanceFieldMipWorldToUVBias			View.GlobalDistanceFieldMipWorldToUVBias
+	#define GlobalDistanceFieldMipFactor				View.GlobalDistanceFieldMipFactor
+	#define GlobalDistanceFieldMipTransition			View.GlobalDistanceFieldMipTransition
 	#define GlobalDistanceFieldInvPageAtlasSize			View.GlobalDistanceFieldInvPageAtlasSize
 	#define GlobalDistanceFieldClipmapSizeInPages		View.GlobalDistanceFieldClipmapSizeInPages
 	#define GlobalVolumeDimension						View.GlobalVolumeDimension
 	#define GlobalVolumeTexelSize						View.GlobalVolumeTexelSize
 	#define NumGlobalSDFClipmaps						View.NumGlobalSDFClipmaps
+
 #else
 	// these are only used for the precomputation shaders; which don't have a view UB
 	Texture3D GlobalDistanceFieldPageAtlasTexture;
 	Texture3D<uint> GlobalDistanceFieldPageTableTexture;
+	Texture3D GlobalDistanceFieldMipTexture;
 	float4 GlobalVolumeCenterAndExtent[MAX_GLOBAL_DF_CLIPMAPS];
 	float4 GlobalVolumeWorldToUVAddAndMul[MAX_GLOBAL_DF_CLIPMAPS];
-	float3 GlobalDistanceFieldPageTableScrollOffset[MAX_GLOBAL_DF_CLIPMAPS];
+	float3 GlobalDistanceFieldMipWorldToUVScale[MAX_GLOBAL_DF_CLIPMAPS];
+	float3 GlobalDistanceFieldMipWorldToUVBias[MAX_GLOBAL_DF_CLIPMAPS];
+	float GlobalDistanceFieldMipFactor;
+	float GlobalDistanceFieldMipTransition;
 	float3 GlobalDistanceFieldInvPageAtlasSize;
 	uint GlobalDistanceFieldClipmapSizeInPages;
 	float GlobalVolumeDimension;
@@ -105,6 +114,11 @@ float3 ComputeGlobalUV(float3 WorldPosition, uint ClipmapIndex)
 	//return ((WorldPosition - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f);
 	float4 WorldToUVAddAndMul = GlobalVolumeWorldToUVAddAndMul[ClipmapIndex];
 	return frac(WorldPosition * WorldToUVAddAndMul.www + WorldToUVAddAndMul.xyz);
+}
+
+float3 ComputeGlobalMipUV(float3 WorldPosition, uint ClipmapIndex)
+{
+	return saturate(WorldPosition * GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex] + GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex]);
 }
 
 float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
