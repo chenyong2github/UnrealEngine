@@ -281,6 +281,10 @@ namespace Chaos
 			bPaused_External = bShouldPause;
 		}
 
+		/** Used to update external thread data structures. RigidFunc allows per dirty rigid code to execute. Include PhysicsSolverBaseImpl.h to call this function*/
+		template <typename RigidLambda>
+		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc);
+
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;

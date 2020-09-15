@@ -45,7 +45,7 @@ namespace GeometryCollectionTest
 		TGeometryCollectionWrapper(
 			TSharedPtr<FGeometryCollection> RestCollectionIn,
 			TSharedPtr<FGeometryDynamicCollection> DynamicCollectionIn,
-			TGeometryCollectionPhysicsProxy<Traits>* PhysObjectIn)
+			FGeometryCollectionPhysicsProxy* PhysObjectIn)
 			: WrapperBase(WrapperType::GeometryCollection)
 			, RestCollection(RestCollectionIn)
 			, DynamicCollection(DynamicCollectionIn)
@@ -53,7 +53,7 @@ namespace GeometryCollectionTest
 		static WrapperType StaticType() { return WrapperType::GeometryCollection; }
 		TSharedPtr<FGeometryCollection> RestCollection;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection;
-		TGeometryCollectionPhysicsProxy<Traits>* PhysObject;
+		FGeometryCollectionPhysicsProxy* PhysObject;
 	};
 
 	struct RigidBodyWrapper : public WrapperBase

@@ -135,8 +135,8 @@ namespace Chaos
 		void RegisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 
-		void RegisterObject(TGeometryCollectionPhysicsProxy<Traits>* InProxy);
-		bool UnregisterObject(TGeometryCollectionPhysicsProxy<Traits>* InProxy);
+		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		bool UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
 
 		void RegisterObject(Chaos::FJointConstraint* GTConstraint);
 		bool UnregisterObject(Chaos::FJointConstraint* GTConstraint);
@@ -182,7 +182,7 @@ namespace Chaos
 			{
 				InCallable(Obj);
 			}
-			for (TGeometryCollectionPhysicsProxy<Traits>* Obj : GeometryCollectionPhysicsProxies)
+			for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies)
 			{
 				InCallable(Obj);
 			}
@@ -222,7 +222,7 @@ namespace Chaos
 			});
 			Chaos::PhysicsParallelFor(GeometryCollectionPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
 			{
-				TGeometryCollectionPhysicsProxy<Traits>* Obj = GeometryCollectionPhysicsProxies[Index];
+				FGeometryCollectionPhysicsProxy* Obj = GeometryCollectionPhysicsProxies[Index];
 				InCallable(Obj);
 			});
 			Chaos::PhysicsParallelFor(JointConstraintPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
@@ -254,12 +254,6 @@ namespace Chaos
 
 		/**/
 		void Reset();
-
-		/**/
-		void BufferPhysicsResults();
-
-		/**/
-		void FlipBuffers();
 
 		/**/
 		void StartingSceneSimulation();
@@ -356,7 +350,7 @@ namespace Chaos
 		// Visual debugger (VDB) push methods
 		void PostEvolutionVDBPush() const;
 
-		TArray<TGeometryCollectionPhysicsProxy<Traits>*>& GetGeometryCollectionPhysicsProxies()
+		TArray<FGeometryCollectionPhysicsProxy*>& GetGeometryCollectionPhysicsProxies()
 		{
 			return GeometryCollectionPhysicsProxies;
 		}
@@ -396,43 +390,9 @@ namespace Chaos
 
 	private:
 
-		template<typename ParticleType>
-		void FlipBuffer(Chaos::TGeometryParticleHandle<float, 3>* Handle)
-		{
-			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(Handle))
-			{
-				for (IPhysicsProxyBase* Proxy : *Proxies)
-				{
-					((ParticleType*)(Proxy))->FlipBuffer();
-				}
-			}
-		}
-
-		/*
-		template<typename ParticleType>
-		void PullFromPhysicsState(Chaos::TGeometryParticleHandle<float, 3>* Handle)
-		{
-			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(Handle))
-			{
-				for (IPhysicsProxyBase* Proxy : *Proxies)
-				{
-					((ParticleType*)(Proxy))->PullFromPhysicsState();
-				}
-			}
-		}*/
-
-		template<typename ParticleType>
-		void BufferPhysicsResults(Chaos::TGeometryParticleHandle<float, 3>* Handle)
-		{
-			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(Handle))
-			{
-				for (IPhysicsProxyBase* Proxy : *Proxies)
-				{
-					((ParticleType*)(Proxy))->BufferPhysicsResults();
-				}
-			}
-		}
-
+		/**/
+		void BufferPhysicsResults();
+	
 		/**/
 		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
 		virtual void PushPhysicsState(const FReal DeltaTime) override;
@@ -468,7 +428,7 @@ namespace Chaos
 		TArray< FRigidParticlePhysicsProxy* > RigidParticlePhysicsProxies;
 		TArray< FSkeletalMeshPhysicsProxy* > SkeletalMeshPhysicsProxies; // dep
 		TArray< FStaticMeshPhysicsProxy* > StaticMeshPhysicsProxies; // dep
-		TArray< TGeometryCollectionPhysicsProxy<Traits>* > GeometryCollectionPhysicsProxies;
+		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies;
 		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies;
 		TArray< FSuspensionConstraintPhysicsProxy* > SuspensionConstraintPhysicsProxies;
 		bool bUseCollisionResimCache;
