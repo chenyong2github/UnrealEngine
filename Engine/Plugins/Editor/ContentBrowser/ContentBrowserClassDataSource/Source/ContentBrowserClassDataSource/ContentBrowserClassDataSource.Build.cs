@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public ContentBrowserClassDataSource(ReadOnlyTargetRules Target) : base(Target)
 		{
+			ShortName = "CBClassDataSource";
+
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

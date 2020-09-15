@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public ContentBrowserAssetDataSource(ReadOnlyTargetRules Target) : base(Target)
 		{
+			ShortName = "CBAssetDataSource";
+
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
