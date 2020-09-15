@@ -1363,6 +1363,13 @@ FString FIOSPlatformMisc::GetProjectVersion()
 	return localVersionString;
 }
 
+FString FIOSPlatformMisc::GetBuildNumber()
+{
+	NSDictionary* infoDictionary = [[NSBundle mainBundle]infoDictionary];
+	FString BuildString = FString(infoDictionary[@"CFBundleVersion"]);
+	return BuildString;
+}
+
 bool FIOSPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc)
 {
 	DCDevice* DeviceCheckDevice = [DCDevice currentDevice];
