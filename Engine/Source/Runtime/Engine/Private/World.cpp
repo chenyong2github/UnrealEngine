@@ -1488,10 +1488,18 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 	Levels.Empty(1);
 	Levels.Add( PersistentLevel );
-	if (FLevelCollection* Collection = PersistentLevel->GetCachedLevelCollection())
+	
+	// If we are not Seamless Traveling remove PersistentLevel from LevelCollection if it is in a collection
+	// The Level Collections will be filled already during Seamless Travel in 
+	// UWorld::AsyncLoadAlwaysLoadedLevelsForSeamlessTravel()
+	if (GEngine->GetWorldContextFromWorld(this) && !IsInSeamlessTravel())  
 	{
-		Collection->RemoveLevel(PersistentLevel);
+		if (FLevelCollection* Collection = PersistentLevel->GetCachedLevelCollection())
+		{
+			Collection->RemoveLevel(PersistentLevel);
+		}
 	}
+	
 	PersistentLevel->OwningWorld = this;
 	PersistentLevel->bIsVisible = true;
 
