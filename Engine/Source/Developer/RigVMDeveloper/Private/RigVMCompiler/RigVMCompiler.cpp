@@ -746,6 +746,31 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 		}
 
 		WorkData.VM->GetByteCode().AddCopyOp(Source, Target);
+		int32 InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+
+		if (Settings.SetupNodeInstructionIndex)
+		{
+			if (Source.GetMemoryType() == ERigVMMemoryType::External)
+			{
+				if (URigVMPin* SourcePin = InExpr->GetSourcePin())
+				{
+					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(SourcePin->GetNode()))
+					{
+						VariableNode->InstructionIndex = InstructionIndex;
+					}
+				}
+			}
+			if (Target.GetMemoryType() == ERigVMMemoryType::External)
+			{
+				if (URigVMPin* TargetPin = InExpr->GetTargetPin())
+				{
+					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(TargetPin->GetNode()))
+					{
+						VariableNode->InstructionIndex = InstructionIndex;
+					}
+				}
+			}
+		}
 	}
 }
 
