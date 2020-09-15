@@ -38,7 +38,7 @@ DECLARE_MULTICAST_DELEGATE(FOnSelectedLODChangedMulticaster);
 typedef FOnSelectedLODChangedMulticaster::FDelegate FOnSelectedLODChanged;
 
 //The selected bone changed
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectedBoneChangedMulticaster, const FName& /*InBoneName*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSelectedBoneChangedMulticaster, const FName& /*InBoneName*/, ESelectInfo::Type /*InSelectInfo*/);
 typedef FOnSelectedBoneChangedMulticaster::FDelegate FOnSelectedBoneChanged;
 
 //The selected socket changed
@@ -121,7 +121,11 @@ public:
 	virtual void RemoveAttachedObjectFromPreviewComponent(UObject* Object, FName AttachedTo) = 0;
 
 	/** Sets the selected bone on the preview component */
-	virtual void SetSelectedBone(const FName& BoneName) = 0;
+	UE_DEPRECATED(4.26, "Please call/implement SetSelectedBone with ESelectInfo")
+	virtual void SetSelectedBone(const FName& BoneName) final { SetSelectedBone(BoneName, ESelectInfo::Direct); }
+
+	/** Sets the selected bone on the preview component */
+	virtual void SetSelectedBone(const FName& BoneName, ESelectInfo::Type InSelectInfo) = 0;
 
 	/** Clears the selected bone on the preview component */
 	virtual void ClearSelectedBone() = 0;
