@@ -15,8 +15,8 @@
 #include "SceneOutlinerFwd.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Toolkits/IToolkitHost.h"
+#include "UObject/GCObject.h"
 #include "UObject/SoftObjectPath.h"
-#include "UObject/StrongObjectPtr.h"
 
 class UDataprepParameterizableObject;
 
@@ -33,6 +33,17 @@ class SInspectorView;
 class SWidget;
 class UDataprepGraph;
 class UEdGraphNode;
+
+namespace UE
+{
+	namespace Dataprep
+	{
+		namespace Private
+		{
+			class FScopeDataprepEditorSelectionCache;
+		}
+	}
+}
 
 namespace AssetPreviewWidget
 {
@@ -52,7 +63,7 @@ struct FDataprepSnapshot
 
 typedef TTuple< UClass*, FText, FText > DataprepEditorClassDescription;
 
-class FDataprepEditor : public FAssetEditorToolkit, public FEditorUndoClient, public FNotifyHook
+class FDataprepEditor : public FAssetEditorToolkit, public FEditorUndoClient, public FNotifyHook, public FGCObject
 {
 public:
 	FDataprepEditor();
@@ -110,7 +121,7 @@ public:
 	};
 
 	/** Set the selection of the world items */
-	void SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& NewSelection, EWorldSelectionFrom SelectionFrom = EWorldSelectionFrom::Unknow);
+	void SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& NewSelection, EWorldSelectionFrom SelectionFrom = EWorldSelectionFrom::Unknow, bool bSetAsDetailsObject = true);
 
 	/** Setup the preview system to observe those steps */
 	void SetPreviewedObjects(const TArrayView<UDataprepParameterizableObject*>& ObservedObjects);
@@ -126,6 +137,11 @@ public:
 
 	/** Select all actors and assets that have status Pass from the preview system */
 	void SyncSelectionToPreviewSystem();
+
+	/** FGCObject interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
+	virtual bool GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const override;
 
 private:
 	void BindCommands();
@@ -228,6 +244,9 @@ private:
 
 	void CreateGraphEditor();
 
+	// A scoped object responsible of trying to conserve the selection across imports
+	friend UE::Dataprep::Private::FScopeDataprepEditorSelectionCache;
+
 private:
 	bool bWorldBuilt;
 	bool bIsFirstRun;
@@ -268,12 +287,17 @@ private:
 	/**
 	 * The world used to preview the inputs
 	 */
-	TStrongObjectPtr<UWorld> PreviewWorld;
+	UWorld* PreviewWorld;
+
+	/**
+	 * The package that contains the assets of a dataprep import
+	 */
+	UPackage* AssetsTransientPackage;
 
 	/**
 	 * The graph used to manipulate actions and steps
 	 */
-	TStrongObjectPtr<UDataprepGraph> DataprepGraph;
+	UDataprepGraph* DataprepGraph;
 
 	TSet<class AActor*> DefaultActorsInPreviewWorld;
 

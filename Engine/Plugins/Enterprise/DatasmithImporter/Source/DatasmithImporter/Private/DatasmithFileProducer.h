@@ -14,7 +14,6 @@
 
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
-#include "UObject/StrongObjectPtr.h"
 
 #include "DatasmithFileProducer.generated.h"
 
@@ -52,8 +51,6 @@ public:
 	virtual bool Supersede(const UDataprepContentProducer* OtherProducer) const override;
 	virtual bool CanAddToProducersArray(bool bIsAutomated) override;
 
-	UPackage* TransientPackage = nullptr;
-
 protected:
 	virtual bool Initialize() override;
 	virtual bool Execute(TArray< TWeakObjectPtr< UObject > >& OutAssets) override;
@@ -83,7 +80,11 @@ private:
 	TUniquePtr< FDatasmithTranslatableSceneSource > TranslatableSourcePtr;
 	TUniquePtr< FDataprepWorkReporter > ProgressTaskPtr;
 
-	TStrongObjectPtr< UDatasmithScene > DatasmithScenePtr;
+	UPROPERTY( Transient, DuplicateTransient )
+	UDatasmithScene* DatasmithScene;
+
+	UPROPERTY( Transient, DuplicateTransient )
+	UPackage* TransientPackage;
 
 	TArray< TWeakObjectPtr< UObject > > Assets;
 
@@ -213,7 +214,8 @@ private:
 	/** Set of files matching folder and extensions */
 	TSet< FString > FilesToProcess;
 
-	TStrongObjectPtr< UDatasmithFileProducer > FileProducer;
+	UPROPERTY( Transient, DuplicateTransient )
+	UDatasmithFileProducer* FileProducer;
 
 	static TSet< FString > SupportedFormats;
 
