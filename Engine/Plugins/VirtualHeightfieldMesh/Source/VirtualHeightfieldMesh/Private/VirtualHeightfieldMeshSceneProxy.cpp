@@ -350,8 +350,9 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 {
 	GVirtualHeightfieldMeshViewRendererExtension.RegisterExtension();
 
-	const bool bValidMaterial = InComponent->GetMaterial(0) != nullptr && InComponent->GetMaterial(0)->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
-	Material = bValidMaterial ? InComponent->GetMaterial(0)->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+	UMaterialInterface* ComponentMaterial = InComponent->GetMaterial();
+	const bool bValidMaterial = ComponentMaterial != nullptr && ComponentMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
+	Material = bValidMaterial ? ComponentMaterial->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 
 	const FTransform VirtualTextureTransform = InComponent->GetVirtualTextureTransform();
 

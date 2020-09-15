@@ -24,8 +24,6 @@ void UVirtualHeightfieldMeshComponent::OnRegister()
 {
 	VirtualTextureRef = VirtualTexture.Get();
 
-#if WITH_EDITOR
-
 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
 	if (RuntimeVirtualTextureComponent)
 	{
@@ -34,23 +32,17 @@ void UVirtualHeightfieldMeshComponent::OnRegister()
 		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
 	}
 
-#endif
-
 	Super::OnRegister();
 }
 
 void UVirtualHeightfieldMeshComponent::OnUnregister()
 {
-#if WITH_EDITOR
-
 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
 	if (RuntimeVirtualTextureComponent)
 	{
 		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().RemoveAll(this);
 		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
 	}
-
-#endif
 
 	VirtualTextureRef = nullptr;
 
