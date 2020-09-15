@@ -158,16 +158,15 @@ public class Core : ModuleRules
 			}
 		}
 
-
 		// On Windows platform, VSPerfExternalProfiler.cpp needs access to "VSPerf.h".  This header is included with Visual Studio, but it's not in a standard include path.
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
-			var VisualStudioVersionNumber = "11.0";
-			var SubFolderName = (Target.Platform == UnrealTargetPlatform.Win32) ? "PerfSDK" : "x64/PerfSDK";
+			string VisualStudioInstallation = Target.WindowsPlatform.IDEDir;
+			string SubFolderName = (Target.Platform == UnrealTargetPlatform.Win32) ? "PerfSDK/" : "x64/PerfSDK/";
+			string PerfIncludeDirectory = Path.Combine(VisualStudioInstallation, String.Format("Team Tools/Performance Tools/{0}", SubFolderName));
 
-			string PerfIncludeDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), String.Format("Microsoft Visual Studio {0}/Team Tools/Performance Tools/{1}", VisualStudioVersionNumber, SubFolderName));
-
-			if (File.Exists(Path.Combine(PerfIncludeDirectory, "VSPerf.h")))
+			if (File.Exists(Path.Combine(PerfIncludeDirectory, "VSPerf.h"))
+				&& Target.Configuration != UnrealTargetConfiguration.Shipping)
 			{
 				PrivateIncludePaths.Add(PerfIncludeDirectory);
 				PublicDefinitions.Add("WITH_VS_PERF_PROFILER=1");
@@ -181,6 +180,26 @@ public class Core : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			PublicDefinitions.Add("WITH_VS_PERF_PROFILER=0");
+		}
+
+		// Superluminal instrumentation support, if one has it installed
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		{
+			string SuperluminalRootDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Superluminal/Performance/API/");
+			string SubFolderName = (Target.Platform == UnrealTargetPlatform.Win32) ? "lib/x86/" : "lib/x64/";
+			string SuperluminalLibDir = Path.Combine(SuperluminalRootDir, SubFolderName);
+
+			if (Directory.Exists(SuperluminalRootDir)
+				&& Target.Configuration != UnrealTargetConfiguration.Shipping)
+			{
+				PublicSystemIncludePaths.Add(Path.Combine(SuperluminalRootDir, "include/"));
+				PublicAdditionalLibraries.Add(Path.Combine(SuperluminalLibDir, "PerformanceAPI_MD.lib"));
+				PublicDefinitions.Add("WITH_SUPERLUMINAL_PROFILER=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_SUPERLUMINAL_PROFILER=0");
+			}
 		}
 
 		if (Target.bWithDirectXMath && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))

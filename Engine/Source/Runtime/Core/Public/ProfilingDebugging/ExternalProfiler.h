@@ -60,7 +60,7 @@ public:
 	static FName GetFeatureName();
 
 	/** Starts a scoped event specific to the profiler. */
-	virtual void StartScopedEvent(const TCHAR* Text) {};
+	virtual void StartScopedEvent(const struct FColor& Color, const TCHAR* Text) {};
 
 	/** Ends a scoped event specific to the profiler. */
 	virtual void EndScopedEvent() {};

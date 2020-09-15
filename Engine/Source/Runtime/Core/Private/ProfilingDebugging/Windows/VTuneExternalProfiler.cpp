@@ -77,7 +77,7 @@ public:
 		VTResume();
 	}
 
-	void StartScopedEvent(const TCHAR* Text) 
+	void StartScopedEvent(const struct FColor& Color, const TCHAR* Text) override
 	{
 		uint32 Hash = GetTypeHash(Text);
 
@@ -93,7 +93,7 @@ public:
 		__itt_task_begin(Domain, __itt_null, __itt_null, Handle);
 	}
 
-	void EndScopedEvent()
+	void EndScopedEvent() override
 	{
 		//Deactivate last event
 		__itt_task_end(Domain);

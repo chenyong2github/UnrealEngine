@@ -355,6 +355,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Directory containing the IDE package (Professional, Community, etc...)
+		/// </summary>
+		public string IDEDir
+		{
+			get { return WindowsPlatform.FindVisualStudioInstallations(Environment.Compiler).Select(x => x.BaseDir.FullName).FirstOrDefault(); }
+		}
+
+		/// <summary>
 		/// When using a Visual Studio compiler, returns the version name as a string
 		/// </summary>
 		/// <returns>The Visual Studio compiler version name (e.g. "2015")</returns>
@@ -594,6 +602,11 @@ namespace UnrealBuildTool
 			get { return Inner.DiaSdkDir; }
 		}
 		
+		public string IDEDir
+		{
+			get { return Inner.IDEDir; }
+		}
+
 		public string GetArchitectureSubpath()
 		{
 			return WindowsExports.GetArchitectureSubpath(Architecture);
@@ -611,7 +624,7 @@ namespace UnrealBuildTool
 		/// Information about a particular Visual Studio installation
 		/// </summary>
 		[DebuggerDisplay("{BaseDir}")]
-		class VisualStudioInstallation
+		public class VisualStudioInstallation
 		{
 			/// <summary>
 			/// Base directory for the installation
@@ -995,7 +1008,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Compiler">Version of the toolchain to look for.</param>
 		/// <returns>List of directories containing Visual Studio installations</returns>
-		static List<VisualStudioInstallation> FindVisualStudioInstallations(WindowsCompiler Compiler)
+		public static List<VisualStudioInstallation> FindVisualStudioInstallations(WindowsCompiler Compiler)
 		{
 			List<VisualStudioInstallation> Installations;
 			if(!CachedVisualStudioInstallations.TryGetValue(Compiler, out Installations))

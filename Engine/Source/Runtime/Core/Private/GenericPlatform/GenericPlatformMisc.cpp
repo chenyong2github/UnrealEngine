@@ -480,7 +480,7 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 	FExternalProfiler* CurrentProfiler = FActiveExternalProfilerBase::GetActiveProfiler();
 	if (CurrentProfiler != NULL)
 	{
-		CurrentProfiler->StartScopedEvent(ANSI_TO_TCHAR(Text));
+		CurrentProfiler->StartScopedEvent(Color, ANSI_TO_TCHAR(Text));
 	}
 #endif
 #if CPUPROFILERTRACE_ENABLED
@@ -499,7 +499,7 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 
 	if (CurrentProfiler != NULL)
 	{
-		CurrentProfiler->StartScopedEvent(Text);
+		CurrentProfiler->StartScopedEvent(Color, Text);
 	}
 #endif
 #if CPUPROFILERTRACE_ENABLED
