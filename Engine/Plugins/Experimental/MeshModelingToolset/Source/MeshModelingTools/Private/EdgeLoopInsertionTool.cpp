@@ -302,7 +302,7 @@ FInputRayHit UEdgeLoopInsertionTool::HitTest(const FRay& WorldRay)
 		// TODO: We could check here that the edge has some quad-like neighbor. For now we
 		// just check that the edge isn't a loop unto itself (in which case the neighbor groups
 		// are definitely not quad-like).
-		int32 GroupEdgeID = Selection.SelectedEdgeIDs[0];
+		int32 GroupEdgeID = Selection.GetASelectedEdgeID();
 		const FGroupTopology::FGroupEdge& GroupEdge = CurrentTopology->Edges[GroupEdgeID];
 		if (GroupEdge.EndpointCorners.A != FDynamicMesh3::InvalidID)
 		{
@@ -331,7 +331,7 @@ bool UEdgeLoopInsertionTool::UpdateHoveredItem(const FRay& WorldRay)
 	}
 
 	// Check that the edge has endpoints
-	int32 GroupEdgeID = Selection.SelectedEdgeIDs[0];
+	int32 GroupEdgeID = Selection.GetASelectedEdgeID();
 	FGroupTopology::FGroupEdge GroupEdge = CurrentTopology->Edges[GroupEdgeID];
 	if (GroupEdge.EndpointCorners.A == FDynamicMesh3::InvalidID)
 	{

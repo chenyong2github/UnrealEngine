@@ -469,9 +469,8 @@ void UHoleFillTool::UpdateActiveBoundaryLoopSelection()
 	}
 
 	ActiveBoundaryLoopSelection.Reserve(NumEdges);
-	for (int32 k = 0; k < NumEdges; ++k)
+	for (int32 EdgeID : ActiveSelection.SelectedEdgeIDs)
 	{
-		int32 EdgeID = ActiveSelection.SelectedEdgeIDs[k];
 		if (Topology->IsBoundaryEdge(EdgeID))
 		{
 			FSelectedBoundaryLoop& Loop = ActiveBoundaryLoopSelection.Emplace_GetRef();
