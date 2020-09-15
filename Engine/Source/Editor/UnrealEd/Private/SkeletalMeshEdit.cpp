@@ -114,7 +114,7 @@ UAnimSequence * UEditorEngine::ImportFbxAnimation( USkeleton* Skeleton, UObject*
 	return NewAnimation;
 }
 
-bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions)
+bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions, UFbxImportUI* ReimportUI)
 {
 	check(Skeleton);
 	bool bResult = true;
@@ -124,7 +124,11 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 	
 	const bool bPrevImportMorph = (AnimSequence->RawCurveData.FloatCurves.Num() > 0) ;
 
-	UFbxImportUI* ReimportUI = NewObject<UFbxImportUI>();
+	if (!ReimportUI)
+	{
+		ReimportUI = NewObject<UFbxImportUI>();
+	}
+
 	ReimportUI->MeshTypeToImport = FBXIT_Animation;
 	ReimportUI->bOverrideFullName = false;
 	ReimportUI->bImportAnimations = true;
