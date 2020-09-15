@@ -136,6 +136,9 @@ void UEditMeshPolygonsTool::Setup()
 								  {
 									  LockedTransfomerFrame = LastTransformerFrame; UpdateMultiTransformerFrame();
 								  });
+	// We are going to SilentUpdate here because otherwise the Watches above will immediately fire (why??)
+	// and cause UpdateMultiTransformerFrame() to be called for each, emitting two spurious Transform changes. 
+	CommonProps->SilentUpdateWatched();
 
 	// set up SelectionMechanic
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
@@ -165,7 +168,7 @@ void UEditMeshPolygonsTool::Setup()
 	bInDrag = false;
 
 	MultiTransformer = NewObject<UMultiTransformer>(this);
-	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager());
+	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager(), GetToolManager());
 	MultiTransformer->OnTransformStarted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformBegin);
 	MultiTransformer->OnTransformUpdated.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformUpdate);
 	MultiTransformer->OnTransformCompleted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformEnd);
@@ -449,7 +452,7 @@ void UEditMeshPolygonsTool::UpdateMultiTransformerFrame(const FFrame3d* UseFrame
 	}
 
 	LastTransformerFrame = SetFrame;
-	MultiTransformer->SetGizmoPositionFromWorldFrame(SetFrame, true);
+	MultiTransformer->UpdateGizmoPositionFromWorldFrame(SetFrame, true);
 }
 
 

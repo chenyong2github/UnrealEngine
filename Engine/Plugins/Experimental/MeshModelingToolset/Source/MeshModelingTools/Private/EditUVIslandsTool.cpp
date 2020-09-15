@@ -95,7 +95,7 @@ void UEditUVIslandsTool::Setup()
 
 	// MultiTransformer abstracts the standard and "quick" Gizmo variants
 	MultiTransformer = NewObject<UMultiTransformer>(this);
-	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager());
+	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager(), GetToolManager());
 	MultiTransformer->OnTransformStarted.AddUObject(this, &UEditUVIslandsTool::OnMultiTransformerTransformBegin);
 	MultiTransformer->OnTransformUpdated.AddUObject(this, &UEditUVIslandsTool::OnMultiTransformerTransformUpdate);
 	MultiTransformer->OnTransformCompleted.AddUObject(this, &UEditUVIslandsTool::OnMultiTransformerTransformEnd);
@@ -233,7 +233,7 @@ void UEditUVIslandsTool::OnClicked(const FInputDeviceRay& ClickPos)
 		FFrame3d UseFrame = Topology.GetIslandFrame(
 			SelectionMechanic->GetActiveSelection().SelectedGroupIDs[0], GetSpatial());
 		UseFrame.Transform(WorldTransform);
-		MultiTransformer->SetGizmoPositionFromWorldFrame(UseFrame, true);
+		MultiTransformer->UpdateGizmoPositionFromWorldFrame(UseFrame, true);
 		//MultiTransformer->SetGizmoPositionFromWorldFrame(SelectionMechanic->GetSelectionFrame(true), true);
 
 	}
