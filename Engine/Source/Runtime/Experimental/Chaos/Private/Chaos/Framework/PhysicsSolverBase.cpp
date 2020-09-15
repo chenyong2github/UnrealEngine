@@ -102,9 +102,6 @@ namespace Chaos
 		Solver.AdvanceSolverBy(Dt);
 	}
 
-	CHAOS_API int32 UseAsyncResults = 0;
-	FAutoConsoleVariableRef CVarUseAsyncResults(TEXT("p.UseAsyncResults"),UseAsyncResults,TEXT("Whether to use async results"));
-
 	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)
 		: BufferMode(BufferingModeIn)
 		, ThreadingMode(InThreadingMode)

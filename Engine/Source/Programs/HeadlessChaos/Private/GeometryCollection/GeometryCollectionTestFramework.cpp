@@ -183,8 +183,8 @@ namespace GeometryCollectionTest
 		SimFilterData.Word1 = 0xFFFF; // this body channel
 		SimFilterData.Word3 = 0xFFFF; // collision candidate channels
 
-		FGeometryCollectionPhysicsProxy* PhysObject =
-			new FGeometryCollectionPhysicsProxy(
+		TGeometryCollectionPhysicsProxy<Traits>* PhysObject =
+			new TGeometryCollectionPhysicsProxy<Traits>(
 				nullptr,			// UObject owner
 				*DynamicCollection, // Game thread collection
 				SimulationParams,
@@ -319,6 +319,9 @@ namespace GeometryCollectionTest
 	{
 		Solver->SyncEvents_GameThread();
 		Solver->AdvanceAndDispatch_External(Dt);
+
+		Solver->BufferPhysicsResults();
+		Solver->FlipBuffers();
 		Solver->UpdateGameThreadStructures();
 	}
 	

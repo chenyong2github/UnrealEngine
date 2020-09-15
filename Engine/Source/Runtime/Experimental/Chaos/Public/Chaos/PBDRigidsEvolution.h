@@ -622,9 +622,9 @@ public:
 
 	/** Make a copy of the acceleration structure to allow for external modification.
 	    This is needed for supporting sync operations on SQ structure from game thread. You probably want to go through solver which maintains PendingExternal */
-	CHAOS_API void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>*& ExternalStructure, FPendingSpatialDataQueue& PendingExternal);
+	CHAOS_API void UpdateExternalAccelerationStructure_External(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& ExternalStructure, FPendingSpatialDataQueue& PendingExternal);
 
-	ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* GetSpatialAcceleration() { return InternalAcceleration; }
+	ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* GetSpatialAcceleration() { return InternalAcceleration.Get(); }
 
 	/** Perform a blocking flush of the spatial acceleration structure for situations where we aren't simulating but must have an up to date structure */
 	CHAOS_API void FlushSpatialAcceleration();
@@ -754,19 +754,11 @@ protected:
 
 	TPBDRigidsSOAs<FReal, 3>& Particles;
 	THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials;
-	FAccelerationStructure* InternalAcceleration;
-	FAccelerationStructure* AsyncInternalAcceleration;
-	FAccelerationStructure* AsyncExternalAcceleration;
-
-	//internal thread will push into this and external thread will consume
-	TQueue<FAccelerationStructure*,EQueueMode::Spsc> ExternalStructuresQueue;
-
-	//external thread will push into this when done with structure
-	//internal thread will pop from this to generate new structure
-	TQueue<FAccelerationStructure*,EQueueMode::Spsc> ExternalStructuresPool;
-
-	//the backing buffer for all acceleration structures
-	TArray<TUniquePtr<FAccelerationStructure>> AccelerationBackingBuffer;
+	TUniquePtr<FAccelerationStructure> InternalAcceleration;
+	TUniquePtr<FAccelerationStructure> AsyncInternalAcceleration;
+	TUniquePtr<FAccelerationStructure> AsyncExternalAcceleration;
+	TUniquePtr<FAccelerationStructure> ScratchExternalAcceleration;
+	bool bExternalReady;
 	bool bIsSingleThreaded;
 
 public:
@@ -808,8 +800,8 @@ protected:
 	public:
 		FChaosAccelerationStructureTask(ISpatialAccelerationCollectionFactory& InSpatialCollectionFactory
 			, const TMap<FSpatialAccelerationIdx, TUniquePtr<FSpatialAccelerationCache>>& InSpatialAccelerationCache
-			, FAccelerationStructure* InInternalAccelerationStructure
-			, FAccelerationStructure* InExternalAccelerationStructure
+			, TUniquePtr<FAccelerationStructure>& InInternalAccelerationStructure
+			, TUniquePtr<FAccelerationStructure>& InExternalAccelerationStructure
 			, bool InForceFullBuild
 			, bool InIsSingleThreaded);
 		static FORCEINLINE TStatId GetStatId();
@@ -819,8 +811,8 @@ protected:
 
 		ISpatialAccelerationCollectionFactory& SpatialCollectionFactory;
 		const TMap<FSpatialAccelerationIdx, TUniquePtr<FSpatialAccelerationCache>>& SpatialAccelerationCache;
-		FAccelerationStructure* InternalStructure;
-		FAccelerationStructure* ExternalStructure;
+		TUniquePtr<FAccelerationStructure>& InternalStructure;
+		TUniquePtr<FAccelerationStructure>& ExternalStructure;
 		bool IsForceFullBuild;
 		bool bIsSingleThreaded;
 
@@ -832,9 +824,6 @@ protected:
 	int32 NumIterations;
 	int32 NumPushOutIterations;
 	TUniquePtr<ISpatialAccelerationCollectionFactory> SpatialCollectionFactory;
-
-	FAccelerationStructure* GetFreeSpatialAcceleration_Internal();
-	void FreeSpatialAcceleration_External(FAccelerationStructure* Structure);
 };
 
 #define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsEvolutionBase<Trait>;

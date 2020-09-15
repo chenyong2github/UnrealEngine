@@ -11,7 +11,6 @@
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
 #include "Chaos/EvolutionTraits.h"
-#include "JointConstraintProxyFwd.h"
 
 namespace Chaos
 {
@@ -19,8 +18,6 @@ namespace Chaos
 
 	template <typename Traits>
 	class TPBDRigidsEvolutionGBF;
-
-	struct FDirtyJointConstraintData;
 }
 
 /**
@@ -42,6 +39,12 @@ public:
 	using FJointConstraintDirtyFlags = Chaos::FJointConstraintDirtyFlags;
 	using FParticlePair = Chaos::TVector<Chaos::TGeometryParticle<FReal, 3>*, 2>;
 	using FParticleHandlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<FReal, 3>*, 2>;
+
+	struct FOutputData {
+		bool bIsBroken = false;
+		FVector Force = FVector(0);
+		FVector Torque = FVector(0);
+	};
 
 	TJointConstraintProxy() = delete;
 	TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr); // @todo(brice) : make FPBDJointSetting a type defined on the CONSTRAINT_TYPE
@@ -113,7 +116,10 @@ public:
 	//
 	// Threading API
 	//
-	
+
+	/**/
+	void FlipBuffer() { OutputBuffer->FlipProducer(); }
+
 	template <typename Traits>
 	void PushToPhysicsState(Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution) {}
 
@@ -121,10 +127,10 @@ public:
 	void ClearAccumulatedData() {}
 
 	/**/
-	void BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer);
+	void BufferPhysicsResults();
 
 	/**/
-	bool CHAOS_API PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp);
+	bool CHAOS_API PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 	/**/
 	bool IsDirty() { return Constraint->IsDirty(); }
@@ -134,6 +140,9 @@ private:
 	// Input Buffer
 	FConstraintData JointSettingsBuffer;
 	FJointConstraintDirtyFlags DirtyFlagsBuffer;
+
+	// Output Buffer
+	TUniquePtr<Chaos::IBufferResource<FOutputData>> OutputBuffer;
 
 	CONSTRAINT_TYPE* Constraint;
 	FConstraintHandle* Handle;
@@ -155,8 +164,8 @@ public:
 
 
 template<> CHAOS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
-template<> CHAOS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer);
-template<> CHAOS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp);
+template<> CHAOS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults();
+template<> CHAOS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 extern template class TJointConstraintProxy< Chaos::FJointConstraint >;
 typedef TJointConstraintProxy< Chaos::FJointConstraint > FJointConstraintPhysicsProxy;
