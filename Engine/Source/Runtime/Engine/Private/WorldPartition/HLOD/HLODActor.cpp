@@ -12,16 +12,15 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #endif
 
-UWorldPartitionRuntimeHLODCellData::UWorldPartitionRuntimeHLODCellData(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	SetCanBeDamaged(false);
 	SetActorEnableCollision(false);
+
+#if WITH_EDITORONLY_DATA
+	bListedInSceneOutliner = false;
+#endif
 }
 
 UPrimitiveComponent* AWorldPartitionHLOD::GetHLODComponent()
@@ -199,6 +198,16 @@ void AWorldPartitionHLOD::PostActorCreated()
 	Super::PostActorCreated();
 	HLODGuid = GetActorGuid();
 }
+
+#endif // WITH_EDITOR
+
+
+UWorldPartitionRuntimeHLODCellData::UWorldPartitionRuntimeHLODCellData(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+#if WITH_EDITOR
 
 void UWorldPartitionRuntimeHLODCellData::SetReferencedHLODActors(TArray<FGuid>&& InReferencedHLODActors)
 {
