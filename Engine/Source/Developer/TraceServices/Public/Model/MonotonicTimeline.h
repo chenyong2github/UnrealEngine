@@ -410,6 +410,11 @@ public:
 			return false;
 		}
 
+		if (DetailLevel.InsertionState.LastTime < InTime - DeltaTime)
+		{
+			return false;
+		}
+
 		uint64 FirstScopePageIndex = Algo::UpperBoundBy(DetailLevel.ScopeEntries, InTime, [](const FEventScopeEntryPage& Page)
 			{
 				return Page.BeginTime;
