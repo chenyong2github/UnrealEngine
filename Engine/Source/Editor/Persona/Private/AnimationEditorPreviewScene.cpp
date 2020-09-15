@@ -776,12 +776,12 @@ void FAnimationEditorPreviewScene::ClearSelectedBone()
 	SelectedBoneIndex = INDEX_NONE;
 	SkeletalMeshComponent->BonesOfInterest.Empty();
 
-	OnSelectedBoneChanged.Broadcast(NAME_None);
+	OnSelectedBoneChanged.Broadcast(NAME_None, ESelectInfo::Direct);
 
 	InvalidateViews();
 }
 
-void FAnimationEditorPreviewScene::SetSelectedBone(const FName& BoneName)
+void FAnimationEditorPreviewScene::SetSelectedBone(const FName& BoneName, ESelectInfo::Type InSelectInfo)
 {
 	TGuardValue<bool> RecursionGuard(bSelecting, true);
 
@@ -807,7 +807,7 @@ void FAnimationEditorPreviewScene::SetSelectedBone(const FName& BoneName)
 
 			InvalidateViews();
 
-			OnSelectedBoneChanged.Broadcast(BoneName);
+			OnSelectedBoneChanged.Broadcast(BoneName, InSelectInfo);
 		}
 	}
 }
@@ -1125,7 +1125,7 @@ void FAnimationEditorPreviewScene::HandleSkeletonTreeSelectionChanged(const TArr
 			{
 				if(Item->IsOfTypeByName("FSkeletonTreeBoneItem"))
 				{
-					SetSelectedBone(Item->GetRowItemName());
+					SetSelectedBone(Item->GetRowItemName(), InSelectInfo);
 				}
 				else if(Item->IsOfTypeByName("FSkeletonTreeSocketItem"))
 				{

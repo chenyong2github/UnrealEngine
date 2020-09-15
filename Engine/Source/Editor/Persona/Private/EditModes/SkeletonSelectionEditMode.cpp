@@ -529,7 +529,7 @@ bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportCl
 		{			
 			// Tell the preview scene that the bone has been selected - this will sort out the skeleton tree, etc.
 			GetAnimPreviewScene().DeselectAll();
-			GetAnimPreviewScene().SetSelectedBone(static_cast<HPersonaBoneProxy*>(HitProxy)->BoneName);
+			GetAnimPreviewScene().SetSelectedBone(static_cast<HPersonaBoneProxy*>(HitProxy)->BoneName, ESelectInfo::OnMouseClick);
 			bHandled = true;
 		}
 		else if ( HitProxy->IsA( HActor::StaticGetType() ) && bSelectingSections)
@@ -558,7 +558,7 @@ bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportCl
 		if(bHit)
 		{
 			GetAnimPreviewScene().DeselectAll();
-			GetAnimPreviewScene().SetSelectedBone(Result.BoneName);
+			GetAnimPreviewScene().SetSelectedBone(Result.BoneName, ESelectInfo::OnMouseClick);
 			bHandled = true;
 		}
 		else

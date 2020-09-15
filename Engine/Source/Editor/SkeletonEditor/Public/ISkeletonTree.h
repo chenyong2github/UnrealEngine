@@ -128,7 +128,11 @@ public:
 	virtual void SetSelectedSocket(const struct FSelectedSocketInfo& InSocketInfo) = 0;
 
 	/** Set the selected bone */
-	virtual void SetSelectedBone(const FName& InBoneName) = 0;
+	UE_DEPRECATED(4.26, "Please call/implement SetSelectedBone with ESelectInfo")
+	virtual void SetSelectedBone(const FName& InBoneName) final { SetSelectedBone(InBoneName, ESelectInfo::Direct); }
+
+	/** Set the selected bone */
+	virtual void SetSelectedBone(const FName& InBoneName, ESelectInfo::Type InSelectInfo) = 0;
 
 	/** Deselect everything that is currently selected */
 	virtual void DeselectAll() = 0;
