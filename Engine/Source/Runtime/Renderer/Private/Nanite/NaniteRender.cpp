@@ -2184,8 +2184,13 @@ FCullingContext InitCullingContext(
 	}
 
 	// TODO: Might this not break if the view has overridden the InstanceSceneData?
-	const uint32 NumSceneInstances = FMath::RoundUpToPowerOfTwo( Scene.GPUScene.InstanceDataAllocator.GetMaxSize() );
-	check(NumSceneInstances <= Nanite::FGlobalResources::GetMaxInstances());
+	const uint32 NumSceneInstances = FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceDataAllocator.GetMaxSize());
+	checkf(
+		NumSceneInstances <= Nanite::FGlobalResources::GetMaxInstances(),
+		TEXT("r.Nanite.MaxInstanceCount is set to %d, but the scene is trying to render %d instances, which is out of range. Please adjust the max instance count to a higher setting."),
+		Nanite::FGlobalResources::GetMaxInstances(),
+		NumSceneInstances
+	);
 
 	CullingContext.SOAStrides.X							= Scene.GPUScene.InstanceDataSOAStride;
 	CullingContext.SOAStrides.Y							= NumSceneInstances;

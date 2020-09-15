@@ -36,6 +36,14 @@ FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 	ECVF_RenderThreadSafe
 );
 
+int32 GNaniteMaxInstanceCount = 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxInstanceCount(
+	TEXT("r.Nanite.MaxInstanceCount"),
+	GNaniteMaxInstanceCount,
+	TEXT("Maximum number of Nanite instances in the scene."),
+	ECVF_ReadOnly
+);
+
 namespace Nanite
 {
 
@@ -935,11 +943,10 @@ void FGlobalResources::Update(FRHICommandListImmediate& RHICmdList)
 
 uint32 FGlobalResources::GetMaxInstances()
 {
-	// We don't want to allocate 16mil instances here. Measured pow2 high watermark
-	// of 0.5mil instances, so we'll round up to 1mil to be super safe.
-	// TODO: Set to high watermark (should probably be a cvar, and/or support resize).
-	static_assert(1048576 <= MAX_INSTANCES, "1048576 must be <= MAX_INSTANCES");
-	return 1048576;
+	// We don't want to allocate 16mil instances here (wasting memory), so pull a smaller value
+	// from config and verify it's within range of MAX_INSTANCES.
+	checkf(GNaniteMaxInstanceCount <= MAX_INSTANCES, TEXT("r.Nanite.MaxInstanceCount must be <= MAX_INSTANCES"));
+	return GNaniteMaxInstanceCount;
 }
 
 uint32 FGlobalResources::GetMaxClusters()
