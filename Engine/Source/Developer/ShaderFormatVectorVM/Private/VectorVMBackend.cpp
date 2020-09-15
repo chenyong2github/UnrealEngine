@@ -140,6 +140,12 @@ class ir_remove_empty_stat_scopes : public ir_hierarchical_visitor
 				EnterCall->remove();
 				call->remove();
 			}
+			else if (StatScopeAssingmentCounts.Num() > 0)
+			{
+				// On leaving a non-empty scope, we add their assignments to the outer scope.
+				// Without this, nested scopes can be removed although they are not empty.
+				StatScopeAssingmentCounts.Last() += NumAssignments;
+			}
 		}
 		else if (StatScopeAssingmentCounts.Num() > 0)
 		{
