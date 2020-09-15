@@ -821,9 +821,8 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 							}
 						}
 
-						if (!LevelInstanceSubsystem->CanMoveActorToLevel(DragActor))
+						if (!LevelInstanceSubsystem->CanMoveActorToLevel(DragActor, &AttachErrorMsg))
 						{
-							AttachErrorMsg = LOCTEXT("Error_MoveActorToLevelInstance", "Cannot move LevelInstance while it or its children are being edited");
 							bCanAttach = bDraggedOntoAttachmentParent = false;
 							break;
 						}
@@ -963,9 +962,10 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 
 					if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
 					{
-						if (!LevelInstanceSubsystem->CanMoveActorToLevel(LevelInstanceActor))
+						FText Reason;
+						if (!LevelInstanceSubsystem->CanMoveActorToLevel(LevelInstanceActor, &Reason))
 						{
-							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_RemoveEditingLevelInstance", "Cannot detach a LevelInstance which is currently being edited"));
+							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, Reason);
 						}
 					}
 				}

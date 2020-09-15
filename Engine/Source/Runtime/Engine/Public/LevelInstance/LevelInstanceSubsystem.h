@@ -79,7 +79,7 @@ public:
 	bool MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove);
 	bool BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels = 1);
 
-	bool CanMoveActorToLevel(const AActor* Actor) const;
+	bool CanMoveActorToLevel(const AActor* Actor, FText* OutReason = nullptr) const;
 	void DiscardEdits();
 	void OnActorDeleted(AActor* Actor);
 	ULevel* GetLevelInstanceLevel(const ALevelInstance* LevelInstanceActor) const;

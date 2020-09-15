@@ -561,8 +561,10 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		const bool bIncludeChildren = true;
 		ActorLocationBox += ActorToMove->GetComponentsBoundingBox(bNonColliding, bIncludeChildren);
 
-		if (!CanMoveActorToLevel(ActorToMove))
+		FText Reason;
+		if (!CanMoveActorToLevel(ActorToMove, &Reason))
 		{
+			UE_LOG(LogLevelInstance, Warning, TEXT("%s"), *Reason.ToString());
 			return nullptr;
 		}
 	}
@@ -736,7 +738,7 @@ ULevelInstanceSubsystem::FLevelsToRemoveScope::~FLevelsToRemoveScope()
 	}
 }
 
-bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor) const
+bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor, FText* OutReason) const
 {
 	if (Actor->GetWorld() == GetWorld())
 	{
@@ -744,7 +746,10 @@ bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor) const
 		{
 			if (IsEditingLevelInstance(LevelInstanceActor))
 			{
-				UE_LOG(LogLevelInstance, Warning, TEXT("Can't move Level Instance actor while it is being edited"));
+				if (OutReason != nullptr)
+				{
+					*OutReason = LOCTEXT("CanMoveActorLevelEditing", "Can't move Level Instance actor while it is being edited");
+				}
 				return false;
 			}
 
@@ -761,7 +766,10 @@ bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor) const
 
 			if (bEditingChildren)
 			{
-				UE_LOG(LogLevelInstance, Warning, TEXT("Can't move Level Instance actor while one of its child Level Instance is being edited"));
+				if (OutReason != nullptr)
+				{
+					*OutReason = LOCTEXT("CanMoveActorToLevelChildEditing", "Can't move Level Instance actor while one of its child Level Instance is being edited");
+				}
 				return false;
 			}
 		}
