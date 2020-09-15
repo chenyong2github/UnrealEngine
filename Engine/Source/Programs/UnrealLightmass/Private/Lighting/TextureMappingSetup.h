@@ -69,30 +69,23 @@ public:
 
 	/** Initialization constructor. */
 	FTexelToVertexMap(int32 InSizeX,int32 InSizeY):
-		Data(InSizeX * InSizeY),
 		SizeX(InSizeX),
 		SizeY(InSizeY)
 	{
 		// Clear the map to zero.
-		for(int32 Y = 0;Y < SizeY;Y++)
-		{
-			for(int32 X = 0;X < SizeX;X++)
-			{
-				FMemory::Memzero(&(*this)(X,Y),sizeof(FTexelToVertex));
-			}
-		}
+		Data.AddZeroed(SizeX * SizeY);
 	}
 
 	// Accessors.
 	FTexelToVertex& operator()(int32 X,int32 Y)
 	{
 		const uint32 TexelIndex = Y * SizeX + X;
-		return Data(TexelIndex);
+		return Data[TexelIndex];
 	}
 	const FTexelToVertex& operator()(int32 X,int32 Y) const
 	{
 		const int32 TexelIndex = Y * SizeX + X;
-		return Data(TexelIndex);
+		return Data[TexelIndex];
 	}
 
 	int32 GetSizeX() const { return SizeX; }
@@ -102,7 +95,7 @@ public:
 private:
 
 	/** The mapping data. */
-	TChunkedArray<FTexelToVertex> Data;
+	TArray<FTexelToVertex> Data;
 
 	/** The width of the mapping data. */
 	int32 SizeX;
