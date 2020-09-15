@@ -596,67 +596,41 @@ void ComputeScatterCS(
 				float3 RayEnd = RayStart + AxisDirection * 2 * VoxelExtent;
 				float RayLength = length(RayEnd - RayStart);
 
-				uint VisBufferPayload = VIS_BUFFER_CLEAR;
-			
-				// Check if start of the ray is inside the geometry
-				{
-					bool bGeneratedAsTwoSided;
-					float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-					float4 UVAddAndSelfShadowBias = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex);
-					float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-					float3 SampleVolumePosition = mul(float4(RayStart, 1), WorldToVolume).xyz;
-					float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
-					float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-					float ExpandSurfaceDistance = LoadGlobalObjectLocalSurfaceBias(ObjectIndex);
-					float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
+				FConeTraceInput TraceInput;
+				TraceInput.Setup(RayStart, AxisDirection, 0, 0, 0, RayLength, 2.0f);
+				TraceInput.ConeStartRadius = length(AxisDirection * VoxelExtent);
 
-					if (all(SampleVolumePosition >= -LocalPositionExtent) && all(SampleVolumePosition <= LocalPositionExtent))
+				FTraceMeshSDFResult TraceMeshSDFResult;
+				TraceMeshSDFResult.HitDistance = TraceInput.MaxTraceDistance;
+				TraceMeshSDFResult.HitObject = 0;
+
+				RayTraceSingleMeshSDF(
+					TraceInput.ConeOrigin,
+					TraceInput.ConeDirection,
+					TraceInput.TanConeAngle,
+					TraceInput.MinTraceDistance,
+					TraceInput.MaxTraceDistance,
+					ObjectIndex,
+					true,
+					0.0f,
+					TraceMeshSDFResult);
+
+				if (TraceMeshSDFResult.HitDistance < TraceInput.MaxTraceDistance)
+				{
+					uint VisBufferPayload = VIS_BUFFER_CLEAR;
+
+					if (TraceMeshSDFResult.bRayStartInsideGeometry)
 					{
-						float DistanceFieldValue = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD);
-
-						bool bInsideGeometry = DistanceFieldValue < 0.0f;
-
-						if (bInsideGeometry)
-						{
-							// Skip voxelization for this ray
-							VisBufferPayload = VIS_BUFFER_INVALID;
-						}
+						VisBufferPayload = VIS_BUFFER_INVALID;
 					}
-				}
-
-				if (VisBufferPayload == VIS_BUFFER_CLEAR)
-				{
-					FConeTraceInput TraceInput;
-					TraceInput.Setup(RayStart, AxisDirection, 0, 0, 0, RayLength, 2.0f);
-					TraceInput.ConeStartRadius = length(AxisDirection * VoxelExtent);
-
-					FTraceMeshSDFResult TraceMeshSDFResult;
-					TraceMeshSDFResult.HitDistance = TraceInput.MaxTraceDistance;
-					TraceMeshSDFResult.HitObject = 0;
-
-					RayTraceSingleMeshSDF(
-						TraceInput.ConeOrigin,
-						TraceInput.ConeDirection,
-						TraceInput.TanConeAngle,
-						TraceInput.MinTraceDistance,
-						TraceInput.MaxTraceDistance,
-						ObjectIndex,
-						true,
-						0.0f,
-						TraceMeshSDFResult);
-
-					if (TraceMeshSDFResult.HitDistance < TraceInput.MaxTraceDistance)
+					else
 					{
 						FVoxelVisBuffer VisBuffer;
 						VisBuffer.NormalizedHitDistance = saturate(TraceMeshSDFResult.HitDistance / TraceInput.MaxTraceDistance);
 						VisBuffer.HitObjectId = TraceMeshSDFResult.HitObject;
-
 						VisBufferPayload = EncodeVoxelVisBuffer(VisBuffer);
 					}
-				}
 
-				if (VisBufferPayload != VIS_BUFFER_CLEAR)
-				{
 					uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * GridResolution.y + VoxelCoord.y, DirectionIndex * GridResolution.z + VoxelCoord.z);
 					InterlockedMin(RWVoxelVisBuffer[WriteCoord], VisBufferPayload);
 				}
@@ -835,7 +809,7 @@ void GatherVoxelizeCS(
 		float3 RayEnd = RayStart + RayDirection * 2 * VoxelExtent;
 		float RayLength = length(RayEnd - RayStart);
 
-		bool bInsideGeometry = false;
+		bool bRayStartInsideGeometry = false;
 		uint HitObjectId = 0xFFFFFFFF;
 		float HitTime = 1e6;
 
@@ -848,30 +822,6 @@ void GatherVoxelizeCS(
 		for (uint ObjectIndexInCell = 0; ObjectIndexInCell < NumCulledObjects; ++ObjectIndexInCell)
 		{
 			uint ObjectIndex = CullGridData[CullGridOffset + ObjectIndexInCell];
-
-			// Check if start of the ray is inside the geometry
-			{
-				bool bGeneratedAsTwoSided;
-				float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-				float4 UVAddAndSelfShadowBias = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex);
-				float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-				float3 SampleVolumePosition = mul(float4(RayStart, 1), WorldToVolume).xyz;
-				float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
-				float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-				float ExpandSurfaceDistance = LoadGlobalObjectLocalSurfaceBias(ObjectIndex);
-				float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
-
-				if (all(SampleVolumePosition >= -LocalPositionExtent) && all(SampleVolumePosition <= LocalPositionExtent))
-				{
-					float DistanceFieldValue = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD);
-
-					bInsideGeometry = DistanceFieldValue < 0.0f;
-					if (bInsideGeometry)
-					{
-						break;
-					}
-				}
-			}
 
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(RayStart, RayDirection, 0, 0, 0, RayLength, 2.0f);
@@ -897,12 +847,18 @@ void GatherVoxelizeCS(
 			{
 				HitTime = TraceMeshSDFResult.HitDistance;
 				HitObjectId = TraceMeshSDFResult.HitObject;
+				bRayStartInsideGeometry = TraceMeshSDFResult.bRayStartInsideGeometry;
+			}
+
+			if (bRayStartInsideGeometry)
+			{
+				break;
 			}
 		}
 
 		uint VisBufferPayload = VIS_BUFFER_CLEAR;
 
-		if (bInsideGeometry)
+		if (bRayStartInsideGeometry)
 		{
 			// Skip voxelization for this ray
 			VisBufferPayload = VIS_BUFFER_INVALID;
@@ -1003,7 +959,6 @@ void VoxelVisBufferShadingCS(
 			float ConeStartRadius = length(RayDirection * VoxelExtent);
 
 			FVoxelVisBuffer VisBuffer = DecodeVoxelVisBuffer(VisBufferPayload);
-
 			FTraceMeshSDFResult TraceMeshSDFResult;
 			TraceMeshSDFResult.HitDistance = RayLength * VisBuffer.NormalizedHitDistance;
 			TraceMeshSDFResult.HitObject = VisBuffer.HitObjectId;

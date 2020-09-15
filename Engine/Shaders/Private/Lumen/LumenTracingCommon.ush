@@ -598,6 +598,7 @@ struct FTraceMeshSDFResult
 {
 	float HitDistance;
 	uint HitObject;
+	bool bRayStartInsideGeometry;
 };
 
 void RayTraceSingleMeshSDF(
@@ -636,6 +637,7 @@ void RayTraceSingleMeshSDF(
 	BRANCH
 	if (IntersectionTimes.x < IntersectionTimes.y)
 	{
+		bool bRayStartInsideGeometry = false;
 		float SampleRayTime = IntersectionTimes.x * VolumeRayLength;
 		uint MaxSteps = 64;
 		float MinStepSize = 1.0f / (4 * MaxSteps);
@@ -660,6 +662,7 @@ void RayTraceSingleMeshSDF(
 			if (DistanceField < ExpandSurfaceAmount)
 			{
 				// One more step to the surface
+				bRayStartInsideGeometry = SampleRayTime <= 0.0f && SampleRayTime + DistanceField < 0.0f ? true : false;
 				SampleRayTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, 0.0f);
 				bHit = true;
 				break;
@@ -688,6 +691,7 @@ void RayTraceSingleMeshSDF(
 			{
 				TraceResult.HitObject = ObjectIndex;
 				TraceResult.HitDistance = NewHitDistance;
+				TraceResult.bRayStartInsideGeometry = bRayStartInsideGeometry;
 			}
 		}
 	}
