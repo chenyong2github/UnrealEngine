@@ -126,6 +126,8 @@ namespace GLFuncPointers
 	// GL_EXT_debug_label
 	extern PFNGLLABELOBJECTEXTPROC			glLabelObjectEXT;
 	extern PFNGLGETOBJECTLABELEXTPROC		glGetObjectLabelEXT;
+	//GL_EXT_buffer_storage
+	extern PFNGLBUFFERSTORAGEEXTPROC		glBufferStorageEXT;
 
 	extern PFNGLDEBUGMESSAGECONTROLKHRPROC	glDebugMessageControlKHR;
 	extern PFNGLDEBUGMESSAGEINSERTKHRPROC	glDebugMessageInsertKHR;
@@ -213,6 +215,8 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool SupportsComputeShaders() { return true; }
 	static FORCEINLINE bool SupportsDrawIndirect() { return true; }
 	static FORCEINLINE bool SupportsVertexAttribBinding() { return true; }
+	static FORCEINLINE bool SupportsBufferStorage() { return bSupportsBufferStorage; }
+	
 
 	static FORCEINLINE bool RequiresUEShaderFramebufferFetchDef() { return bRequiresUEShaderFramebufferFetchDef; }
 	static FORCEINLINE bool HasBinaryProgramRetrievalFailed() { return bBinaryProgramRetrievalFailed; }
@@ -297,6 +301,9 @@ struct FOpenGLES : public FOpenGLBase
 		{
 		case EResourceLockMode::RLM_ReadOnly:
 			Access = GL_MAP_READ_BIT;
+			break;
+		case EResourceLockMode::RLM_ReadOnlyPersistent:
+			Access = (GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);;
 			break;
 		case EResourceLockMode::RLM_WriteOnly:
 			Access = (GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
@@ -731,6 +738,10 @@ struct FOpenGLES : public FOpenGLBase
 		glVertexBindingDivisor(BindingIndex, Divisor);
 	}
 
+	static FORCEINLINE void BufferStorage(GLenum Target, GLsizeiptr Size, const void* Data, GLbitfield Flags)
+	{
+		glBufferStorageEXT(Target, Size, Data, Flags);
+	}
 protected:
 	/** GL_EXT_disjoint_timer_query */
 	static bool bSupportsDisjointTimeQueries;
@@ -797,6 +808,9 @@ public:
 
 	/** GL_OES_get_program_binary */
 	static bool bSupportsProgramBinary;
+
+	/** GL_EXT_buffer_storage */
+	static bool bSupportsBufferStorage;
 
 	enum class EFeatureLevelSupport : uint8
 	{
