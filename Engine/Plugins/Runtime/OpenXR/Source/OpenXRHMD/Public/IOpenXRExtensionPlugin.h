@@ -26,6 +26,8 @@ public:
 class IOpenXRExtensionPlugin : public IModularFeature
 {
 public:
+	virtual ~IOpenXRExtensionPlugin(){}
+
 	static FName GetModularFeatureName()
 	{
 		static FName OpenXRFeatureName = FName(TEXT("OpenXRExtension"));
