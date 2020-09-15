@@ -200,11 +200,6 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldAverageCulledObjectsPerPage(
 // Approximation of margin added to SDF objects during generation inside FMeshUtilities::GenerateSignedDistanceFieldVolumeData.
 constexpr float MESH_SDF_APPROX_MARGIN = 0.7f;
 
-bool ShouldCompileGlobalDistanceFieldShader(const FGlobalShaderPermutationParameters& Parameters)
-{
-	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
-}
-
 float GetMinMeshSDFRadius(float VoxelWorldSize)
 {
 	float MinRadius = GAOGlobalDistanceFieldMinMeshSDFRadius * (GAOGlobalDistanceFieldFastCameraMode ? 10.0f : 1.0f);
