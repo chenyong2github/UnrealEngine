@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "GameFramework/Actor.h"
+#include "GameFramework/PlayerInput.h"
 
 #include "VirtualCameraUserSettings.generated.h"
 
@@ -17,14 +19,15 @@ class VIRTUALCAMERA_API UVirtualCameraUserSettings : public UObject
 
 public:
 
+	UVirtualCameraUserSettings();
 	
 	/** Controls interpolation speed when smoothing when changing focus distance. This is used to set the value of FocusSmoothingInterpSpeed in the Virtual camera CineCamera component */
 	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (ClampMin = "1.0", ClampMax = "50.0", DisplayName = "Focus Interpolation Speed"))
 	float FocusInterpSpeed = 8.0f;
 
 	/** Controls how fast the camera moves when using joysticks */
-	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (ClampMin = "0.0", ClampMax = "1.0", DisplayName = "Joysticks Speed"))
-	float JoysticksSpeed = 0.5f;
+	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (ClampMin = "0.0", ClampMax = "100.0", DisplayName = "Joysticks Speed"))
+	float JoysticksSpeed = 50.0f;
 
 	/** Whether the map is displayed using grayscale or full color */
 	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (DisplayName = "Display Map In Grayscale"))
@@ -45,6 +48,16 @@ public:
 	/** Whether to teleport to the home bookmark when VCam starts */
 	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (DisplayName = "Teleport To Home On Start"))
 	bool bTeleportOnStart = true;
+
+	/** Default Vcam Class for Vcam Operator Panel */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = "VirtualCamera|Presets")
+	TSubclassOf<AActor> DefaultVCamClass;
+
+	UPROPERTY(BlueprintReadWrite, config, Category = "VirtualCamera", meta = (DisplayName = "VirtualCamera Axis Mappings"))
+	TArray<struct FInputAxisKeyMapping> AxisMappings;
+
+	UPROPERTY(BlueprintReadWrite, config, Category = "VirtualCamera", meta = (DisplayName = "VirtualCamera Action Mappings"))
+	TArray<struct FInputActionKeyMapping> ActionMappings;
 
 	/** Get FocusInterpSpeed variable */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
@@ -101,5 +114,17 @@ public:
 	/** Set bTeleportOnStart variable */
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	void SetTeleportOnStart(const bool bInTeleportOnStart);
+
+	/** Fills the Axis/Action mappings with assosiated gamepad bindings */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	void InjectGamepadKeybinds(); 
+	
+	/** Retrieve all VirtualCamera action mappings by a certain name. */
+	UFUNCTION(BlueprintPure, Category = Settings)
+	void GetActionMappingsByName(const FName InActionName, TArray<FInputActionKeyMapping>& OutMappings) const;
+
+	/** Retrieve all VirtualCamera axis mappings by a certain name. */
+	UFUNCTION(BlueprintPure, Category = Settings)
+	void GetAxisMappingsByName(const FName InAxisName, TArray<FInputAxisKeyMapping>& OutMappings) const;
 
 };

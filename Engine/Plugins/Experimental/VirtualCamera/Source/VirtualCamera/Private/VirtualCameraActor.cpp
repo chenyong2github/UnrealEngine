@@ -376,11 +376,6 @@ void AVirtualCameraActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!bIsStreaming)
-	{
-		return;
-	}
-
 	if (RemoteSessionHost)
 	{
 		RemoteSessionHost->Tick(DeltaSeconds);
@@ -889,10 +884,10 @@ void AVirtualCameraActor::UpdateAutoFocus()
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, CameraWorldLocation, TraceEnd, ECC_Visibility, TraceParams);
 
 	//we don't want to set a focus distance bigger than hyperfocal distance
-	float focusDistance = (bHit && Hit.Distance < HyperfocalDistance) ? Hit.Distance : HyperfocalDistance;
+	float FocusDistance = (bHit && Hit.Distance < HyperfocalDistance) ? Hit.Distance : HyperfocalDistance;
 
 	FEditorScriptExecutionGuard ScriptGuard;
-	Execute_SetFocusDistance(this, focusDistance);
+	Execute_SetFocusDistance(this, FocusDistance);
 }
 
 #if WITH_EDITOR
