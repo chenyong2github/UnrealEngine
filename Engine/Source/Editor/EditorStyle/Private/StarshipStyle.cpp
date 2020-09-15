@@ -5696,12 +5696,12 @@ void FStarshipEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 	{
 		struct FClassIconInfo
 		{
-			FClassIconInfo(TCHAR* InType, bool bInHas64Size = true)
+			FClassIconInfo(const TCHAR* InType, bool bInHas64Size = true)
 				: Type(InType)
 				, bHas64Size(bInHas64Size)
 			{}
 
-			TCHAR* Type;
+			const TCHAR* Type;
 			bool bHas64Size;
 		};
 
