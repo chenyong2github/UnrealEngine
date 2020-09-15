@@ -362,7 +362,8 @@ namespace DatasmithRevitExporter
 	{
 		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements) 
 		{
-			//TODO
+			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
+			DirectLinkUI?.OpenDirectLinkStreamWindow();
 			return Result.Succeeded;
 		}
 	}

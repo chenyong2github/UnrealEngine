@@ -187,7 +187,18 @@ namespace DatasmithRevitExporter
 
 			string SceneName = Path.GetFileNameWithoutExtension(RootDocument.PathName);
 
-			string OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
+			string OutputPath = null;
+
+			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
+			if (DirectLinkUI != null)
+			{
+				OutputPath = DirectLinkUI.GetDirectLinkCacheDirectory();
+			}
+			else
+			{
+				OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
+			}
+
 			Directory.CreateDirectory(OutputPath);
 
 			DatasmithScene.ExportAssets(OutputPath);
