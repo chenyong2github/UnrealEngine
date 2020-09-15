@@ -10,7 +10,7 @@
  * OpenXR runtime this OpenXRExtensionPlugin will register an Interaction Profile 
  * which makes the left/right hand poses available and will setup the Select and 
  * Grip buttons so they can be bound in UE4.
-/************************************************************************/
+ ************************************************************************/
 
 #pragma once
 #include "IOpenXRExtensionPlugin.h"
