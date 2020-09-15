@@ -717,7 +717,6 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 						}
 					}
 
-					FRigVMMemoryContainer& Memory = Operand.GetMemoryType() == ERigVMMemoryType::Literal ? VM->GetLiteralMemory() : VM->GetWorkMemory();
 					FString SegmentPath = Pin->GetSegmentPath();
 
 					int32 ArrayIndex = INDEX_NONE;
@@ -737,7 +736,18 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 						ArrayIndex = FCString::Atoi(*SegmentArrayIndex);
 					}
 
-					Operand = Memory.GetOperand(Operand.GetRegisterIndex(), SegmentPath, ArrayIndex);
+					if (Operand.GetMemoryType() == ERigVMMemoryType::External)
+					{
+						const FRigVMExternalVariable& ExternalVariable = VM->GetExternalVariables()[Operand.GetRegisterIndex()];
+						UScriptStruct* ScriptStruct = CastChecked<UScriptStruct>(ExternalVariable.TypeObject);
+						int32 RegisterOffset = VM->GetWorkMemory().GetOrAddRegisterOffset(Operand.GetRegisterIndex(), ScriptStruct, SegmentPath, ArrayIndex == INDEX_NONE ? 0 : ArrayIndex);
+						Operand = FRigVMOperand(ERigVMMemoryType::External, Operand.GetRegisterIndex(), RegisterOffset);
+					}
+					else
+					{
+						FRigVMMemoryContainer& Memory = Operand.GetMemoryType() == ERigVMMemoryType::Literal ? VM->GetLiteralMemory() : VM->GetWorkMemory();
+						Operand = Memory.GetOperand(Operand.GetRegisterIndex(), SegmentPath, ArrayIndex);
+					}
 				}
 			};
 
