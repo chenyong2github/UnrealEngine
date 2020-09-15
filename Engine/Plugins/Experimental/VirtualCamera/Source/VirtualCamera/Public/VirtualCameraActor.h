@@ -195,8 +195,9 @@ protected:
 
 private:
 
-	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode);
-	void OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode);
+	void OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change);
+	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
+	void OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
 
 	void OnTouchEventOutsideUMG(const FVector2D& InViewportPosition);
 

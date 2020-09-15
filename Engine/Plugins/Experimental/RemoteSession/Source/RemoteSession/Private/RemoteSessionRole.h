@@ -67,10 +67,12 @@ public:
 
 	virtual void Tick( float DeltaTime ) override;
 
+	virtual void RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate) override;
+	virtual void UnregisterChannelChangeDelegate(void* UserObject) override;
+
 	virtual TSharedPtr<IRemoteSessionChannel> GetChannel(const TCHAR* Type) override;
 
 	void			SetReceiveInBackground(bool bValue);
-
 
 protected:
 
@@ -117,6 +119,8 @@ protected:
 	TSharedPtr<IBackChannelSocketConnection>	Connection;
 
 	TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> OSCConnection;
+
+	TArray<FOnRemoteSessionChannelChange> ChangeDelegates;
 
 private:
 

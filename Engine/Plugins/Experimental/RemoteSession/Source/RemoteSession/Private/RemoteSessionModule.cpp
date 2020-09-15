@@ -66,14 +66,6 @@ void FRemoteSessionModule::RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFa
 	FRemoteSessionChannelRegistry::Get().RemoveChannelFactory(Worker);
 }
 
-void FRemoteSessionModule::AddSupportedChannel(FString InType, ERemoteSessionChannelMode InMode, FOnRemoteSessionChannelCreated InOnCreated)
-{
-	/*if (!ProgramaticallySupportedChannels.ContainsByPredicate([&InType](const FRemoteSessionChannelInfo& Info) { return Info.Type == InType; }))
-	{
-		ProgramaticallySupportedChannels.Emplace(MoveTemp(InType), InMode, InOnCreated);
-	}*/
-}
-
 void FRemoteSessionModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
