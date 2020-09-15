@@ -40,6 +40,7 @@ private:
 	void RefreshAssetInRegistry(const FAssetData& InAssetData);
 
 	TSharedRef<SWidget> ConstructAddActionMenu() const;
+	TSharedPtr<SWidget> OnContextMenuOpening();
 
 	// The options for the category selection
 	FText AllCategory;
