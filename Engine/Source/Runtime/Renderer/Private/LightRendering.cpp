@@ -57,14 +57,12 @@ static FAutoConsoleVariableRef CVarAllowSimpleLights(
 	TEXT("If true, we allow simple (ie particle) lights")
 );
 
-static int32 GRayTracingShadows = 1;
-static FAutoConsoleVariableRef CVarRayTracingOcclusion(
+static TAutoConsoleVariable<int32> CVarRayTracingOcclusion(
 	TEXT("r.RayTracing.Shadows"),
-	GRayTracingShadows,
+	1,
 	TEXT("0: use traditional rasterized shadow map\n")
 	TEXT("1: use ray tracing shadows (default)"),
-	ECVF_RenderThreadSafe
-);
+	ECVF_RenderThreadSafe);
 
 static int32 GShadowRayTracingSamplesPerPixel = 1;
 static FAutoConsoleVariableRef CVarShadowRayTracingSamplesPerPixel(
@@ -152,7 +150,8 @@ static bool ShouldRenderRayTracingShadowsForLightType(ELightComponentType LightT
 bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy)
 {
 	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
+	const int32 RayTracingShadows = CVarRayTracingOcclusion.GetValueOnRenderThread();
+	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (RayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
 
 	return IsRayTracingEnabled() && bRTShadowsEnabled && LightProxy.CastsRaytracedShadow() 
 		&& ShouldRenderRayTracingShadowsForLightType((ELightComponentType)LightProxy.GetLightType());
@@ -161,7 +160,8 @@ bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy)
 bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo)
 {
 	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
+	const int32 RayTracingShadows = CVarRayTracingOcclusion.GetValueOnRenderThread();
+	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (RayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
 
 	return IsRayTracingEnabled() && bRTShadowsEnabled && LightInfo.bCastRaytracedShadow
 		&& ShouldRenderRayTracingShadowsForLightType((ELightComponentType)LightInfo.LightType);
