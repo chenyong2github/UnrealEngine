@@ -41,8 +41,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -126,8 +125,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -173,8 +171,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -241,8 +238,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -316,8 +312,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -375,8 +370,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -452,8 +446,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -530,8 +523,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -608,8 +600,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(20, !!Optimization);
 
 
@@ -671,8 +662,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(5 , !!Optimization);
 
 
@@ -738,8 +728,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			//note: this 5 is just a suggestion, there could be more frames saved than that
 			Solver->EnableRewindCapture(5 , !!Optimization);
 
@@ -801,8 +790,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(5 , !!Optimization);
 
 			// Make particles
@@ -933,8 +921,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1017,8 +1004,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1098,7 +1084,6 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1181,8 +1166,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1230,8 +1214,7 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
-
+			
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1312,7 +1295,6 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1388,7 +1370,6 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
 			Solver->EnableRewindCapture(100, !!Optimization);
 
 			// Make particles
@@ -1462,7 +1443,6 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
 			Solver->EnableRewindCapture(100, !!Optimization);
 
 			// Make particles
@@ -1537,7 +1517,6 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1607,7 +1586,6 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1684,7 +1662,6 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
@@ -1765,7 +1742,6 @@ namespace ChaosTest {
 
 			// Make a solver
 			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-			Solver->SetEnabled(true);
 			Solver->EnableRewindCapture(100, !!Optimization);
 
 			// Make particles
@@ -1856,7 +1832,6 @@ namespace ChaosTest {
 
 		// Make a solver
 		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-		Solver->SetEnabled(true);
 		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
 
 		// Make particles
@@ -1950,7 +1925,6 @@ namespace ChaosTest {
 
 		// Make a solver
 		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-		Solver->SetEnabled(true);
 		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
 
 		// Make particles
@@ -2173,7 +2147,6 @@ namespace ChaosTest {
 
 		// Make a solver
 		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
-		Solver->SetEnabled(true);
 
 		TArray<TUniquePtr<TGeometryParticle<FReal, 3>>> Storage = InitFunc(Solver);
 

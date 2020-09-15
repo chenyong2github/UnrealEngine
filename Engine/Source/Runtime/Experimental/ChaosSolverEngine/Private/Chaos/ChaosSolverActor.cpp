@@ -10,6 +10,7 @@
 #include "ChaosSolversModule.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Chaos/Framework/DebugSubstep.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 //DEFINE_LOG_CATEGORY_STATIC(AFA_Log, NoLogging, All);
 
@@ -189,33 +190,41 @@ static TUniquePtr<FChaosSolverActorConsoleObjects> ChaosSolverActorConsoleObject
 
 AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, TimeStepMultiplier(1.f)
-	, CollisionIterations(1)
-	, PushOutIterations(3)
-	, PushOutPairIterations(2)
-	, ClusterConnectionFactor(1.0)
-	, ClusterUnionConnectionType(EClusterConnectionTypeEnum::Chaos_DelaunayTriangulation)
-	, DoGenerateCollisionData(true)
-	, DoGenerateBreakingData(true)
-	, DoGenerateTrailingData(true)
+	, TimeStepMultiplier_DEPRECATED(1.f)
+	, CollisionIterations_DEPRECATED(1)
+	, PushOutIterations_DEPRECATED(3)
+	, PushOutPairIterations_DEPRECATED(2)
+	, ClusterConnectionFactor_DEPRECATED(1.0)
+	, ClusterUnionConnectionType_DEPRECATED(EClusterConnectionTypeEnum::Chaos_DelaunayTriangulation)
+	, DoGenerateCollisionData_DEPRECATED(true)
+	, DoGenerateBreakingData_DEPRECATED(true)
+	, DoGenerateTrailingData_DEPRECATED(true)
+	, MassScale_DEPRECATED(1.f)
+	, bGenerateContactGraph_DEPRECATED(true)
 	, bHasFloor(true)
 	, FloorHeight(0.f)
-	, MassScale(1.f)
-	, bGenerateContactGraph(true)
 	, ChaosDebugSubstepControl()
+	, PhysScene(nullptr)
+	, Solver(nullptr)
+	, FloorParticle(nullptr)
 {
-	// @question(Benn) : Does this need to be created on the Physics thread using a queued command?
-	PhysScene = MakeShareable(new FPhysScene_Chaos(this
-#if CHAOS_CHECKED
-		, TEXT("Solver Actor Physics")
-#endif
-	));
-	Solver = PhysScene->GetSolver();
+	if(!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// Don't spawn solvers on the CDO
 
-	// Ticking setup for collision/breaking notifies
-	PrimaryActorTick.TickGroup = TG_PostPhysics;
-	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.bStartWithTickEnabled = true;
+		// @question(Benn) : Does this need to be created on the Physics thread using a queued command?
+		PhysScene = MakeShareable(new FPhysScene_Chaos(this
+#if CHAOS_CHECKED
+								  , TEXT("Solver Actor Physics")
+#endif
+		));
+		Solver = PhysScene->GetSolver();
+
+		// Ticking setup for collision/breaking notifies
+		PrimaryActorTick.TickGroup = TG_PostPhysics;
+		PrimaryActorTick.bCanEverTick = true;
+		PrimaryActorTick.bStartWithTickEnabled = true;
+	}
 
 	/*
 	* Display icon in the editor
@@ -272,66 +281,18 @@ void AChaosSolverActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if(!Solver)
+	{
+		return;
+	}
+
 	Solver->EnqueueCommandImmediate(
-		[ InSolver = Solver
-		, InTimeStepMultiplier = TimeStepMultiplier
-		, InCollisionIterations = CollisionIterations
-		, InPushOutIterations = PushOutIterations
-		, InPushOutPairIterations = PushOutPairIterations
-		, InClusterConnectionFactor = ClusterConnectionFactor
-		, InClusterUnionConnectionType = ClusterUnionConnectionType
-		, InDoGenerateCollisionData = DoGenerateCollisionData
-		, InDoGenerateBreakingData = DoGenerateBreakingData
-		, InDoGenerateTrailingData = DoGenerateTrailingData
-		, InCollisionFilterSettings = CollisionFilterSettings
-		, InBreakingFilterSettings = BreakingFilterSettings
-		, InTrailingFilterSettings = TrailingFilterSettings
-		, InHasFloor = bHasFloor
-		, InFloorHeight = FloorHeight
-		, InMassScale = MassScale
-		, InGenerateContactGraph = bGenerateContactGraph]
-		()
+		[InSolver = Solver, InProps = Properties]()
 		{
-#if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
-			InSolver->SetTimeStepMultiplier(InTimeStepMultiplier);
-			InSolver->SetClusterConnectionFactor(InClusterConnectionFactor);
-			InSolver->SetClusterUnionConnectionType((Chaos::FClusterCreationParameters<float>::EConnectionMethod)InClusterUnionConnectionType);
-#endif
-			InSolver->SetIterations(InCollisionIterations);
-			InSolver->SetPushOutPairIterations(InPushOutPairIterations);
-			InSolver->SetPushOutIterations(InPushOutIterations);
-			InSolver->SetGenerateCollisionData(InDoGenerateCollisionData);
-			InSolver->SetGenerateBreakingData(InDoGenerateBreakingData);
-			InSolver->SetGenerateTrailingData(InDoGenerateTrailingData);
-			InSolver->SetCollisionFilterSettings(InCollisionFilterSettings);
-			InSolver->SetBreakingFilterSettings(InBreakingFilterSettings);
-			InSolver->SetTrailingFilterSettings(InTrailingFilterSettings);
-			InSolver->SetUseContactGraph(InGenerateContactGraph);
-
-#if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
-			InSolver->SetMassScale(InMassScale);
-#endif
-			InSolver->SetEnabled(true);
-#if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
-#if CHAOS_WITH_PAUSABLE_SOLVER
-			InSolver->SetPaused(false);
-#endif  // #if CHAOS_WITH_PAUSABLE_SOLVER
-#endif  // #if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
-
-			// Add a floor if specified on the actor
-			if(InHasFloor)
-			{
-				Chaos::TGeometryParticle<float, 3>* Particle = Chaos::TGeometryParticle<float, 3>::CreateParticle().Release();
-				Particle->SetGeometry(TUniquePtr<Chaos::TPlane<float, 3>>(new Chaos::TPlane<float, 3>(FVector(0), FVector(0, 0, 1))));
-				Particle->SetObjectState(Chaos::EObjectStateType::Static);
-				Particle->SetX(Chaos::TVector<float, 3>(0.f, 0.f, InFloorHeight));
-				FCollisionFilterData FilterData;
-				FilterData.Word1 = 0xFFFF;
-				FilterData.Word3 = 0xFFFF;
-				Particle->SetShapeSimData(0, FilterData);
-				InSolver->RegisterObject(Particle);
-			}
+			InSolver->ApplyConfig(InProps);
 		});
+
+	MakeFloor();
 
 #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 #if CHAOS_DEBUG_SUBSTEP
@@ -352,18 +313,77 @@ void AChaosSolverActor::BeginPlay()
 
 void AChaosSolverActor::EndPlay(const EEndPlayReason::Type ReasonEnd)
 {
+	if(!Solver)
+	{
+		return;
+	}
+
+	if(FloorParticle)
+	{
+		Solver->UnregisterObject(FloorParticle.Get());
+		FloorParticle = nullptr;
+	}
+
 	Solver->EnqueueCommandImmediate([InSolver=Solver]()
 		{
 			// #TODO BG - We should really reset the solver here but the current reset function
 			// is really heavy handed and clears out absolutely everything. Ideally we want to keep
 			// all of the solver physics proxies and revert to a state before the very first tick
-			InSolver->SetEnabled(false);
+			//InSolver->SetEnabled(false);
 		});
 #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 #if CHAOS_DEBUG_SUBSTEP
 	ChaosSolverActorConsoleObjects->RemoveSolver(GetName());
 #endif  // #if CHAOS_DEBUG_SUBSTEP
 #endif  // #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
+}
+
+void AChaosSolverActor::PostLoad()
+{
+	Super::PostLoad();
+	
+	if(GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::ChaosSolverPropertiesMoved)
+	{
+		auto ConvertDeprecatedConnectionType = [](EClusterConnectionTypeEnum LegacyType) -> EClusterUnionMethod
+		{
+			switch(LegacyType)
+			{
+			case EClusterConnectionTypeEnum::Chaos_PointImplicit:
+				return EClusterUnionMethod::PointImplicit;
+			case EClusterConnectionTypeEnum::Chaos_DelaunayTriangulation:
+				return EClusterUnionMethod::DelaunayTriangulation;
+			case EClusterConnectionTypeEnum::Chaos_MinimalSpanningSubsetDelaunayTriangulation:
+				return EClusterUnionMethod::MinimalSpanningSubsetDelaunayTriangulation;
+			case EClusterConnectionTypeEnum::Chaos_PointImplicitAugmentedWithMinimalDelaunay:
+				return EClusterUnionMethod::PointImplicitAugmentedWithMinimalDelaunay;
+			default:
+				break;
+			}
+
+			return EClusterUnionMethod::None;
+		};
+
+		Properties.CollisionIterations = CollisionIterations_DEPRECATED;
+		Properties.PushOutIterations = PushOutIterations_DEPRECATED;
+		Properties.PushOutPairIterations = PushOutPairIterations_DEPRECATED;
+		Properties.ClusterConnectionFactor = ClusterConnectionFactor_DEPRECATED;
+		Properties.ClusterUnionConnectionType = ConvertDeprecatedConnectionType(ClusterUnionConnectionType_DEPRECATED);
+		Properties.bGenerateBreakData = DoGenerateBreakingData_DEPRECATED;
+		Properties.bGenerateCollisionData = DoGenerateCollisionData_DEPRECATED;
+		Properties.bGenerateTrailingData = DoGenerateTrailingData_DEPRECATED;
+		Properties.BreakingFilterSettings = BreakingFilterSettings_DEPRECATED;
+		Properties.CollisionFilterSettings = CollisionFilterSettings_DEPRECATED;
+		Properties.TrailingFilterSettings = TrailingFilterSettings_DEPRECATED;
+		Properties.bGenerateContactGraph = bGenerateContactGraph_DEPRECATED;
+	}
+}
+
+void AChaosSolverActor::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	// Attach custom version
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 }
 
 void AChaosSolverActor::PostRegisterAllComponents()
@@ -388,6 +408,22 @@ void AChaosSolverActor::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 	}
 }
 
+void AChaosSolverActor::MakeFloor()
+{
+	if(bHasFloor)
+	{
+		FloorParticle = Chaos::TGeometryParticle<float, 3>::CreateParticle();
+		FloorParticle->SetGeometry(TUniquePtr<Chaos::TPlane<float, 3>>(new Chaos::TPlane<float, 3>(FVector(0), FVector(0, 0, 1))));
+		FloorParticle->SetObjectState(Chaos::EObjectStateType::Static);
+		FloorParticle->SetX(Chaos::TVector<float, 3>(0.f, 0.f, FloorHeight));
+		FCollisionFilterData FilterData;
+		FilterData.Word1 = 0xFFFF;
+		FilterData.Word3 = 0xFFFF;
+		FloorParticle->SetShapeSimData(0, FilterData);
+		Solver->RegisterObject(FloorParticle.Get());
+	}
+}
+
 void AChaosSolverActor::SetAsCurrentWorldSolver()
 {
 	UWorld* const W = GetWorld();
@@ -403,11 +439,8 @@ void AChaosSolverActor::SetSolverActive(bool bActive)
 {
 	if(Solver && PhysScene)
 	{
-		Solver->EnqueueCommandImmediate([InSolver=Solver, bShouldBeActive = bActive]()
-			{
-				InSolver->SetEnabled(bShouldBeActive);
-			});
-		}
+		Solver->SetIsPaused_External(!bActive);
+	}
 }
 
 #if WITH_EDITOR
@@ -415,145 +448,33 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (Solver && PropertyChangedEvent.Property)
+	if(Solver && PropertyChangedEvent.Property)
 	{
-#if TODO_REIMPLEMENT_TIMESTEP_MULTIPLIER
-			if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, TimeStepMultiplier))
+		if(PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, Properties))
+		{
+			Solver->EnqueueCommandImmediate([InSolver = Solver, InConfig = Properties]()
 			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InTimeStepMultiplier = TimeStepMultiplier]
-				()
-				{
-					InSolver->SetTimeStepMultiplier(InTimeStepMultiplier);
-				});
-			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, CollisionIterations))
+				InSolver->ApplyConfig(InConfig);
+			});
+		}
+		else if(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, bHasFloor))
+		{
+			if(FloorParticle)
 			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InCollisionIterations = CollisionIterations]
-				()
-				{
-					InSolver->SetIterations(InCollisionIterations);
-				});
-			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, PushOutIterations))
-			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InPushOutIterations = PushOutIterations]
-				()
-				{
-					InSolver->SetPushOutIterations(InPushOutIterations);
-				});
-			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, PushOutPairIterations))
-			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InPushOutPairIterations = PushOutPairIterations]
-				()
-				{
-					InSolver->SetPushOutPairIterations(InPushOutPairIterations);
-				});
-			}
-			else
-#endif
-			if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, DoGenerateCollisionData))
-			{
-				Solver->EnqueueCommandImmediate([InSolver = Solver, InDoGenerateCollisionData = DoGenerateCollisionData]
-				()
-				{
-					InSolver->SetGenerateCollisionData(InDoGenerateCollisionData);
-				});
-			}
-			else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, CollisionFilterSettings))
-			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InCollisionFilterSettings = CollisionFilterSettings]
-				()
-				{
-					InSolver->SetCollisionFilterSettings(InCollisionFilterSettings);
-				});
-			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, DoGenerateBreakingData))
-			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InDoGenerateBreakingData = DoGenerateBreakingData]
-				()
-				{
-					InSolver->SetGenerateBreakingData(InDoGenerateBreakingData);
-				});
-			}
-			else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, BreakingFilterSettings))
-			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InBreakingFilterSettings = BreakingFilterSettings]
-				()
-				{
-					InSolver->SetBreakingFilterSettings(InBreakingFilterSettings);
-				});
-			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, DoGenerateTrailingData))
-			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InDoGenerateTrailingData = DoGenerateTrailingData]
-				()
-				{
-					InSolver->SetGenerateTrailingData(InDoGenerateTrailingData);
-				});
-			}
-			else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, TrailingFilterSettings))
-			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InTrailingFilterSettings = TrailingFilterSettings]
-				()
-				{
-					InSolver->SetTrailingFilterSettings(InTrailingFilterSettings);
-				});
-			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, bHasFloor))
-			{
-			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, FloorHeight))
-			{
-			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, bGenerateContactGraph))
-			{
-				Solver->EnqueueCommandImmediate([InSolver = Solver, InGenerateContactGraph = bGenerateContactGraph]()
-				{
-				});
+				Solver->UnregisterObject(FloorParticle.Get());
+				FloorParticle = nullptr;
 			}
 
-#if TODO_REIMPLEMENT_TIMESTEP_MULTIPLIER
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, MassScale))
-			{
-				Solver->EnqueueCommandImmediate([InSolver=Solver, InMassScale = MassScale]()
-				{
-					InSolver->SetMassScale(InMassScale);
-				});
-			}
-#endif
+			MakeFloor();
 		}
-
-#if CHAOS_DEBUG_SUBSTEP
-#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
-	if (Solver && PropertyChangedEvent.Property)
-	{
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FChaosDebugSubstepControl, bPause))
+		else if(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, FloorHeight))
 		{
-			if (HasActorBegunPlay())
+			if(FloorParticle)
 			{
-				Solver->GetDebugSubstep().Enable(ChaosDebugSubstepControl.bPause);
+				FloorParticle->SetX(FVector(0.0f, 0.0f, FloorHeight));
 			}
-		}
-		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FChaosDebugSubstepControl, bSubstep))
-		{
-			if (HasActorBegunPlay())
-			{
-				Solver->GetDebugSubstep().ProgressToSubstep();
-			}
-			ChaosDebugSubstepControl.bSubstep = false;
-		}
-		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FChaosDebugSubstepControl, bStep))
-		{
-			if (HasActorBegunPlay())
-			{
-				Solver->GetDebugSubstep().ProgressToStep();
-			}
-			ChaosDebugSubstepControl.bStep = false;
 		}
 	}
-#endif
-#endif
 }
 
 #if TODO_REIMPLEMENT_SERIALIZATION_FOR_PERF_TEST

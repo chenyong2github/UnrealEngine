@@ -856,10 +856,6 @@ void FPhysScene_Chaos::RemoveFromComponentMaps(IPhysicsProxyBase* InObject)
 void FPhysScene_Chaos::OnWorldBeginPlay()
 {
 	Chaos::FPhysicsSolver* Solver = GetSolver();
-	if (Solver)
-	{
-		Solver->SetEnabled(true);
-	}
 
 #if WITH_EDITOR
 	const UWorld* WorldPtr = GetOwningWorld();
@@ -877,7 +873,7 @@ void FPhysScene_Chaos::OnWorldBeginPlay()
 					auto InnerSolver = PhysScene->GetSolver();
 					if (InnerSolver)
 					{
-						InnerSolver->SetEnabled(false);
+						InnerSolver->SetIsPaused_External(true);
 					}
 				}
 			}
@@ -890,11 +886,6 @@ void FPhysScene_Chaos::OnWorldBeginPlay()
 void FPhysScene_Chaos::OnWorldEndPlay()
 {
 	Chaos::FPhysicsSolver* Solver = GetSolver();
-	if (Solver)
-	{
-		Solver->SetEnabled(false);
-
-	}
 
 #if WITH_EDITOR
 	const UWorld* WorldPtr = GetOwningWorld();
@@ -912,7 +903,7 @@ void FPhysScene_Chaos::OnWorldEndPlay()
 					auto InnerSolver = PhysScene->GetSolver();
 					if (InnerSolver)
 					{
-						InnerSolver->SetEnabled(true);
+						InnerSolver->SetIsPaused_External(false);
 					}
 				}
 			}
@@ -945,7 +936,7 @@ void FPhysScene_Chaos::SetOwningWorld(UWorld* InOwningWorld)
 #if WITH_EDITOR
 	if (IsOwningWorldEditor())
 	{
-		GetSolver()->SetEnabled(true);
+		GetSolver()->SetIsPaused_External(false);
 	}
 #endif
 
@@ -1562,10 +1553,7 @@ float FPhysScene_Chaos::OnStartFrame(float InDeltaTime)
 	if (IsOwningWorldEditor())
 	{
 		// Ensure editor solver is enabled
-		if (GetSolver()->Enabled() == false)
-		{
-			GetSolver()->SetEnabled(true);
-		}
+		GetSolver()->SetIsPaused_External(false);
 
 		UseDeltaTime = 0.0f;
 	}
