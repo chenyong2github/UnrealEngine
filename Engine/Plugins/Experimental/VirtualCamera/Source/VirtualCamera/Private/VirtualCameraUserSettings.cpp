@@ -1,17 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualCameraUserSettings.h"
+#include "UObject/SoftObjectPath.h"
 
 UVirtualCameraUserSettings::UVirtualCameraUserSettings()
 {
-	if (DefaultVCamClass == nullptr) 
+
+	FSoftObjectPath DefaultVCamSoftPath = FSoftObjectPath(TEXT("/VirtualCamera/V2/VcamActor.VcamActor_C"));
+
+	if (DefaultVCamSoftPath.IsNull())
 	{
-		UBlueprint* VCamAsset = Cast<UBlueprint>(FSoftObjectPath(TEXT("/VirtualCamera/V2/VcamActor.VcamActor")).TryLoad());
-		if (VCamAsset) 
-		{
-			DefaultVCamClass = VCamAsset->GeneratedClass;
-		}
+		return;
 	}
+
+	DefaultVCamClass = TSoftClassPtr<AActor>(DefaultVCamSoftPath);
+
 }
 
 float UVirtualCameraUserSettings::GetFocusInterpSpeed()
