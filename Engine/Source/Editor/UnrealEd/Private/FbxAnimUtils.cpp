@@ -219,6 +219,8 @@ namespace FbxAnimUtils
 	void ExtractAttributeCurves(FbxNode* InNode, bool bInDoNotImportCurveWithZero, TFunctionRef<void(FbxAnimCurve* /*InCurve*/, const FString& /*InCurveName*/)> ImportFunction)
 	{
 		FbxProperty Property = InNode->GetFirstProperty();
+		UAnimationSettings* AnimationSettings = UAnimationSettings::Get();
+
 		while (Property.IsValid())
 		{
 			FbxAnimCurveNode* CurveNode = Property.GetCurveNode();
@@ -227,7 +229,7 @@ namespace FbxAnimUtils
 
 			if (CurveNode && Property.GetFlag(FbxPropertyFlags::eUserDefined) &&
 				CurveNode->IsAnimated() && FbxAnimUtils::IsSupportedCurveDataType(Property.GetPropertyDataType().GetType()) &&
-				!UAnimationSettings::Get()->BoneCustomAttributesNames.Contains(PropertyName)) //This property should be assigned to the bone directly.
+				!AnimationSettings->BoneCustomAttributesNames.ContainsByPredicate([&PropertyName](const FCustomAttributeSetting& CustomAttributeSetting) { return CustomAttributeSetting.Name.Equals(PropertyName, ESearchCase::IgnoreCase); }))
 			{
 				FString CurveName = UTF8_TO_TCHAR(CurveNode->GetName());
 				UE_LOG(LogFbx, Log, TEXT("CurveName : %s"), *CurveName);
@@ -258,6 +260,8 @@ namespace FbxAnimUtils
 	void ExtractNodeAttributes(fbxsdk::FbxNode* InNode, bool bInDoNotImportCurveWithZero, bool bImportAllCustomAttributes, TFunctionRef<void(fbxsdk::FbxProperty& /*InProperty*/, fbxsdk::FbxAnimCurve* /*InCurve*/, const FString& /*InCurveName*/)> ImportFunction)
 	{
 		FbxProperty Property = InNode->GetFirstProperty();
+		UAnimationSettings* AnimationSettings = UAnimationSettings::Get();
+
 		while (Property.IsValid())
 		{
 			FbxAnimCurveNode* CurveNode = Property.GetCurveNode();
@@ -266,7 +270,7 @@ namespace FbxAnimUtils
 			const bool bIsTypeSupported = FbxAnimUtils::IsSupportedCurveDataType(PropertyType) || eFbxString == PropertyType;
 
 			if (Property.GetFlag(FbxPropertyFlags::eUserDefined) && bIsTypeSupported 
-				&& (bImportAllCustomAttributes || UAnimationSettings::Get()->BoneCustomAttributesNames.Contains(PropertyName)))
+				&& (bImportAllCustomAttributes || AnimationSettings->BoneCustomAttributesNames.ContainsByPredicate([&PropertyName](const FCustomAttributeSetting& CustomAttributeSetting) { return CustomAttributeSetting.Name.Equals(PropertyName, ESearchCase::IgnoreCase); })))
 			{
 				UE_LOG(LogFbx, Log, TEXT("PropertyName : %s"), *PropertyName);
 

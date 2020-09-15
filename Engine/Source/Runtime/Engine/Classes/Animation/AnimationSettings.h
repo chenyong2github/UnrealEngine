@@ -61,11 +61,11 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Performance)
 	bool bTickAnimationOnSkeletalMeshInit;
 
-	/** List of custom attribute names to import directly on bones */
+	/** List of custom attribute to import directly on their corresponding bone. The meaning field allows to contextualize the attribute name and customize tooling for it. */
 	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
-	TArray<FString> BoneCustomAttributesNames;
+	TArray<FCustomAttributeSetting> BoneCustomAttributesNames;
 
-	/** List of bone names whose custom attributes are directly importer on the bone. */
+	/** List of bone names for which all custom attributes are directly imported on the bone. */
 	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
 	TArray<FString> BoneNamesWithCustomAttributes;
 
