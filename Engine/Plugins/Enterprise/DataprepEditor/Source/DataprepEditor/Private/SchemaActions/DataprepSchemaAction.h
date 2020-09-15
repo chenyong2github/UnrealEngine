@@ -58,6 +58,12 @@ struct FDataprepSchemaAction : public FEdGraphSchemaAction
 
 	FDataprepSchemaAction() {}
 
+	/** 
+	 * If the class associated with this action is blueprint generated,
+	 * this is its path
+	 */
+	FString GeneratedClassObjectPath;
+
 	/**
 	 * Create a DataprepSchemaAction
 	 * @param InActionCategory The category in which the action will be displayed
