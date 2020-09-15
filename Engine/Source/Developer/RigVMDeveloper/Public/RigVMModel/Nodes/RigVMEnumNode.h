@@ -40,7 +40,7 @@ public:
 	// Override of node title
 	virtual FLinearColor GetNodeColor() const override { return FLinearColor::Blue; }
 
-	virtual bool IsDefinedAsConstant() const override { return true; }
+	virtual bool IsDefinedAsVarying() const override { return true; }
 
 private:
 
