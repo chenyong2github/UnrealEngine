@@ -175,6 +175,16 @@ struct FNiagaraSystemCompileRequest
 	bool bForced = false;
 };
 
+struct FNiagaraEmitterExecutionIndex
+{
+	FNiagaraEmitterExecutionIndex() { bStartNewOverlapGroup = false; EmitterIndex = 0; }
+
+	/** Flag to denote if the batcher should start a new overlap group, i.e. when we have a dependency ensure we don't overlap with the emitter we depend on. */
+	uint32 bStartNewOverlapGroup : 1;
+	/** Emitter index to use */
+	uint32 EmitterIndex : 31;
+};
+
 /** Container for multiple emitters that combine together to create a particle system effect.*/
 UCLASS(BlueprintType)
 class NIAGARA_API UNiagaraSystem : public UFXSystemAsset
@@ -401,7 +411,7 @@ public:
 	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
 	void CacheFromCompiledData();
 
-	FORCEINLINE TConstArrayView<int32> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
+	FORCEINLINE TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
 
 	FORCEINLINE TConstArrayView<int32> GetRendererDrawOrder() const { return MakeArrayView(RendererDrawOrder); }
 
@@ -603,7 +613,7 @@ protected:
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. Please note that some indices may have the top bit set (kStartNewOverlapGroupBit)
 	* to indicate synchronization points in parallel execution, so mask it out before using the values as indices in the emitters array.
 	*/
-	TArray<int32> EmitterExecutionOrder;
+	TArray<FNiagaraEmitterExecutionIndex> EmitterExecutionOrder;
 
 	/** Precomputed emitter renderer draw order, since emitters & renderers are not dynamic we can do this. */
 	TArray<int32> RendererDrawOrder;

@@ -692,17 +692,16 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
 	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
 	uint32 InstanceIndex = 0;
-
 	bool bStartNewOverlapGroup = false;
 
-	const TConstArrayView<int32> EmitterExecutionOrder = InSystemInstance->GetEmitterExecutionOrder();
-	for (int32 EmitterIdx : EmitterExecutionOrder)
+	const TConstArrayView<FNiagaraEmitterExecutionIndex> EmitterExecutionOrder = InSystemInstance->GetEmitterExecutionOrder();
+	for (const FNiagaraEmitterExecutionIndex& EmiterExecIndex : EmitterExecutionOrder)
 	{
 		// The dependency resolution code does not consider CPU and GPU emitters separately, so the flag which marks the start of a new overlap group can be set on either
 		// a CPU or GPU emitter. We must turn on bStartNewOverlapGroup when we encounter the flag, and reset it when we've actually marked a GPU emitter as starting a new group.
-		bStartNewOverlapGroup |= (EmitterIdx & UNiagaraSystem::kStartNewOverlapGroupBit) != 0;
-		EmitterIdx = EmitterIdx & (~UNiagaraSystem::kStartNewOverlapGroupBit);
+		bStartNewOverlapGroup |= EmiterExecIndex.bStartNewOverlapGroup;
 
+		const uint32 EmitterIdx = EmiterExecIndex.EmitterIndex;
 		if (FNiagaraEmitterInstance* EmitterInstance = &InSystemInstance->GetEmitters()[EmitterIdx].Get())
 		{
 			if (EmitterInstance->IsComplete() )

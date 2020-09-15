@@ -2020,7 +2020,7 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	}
 
 	const int32 NumEmitters = Emitters.Num();
-	const TConstArrayView<int32> EmitterExecutionOrder = GetEmitterExecutionOrder();
+	const TConstArrayView<FNiagaraEmitterExecutionIndex> EmitterExecutionOrder = GetEmitterExecutionOrder();
 	checkSlow(EmitterExecutionOrder.Num() <= NumEmitters);
 
 	//Determine if any of our emitters should be ticking.
@@ -2028,14 +2028,13 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	EmittersShouldTick.Init(false, NumEmitters);
 
 	bool bHasTickingEmitters = false;
-	for (int32 EmitterIdx : EmitterExecutionOrder)
+	for (const FNiagaraEmitterExecutionIndex& EmitterExecIdx : EmitterExecutionOrder)
 	{
-		EmitterIdx = EmitterIdx & (~UNiagaraSystem::kStartNewOverlapGroupBit);
-		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
+		FNiagaraEmitterInstance& Inst = Emitters[EmitterExecIdx.EmitterIndex].Get();
 		if (Inst.ShouldTick())
 		{
 			bHasTickingEmitters = true;
-			EmittersShouldTick.SetRange(EmitterIdx, 1, true);
+			EmittersShouldTick.SetRange(EmitterExecIdx.EmitterIndex, 1, true);
 		}
 	}
 
@@ -2047,12 +2046,11 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 
 	FScopeCycleCounter SystemStat(System->GetStatID(true, true));
 
-	for (int32 EmitterIdx : EmitterExecutionOrder)
+	for (const FNiagaraEmitterExecutionIndex& EmitterExecIdx : EmitterExecutionOrder)
 	{
-		EmitterIdx = EmitterIdx & (~UNiagaraSystem::kStartNewOverlapGroupBit);
-		if (EmittersShouldTick[EmitterIdx])
+		if (EmittersShouldTick[EmitterExecIdx.EmitterIndex])
 		{
-			FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
+			FNiagaraEmitterInstance& Inst = Emitters[EmitterExecIdx.EmitterIndex].Get();
 			Inst.PreTick();
 		}
 	}
@@ -2060,11 +2058,10 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	int32 TotalCombinedParamStoreSize = 0;
 
 	// now tick all emitters
-	for (int32 EmitterIdx : EmitterExecutionOrder)
+	for (const FNiagaraEmitterExecutionIndex& EmitterExecIdx : EmitterExecutionOrder)
 	{
-		EmitterIdx = EmitterIdx & (~UNiagaraSystem::kStartNewOverlapGroupBit);
-		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
-		if (EmittersShouldTick[EmitterIdx])
+		FNiagaraEmitterInstance& Inst = Emitters[EmitterExecIdx.EmitterIndex].Get();
+		if (EmittersShouldTick[EmitterExecIdx.EmitterIndex])
 		{
 			Inst.Tick(CachedDeltaSeconds);
 		}
@@ -2487,7 +2484,7 @@ TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> FNiagaraSystemInstance:
 	return nullptr;
 }
 
-TConstArrayView<int32> FNiagaraSystemInstance::GetEmitterExecutionOrder() const
+TConstArrayView<FNiagaraEmitterExecutionIndex> FNiagaraSystemInstance::GetEmitterExecutionOrder() const
 {
 	if (SystemSimulation != nullptr)
 	{
@@ -2497,7 +2494,7 @@ TConstArrayView<int32> FNiagaraSystemInstance::GetEmitterExecutionOrder() const
 			return NiagaraSystem->GetEmitterExecutionOrder();
 		}
 	}
-	return MakeArrayView<const int32>(nullptr, 0);
+	return MakeArrayView<FNiagaraEmitterExecutionIndex>(nullptr, 0);
 }
 
 FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)
