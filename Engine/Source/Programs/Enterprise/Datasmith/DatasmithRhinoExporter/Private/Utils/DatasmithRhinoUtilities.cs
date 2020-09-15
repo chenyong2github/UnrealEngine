@@ -14,10 +14,34 @@ namespace DatasmithRhino
 	{
 		public static string GetMaterialHash(Material RhinoMaterial)
 		{
+			return ComputeHashStringFromBytes(SerializeMaterial(RhinoMaterial));
+		}
+
+		public static string GetTextureHash(Texture RhinoTexture)
+		{
+			string HashString;
+
+			using (MemoryStream Stream = new MemoryStream())
+			{
+				using (BinaryWriter Writer = new BinaryWriter(Stream))
+				{
+					SerializeTexture(Writer, RhinoTexture);
+
+				}
+
+				HashString = ComputeHashStringFromBytes(Stream.ToArray());
+			}
+
+			return HashString;
+		}
+
+		private static string ComputeHashStringFromBytes(byte[] Data)
+		{
 			MD5 Md5Hash = MD5.Create();
-			byte[] Hash = Md5Hash.ComputeHash(SerializeMaterial(RhinoMaterial));
+			byte[] Hash = Md5Hash.ComputeHash(Data);
 
 			StringBuilder Builder = new StringBuilder();
+			Builder.Capacity = Hash.Length;
 			for (int ByteIndex = 0, ByteCount = Hash.Length; ByteIndex < ByteCount; ++ByteIndex)
 			{
 				//Format the bytes hexadecimal characters.
@@ -53,9 +77,9 @@ namespace DatasmithRhino
 					{
 						SerializeTexture(Writer, MaterialTextures[Index]);
 					}
-
-					return Stream.ToArray();
 				}
+
+				return Stream.ToArray();
 			}
 		}
 
@@ -212,6 +236,77 @@ namespace DatasmithRhino
 			}
 
 			return RhinoApp.ParseTextField(ValueFormula, NodeObject, ParentObject);
+		}
+
+		public static string GetRhinoTextureFilePath(Texture RhinoTexture)
+		{
+			string FileName = "";
+			string FilePath = RhinoTexture.FileReference.FullPath;
+			if (FilePath != null && FilePath.Length != 0)
+			{
+				FileName = Path.GetFileName(FilePath);
+				if (!File.Exists(FilePath))
+				{
+					FilePath = "";
+				}
+			}
+
+			// Rhino's full path did not work, check with Rhino's relative path starting from current path
+			string RhinoFilePath = RhinoDoc.ActiveDoc.Path;
+			if (RhinoFilePath != null && RhinoFilePath != "")
+			{
+				string CurrentPath = Path.GetFullPath(Path.GetDirectoryName(RhinoFilePath));
+				if (FilePath == null || FilePath.Length == 0)
+				{
+					string RelativePath = RhinoTexture.FileReference.RelativePath;
+					if (RelativePath != null && RelativePath.Length != 0)
+					{
+						FilePath = Path.Combine(CurrentPath, RelativePath);
+						FilePath = Path.GetFullPath(FilePath);
+
+						if (!File.Exists(FilePath))
+						{
+							FilePath = "";
+						}
+					}
+				}
+
+				// Last resort, search for the file
+				if (FilePath == null || FilePath == "")
+				{
+					// Search the texture in the CurrentPath and its sub-folders
+					string[] FileNames = Directory.GetFiles(CurrentPath, FileName, SearchOption.AllDirectories);
+					if (FileNames.Length > 0)
+					{
+						FilePath = Path.GetFullPath(FileNames[0]);
+					}
+				}
+			}
+
+			return FilePath;
+		}
+
+		public static bool GetRhinoTextureNameAndPath(Texture RhinoTexture, out string Name, out string TexturePath)
+		{
+			TexturePath = GetRhinoTextureFilePath(RhinoTexture);
+			Name = "";
+
+			if (string.IsNullOrEmpty(TexturePath))
+			{
+				return false;
+			}
+
+			Name = System.IO.Path.GetFileNameWithoutExtension(TexturePath);
+			if (RhinoTexture.TextureType == TextureType.Bump)
+			{
+				Name += "_normal";
+			}
+			else if (RhinoTexture.TextureType == TextureType.Transparency)
+			{
+				Name += "_alpha";
+			}
+
+			return true;
 		}
 	}
 }
