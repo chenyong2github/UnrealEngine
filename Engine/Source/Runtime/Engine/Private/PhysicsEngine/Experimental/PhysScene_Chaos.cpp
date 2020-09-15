@@ -1641,7 +1641,6 @@ void FPhysScene_Chaos::KillVisualDebugger()
 void FPhysScene_Chaos::OnSyncBodies()
 {
 	using namespace Chaos;
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"), STAT_SyncBodies, STATGROUP_Physics);
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
