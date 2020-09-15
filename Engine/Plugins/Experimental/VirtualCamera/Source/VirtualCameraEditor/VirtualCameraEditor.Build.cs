@@ -23,7 +23,9 @@ public class VirtualCameraEditor : ModuleRules
 				"UMG",
 				"UnrealEd",
 				"VirtualCamera",
-				"WorkspaceMenuStructure"
+				"VPUtilitiesEditor",
+				"WorkspaceMenuStructure",
+				"PlacementMode"
 			}
 		);
 	}

@@ -10,6 +10,10 @@
 #include "VirtualCameraUserSettings.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "IPlacementModeModule.h"
+#include "IVPUtilitiesEditorModule.h"
+#include "VirtualCameraActor.h"
+#include "ActorFactories/ActorFactoryBlueprint.h"
 
 
 #define LOCTEXT_NAMESPACE "FVirtualCameraEditorModule"
@@ -26,6 +30,7 @@ public:
 		SVirtualCameraTab::RegisterNomadTabSpawner(DeveloperToolsGroup);
 
 		RegisterSettings();
+		RegisterPlacementModeItems();
 	}
 
 	virtual void ShutdownModule() override
@@ -57,6 +62,31 @@ public:
 		if (SettingsModule != nullptr)
 		{
 			SettingsModule->UnregisterSettings("Project", "Plugins", "VirtualCamera");
+		}
+	}
+
+	void RegisterPlacementModeItems()
+	{
+		if (GEditor)
+		{
+			if (const FPlacementCategoryInfo* Info = IVPUtilitiesEditorModule::Get().GetVirtualProductionPlacementCategoryInfo())
+			{
+				FAssetData VCamActorAssetData(
+					TEXT("/VirtualCamera/V2/VcamActor"), 
+					TEXT("/VirtualCamera/V2"), 
+					TEXT("VcamActor"), 
+					TEXT("Blueprint")
+				);
+				
+				IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
+					*UActorFactoryBlueprint::StaticClass(),
+					VCamActorAssetData,
+					FName("ClassIcon.CameraActor"),
+					TOptional<FLinearColor>(),
+					TOptional<int32>(),
+					LOCTEXT("VCamActorPlacementName", "VCam Actor")
+				));
+			}
 		}
 	}
 };
