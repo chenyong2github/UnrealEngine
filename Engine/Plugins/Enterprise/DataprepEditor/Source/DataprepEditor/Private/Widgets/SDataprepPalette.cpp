@@ -21,6 +21,7 @@
 #include "EditorStyleSet.h"
 #include "EditorWidgetsModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Images/SImage.h"
@@ -163,6 +164,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 						.OnCreateCustomRowExpander( this, &SDataprepPalette::OnCreateCustomRowExpander )
 						.OnCreateWidgetForAction( this, &SDataprepPalette::OnCreateWidgetForAction )
 						.OnCollectAllActions( this, &SDataprepPalette::CollectAllActions )
+						.OnContextMenuOpening(this, &SDataprepPalette::OnContextMenuOpening)
 						.AutoExpandActionMenu( true )
 					]
 					
@@ -204,6 +206,45 @@ TSharedRef<SWidget> SDataprepPalette::ConstructAddActionMenu() const
 				FCanExecuteAction(),
 				FGetActionCheckState()
 			)
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedPtr<SWidget> SDataprepPalette::OnContextMenuOpening()
+{
+	TArray<TSharedPtr<FEdGraphSchemaAction> > SelectedActions;
+	GraphActionMenu->GetSelectedActions( SelectedActions );
+	if ( SelectedActions.Num() != 1 )
+	{
+		return TSharedPtr<SWidget>();
+	}
+
+	TSharedPtr<FDataprepSchemaAction> DataprepSchemaAction = StaticCastSharedPtr<FDataprepSchemaAction>( SelectedActions[0] );
+	
+	if ( !DataprepSchemaAction || DataprepSchemaAction->GeneratedClassObjectPath.IsEmpty() )
+	{
+		return TSharedPtr<SWidget>();
+	}
+
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection, nullptr );
+
+	MenuBuilder.BeginSection("BasicOperations");
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenInBP", "Open in Blueprint Editor"),
+			FText(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([ObjectPath = DataprepSchemaAction->GeneratedClassObjectPath]()
+			{
+				if ( UObject* Obj = StaticLoadObject( UObject::StaticClass(), nullptr, *ObjectPath ) )
+				{
+					FKismetEditorUtilities::BringKismetToFocusAttentionOnObject( Obj );
+				}
+			}))
 		);
 	}
 	MenuBuilder.EndSection();
