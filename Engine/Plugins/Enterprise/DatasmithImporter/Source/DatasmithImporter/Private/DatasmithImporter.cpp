@@ -69,6 +69,7 @@
 #include "SourceControlOperations.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectHash.h"
 #include "UnrealEdGlobals.h"
 
 extern UNREALED_API UEditorEngine* GEditor;
@@ -882,12 +883,23 @@ void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext,
 				//Create a new datasmith scene actor in the final level
 				FActorSpawnParameters SpawnParameters;
 				SpawnParameters.Template = ImportSceneActor;
-				ADatasmithSceneActor* DestinationSceneActor = Cast< ADatasmithSceneActor >(ImportContext.ActorsContext.FinalWorld->SpawnActor< ADatasmithSceneActor >(SpawnParameters));
+				ADatasmithSceneActor* DestinationSceneActor = ImportContext.ActorsContext.FinalWorld->SpawnActor< ADatasmithSceneActor >(SpawnParameters);
 
 				// Name new destination ADatasmithSceneActor to the DatasmithScene's name
 				DestinationSceneActor->SetActorLabel( ImportContext.Scene->GetName() );
 				DestinationSceneActor->MarkPackageDirty();
 				DestinationSceneActor->RelatedActors.Reset();
+
+				// Workaround for UE-94255. We should be able to remove this when UE-76028 is fixed
+				TArray<UObject*> SubObjects;
+				GetObjectsWithOuter( DestinationSceneActor, SubObjects );
+				for ( UObject* SubObject : SubObjects )
+				{
+					if ( UAssetUserData* AssetUserData = Cast<UAssetUserData>( SubObject ) )
+					{
+						AssetUserData->SetFlags( AssetUserData->GetFlags() | RF_Public );
+					}
+				}
 
 				FinalSceneActors.Empty( 1 );
 				FinalSceneActors.Add( DestinationSceneActor );
