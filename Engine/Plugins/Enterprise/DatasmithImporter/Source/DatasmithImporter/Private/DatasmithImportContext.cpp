@@ -510,20 +510,20 @@ bool FDatasmithActorImportContext::Init()
 }
 
 FDatasmithAssetsImportContext::FDatasmithAssetsImportContext( FDatasmithImportContext& ImportContext )
-	: ParentContext( ImportContext )
+	: ParentContext( &ImportContext )
 {
 }
 
 bool FDatasmithAssetsImportContext::Init()
 {
 	FString NewRootFolder;
-	if ( ParentContext.SceneAsset )
+	if ( GetParentContext().SceneAsset )
 	{
-		NewRootFolder = FPackageName::GetLongPackagePath( ParentContext.SceneAsset->GetOutermost()->GetName() );
+		NewRootFolder = FPackageName::GetLongPackagePath( GetParentContext().SceneAsset->GetOutermost()->GetName() );
 	}
 	else
 	{
-		NewRootFolder = FPaths::Combine( ParentContext.Options->BaseOptions.AssetOptions.PackagePath.ToString(), ParentContext.SceneName );
+		NewRootFolder = FPaths::Combine( GetParentContext().Options->BaseOptions.AssetOptions.PackagePath.ToString(), GetParentContext().SceneName );
 	}
 
 	ReInit(NewRootFolder);

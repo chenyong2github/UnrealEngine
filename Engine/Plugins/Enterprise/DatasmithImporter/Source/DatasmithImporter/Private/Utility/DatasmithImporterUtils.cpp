@@ -10,8 +10,10 @@
 #include "DatasmithScene.h"
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithSceneSource.h"
 #include "DatasmithSceneXmlReader.h"
 #include "DatasmithSceneXmlWriter.h"
+#include "DatasmithTranslatorManager.h"
 #include "LevelVariantSets.h"
 
 #include "ObjectTemplates/DatasmithActorTemplate.h"
@@ -56,6 +58,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/FileHelper.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/MemoryWriter.h"
 #include "UObject/ObjectRedirector.h"
@@ -1234,6 +1237,123 @@ void FScopedLogger::ClearLog()
 void FScopedLogger::ClearPending()
 {
 	TokenizedMessages.Empty();
+}
+
+bool FDatasmithImporterUtils::CreatePlmXmlSceneFromCADFiles(FString PlmXmlFileName, const TSet<FString>& FilesToProcess, TArray<FString>& FilesNotProcessed)
+{
+	// Find out which translator can import CAD files by retrieving translator for a JT file(this is expected to be 'DatasmithCADTranslator').
+	// And then accept files which have this translator returned as compatible.
+	FDatasmithSceneSource SomeCADFileSource;
+	SomeCADFileSource.SetSourceFile("test.jt");
+	TSharedPtr<IDatasmithTranslator> TranslatorForCADFiles = FDatasmithTranslatorManager::Get().SelectFirstCompatible(SomeCADFileSource);
+	if (!TranslatorForCADFiles.IsValid())
+	{
+		UE_LOG(LogDatasmithImport, Error, TEXT("Datasmith import error: no translator found for CAD files. Abort import."));
+		return false;
+	}
+
+	FName CADTranslatorName = TranslatorForCADFiles->GetFName();
+	TArray<FString> FilesToProcessWithPlmXml;
+	for (const FString& FileName : FilesToProcess)
+	{
+		FDatasmithSceneSource Source;
+		Source.SetSourceFile(FileName);
+		TSharedPtr<IDatasmithTranslator> Translator = FDatasmithTranslatorManager::Get().SelectFirstCompatible(Source);
+
+		bool bIsCADFile = Translator.IsValid() && (Translator->GetFName() == CADTranslatorName);
+		if (bIsCADFile)
+		{
+			FilesToProcessWithPlmXml.Add(FileName);
+		}
+		else
+		{
+			FilesNotProcessed.Add(FileName);
+			// XXX make warning for not processed
+			// UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: '%s' is not a CAD file, skipping."), *FileName);
+		}
+	}
+
+	if (FilesToProcessWithPlmXml.Num() <= 0)
+	{
+		return false;
+	}
+
+	class FXmlWriter
+	{
+	public:
+		FString Buffer;
+
+		FXmlWriter()
+		{
+			Buffer = TEXT("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+			Buffer += LINE_TERMINATOR;
+		}
+
+		class FTagGuard
+		{
+		public:
+			FTagGuard(FXmlWriter& InWriter, FString Opening, FString InClosing)
+				: Writer(InWriter)
+				, Closing(InClosing)
+			{
+				Writer.Buffer += Opening;
+				Writer.Buffer += LINE_TERMINATOR;
+			}
+			~FTagGuard()
+			{
+				Writer.Buffer += Closing;
+				Writer.Buffer += LINE_TERMINATOR;
+			}
+		private:
+			FXmlWriter& Writer;
+			FString Closing;
+		};
+	};
+
+	FXmlWriter Writer;
+	FString& Buffer = Writer.Buffer;
+
+	// Creating PLMXML file where each of files to process is referenced from a ProductRevisionView
+	{
+		FXmlWriter::FTagGuard PLMXMLTag(Writer, TEXT("<PLMXML xmlns=\"http://www.plmxml.org/Schemas/PLMXMLSchema\">"), "</PLMXML>");
+		FXmlWriter::FTagGuard ProductDefTag(Writer, TEXT("<ProductDef id=\"id1\">"), TEXT("</ProductDef>"));
+
+		// Used to assign unique ids to PLMXML entities being created
+		int32 CurrentId = 2;
+
+		// Collect all InstanceId to reference from InstanceGraph rootRefs
+		TArray<FString> InstanceIds;
+		InstanceIds.Reserve(FilesToProcessWithPlmXml.Num());
+		for (const FString& FileName : FilesToProcessWithPlmXml)
+		{
+			InstanceIds.Add(FString::Printf(TEXT("id%d"), CurrentId++));
+		}
+		FXmlWriter::FTagGuard InstanceGraphTag(Writer, FString::Printf(TEXT("<InstanceGraph id=\"id2\" rootRefs=\"%s\">"), *FString::Join(InstanceIds, TEXT(" "))), TEXT("</InstanceGraph>"));
+
+		for (int32 FileIndex = 0; FileIndex < FilesToProcessWithPlmXml.Num(); ++FileIndex)
+		{
+			const FString& FileName = FilesToProcessWithPlmXml[FileIndex];
+			FString InstanceId = InstanceIds[FileIndex];
+			FString InstanceName = FPaths::GetBaseFilename(FileName);
+			FString PartId = FString::Printf(TEXT("id%d"), CurrentId++);
+			FString RepresentationId = FString::Printf(TEXT("id%d"), CurrentId++);
+			{
+				FXmlWriter::FTagGuard ProductInstanceTag(Writer, FString::Printf(TEXT("<ProductInstance id=\"%s\" name=\"%s\" partRef=\"#%s\">"), *InstanceId, *InstanceName, *PartId), TEXT("</ProductInstance>"));
+			}
+			{
+				FXmlWriter::FTagGuard ProductRevisionViewTag(Writer, FString::Printf(TEXT("<ProductRevisionView id=\"%s\" name=\"%s\">"), *PartId, *InstanceName), TEXT("</ProductRevisionView>"));
+				//  omitting 'format' attribute, it's optional anyway
+				FXmlWriter::FTagGuard RepresentationTag(Writer, FString::Printf(TEXT("<Representation id=\"%s\" location=\"%s\">"), *RepresentationId, *FileName), TEXT("</Representation>"));
+			}
+		}
+	}
+
+	if (!FFileHelper::SaveStringToFile(Buffer, *PlmXmlFileName, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+	{
+		UE_LOG(LogDatasmithImport, Error, TEXT("Datasmith import error: Failed to create PlmXml file '%s' for parallel loading ..."), *PlmXmlFileName);
+		return false;
+	}
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE // "DatasmithImporterUtils"
