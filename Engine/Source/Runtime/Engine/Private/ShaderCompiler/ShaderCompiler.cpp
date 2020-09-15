@@ -3558,7 +3558,7 @@ void GlobalBeginCompileShader(
 	if (bUsingMobileRenderer)
 	{
 		Input.Environment.SetDefine(TEXT("SHADING_PATH_MOBILE"), 1);
-		if (IsMobileDeferredShading())
+		if (IsMobileDeferredShadingEnabled((EShaderPlatform)Target.Platform))
 		{
 			Input.Environment.SetDefine(TEXT("MOBILE_DEFERRED_SHADING"), 1);
 		}

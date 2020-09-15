@@ -1408,8 +1408,8 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 
 	AllocateDebugViewModeTargets(RHICmdList);
-
-	if (IsMobileDeferredShading())
+	
+	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
 	{
 		float FarDepth = (float)ERHIZBuffer::FarPlane;
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R32_FLOAT, FClearValueBinding(FLinearColor(FarDepth,FarDepth,FarDepth,FarDepth)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
@@ -1828,9 +1828,8 @@ void FSceneRenderTargets::AllocateAnisotropyTarget(FRHICommandListImmediate& RHI
 EPixelFormat FSceneRenderTargets::GetDesiredMobileSceneColorFormat() const
 {
 	const EPixelFormat defaultLowpFormat = FPlatformMisc::IsStandaloneStereoOnlyDevice() ? PF_R8G8B8A8 : PF_B8G8R8A8;
-
 	EPixelFormat DefaultColorFormat = (!IsMobileHDR() || !GSupportsRenderTargetFormat_PF_FloatRGBA) ? defaultLowpFormat : PF_FloatRGBA;
-	if (IsMobileDeferredShading())
+	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
 	{
 		DefaultColorFormat = PF_FloatR11G11B10;
 	}
@@ -2586,7 +2585,7 @@ static void SetupMobileSceneTextureUniformParameters(
 
 	// Mobile GBuffer
 	{
-		const bool bCanReadGBufferUniforms = IsMobileDeferredShading();
+		const bool bCanReadGBufferUniforms = IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
 
 		// Allocate the Gbuffer resource uniform buffer.
 		const FSceneRenderTargetItem& GBufferAToUse = bCanReadGBufferUniforms && SceneContext.GBufferA ? SceneContext.GBufferA->GetRenderTargetItem() : GSystemTextures.BlackDummy->GetRenderTargetItem();
