@@ -477,7 +477,7 @@ FRHIBlendState* FDecalRendering::GetDecalBlendState(const ERHIFeatureLevel::Type
 {
 	if (InDecalRenderStage == DRS_Mobile)
 	{
-		if (IsMobileDeferredShading())
+		if (IsMobileDeferredShadingEnabled(GetFeatureLevelShaderPlatform(SMFeatureLevel)))
 		{
 			return MobileDeferred_GetDecalBlendState(DecalBlendMode, bHasNormal);
 		}

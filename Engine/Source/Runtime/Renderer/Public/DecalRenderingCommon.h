@@ -124,7 +124,7 @@ struct FDecalRenderingCommon
 	{
 		if (IsMobilePlatform(Platform))
 		{
-			return IsMobileDeferredShading() ? RTM_SceneColorAndGBufferWithNormal : RTM_SceneColor;
+			return IsMobileDeferredShadingEnabled(Platform) ? RTM_SceneColorAndGBufferWithNormal : RTM_SceneColor;
 		}
 	
 		// Can't modify GBuffers when forward shading, just modify scene color
@@ -235,7 +235,7 @@ struct FDecalRenderingCommon
 	static uint32 ComputeRenderTargetCount(EShaderPlatform Platform, ERenderTargetMode RenderTargetMode)
 	{
 		// has to be SceneColor on mobile 
-		check(!IsMobilePlatform(Platform) || RenderTargetMode == RTM_SceneColor || IsMobileDeferredShading());
+		check(!IsMobilePlatform(Platform) || RenderTargetMode == RTM_SceneColor || IsMobileDeferredShadingEnabled(Platform));
 
 		switch(RenderTargetMode)
 		{
@@ -291,7 +291,7 @@ struct FDecalRenderingCommon
 					break;
 				default:
 					// all other blend modes are supported when deferred shading is enabled
-					return IsMobileDeferredShading();
+					return IsMobileDeferredShadingEnabled(Platform);
 			}
 		}
 
