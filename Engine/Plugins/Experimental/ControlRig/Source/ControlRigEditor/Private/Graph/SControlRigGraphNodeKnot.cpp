@@ -33,3 +33,5 @@ void SControlRigGraphNodeKnot::EndUserInteraction() const
 
 	SGraphNodeKnot::EndUserInteraction();
 }
+
+#undef LOCTEXT_NAMESPACE
