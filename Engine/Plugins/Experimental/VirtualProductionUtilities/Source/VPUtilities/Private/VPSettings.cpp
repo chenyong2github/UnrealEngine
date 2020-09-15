@@ -30,8 +30,13 @@ UVPSettings::UVPSettings()
 	}
 }
 
+UVPSettings* UVPSettings::GetVPSettings()
+{
+	return GetMutableDefault<UVPSettings>();
+}
 
 #if WITH_EDITOR
+
 void UVPSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, Roles))
