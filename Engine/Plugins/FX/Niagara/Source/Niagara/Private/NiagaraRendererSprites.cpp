@@ -805,9 +805,9 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			{
 				RayTracingInstance.Materials,
 				MeshBatch.Elements[0].NumPrimitives == 0,
-				NumVerticesPerInstance * SourceParticleData->GetNumInstances(),
-				NumVerticesPerInstance * SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
-				NumTrianglesPerInstance * SourceParticleData->GetNumInstances(),
+				NumVerticesPerInstance* NumInstances,
+				NumVerticesPerInstance* NumInstances* (uint32)sizeof(FVector),
+				NumTrianglesPerInstance * NumInstances,
 				&RayTracingGeometry,
 				VertexBuffer,
 				true
