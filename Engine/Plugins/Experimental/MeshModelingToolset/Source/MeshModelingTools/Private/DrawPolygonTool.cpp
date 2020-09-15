@@ -961,7 +961,7 @@ void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
 				ETransformGizmoSubElements::StandardTranslateRotate, this);
 		}
 		PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
-		PlaneTransformGizmo->SetNewGizmoTransform(FTransform((FQuat)DrawPlaneOrientation, (FVector)DrawPlaneOrigin));
+		PlaneTransformGizmo->ReinitializeGizmoTransform(FTransform((FQuat)DrawPlaneOrientation, (FVector)DrawPlaneOrigin));
 	}
 }
 

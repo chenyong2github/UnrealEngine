@@ -118,7 +118,7 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PointTransformProxy->OnTransformChanged.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformChanged);
 	PointTransformProxy->OnBeginTransformEdit.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformStarted);
 	PointTransformProxy->OnEndTransformEdit.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformEnded);
-	PointTransformGizmo->SetActiveTarget(PointTransformProxy);
+	PointTransformGizmo->SetActiveTarget(PointTransformProxy, GetParentTool()->GetToolManager());
 	PointTransformGizmo->SetVisibility(false);
 
 	// We force the coordinate system to be local so that the gizmo only moves in the plane we specify

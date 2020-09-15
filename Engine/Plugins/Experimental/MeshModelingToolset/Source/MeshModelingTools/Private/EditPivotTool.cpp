@@ -293,7 +293,7 @@ void UEditPivotTool::SetActiveGizmos_Single(bool bLocalRotations)
 	Transformable.TransformGizmo = GizmoManager->CreateCustomTransformGizmo(
 		ETransformGizmoSubElements::StandardTranslateRotate, this
 	);
-	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
+	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy, GetToolManager());
 
 	Transformable.TransformGizmo->bUseContextCoordinateSystem = false;
 	Transformable.TransformGizmo->CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;
