@@ -1511,6 +1511,15 @@ void FRigVMParserAST::FoldAssignments()
 			continue;
 		}
 
+		// if this node is a loop node - let's skip the folding
+		if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(AssignExpr->GetTargetPin()->GetNode()))
+		{
+			if (StructNode->IsLoopNode())
+			{
+				continue;
+			}
+		}
+
 		FRigVMExprAST* Parent = AssignExpr->Parents[0];
 		if (!Parent->IsA(FRigVMExprAST::EType::Var))
 		{
