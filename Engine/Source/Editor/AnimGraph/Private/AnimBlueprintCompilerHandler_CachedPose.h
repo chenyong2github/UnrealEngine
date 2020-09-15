@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AnimGraphNode_Base.h"
 #include "IAnimBlueprintCompilerHandler.h"
 
 class UAnimGraphNode_SaveCachedPose;
