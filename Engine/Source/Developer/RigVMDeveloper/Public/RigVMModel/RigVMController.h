@@ -543,7 +543,7 @@ private:
 
 		friend FORCEINLINE uint32 GetTypeHash(const FControlRigStructPinRedirectorKey& Cache)
 		{
-			return GetTypeHash(Cache.Struct) * 13 + GetTypeHash(Cache.PinPathInNode);
+			return HashCombine(GetTypeHash(Cache.Struct), GetTypeHash(Cache.PinPathInNode));
 		}
 
 		FORCEINLINE bool operator ==(const FControlRigStructPinRedirectorKey& Other) const
@@ -561,6 +561,7 @@ private:
 	};
 
 	static TMap<FControlRigStructPinRedirectorKey, FString> PinPathCoreRedirectors;
+	FCriticalSection PinPathCoreRedirectorsLock;
 
 	friend class URigVMGraph;
 	friend class URigVMActionStack;
