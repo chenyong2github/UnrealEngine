@@ -81,8 +81,8 @@ bool FHttpListener::StartListening()
 	if (!ListenSocket->Bind(*BindAddress))
 	{
 		UE_LOG(LogHttpListener, Error, 
-			TEXT("HttpListener unable to bind to %s:%u"),
-			*BindAddress->ToString(false), ListenPort);
+		TEXT("HttpListener unable to bind to %s"),
+			*BindAddress->ToString(true));
 		return false;
 	}
 
@@ -104,8 +104,8 @@ bool FHttpListener::StartListening()
 
 	bIsListening = true;
 	UE_LOG(LogHttpListener, Log, 
-		TEXT("Created new HttpListener on %s:%u"), 
-		*BindAddress->ToString(false), ListenPort);
+		TEXT("Created new HttpListener on %s"), 
+		*BindAddress->ToString(true));
 	return true;
 }
 
@@ -205,7 +205,7 @@ void FHttpListener::AcceptConnections()
 
 			IncomingConnection->SetNonBlocking(true);
 			TSharedPtr<FHttpConnection> Connection = 
-				MakeShared<FHttpConnection>(IncomingConnection, Router, ListenPort, NumConnectionsAccepted++);
+				MakeShared<FHttpConnection>(IncomingConnection, Router, ListenPort, NumConnectionsAccepted++, Config.ConnectionSelectWaitTime);
 			Connections.Add(Connection);
 		}
 	}
