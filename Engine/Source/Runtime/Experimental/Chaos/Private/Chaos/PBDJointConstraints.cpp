@@ -183,6 +183,20 @@ namespace Chaos
 
 	void FPBDJointSettings::Sanitize()
 	{
+		// Disable soft joints for locked dofs
+		if ((LinearMotionTypes[0] == EJointMotionType::Locked) && (LinearMotionTypes[1] == EJointMotionType::Locked) && (LinearMotionTypes[2] == EJointMotionType::Locked))
+		{
+			bSoftLinearLimitsEnabled = false;
+		}
+		if (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
+		{
+			bSoftTwistLimitsEnabled = false;
+		}
+		if ((AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Locked) && (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Locked))
+		{
+			bSoftSwingLimitsEnabled = false;
+		}
+
 		// Reset limits if they won't be used (means we don't have to check if limited/locked in a few cases).
 		// A side effect: if we enable a constraint, we need to reset the value of the limit.
 		if ((LinearMotionTypes[0] != EJointMotionType::Limited) && (LinearMotionTypes[1] != EJointMotionType::Limited) && (LinearMotionTypes[2] != EJointMotionType::Limited))
@@ -337,20 +351,21 @@ namespace Chaos
 
 	void FPBDJointConstraints::GetConstrainedParticleIndices(const int32 ConstraintIndex, int32& Index0, int32& Index1) const
 	{
-		// In solvers we assume Particle0 is the parent particle (which it usually is as implemented in the editor). 
+		// In solvers we need Particle0 to be the parent particle but ConstraintInstance has Particle1 as the parent, so by default
+		// we need to flip the indices before we pass them to the solver. 
 		// However, it is possible to set it up so that the kinematic particle is the child which we don't support, so...
 		// If particle 0 is kinematic we make it the parent, otherwise particle 1 is the parent.
-		// @todo(ccaulfield): look into this and confirm/fix properly
-		TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[ConstraintIndex][1]->CastToRigidParticle();
-		if (!Particle1 || Particle1->ObjectState() == EObjectStateType::Kinematic || Particle1->ObjectState() == EObjectStateType::Static)
-		{
-			Index0 = 1;
-			Index1 = 0;
-		}
-		else
+		const TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
+		const bool bIsKinematic0 = (Particle0 == nullptr) || (Particle0->ObjectState() == EObjectStateType::Kinematic) || (Particle0->ObjectState() == EObjectStateType::Static);
+		if (bIsKinematic0)
 		{
 			Index0 = 0;
 			Index1 = 1;
+		}
+		else
+		{
+			Index0 = 1;
+			Index1 = 0;
 		}
 	}
 
