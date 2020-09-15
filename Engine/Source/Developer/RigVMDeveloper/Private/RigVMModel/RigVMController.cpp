@@ -4349,12 +4349,9 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 	TArray<URigVMPin*> AllPins = InNode->GetAllPinsRecursively();
 	for (URigVMPin* Pin : AllPins)
 	{
-		if (Pin->IsExpanded())
-		{
-			FString PinPath = Pin->GetPinPath();
-			PinPath = PinPath.RightChop(InNode->GetNodePath().Len() + 1);
-			ExpansionStates.Add(PinPath, true);
-		}
+		FString PinPath = Pin->GetPinPath();
+		PinPath = PinPath.RightChop(InNode->GetNodePath().Len() + 1);
+		ExpansionStates.Add(PinPath, Pin->IsExpanded());
 	}
 
 	TMap<FString, TArray<URigVMInjectionInfo*>> InjectionInfos;
