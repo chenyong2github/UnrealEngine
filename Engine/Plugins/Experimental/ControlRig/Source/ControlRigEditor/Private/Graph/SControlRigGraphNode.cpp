@@ -232,6 +232,8 @@ void SControlRigGraphNode::EndUserInteraction() const
 			RigSchema->EndGraphNodeInteraction(GraphNode);
 		}
 	}
+
+	SGraphNode::EndUserInteraction();
 }
 
 void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd) 
