@@ -1889,7 +1889,7 @@ void FD3D12SegListAllocator::VerifyEmpty()
 		}
 	}
 
-	checkf(TotalBytesRequested == 0,
+	ensureMsgf(TotalBytesRequested == 0,
 		TEXT("FD3D12SegListAllocator contains %lld allocated bytes but is expected to be empty. This likely means a memory leak. Use d3d12.SegListTrackLeaks=1 CVar to print allocations to the log."),
 		(uint64)TotalBytesRequested);
 }
