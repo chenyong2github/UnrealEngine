@@ -101,7 +101,7 @@ void UNiagaraDataInterfaceCurveBase::Serialize(FArchive& Ar)
 		else
 #endif
 		{
-			PushToRenderThread();
+			MarkRenderDataDirty();
 		}
 	}
 }
@@ -122,6 +122,7 @@ bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Desti
 	DestinationTyped->bOverrideOptimizeThreshold = bOverrideOptimizeThreshold;
 	DestinationTyped->OptimizeThreshold = OptimizeThreshold;
 #endif
+	DestinationTyped->MarkRenderDataDirty();
 
 	return true;
 }
@@ -173,7 +174,7 @@ void UNiagaraDataInterfaceCurveBase::UpdateLUT()
 		SetDefaultLUT();
 	}
 
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceCurveBase::OptimizeLUT()
@@ -307,7 +308,7 @@ void UNiagaraDataInterfaceCurveBase::GetParameterDefinitionHLSL(const FNiagaraDa
 //	return CurveLUT;
 //}
 
-void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
+void UNiagaraDataInterfaceCurveBase::PushToRenderThreadImpl()
 {
 	if (!GSupportsResourceView)
 	{

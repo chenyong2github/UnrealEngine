@@ -183,7 +183,7 @@ public:
 	FORCEINLINE float GetInvTimeRange()const { return LUTInvTimeRange; }
 
 protected:
-	void PushToRenderThread();
+	virtual void PushToRenderThreadImpl() override;
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	virtual bool CompareLUTS(const TArray<float>& OtherLUT) const;
 	//UNiagaraDataInterface interface END

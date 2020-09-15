@@ -416,6 +416,32 @@ public:
 	virtual bool ReadsEmitterParticleData(const FString& EmitterName) const { return false; }
 
 protected:
+	virtual void PushToRenderThreadImpl() {}
+
+public:
+	void PushToRenderThread()
+	{
+		if (bUsedByGPUEmitter && bRenderDataDirty)
+		{
+			PushToRenderThreadImpl();
+			bRenderDataDirty = false;
+		}
+	}
+
+	void MarkRenderDataDirty()
+	{
+		bRenderDataDirty = true;
+		PushToRenderThread();
+	}
+
+	void SetUsedByGPUEmitter(bool bUsed = true)
+	{
+		check(IsInGameThread());
+		bUsedByGPUEmitter = bUsed;
+		PushToRenderThread();
+	}
+
+protected:
 	template<typename T>
 	T* GetProxyAs()
 	{
@@ -427,6 +453,9 @@ protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const;
 
 	TUniquePtr<FNiagaraDataInterfaceProxy> Proxy;
+
+	uint32 bRenderDataDirty : 1;
+	uint32 bUsedByGPUEmitter : 1;
 
 private:
 #if WITH_EDITOR

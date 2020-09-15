@@ -1289,12 +1289,10 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn].Reset();
 	PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Update].Reset();
 
-	GPUDataInterfaceInstanceDataSize = 0;
-
 	//Now the interfaces in the simulations are all correct, we can build the per instance data table.
 	int32 InstanceDataSize = 0;
 	DataInterfaceInstanceDataOffsets.Empty();
-	auto CalcInstDataSize = [&](const TArray<UNiagaraDataInterface*>& Interfaces)
+	auto CalcInstDataSize = [&](const TArray<UNiagaraDataInterface*>& Interfaces, bool bIsGPUSimulation)
 	{
 		for (UNiagaraDataInterface* Interface : Interfaces)
 		{
@@ -1323,23 +1321,28 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			{
 				bDataInterfacesHaveTickPrereqs = Interface->HasTickGroupPrereqs();
 			}
+
+			if (bIsGPUSimulation)
+			{
+				Interface->SetUsedByGPUEmitter(true);
+			}
 		}
 	};
 
-	CalcInstDataSize(InstanceParameters.GetDataInterfaces());//This probably should be a proper exec context. 
+	CalcInstDataSize(InstanceParameters.GetDataInterfaces(), false);//This probably should be a proper exec context. 
 
 	if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
 	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->GetDataInterfaces());
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->GetDataInterfaces(), false);
 		SystemSimulation->GetSpawnExecutionContext()->DirtyDataInterfaces();
 
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->GetDataInterfaces());
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->GetDataInterfaces(), false);
 		SystemSimulation->GetUpdateExecutionContext()->DirtyDataInterfaces();
 	}
 	else
 	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->GetDataInterfaces());
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->GetDataInterfaces());
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->GetDataInterfaces(), false);
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->GetDataInterfaces(), false);
 	}
 
 	//Iterate over interfaces to get size for table and clear their interface bindings.
@@ -1351,18 +1354,19 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			continue;
 		}
 
-		CalcInstDataSize(Sim.GetSpawnExecutionContext().GetDataInterfaces());
-		CalcInstDataSize(Sim.GetUpdateExecutionContext().GetDataInterfaces());
+		const bool bGPUSimulation = Sim.GetCachedEmitter() && (Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim);
+
+		CalcInstDataSize(Sim.GetSpawnExecutionContext().GetDataInterfaces(), bGPUSimulation);
+		CalcInstDataSize(Sim.GetUpdateExecutionContext().GetDataInterfaces(), bGPUSimulation);
 		for (int32 i = 0; i < Sim.GetEventExecutionContexts().Num(); i++)
 		{
-			CalcInstDataSize(Sim.GetEventExecutionContexts()[i].GetDataInterfaces());
+			CalcInstDataSize(Sim.GetEventExecutionContexts()[i].GetDataInterfaces(), bGPUSimulation);
 		}
 
 		if (Sim.GetCachedEmitter() && Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetGPUContext())
 		{
-			CalcInstDataSize(Sim.GetGPUContext()->GetDataInterfaces());
+			CalcInstDataSize(Sim.GetGPUContext()->GetDataInterfaces(), bGPUSimulation);
 		}
-
 
 		//Also force a rebind while we're here.
 		Sim.DirtyDataInterfaces();
@@ -1373,6 +1377,10 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	bDataInterfacesInitialized = true;
 	PreTickDataInterfaces.Empty();
 	PostTickDataInterfaces.Empty();
+
+	GPUDataInterfaceInstanceDataSize = 0;
+	GPUDataInterfaces.Empty();
+
 	for (int32 i=0; i < DataInterfaceInstanceDataOffsets.Num(); ++i)
 	{
 		TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& Pair = DataInterfaceInstanceDataOffsets[i];
@@ -1390,7 +1398,15 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 				PostTickDataInterfaces.Add(i);
 			}
 
-			GPUDataInterfaceInstanceDataSize += Pair.Key->PerInstanceDataPassedToRenderThreadSize();
+			if (bHasGPUEmitters)
+			{
+				const int32 GPUDataSize = Interface->PerInstanceDataPassedToRenderThreadSize();
+				if (GPUDataSize > 0)
+				{
+					GPUDataInterfaces.Emplace(Interface, Pair.Value);
+					GPUDataInterfaceInstanceDataSize += GPUDataSize;
+				}
+			}
 
 			//Ideally when we make the batching changes, we can keep the instance data in big single type blocks that can all be updated together with a single virtual call.
 			bool bResult = Pair.Key->InitPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
@@ -1839,7 +1855,7 @@ void FNiagaraSystemInstance::InitEmitters()
 
 		const int32 NumEmitters = EmitterHandles.Num();
 		Emitters.Reserve(NumEmitters);
-		for (int32 EmitterIdx = 0; EmitterIdx < NumEmitters; ++EmitterIdx)
+		for (int32 EmitterIdx=0; EmitterIdx < NumEmitters; ++EmitterIdx)
 		{
 			TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraEmitterInstance, ESPMode::ThreadSafe>(this);
 
@@ -1852,19 +1868,24 @@ void FNiagaraSystemInstance::InitEmitters()
 			Sim->Init(EmitterIdx, ID);
 			Emitters.Add(Sim);
 
-			// Only set bHasGPUEmitters if we allow compute shaders on the platform
-			if (bAllowComputeShaders)
+			//-TODO: We should not create emitter instances for disable emitters
+			if (EmitterHandles[EmitterIdx].GetIsEnabled())
 			{
-				if (const UNiagaraEmitter* Emitter = Sim->GetCachedEmitter())
+				// Only set bHasGPUEmitters if we allow compute shaders on the platform
+				if (bAllowComputeShaders)
 				{
-					bHasGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
-				}
-
-				if (bHasGPUEmitters)
-				{
-					SharedContext.Reset(new FNiagaraComputeSharedContext());
+					if (const UNiagaraEmitter* Emitter = Sim->GetCachedEmitter())
+					{
+						bHasGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+					}
 				}
 			}
+		}
+
+		// Create the shared context for the batcher if we have a single active GPU emitter in the system
+		if (bHasGPUEmitters)
+		{
+			SharedContext.Reset(new FNiagaraComputeSharedContext());
 		}
 
 		if (System->bFixedBounds)
@@ -2466,10 +2487,12 @@ void FNiagaraSystemInstance::DestroyDataInterfaceInstanceData()
 			Interface->DestroyPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
 		}
 	}
+
 	DataInterfaceInstanceDataOffsets.Empty();
 	DataInterfaceInstanceData.Empty();
 	PreTickDataInterfaces.Empty();
 	PostTickDataInterfaces.Empty();
+	GPUDataInterfaces.Empty();
 }
 
 TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> FNiagaraSystemInstance::GetSimulationForHandle(const FNiagaraEmitterHandle& EmitterHandle)

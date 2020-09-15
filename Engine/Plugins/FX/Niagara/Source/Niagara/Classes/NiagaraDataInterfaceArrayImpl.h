@@ -390,7 +390,6 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 			FRWScopeLock WriteLock(Owner->ArrayRWGuard, SLT_Write);
 			Destination->Data = Data;
 		}
-		Destination->PushToRenderThread();
 		return true;
 	}
 
