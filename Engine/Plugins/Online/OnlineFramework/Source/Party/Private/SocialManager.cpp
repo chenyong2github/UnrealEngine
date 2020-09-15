@@ -95,6 +95,15 @@ TMap<TWeakObjectPtr<UGameInstance>, TWeakObjectPtr<USocialManager>> USocialManag
 	return NAME_None;
 }
 
+/*static*/ FText USocialManager::GetSocialOssPlatformName(ESocialSubsystem SubsystemType)
+{
+	if (IOnlineSubsystem* SocialOSS = GetSocialOss(nullptr, SubsystemType))
+	{
+		return SocialOSS->GetSocialPlatformName();
+	}
+	return FText::GetEmpty();
+}
+
 /*static*/IOnlineSubsystem* USocialManager::GetSocialOss(UWorld* World, ESocialSubsystem SubsystemType)
 {
 	if (SubsystemType == ESocialSubsystem::Primary)
