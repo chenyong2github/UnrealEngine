@@ -260,9 +260,14 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			if (View.DecayLoadAction(VelocityLoadAction) == ERenderTargetLoadAction::EClear)
+			if (VelocityLoadAction == ERenderTargetLoadAction::EClear)
 			{
 				AddClearRenderTargetPass(GraphBuilder, VelocityTexture);
+
+				if (!View.Family->bMultiGPUForkAndJoin)
+				{
+					VelocityLoadAction = ERenderTargetLoadAction::ELoad;
+				}
 			}
 
 			FVelocityPassParameters* PassParameters = GraphBuilder.AllocParameters<FVelocityPassParameters>();
