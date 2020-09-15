@@ -60,9 +60,10 @@
 #include "ScopedTransaction.h"
 #include "StatsViewerModule.h"
 #include "Templates/UnrealTemplate.h"
-#include "Toolkits/IToolkit.h"
 #include "ToolMenus.h"
+#include "Toolkits/IToolkit.h"
 #include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -82,6 +83,146 @@ const FName FDataprepEditor::DataprepStatisticsTabId(TEXT("DataprepEditor_Statis
 const FName FDataprepEditor::DataprepGraphEditorTabId(TEXT("DataprepEditor_GraphEditor"));
 
 static bool bLogTiming = true;
+
+namespace UE
+{
+	namespace Dataprep
+	{
+		namespace Private
+		{
+			/**
+			 * This a utility object used to preserve the selection and the detailed object(s) across reimport or execution.
+			 */
+			class FScopeDataprepEditorSelectionCache
+			{
+			public:
+				FScopeDataprepEditorSelectionCache(FDataprepEditor& InDataprepEditor)
+					: DataprepEditor( InDataprepEditor )
+					, AssetPaths()
+					, WorldItemPaths()
+					, DetailObjectSource( EDetailObjectsSource::Unknow )
+				{
+					TSet<UObject*> SelectedAssets;
+					if ( DataprepEditor.AssetsTransientPackage )
+					{
+
+						// Cache selected Assets
+						SelectedAssets =  DataprepEditor.AssetPreviewView->GetSelectedAssets();
+						AssetPaths.Reserve( SelectedAssets.Num() );
+						FString AssetPackagePath = DataprepEditor.AssetsTransientPackage->GetPathName();
+						for ( const UObject* Asset : SelectedAssets )
+						{
+							if ( Asset )
+							{
+								FString AssetPath = Asset->GetPathName();
+								if ( AssetPath.RemoveFromStart( AssetPackagePath ) )
+								{
+									AssetPaths.Add( AssetPath );
+								}
+							}
+						}
+					}
+
+					if ( DataprepEditor.PreviewWorld )
+					{
+						// Cache the selected actors
+						const TSet<TWeakObjectPtr<UObject>>& SelectedItems = DataprepEditor.GetWorldItemsSelection();
+						WorldItemPaths.Reserve( SelectedItems.Num() );
+						for ( const TWeakObjectPtr<UObject>& WeakObject : SelectedItems )
+						{
+							if ( const UObject* Object = WeakObject.Get() )
+							{
+								WorldItemPaths.Add( Object->GetPathName( DataprepEditor.PreviewWorld->GetCurrentLevel() ) );
+							}
+						}
+					}
+
+					if ( DataprepEditor.DetailsView )
+					{
+						DetailObjectSource = EDetailObjectsSource::Unknow;
+						TArray<TWeakObjectPtr<UObject>> ShownObjects = DataprepEditor.DetailsView->GetObjectsShowInDetails();
+						if ( ShownObjects.Num() )
+						{
+							if ( const UObject* ShownObject = ShownObjects[0].Get() )
+							{
+								if ( SelectedAssets.Contains( ShownObject ) )
+								{
+									DetailObjectSource = EDetailObjectsSource::Assets;
+								}
+								else
+								{
+									DetailObjectSource = EDetailObjectsSource::World;
+								}
+							}
+						}
+					}
+				}
+
+				~FScopeDataprepEditorSelectionCache()
+				{
+					
+					if ( UObject* AssetsTransientPackage = DataprepEditor.AssetsTransientPackage )
+					{
+						TSet<UObject*> AssetSelection;
+						AssetSelection.Reserve( AssetPaths.Num() );
+						FString AssetPackagePath = DataprepEditor.AssetsTransientPackage->GetPathName();
+						for ( const FString& AssetPath : AssetPaths )
+						{
+							if ( UObject* Asset = FindObject<UObject>( nullptr, *( AssetPackagePath + AssetPath ) ) )
+							{
+								AssetSelection.Add( Asset );
+							}
+						}
+
+						if ( DataprepEditor.AssetPreviewView )
+						{
+							DataprepEditor.AssetPreviewView->SetSelectedAssets( AssetSelection, ESelectInfo::Direct );
+						}
+
+						if ( DetailObjectSource == EDetailObjectsSource::Assets )
+						{
+							DataprepEditor.SetDetailsObjects( AssetSelection, false );
+						}
+					}
+
+					if ( UWorld* PreviewWorld = DataprepEditor.PreviewWorld )
+					{
+						TSet<TWeakObjectPtr<UObject>> ItemSelection;
+						ItemSelection.Reserve( WorldItemPaths.Num() );
+
+						for ( const FString& ItemPath : WorldItemPaths )
+						{
+							if ( UObject* Item = FindObjectFast<UObject>( PreviewWorld->GetCurrentLevel(), *ItemPath ) )
+							{
+								ItemSelection.Add( Item );
+							}
+						}
+
+						DataprepEditor.SetWorldObjectsSelection( MoveTemp(ItemSelection),
+							FDataprepEditor::EWorldSelectionFrom::Unknow,
+							DetailObjectSource == EDetailObjectsSource::World
+							);
+					}
+				}
+
+			private:
+				FDataprepEditor& DataprepEditor;
+
+				TArray<FString> AssetPaths;
+				TArray<FString> WorldItemPaths;
+
+				enum class EDetailObjectsSource : uint8
+				{
+					Unknow,
+					Assets,
+					World
+				};
+
+				EDetailObjectsSource DetailObjectSource;
+			};
+		}
+	}
+}
 
 class FTimeLogger
 {
@@ -122,15 +263,16 @@ FDataprepEditor::FDataprepEditor()
 	, bIsActionMenuContextSensitive(true)
 	, bSaveIntermediateBuildProducts(false)
 	, PreviewWorld(nullptr)
+	, AssetsTransientPackage(nullptr)
 	, bIgnoreCloseRequest(false)
 	, PreviewSystem( MakeShared<FDataprepPreviewSystem>() )
 {
 	FName UniqueWorldName = MakeUniqueObjectName(GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("PreviewWorld", "Preview").ToString()) ));
-	PreviewWorld = TStrongObjectPtr<UWorld>(NewObject< UWorld >(GetTransientPackage(), UniqueWorldName));
+	PreviewWorld = NewObject<UWorld>(GetTransientPackage(), UniqueWorldName);
 	PreviewWorld->WorldType = EWorldType::EditorPreview;
 
 	FWorldContext& WorldContext = GEngine->CreateNewWorldContext(PreviewWorld->WorldType);
-	WorldContext.SetCurrentWorld(PreviewWorld.Get());
+	WorldContext.SetCurrentWorld(PreviewWorld);
 
 	PreviewWorld->InitializeNewWorld(UWorld::InitializationValues()
 		.AllowAudioPlayback(false)
@@ -159,9 +301,9 @@ FDataprepEditor::~FDataprepEditor()
 
 	if ( PreviewWorld )
 	{
-		GEngine->DestroyWorldContext( PreviewWorld.Get() );
+		GEngine->DestroyWorldContext( PreviewWorld );
 		PreviewWorld->DestroyWorld( true );
-		PreviewWorld.Reset();
+		PreviewWorld = nullptr;
 	}
 
 	auto DeleteDirectory = [&](const FString& DirectoryToDelete)
@@ -435,7 +577,7 @@ void FDataprepEditor::SyncSelectionToPreviewSystem()
 {
 	// Select actors passing filter
 	TArray<UObject*> WorldActors;
-	FDataprepCoreUtils::GetActorsFromWorld( PreviewWorld.Get(), WorldActors );
+	FDataprepCoreUtils::GetActorsFromWorld( PreviewWorld, WorldActors );
 
 	TSet<TWeakObjectPtr<UObject>> SelectedActors;
 
@@ -474,6 +616,40 @@ void FDataprepEditor::SyncSelectionToPreviewSystem()
 	AssetPreviewView->SelectMatchingItems( SelectedAssets );
 }
 
+void FDataprepEditor::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(PreviewWorld);
+	Collector.AddReferencedObject(AssetsTransientPackage);
+	Collector.AddReferencedObject(DataprepGraph);
+}
+
+FString FDataprepEditor::GetReferencerName() const
+{
+	return "FDataprepEdtior";
+}
+
+bool FDataprepEditor::GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const
+{
+	if (Object == PreviewWorld)
+	{
+		OutPropertyName = "PreviewWorld";
+	}
+	else if (Object == AssetsTransientPackage)
+	{
+		OutPropertyName = "AssetsTransientPackage";
+	}
+	else if (Object == DataprepGraph)
+	{
+		OutPropertyName = "DataprepGraph";
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void FDataprepEditor::BindCommands()
 {
 	const FDataprepEditorCommands& Commands = FDataprepEditorCommands::Get();
@@ -508,13 +684,15 @@ void FDataprepEditor::OnSaveScene()
 
 void FDataprepEditor::OnBuildWorld()
 {
+	UE::Dataprep::Private::FScopeDataprepEditorSelectionCache SelectionCache( *this );
+
 	UDataprepAssetInterface* DataprepAssetInterface = DataprepAssetInterfacePtr.Get();
 	if (!ensureAlways(DataprepAssetInterface))
 	{
 		return;
 	}
 
-	if (!ensureAlways(PreviewWorld.IsValid()))
+	if (!ensureAlways(PreviewWorld) && !ensureAlways(PreviewWorld->IsValidLowLevel()))
 	{
 		return;
 	}
@@ -529,8 +707,8 @@ void FDataprepEditor::OnBuildWorld()
 
 	CleanPreviewWorld();
 
-	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *GetTransientContentFolder(), RF_Transient );
-	TransientPackage->FullyLoad();
+	AssetsTransientPackage = NewObject< UPackage >( nullptr, *GetTransientContentFolder(), RF_Transient );
+	AssetsTransientPackage->FullyLoad();
 
 	TSharedPtr< FDataprepCoreUtils::FDataprepFeedbackContext > FeedbackContext( new FDataprepCoreUtils::FDataprepFeedbackContext );
 
@@ -539,8 +717,8 @@ void FDataprepEditor::OnBuildWorld()
 		FTimeLogger TimeLogger( TEXT("Import") );
 
 		FDataprepProducerContext Context;
-		Context.SetWorld( PreviewWorld.Get() )
-			.SetRootPackage( TransientPackage )
+		Context.SetWorld( PreviewWorld )
+			.SetRootPackage( AssetsTransientPackage )
 			.SetLogger( TSharedPtr< IDataprepLogger >( new FDataprepCoreUtils::FDataprepLogger ) )
 			.SetProgressReporter( ProgressReporter );
 
@@ -669,6 +847,8 @@ void FDataprepEditor::CleanPreviewWorld()
 
 void FDataprepEditor::OnExecutePipeline()
 {
+	UE::Dataprep::Private::FScopeDataprepEditorSelectionCache SelectionCache( *this );
+
 	if( DataprepAssetInterfacePtr->GetConsumer() == nullptr )
 	{
 		return;
@@ -698,7 +878,7 @@ void FDataprepEditor::OnExecutePipeline()
 		GWarn = FeedbackContext.Get();
 
 		ActionsContext->SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepCoreUtils::FDataprepProgressUIReporter( FeedbackContext.ToSharedRef() ) ) );
-		ActionsContext->SetWorld( PreviewWorld.Get() ).SetAssets( Assets );
+		ActionsContext->SetWorld( PreviewWorld ).SetAssets( Assets );
 
 		DataprepAssetInterfacePtr->ExecuteRecipe( ActionsContext );
 
@@ -769,7 +949,7 @@ void FDataprepEditor::OnCommitWorld()
 	TArray<TWeakObjectPtr<UObject>> ValidAssets( MoveTemp(Assets) );
 
 	FDataprepConsumerContext Context;
-	Context.SetWorld( PreviewWorld.Get() )
+	Context.SetWorld( PreviewWorld )
 		.SetAssets( ValidAssets )
 		.SetTransientContentFolder( GetTransientContentFolder() )
 		.SetLogger( TSharedPtr<IDataprepLogger>( new FDataprepCoreUtils::FDataprepLogger ) )
@@ -847,7 +1027,7 @@ void FDataprepEditor::CreateTabs()
 
 	// Create 3D viewport
 	SceneViewportView = SNew( SDataprepEditorViewport, SharedThis(this) )
-	.WorldToPreview( PreviewWorld.Get() );
+	.WorldToPreview( PreviewWorld );
 
 	// Create Details Panel
 	CreateDetailsViews();
@@ -1036,7 +1216,7 @@ void FDataprepEditor::RegisterSelectReferencingActorsMenu()
 			FSlateIcon(),
 			FExecuteAction::CreateLambda([this, ReferencedAssets]()
 			{
-				TSet<TWeakObjectPtr<UObject>> Actors = FDataprepEditorUtils::GetActorsReferencingAssets(PreviewWorld.Get(), ReferencedAssets);
+				TSet<TWeakObjectPtr<UObject>> Actors = FDataprepEditorUtils::GetActorsReferencingAssets(PreviewWorld, ReferencedAssets);
 				if (Actors.Num() > 0)
 				{
 					SetWorldObjectsSelection(MoveTemp(Actors));
@@ -1090,7 +1270,7 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabStatistics(const FSpawnTabArgs & A
 		.Label(LOCTEXT("DataprepEditor_StatisticsTab_Title", "Statistics"))
 		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.StatsViewer"))
 		[
-			StatsViewerModule.CreateStatsViewer( *PreviewWorld.Get(), EnablePagesMask, TEXT("Dataprep") )
+			StatsViewerModule.CreateStatsViewer( *PreviewWorld, EnablePagesMask, TEXT("Dataprep") )
 		];
 }
 
@@ -1384,7 +1564,7 @@ void FDataprepEditor::RefreshColumnsForPreviewSystem()
 void FDataprepEditor::UpdateDataForPreviewSystem()
 {
 	TArray<UObject*> ObjectsForThePreviewSystem;
-	FDataprepCoreUtils::GetActorsFromWorld( PreviewWorld.Get(), ObjectsForThePreviewSystem );
+	FDataprepCoreUtils::GetActorsFromWorld( PreviewWorld, ObjectsForThePreviewSystem );
 	ObjectsForThePreviewSystem.Reserve( Assets.Num() );
 	for ( TWeakObjectPtr<UObject>& WeakObjectPtr : Assets )
 	{
