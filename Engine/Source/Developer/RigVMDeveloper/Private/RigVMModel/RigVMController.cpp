@@ -4326,7 +4326,10 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 	}
 
 	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InNode);
-	if (StructNode == nullptr)
+	// reroute node may also contain a struct value pin that need to be refreshed
+	URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode);
+	
+	if (StructNode == nullptr && RerouteNode == nullptr)
 	{
 		return;
 	}
@@ -4336,6 +4339,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 
 	// todo: ensure to keep all links
 
+	// step 1/3: keep a record of the current state of the node's pins
 	TMap<FName, FString> DefaultValues;
 	for (URigVMPin* Pin : InNode->Pins)
 	{
@@ -4373,27 +4377,58 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 		InjectionOutputPinName = InjectionInfo->OutputPin->GetFName();
 	}
 
-	TArray<URigVMPin*> Pins = InNode->Pins;
-	for (URigVMPin* Pin : Pins)
+	// step 2/3: clear pins on the node and repopulate the node with new pins
+	if (StructNode != nullptr)
 	{
-		RemovePin(Pin, false);
+		TArray<URigVMPin*> Pins = InNode->Pins;
+		for (URigVMPin* Pin : Pins)
+		{
+			RemovePin(Pin, false);
+		}
+		InNode->Pins.Reset();
+		Pins.Reset();
+
+		UScriptStruct* ScriptStruct = StructNode->GetScriptStruct();
+
+		FString NodeColorMetadata;
+		ScriptStruct->GetStringMetaDataHierarchical(*URigVMNode::NodeColorName, &NodeColorMetadata);
+		if (!NodeColorMetadata.IsEmpty())
+		{
+			StructNode->NodeColor = GetColorFromMetadata(NodeColorMetadata);
+		}
+
+		FString ExportedDefaultValue;
+		CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
+		AddPinsForStruct(ScriptStruct, StructNode, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, false);
 	}
-	InNode->Pins.Reset();
-	Pins.Reset();
-
-	UScriptStruct* ScriptStruct = StructNode->GetScriptStruct();
-
-	FString NodeColorMetadata;
-	ScriptStruct->GetStringMetaDataHierarchical(*URigVMNode::NodeColorName, &NodeColorMetadata);
-	if (!NodeColorMetadata.IsEmpty())
+	else if (RerouteNode != nullptr)
 	{
-		StructNode->NodeColor = GetColorFromMetadata(NodeColorMetadata);
+		if (RerouteNode->Pins.Num() == 0)
+		{
+			return;
+		}
+
+		URigVMPin* ValuePin = RerouteNode->Pins[0];
+
+		// only repopulate the value pin, which may host a struct
+		TArray<URigVMPin*> Pins = ValuePin->SubPins;
+		for (URigVMPin* Pin : Pins)
+		{
+			RemovePin(Pin, false);
+		}
+		ValuePin->SubPins.Reset();
+		Pins.Reset();
+
+		if (ValuePin->IsStruct())
+		{
+			UScriptStruct* ScriptStruct = ValuePin->GetScriptStruct();
+			FString ExportedDefaultValue;
+			CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
+			AddPinsForStruct(ScriptStruct, RerouteNode, ValuePin, ValuePin->Direction, ExportedDefaultValue, false);
+		}
 	}
 
-	FString ExportedDefaultValue;
-	CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
-	AddPinsForStruct(ScriptStruct, StructNode, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, false);
-
+	// step 3/3: restore states for the pins
 	for (TPair<FString, TArray<URigVMInjectionInfo*>> InjectionPair : InjectionInfos)
 	{
 		if (URigVMPin* Pin = InNode->FindPin(InjectionPair.Key))
