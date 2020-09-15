@@ -1507,7 +1507,6 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 			int32 NumSourceInstances = (int32)CurrentData->GetNumInstances();
 
 			const auto ValueData = FNiagaraDataSetAccessor<T>::CreateReader(EmitterInstance->GetData(), AttributeToRead);
-			
 			if (ValueData.IsValid())
 			{
 				bWriteDummyData = false;
