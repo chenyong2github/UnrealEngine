@@ -146,6 +146,15 @@ private:
 	void OnOpenOutputConsole();
 
 	/** Called when the Toggle Receive DMX menu command is selected */
+	void OnToggleSendDMX();
+
+	/** Returns text for the toggle receive DMX button in the menu */
+	FText GetToggleSendDMXText() const;
+
+	/** Returns text for the toggle receive DMX tooltip in the menu */
+	FText GetToggleSendDMXTooltip() const;
+
+	/** Called when the Toggle Receive DMX menu command is selected */
 	void OnToggleReceiveDMX();
 
 	/** Returns text for the toggle receive DMX button in the menu */
@@ -155,7 +164,7 @@ private:
 	FText GetToggleReceiveDMXTooltip() const;
 
 	/** Command list for the DMX Monitor menu */
-	TSharedPtr<class FUICommandList> DMXMonitorCommands;
+	TSharedPtr<class FUICommandList> DMXLevelEditorMenuCommands;
 
 	TSharedPtr<class SDMXActivityMonitor> UniverseMonitorTab;
 	TSharedPtr<class SDMXChannelsMonitor> ChannelsMonitorTab;

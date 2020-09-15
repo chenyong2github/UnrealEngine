@@ -33,6 +33,8 @@ public:
 	virtual EDMXSendResult SendDMXZeroUniverse(uint16 UniverseID, bool bForceSendDMX /** = false */) override { return EDMXSendResult::Success; }
 	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const override { return InUniverseID; }
 	virtual bool IsEnabled() const override { return true; }
+	virtual void SetSendDMXEnabled(bool bEnabled) { };
+	virtual bool IsSendDMXEnabled() const { return false; };
 	virtual void SetReceiveDMXEnabled(bool bEnabled) {};
 	virtual bool IsReceiveDMXEnabled() const override { return false; };
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override { return nullptr; }
