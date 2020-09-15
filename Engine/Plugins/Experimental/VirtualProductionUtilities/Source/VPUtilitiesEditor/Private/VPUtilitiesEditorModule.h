@@ -3,17 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
+#include "IVPUtilitiesEditorModule.h"
 #include "UObject/StrongObjectPtr.h"
-#include "OSCServer.h"
 #include "VPCustomUIHandler.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVPUtilitiesEditor, Log, Log);
 
 class UOSCServer;
 
-class FVPUtilitiesEditorModule : public IModuleInterface
+class FVPUtilitiesEditorModule : public IVPUtilitiesEditorModule
 {
 public:
 		//~ Begin IModuleInterface
@@ -21,23 +19,16 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface
 
-
-	/**
-	 * Singleton-like access to this module's interface.  This is just for convenience!
-	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
-	 *
-	 * @return Returns singleton instance, loading the module on demand if needed
-	 */
-	static FVPUtilitiesEditorModule& Get()
-	{
-		static const FName ModuleName = "VPUtilitiesEditor";
-		return FModuleManager::LoadModuleChecked<FVPUtilitiesEditorModule>(ModuleName);
-	}
-
 	/**
 	 * Get an OSC server that can be started at the module's startup.
 	 */
-	UOSCServer* GetOSCServer() const;
+	virtual UOSCServer* GetOSCServer() const override;
+
+	/**
+	 * Returns the Placement Mode Info for the Virtual Production category.
+	 * The category will be registered if it has not already been.
+	 */
+	virtual const FPlacementCategoryInfo* GetVirtualProductionPlacementCategoryInfo() const override;
 
 private:
 	/** Register VPUtilities settings. */
@@ -61,4 +52,7 @@ private:
 
 	/** UI Handler for virtual scouting. */
 	TStrongObjectPtr<UVPCustomUIHandler> CustomUIHandler;
+
+	/** Unique Handle for the Virtual Production Placement Mode Category */
+	static const FName PlacementModeCategoryHandle;
 };
