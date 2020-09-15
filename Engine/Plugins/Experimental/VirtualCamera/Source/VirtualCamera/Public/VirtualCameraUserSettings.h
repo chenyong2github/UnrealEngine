@@ -51,7 +51,7 @@ public:
 
 	/** Default Vcam Class for Vcam Operator Panel */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = "VirtualCamera|Presets")
-	TSubclassOf<AActor> DefaultVCamClass;
+	TSoftClassPtr<AActor> DefaultVCamClass;
 
 	UPROPERTY(BlueprintReadWrite, config, Category = "VirtualCamera", meta = (DisplayName = "VirtualCamera Axis Mappings"))
 	TArray<struct FInputAxisKeyMapping> AxisMappings;
