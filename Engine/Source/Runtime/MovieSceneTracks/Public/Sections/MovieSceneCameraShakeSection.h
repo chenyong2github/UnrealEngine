@@ -17,21 +17,21 @@ struct FMovieSceneCameraShakeSectionData
 	FMovieSceneCameraShakeSectionData()
 		: ShakeClass(nullptr)
 		, PlayScale(1.f)
-		, PlaySpace(ECameraAnimPlaySpace::CameraLocal)
+		, PlaySpace(ECameraShakePlaySpace::CameraLocal)
 		, UserDefinedPlaySpace(ForceInitToZero)
 	{
 	}
 
 	/** Class of the camera shake to play */
 	UPROPERTY(EditAnywhere, Category = "Camera Shake")
-	TSubclassOf<UCameraShake> ShakeClass;
+	TSubclassOf<UMatineeCameraShake> ShakeClass;
 
 	/** Scalar that affects shake intensity */
 	UPROPERTY(EditAnywhere, Category = "Camera Shake")
 	float PlayScale;
 
 	UPROPERTY(EditAnywhere, Category = "Camera Shake")
-	TEnumAsByte<ECameraAnimPlaySpace::Type> PlaySpace;
+	ECameraShakePlaySpace PlaySpace;
 
 	UPROPERTY(EditAnywhere, Category = "Camera Shake")
 	FRotator UserDefinedPlaySpace;
@@ -56,13 +56,13 @@ public:
 
 public:
 	UPROPERTY()
-	TSubclassOf<UCameraShake> ShakeClass_DEPRECATED;
+	TSubclassOf<UMatineeCameraShake> ShakeClass_DEPRECATED;
 	
 	UPROPERTY()
 	float PlayScale_DEPRECATED;
 
 	UPROPERTY()
-	TEnumAsByte<ECameraAnimPlaySpace::Type> PlaySpace_DEPRECATED;
+	ECameraShakePlaySpace PlaySpace_DEPRECATED;
 
 	UPROPERTY()
 	FRotator UserDefinedPlaySpace_DEPRECATED;

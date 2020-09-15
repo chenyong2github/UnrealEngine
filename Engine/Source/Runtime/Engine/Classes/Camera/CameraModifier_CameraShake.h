@@ -13,7 +13,7 @@
 #include "Camera/CameraModifier.h"
 #include "CameraModifier_CameraShake.generated.h"
 
-class UCameraShake;
+class UCameraShakeBase;
 class UCameraShakeSourceComponent;
 
 USTRUCT()
@@ -22,7 +22,7 @@ struct FPooledCameraShakes
 	GENERATED_BODY()
 		
 	UPROPERTY()
-	TArray<UCameraShake*> PooledShakes;
+	TArray<UCameraShakeBase*> PooledShakes;
 };
 
 USTRUCT()
@@ -33,7 +33,7 @@ struct FActiveCameraShakeInfo
 	FActiveCameraShakeInfo() : ShakeInstance(nullptr), ShakeSource(nullptr) {}
 
 	UPROPERTY()
-	UCameraShake* ShakeInstance;
+	UCameraShakeBase* ShakeInstance;
 
 	UPROPERTY()
 	TWeakObjectPtr<const UCameraShakeSourceComponent> ShakeSource;
@@ -42,21 +42,21 @@ struct FActiveCameraShakeInfo
 struct FAddCameraShakeParams
 {
 	float Scale;
-	ECameraAnimPlaySpace::Type PlaySpace;
+	ECameraShakePlaySpace PlaySpace;
 	FRotator UserPlaySpaceRot;
 	const UCameraShakeSourceComponent* SourceComponent;
 
-	FAddCameraShakeParams() 
-		: Scale(1.f), PlaySpace(ECameraAnimPlaySpace::CameraLocal), UserPlaySpaceRot(FRotator::ZeroRotator), SourceComponent(nullptr)
+	FAddCameraShakeParams()
+		: Scale(1.f), PlaySpace(ECameraShakePlaySpace::CameraLocal), UserPlaySpaceRot(FRotator::ZeroRotator), SourceComponent(nullptr)
 	{}
-	FAddCameraShakeParams(float InScale, ECameraAnimPlaySpace::Type InPlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator InUserPlaySpaceRot = FRotator::ZeroRotator, const UCameraShakeSourceComponent* InSourceComponent = nullptr)
+	FAddCameraShakeParams(float InScale, ECameraShakePlaySpace InPlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator InUserPlaySpaceRot = FRotator::ZeroRotator, const UCameraShakeSourceComponent* InSourceComponent = nullptr)
 		: Scale(InScale), PlaySpace(InPlaySpace), UserPlaySpaceRot(InUserPlaySpaceRot), SourceComponent(InSourceComponent)
 	{}
 };
 
 //~=============================================================================
 /**
- * A UCameraModifier_CameraShake is a camera modifier that can apply a UCameraShake to 
+ * A UCameraModifier_CameraShake is a camera modifier that can apply a UCameraShakeBase to 
  * the owning camera.
  */
 UCLASS(config=Camera)
@@ -72,7 +72,7 @@ public:
 	 * @param NewShake - The class of camera shake to instantiate.
 	 * @param Params - The parameters for the new camera shake.
 	 */
-	virtual UCameraShake* AddCameraShake(TSubclassOf<UCameraShake> NewShake, const FAddCameraShakeParams& Params);
+	virtual UCameraShakeBase* AddCameraShake(TSubclassOf<UCameraShakeBase> NewShake, const FAddCameraShakeParams& Params);
 
 	/** 
 	 * Adds a new active screen shake to be applied. 
@@ -82,7 +82,7 @@ public:
 	 * @param UserPlaySpaceRot - Coordinate system to play shake when PlaySpace == CAPS_UserDefined.
 	 */
 	UE_DEPRECATED(4.25, "Please use the new AddCameraShake method that takes a parameter struct.")
-	virtual class UCameraShake* AddCameraShake(TSubclassOf<UCameraShake> NewShake, float Scale, ECameraAnimPlaySpace::Type PlaySpace=ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator)
+	virtual UCameraShakeBase* AddCameraShake(TSubclassOf<UCameraShakeBase> NewShake, float Scale, ECameraShakePlaySpace PlaySpace= ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator)
 	{
 		return AddCameraShake(NewShake, FAddCameraShakeParams(Scale, PlaySpace, UserPlaySpaceRot));
 	}
@@ -98,13 +98,13 @@ public:
 	 * @param Shake - the camera shake class to remove.
 	 * @param bImmediately		If true, shake stops right away regardless of blend out settings. If false, shake may blend out according to its settings.
 	 */
-	virtual void RemoveCameraShake(UCameraShake* ShakeInst, bool bImmediately = true);
+	virtual void RemoveCameraShake(UCameraShakeBase* ShakeInst, bool bImmediately = true);
 
 	/**
 	 * Stops and removes all camera shakes of the given class from the camera. 
 	 * @param bImmediately		If true, shake stops right away regardless of blend out settings. If false, shake may blend out according to its settings.
 	 */
-	virtual void RemoveAllCameraShakesOfClass(TSubclassOf<UCameraShake> ShakeClass, bool bImmediately = true);
+	virtual void RemoveAllCameraShakesOfClass(TSubclassOf<UCameraShakeBase> ShakeClass, bool bImmediately = true);
 
 	/**
 	 * Stops and removes all camera shakes originating from the given source.
@@ -119,7 +119,7 @@ public:
 	 * @param SourceComponent   The shake source.
 	 * @param bImmediately      If true, shake stops right away regardless of blend out settings. If false, shake may blend out according to its settings.
 	 */
-	virtual void RemoveAllCameraShakesOfClassFromSource(TSubclassOf<UCameraShake> ShakeClass, const UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+	virtual void RemoveAllCameraShakesOfClassFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, const UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** 
 	 * Stops and removes all camera shakes from the camera. 
@@ -138,10 +138,10 @@ protected:
 	TArray<FActiveCameraShakeInfo> ActiveShakes;
 
 	UPROPERTY()
-	TMap<TSubclassOf<UCameraShake>, FPooledCameraShakes> ExpiredPooledShakesMap;
+	TMap<TSubclassOf<UCameraShakeBase>, FPooledCameraShakes> ExpiredPooledShakesMap;
 
-	void SaveShakeInExpiredPool(UCameraShake* ShakeInst);
-	UCameraShake* ReclaimShakeFromExpiredPool(TSubclassOf<UCameraShake> CameraShakeClass);
+	void SaveShakeInExpiredPool(UCameraShakeBase* ShakeInst);
+	UCameraShakeBase* ReclaimShakeFromExpiredPool(TSubclassOf<UCameraShakeBase> CameraShakeClass);
 
 	/** Scaling factor applied to all camera shakes in when in splitscreen mode. Normally used to reduce shaking, since shakes feel more intense in a smaller viewport. */
 	UPROPERTY(EditAnywhere, Category = CameraModifier_CameraShake)
