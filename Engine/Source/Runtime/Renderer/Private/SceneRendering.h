@@ -1320,6 +1320,9 @@ public:
 #endif // RHI_RAYTRACING
 
 #if WITH_EDITOR
+	TArray<uint32> EditorVisualizeLevelInstanceIds;
+	FDynamicReadBuffer EditorVisualizeLevelInstanceBuffer;
+
 	TArray<uint32> EditorSelectedHitProxyIds;
 	FDynamicReadBuffer EditorSelectedBuffer;
 #endif

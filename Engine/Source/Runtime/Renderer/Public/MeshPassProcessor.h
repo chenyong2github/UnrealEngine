@@ -45,6 +45,7 @@ namespace EMeshPass
 #if WITH_EDITOR
 		HitProxy,
 		HitProxyOpaqueOnly,
+		EditorLevelInstance,
 		EditorSelection,
 #endif
 
@@ -80,6 +81,7 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 #if WITH_EDITOR
 	case EMeshPass::HitProxy: return TEXT("HitProxy");
 	case EMeshPass::HitProxyOpaqueOnly: return TEXT("HitProxyOpaqueOnly");
+	case EMeshPass::EditorLevelInstance: return TEXT("EditorLevelInstance");
 	case EMeshPass::EditorSelection: return TEXT("EditorSelection");
 #endif
 	}

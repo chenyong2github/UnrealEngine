@@ -1738,6 +1738,10 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.QuadOverdraw = SceneContext.GetQuadOverdrawBufferUAV();
 
 #if WITH_EDITOR
+	if (EditorVisualizeLevelInstanceBuffer.SRV)
+	{
+		ViewUniformShaderParameters.EditorVisualizeLevelInstanceIds = EditorVisualizeLevelInstanceBuffer.SRV;
+	}
 	if( EditorSelectedBuffer.SRV )
 	{
 		ViewUniformShaderParameters.EditorSelectedHitProxyIds = EditorSelectedBuffer.SRV;

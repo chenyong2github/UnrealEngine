@@ -332,6 +332,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bCastVolumetricTranslucentShadow = false;
 	bCastContactShadow = true;
 	IndirectLightingCacheQuality = ILCQ_Point;
+	bEditingLevelInstanceState = false;
 	bSelectable = true;
 	bFillCollisionUnderneathForNavmesh = false;
 	AlwaysLoadOnClient = true;
@@ -1523,6 +1524,15 @@ void UPrimitiveComponent::PushSelectionToProxy()
 	}
 }
 
+void UPrimitiveComponent::PushLevelInstanceEditingStateToProxy(bool bInEditingState)
+{
+	//although this should only be called for attached components, some billboard components can get in without valid proxies
+	bEditingLevelInstanceState = bInEditingState;
+	if (SceneProxy)
+	{
+		SceneProxy->SetLevelInstanceEditingState_GameThread(bEditingLevelInstanceState);
+	}
+}
 
 void UPrimitiveComponent::PushEditorVisibilityToProxy( uint64 InVisibility )
 {

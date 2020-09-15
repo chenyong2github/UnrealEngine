@@ -784,6 +784,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	VTFeedbackBuffer = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 	QuadOverdraw = GBlackTextureWithUAV->UnorderedAccessViewRHI;
 //#if WITH_EDITOR
+	EditorVisualizeLevelInstanceIds = GIdentityPrimitiveBuffer.EditorVisualizeLevelInstanceDataBufferSRV;
 	EditorSelectedHitProxyIds = GIdentityPrimitiveBuffer.EditorSelectedDataBufferSRV;
 //#endif
 }

@@ -1341,6 +1341,33 @@ class FEmitHitProxyIdPS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitHitProxyIdPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitHitProxyIdPS", SF_Pixel);
 
+class FEmitEditingLevelInstanceDepthPS : public FNaniteShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FEmitEditingLevelInstanceDepthPS);
+	SHADER_USE_PARAMETER_STRUCT(FEmitEditingLevelInstanceDepthPS, FNaniteShader);
+
+	using FParameters = FNaniteVisualizeLevelInstanceParameters;
+
+	class FSearchBufferCountDim : SHADER_PERMUTATION_INT("EDITOR_LEVELINSTANCE_BUFFER_COUNT_LOG_2", 25);
+	using FPermutationDomain = TShaderPermutationDomain<FSearchBufferCountDim>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		uint32 LevelInstanceBufferCount = 1u << (uint32)PermutationVector.Get<FSearchBufferCountDim>();
+		OutEnvironment.SetDefine(TEXT("EDITOR_LEVELINSTANCE_BUFFER_COUNT"), LevelInstanceBufferCount);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FEmitEditingLevelInstanceDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitEditorLevelInstanceDepthPS", SF_Pixel);
+
 class FEmitEditorSelectionDepthPS : public FNaniteShader
 {
 public:
@@ -4823,6 +4850,74 @@ void DrawEditorSelection(
 		TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
 		3
 		);
+}
+
+void GetEditorVisualizeLevelInstancePassParameters(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const FViewInfo& View,
+	const FIntRect ViewportRect,
+	const FRasterResults* NaniteRasterResults,
+	FNaniteVisualizeLevelInstanceParameters* OutPassParameters
+)
+{
+	if (!NaniteRasterResults)
+	{
+		return;
+	}
+
+	LLM_SCOPE(ELLMTag::Nanite);
+
+	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, NaniteRasterResults->VisBuffer64, GSystemTextures.BlackDummy, TEXT("VisBuffer64"));
+	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(NaniteRasterResults->VisibleClustersSWHW, TEXT("VisibleClustersSWHW"));
+
+	OutPassParameters->View = View.ViewUniformBuffer;
+	OutPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
+	OutPassParameters->MaxClusters = Nanite::FGlobalResources::GetMaxClusters();
+	OutPassParameters->SOAStrides = NaniteRasterResults->SOAStrides;
+	OutPassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
+	OutPassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+	OutPassParameters->VisBuffer64 = VisBuffer64;
+	OutPassParameters->MaterialHitProxyTable = Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
+	OutPassParameters->OutputToInputScale = FVector2D(View.ViewRect.Size()) / FVector2D(ViewportRect.Size());
+}
+
+void DrawEditorVisualizeLevelInstance(
+	FRHICommandListImmediate& RHICmdList,
+	const FViewInfo& View,
+	const FIntRect ViewportRect,
+	const FNaniteVisualizeLevelInstanceParameters& PassParameters
+)
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+
+	if (View.EditorVisualizeLevelInstanceIds.Num() == 0)
+	{
+		return;
+	}
+
+	SCOPED_DRAW_EVENT(RHICmdList, NaniteEditorLevelInstance);
+	SCOPED_GPU_STAT(RHICmdList, NaniteEditor);
+
+	uint32 LevelInstancePrimCount = FMath::RoundUpToPowerOfTwo(View.EditorVisualizeLevelInstanceIds.Num());
+	uint32 SearchBufferCountDim = FMath::Min((uint32)FEmitEditingLevelInstanceDepthPS::FSearchBufferCountDim::MaxValue, FMath::FloorLog2(LevelInstancePrimCount));
+
+	FEmitEditingLevelInstanceDepthPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FEmitEditingLevelInstanceDepthPS::FSearchBufferCountDim>(SearchBufferCountDim);
+
+	auto PixelShader = View.ShaderMap->GetShader<FEmitEditingLevelInstanceDepthPS>(PermutationVector.ToDimensionValueId());
+
+	FPixelShaderUtils::DrawFullscreenPixelShader(
+		RHICmdList,
+		GetGlobalShaderMap(View.FeatureLevel),
+		PixelShader,
+		PassParameters,
+		ViewportRect,
+		TStaticBlendState<>::GetRHI(),
+		TStaticRasterizerState<>::GetRHI(),
+		TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
+		1
+	);
 }
 
 #endif // WITH_EDITOR

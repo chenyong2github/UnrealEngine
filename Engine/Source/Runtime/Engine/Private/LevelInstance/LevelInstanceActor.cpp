@@ -705,6 +705,21 @@ void ALevelInstance::PushSelectionToProxies()
 	}
 }
 
+void ALevelInstance::PushLevelInstanceEditingStateToProxies(bool bInEditingState)
+{
+	Super::PushLevelInstanceEditingStateToProxies(bInEditingState);
+
+	// Actors of the LevelInstance need to reflect the LevelInstance actor's Editing state
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	{
+		LevelInstanceSubsystem->ForEachActorInLevelInstance(this, [bInEditingState](AActor* LevelActor)
+			{
+				LevelActor->PushLevelInstanceEditingStateToProxies(bInEditingState);
+				return true;
+			});
+	}
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE

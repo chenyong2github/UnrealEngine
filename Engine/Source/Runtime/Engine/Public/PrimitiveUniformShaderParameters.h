@@ -298,6 +298,9 @@ public:
 		LightmapSceneDataBufferRHI.SafeRelease();
 		LightmapSceneDataBufferSRV.SafeRelease();
 //#if WITH_EDITOR
+		EditorVisualizeLevelInstanceDataBufferRHI.SafeRelease();
+		EditorVisualizeLevelInstanceDataBufferSRV.SafeRelease();
+
 		EditorSelectedDataBufferRHI.SafeRelease();
 		EditorSelectedDataBufferSRV.SafeRelease();
 //#endif
@@ -327,6 +330,9 @@ public:
 	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
 
 //#if WITH_EDITOR
+	FVertexBufferRHIRef EditorVisualizeLevelInstanceDataBufferRHI;
+	FShaderResourceViewRHIRef EditorVisualizeLevelInstanceDataBufferSRV;
+
 	FVertexBufferRHIRef EditorSelectedDataBufferRHI;
 	FShaderResourceViewRHIRef EditorSelectedDataBufferSRV;
 //#endif

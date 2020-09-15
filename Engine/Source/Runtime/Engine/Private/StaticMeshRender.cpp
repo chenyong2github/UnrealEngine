@@ -1866,6 +1866,7 @@ FPrimitiveViewRelevance FStaticMeshSceneProxy::GetViewRelevance(const FSceneView
 
 #if WITH_EDITOR
 		//only check these in the editor
+		Result.bEditorVisualizeLevelInstanceRelevance = IsEditingLevelInstanceChild();
 		Result.bEditorStaticSelectionRelevance = (IsSelected() || IsHovered());
 #endif
 	}

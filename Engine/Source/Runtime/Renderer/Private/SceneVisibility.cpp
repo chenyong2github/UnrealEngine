@@ -1920,6 +1920,7 @@ struct FRelevancePacket
 	FRelevancePrimSet<FPrimitiveSceneInfo*> DirtyIndirectLightingCacheBufferPrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> RecachedReflectionCapturePrimitives;
 #if WITH_EDITOR
+	FRelevancePrimSet<FPrimitiveSceneInfo*> EditorVisualizeLevelInstancePrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> EditorSelectedPrimitives;
 #endif
 
@@ -2026,6 +2027,7 @@ struct FRelevancePacket
 			const bool bDynamicRelevance = ViewRelevance.bDynamicRelevance;
 			const bool bShadowRelevance = ViewRelevance.bShadowRelevance;
 			const bool bEditorRelevance = ViewRelevance.bEditorPrimitiveRelevance;
+			const bool bEditorVisualizeLevelInstanceRelevance = ViewRelevance.bEditorVisualizeLevelInstanceRelevance;
 			const bool bEditorSelectionRelevance = ViewRelevance.bEditorStaticSelectionRelevance;
 			const bool bTranslucentRelevance = ViewRelevance.HasTranslucency();
 
@@ -2054,6 +2056,11 @@ struct FRelevancePacket
 			}
 
 		#if WITH_EDITOR
+			if (bEditorVisualizeLevelInstanceRelevance)
+			{
+				EditorVisualizeLevelInstancePrimitives.AddPrim(PrimitiveSceneInfo);
+			}
+
 			if (bEditorSelectionRelevance)
 			{
 				EditorSelectedPrimitives.AddPrim(PrimitiveSceneInfo);
@@ -2408,6 +2415,11 @@ struct FRelevancePacket
 						}
 
 #if WITH_EDITOR
+						if (ViewRelevance.bEditorVisualizeLevelInstanceRelevance)
+						{
+							DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::EditorLevelInstance);
+						}
+
 						if (ViewRelevance.bEditorStaticSelectionRelevance)
 						{
 							DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::EditorSelection);
@@ -2464,27 +2476,35 @@ struct FRelevancePacket
 		}
 
 #if WITH_EDITOR
+		auto AddRelevantHitProxiesToArray = [](FRelevancePrimSet<FPrimitiveSceneInfo*>& PrimSet, TArray<uint32>& OutHitProxyArray)
+			{
+				int32 TotalHitProxiesToAdd = 0;
+				for (int32 Idx = 0; Idx < PrimSet.NumPrims; ++Idx)
+				{
+					if (PrimSet.Prims[Idx]->NaniteHitProxyIds.Num())
+					{
+						TotalHitProxiesToAdd += PrimSet.Prims[Idx]->NaniteHitProxyIds.Num();
+					}
+				}
+
+				OutHitProxyArray.Reserve(OutHitProxyArray.Num() + TotalHitProxiesToAdd);
+
+				for (int32 Idx = 0; Idx < PrimSet.NumPrims; ++Idx)
+				{
+					if (PrimSet.Prims[Idx]->NaniteHitProxyIds.Num())
+					{
+						for (uint32 IdValue : PrimSet.Prims[Idx]->NaniteHitProxyIds)
+						{
+							OutHitProxyArray.Add(IdValue);
+						}
+					}
+				}
+			};
+
+		// Add hit proxies from editing LevelInstance Nanite primitives
+		AddRelevantHitProxiesToArray(EditorVisualizeLevelInstancePrimitives, WriteView.EditorVisualizeLevelInstanceIds);
 		// Add hit proxies from selected Nanite primitives.
-		{
-			int32 TotalHitProxiesToAdd = 0;
-			for (int32 Idx = 0; Idx < EditorSelectedPrimitives.NumPrims; ++Idx)
-			{
-				if (EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds.Num())
-				{
-					TotalHitProxiesToAdd += EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds.Num();
-				}
-			}
-
-			WriteView.EditorSelectedHitProxyIds.Reserve(WriteView.EditorSelectedHitProxyIds.Num() + TotalHitProxiesToAdd);
-
-			for (int32 Idx = 0; Idx < EditorSelectedPrimitives.NumPrims; ++Idx)
-			{
-				for (uint32 IdValue : EditorSelectedPrimitives.Prims[Idx]->NaniteHitProxyIds)
-				{
-					WriteView.EditorSelectedHitProxyIds.Add(IdValue);
-				}
-			}
-		}
+		AddRelevantHitProxiesToArray(EditorSelectedPrimitives, WriteView.EditorSelectedHitProxyIds);
 #endif
 
 		WriteView.ShadingModelMaskInView |= CombinedShadingModelMask;
@@ -3730,6 +3750,54 @@ void UpdateReflectionSceneData(FScene* Scene)
 #endif
 
 #if WITH_EDITOR
+static void UpdateHitProxyIdBuffer(
+	TArray<uint32>& HitProxyIds,
+	FDynamicReadBuffer& DynamicReadBuffer)
+{
+	Algo::Sort(HitProxyIds);
+	int32 EndIndex = Algo::Unique(HitProxyIds);
+	HitProxyIds.RemoveAt(EndIndex, HitProxyIds.Num() - EndIndex);
+
+	uint32 IdCount = HitProxyIds.Num();
+	uint32 BufferCount = FMath::Max(FMath::RoundUpToPowerOfTwo(IdCount), 1u);
+
+	if (DynamicReadBuffer.NumBytes != BufferCount)
+	{
+		DynamicReadBuffer.Initialize(sizeof(uint32), BufferCount, PF_R32_UINT, BUF_Dynamic);
+	}
+
+	DynamicReadBuffer.Lock();
+	{
+		uint32* Data = reinterpret_cast<uint32*>(DynamicReadBuffer.MappedBuffer);
+
+		for (uint32 i = 0; i < IdCount; ++i)
+		{
+			Data[i] = HitProxyIds[i];
+		}
+
+		uint32 FillValue = IdCount == 0 ? 0 : HitProxyIds.Last();
+
+		for (uint32 i = IdCount; i < BufferCount; ++i)
+		{
+			Data[i] = FillValue;
+		}
+	}
+	DynamicReadBuffer.Unlock();
+}
+
+static void UpdateEditorVisualizeLevelInstanceHitProxyIds(
+	TArray<FViewInfo>& Views
+	)
+{
+	int32 ViewCount = Views.Num();
+	for (int32 ViewIdx = 0; ViewIdx < ViewCount; ++ViewIdx)
+	{
+		FViewInfo& View = Views[ViewIdx];
+
+		UpdateHitProxyIdBuffer(View.EditorVisualizeLevelInstanceIds, View.EditorVisualizeLevelInstanceBuffer);
+	}
+}
+
 static void UpdateEditorSelectedHitProxyIds(
 	TArray<FViewInfo>& Views
 	)
@@ -3739,38 +3807,7 @@ static void UpdateEditorSelectedHitProxyIds(
 	{
 		FViewInfo& View = Views[ViewIdx];
 
-		TArray<uint32>& EditorSelectedHitProxyIds = View.EditorSelectedHitProxyIds;
-		FDynamicReadBuffer& EditorSelectedBuffer = View.EditorSelectedBuffer;
-
-		Algo::Sort(EditorSelectedHitProxyIds);
-		int32 EndIndex = Algo::Unique(EditorSelectedHitProxyIds);
-		EditorSelectedHitProxyIds.RemoveAt(EndIndex, EditorSelectedHitProxyIds.Num() - EndIndex);
-
-		uint32 EditorSelectedCount = EditorSelectedHitProxyIds.Num();
-		uint32 EditorSelectedBufferCount = FMath::Max(FMath::RoundUpToPowerOfTwo(EditorSelectedCount), 1u);
-	
-		if (EditorSelectedBuffer.NumBytes != EditorSelectedBufferCount)
-		{
-			EditorSelectedBuffer.Initialize(sizeof(uint32), EditorSelectedBufferCount, PF_R32_UINT, BUF_Dynamic);
-		}
-
-		EditorSelectedBuffer.Lock();
-		{
-			uint32* Data = reinterpret_cast<uint32*>(EditorSelectedBuffer.MappedBuffer);
-
-			for (uint32 i = 0; i < EditorSelectedCount; ++i)
-			{
-				Data[i] = EditorSelectedHitProxyIds[i];
-			}
-
-			uint32 FillValue = EditorSelectedCount == 0 ? 0 : EditorSelectedHitProxyIds.Last();
-
-			for (uint32 i = EditorSelectedCount; i < EditorSelectedBufferCount; ++i)
-			{
-				Data[i] = FillValue;
-			}
-		}
-		EditorSelectedBuffer.Unlock();
+		UpdateHitProxyIdBuffer(View.EditorSelectedHitProxyIds, View.EditorSelectedBuffer);
 	}
 }
 #endif
@@ -4137,6 +4174,7 @@ void FSceneRenderer::ComputeViewVisibility(
 	}
 
 #if WITH_EDITOR
+	UpdateEditorVisualizeLevelInstanceHitProxyIds(Views);
 	UpdateEditorSelectedHitProxyIds(Views);
 #endif
 

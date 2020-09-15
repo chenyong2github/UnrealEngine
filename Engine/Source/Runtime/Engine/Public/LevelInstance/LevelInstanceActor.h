@@ -52,6 +52,7 @@ public:
 	virtual void SetIsTemporarilyHiddenInEditor(bool bIsHidden) override;
 	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) override;
 	virtual void PushSelectionToProxies() override;
+	virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState) override;
 	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
 	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const override;
 

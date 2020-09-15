@@ -140,9 +140,16 @@ public:
 	 * Updates selection for the primitive proxy. This simply sends a message to the rendering thread to call SetSelection_RenderThread.
 	 * This is called in the game thread as selection is toggled.
 	 * @param bInParentSelected - true if the parent actor is selected in the editor
- 	 * @param bInIndividuallySelected - true if the component is selected in the editor directly
+	 * @param bInIndividuallySelected - true if the component is selected in the editor directly
 	 */
 	void SetSelection_GameThread(const bool bInParentSelected, const bool bInIndividuallySelected=false);
+
+	/**
+	 * Updates the LevelInstance editing state for the primitive proxy. This simply sends a message to the rendering thread to call SetLevelInstanceEditingState_RenderThread.
+	 * This is called in the game thread when the object enters/leaves LevelInstance levels.
+	 * @param bInEditingState - true if the parent actor belongs to an editing LevelInstance sublevel
+	 */
+	void SetLevelInstanceEditingState_GameThread(const bool bInEditingState);
 
 	/**
 	 * Updates hover state for the primitive proxy. This simply sends a message to the rendering thread to call SetHovered_RenderThread.
@@ -490,6 +497,7 @@ public:
 	inline bool IsSelectable() const { return bSelectable; }
 	inline bool IsParentSelected() const { return bParentSelected; }
 	inline bool IsIndividuallySelected() const { return bIndividuallySelected; }
+	inline bool IsEditingLevelInstanceChild() const { return bLevelInstanceEditingState; }
 	inline bool IsSelected() const { return IsParentSelected() || IsIndividuallySelected(); }
 	inline bool WantsSelectionOutline() const { return bWantsSelectionOutline; }
 	inline bool ShouldRenderCustomDepth() const { return bRenderCustomDepth; }
@@ -797,6 +805,8 @@ private:
 	uint8 bParentSelected : 1;
 	/** Component is selected directly */
 	uint8 bIndividuallySelected : 1;
+	/** Component belongs to an Editing LevelInstance */
+	uint8 bLevelInstanceEditingState : 1;
 	
 	/** true if the mouse is currently hovered over this primitive in a level viewport */
 	uint8 bHovered : 1;
@@ -1107,6 +1117,9 @@ private:
 protected:
 	/** Updates selection for the primitive proxy. This is called in the rendering thread by SetSelection_GameThread. */
 	void SetSelection_RenderThread(const bool bInParentSelected, const bool bInIndividuallySelected);
+
+	/** Updates LevelInstance editing state for the primitive proxy. This is called in the rendering thread. */
+	void SetLevelInstanceEditingState_RenderThread(const bool bInLevelInstanceEditingState);
 
 	/** Updates hover state for the primitive proxy. This is called in the rendering thread by SetHovered_GameThread. */
 	void SetHovered_RenderThread(const bool bInHovered);

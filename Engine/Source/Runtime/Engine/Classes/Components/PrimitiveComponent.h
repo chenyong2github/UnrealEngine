@@ -366,6 +366,10 @@ public:
 	UPROPERTY()
 	uint8 bSelectable:1;
 
+	/** If this is True, the component may not be greyed if the level instance visualization effect is enabled */
+	UPROPERTY(Transient)
+	uint8 bEditingLevelInstanceState:1;
+
 	/** If true, forces mips for textures used by this component to be resident when this component's level is loaded. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=TextureStreaming)
 	uint8 bForceMipStreaming:1;
@@ -2048,6 +2052,11 @@ public:
 	 * Pushes new selection state to the render thread primitive proxy
 	 */
 	void PushSelectionToProxy();
+
+	/**
+	 * Pushes new LevelInstance editing state to the render thread primitive proxy and caches it locally
+	 */
+	void PushLevelInstanceEditingStateToProxy(bool bInEditingState);
 
 	/**
 	 * Pushes new hover state to the render thread primitive proxy

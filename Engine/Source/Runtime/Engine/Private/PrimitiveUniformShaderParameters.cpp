@@ -70,10 +70,23 @@ void FSinglePrimitiveStructured::UploadToGPU()
 //#if WITH_EDITOR
 	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
 	{
-		FRHIResourceCreateInfo CreateInfo;
-		EditorSelectedDataBufferRHI = RHICreateVertexBuffer(sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo);
+		// Create level instance SRV
+		FRHIResourceCreateInfo LevelInstanceBufferCreateInfo;
+		EditorVisualizeLevelInstanceDataBufferRHI = RHICreateVertexBuffer(sizeof(uint32), BUF_Static | BUF_ShaderResource, LevelInstanceBufferCreateInfo);
 
-		void* LockedData = RHILockVertexBuffer(EditorSelectedDataBufferRHI, 0, sizeof(uint32), RLM_WriteOnly);
+		void* LockedData = RHILockVertexBuffer(EditorVisualizeLevelInstanceDataBufferRHI, 0, sizeof(uint32), RLM_WriteOnly);
+
+		*reinterpret_cast<uint32*>(LockedData) = 0;
+
+		RHIUnlockVertexBuffer(EditorVisualizeLevelInstanceDataBufferRHI);
+
+		EditorVisualizeLevelInstanceDataBufferSRV = RHICreateShaderResourceView(EditorVisualizeLevelInstanceDataBufferRHI, sizeof(uint32), PF_R32_UINT);
+
+		// Create selection outline SRV
+		FRHIResourceCreateInfo SelectionBufferCreateInfo;
+		EditorSelectedDataBufferRHI = RHICreateVertexBuffer(sizeof(uint32), BUF_Static | BUF_ShaderResource, SelectionBufferCreateInfo);
+
+		LockedData = RHILockVertexBuffer(EditorSelectedDataBufferRHI, 0, sizeof(uint32), RLM_WriteOnly);
 
 		*reinterpret_cast<uint32*>(LockedData) = 0;
 

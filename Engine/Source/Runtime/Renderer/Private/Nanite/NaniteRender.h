@@ -48,6 +48,22 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>,		DbgBuffer32)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER(FVector2D, OutputToInputScale)
+	SHADER_PARAMETER(uint32, MaxClusters)
+
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVisibleCluster>, VisibleClustersSWHW)
+	SHADER_PARAMETER(FIntVector4, SOAStrides)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
+
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
+
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER(FVector2D, OutputToInputScale)
@@ -631,6 +647,22 @@ void DrawEditorSelection(
 	const FViewInfo& View,
 	const FIntRect ViewportRect,
 	const FNaniteSelectionOutlineParameters& PassParameters
+	);
+
+void GetEditorVisualizeLevelInstancePassParameters(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const FViewInfo& View,
+	const FIntRect ViewportRect,
+	const FRasterResults* NaniteRasterResults,
+	FNaniteVisualizeLevelInstanceParameters* OutPassParameters
+	);
+
+void DrawEditorVisualizeLevelInstance(
+	FRHICommandListImmediate& RHICmdList,
+	const FViewInfo& View,
+	const FIntRect ViewportRect,
+	const FNaniteVisualizeLevelInstanceParameters& PassParameters
 	);
 #endif
 

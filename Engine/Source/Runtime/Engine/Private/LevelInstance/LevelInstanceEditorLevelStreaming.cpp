@@ -21,6 +21,11 @@ ULevelStreamingLevelInstanceEditor::ULevelStreamingLevelInstanceEditor(const FOb
 {
 #if WITH_EDITOR
 	SetShouldBeVisibleInEditor(true);
+
+	if (!IsTemplate() && !GetWorld()->IsPlayInEditor())
+	{
+		GEngine->OnLevelActorAdded().AddUObject(this, &ULevelStreamingLevelInstanceEditor::OnLevelActorAdded);
+	}
 #endif
 }
 
@@ -55,4 +60,13 @@ void ULevelStreamingLevelInstanceEditor::Unload(ULevelStreamingLevelInstanceEdit
 	const bool bClearSelection = false;
 	EditorLevelUtils::RemoveLevelFromWorld(LevelStreaming->GetLoadedLevel(), bClearSelection);
 }
+
+void ULevelStreamingLevelInstanceEditor::OnLevelActorAdded(AActor* InActor)
+{
+	if (InActor && InActor->GetLevel() == LoadedLevel)
+	{
+		InActor->PushLevelInstanceEditingStateToProxies(true);
+	}
+}
+
 #endif

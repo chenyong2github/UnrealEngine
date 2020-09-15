@@ -29,6 +29,7 @@
 #include "Engine/Selection.h"
 #include "Engine/LevelBounds.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
+#include "LevelEditorViewport.h"
 #endif
 
 #include "HAL/IConsoleManager.h"
@@ -532,6 +533,17 @@ bool ULevelInstanceSubsystem::MoveActorsToLevel(const TArray<AActor*>& ActorsToR
 		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to move actors out of Level Instance because not all actors could be moved"));
 		return false;
 	}
+
+	ALevelInstance* OwningInstance = GetOwningLevelInstance(DestinationLevel);
+	if (!OwningInstance || !OwningInstance->IsEditing())
+	{
+		for (const auto& Actor : ActorsToRemove)
+		{
+			const bool bEditing = false;
+			Actor->PushLevelInstanceEditingStateToProxies(bEditing);
+		}
+	}
+
 	return true;
 }
 
@@ -1136,6 +1148,24 @@ void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceAct
 	}
 	LevelInstanceActor->SetIsTemporarilyHiddenInEditor(false);
 	GEditor->SelectActor(ActorToSelect, true, true);
+
+	for (const auto& Actor : LevelStreaming->LoadedLevel->Actors)
+	{
+		const bool bEditing = true;
+		Actor->PushLevelInstanceEditingStateToProxies(bEditing);
+	}
+
+	const bool bHasLevelInstanceEdits = LevelInstanceEdits.Num() > 0;
+	if (bHasLevelInstanceEdits)
+	{
+		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+		{
+			if (LevelVC && LevelVC->GetWorld() == GetWorld())
+			{
+				LevelVC->EngineShowFlags.EditingLevelInstance = bHasLevelInstanceEdits;
+			}
+		}
+	}
 }
 
 void ULevelInstanceSubsystem::CommitChildrenLevelInstances(ALevelInstance* LevelInstanceActor)
@@ -1241,6 +1271,19 @@ void ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceA
 	}
 
 	GEditor->SelectActor(ActorToSelect, true, true);
+
+	const bool bHasLevelInstanceEdits = LevelInstanceEdits.Num() > 0;
+
+	if (!bHasLevelInstanceEdits)
+	{
+		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+		{
+			if (LevelVC && LevelVC->GetWorld() == GetWorld())
+			{
+				LevelVC->EngineShowFlags.EditingLevelInstance = bHasLevelInstanceEdits;
+			}
+		}
+	}
 }
 
 void ULevelInstanceSubsystem::SaveLevelInstanceAs(ALevelInstance* LevelInstanceActor)

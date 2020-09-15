@@ -336,6 +336,7 @@ private:
 		SetVertexColors(false);
 		SetPhysicalMaterialMasks(false);
 		SetVisualizeMotionBlur(false);
+		SetEditingLevelInstance(false);
 		SetSelectionOutline(false);
 		SetDebugAI(false);
 		SetNavigation(false);

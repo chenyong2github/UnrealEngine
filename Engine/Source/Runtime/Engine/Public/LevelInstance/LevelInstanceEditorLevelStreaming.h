@@ -21,6 +21,8 @@ public:
 	ALevelInstance* GetLevelInstanceActor() const;
 
 protected:
+	void OnLevelActorAdded(AActor* InActor);
+
 	friend class ULevelInstanceSubsystem;
 
 	static ULevelStreamingLevelInstanceEditor* Load(ALevelInstance* LevelInstanceActor);

@@ -4756,6 +4756,28 @@ void AActor::PushSelectionToProxies()
 	}
 }
 
+void AActor::PushLevelInstanceEditingStateToProxies(bool bInEditingState)
+{
+	TInlineComponentArray<UPrimitiveComponent*> PrimComponents;
+	GetComponents(PrimComponents);
+
+	for (const auto& PrimComponent : PrimComponents)
+	{
+		if (PrimComponent->IsRegistered())
+		{
+			PrimComponent->PushLevelInstanceEditingStateToProxy(bInEditingState);
+		}
+	}
+
+	TFunction<bool(AActor*)> PushAllChildrenToProxies = [&PushAllChildrenToProxies, bInEditingState](AActor* AttachedActor)
+	{
+		AttachedActor->PushLevelInstanceEditingStateToProxies(bInEditingState);
+		return true;
+	};
+
+	ForEachAttachedActors(PushAllChildrenToProxies);
+}
+
 bool AActor::IsChildActor() const
 {
 	return ParentComponent.IsValid();

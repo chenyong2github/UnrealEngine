@@ -215,9 +215,49 @@ bool BinarySearch(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
 	return SearchBuffer[idx] == Key;
 }
 
-#if EDITOR_SELECTED_BUFFER_COUNT > 0
 
+#if EDITOR_SELECTED_BUFFER_COUNT > 0 || EDITOR_LEVELINSTANCE_BUFFER_COUNT > 0
 float2 OutputToInputScale;
+#endif
+
+#if EDITOR_LEVELINSTANCE_BUFFER_COUNT > 0
+
+void EmitEditorLevelInstanceDepthPS(
+	float4 SvPosition : SV_Position,
+	out float OutDepth : SV_Depth
+)
+{
+	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale);
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	if (VisibleClusterIndex != 0xFFFFFFFF)
+	{
+		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+		FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
+		if (BinarySearch(View.EditorVisualizeLevelInstanceIds, EDITOR_LEVELINSTANCE_BUFFER_COUNT, MaterialHitProxyId))
+		{
+			OutDepth = asfloat(DepthInt);
+		}
+		else
+		{
+			discard;
+		}
+	}
+	else
+	{
+		discard;
+	}
+}
+#endif
+
+#if EDITOR_SELECTED_BUFFER_COUNT > 0
 
 void EmitEditorSelectionDepthPS(
 	float4 SvPosition : SV_Position,

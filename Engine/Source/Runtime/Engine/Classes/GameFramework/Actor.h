@@ -2489,6 +2489,9 @@ public:
 	/** Push Selection to actor */
 	virtual void PushSelectionToProxies();
 
+	/** Push Foundation Editing state to primitive scene proxy */
+	virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState);
+
 	/** 
 	 * Returns a list of all actors spawned by our Child Actor Components, including children of children. 
 	 * This does not return the contents of the Children array

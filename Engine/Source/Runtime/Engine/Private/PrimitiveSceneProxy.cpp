@@ -114,6 +114,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bOwnerNoSee(InComponent->bOwnerNoSee)
 ,	bParentSelected(InComponent->ShouldRenderSelected())
 ,	bIndividuallySelected(InComponent->IsComponentIndividuallySelected())
+,	bLevelInstanceEditingState(InComponent->bEditingLevelInstanceState)
 ,	bHovered(false)
 ,	bUseViewOwnerDepthPriorityGroup(InComponent->bUseViewOwnerDepthPriorityGroup)
 ,	bHasMotionBlurVelocityMeshes(InComponent->bHasMotionBlurVelocityMeshes)
@@ -521,6 +522,25 @@ void FPrimitiveSceneProxy::SetSelection_GameThread(const bool bInParentSelected,
 		[PrimitiveSceneProxy, bInParentSelected, bInIndividuallySelected](FRHICommandListImmediate& RHICmdList)
 		{
 			PrimitiveSceneProxy->SetSelection_RenderThread(bInParentSelected, bInIndividuallySelected);
+		});
+}
+
+void FPrimitiveSceneProxy::SetLevelInstanceEditingState_RenderThread(const bool bInEditingState)
+{
+	check(IsInRenderingThread());
+	bLevelInstanceEditingState = bInEditingState;
+}
+
+void FPrimitiveSceneProxy::SetLevelInstanceEditingState_GameThread(const bool bInEditingState)
+{
+	check(IsInGameThread());
+
+	// Enqueue a message to the rendering thread containing the interaction to add.
+	FPrimitiveSceneProxy* PrimitiveSceneProxy = this;
+	ENQUEUE_RENDER_COMMAND(SetNewLevelInstanceEditingState)(
+		[PrimitiveSceneProxy, bInEditingState](FRHICommandListImmediate& RHICmdList)
+		{
+			PrimitiveSceneProxy->SetLevelInstanceEditingState_RenderThread(bInEditingState);
 		});
 }
 

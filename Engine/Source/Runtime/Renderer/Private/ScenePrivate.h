@@ -2428,6 +2428,7 @@ public:
 	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileSkyReflectionUniformBuffer;
 
 #if WITH_EDITOR
+	TUniformBufferRef<FSceneTexturesUniformParameters> EditorVisualizeLevelInstancePassUniformBuffer;
 	TUniformBufferRef<FSceneTexturesUniformParameters> EditorSelectionPassUniformBuffer;
 #endif
 
