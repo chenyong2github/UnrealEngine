@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamCoreSubsystem.h"
+#include "VCamInputSubsystem.h"
+#include "VCamInputProcessor.h"
 
 #include "Framework/Application/SlateApplication.h"
 
-DEFINE_LOG_CATEGORY(LogVCamCore);
+DEFINE_LOG_CATEGORY(LogVCamInput);
 
-UVCamCoreSubsystem::UVCamCoreSubsystem()
+UVCamInputSubsystem::UVCamInputSubsystem()
 {
 	// Registering the input processor is only valid in the actual subsystem and not the CDO
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		InputProcessor = MakeShared<FEditorInputProcessor>();
+		InputProcessor = MakeShared<FVCamInputProcessor>();
 		if (FSlateApplication::IsInitialized())
 		{
 			bIsRegisterd = FSlateApplication::Get().RegisterInputPreProcessor(InputProcessor);
@@ -19,7 +20,7 @@ UVCamCoreSubsystem::UVCamCoreSubsystem()
 	}
 }
 
-UVCamCoreSubsystem::~UVCamCoreSubsystem()
+UVCamInputSubsystem::~UVCamInputSubsystem()
 {
 	if (FSlateApplication::IsInitialized() && InputProcessor.IsValid())
 	{
@@ -28,7 +29,7 @@ UVCamCoreSubsystem::~UVCamCoreSubsystem()
 }
 
 
-void UVCamCoreSubsystem::SetShouldConsumeGamepadInput(const bool bInShouldConsumeGamepadInput)
+void UVCamInputSubsystem::SetShouldConsumeGamepadInput(const bool bInShouldConsumeGamepadInput)
 {
 	if (InputProcessor.IsValid())
 	{
@@ -36,7 +37,7 @@ void UVCamCoreSubsystem::SetShouldConsumeGamepadInput(const bool bInShouldConsum
 	}
 }
 
-bool UVCamCoreSubsystem::GetShouldConsumeGamepadInput() const
+bool UVCamInputSubsystem::GetShouldConsumeGamepadInput() const
 {
 	bool bShouldConsumeGamepadInput = false;
 	if (InputProcessor.IsValid())
@@ -46,7 +47,7 @@ bool UVCamCoreSubsystem::GetShouldConsumeGamepadInput() const
 	return bShouldConsumeGamepadInput;
 }
 
-void UVCamCoreSubsystem::BindKeyDownEvent(const FKey Key, FKeyInputDelegate Delegate)
+void UVCamInputSubsystem::BindKeyDownEvent(const FKey Key, FKeyInputDelegate Delegate)
 {
 	if (InputProcessor.IsValid())
 	{
@@ -54,7 +55,7 @@ void UVCamCoreSubsystem::BindKeyDownEvent(const FKey Key, FKeyInputDelegate Dele
 	}
 }
 
-void UVCamCoreSubsystem::BindKeyUpEvent(const FKey Key, FKeyInputDelegate Delegate)
+void UVCamInputSubsystem::BindKeyUpEvent(const FKey Key, FKeyInputDelegate Delegate)
 {
 	if (InputProcessor.IsValid())
 	{
@@ -62,7 +63,7 @@ void UVCamCoreSubsystem::BindKeyUpEvent(const FKey Key, FKeyInputDelegate Delega
 	}
 }
 
-void UVCamCoreSubsystem::BindAnalogEvent(const FKey Key, FAnalogInputDelegate Delegate)
+void UVCamInputSubsystem::BindAnalogEvent(const FKey Key, FAnalogInputDelegate Delegate)
 {
 	if (InputProcessor.IsValid())
 	{
@@ -70,7 +71,7 @@ void UVCamCoreSubsystem::BindAnalogEvent(const FKey Key, FAnalogInputDelegate De
 	}
 }
 
-void UVCamCoreSubsystem::BindMouseMoveEvent(FPointerInputDelegate Delegate)
+void UVCamInputSubsystem::BindMouseMoveEvent(FPointerInputDelegate Delegate)
 {
 	if (InputProcessor.IsValid())
 	{
@@ -78,7 +79,7 @@ void UVCamCoreSubsystem::BindMouseMoveEvent(FPointerInputDelegate Delegate)
 	}
 }
 
-void UVCamCoreSubsystem::BindMouseButtonDownEvent(const FKey Key, FPointerInputDelegate Delegate)
+void UVCamInputSubsystem::BindMouseButtonDownEvent(const FKey Key, FPointerInputDelegate Delegate)
 {
 	if (InputProcessor.IsValid())
 	{
@@ -86,7 +87,7 @@ void UVCamCoreSubsystem::BindMouseButtonDownEvent(const FKey Key, FPointerInputD
 	}
 }
 
-void UVCamCoreSubsystem::BindMouseButtonUpEvent(const FKey Key, FPointerInputDelegate Delegate)
+void UVCamInputSubsystem::BindMouseButtonUpEvent(const FKey Key, FPointerInputDelegate Delegate)
 {
 	if (InputProcessor.IsValid())
 	{
@@ -94,7 +95,7 @@ void UVCamCoreSubsystem::BindMouseButtonUpEvent(const FKey Key, FPointerInputDel
 	}
 }
 
-void UVCamCoreSubsystem::BindMouseDoubleClickEvent(const FKey Key, FPointerInputDelegate Delegate)
+void UVCamInputSubsystem::BindMouseDoubleClickEvent(const FKey Key, FPointerInputDelegate Delegate)
 {
 	if (InputProcessor.IsValid())
 	{
@@ -102,7 +103,7 @@ void UVCamCoreSubsystem::BindMouseDoubleClickEvent(const FKey Key, FPointerInput
 	}
 }
 
-void UVCamCoreSubsystem::BindMouseWheelEvent(FPointerInputDelegate Delegate)
+void UVCamInputSubsystem::BindMouseWheelEvent(FPointerInputDelegate Delegate)
 {
 	if (InputProcessor.IsValid())
 	{

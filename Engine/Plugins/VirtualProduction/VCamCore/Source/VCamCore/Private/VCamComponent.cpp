@@ -4,17 +4,18 @@
 
 #include "CineCameraComponent.h"
 #include "ILiveLinkClient.h"
-#include "VCamCoreSubsystem.h"
 #include "VCamModifier.h"
 #include "VCamModifierContext.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "GameDelegates.h"
+#include "Engine/GameEngine.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
 #include "Editor.h"
 #include "LevelEditor.h"
+#include "IAssetViewport.h"
 #include "SLevelViewport.h"
 #endif
 
@@ -38,8 +39,6 @@ UVCamComponent::UVCamComponent()
 			LiveLinkClient.OnLiveLinkTicked().AddUObject(this, &UVCamComponent::Update);
 		}
 
-		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UVCamComponent::OnEndPlayMap);
-
 #if WITH_EDITOR
 		// Add the necessary event listeners so we can start/end properly
 		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamComponent::LevelEditorName))
@@ -48,7 +47,7 @@ UVCamComponent::UVCamComponent()
 		}
 
 		FEditorDelegates::BeginPIE.AddUObject(this, &UVCamComponent::OnBeginPIE);
-		FEditorDelegates::PostPIEStarted.AddUObject(this, &UVCamComponent::OnPostPIEStarted);
+		FEditorDelegates::EndPIE.AddUObject(this, &UVCamComponent::OnEndPIE);
 #endif
 	}
 }
@@ -60,12 +59,11 @@ void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 
 	for (UVCamOutputProviderBase* Provider : OutputProviders)
 	{
-		DestroyOutputProvider(Provider);
+		if (Provider)
+		{
+			Provider->Deinitialize();
+		}
 	}
-
-	OutputProviders.Empty();
-
-	FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 
 #if WITH_EDITOR
 	// Remove all event listeners
@@ -75,50 +73,32 @@ void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	}
 
 	FEditorDelegates::BeginPIE.RemoveAll(this);
-	FEditorDelegates::PostPIEStarted.RemoveAll(this);
+	FEditorDelegates::EndPIE.RemoveAll(this);
 #endif
 }
 
-void UVCamComponent::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	for (UVCamOutputProviderBase* Provider : OutputProviders)
-	{
-		if (Provider)
-		{
-			Provider->InitializeSafe();
-		}
-	}
-}
-
-void UVCamComponent::ConditionallyInitializeModifiers()
-{
-	for (FModifierStackEntry& StackEntry : ModifierStack)
-	{
-		UVCamModifier* Modifier = StackEntry.GeneratedModifier;
-		if (Modifier && Modifier->DoesRequireInitialization())
-		{
-			Modifier->Initialize(ModifierContext);
-		}
-	}
-}
-
-
 bool UVCamComponent::CanUpdate() const
 {
-	if (bEnabled)
+	UWorld* World = GetWorld();
+	if (bEnabled && !IsPendingKill() && !bIsEditorObjectButPIEIsRunning && World)
 	{
-		if (const USceneComponent* ParentComponent = GetAttachParent())
+		// Check for an Inactive type of world which means nothing should ever execute on this object
+		// @TODO: This is far from optimal as it means a zombie object has been created that never gets GC'ed
+		// Apparently, we should be using OnRegister/OnUnregister() instead of doing everything in the constructor, but it was throwing GC errors when trying that
+		if (World->WorldType != EWorldType::Inactive)
 		{
-			if (ParentComponent->IsA<UCineCameraComponent>())
+			if (const USceneComponent* ParentComponent = GetAttachParent())
 			{
-				// Component is valid to use if it is enabled, has a parent and that parent is a CineCamera derived component
-				return true;
+				if (ParentComponent->IsA<UCineCameraComponent>())
+				{
+					// Component is valid to use if it is enabled, has a parent and that parent is a CineCamera derived component
+					return true;
+				}
 			}
 		}
 	}
 	return false;
+
 }
 
 void UVCamComponent::OnAttachmentChanged()
@@ -170,11 +150,20 @@ void UVCamComponent::PreEditChange(FProperty* PropertyThatWillChange)
 	if (PropertyThatWillChange)
 	{
 		static FName NAME_OutputProviders = GET_MEMBER_NAME_CHECKED(UVCamComponent, OutputProviders);
+		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
+		// Name property withing the Modifier Stack Entry struct. Possible collision due to just being called "Name"
+		static FName NAME_ModifierStackEntryName = GET_MEMBER_NAME_CHECKED(FModifierStackEntry, Name);
 
-		if (PropertyThatWillChange->GetFName() == NAME_OutputProviders)
+		const FName PropertyThatWillChangeName = PropertyThatWillChange->GetFName();
+
+		if (PropertyThatWillChangeName == NAME_OutputProviders)
 		{
 			SavedOutputProviders.Empty();
 			SavedOutputProviders = OutputProviders;
+		}
+		else if (PropertyThatWillChangeName == NAME_ModifierStack || PropertyThatWillChangeName == NAME_ModifierStackEntryName)
+		{
+			SavedModifierStack = ModifierStack;
 		}
 	}
 
@@ -187,10 +176,31 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_LockViewportToCamera = GET_MEMBER_NAME_CHECKED(UVCamComponent, bLockViewportToCamera);
+		static FName NAME_Enabled = GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled);
+		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
+		static FName NAME_TargetViewport = GET_MEMBER_NAME_CHECKED(UVCamComponent, TargetViewport);
 
-		if (Property->GetFName() == NAME_LockViewportToCamera)
+		const FName PropertyName = Property->GetFName();
+
+		if (PropertyName == NAME_LockViewportToCamera)
 		{
 			UpdateActorLock();
+		}
+		else if (PropertyName == NAME_Enabled)
+		{
+			SetEnabled(bEnabled);
+		}
+		else if (PropertyName == NAME_ModifierStack)
+		{
+			EnforceModifierStackNameUniqueness();
+		}
+		else if (PropertyName == NAME_TargetViewport)
+		{
+			if (bEnabled && bLockViewportToCamera)
+			{
+				SetActorLock(false);
+				SetActorLock(true);
+			}
 		}
 	}
 
@@ -222,7 +232,7 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 					if (ChangedProvider)
 					{
-						ChangedProvider->InitializeSafe();
+						ChangedProvider->Initialize();
 					}
 				}
 				else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
@@ -250,15 +260,33 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 void UVCamComponent::Update()
 {
-
-	ConditionallyInitializeModifiers();
-
 	if (CanUpdate())
 	{
+		// If requested then disable the component if we're spawned by sequencer
+		if (bDisableComponentWhenSpawnedBySequencer)
+		{
+			static const FName SequencerActorTag(TEXT("SequencerActor"));
+			AActor* OwningActor = GetOwner();
+			if (OwningActor && OwningActor->ActorHasTag(SequencerActorTag))
+			{
+				UE_LOG(LogVCamComponent, Warning, TEXT("%s was spawned by Sequencer. Disabling the component because \"Disable Component When Spawned By Sequencer\" was true."), *GetFullName(OwningActor->GetOuter()));
+				SetEnabled(false);
+				return;
+			}
+		}
+
+		// Ensure the actor lock reflects the state of the lock property
+		// This is needed as UActorComponent::ConsolidatedPostEditChange will cause the component to be reconstructed on PostEditChange
+		// if the component is inherited
+		if (bLockViewportToCamera != bIsLockedToViewport)
+		{
+			UpdateActorLock();
+		}
+
 		const float DeltaTime = GetDeltaTime();
 
 		FLiveLinkCameraBlueprintData InitialLiveLinkData;
-		GetInitialLiveLinkData(InitialLiveLinkData);
+		GetLiveLinkDataForCurrentFrame(InitialLiveLinkData);
 		UCineCameraComponent* CameraComponent = GetTargetCamera();
 
 		if (!CameraComponent)
@@ -278,7 +306,13 @@ void UVCamComponent::Update()
 
 			if (UVCamModifier* Modifier = ModifierStackEntry.GeneratedModifier)
 			{
-				Modifier->Apply(ModifierContext, InitialLiveLinkData, CameraComponent, DeltaTime);
+				// Initialize the Modifier if required
+				if (Modifier->DoesRequireInitialization())
+				{
+					Modifier->Initialize(ModifierContext);
+				}
+
+				Modifier->Apply(ModifierContext, CameraComponent, DeltaTime);
 			}
 		}
 
@@ -286,7 +320,30 @@ void UVCamComponent::Update()
 		{
 			if (Provider)
 			{
+				// Initialize the Provider if required
+				if (!Provider->IsInitialized())
+				{
+					Provider->Initialize();
+				}
+
 				Provider->Tick(DeltaTime);
+			}
+		}
+	}
+}
+
+void UVCamComponent::SetEnabled(bool bNewEnabled)
+{
+	bEnabled = bNewEnabled;
+
+	// Disable all outputs if we're no longer enabled
+	if (!bEnabled)
+	{
+		for (UVCamOutputProviderBase* Provider : OutputProviders)
+		{
+			if (Provider)
+			{
+				Provider->Deinitialize();
 			}
 		}
 	}
@@ -297,26 +354,128 @@ UCineCameraComponent* UVCamComponent::GetTargetCamera() const
 	return Cast<UCineCameraComponent>(GetAttachParent());
 }
 
-void UVCamComponent::AddModifier(const FName Name, const TSubclassOf<UVCamModifier> ModifierClass, bool& bSuccess,
-                                 UVCamModifier*& CreatedModifier)
+bool UVCamComponent::AddModifier(const FName Name, const TSubclassOf<UVCamModifier> ModifierClass, UVCamModifier*& CreatedModifier)
 {
-	bSuccess = false;
 	CreatedModifier = nullptr;
 
-	if (FindModifierByName(Name))
+	if (GetModifierByName(Name))
 	{
-		UE_LOG(LogVCamCore, Warning, TEXT("Unable to add Modifier to Stack as another Modifier with the name \"%s\" exists"), *Name.ToString());
-		return;
+		UE_LOG(LogVCamComponent, Warning, TEXT("Unable to add Modifier to Stack as another Modifier with the name \"%s\" exists"), *Name.ToString());
+		return false;
 	}
 
 	ModifierStack.Emplace(Name, ModifierClass, this);
 	FModifierStackEntry& NewModifierEntry = ModifierStack.Last();
 	CreatedModifier = NewModifierEntry.GeneratedModifier;
 
-	bSuccess = CreatedModifier != nullptr;
+	return CreatedModifier != nullptr;
 }
 
-UVCamModifier* UVCamComponent::FindModifierByName(const FName Name) const
+bool UVCamComponent::InsertModifier(const FName Name, int32 Index, const TSubclassOf<UVCamModifier> ModifierClass, UVCamModifier*& CreatedModifier)
+{
+	CreatedModifier = nullptr;
+
+	if (GetModifierByName(Name))
+	{
+		UE_LOG(LogVCamComponent, Warning, TEXT("Unable to add Modifier to Stack as another Modifier with the name \"%s\" exists"), *Name.ToString());
+		return false;
+	}
+
+	if (Index < 0 || Index > ModifierStack.Num())
+	{
+		UE_LOG(LogVCamComponent, Warning, TEXT("Insert Modifier failed with invalid index %d for stack of size %d."), Index, ModifierStack.Num());
+		return false;
+	}
+	
+	ModifierStack.EmplaceAt(Index, Name, ModifierClass, this);
+	FModifierStackEntry& NewModifierEntry = ModifierStack[Index];
+	CreatedModifier = NewModifierEntry.GeneratedModifier;
+
+	return CreatedModifier != nullptr;
+}
+
+bool UVCamComponent::SetModifierIndex(int32 OriginalIndex, int32 NewIndex)
+{
+	if (!ModifierStack.IsValidIndex(OriginalIndex))
+	{
+		UE_LOG(LogVCamComponent, Warning, TEXT("Set Modifier Index failed as the Original Index, %d, was out of range for stack of size %d"), OriginalIndex, ModifierStack.Num());
+		return false;
+	}
+
+	if (!ModifierStack.IsValidIndex(NewIndex))
+	{
+		UE_LOG(LogVCamComponent, Warning, TEXT("Set Modifier Index failed as the New Index, %d, was out of range for stack of size %d"), NewIndex, ModifierStack.Num());
+		return false;
+	}
+
+	FModifierStackEntry StackEntry = ModifierStack[OriginalIndex];
+	ModifierStack.RemoveAtSwap(OriginalIndex);
+	ModifierStack.Insert(StackEntry, NewIndex);
+
+	return true;
+}
+
+void UVCamComponent::RemoveAllModifiers()
+{
+	ModifierStack.Empty();
+}
+
+bool UVCamComponent::RemoveModifier(const UVCamModifier* Modifier)
+{
+	const int32 RemovedCount = ModifierStack.RemoveAll([Modifier](const FModifierStackEntry& StackEntry)
+		{
+			return StackEntry.GeneratedModifier && StackEntry.GeneratedModifier == Modifier;
+		});
+
+	return RemovedCount > 0;
+}
+
+bool UVCamComponent::RemoveModifierByIndex(const int ModifierIndex)
+{
+	if (ModifierStack.IsValidIndex(ModifierIndex))
+	{
+		ModifierStack.RemoveAt(ModifierIndex);
+		return true;
+	}
+	return false;
+}
+
+bool UVCamComponent::RemoveModifierByName(const FName Name)
+{
+	const int32 RemovedCount = ModifierStack.RemoveAll([Name](const FModifierStackEntry& StackEntry)
+		{
+			return StackEntry.Name.IsEqual(Name);
+		});
+
+	return RemovedCount > 0;
+}
+
+int32 UVCamComponent::GetNumberOfModifiers() const
+{
+	return ModifierStack.Num();
+}
+
+void UVCamComponent::GetAllModifiers(TArray<UVCamModifier*>& Modifiers) const
+{
+	Modifiers.Empty();
+
+	for (const FModifierStackEntry& StackEntry : ModifierStack)
+	{
+		Modifiers.Add(StackEntry.GeneratedModifier);
+	}
+}
+
+UVCamModifier* UVCamComponent::GetModifierByIndex(const int32 Index) const
+{
+	if (ModifierStack.IsValidIndex(Index))
+	{
+		return ModifierStack[Index].GeneratedModifier;
+	}
+
+	return nullptr;
+}
+
+UVCamModifier* UVCamComponent::GetModifierByName(const FName Name) const
 {
 	const FModifierStackEntry* StackEntry = ModifierStack.FindByPredicate([Name](const FModifierStackEntry& StackEntry)
 	{
@@ -330,7 +489,7 @@ UVCamModifier* UVCamComponent::FindModifierByName(const FName Name) const
 	return nullptr;
 }
 
-void UVCamComponent::FindModifiersByClass(TSubclassOf<UVCamModifier> ModifierClass,
+void UVCamComponent::GetModifiersByClass(TSubclassOf<UVCamModifier> ModifierClass,
 	TArray<UVCamModifier*>& FoundModifiers) const
 {
 	FoundModifiers.Empty();
@@ -344,7 +503,7 @@ void UVCamComponent::FindModifiersByClass(TSubclassOf<UVCamModifier> ModifierCla
 	}
 }
 
-void UVCamComponent::FindModifierByInterface(TSubclassOf<UInterface> InterfaceClass, TArray<UVCamModifier*>& FoundModifiers) const
+void UVCamComponent::GetModifiersByInterface(TSubclassOf<UInterface> InterfaceClass, TArray<UVCamModifier*>& FoundModifiers) const
 {
 	FoundModifiers.Empty();
 
@@ -372,6 +531,8 @@ void UVCamComponent::SetModifierContextClass(TSubclassOf<UVCamModifierContext> C
 		// If the context class is invalid then clear the modifier context
 		ModifierContext = nullptr;
 	}
+
+	CreatedContext = ModifierContext;
 }
 
 UVCamModifierContext* UVCamComponent::GetModifierContext() const
@@ -379,42 +540,110 @@ UVCamModifierContext* UVCamComponent::GetModifierContext() const
 	return ModifierContext;
 }
 
-void UVCamComponent::ClearModifiers()
+bool UVCamComponent::AddOutputProvider(TSubclassOf<UVCamOutputProviderBase> ProviderClass, UVCamOutputProviderBase*& CreatedProvider)
 {
-	ModifierStack.Empty();
-}
+	CreatedProvider = nullptr;
 
-bool UVCamComponent::RemoveModifier(const UVCamModifier* Modifier)
-{
-	const int32 RemovedCount = ModifierStack.RemoveAll([Modifier](const FModifierStackEntry& StackEntry)
-    {
-        return StackEntry.GeneratedModifier && StackEntry.GeneratedModifier == Modifier;
-    });
-    
-	return RemovedCount > 0;
-}
-
-bool UVCamComponent::RemoveModifierByIndex(const int ModifierIndex)
-{
-	if (ModifierStack.IsValidIndex(ModifierIndex))
+	if (ProviderClass)
 	{
-		ModifierStack.RemoveAt(ModifierIndex);
+		int NewItemIndex = OutputProviders.Emplace(NewObject<UVCamOutputProviderBase>(this, ProviderClass.Get()));
+		CreatedProvider = OutputProviders[NewItemIndex];
+	}
+
+	return CreatedProvider != nullptr;
+}
+
+bool UVCamComponent::InsertOutputProvider(int32 Index, TSubclassOf<UVCamOutputProviderBase> ProviderClass, UVCamOutputProviderBase*& CreatedProvider)
+{
+	CreatedProvider = nullptr;
+
+	if (Index < 0 || Index > OutputProviders.Num())
+	{
+		UE_LOG(LogVCamComponent, Warning, TEXT("Insert Output Provider failed with invalid index %d for stack of size %d."), Index, OutputProviders.Num());
+		return false;
+	}
+
+	if (ProviderClass)
+	{
+		OutputProviders.EmplaceAt(Index, NewObject<UVCamOutputProviderBase>(this, ProviderClass.Get()));
+		CreatedProvider = OutputProviders[Index];
+	}
+
+	return CreatedProvider != nullptr;
+}
+
+bool UVCamComponent::SetOutputProviderIndex(int32 OriginalIndex, int32 NewIndex)
+{
+	if (!OutputProviders.IsValidIndex(OriginalIndex))
+	{
+		UE_LOG(LogVCamComponent, Warning, TEXT("Set Output Provider Index failed as the Original Index, %d, was out of range for stack of size %d"), OriginalIndex, OutputProviders.Num());
+		return false;
+	}
+
+	if (!OutputProviders.IsValidIndex(NewIndex))
+	{
+		UE_LOG(LogVCamComponent, Warning, TEXT("Set Output Provider Index failed as the New Index, %d, was out of range for stack of size %d"), NewIndex, OutputProviders.Num());
+		return false;
+	}
+
+	UVCamOutputProviderBase* Provider = OutputProviders[OriginalIndex];
+	OutputProviders.RemoveAtSwap(OriginalIndex);
+	OutputProviders.Insert(Provider, NewIndex);
+
+	return true;
+}
+
+void UVCamComponent::RemoveAllOutputProviders()
+{
+	OutputProviders.Empty();
+}
+
+bool UVCamComponent::RemoveOutputProvider(const UVCamOutputProviderBase* Provider)
+{
+	int32 NumRemoved = OutputProviders.RemoveAll([Provider](const UVCamOutputProviderBase* ProviderInArray) { return ProviderInArray == Provider; });
+	return NumRemoved > 0;
+}
+
+bool UVCamComponent::RemoveOutputProviderByIndex(const int32 ProviderIndex)
+{
+	if (OutputProviders.IsValidIndex(ProviderIndex))
+	{
+		OutputProviders.RemoveAt(ProviderIndex);
 		return true;
 	}
 	return false;
 }
 
-bool UVCamComponent::RemoveModifierByName(const FName Name)
+int32 UVCamComponent::GetNumberOfOutputProviders() const
 {
-	const int32 RemovedCount = ModifierStack.RemoveAll([Name](const FModifierStackEntry& StackEntry)
-    {
-        return StackEntry.Name.IsEqual(Name);
-    });
-
-	return RemovedCount > 0;
+	return OutputProviders.Num();
 }
 
-void UVCamComponent::GetInitialLiveLinkData(FLiveLinkCameraBlueprintData& InitialLiveLinkData)
+void UVCamComponent::GetAllOutputProviders(TArray<UVCamOutputProviderBase*>& Providers) const
+{
+	Providers = OutputProviders;
+}
+
+UVCamOutputProviderBase* UVCamComponent::GetOutputProviderByIndex(const int32 ProviderIndex) const
+{
+	if (OutputProviders.IsValidIndex(ProviderIndex))
+	{
+		return OutputProviders[ProviderIndex];
+	}
+	return nullptr;
+}
+
+void UVCamComponent::GetOutputProvidersByClass(TSubclassOf<UVCamOutputProviderBase> ProviderClass, TArray<UVCamOutputProviderBase*>& FoundProviders) const
+{
+	FoundProviders.Empty();
+
+	if (ProviderClass)
+	{
+		FoundProviders = OutputProviders.FilterByPredicate([ProviderClass](const UVCamOutputProviderBase* ProviderInArray) { return ProviderInArray->IsA(ProviderClass); });
+	}
+}
+
+void UVCamComponent::GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData& LiveLinkData)
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
@@ -434,7 +663,7 @@ void UVCamComponent::GetInitialLiveLinkData(FLiveLinkCameraBlueprintData& Initia
 			{
 				if (LiveLinkClient.EvaluateFrame_AnyThread(LiveLinkSubject, ULiveLinkCameraRole::StaticClass(), EvaluatedFrame))
 				{
-					FLiveLinkBlueprintDataStruct WrappedBlueprintData(FLiveLinkCameraBlueprintData::StaticStruct(), &InitialLiveLinkData);
+					FLiveLinkBlueprintDataStruct WrappedBlueprintData(FLiveLinkCameraBlueprintData::StaticStruct(), &LiveLinkData);
 					GetDefault<ULiveLinkCameraRole>()->InitializeBlueprintData(EvaluatedFrame, WrappedBlueprintData);
 				}
 			}
@@ -442,7 +671,7 @@ void UVCamComponent::GetInitialLiveLinkData(FLiveLinkCameraBlueprintData& Initia
 			{
 				if (LiveLinkClient.EvaluateFrame_AnyThread(LiveLinkSubject, ULiveLinkTransformRole::StaticClass(), EvaluatedFrame))
 				{
-					InitialLiveLinkData.FrameData.Transform = EvaluatedFrame.FrameData.Cast<FLiveLinkTransformFrameData>()->Transform;
+					LiveLinkData.FrameData.Transform = EvaluatedFrame.FrameData.Cast<FLiveLinkTransformFrameData>()->Transform;
 				}
 			}
 		}
@@ -499,21 +728,24 @@ void UVCamComponent::UpdateActorLock()
 #if WITH_EDITOR
 		if (Context.WorldType == EWorldType::Editor)
 		{
-			if (FLevelEditorViewportClient* LevelViewportClient = GetLevelViewportClient())
+			if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
 			{
 				if (bLockViewportToCamera)
 				{
 					Backup_ActorLock = LevelViewportClient->GetActiveActorLock();
 					LevelViewportClient->SetActorLock(GetTargetCamera()->GetOwner());
+					bIsLockedToViewport = true;
 				}
 				else if (Backup_ActorLock.IsValid())
 				{
 					LevelViewportClient->SetActorLock(Backup_ActorLock.Get());
 					Backup_ActorLock = nullptr;
+					bIsLockedToViewport = false;
 				}
 				else
 				{
 					LevelViewportClient->SetActorLock(nullptr);
+					bIsLockedToViewport = false;
 				}
 			}
 		}
@@ -530,15 +762,18 @@ void UVCamComponent::UpdateActorLock()
 					{
 						Backup_ViewTarget = PlayerController->GetViewTarget();
 						PlayerController->SetViewTarget(GetTargetCamera()->GetOwner());
+						bIsLockedToViewport = true;
 					}
 					else if (Backup_ViewTarget.IsValid())
 					{
 						PlayerController->SetViewTarget(Backup_ViewTarget.Get());
 						Backup_ViewTarget = nullptr;
+						bIsLockedToViewport = false;
 					}
 					else
 					{
 						PlayerController->SetViewTarget(nullptr);
+						bIsLockedToViewport = false;
 					}
 				}
 			}
@@ -551,7 +786,7 @@ void UVCamComponent::DestroyOutputProvider(UVCamOutputProviderBase* Provider)
 {
 	if (Provider)
 	{
-		Provider->Destroy();
+		Provider->Deinitialize();
 		Provider->ConditionalBeginDestroy();
 		Provider = nullptr;
 	}
@@ -563,55 +798,259 @@ void UVCamComponent::ResetAllOutputProviders()
 	{
 		if (Provider)
 		{
-			if (Provider->IsActive())
-			{
-				Provider->SetActive(false);
-				Provider->SetActive(true);
-			}
-			else if (Provider->IsPaused())
-			{
-				Provider->SetPause(false);
-			}
+			// Initialization will also recover active state 
+			Provider->Deinitialize();
+			Provider->Initialize();
 		}
 	}
 }
 
-void UVCamComponent::OnEndPlayMap()
+void UVCamComponent::EnforceModifierStackNameUniqueness(const FString BaseName /*= "NewModifier"*/)
 {
-	if (UWorld* World = GetWorld())
+	int32 ModifiedStackIndex;
+	bool bIsNewEntry;
+
+	FindModifiedStackEntry(ModifiedStackIndex, bIsNewEntry);
+
+	// Early out in the case of no modified entry
+	if (ModifiedStackIndex == INDEX_NONE)
 	{
-		if (World->WorldType == EWorldType::PIE)
+		return;
+	}
+
+	// Addition
+	if (bIsNewEntry)
+	{
+		// Keep trying to append an ever increasing int to the base name until we find a unique name
+		int32 DuplicatedCount = 1;
+		FString UniqueName = BaseName;
+
+		while (DoesNameExistInSavedStack(FName(*UniqueName)))
 		{
-			// Destroy all output providers in the PIE world since it's ending anyway
-			for (UVCamOutputProviderBase* Provider : OutputProviders)
+			UniqueName = BaseName + FString::FromInt(DuplicatedCount++);
+		}
+
+		ModifierStack[ModifiedStackIndex].Name = FName(*UniqueName);
+	}
+	// Edit
+	else
+	{
+		FName NewModifierName = ModifierStack[ModifiedStackIndex].Name;
+
+		// Check if the new name is a duplicate
+		bool bIsDuplicate = false;
+		for (int32 ModifierIndex = 0; ModifierIndex < ModifierStack.Num(); ++ModifierIndex)
+		{
+			// Don't check ourselves
+			if (ModifierIndex == ModifiedStackIndex)
 			{
-				DestroyOutputProvider(Provider);
+				continue;
+			}
+			
+			if (ModifierStack[ModifierIndex].Name.IsEqual(NewModifierName))
+			{
+				bIsDuplicate = true;
+				break;
 			}
 		}
-		else if (World->WorldType == EWorldType::Editor)
+
+		// If it's a duplicate then reset to the old name
+		if (bIsDuplicate)
 		{
-			// Unpause all output providers in the editor world now that PIE is over
-			for (UVCamOutputProviderBase* Provider : OutputProviders)
+			ModifierStack[ModifiedStackIndex].Name = SavedModifierStack[ModifiedStackIndex].Name;
+
+			// Add a warning to the log
+			UE_LOG(LogVCamComponent, Warning, TEXT("Unable to set Modifier Name to \"%s\" as it is already in use. Resetting Name to previous value \"%s\""),
+				*NewModifierName.ToString(),
+				*SavedModifierStack[ModifiedStackIndex].Name.ToString());
+		}
+	}	
+}
+
+bool UVCamComponent::DoesNameExistInSavedStack(const FName InName) const
+{
+	return SavedModifierStack.ContainsByPredicate([InName](const FModifierStackEntry& StackEntry)
+		{
+			return StackEntry.Name.IsEqual(InName);
+		}
+	);
+}
+
+void UVCamComponent::FindModifiedStackEntry(int32& ModifiedStackIndex, bool& bIsNewEntry) const
+{
+	ModifiedStackIndex = INDEX_NONE;
+	bIsNewEntry = false;
+
+	// Deletion
+	if (ModifierStack.Num() < SavedModifierStack.Num())
+	{
+		// Early out as there's no modified entry remaining
+		return;
+	}
+	// Addition
+	else if (ModifierStack.Num() > SavedModifierStack.Num())
+	{
+		bIsNewEntry = true;
+	}
+	
+	// Try to find the modified or inserted entry
+	for (int32 i = 0; i < SavedModifierStack.Num(); i++)
+	{
+		if (SavedModifierStack[i] != ModifierStack[i])
+		{
+			ModifiedStackIndex = i;
+			break;
+		}
+	}
+
+	// If we didn't find a difference then the new item was appended to the end
+	if (ModifiedStackIndex == INDEX_NONE)
+	{
+		ModifiedStackIndex = ModifierStack.Num() - 1;
+	}
+
+}
+
+TSharedPtr<FSceneViewport> UVCamComponent::GetTargetSceneViewport() const
+{
+	TSharedPtr<FSceneViewport> SceneViewport;
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			if (Context.WorldType == EWorldType::PIE)
 			{
-				if (Provider)
+				FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(Context.ContextHandle);
+				if (SlatePlayInEditorSession)
 				{
-					Provider->SetPause(false);
+					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
+					{
+						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
+						SceneViewport = DestinationLevelViewport->GetSharedActiveViewport();
+					}
+					else if (SlatePlayInEditorSession->SlatePlayInEditorWindowViewport.IsValid())
+					{
+						SceneViewport = SlatePlayInEditorSession->SlatePlayInEditorWindowViewport;
+					}
+
+					// If PIE is active always choose it
+					break;
+				}
+			}
+			else if (Context.WorldType == EWorldType::Editor)
+			{
+				if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
+				{
+					TSharedPtr<SEditorViewport> ViewportWidget = LevelViewportClient->GetEditorViewportWidget();
+					if (ViewportWidget.IsValid())
+					{
+						SceneViewport = ViewportWidget->GetSceneViewport();
+					}
 				}
 			}
 		}
 	}
+#else
+	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	{
+		SceneViewport = GameEngine->SceneViewport;
+	}
+#endif
+
+	return SceneViewport;
+}
+
+TWeakPtr<SWindow> UVCamComponent::GetTargetInputWindow() const
+{
+	TWeakPtr<SWindow> InputWindow;
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			if (Context.WorldType == EWorldType::PIE)
+			{
+				FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(Context.ContextHandle);
+				if (SlatePlayInEditorSession)
+				{
+					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
+					{
+						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
+						InputWindow = FSlateApplication::Get().FindWidgetWindow(DestinationLevelViewport->AsWidget());
+					}
+					else if (SlatePlayInEditorSession->SlatePlayInEditorWindowViewport.IsValid())
+					{
+						InputWindow = SlatePlayInEditorSession->SlatePlayInEditorWindow;
+					}
+
+					// If PIE is active always choose it
+					break;
+				}
+			}
+			else if (Context.WorldType == EWorldType::Editor)
+			{
+				if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
+				{
+					TSharedPtr<SEditorViewport> ViewportWidget = LevelViewportClient->GetEditorViewportWidget();
+					if (ViewportWidget.IsValid())
+					{
+						InputWindow = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.ToSharedRef());
+					}
+				}
+			}
+		}
+	}
+#else
+	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	{
+		InputWindow = GameEngine->GameViewportWindow;
+	}
+#endif
+
+	return InputWindow;
 }
 
 #if WITH_EDITOR
-FLevelEditorViewportClient* UVCamComponent::GetLevelViewportClient() const
+FLevelEditorViewportClient* UVCamComponent::GetTargetLevelViewportClient() const
 {
 	FLevelEditorViewportClient* OutClient = nullptr;
-	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamComponent::LevelEditorName))
+
+	if (TargetViewport == EVCamTargetViewportID::CurrentlySelected)
 	{
-		TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
-		if (ActiveLevelViewport.IsValid())
+		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamComponent::LevelEditorName))
 		{
-			OutClient = &ActiveLevelViewport->GetLevelViewportClient();
+			TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
+			if (ActiveLevelViewport.IsValid())
+			{
+				OutClient = &ActiveLevelViewport->GetLevelViewportClient();
+			}
+		}
+	}
+	else
+	{
+		if (GEditor)
+		{
+			for (FLevelEditorViewportClient* Client : GEditor->GetLevelViewportClients())
+			{
+				// We only care about the fully rendered 3D viewport...seems like there should be a better way to check for this
+				if (!Client->IsOrtho())
+				{
+					TSharedPtr<SLevelViewport> LevelViewport = StaticCastSharedPtr<SLevelViewport>(Client->GetEditorViewportWidget());
+					if (LevelViewport.IsValid())
+					{
+						const FString WantedViewportString = FString::Printf(TEXT("Viewport %d.Viewport"), (int32)TargetViewport);
+						const FString ViewportConfigKey = LevelViewport->GetConfigKey().ToString();
+						if (ViewportConfigKey.Contains(*WantedViewportString, ESearchCase::CaseSensitive, ESearchDir::FromStart))
+						{
+							OutClient = Client;
+							break;
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -620,45 +1059,63 @@ FLevelEditorViewportClient* UVCamComponent::GetLevelViewportClient() const
 
 void UVCamComponent::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 {
-	if (ChangeType == EMapChangeType::TearDownWorld)
+	UWorld* ComponentWorld = GetWorld();
+	if (World == ComponentWorld && ChangeType == EMapChangeType::TearDownWorld)
 	{
 		OnComponentDestroyed(true);
 	}
 }
 
-void UVCamComponent::OnBeginPIE(const bool InIsSimulating)
+void UVCamComponent::OnBeginPIE(const bool bInIsSimulating)
 {
-	if (UWorld* World = GetWorld())
+	UWorld* World = GetWorld();
+
+	if (!World)
 	{
-		if (World->WorldType == EWorldType::PIE)
+		return;
+	}
+
+	if (World->WorldType == EWorldType::Editor)
+	{
+		// Deinitialize all output providers in the editor world
+		for (UVCamOutputProviderBase* Provider : OutputProviders)
 		{
-		}
-		else if (World->WorldType == EWorldType::Editor)
-		{
-			// Pause all output providers in the editor world
-			for (UVCamOutputProviderBase* Provider : OutputProviders)
+			if (Provider)
 			{
-				if (Provider)
-				{
-					Provider->SetPause(true);
-				}
+				Provider->Deinitialize();
 			}
 		}
+
+		// Ensure the Editor components do not update during PIE
+		bIsEditorObjectButPIEIsRunning = true;
 	}
 }
 
-void UVCamComponent::OnPostPIEStarted(const bool InIsSimulating)
+void UVCamComponent::OnEndPIE(const bool bInIsSimulating)
 {
-	if (UWorld* World = GetWorld())
+	UWorld* World = GetWorld();
+
+	if (!World)
 	{
-		if (World->WorldType == EWorldType::PIE)
+		return;
+	}
+
+	if (World->WorldType == EWorldType::PIE)
+	{
+		// Disable all output providers in the PIE world
+		for (UVCamOutputProviderBase* Provider : OutputProviders)
 		{
-			// Reset any active OutputProviders only in the new PIE world
-			ResetAllOutputProviders();
-		}
-		else if (World->WorldType == EWorldType::Editor)
-		{
+			if (Provider)
+			{
+				Provider->Deinitialize();
+			}
 		}
 	}
+	else if (World->WorldType == EWorldType::Editor)
+	{
+		// Allow the Editor components to start updating again
+		bIsEditorObjectButPIEIsRunning = false;
+	}
 }
+
 #endif

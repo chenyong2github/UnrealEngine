@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EditorInputProcessor.h"
+#include "VCamInputProcessor.h"
 
 // Macro to avoid repeated code in broadcasting delegates out with timestamps
 // Also broadcasts to delegates bound to AnyKey
@@ -42,11 +42,11 @@
 	} \
 }
 
-void FEditorInputProcessor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
+void FVCamInputProcessor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {
 }
 
-bool FEditorInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
+bool FVCamInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
 	// Prevent Key Down firing multiple times while held
 	if (!InKeyEvent.IsRepeat())
@@ -61,7 +61,7 @@ bool FEditorInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, cons
 	return false;
 }
 
-bool FEditorInputProcessor::HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
+bool FVCamInputProcessor::HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
 	BROADCAST_REGISTERED_KEY_DELEGATES(KeyUpDelegateStore, InKeyEvent, FKeyInputDelegate);
 
@@ -72,7 +72,7 @@ bool FEditorInputProcessor::HandleKeyUpEvent(FSlateApplication& SlateApp, const 
 	return false;
 }
 
-bool FEditorInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp,
+bool FVCamInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp,
 	const FAnalogInputEvent& InAnalogInputEvent)
 {
 	BROADCAST_REGISTERED_KEY_DELEGATES(AnalogDelegateStore, InAnalogInputEvent, FAnalogInputDelegate);
@@ -84,32 +84,32 @@ bool FEditorInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp,
 	return bShouldConsumeGamepadInput;
 }
 
-bool FEditorInputProcessor::HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
+bool FVCamInputProcessor::HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
 	BROADCAST_REGISTERED_POINTER_DELEGATES(MouseMoveDelegateStore, MouseEvent, FPointerInputDelegate);
 	return false;
 }
 
-bool FEditorInputProcessor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
+bool FVCamInputProcessor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
 	BROADCAST_REGISTERED_POINTER_DELEGATES(MouseButtonDownDelegateStore, MouseEvent, FPointerInputDelegate);
 	return false;
 }
 
-bool FEditorInputProcessor::HandleMouseButtonUpEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
+bool FVCamInputProcessor::HandleMouseButtonUpEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
 	BROADCAST_REGISTERED_POINTER_DELEGATES(MouseButtonUpDelegateStore, MouseEvent, FPointerInputDelegate);
 	return false;
 }
 
-bool FEditorInputProcessor::HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
+bool FVCamInputProcessor::HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
 	BROADCAST_REGISTERED_POINTER_DELEGATES(MouseButtonDoubleClickDelegateStore, MouseEvent, FPointerInputDelegate);
 	return false;
 }
 
 // Currently only handles Wheel events
-bool FEditorInputProcessor::HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& InWheelEvent,
+bool FVCamInputProcessor::HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& InWheelEvent,
 	const FPointerEvent* InGestureEvent)
 {
 	if (!InGestureEvent)
@@ -119,7 +119,7 @@ bool FEditorInputProcessor::HandleMouseWheelOrGestureEvent(FSlateApplication& Sl
 	return false;
 }
 
-bool FEditorInputProcessor::HandleMotionDetectedEvent(FSlateApplication& SlateApp, const FMotionEvent& MotionEvent)
+bool FVCamInputProcessor::HandleMotionDetectedEvent(FSlateApplication& SlateApp, const FMotionEvent& MotionEvent)
 {
 	return false;
 }

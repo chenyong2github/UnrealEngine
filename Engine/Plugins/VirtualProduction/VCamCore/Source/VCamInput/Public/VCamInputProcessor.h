@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorInputTypes.h"
+#include "VCamInputTypes.h"
 #include "Framework/Application/IInputProcessor.h"
 
-class FEditorInputProcessor : public IInputProcessor
+class FVCamInputProcessor : public IInputProcessor
 {
 public:
 	// Input Processor Interface
