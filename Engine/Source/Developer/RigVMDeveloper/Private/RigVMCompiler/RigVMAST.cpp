@@ -1581,7 +1581,8 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 	for (URigVMNode* Node : Nodes)
 	{
 		if (Cast<URigVMParameterNode>(Node) != nullptr ||
-			Cast<URigVMVariableNode>(Node) != nullptr)
+			Cast<URigVMVariableNode>(Node) != nullptr ||
+			Cast<URigVMEnumNode>(Node) != nullptr)
 		{
 			continue;
 		}
@@ -1649,7 +1650,8 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 				if (Cast<URigVMParameterNode>(SourceNode) != nullptr ||
 					Cast<URigVMVariableNode>(SourceNode) != nullptr ||
-					Cast<URigVMRerouteNode>(SourceNode) != nullptr)
+					Cast<URigVMRerouteNode>(SourceNode) != nullptr ||
+					Cast<URigVMEnumNode>(SourceNode) != nullptr)
 				{
 					continue;
 				}
@@ -1912,7 +1914,13 @@ void FRigVMParserAST::FoldLiterals()
 			ensure(Expression->Children.Num() == 0);
 
 			FRigVMLiteralExprAST* LiteralExpr = Expression->To<FRigVMLiteralExprAST>();
-			FString Hash = FString::Printf(TEXT("[%s] %s"), *LiteralExpr->GetCPPType(), *LiteralExpr->GetDefaultValue());
+			FString DefaultValue = LiteralExpr->GetDefaultValue();
+			if (DefaultValue.IsEmpty())
+			{
+				continue;
+			}
+
+			FString Hash = FString::Printf(TEXT("[%s] %s"), *LiteralExpr->GetCPPType(), *DefaultValue);
 
 			FRigVMLiteralExprAST* const* MappedExpr = ValueToLiteral.Find(Hash);
 			if (MappedExpr)
