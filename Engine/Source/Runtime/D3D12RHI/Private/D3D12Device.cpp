@@ -202,8 +202,12 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		bUnderGPUCapture = true;
 	}
 #if USE_PIX
+
+	// Only check windows version on PLATFORM_WINDOWS - Hololens can assume windows > 10.0 so the condition would always be true.
+#if PLATFORM_WINDOWS
 	// PIX (note that DXGIGetDebugInterface1 requires Windows 8.1 and up)
 	if (FPlatformMisc::VerifyWindowsVersion(6, 3))
+#endif
 	{
 		FDXGIGetDebugInterface1 DXGIGetDebugInterface1FnPtr = nullptr;
 
