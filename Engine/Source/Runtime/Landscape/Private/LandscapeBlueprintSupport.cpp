@@ -21,22 +21,24 @@ void ALandscapeProxy::EditorApplySpline(USplineComponent* InSplineComponent, flo
 #if WITH_EDITOR
 	if (InSplineComponent && !GetWorld()->IsGameWorld())
 	{
-		ALandscape* Landscape = GetLandscapeInfo()->LandscapeActor.Get();
-		const FLandscapeLayer* Layer = Landscape ? Landscape->GetLayer(EditLayerName) : nullptr;
-		if (Landscape->HasLayersContent() && (Layer == nullptr))
+		if (ALandscape* Landscape = GetLandscapeInfo()->LandscapeActor.Get())
 		{
-			UE_LOG(LogLandscape, Error, TEXT("Invalid landscape edit layer name (\"%s\") for Edit Layers-enabled landscape. Cannot apply spline. "), *EditLayerName.ToString());
-			return;
+			const FLandscapeLayer* Layer = Landscape->GetLayer(EditLayerName);
+			if (Landscape->HasLayersContent() && (Layer == nullptr))
+			{
+				UE_LOG(LogLandscape, Error, TEXT("Invalid landscape edit layer name (\"%s\") for Edit Layers-enabled landscape. Cannot apply spline. "), *EditLayerName.ToString());
+				return;
+			}
+
+			FScopedSetLandscapeEditingLayer Scope(Landscape, Layer ? Layer->Guid : FGuid(), [=] { Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All); });
+
+			TArray<FLandscapeSplineInterpPoint> Points;
+			LandscapeSplineRaster::FPointifyFalloffs Falloffs(StartSideFalloff, EndSideFalloff);
+			LandscapeSplineRaster::Pointify(InSplineComponent->SplineCurves.Position, Points, NumSubdivisions, 0.0f, 0.0f, StartWidth, EndWidth, StartWidth, EndWidth, Falloffs, StartRoll, EndRoll);
+
+			FTransform SplineToWorld = InSplineComponent->GetComponentTransform();
+			LandscapeSplineRaster::RasterizeSegmentPoints(GetLandscapeInfo(), MoveTemp(Points), SplineToWorld, bRaiseHeights, bLowerHeights, PaintLayer);
 		}
-
-		FScopedSetLandscapeEditingLayer Scope(Landscape, Layer ? Layer->Guid : FGuid(), [=] { Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All); });
-
-		TArray<FLandscapeSplineInterpPoint> Points;
-		LandscapeSplineRaster::FPointifyFalloffs Falloffs(StartSideFalloff, EndSideFalloff);
-		LandscapeSplineRaster::Pointify(InSplineComponent->SplineCurves.Position, Points, NumSubdivisions, 0.0f, 0.0f, StartWidth, EndWidth, StartWidth, EndWidth, Falloffs, StartRoll, EndRoll);
-
-		FTransform SplineToWorld = InSplineComponent->GetComponentTransform();
-		LandscapeSplineRaster::RasterizeSegmentPoints(GetLandscapeInfo(), MoveTemp(Points), SplineToWorld, bRaiseHeights, bLowerHeights, PaintLayer);
 	}
 #endif
 }
