@@ -624,6 +624,7 @@ void UDatasmithFileProducer::Reset()
 	TranslatableSourcePtr.Reset();
 	ProgressTaskPtr.Reset();
 	Assets.Empty();
+	TransientPackage = nullptr;
 
 	UDataprepContentProducer::Reset();
 }
@@ -867,7 +868,6 @@ bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakOb
 		FText ErrorReport = FText::Format(LOCTEXT("DatasmithPlmXmlProducer_FailedProduce", "Failed to produce assets with PlmXml file, {0}, for parallel loading ..."), FText::FromString(PlmXmlFileName));
 		LogError(ErrorReport);
 	}
-	FileProducer->TransientPackage = nullptr;
 
 	return bSuccess;
 }
