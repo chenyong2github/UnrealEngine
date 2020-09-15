@@ -407,6 +407,7 @@ void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName&
 						}
 
 						BreakAllLinks(ValuePin, ValuePin->GetDirection() == ERigVMPinDirection::Input, bUndo);
+						BreakAllLinksRecursive(ValuePin, ValuePin->GetDirection() == ERigVMPinDirection::Input, false, bUndo);
 
 						// if this is an unsupported datatype...
 						if (InCPPType == FName(NAME_None).ToString())
@@ -418,6 +419,20 @@ void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName&
 						ValuePin->CPPType = InCPPType;
 						ValuePin->CPPTypeObject = InCPPTypeObject;
 						ValuePin->CPPTypeObjectPath = *InCPPTypeObject->GetPathName();
+
+						TArray<URigVMPin*> SubPins = ValuePin->GetSubPins();
+						for(URigVMPin * SubPin : SubPins)
+						{
+							ValuePin->SubPins.Remove(SubPin);
+						}
+
+						if (ValuePin->IsStruct())
+						{
+							FString DefaultValue = ValuePin->DefaultValue;
+							CreateDefaultValueForStructIfRequired(ValuePin->GetScriptStruct(), DefaultValue);
+							AddPinsForStruct(ValuePin->GetScriptStruct(), ValuePin->GetNode(), ValuePin, ValuePin->Direction, DefaultValue, false);
+						}
+
 						Notify(ERigVMGraphNotifType::PinTypeChanged, ValuePin);
 					}
 				}
