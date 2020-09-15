@@ -173,7 +173,7 @@ namespace DataprepEditorUtils
 		}
 	};
 
-	void CreateEditorUtilityBlueprint(UClass* ParentClass)
+	bool CreateEditorUtilityBlueprint(UClass* ParentClass)
 	{
 		TSharedRef<SDlgPickPath> PickContentPathDlg =
 			SNew(SDlgPickPath)
@@ -199,8 +199,10 @@ namespace DataprepEditorUtils
 			if (AssetClass)
 			{
 				AssetTools.CreateAsset(AssetName, PackageName, AssetClass, NewFactory, FName("ContentBrowserNewAsset"));
+				return true;
 			}
 		}
+		return false;
 	}
 
 	void OnNewUserFilterCreated(UBlueprint* InBlueprint)
@@ -347,7 +349,7 @@ void FDataprepEditorUtils::RegisterBlueprintCallbacks(void* InModule)
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(InModule, UDataprepOperation::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateStatic(&DataprepEditorUtils::OnNewUserOperationCreated));
 }
 
-void FDataprepEditorUtils::CreateUserDefinedFilter()
+bool FDataprepEditorUtils::CreateUserDefinedFilter()
 {
 	// Get available categories
 	TArray<TSharedPtr<DataprepEditorUtils::FFilterCategory>> FilterCategories;
@@ -397,17 +399,17 @@ void FDataprepEditorUtils::CreateUserDefinedFilter()
 
 	if ( !FetcherPickDialog->IsDialogConfirmed() )
 	{
-		return;
+		return false;
 	}
 
 	UClass* SelectedFetcherClass = FilterCategories[FetcherPickDialog->GetSelectedCategoryIndex()]->FetcherClass;
 
-	DataprepEditorUtils::CreateEditorUtilityBlueprint( SelectedFetcherClass );
+	return DataprepEditorUtils::CreateEditorUtilityBlueprint( SelectedFetcherClass );
 }
 
-void FDataprepEditorUtils::CreateUserDefinedOperation()
+bool FDataprepEditorUtils::CreateUserDefinedOperation()
 {
-	DataprepEditorUtils::CreateEditorUtilityBlueprint( UDataprepEditingOperation::StaticClass() );
+	return DataprepEditorUtils::CreateEditorUtilityBlueprint( UDataprepEditingOperation::StaticClass() );
 }
 
 TSet<UObject*> FDataprepEditorUtils::GetReferencedAssets(const TSet<AActor*>& InActors)

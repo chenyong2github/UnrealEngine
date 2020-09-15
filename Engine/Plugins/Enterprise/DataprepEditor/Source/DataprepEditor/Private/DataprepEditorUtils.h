@@ -49,8 +49,18 @@ public:
 	static TSharedPtr<SWidget> MakeContextMenu(const TSharedPtr<FDataprepParametrizationActionData>& ParameterizationActionData);
 
 	static void RegisterBlueprintCallbacks(void* InModule);
-	static void CreateUserDefinedFilter();
-	static void CreateUserDefinedOperation();
+
+	/**
+	 * Create new user-defined filter, based on blueprint
+	 * @return Returns true if the filter was successfully created, false if cancelled
+	 */
+	static bool CreateUserDefinedFilter();
+
+	/**
+	 * Create new user-defined operation, based on blueprint
+	 * @return Returns true if the operation was successfully created, false if cancelled
+	 */
+	static bool CreateUserDefinedOperation();
 
 	/**
 	 * Get assets referenced by a set of actors.
