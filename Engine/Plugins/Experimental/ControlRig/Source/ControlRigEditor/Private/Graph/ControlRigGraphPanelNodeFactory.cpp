@@ -7,7 +7,7 @@
 #include "SControlRigGraphNode.h"
 #include "SControlRigGraphNodeComment.h"
 #include "Graph/ControlRigGraphSchema.h"
-#include "SGraphNodeKnot.h"
+#include "SControlRigGraphNodeKnot.h"
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
@@ -18,7 +18,7 @@ TSharedPtr<SGraphNode> FControlRigGraphPanelNodeFactory::CreateNode(UEdGraphNode
 		int32 InputPin = 0, OutputPin = 0;
 		if (Node->ShouldDrawNodeAsControlPointOnly(InputPin, OutputPin))
 		{
-			TSharedRef<SGraphNode> GraphNode = SNew(SGraphNodeKnot, Node);
+			TSharedRef<SGraphNode> GraphNode = SNew(SControlRigGraphNodeKnot, Node);
 			return GraphNode;
 		}
 
