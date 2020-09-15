@@ -49,10 +49,9 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 		FinalLightingAtlas = OpacityAtlas = DilatedDepthAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	}
 
-	if (View.ViewState && View.ViewState->Lumen.VoxelLighting && View.ViewState->Lumen.VoxelLightingAlpha)
+	if (View.ViewState && View.ViewState->Lumen.VoxelLighting)
 	{
 		VoxelLighting = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.VoxelLighting);
-		VoxelLightingAlpha = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.VoxelLightingAlpha);
 		VoxelGridResolution = View.ViewState->Lumen.VoxelGridResolution;
 		NumClipmapLevels = View.ViewState->Lumen.NumClipmapLevels;
 		ClipmapWorldToUVScale = View.ViewState->Lumen.ClipmapWorldToUVScale;
@@ -65,7 +64,6 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	else
 	{
 		VoxelLighting = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
-		VoxelLightingAlpha = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
 		VoxelGridResolution = FIntVector(1, 1, 1);
 		NumClipmapLevels = 0;
 	}
@@ -84,7 +82,6 @@ void FLumenCardTracingInputs::ExtractToScene(FRDGBuilder& GraphBuilder, FScene* 
 	if (View.ViewState)
 	{
 		GraphBuilder.QueueTextureExtraction(VoxelLighting, &View.ViewState->Lumen.VoxelLighting);
-		GraphBuilder.QueueTextureExtraction(VoxelLightingAlpha, &View.ViewState->Lumen.VoxelLightingAlpha);
 		View.ViewState->Lumen.VoxelGridResolution = VoxelGridResolution;
 		View.ViewState->Lumen.NumClipmapLevels = NumClipmapLevels;
 		View.ViewState->Lumen.ClipmapWorldToUVScale = ClipmapWorldToUVScale;
@@ -145,7 +142,6 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.DilatedDepthAtlas = TracingInputs.DilatedDepthAtlas;
 
 	TracingParameters.VoxelLighting = TracingInputs.VoxelLighting;
-	TracingParameters.VoxelLightingAlpha = TracingInputs.VoxelLightingAlpha;
 	TracingParameters.CubeMapTreeLUTAtlas = GLumenCubeMapTreeLUTAtlas.GetTexture();
 	
 	GetLumenVoxelTracingParameters(TracingInputs, TracingParameters, bShaderWillTraceCardsOnly);

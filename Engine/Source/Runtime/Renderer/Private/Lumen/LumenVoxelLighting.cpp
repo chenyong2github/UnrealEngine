@@ -428,8 +428,7 @@ class FCompactVoxelLightingCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FCompactVoxelLightingCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float3>, RWVoxelLighting)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWVoxelLightingAlpha)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWVoxelLighting)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelOITLighting)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelOITTransparency)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, VoxelMask)
@@ -527,8 +526,7 @@ class FVoxelVisBufferShadingCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVoxelVisBufferShadingCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float3>, RWVoxelLighting)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWVoxelLightingAlpha)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWVoxelLighting)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFTracingParameters, MeshSDFTracingParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelVisBuffer)
@@ -695,7 +693,6 @@ void GatherVoxelize(
 	FScene* Scene,
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGTextureRef VoxelLighting,
-	FRDGTextureRef VoxelLightingAlpha,
 	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
 	FRDGBuilder& GraphBuilder)
 {
@@ -708,13 +705,8 @@ void GatherVoxelize(
 	if (MaxObjects == 0)
 	{
 		// Nothing to voxelize. Just clear voxel lighting and return.
-
-		const FLinearColor VoxelLightingClearValue(0.0f, 0.0f, 0.0f, 0.0f);
+		const FLinearColor VoxelLightingClearValue(0.0f, 0.0f, 0.0f, 1.0f);
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelLighting), VoxelLightingClearValue);
-
-		const FLinearColor VoxelLightingAlphaClearValue(1.0f, 1.0f, 1.0f, 1.0f);
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelLightingAlpha), VoxelLightingAlphaClearValue);
-
 		return;
 	}
 
@@ -722,7 +714,6 @@ void GatherVoxelize(
 	FIntVector VolumeTextureResolution(GetClipmapResolutionXY(), GetClipmapResolutionXY() * ClipmapsToUpdate.Num(), GetClipmapResolutionZ() * 6);
 
 	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGChildResourceFlags::NoUAVBarrier);
-	FRDGTextureUAVRef VoxelLightingAlphaUAV = GraphBuilder.CreateUAV(VoxelLightingAlpha, ERDGChildResourceFlags::NoUAVBarrier);
 	FRDGTextureRef VoxelVisBuffer = nullptr;
 	FRDGTextureUAVRef VoxelVisBufferUAV = nullptr;
 
@@ -895,7 +886,6 @@ void GatherVoxelize(
 
 		FVoxelVisBufferShadingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelVisBufferShadingCS::FParameters>();
 		PassParameters->RWVoxelLighting = VoxelLightingUAV;
-		PassParameters->RWVoxelLightingAlpha = VoxelLightingAlphaUAV;
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
 		PassParameters->MeshSDFTracingParameters = MeshSDFTracingParameters;
 		PassParameters->VoxelVisBuffer = VoxelVisBuffer;
@@ -940,7 +930,6 @@ void InjectCardsWithRasterizerScatter(
 	FScene* Scene,
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGTextureRef VoxelLighting,
-	FRDGTextureRef VoxelLightingAlpha,
 	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
 	FRDGBuilder& GraphBuilder)
 {
@@ -956,13 +945,8 @@ void InjectCardsWithRasterizerScatter(
 	if (MaxObjects == 0)
 	{
 		// Nothing to voxelize. Just clear voxel lighting and return.
-
-		const FLinearColor VoxelLightingClearValue(0.0f, 0.0f, 0.0f, 0.0f);
+		const FLinearColor VoxelLightingClearValue(0.0f, 0.0f, 0.0f, 1.0f);
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelLighting), VoxelLightingClearValue);
-
-		const FLinearColor VoxelLightingAlphaClearValue(1.0f, 1.0f, 1.0f, 1.0f);
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelLightingAlpha), VoxelLightingAlphaClearValue);
-
 		return;
 	}
 
@@ -1433,7 +1417,6 @@ void InjectCardsWithRasterizerScatter(
 	}
 
 	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGChildResourceFlags::NoUAVBarrier);
-	FRDGTextureUAVRef VoxelLightingAlphaUAV = GraphBuilder.CreateUAV(VoxelLightingAlpha, ERDGChildResourceFlags::NoUAVBarrier);
 
 	FIntVector ClipmapTextureResolution = VolumeTextureResolution;
 	ClipmapTextureResolution.Y /= ClipmapsToUpdate.Num();
@@ -1451,7 +1434,6 @@ void InjectCardsWithRasterizerScatter(
 
 			FVoxelVisBufferShadingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelVisBufferShadingCS::FParameters>();
 			PassParameters->RWVoxelLighting = VoxelLightingUAV;
-			PassParameters->RWVoxelLightingAlpha = VoxelLightingAlphaUAV;
 			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
 			PassParameters->MeshSDFTracingParameters = MeshSDFTracingParameters;
 			PassParameters->VoxelVisBuffer = VoxelVisBuffer;
@@ -1496,7 +1478,6 @@ void InjectCardsWithRasterizerScatter(
 		{
 			FCompactVoxelLightingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCompactVoxelLightingCS::FParameters>();
 			PassParameters->RWVoxelLighting = VoxelLightingUAV;
-			PassParameters->RWVoxelLightingAlpha = VoxelLightingAlphaUAV;
 
 			PassParameters->VoxelOITLighting = VoxelOITLighting;
 			PassParameters->VoxelOITTransparency = VoxelOITTransparency;
@@ -1585,38 +1566,20 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		GetClipmapResolutionXY(), 
 		GetClipmapResolutionXY() * ClampedNumClipmapLevels, 
 		GetClipmapResolutionZ() * 6, 
-		PF_FloatRGB, 
+		PF_FloatRGBA, 
 		FClearValueBinding::Black, 
 		TexCreate_None, 
 		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling,
 		false));
 	LightingDesc.AutoWritable = false;
 
-	FPooledRenderTargetDesc LightingAlphaDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
-		LightingDesc.Extent.X,
-		LightingDesc.Extent.Y,
-		LightingDesc.Depth,
-		PF_R8,
-		FClearValueBinding::Black,
-		TexCreate_None,
-		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling,
-		false));
-	LightingAlphaDesc.AutoWritable = false;
-
 	FRDGTextureRef VoxelLighting = TracingInputs.VoxelLighting;
-	FRDGTextureRef VoxelLightingAlpha = TracingInputs.VoxelLightingAlpha;
 	bool bForceFullUpdate = GLumenSceneVoxelLightingForceFullUpdate != 0;
 
 	if (!VoxelLighting || !VoxelLighting->Desc.Compare(LightingDesc, true))
 	{
 		bForceFullUpdate = true;
 		VoxelLighting = GraphBuilder.CreateTexture(LightingDesc, TEXT("VoxelLighting"));
-	}
-
-	if (!VoxelLightingAlpha || !VoxelLightingAlpha->Desc.Compare(LightingAlphaDesc, true))
-	{
-		bForceFullUpdate = true;
-		VoxelLightingAlpha = GraphBuilder.CreateTexture(LightingAlphaDesc, TEXT("VoxelLightingAlpha"));
 	}
 
 	TArray<int32, SceneRenderingAllocator> ClipmapsToUpdate;
@@ -1665,15 +1628,14 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 
 		if (GLumenSceneVoxelLightingComputeGather)
 		{
-			GatherVoxelize(View, Scene, TracingInputs, VoxelLighting, VoxelLightingAlpha, ClipmapsToUpdate, GraphBuilder);
+			GatherVoxelize(View, Scene, TracingInputs, VoxelLighting, ClipmapsToUpdate, GraphBuilder);
 		}
 		else
 		{
-			InjectCardsWithRasterizerScatter(View, Scene, TracingInputs, VoxelLighting, VoxelLightingAlpha, ClipmapsToUpdate, GraphBuilder);
+			InjectCardsWithRasterizerScatter(View, Scene, TracingInputs, VoxelLighting, ClipmapsToUpdate, GraphBuilder);
 		}
 
 		TracingInputs.VoxelLighting = VoxelLighting;
-		TracingInputs.VoxelLightingAlpha = VoxelLightingAlpha;
 		TracingInputs.VoxelGridResolution = VoxelGridResolution;
 		TracingInputs.NumClipmapLevels = ClampedNumClipmapLevels;
 	}

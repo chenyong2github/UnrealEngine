@@ -30,8 +30,7 @@ float GridConeRadiusSq;
 
 uint TargetClipmapIndex;
 uint3 GridResolution;
-RWTexture3D<float3> RWVoxelLighting;
-RWTexture3D<float> RWVoxelLightingAlpha;
+RWTexture3D<float4> RWVoxelLighting;
 
 Buffer<uint> CulledCardGridHeader;
 uint CullGridFactor;
@@ -915,8 +914,7 @@ void CompactVoxelLightingCS(
 		}
 	
 		uint3 WriteCoord = uint3(VoxelCoord.x, VoxelCoord.y + DestClipmapIndex * GridResolution.y, VoxelCoord.z);
-		RWVoxelLighting[WriteCoord] = Lighting;
-		RWVoxelLightingAlpha[WriteCoord] = 1.0f - Revealage;
+		RWVoxelLighting[WriteCoord] = float4(Lighting, 1.0f - Revealage);
 	}
 }
 
@@ -981,7 +979,6 @@ void VoxelVisBufferShadingCS(
 		}
 
 		uint3 WriteCoord = uint3(VoxelCoord.x, TargetClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
-		RWVoxelLighting[WriteCoord] = Lighting;
-		RWVoxelLightingAlpha[WriteCoord] = 1.0f - Transparency;
+		RWVoxelLighting[WriteCoord] = float4(Lighting, 1.0f - Transparency);
 	}
 }

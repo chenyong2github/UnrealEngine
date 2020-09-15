@@ -99,7 +99,6 @@ public:
 
 	// Voxel clipmaps
 	TRefCountPtr<IPooledRenderTarget> VoxelLighting;
-	TRefCountPtr<IPooledRenderTarget> VoxelLightingAlpha;
 	FIntVector VoxelGridResolution;
 	int32 NumClipmapLevels;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVScale;
@@ -119,7 +118,6 @@ public:
 		ReflectionState.SafeRelease();
 
 		VoxelLighting.SafeRelease();
-		VoxelLightingAlpha.SafeRelease();
 		TranslucencyVolume0.SafeRelease();
 		TranslucencyVolume1.SafeRelease();
 	}

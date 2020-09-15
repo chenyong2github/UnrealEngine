@@ -1014,7 +1014,6 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 }
 
 Texture3D VoxelLighting;
-Texture3D VoxelLightingAlpha;
 // Must match C++
 #define MAX_VOXEL_CLIPMAP_LEVELS 8
 #define NumClipmapLevels LumenVoxelTracingParameters.NumClipmapLevels
@@ -1040,13 +1039,9 @@ float4 SampleVoxelLighting(float3 WorldPosition, float3 Direction, uint ClipmapI
 	float4 YAxisLighting;
 	float4 ZAxisLighting;
 
-	XAxisLighting.xyz = Texture3DSampleLevel(VoxelLighting, GlobalTrilinearClampedSampler, XAxisUV, 0).xyz;
-	YAxisLighting.xyz = Texture3DSampleLevel(VoxelLighting, GlobalTrilinearClampedSampler, YAxisUV, 0).xyz;
-	ZAxisLighting.xyz = Texture3DSampleLevel(VoxelLighting, GlobalTrilinearClampedSampler, ZAxisUV, 0).xyz;
-
-	XAxisLighting.w = Texture3DSampleLevel(VoxelLightingAlpha, GlobalTrilinearClampedSampler, XAxisUV, 0).x;
-	YAxisLighting.w = Texture3DSampleLevel(VoxelLightingAlpha, GlobalTrilinearClampedSampler, YAxisUV, 0).x;
-	ZAxisLighting.w = Texture3DSampleLevel(VoxelLightingAlpha, GlobalTrilinearClampedSampler, ZAxisUV, 0).x;
+	XAxisLighting = Texture3DSampleLevel(VoxelLighting, GlobalTrilinearClampedSampler, XAxisUV, 0);
+	YAxisLighting = Texture3DSampleLevel(VoxelLighting, GlobalTrilinearClampedSampler, YAxisUV, 0);
+	ZAxisLighting = Texture3DSampleLevel(VoxelLighting, GlobalTrilinearClampedSampler, ZAxisUV, 0);
 
 	float3 AxisWeights = Direction * Direction;
 	float InvTotalWeight = 1.0f / dot(AxisWeights, 1.0f);
