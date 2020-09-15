@@ -145,6 +145,9 @@ public:
 	// resize the mesh, deleting the current content.
 	void Resize(int32 VertCount, int32 FaceCount);
 
+	// set the real vertex & index count after duplicate removal
+	void SetVertexAndIndexCount(uint32 VertCount, uint32 IndexCount);
+
 	// Swap content with an existing mesh of the same type.
 	void Swap(TAOSMesh& other);
 	
@@ -585,6 +588,16 @@ void TAOSMesh<SimplifierVertexType>::Resize(int32 VertCount, int32 FaceCount)
 		Indexes = new uint32[NumIndexes];
 	}
 
+}
+
+template <typename SimplifierVertexType>
+void TAOSMesh<SimplifierVertexType>::SetVertexAndIndexCount(uint32 VertCount, uint32 IndexCount)
+{
+	check(VertCount <= NumVertexes);
+	check(IndexCount <= NumIndexes);
+
+	NumVertexes = VertCount;
+	NumIndexes = IndexCount;
 }
 
 template <typename SimplifierVertexType>
