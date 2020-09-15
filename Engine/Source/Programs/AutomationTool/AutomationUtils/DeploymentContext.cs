@@ -869,7 +869,7 @@ public class DeploymentContext //: ProjectParams
 		}
 	}
 
-	public int ArchiveFiles(string InPath, string Wildcard = "*", bool bRecursive = true, string[] ExcludeWildcard = null, string NewPath = null)
+	public int ArchiveFiles(string InPath, string Wildcard = "*", bool bRecursive = true, string[] ExcludeWildcard = null, string NewPath = null, UnrealTargetPlatform[] AdditionalPlatforms = null)
 	{
 		int FilesAdded = 0;
 
@@ -906,6 +906,11 @@ public class DeploymentContext //: ProjectParams
 					{
                         if (Plat != StageTargetPlatform.PlatformType)
                         {
+							if (AdditionalPlatforms != null && AdditionalPlatforms.Contains(Plat))
+							{
+								break;
+							}
+
                             var Search = FileToCopy;
                             if (InputFile.IsUnderDirectory(LocalRoot))
                             {
