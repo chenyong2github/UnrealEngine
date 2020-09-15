@@ -1,0 +1,57 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "DMXFixtureComponent.h"
+#include "DMXFixtureComponentDouble.generated.h"
+
+// Component that uses 2 DMX channels
+UCLASS(ClassGroup = FixtureComponent, meta=(IsBlueprintBase = true), HideCategories = ("Variable", "Tags", "Activation", "Cooking", "ComponentReplication", "AssetUserData", "Collision", "Sockets"))
+class DMXFIXTURES_API UDMXFixtureComponentDouble : public UDMXFixtureComponent
+{
+	GENERATED_BODY()
+
+public:
+
+	UDMXFixtureComponentDouble();
+
+	// Parameters---------------------------------------
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channels")
+	FDMXChannelData DMXChannel1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channels")
+	FDMXChannelData DMXChannel2;
+
+	// To iterate channels and avoid code duplication
+	int NumChannels;
+	TArray<FDMXChannelData> ChannelRefs;
+
+	// Functions-----------------------------------------
+	UFUNCTION(BlueprintPure, Category = "DMX")
+		float DMXInterpolatedStep(int ChannelIndex);
+
+	UFUNCTION(BlueprintPure, Category = "DMX")
+		float DMXInterpolatedValue(int ChannelIndex);
+
+	UFUNCTION(BlueprintPure, Category = "DMX")
+		float DMXTargetValue(int ChannelIndex);
+
+	UFUNCTION(BlueprintPure, Category = "DMX")
+		bool DMXIsInterpolationDone(int ChannelIndex);
+
+	float RemapValue(int ChannelIndex, int Value);
+	bool IsTargetValid(int ChannelIndex, float Target);
+	void Push(int ChannelIndex, float Target);
+	void SetTarget(int ChannelIndex, float Target);
+
+	// Overrides
+	virtual void InitCells(int NCells) override;
+	virtual void SetRangeValue() override;
+	virtual void SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> Map) override;
+
+	// Blueprint event
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
+		void SetComponent(float Channel1Value, float Channel2Value);
+
+};
