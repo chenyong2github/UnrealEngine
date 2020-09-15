@@ -6,6 +6,7 @@
 #include "VectorVM.h"
 #include "StaticMeshResources.h"
 #include "Curves/RichCurve.h"
+#include "Niagara/Private/NiagaraStats.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceCurveBase.generated.h"
 
@@ -15,6 +16,7 @@ struct FNiagaraDataInterfaceProxyCurveBase : public FNiagaraDataInterfaceProxy
 	virtual ~FNiagaraDataInterfaceProxyCurveBase()
 	{
 		check(IsInRenderingThread());
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, CurveLUT.NumBytes);
 		CurveLUT.Release();
 	}
 

@@ -11,6 +11,7 @@
 #include "NiagaraScript.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraStats.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceStaticMesh"
 
@@ -159,6 +160,10 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources* Res, c
 
 void FStaticMeshGpuSpawnBuffer::InitRHI()
 {
+#if STATS
+	ensure(GPUMemoryUsage == 0);
+#endif
+
 	MeshIndexBufferSrv = RHICreateShaderResourceView(SectionRenderData->IndexBuffer.IndexBufferRHI);
 	MeshVertexBufferSrv = SectionRenderData->VertexBuffers.PositionVertexBuffer.GetSRV();
 	MeshTangentBufferSrv = SectionRenderData->VertexBuffers.StaticMeshVertexBuffer.GetTangentsSRV();
@@ -176,6 +181,9 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 		FMemory::Memcpy(SectionInfoBuffer, ValidSections.GetData(), SizeByte);
 		RHIUnlockVertexBuffer(BufferSectionRHI);
 		BufferSectionSRV = RHICreateShaderResourceView(BufferSectionRHI, sizeof(SectionInfo), PF_R32G32B32A32_UINT);
+#if STATS
+		GPUMemoryUsage += SizeByte;
+#endif
 	}
 
 	if (SocketTransformsResourceArray.Num() > 0)
@@ -185,6 +193,9 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 		SocketTransformsBuffer = RHICreateVertexBuffer(SocketTransformsResourceArray.GetTypeSize() * SocketTransformsResourceArray.Num(), BUF_ShaderResource | BUF_Static, RHICreateInfo);
 		SocketTransformsSRV = RHICreateShaderResourceView(SocketTransformsBuffer, sizeof(float) * 4, PF_A32B32G32R32F);
 		SocketTransformsResourceArray.Empty();
+#if STATS
+		GPUMemoryUsage += SocketTransformsResourceArray.GetTypeSize() * SocketTransformsResourceArray.Num();
+#endif
 	}
 
 	if (FilteredAndUnfilteredSocketsResourceArray.Num() > 0)
@@ -194,11 +205,23 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 		FilteredAndUnfilteredSocketsBuffer = RHICreateVertexBuffer(FilteredAndUnfilteredSocketsResourceArray.GetTypeSize() * FilteredAndUnfilteredSocketsResourceArray.Num(), BUF_ShaderResource | BUF_Static, RHICreateInfo);
 		FilteredAndUnfilteredSocketsSRV = RHICreateShaderResourceView(FilteredAndUnfilteredSocketsBuffer, sizeof(uint16), PF_R16_UINT);
 		FilteredAndUnfilteredSocketsResourceArray.Empty();
+#if STATS
+		GPUMemoryUsage += FilteredAndUnfilteredSocketsResourceArray.GetTypeSize() * FilteredAndUnfilteredSocketsResourceArray.Num();
+#endif
 	}
+#if STATS
+	GPUMemoryUsage += FilteredAndUnfilteredSocketsResourceArray.GetTypeSize() * FilteredAndUnfilteredSocketsResourceArray.Num();
+	INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemoryUsage);
+#endif
 }
 
 void FStaticMeshGpuSpawnBuffer::ReleaseRHI()
 {
+#if STATS
+	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemoryUsage);
+	GPUMemoryUsage = 0;
+#endif
+
 	MeshIndexBufferSrv.SafeRelease();
 	BufferSectionSRV.SafeRelease();
 	BufferSectionRHI.SafeRelease();
@@ -1383,7 +1406,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	if (bSuccess)
 	{
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
-		if (Inst->bMeshValid && SystemInstance->HasGPUEmitters())
+		if (Inst->bMeshValid && IsUsedWithGPUEmitter(SystemInstance))
 		{
 			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
 			// We do not know if this interface is allocated for CPU or GPU so we allocate for both case... TODO: have some cached data created in case a GPU version is needed?

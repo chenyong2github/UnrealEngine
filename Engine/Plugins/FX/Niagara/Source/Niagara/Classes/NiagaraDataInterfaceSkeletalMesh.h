@@ -339,7 +339,6 @@ public:
 	int32 GetFilteredSocketBoneOffset() const { return FilteredSocketBoneOffset; }
 
 protected:
-
 	FVertexBufferRHIRef BufferTriangleUniformSamplerProbaRHI = nullptr;
 	FShaderResourceViewRHIRef BufferTriangleUniformSamplerProbaSRV = nullptr;
 	FVertexBufferRHIRef BufferTriangleUniformSamplerAliasRHI = nullptr;
@@ -391,6 +390,10 @@ protected:
 	uint32 VertexCount = 0;
 	uint32 InputWeightStride = 0;
 	bool bUseGpuUniformlyDistributedSampling = false;
+
+#if STATS
+	int64 GPUMemoryUsage = 0;
+#endif
 };
 
 /**
@@ -440,6 +443,10 @@ private:
 
 	bool bBoneGpuBufferValid = false;
 	bool bPrevBoneGpuBufferValid = false;
+
+#if STATS
+	int64 GPUMemoryUsage = 0;
+#endif
 };
 
 struct FNDISkeletalMesh_InstanceData

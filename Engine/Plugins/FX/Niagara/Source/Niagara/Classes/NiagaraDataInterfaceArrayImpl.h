@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraDataInterfaceArray.h"
+#include "NiagaraStats.h"
 
 template<typename TArrayType>
 struct FNDIArrayImplHelperBase
@@ -31,6 +32,12 @@ struct FNiagaraDataInterfaceProxyArrayImpl : public FNiagaraDataInterfaceProxy
 {
 	FReadBuffer		Buffer;
 	int32			NumElements = 0;
+
+	~FNiagaraDataInterfaceProxyArrayImpl()
+	{
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, Buffer.NumBytes);
+		Buffer.Release();
+	}
 
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
@@ -404,6 +411,8 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		(
 			[RT_Proxy=static_cast<FNiagaraDataInterfaceProxyArrayImpl*>(Proxy), RT_Array=TArray<TArrayType>(Data)](FRHICommandListImmediate& RHICmdList)
 			{
+				DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->Buffer.NumBytes);
+
 				RT_Proxy->Buffer.Release();
 				RT_Proxy->NumElements = RT_Array.Num();
 				if (RT_Proxy->NumElements > 0)
@@ -433,6 +442,8 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 					FMemory::Memcpy(GPUMemory, &DefaultValue, BufferSize);
 					RHICmdList.UnlockVertexBuffer(RT_Proxy->Buffer.Buffer);
 				}
+
+				INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->Buffer.NumBytes);
 			}
 		);
 	}

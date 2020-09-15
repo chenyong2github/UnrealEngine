@@ -112,6 +112,10 @@ protected:
 
 	uint32 NumSockets = 0;
 	uint32 NumFilteredSockets = 0;
+
+#if STATS
+	int64 GPUMemoryUsage = 0;
+#endif
 };
 
 struct FNDIStaticMesh_InstanceData
