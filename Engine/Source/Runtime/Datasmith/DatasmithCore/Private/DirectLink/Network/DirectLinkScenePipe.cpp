@@ -14,11 +14,18 @@
 namespace DirectLink
 {
 
+int32 GetDeltaMessageTargetSizeByte()
+{
+	static int32 i = 64*1024; // #ue_directlink_config
+	return i;
+}
+
+
 template<typename MessageType>
-void SendInternal(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>& ThisEndpoint, MessageType* Message, const FMessageAddress& Recipient)
+void FPipeBase::SendInternal(MessageType* Message, int32 ByteSizeHint)
 {
 	auto flag = EMessageFlags::Reliable;
-	ThisEndpoint->Send(Message, MessageType::StaticStruct(), flag, nullptr, TArrayBuilder<FMessageAddress>().Add(Recipient), FTimespan::Zero(), FDateTime::MaxValue());
+	ThisEndpoint->Send(Message, MessageType::StaticStruct(), flag, nullptr, TArrayBuilder<FMessageAddress>().Add(RemoteAddress), FTimespan::Zero(), FDateTime::MaxValue());
 }
 
 
@@ -38,7 +45,7 @@ void FScenePipeToNetwork::SetupScene(FSetupSceneArg& SetupSceneArg)
 	FMemoryWriter Ar(Message->Payload);
 	Ar << SetupSceneArg;
 
-	SendInternal(ThisEndpoint, Message, RemoteAddress);
+	Send(Message);
 }
 
 
@@ -60,22 +67,54 @@ void FScenePipeToNetwork::OpenDelta(FOpenDeltaArg& OpenDeltaArg)
 	FMemoryWriter Ar(Message->Payload);
 	Ar << OpenDeltaArg;
 
-	SendInternal(ThisEndpoint, Message, RemoteAddress);
+	Send(Message);
+}
+
+
+void FScenePipeToNetwork::Send(FDirectLinkMsg_DeltaMessage* Message)
+{
+	SendInternal(Message, Message->Payload.Num());
+}
+
+
+void FScenePipeFromNetwork::Send(FDirectLinkMsg_HaveListMessage* Message)
+{
+	SendInternal(Message, Message->Payload.Num());
+}
+
+
+void FScenePipeToNetwork::InitSetElementBuffer()
+{
+	SetElementBuffer.Reset(GetDeltaMessageTargetSizeByte());
 }
 
 
 void FScenePipeToNetwork::OnSetElement(FSetElementArg& SetElementArg)
 {
-	FDirectLinkMsg_DeltaMessage* Message = NewMessage<FDirectLinkMsg_DeltaMessage>(
-		FDirectLinkMsg_DeltaMessage::SetElement,
-		RemoteStreamPort, BatchNumber, NextMessageNumber++
-	);
-
-	FMemoryWriter Ar(Message->Payload);
+	bool bAppend = true;
+	FMemoryWriter Ar(SetElementBuffer, false, bAppend);
 	ESerializationStatus Status = SetElementArg.Snapshot->Serialize(Ar);
+	Ar << SetElementArg.ElementIndexHint;
 	check(Status == ESerializationStatus::Ok); // write should never be an issue
 
-	SendInternal(ThisEndpoint, Message, RemoteAddress);
+	if (SetElementBuffer.Num() >= 0.9 * GetDeltaMessageTargetSizeByte())
+	{
+		SendSetElementBuffer();
+	}
+}
+
+
+void FScenePipeToNetwork::SendSetElementBuffer()
+{
+	FDirectLinkMsg_DeltaMessage* Message = NewMessage<FDirectLinkMsg_DeltaMessage>(
+		FDirectLinkMsg_DeltaMessage::SetElements,
+		RemoteStreamPort, BatchNumber, NextMessageNumber++
+	);
+	// #ue_directlink_optim Investigate FCompression::CompressMemory
+	Message->Payload = MoveTemp(SetElementBuffer);
+	InitSetElementBuffer();
+
+	Send(Message);
 }
 
 
@@ -89,12 +128,13 @@ void FScenePipeToNetwork::RemoveElements(FRemoveElementsArg& RemoveElementsArg)
 	FMemoryWriter Ar(Message->Payload);
 	Ar << RemoveElementsArg.Elements;
 
-	ThisEndpoint->Send(Message, RemoteAddress);
+	Send(Message);
 }
 
 
 void FScenePipeToNetwork::OnCloseDelta(FCloseDeltaArg& CloseDeltaArg)
 {
+	SendSetElementBuffer();
 	FDirectLinkMsg_DeltaMessage* Message = NewMessage<FDirectLinkMsg_DeltaMessage>(
 		FDirectLinkMsg_DeltaMessage::CloseDelta,
 		RemoteStreamPort, BatchNumber, NextMessageNumber++
@@ -103,8 +143,11 @@ void FScenePipeToNetwork::OnCloseDelta(FCloseDeltaArg& CloseDeltaArg)
 	FMemoryWriter Ar(Message->Payload);
 	Ar << CloseDeltaArg;
 
-	SendInternal(ThisEndpoint, Message, RemoteAddress);
+	Send(Message);
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 void FScenePipeFromNetwork::HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message)
@@ -170,7 +213,8 @@ void FScenePipeFromNetwork::OnOpenHaveList(const FSceneIdentifier& HaveSceneId, 
 	Ar << bKeepPreviousContent;
 
 	UE_LOG(LogDirectLinkNet, Verbose, TEXT("Send OpenHave list b:%d m:%d k:%d"), Message->SyncCycle, Message->MessageCode, Message->Kind);
-	SendInternal(ThisEndpoint, Message, RemoteAddress);
+
+	Send(Message);
 }
 
 
@@ -218,7 +262,7 @@ void FScenePipeFromNetwork::OnCloseHaveList()
 	);
 
 	UE_LOG(LogDirectLinkNet, Verbose, TEXT("Send OpenHave list b:%d m:%d k:%d"), Message->SyncCycle, Message->MessageCode, Message->Kind);
-	SendInternal(ThisEndpoint, Message, RemoteAddress);
+	Send(Message);
 }
 
 
@@ -226,11 +270,21 @@ void FScenePipeFromNetwork::DelegateDeltaMessage(const FDirectLinkMsg_DeltaMessa
 {
 	UE_LOG(LogDirectLinkNet, Verbose, TEXT("Delta message transmited: b:%d m:%d k:%d"), Message.BatchCode, Message.MessageCode, Message.Kind);
 
+	// acknowledge message (allows the sender to track communication progress)
+	auto* AckMessage = NewMessage<FDirectLinkMsg_HaveListMessage>(
+		FDirectLinkMsg_HaveListMessage::EKind::AckDeltaMessage,
+		RemoteStreamPort, Message.BatchCode, Message.MessageCode
+	);
+	Send(AckMessage);
+
+	// process message
 	check(Consumer);
 	switch (Message.Kind)
 	{
 		case FDirectLinkMsg_DeltaMessage::SetupScene:
 		{
+			CurrentCommunicationStatus.bIsReceiving = true;
+
 			IDeltaConsumer::FSetupSceneArg SetupSceneArg;
 			FMemoryReader Ar(Message.Payload);
 			Ar << SetupSceneArg;
@@ -243,32 +297,43 @@ void FScenePipeFromNetwork::DelegateDeltaMessage(const FDirectLinkMsg_DeltaMessa
 			IDeltaConsumer::FOpenDeltaArg OpenDeltaArg;
 			FMemoryReader Ar(Message.Payload);
 			Ar << OpenDeltaArg;
+			CurrentCommunicationStatus.TaskTotal = OpenDeltaArg.ElementCountHint + 1; // "+1" in order to reach 100% artificially on the last message
 			Consumer->OpenDelta(OpenDeltaArg);
 			break;
 		}
 
-		case FDirectLinkMsg_DeltaMessage::SetElement:
+		case FDirectLinkMsg_DeltaMessage::SetElements:
 		{
-			IDeltaConsumer::FSetElementArg Arg;
 			FMemoryReader Ar(Message.Payload);
-			Arg.Snapshot = MakeShared<FElementSnapshot>();
-			ESerializationStatus SerialResult = Arg.Snapshot->Serialize(Ar);
-			switch (SerialResult)
+			bool bSerialOk = true;
+			while (bSerialOk && Ar.Tell() < Message.Payload.Num())
 			{
-				case ESerializationStatus::Ok:
-					Consumer->OnSetElement(Arg);
-					break;
-				case ESerializationStatus::StreamError:
-					UE_LOG(LogDirectLinkNet, Error, TEXT("Delta message issue: Stream Error"));
-					break;
-				case ESerializationStatus::VersionMinNotRespected:
-					UE_LOG(LogDirectLinkNet, Warning, TEXT("Delta message issue: received message version no longer supported"));
-					break;
-				case ESerializationStatus::VersionMaxNotRespected:
-					UE_LOG(LogDirectLinkNet, Warning, TEXT("Delta message issue: received message version unknown"));
-					break;
-				default:
-					ensure(false);
+				IDeltaConsumer::FSetElementArg SetElementArg;
+				SetElementArg.Snapshot = MakeShared<FElementSnapshot>();
+				ESerializationStatus SerialResult = SetElementArg.Snapshot->Serialize(Ar);
+				Ar << SetElementArg.ElementIndexHint;
+
+				bSerialOk = false;
+				switch (SerialResult)
+				{
+					case ESerializationStatus::Ok:
+						Consumer->OnSetElement(SetElementArg);
+						CurrentCommunicationStatus.TaskCompleted = SetElementArg.ElementIndexHint;
+						bSerialOk = true;
+						break;
+					case ESerializationStatus::StreamError:
+						// #ue_directlink_syncprotocol notify sender of unrecoverable errors
+						UE_LOG(LogDirectLinkNet, Error, TEXT("Delta message issue: Stream Error"));
+						break;
+					case ESerializationStatus::VersionMinNotRespected:
+						UE_LOG(LogDirectLinkNet, Error, TEXT("Delta message issue: received message version no longer supported"));
+						break;
+					case ESerializationStatus::VersionMaxNotRespected:
+						UE_LOG(LogDirectLinkNet, Error, TEXT("Delta message issue: received message version unknown"));
+						break;
+					default:
+						ensure(false);
+				}
 			}
 			break;
 		}
@@ -284,6 +349,9 @@ void FScenePipeFromNetwork::DelegateDeltaMessage(const FDirectLinkMsg_DeltaMessa
 
 		case FDirectLinkMsg_DeltaMessage::CloseDelta:
 		{
+			CurrentCommunicationStatus.bIsReceiving = false;
+			CurrentCommunicationStatus.TaskCompleted = CurrentCommunicationStatus.TaskTotal;
+
 			IDeltaConsumer::FCloseDeltaArg CloseDeltaArg;
 			FMemoryReader Ar(Message.Payload);
 			Ar << CloseDeltaArg;

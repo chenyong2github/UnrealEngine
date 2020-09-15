@@ -15,7 +15,7 @@ void RecursiveAddElements(TSet<ISceneGraphNode*>& Nodes, ISceneGraphNode* Elemen
 {
 	if (Element == nullptr)
 	{
-		UE_LOG(LogDirectLinkIndexer, Warning, TEXT("null element"));
+		UE_LOG(LogDirectLink, Warning, TEXT("Try to index null element"));
 		return;
 	}
 

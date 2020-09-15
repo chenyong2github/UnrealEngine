@@ -9,12 +9,12 @@
 namespace DirectLink
 {
 
-FElementSnapshot::FElementSnapshot(ISceneGraphNode& Node)
+FElementSnapshot::FElementSnapshot(const ISceneGraphNode& Node)
 {
 	NodeId = Node.GetNodeId();
 
 	// Data part
-	FParameterStore& Store = Node.GetStore(); // #ue_directlink_cleanup fix const correctness
+	const FParameterStore& Store = Node.GetStore();
 	DataSnapshot = Store.Snapshot();
 
 	// Reference part

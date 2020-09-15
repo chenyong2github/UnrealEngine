@@ -36,7 +36,7 @@ class DATASMITHCORE_API FElementSnapshot
 {
 public:
 	FElementSnapshot() = default;
-	FElementSnapshot(ISceneGraphNode& Node);
+	FElementSnapshot(const ISceneGraphNode& Node);
 
 	friend FArchive& operator<<(FArchive& Ar, FElementSnapshot& This);
 

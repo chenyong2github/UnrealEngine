@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DirectLink/Network/DirectLinkScenePipe.h"
+#include "DirectLink/Network/DirectLinkStreamCommunicationInterface.h"
 #include "DirectLink/SceneSnapshot.h"
 
 #include "CoreTypes.h"
@@ -23,14 +24,17 @@ class FHaveListReceiver;
  * Some requests messages can be sent multiple times though, but with a unique
  * 'SyncCycle' value so that the receiver is able to ignore duplicated requests.
  */
-class FStreamSender
+class FStreamSender : public IStreamCommunicationInterface
 {
 public:
 	FStreamSender(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint, const FMessageAddress& DestinationAddress, FStreamPort ReceiverStreamPort);
 	~FStreamSender();
 	void SetSceneSnapshot(TSharedPtr<FSceneSnapshot> SceneSnapshot);
-	void Tick();
+	void Tick(double Now_s);
 	void HandleHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message); // update RemoteView
+
+public: // IStreamCommunicationInterface API
+	virtual FCommunicationStatus GetCommunicationStatus() const override { return CurrentCommunicationStatus; }
 
 private:
 	enum class EStep
@@ -38,6 +42,7 @@ private:
 		Idle,
 		SetupScene,
 		ReceiveHaveList,
+		GenerateDelta,
 		SendDelta,
 		Synced,
 	};
@@ -54,6 +59,9 @@ private:
 	TSharedPtr<FSceneSnapshot> NextSnapshot;
 
 	TUniquePtr<FRemoteSceneView> RemoteScene;
+
+	// Reporting
+	FCommunicationStatus CurrentCommunicationStatus;
 };
 
 

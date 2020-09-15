@@ -142,7 +142,7 @@ public:
 		return false;
 	}
 
-	FParameterStoreSnapshot Snapshot();
+	FParameterStoreSnapshot Snapshot() const;
 
 	void Update(const FParameterStoreSnapshot& NewValues);
 

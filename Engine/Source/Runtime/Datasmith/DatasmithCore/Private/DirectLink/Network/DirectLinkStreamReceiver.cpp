@@ -102,19 +102,23 @@ public:
 };
 
 
-
 FStreamReceiver::FStreamReceiver(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint, const FMessageAddress& DestinationAddress, FStreamPort ReceiverStreamPort, const TSharedRef<ISceneReceiver>& Receiver)
+	:PipeFromNetwork(ThisEndpoint, DestinationAddress, ReceiverStreamPort, MakeShared<FDeltaReceiver>(Receiver))
 {
-	auto DeltaReceiver = MakeShared<FDeltaReceiver>(Receiver);
-	PipeFromNetwork = MakeShared<FScenePipeFromNetwork>(ThisEndpoint, DestinationAddress, ReceiverStreamPort, DeltaReceiver);
 }
 
 
 void FStreamReceiver::HandleDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message)
 {
-	check(PipeFromNetwork);
-	PipeFromNetwork->HandleDeltaMessage(Message);
+	PipeFromNetwork.HandleDeltaMessage(Message);
 }
+
+
+FCommunicationStatus FStreamReceiver::GetCommunicationStatus() const
+{
+	return PipeFromNetwork.GetCommunicationStatus();
+}
+
 
 } // namespace DirectLink
 

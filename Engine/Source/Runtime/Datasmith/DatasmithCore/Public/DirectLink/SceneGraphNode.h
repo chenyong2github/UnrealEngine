@@ -36,12 +36,12 @@ public:
 
 	/// References
 	// This Id is unique within a SceneGraph
-	FSceneGraphId GetNodeId() { return SceneGraphId; }
+	FSceneGraphId GetNodeId() const { return SceneGraphId; }
 	//private: friend class ...  #ue_directlink_design -> only accessible from the scene that owns the dep graph
 	void SetNodeId(FSceneGraphId Id) { SceneGraphId = Id; }
 
 	void RegisterReferenceProxy(class IReferenceProxy& View, FName Name);
-	int32 GetReferenceProxyCount();
+	int32 GetReferenceProxyCount() const;
 	class IReferenceProxy* GetReferenceProxy(int32 Index) const;
 	FName GetReferenceProxyName(int32 Index) const;
 

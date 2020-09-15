@@ -66,7 +66,6 @@ FSourceHandle FEndpoint::AddSource(const FString& Name, EVisibility Visibility)
 {
 	FGuid Id;
 	{
-		UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Source added '%s'"), *SharedState.NiceName, *Name);
 		FRWScopeLock _(SharedState.SourcesLock, SLT_Write);
 		TSharedPtr<FStreamSource>& NewSource = SharedState.Sources.Add_GetRef(MakeShared<FStreamSource>(Name, Visibility));
 		Id = NewSource->GetId();
@@ -74,6 +73,7 @@ FSourceHandle FEndpoint::AddSource(const FString& Name, EVisibility Visibility)
 
 	SharedState.bDirtySources = true;
 
+	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Source added '%s'"), *SharedState.NiceName, *Name);
 	return Id;
 }
 
@@ -873,6 +873,7 @@ FRawInfo::FEndpointInfo::FEndpointInfo(const FDirectLinkMsg_EndpointState& Msg)
 	, UserName(Msg.UserName)
 	, ExecutableName(Msg.ExecutableName)
 	, ComputerName(Msg.ComputerName)
+	, bIsLocal(Msg.ComputerName == FPlatformProcess::ComputerName())
 	, ProcessId(Msg.ProcessId)
 {
 }
@@ -961,7 +962,7 @@ void FEndpoint::FInternalThreadState::Run()
 				if (Stream.Status == FStreamDescription::EConnectionState::Active
 					&& Stream.bThisIsSource && ensure(Stream.Sender.IsValid()))
 				{
-					Stream.Sender->Tick();
+					Stream.Sender->Tick(Now_s);
 				}
 			}
 		}
@@ -1006,12 +1007,23 @@ void FEndpoint::FInternalThreadState::Run()
 				StreamsInfo.Reserve(SharedState.Streams.Num());
 				for (FStreamDescription& Stream : SharedState.Streams)
 				{
-					FRawInfo::FStreamInfo I;
-					I.StreamId = Stream.LocalStreamPort;
-					I.Source = Stream.SourcePoint;
-					I.Destination = Stream.DestinationPoint;
-					I.bIsActive = Stream.Status == FStreamDescription::EConnectionState::Active;
-					StreamsInfo.Add(I);
+					FRawInfo::FStreamInfo StreamInfo;
+					StreamInfo.StreamId = Stream.LocalStreamPort;
+					StreamInfo.Source = Stream.SourcePoint;
+					StreamInfo.Destination = Stream.DestinationPoint;
+					StreamInfo.bIsActive = Stream.Status == FStreamDescription::EConnectionState::Active;
+					if (StreamInfo.bIsActive)
+					{
+						if (Stream.Sender)
+						{
+							StreamInfo.CommunicationStatus = Stream.Sender->GetCommunicationStatus();
+						}
+						else if (ensure(Stream.Receiver))
+						{
+							StreamInfo.CommunicationStatus = Stream.Receiver->GetCommunicationStatus();
+						}
+					}
+					StreamsInfo.Add(StreamInfo);
 				}
 			}
 
