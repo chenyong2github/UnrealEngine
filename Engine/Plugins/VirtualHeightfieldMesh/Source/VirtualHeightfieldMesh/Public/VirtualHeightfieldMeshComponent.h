@@ -21,6 +21,10 @@ protected:
 	/** The RuntimeVirtualTextureVolume that contains virtual texture heightmap. */
 	UPROPERTY(EditAnywhere, Category = Heightfield)
 	TSoftObjectPtr<ARuntimeVirtualTextureVolume> VirtualTexture;
+	
+	/** UObject ref resolved from VirtualTexture weak ref. */
+	UPROPERTY(Transient)
+	ARuntimeVirtualTextureVolume* VirtualTextureRef;
 
 	/** Placeholder for details customization image. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
@@ -33,9 +37,6 @@ protected:
 	/** Function used by the VirtualTexture delegate to retrieve our HidePrimitives flags. */
 	UFUNCTION()
 	void GatherHideFlags(bool& InOutHidePrimitivesInEditor, bool& InOutHidePrimitivesInGame) const;
-
-	/** Delegate handle of the bound GatherHideFlags function. */
-	FDelegateHandle HideFlagDelegateHandle;
 
 	/** Texture object containing minimum and maximum height values. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Texture"))
