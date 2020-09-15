@@ -245,7 +245,7 @@ namespace VirtualHeightfieldMesh
 
 				GraphBuilder.Execute();
 
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTileResources.GetFinalRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
+				RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetFinalRenderTarget()->GetRenderTargetItem().ShaderResourceTexture, ERHIAccess::WritableMask, ERHIAccess::CopySrc));
 
 				for (int32 MipLevel = 0; MipLevel < NumMips; MipLevel++)
 				{
@@ -254,6 +254,7 @@ namespace VirtualHeightfieldMesh
 					CopyInfo.SourceMipIndex = MipLevel;
 					CopyInfo.DestMipIndex = 0;
 
+					RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetStagingTexture(MipLevel), ERHIAccess::Unknown, ERHIAccess::CopyDest));
 					RHICmdList.CopyTexture(RenderTileResources.GetFinalRenderTarget()->GetRenderTargetItem().ShaderResourceTexture, RenderTileResources.GetStagingTexture(MipLevel), CopyInfo);
 				}
 
