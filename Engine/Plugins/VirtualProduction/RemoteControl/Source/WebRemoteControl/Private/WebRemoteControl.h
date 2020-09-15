@@ -12,9 +12,11 @@
 #include "HAL/IConsoleManager.h"
 #include "WebRemoteControlEditorRoutes.h"
 #include "RemoteControlWebSocketServer.h"
+#include "Containers/ContainersFwd.h"
 
 struct FHttpServerRequest;
 class IHttpRouter;
+class FWebSocketMessageHandler;
 
 /**
  * A Remote Control module that expose remote function calls through http
@@ -97,9 +99,26 @@ private:
 
 	//~ Route handlers
 	bool HandleInfoRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleBatchRequest(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleOptionsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleObjectCallRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleObjectPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandlePresetCallFunctionRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandlePresetSetPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandlePresetGetPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleGetPresetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleGetPresetLayoutRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleGetPresetsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleDescribeObjectRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleSearchActorRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleSearchAssetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleSearchObjectRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+
+	//~ Websocket route handlers
+	void HandleWebSocketHttpMessage(const struct FRemoteControlWebSocketMessage& WebSocketMessage);
+	void HandleWebSocketMessage(const struct FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	void InvokeWrappedRequest(const struct FRCRequestWrapper& Wrapper, FMemoryWriter& OutUTF8PayloadWriter, const FHttpServerRequest* TemplateRequest = nullptr);
 
 #if WITH_EDITOR
 	//~ Settings
@@ -107,6 +126,7 @@ private:
 	void UnregisterSettings();
 	bool OnSettingsModified();
 #endif
+
 
 	/** Console commands handles. */
 	TArray<TUniquePtr<FAutoConsoleCommand>> ConsoleCommands;
@@ -131,10 +151,14 @@ private:
 
 	/** Routes that are editor specific. */
 	FWebRemoteControlEditorRoutes EditorRoutes;
+
+	/** Handler processing websocket specific messages */
+	TUniquePtr<FWebSocketMessageHandler> WebSocketHandler;
 	
 	/** Server that serves websocket requests. */
 	FRCWebSocketServer WebSocketServer;
 
 	/** Router used to dispatch websocket messages. */
 	TSharedPtr<FWebsocketMessageRouter> WebSocketRouter;
+	
 };

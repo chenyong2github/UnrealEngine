@@ -2,165 +2,541 @@
 #pragma once
 
 #include "CoreTypes.h"
+
 #include "RemoteControlField.h"
 #include "UObject/SoftObjectPtr.h"
 #include "RemoteControlPreset.generated.h"
+
+class IStructSerializerBackend;
+class IStructDeserializerBackend;
+class URemoteControlPreset;
+struct FRemoteControlPresetLayout;
+
+namespace RemoteControlPreset
+{
+	struct FCachedFieldData
+	{
+		FGuid LayoutGroupId;
+		FName OwnerObjectAlias;
+	};
+
+	typedef TMap<FGuid, FCachedFieldData> FRemoteControlCache;
+}
+
+/**
+ * Holds an exposed property and owner objects.
+ */
+struct REMOTECONTROL_API FExposedProperty
+{
+	bool IsValid() const
+	{
+		return !!Property;
+	}
+
+	FProperty* Property;
+	TArray<UObject*> OwnerObjects;
+};
+
+/**
+ * Holds an exposed function, its default parameters and owner objects.
+ */
+struct REMOTECONTROL_API FExposedFunction
+{
+	bool IsValid() const 
+	{
+		return Function && DefaultParameters;
+	}
+
+	UFunction* Function;
+	TSharedPtr<class FStructOnScope> DefaultParameters;
+	TArray<UObject*> OwnerObjects;
+};
+
+/**
+ * Represents a group of field and offers operations to operate on the fields inside of that group.
+ */
+USTRUCT()
+struct REMOTECONTROL_API FRemoteControlPresetGroup
+{
+	GENERATED_BODY()
+
+	FRemoteControlPresetGroup() = default;
+
+	FRemoteControlPresetGroup(FName InName, FRemoteControlPresetLayout* InLayout)
+		: Name(InName)
+		, Id(FGuid::NewGuid())
+		, OwnerLayout(InLayout)
+	{}
+
+	/** Append a field to the group's field list. */
+	void AddField(FGuid FieldId);
+	/** Insert a field in the group. */
+	void InsertFieldAt(FGuid FieldId, int32 Index);
+	/** Remove a field using the field's name. */
+	void RemoveField(FGuid FieldId);
+	/** Remove a field at a provided index. */
+	void RemoveFieldAt(int32 Index);
+	/** Swap two fields using indices. */
+	void SwapFields(int32 FirstIndex, int32 SecondIndex);
+
+	/** Get the fields' name under this group. */
+	const TArray<FGuid>& GetFields() const;
+
+	friend bool operator==(const FRemoteControlPresetGroup& LHS, const FRemoteControlPresetGroup& RHS)
+	{
+		return LHS.Id == RHS.Id;
+	}
+
+public:
+	/** Name of this group. */
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	FGuid Id;
+
+private:
+	/** Get the cache from the RemoteControlPreset that holds this preset. */
+	RemoteControlPreset::FRemoteControlCache* GetPresetCache() const;
+	/** Get the preset that owns this group. */
+	URemoteControlPreset* GetOwnerPreset() const;
+
+private:
+	/** The list of exposed fields under this group. */
+	UPROPERTY()
+	TArray<FGuid> Fields;
+
+private:
+	/** The layout that owns this group. */
+	FRemoteControlPresetLayout* OwnerLayout;
+
+	friend struct FRemoteControlPresetLayout;
+};
+
+/** Layout that holds groups of fields. */
+USTRUCT()
+struct REMOTECONTROL_API FRemoteControlPresetLayout
+{
+	GENERATED_BODY()
+
+	/** Arguments for swapping fields across groups.  */
+	struct FFieldSwapArgs
+	{
+		FGuid OriginGroupId;
+		FGuid TargetGroupId;
+		FGuid DraggedFieldId;
+		FGuid TargetFieldId;
+	};
+
+	FRemoteControlPresetLayout() = default;
+	FRemoteControlPresetLayout(URemoteControlPreset* OwnerPreset);
+
+	/** Get or create the default group. */
+	FRemoteControlPresetGroup& GetDefaultGroup();
+
+	/** Fetch a group using its id. */
+	FRemoteControlPresetGroup* GetGroup(FGuid GroupId); 
+
+	/** Fetch a group using its name. */
+	FRemoteControlPresetGroup* GetGroupByName(FName GroupName);
+
+	/** Create a group in the layout. */
+	FRemoteControlPresetGroup* CreateGroup(FName GroupName = NAME_None);
+
+	/** Find the group that holds the specified field. */
+	FRemoteControlPresetGroup* FindGroupFromField(FGuid FieldId);
+
+	/** Swap two groups. */
+	void SwapGroups(FGuid OriginGroupId, FGuid TargetGroupId);
+
+	/** Swap fields across groups or in the same one. */
+	void SwapFields(const FFieldSwapArgs& FieldSwapArgs);
+
+	/** Delete a group from the layout. */
+	void DeleteGroup(FGuid GroupId);
+
+	/** Rename a group in the layout. */
+	void RenameGroup(FGuid GroupId, FName NewGroupName);
+
+	/** Get this layout's groups. */
+	const TArray<FRemoteControlPresetGroup>& GetGroups() const;
+
+	/** Get the preset that owns this layout. */
+	URemoteControlPreset* GetOwner();
+
+	void PostSerialize(const FArchive& Ar);
+
+private:
+	/** The list of groups under this layout. */
+	UPROPERTY()
+	TArray<FRemoteControlPresetGroup> Groups;
+
+	/** The preset that owns this layout. */
+	UPROPERTY()
+	TWeakObjectPtr<URemoteControlPreset> Owner = nullptr;
+};
 
 /**
  * Represents objects grouped under a single alias that contain exposed functions and properties.
  */
 USTRUCT()
-struct REMOTECONTROL_API FRemoteControlSection
+struct REMOTECONTROL_API FRemoteControlTarget
 {
-	GENERATED_BODY()
-	
 public:
-	/**
-	 * Verifies if the section has the same top level objects as the list to verify.
-	 * @param ObjectsToTest The objects to compare.
-	 * @return true if the section has the same top level objects.
-	 */
-	bool HasSameTopLevelObjects(const TArray<UObject*>& ObjectsToTest);
+	GENERATED_BODY()
+
+	FRemoteControlTarget() = default;
+
+	FRemoteControlTarget(class URemoteControlPreset* InOwner)
+		: Owner(InOwner)
+		{}
 
 	/**
-	 * Exposes a function under this section.
-	 * @note HasSameTopLevelObjects is expected to be called before exposing a field.
+	 * Expose a property in this target.
+	 * @param FieldPathInfo the path data from the owner object, including component chain, to this field. (ie. LightComponent0.Intensity)
+	 * @param DesiredDisplayName the display name desired for this control. If the name is not unique preset-wise, a number will be appended.
 	 */
-	void Expose(FRemoteControlFunction Function);
+	TOptional<FRemoteControlProperty> ExposeProperty(FFieldPathInfo FieldPathInfo, const FString& DesiredDisplayName, FGuid GroupId = FGuid());
 
 	/**
-	 * Exposes a property under this section.
-	 * @note HasSameTopLevelObjects is expected to be called before exposing a field.
+	 * Expose a function in this target.
+	 * @param RelativeFieldPath the path from the owner object  to this field. (ie. Subcomponent.GetName)
+	 * @param DesiredDisplayName the display name desired for this control. If the name is not unique target-wide, a number will be appended.
 	 */
-	void Expose(FRemoteControlProperty Property);
+	TOptional<FRemoteControlFunction> ExposeFunction(FString RelativeFieldPath, const FString& DesiredDisplayName, FGuid GroupId = FGuid());
 
 	/**
-	 * Unexposes a field from this section.
+	 * Unexpose a field from this target.
 	 * @param TargetFieldId The ID of the field to remove.
-	 * @see FindPropertyId
 	 */
-	void Unexpose(const FGuid& TargetFieldId);
+	void Unexpose(FGuid TargetFieldId);
 
 	/**
-	 * Finds the ID associated with the property name.
-	 * @param PropertyName the property's FName.
-	 * @return The GUID associated with the target property if found, or an invalid GUID if not found.
+	 * Find a field label using a property name.
+	 * @param PropertyName the FName of the property to find.
+	 * @return the field's label or an empty name if not found.
 	 */
-	FGuid FindPropertyId(FName PropertyName);
+	FName FindFieldLabel(FName FieldName) const;
 
 	/**
-	 * Get an exposed property using the property's ID.
-	 * @param FieldId the ID to query.
-	 * @return The property if found.
+	 * Get a property using its label.
+	 * @param FieldLabel the property's label.
+	 * @return The target property if found.
 	 */
-	TOptional<FRemoteControlProperty> GetProperty(const FGuid& FieldId);
+	TOptional<FRemoteControlProperty> GetProperty(FGuid PropertyId) const;
 
 	/**
-	 * Resolve the section bindings to return the section's top level objects.
-	 * @return The section's top level objects.
+	 * Get an exposed function using it's name.
+	 * @param FunctionName the function name to query.
+	 * @return The function if found.
 	 */
-	TArray<UObject*> ResolveSectionObjects() const;
+	TOptional<FRemoteControlFunction> GetFunction(FGuid FunctionId) const;
 
 	/**
-	 * Adds objects to the section's top level objects, binding them to the section's alias.
+	 * Resolve a remote controlled property to its FProperty and owner objects.
+	 * @param PropertyLabel the label of the remote controlled property.
+	 * @return The resolved exposed property if found.
+	 */
+	TOptional<FExposedProperty> ResolveExposedProperty(FGuid PropertyId) const;
+
+	/**
+	 * Resolve a remote controlled function to its UFunction and owner objects.
+	 * @param FunctionLabel the label of the remote controlled function.
+	 * @return The resolved exposed function if found.
+	 */
+	TOptional<FExposedFunction> ResolveExposedFunction(FGuid FunctionId) const;
+
+	/**
+	 * Resolve the target bindings to return the target's underlying objects.
+	 * @return The target's underlying objects.
+	 */
+	TArray<UObject*> ResolveBoundObjects() const;
+
+	/**
+	 * Adds objects to the target's underlying objects, binding them to the target's alias.
 	 * @param ObjectsToBind The objects to bind.
 	 */
-	void AddBindings(const TArray<UObject*>& ObjectsToBind);
+	void BindObjects(const TArray<UObject*>& ObjectsToBind);
+
+	/**
+	 * Verifies if the list of objects provided is bound under this target's alias.
+	 * @param ObjectsToTest The objects to validate.
+	 * @return true if the target has  underlying objects.
+	 */
+	bool HasBoundObjects(const TArray<UObject*>& ObjectsToTest);
+
+	/**
+	 * Returns whether the provided list of objects can be bound under this target.
+	 * @param ObjectsToTest The object list.
+	 * @return Whether the objects can be bound.
+	 */
+	bool CanBindObjects(const TArray<UObject*>& ObjectsToTest);
+
 private:
 
-	// Remove a field from the specified fields array.
+	/** Remove a field from the specified fields array. */
 	template <typename Type> 
-	void RemoveField(TSet<Type>& Fields, const FGuid& TargetFieldId)
+	void RemoveField(TSet<Type>& Fields, FGuid FieldId)
 	{
-		Fields.RemoveByHash(GetTypeHash(TargetFieldId), TargetFieldId);
+		Fields.RemoveByHash(GetTypeHash(FieldId), FieldId);
 	}
+
+	FProperty* FindPropertyRecursive(UStruct* Container, TArray<FString>& DesiredPropertyPath) const;
 
 public:
 	/**
-	 * The common class of the section's top level objects.
+	 * The common class of the target's underlying objects.
 	 */
 	UPROPERTY()
-	UClass* SectionClass = nullptr;
+	UClass* Class = nullptr;
 
 	/**
-	 * The section's exposed functions.
+	 * The target's exposed functions.
 	 */
 	UPROPERTY()
 	TSet<FRemoteControlFunction> ExposedFunctions;
 
 	/**
-	 * The section's exposed properties.
+	 * The target's exposed properties.
 	 */
 	UPROPERTY()
 	TSet<FRemoteControlProperty> ExposedProperties;
 
 	/**
-	 * The alias that represents the section's top level objects.
+	 * The alias for this target.
 	 */
 	UPROPERTY()
-	FString Alias;
+	FName Alias;
 private:
 	/**
-	 * The objects bound under the section's alias.
+	 * The objects bound under the target's alias.
 	 */
 	UPROPERTY()
 	TArray<FSoftObjectPath> Bindings;
+
+	/**
+	 * The preset that owns this target.
+	 */
+	UPROPERTY()
+	TWeakObjectPtr<URemoteControlPreset> Owner;
+
+	friend URemoteControlPreset;
 };
 
 /**
- * Holds sections that contain exposed functions and properties.
+ * Holds targets that contain exposed functions and properties.
  */
 UCLASS(BlueprintType)
 class REMOTECONTROL_API URemoteControlPreset : public UObject
 {
 public:
 	GENERATED_BODY()
+
+	URemoteControlPreset();
+
+	//~ Begin UObject interface
+	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	//~ End UObject interface
 		                                          
 	/**
-	 * Get this preset's sections.
+	 * Get this preset's targets.
 	 */
-	TMap<FString, FRemoteControlSection>& GetRemoteControlSections() { return RemoteControlSections; }
+	TMap<FName, FRemoteControlTarget>& GetRemoteControlTargets() { return RemoteControlTargets; }
 
 	/**
-	 * Get this preset's sections.
+	 * Get this preset's targets.
 	 */
-	const TMap<FString, FRemoteControlSection>& GetRemoteControlSections() const { return RemoteControlSections; }
+	const TMap<FName, FRemoteControlTarget>& GetRemoteControlTargets() const { return RemoteControlTargets; }
 
 	/**
-	 * Check if a section can be created with the given objects.
-	 * @param SectionObjects The top level objects of the section.
-	 * @return Whether or not the section can be created.
+	 * Get the target that owns this exposed field.
 	 */
-	bool CanCreateSection(const TArray<UObject*>& SectionObjects);
+	FName GetOwnerAlias(FGuid FieldId) const;
 
 	/**
-	 * Create a new section under this preset.
-	 * @param SectionObjects The objects to group under a common alias for the section.
-	 * @return The created section.
-	 * @note A section must be created with at least one object and they must have a common base class.
+	 * Get the ID for a field using its label.
+	 * @param FieldLabel the field's label.
+	 * @return the field's id, or an invalid GUID if not found.
 	 */
-	FRemoteControlSection& CreateSection(const TArray<UObject*>& SectionObjects);
+	FGuid GetFieldId(FName FieldLabel) const;
 
 	/**
-	 * Remove a section from the preset.
-	 * @param SectionName The section to delete.
+	 * Get a field ptr using it's id.
 	 */
-	void DeleteSection(const FString& SectionName);
+	TOptional<FRemoteControlField> GetField(FGuid FieldId) const;
+
+	 /**
+	  * Get an exposed function using its label.
+	  */
+	TOptional<FRemoteControlFunction> GetFunction(FName FunctionLabel) const;
+
+	/** 
+	 * Get an exposed property using its label.
+	 */
+	TOptional<FRemoteControlProperty> GetProperty(FName PropertyLabel) const;
 
 	/**
-	 * Rename a section.
-	 * @param SectionName The name of the section to rename.
-	 * @param NewSectionName The new section's name.
+	 * Get an exposed function using its id.
 	 */
-	void RenameSection(const FString& SectionName, const FString& NewSectionName);
-private:
-	/** Create an alias for an object list. */
-	FString GenerateAliasForObjects(const TArray<UObject*>& Objects);
+	TOptional<FRemoteControlFunction> GetFunction(FGuid FunctionId) const;
 
-	/** Create a unique name. */
-	FString MakeUniqueName(const FString& InBase);
-private:
-	/** The mappings of alias to exposed sections. */
+	/**
+	 * Get an exposed property using its id.
+	 */
+	TOptional<FRemoteControlProperty> GetProperty(FGuid PropertyId) const;
+
+	/**
+	 * Rename a field.
+	 * @param OldFieldLabel the target field's label.
+	 * @param NewFieldLabel the field's new label.
+	 */
+	void RenameField(FName OldFieldLabel, FName NewFieldLabel);
+
+	/**
+	 * Resolve a remote controlled property to its FProperty and owner objects.
+	 * @param Alias the target's alias that contains the remote controlled property.
+	 * @param PropertyLabel the label of the remote controlled property.
+	 * @return The resolved exposed property if found.
+	 */
+	TOptional<FExposedProperty> ResolveExposedProperty(FName PropertyLabel) const;
+
+	/**
+	 * Resolve a remote controlled function to its UFunction and owner objects.
+	 * @param Alias the target's alias that contains the remote controlled function.
+	 * @param FunctionLabel the label of the remote controlled function.
+	 * @return The resolved exposed function if found.
+	 */
+	TOptional<FExposedFunction> ResolveExposedFunction(FName FunctionLabel) const;
+
+	/**
+	 * Unexpose a field from the preset.
+	 * @param FieldLabel the field's display name.
+	 */
+	void Unexpose(FName FieldLabel);
+
+	/**
+	 * Create a new target under this preset.
+	 * @param TargetObjects The objects to group under a common alias for the target.
+	 * @return The new target's alias if successful.
+	 * @note A target must be created with at least one object and they must have a common base class.
+	 */
+	FName CreateTarget(const TArray<UObject*>& TargetObjects);
+
+	/**
+	 * Remove a target from the preset.
+	 * @param TargetName The target to delete.
+	 */
+	void DeleteTarget(FName TargetName);
+
+	/**
+	 * Rename a target.
+	 * @param TargetName The name of the target to rename.
+	 * @param NewTargetName The new target's name.
+	 */
+	void RenameTarget(FName TargetName, FName NewTargetName);
+
+	/** Cache this preset's layout data. */
+	void CacheLayoutData();
+
+	/** Resolves exposed property/function bounded objects */
+	TArray<UObject*> ResolvedBoundObjects(FName FieldLabel);
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetExposedPropertyChanged, URemoteControlPreset* /*Preset*/, const FRemoteControlProperty& /*Property*/);
+	FOnPresetExposedPropertyChanged& OnExposedPropertyChanged() { return OnPropertyChangedDelegate; }
+	
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetPropertyExposed, URemoteControlPreset* /*Preset*/, FName /*ExposedLabel*/);
+	FOnPresetPropertyExposed& OnPropertyExposed() { return OnPropertyExposedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetPropertyUnexposed, URemoteControlPreset* /*Preset*/, FName /*ExposedLabel*/);
+	FOnPresetPropertyUnexposed& OnPropertyUnexposed() { return OnPropertyUnexposedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPresetFieldRenamed, URemoteControlPreset* /*Preset*/, FName /*OldExposedLabel*/, FName /**NewExposedLabel*/);
+	FOnPresetFieldRenamed& OnFieldRenamed() { return OnPresetFieldRenamed; }
+
+	void NotifyExposedPropertyChanged(FName PropertyLabel);
+
+public:
 	UPROPERTY()
-	TMap<FString, FRemoteControlSection> RemoteControlSections;
+	FRemoteControlPresetLayout Layout;
+
+private:
+	/** Generate a unique alias for this target. */
+	FName GenerateAliasForObjects(const TArray<UObject*>& Objects);
+	
+	/** Generate a label for a field that is unique preset-wide. */
+	FName GenerateUniqueFieldLabel(FName Alias, const FString& BaseName);
+
+	/** Holds information about an exposed field. */
+	struct FExposeInfo
+	{
+		FName Alias;
+		FGuid FieldId;
+		FGuid LayoutGroupId;
+	};
+
+	//~ Callbacks called by the object targets
+	void OnExpose(const FExposeInfo& Info);
+	void OnUnexpose(FGuid UnexposedFieldId);
+	
+	// Cache operations.
+	void CacheFieldsData();
+	void CacheFieldLayoutData();
+
+	//Keep track of any property change to notify if one of the exposed property has changed
+	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
+
+	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
+
+	/**
+	 * Get a field ptr using it's id.
+	 */
+	FRemoteControlField* GetField(FGuid FieldId);
+
+private:
+	/** The mappings of alias to targets. */
+	UPROPERTY()
+	TMap<FName, FRemoteControlTarget> RemoteControlTargets;
+
+	/** The cache for information about an exposed field. */
+	RemoteControlPreset::FRemoteControlCache FieldCache;
+
+	/** Delegate triggered when an exposed property value has changed. */
+	FOnPresetExposedPropertyChanged OnPropertyChangedDelegate;
+
+	/** Delegate triggered when a new property has been exposed. */
+	FOnPresetPropertyExposed OnPropertyExposedDelegate;
+
+	/** Delegate triggered when a property has been unexposed. */
+	FOnPresetPropertyUnexposed OnPropertyUnexposedDelegate;
+
+	/** Delegate triggered when a field has been renamed. */
+	FOnPresetFieldRenamed OnPresetFieldRenamed;
+
+	struct FPreObjectModifiedCache
+	{
+		UObject* Object;
+		FProperty* Property;
+		FProperty* MemberProperty;
+	};
+
+	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedCache;
+
+	/** Map of Field Name to GUID. */
+	TMap<FName, FGuid> NameToGuidMap;
+
+	friend FRemoteControlTarget;
+	friend FRemoteControlPresetLayout;
+	friend FRemoteControlPresetGroup;
+};
+
+template<>
+struct TStructOpsTypeTraits<FRemoteControlPresetLayout> : public TStructOpsTypeTraitsBase2<FRemoteControlPresetLayout>
+{
+	enum
+	{
+		WithPostSerialize = true
+	};
 };
