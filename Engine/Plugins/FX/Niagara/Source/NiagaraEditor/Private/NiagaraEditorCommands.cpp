@@ -22,7 +22,8 @@ void FNiagaraEditorCommands::RegisterCommands()
 	UI_COMMAND(ToggleEmitterExecutionOrder, "EmitterExecutionOrder", "Display Emitter Execution Order", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(TogglePreviewBackground, "Background", "Toggles the preview pane's background.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleUnlockToChanges, "Lock/Unlock To Changes", "Toggles whether or not changes in the source asset get pulled into this asset automatically.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ToggleStatPerformance, "Performance", "Show runtime performance for cpu scripts.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleStatPerformance, "Performance", "Show runtime performance for particle scripts.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleStatPerformanceGPU, "GPU Profiling", "Measure gpu runtime cost of scripts. Can be expensive for simulation stages with lots of iterations.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ClearStatPerformance, "Clear Stats", "Clear all existing stat captures.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ToggleStatPerformanceTypeAvg, "Display Average", "Displays the average of captured stats.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleStatPerformanceTypeMax, "Display Maximum", "Displays the maximum of captured stats.", EUserInterfaceActionType::ToggleButton, FInputChord());

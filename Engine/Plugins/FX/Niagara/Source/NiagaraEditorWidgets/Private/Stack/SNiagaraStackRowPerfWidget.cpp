@@ -5,17 +5,20 @@
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeOutput.h"
+#include "NiagaraSimulationStageBase.h"
 #include "NiagaraSystem.h"
+
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackSimulationStageGroup.h"
 
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SWrapBox.h"
-#include "ViewModels/Stack/NiagaraStackModuleItem.h"
-#include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackRowPerfWidget"
 
@@ -103,6 +106,26 @@ void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraSta
 void SNiagaraStackRowPerfWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	GroupOverallTime = CalculateGroupOverallTime("Main");
+	if (IsGpuEmitter())
+	{
+		if (GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript)
+		{
+			GroupOverallTime = CalculateGroupOverallTime("GPU_Stage_SpawnUpdate");
+		}
+		if (GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+		{
+			FString SimStageName = "";
+			UNiagaraStackSimulationStageGroup* SimStageGroup = Cast<UNiagaraStackSimulationStageGroup>(StackEntry);
+			if (SimStageGroup)
+			{
+				UNiagaraSimulationStageBase* SimStage = SimStageGroup->GetSimulationStage();
+				SimStageName = SimStage->SimulationStageName.ToString();
+			}
+			
+			GroupOverallTime = CalculateGroupOverallTime("GPU_Stage_" + SimStageName);
+		}
+	}
+	
 	StackEntryTime = CalculateStackEntryTime();
 	if (GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript && IsInterpolatedSpawnEnabled())
 	{
@@ -140,6 +163,10 @@ FLinearColor SNiagaraStackRowPerfWidget::GetVisualizationBrushColor() const
 	ENiagaraScriptUsage Usage = GetUsage();
 	if (Usage == ENiagaraScriptUsage::ParticleUpdateScript)
 	{
+		if (IsGpuEmitter())
+		{
+			return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleSpawn");
+		}
 		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleUpdate");
 	}
 	if (Usage == ENiagaraScriptUsage::ParticleSpawnScript)
@@ -153,6 +180,10 @@ FLinearColor SNiagaraStackRowPerfWidget::GetVisualizationBrushColor() const
 	if (Usage == ENiagaraScriptUsage::SystemUpdateScript)
 	{
 		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystemUpdate");
+	}
+	if (Usage == ENiagaraScriptUsage::ParticleSimulationStageScript)
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleUpdate");
 	}
 	return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorDefault");
 }
@@ -180,7 +211,7 @@ bool SNiagaraStackRowPerfWidget::HasPerformanceData() const
 	}
 	if (IsPerfCaptureEnabled && IsParticleStack())
 	{
-		return IsGroupHeaderEntry() || IsModuleEntry();
+		return IsGpuEmitter() ? (IsGroupHeaderEntry() && GetUsage() != ENiagaraScriptUsage::ParticleSpawnScript) : (IsGroupHeaderEntry() || IsModuleEntry());
 	}
 	return false;
 #else
@@ -296,6 +327,17 @@ FText SNiagaraStackRowPerfWidget::CreateTooltipText() const
 		{
 			return LOCTEXT("GroupHeaderSpawnTooltip", "This is the total runtime cost of the spawn script and its module calls.\nNote that the module calls do not add up to 100% because the script itself has some overhead as well.\nWhen interpolated spawn is enabled, this also includes the cost of running the update script on the spawned particles.");
 		}
+		if (IsGpuEmitter())
+		{
+			if (GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript)
+			{
+				return LOCTEXT("GroupHeaderUpdateGPUTooltip", "This is the total GPU runtime cost of the combined spawn and update script call.\nThere are no individual module costs because the gpu stats cannot be measured on that level.");
+			}
+			if (GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+			{
+				return LOCTEXT("GroupHeaderSimStageGPUTooltip", "This is the total GPU runtime cost of the simulation stage script.\nIf the simulation stage has more than one iteration then this is the combined sum of all iterations.");
+			}
+		}
 		return LOCTEXT("GroupHeaderTooltip", "This is the total runtime cost of the script and its module calls.\nNote that the module calls do not add up to 100% because the script itself has some overhead as well.");
 	}
 	return FText();
@@ -336,6 +378,10 @@ UNiagaraEmitter* SNiagaraStackRowPerfWidget::GetEmitter() const
 ENiagaraScriptUsage SNiagaraStackRowPerfWidget::GetUsage() const
 {
 	FName SubcategoryName = StackEntry->GetExecutionSubcategoryName();
+	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::SimulationStage)
+	{
+		return ENiagaraScriptUsage::ParticleSimulationStageScript;
+	}
 	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn)
 	{
 		return StackEntry->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::Particle ? ENiagaraScriptUsage::ParticleSpawnScript : ENiagaraScriptUsage::SystemSpawnScript;
@@ -360,6 +406,11 @@ bool SNiagaraStackRowPerfWidget::IsInterpolatedSpawnEnabled() const
 	return Emitter->bInterpolatedSpawning;
 }
 
+bool SNiagaraStackRowPerfWidget::IsGpuEmitter() const
+{
+	return GetEmitter() && GetEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+}
+
 float SNiagaraStackRowPerfWidget::CalculateGroupOverallTime(FString StatScopeName) const
 {
 #if STATS
@@ -375,6 +426,10 @@ float SNiagaraStackRowPerfWidget::CalculateGroupOverallTime(FString StatScopeNam
 			return 0;
 		}
 		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
+		if (IsGpuEmitter())
+		{
+			return Emitter->GetStatData().GetRuntimeStat(StatId.GetName(), ENiagaraScriptUsage::ParticleGPUComputeScript, GetEvaluationType()) / 1000.0f;
+		}
 		return FPlatformTime::ToMilliseconds(Emitter->GetStatData().GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
 	}
 	if (IsSystemStack() || IsEmitterStack())
@@ -423,7 +478,7 @@ float SNiagaraStackRowPerfWidget::CalculateStackEntryTime() const
 		{
 			return 0;
 		}
-		FString StatScopeName = FunctionNode.GetFunctionName() + "_" + Emitter->GetName();
+		FString StatScopeName = FunctionNode.GetFunctionName() + "_" + Emitter->GetUniqueEmitterName();
 		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
 		FString StatName = StatId.GetName().ToString();
 		UNiagaraSystem& System = StackEntry->GetSystemViewModel()->GetSystem();

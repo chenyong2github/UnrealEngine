@@ -49,6 +49,7 @@ public:
 	TSharedPtr<FUICommandInfo> SaveThumbnailImage;
 
 	TSharedPtr<FUICommandInfo> ToggleStatPerformance;
+	TSharedPtr<FUICommandInfo> ToggleStatPerformanceGPU;
 	TSharedPtr<FUICommandInfo> ClearStatPerformance;
 	TSharedPtr<FUICommandInfo> ToggleStatPerformanceTypeAvg;
 	TSharedPtr<FUICommandInfo> ToggleStatPerformanceTypeMax;

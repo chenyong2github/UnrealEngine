@@ -400,6 +400,9 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 #if !UE_BUILD_SHIPPING
 			GPUExecContext->SetDebugSimName(CachedEmitter->GetDebugSimName());
 #endif
+#if STATS
+			GPUExecContext->EmitterPtr = GetEmitterHandle().GetInstance();
+#endif
 			GPUExecContext->MainDataSet = ParticleDataSet;
 			GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
 
