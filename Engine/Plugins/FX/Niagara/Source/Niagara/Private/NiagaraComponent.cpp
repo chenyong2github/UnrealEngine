@@ -1310,6 +1310,7 @@ void UNiagaraComponent::OnPooledReuse(UWorld* NewWorld)
 
 	//Need to reset the component's visibility in case it's returned to the pool while marked invisible.
 	SetVisibility(true);
+	SetHiddenInGame(false);
 
 	if (GetWorld() != NewWorld)
 	{
