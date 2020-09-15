@@ -151,15 +151,6 @@ struct FScriptExecutionConstantBufferTable
 	}
 };
 
-#if STATS
-struct FStatExecutionTimer
-{
-	TSimpleRingBuffer<uint64> AccumulatedCycles = TSimpleRingBuffer<uint64>(120);
-
-	FStatExecutionTimer();
-};
-#endif
-
 struct FNiagaraScriptExecutionContextBase
 {
 	UNiagaraScript* Script;
@@ -184,7 +175,7 @@ struct FNiagaraScriptExecutionContextBase
 	int32 HasInterpolationParameters : 1;
 #if STATS
 	TArray<FStatScopeData> StatScopeData;
-	TMap<TStatIdData const*, FStatExecutionTimer> ExecutionTimings;
+	TMap<TStatIdData const*, float> ExecutionTimings;
 	void CreateStatScopeData();
 	TMap<TStatIdData const*, float> ReportStats();
 #endif
@@ -357,6 +348,9 @@ public:
 #if !UE_BUILD_SHIPPING
 	FString DebugSimName;
 #endif
+#if STATS
+	TWeakObjectPtr<UNiagaraEmitter> EmitterPtr; // emitter pointer used to report captured gpu stats
+#endif
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return CombinedParamStore.GetDataInterfaces(); }
 
@@ -395,7 +389,7 @@ public:
 	mutable uint32 ScratchNumInstances = 0;
 	mutable uint32 ScratchMaxInstances = 0;
 
-	TArray < FSimulationStageMetaData> SimStageInfo;
+	TArray<FSimulationStageMetaData> SimStageInfo;
 
 	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
 	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;

@@ -37,6 +37,14 @@ FAutoConsoleVariableRef CVarMaxStatInstanceReportss(
     TEXT("The max number of different instances from which stat reports are aggregated."),
     ECVF_Default);
 
+static int32 GbMaxStatRecordedFrames = 30;
+static FAutoConsoleVariableRef CVarMaxStatRecordedFrames(
+    TEXT("fx.Niagara.MaxStatRecordedFrames"),
+    GbMaxStatRecordedFrames,
+    TEXT("The number of frames recorded for the stat performance display of niagara cpu and gpu scripts. \n"),
+    ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* StructOrEnum)
@@ -347,6 +355,11 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 //////////////////////////////////////////////////////////////////////////
 
 #if STATS
+FStatExecutionTimer::FStatExecutionTimer()
+{
+	CapturedTimings = new TSimpleRingBuffer<float>(GbMaxStatRecordedFrames);
+}
+
 void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData)
 {
 	if (CapturedData.Num() == 0)
@@ -361,7 +374,12 @@ void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatId
 		StatCaptures.GetKeys(Keys);
 		StatCaptures.Remove(Keys[FMath::RandHelper(Keys.Num())]);
 	}
-	StatCaptures.FindOrAdd(ReportKey) = CapturedData;
+
+	TMap<TStatIdData const*, FStatExecutionTimer>& InstanceData = StatCaptures.FindOrAdd(ReportKey);
+	for (const auto& Entry : CapturedData)
+	{		
+		InstanceData.FindOrAdd(Entry.Key).CapturedTimings->WriteNewElementUninitialized() = Entry.Value;
+	}
 }
 
 void FNiagaraStatDatabase::ClearStatCaptures()
@@ -382,13 +400,17 @@ float FNiagaraStatDatabase::GetRuntimeStat(FName StatName, ENiagaraScriptUsage U
 		{
 			continue;
 		}
-		for (const auto& StatEntry : EmitterEntry.Value)
+		for (const TTuple<TStatIdData const*, FStatExecutionTimer>& StatEntry : EmitterEntry.Value)
 		{
 			if (MinimalNameToName(StatEntry.Key->Name) == StatName)
 			{
-				Max = FMath::Max(Max, StatEntry.Value);
-				Sum += StatEntry.Value;
-				ValueCount++;
+				for (int i = 0; i < StatEntry.Value.CapturedTimings->Num(); i++)
+				{
+					float Value = (*StatEntry.Value.CapturedTimings)(i);
+					Max = FMath::Max(Max, Value);
+					Sum += Value;
+					ValueCount++;
+				}
 				break;
 			}
 		}
@@ -412,11 +434,15 @@ float FNiagaraStatDatabase::GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraSt
 		{
 			continue;
 		}
-		for (const auto& StatEntry : EmitterEntry.Value)
+		for (const TTuple<TStatIdData const*, FStatExecutionTimer>& StatEntry : EmitterEntry.Value)
 		{
-			Max = FMath::Max(Max, StatEntry.Value);
-			Sum += StatEntry.Value;
-			ValueCount++;
+			for (int i = 0; i < StatEntry.Value.CapturedTimings->Num(); i++)
+			{
+				float Value = (*StatEntry.Value.CapturedTimings)(i);
+				Max = FMath::Max(Max, Value);
+				Sum += Value;
+				ValueCount++;
+			}
 		}
 	}
 	if (EvaluationType == ENiagaraStatEvaluationType::Maximum)

@@ -777,6 +777,11 @@ void FNiagaraSystemToolkit::SetupCommands()
         FNiagaraEditorCommands::Get().ClearStatPerformance,
         FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ClearStatPerformance));
 	GetToolkitCommands()->MapAction(
+        FNiagaraEditorCommands::Get().ToggleStatPerformanceGPU,
+        FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceGPU),
+        FCanExecuteAction(),
+        FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsStatPerformanceGPUChecked));
+	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeAvg,
 		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceTypeAvg),
 		FCanExecuteAction(),
@@ -959,7 +964,7 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			{
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ToggleStatPerformance, NAME_None,
                     LOCTEXT("NiagaraShowPerformance", "Performance"),
-                    LOCTEXT("ShowBoundsTooltip", "Show runtime performance for cpu scripts."),
+                    LOCTEXT("ShowBoundsTooltip", "Show runtime performance for particle scripts."),
                     FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats"));
 				ToolbarBuilder.AddComboButton(
                     FUIAction(),
@@ -1017,6 +1022,8 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateStatConfigMenuContent(TShared
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
 
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ClearStatPerformance);
+	MenuBuilder.AddMenuSeparator();
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceGPU);
 	MenuBuilder.AddMenuSeparator();
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeAvg);
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeMax);
@@ -1276,10 +1283,15 @@ void FNiagaraSystemToolkit::ClearStatPerformance()
 
 void FNiagaraSystemToolkit::ToggleStatPerformance()
 {
-	IConsoleVariable* StatVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
-	if (StatVar)
+	bool IsEnabled = IsStatPerformanceChecked();
+	IConsoleVariable* StatVarVM = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
+	if (StatVarVM)
 	{
-		StatVar->Set(!StatVar->GetBool());
+		StatVarVM->Set(!IsEnabled);
+	}
+	if (IsStatPerformanceGPUChecked() == IsEnabled)
+	{
+		ToggleStatPerformanceGPU();
 	}
 }
 
@@ -1307,6 +1319,21 @@ bool FNiagaraSystemToolkit::IsStatPerformanceChecked()
 {
 	IConsoleVariable* StatVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
 	return StatVar ? StatVar->GetBool() : false;
+}
+
+void FNiagaraSystemToolkit::ToggleStatPerformanceGPU()
+{
+	IConsoleVariable* StatVarGPU = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.NiagaraGpuProfilingEnabled"));
+	if (StatVarGPU)
+	{
+		StatVarGPU->Set(!IsStatPerformanceGPUChecked());
+	}
+}
+
+bool FNiagaraSystemToolkit::IsStatPerformanceGPUChecked()
+{
+	IConsoleVariable* StatVarGPU = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.NiagaraGpuProfilingEnabled"));
+	return StatVarGPU ? StatVarGPU->GetBool() : false;
 }
 
 void FNiagaraSystemToolkit::UpdateOriginalEmitter()
