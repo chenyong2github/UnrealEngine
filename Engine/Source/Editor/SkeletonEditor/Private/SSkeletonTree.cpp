@@ -1417,7 +1417,7 @@ void SSkeletonTree::OnSelectionChanged(TSharedPtr<ISkeletonTreeItem> Selection, 
 							int32 BoneIndex = PreviewComponent->GetBoneIndex(BoneName);
 							if (BoneIndex != INDEX_NONE)
 							{
-								GetPreviewScene()->SetSelectedBone(BoneName);
+								GetPreviewScene()->SetSelectedBone(BoneName, SelectInfo);
 								BoneProxy->BoneName = BoneName;
 
 								PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1605,7 +1605,7 @@ void SSkeletonTree::SetSelectedSocket( const FSelectedSocketInfo& SocketInfo )
 	}
 }
 
-void SSkeletonTree::SetSelectedBone( const FName& BoneName )
+void SSkeletonTree::SetSelectedBone( const FName& BoneName, ESelectInfo::Type InSelectInfo )
 {
 	if (!bSelecting)
 	{
@@ -1618,7 +1618,7 @@ void SSkeletonTree::SetSelectedBone( const FName& BoneName )
 
 			if (SkeletonRow->GetFilterResult() != ESkeletonTreeFilterResult::Hidden && SkeletonRow->IsOfType<FSkeletonTreeBoneItem>() && SkeletonRow->GetRowItemName() == BoneName)
 			{
-				SkeletonTreeView->SetItemSelection(SkeletonRow, true);
+				SkeletonTreeView->SetItemSelection(SkeletonRow, true, InSelectInfo);
 				SkeletonTreeView->RequestScrollIntoView(SkeletonRow);
 			}
 		}
@@ -2206,9 +2206,9 @@ void SSkeletonTree::AddReferencedObjects( FReferenceCollector& Collector )
 	Collector.AddReferencedObject(BoneProxy);
 }
 
-void SSkeletonTree::HandleSelectedBoneChanged(const FName& InBoneName)
+void SSkeletonTree::HandleSelectedBoneChanged(const FName& InBoneName, ESelectInfo::Type InSelectInfo)
 {
-	SetSelectedBone(InBoneName);
+	SetSelectedBone(InBoneName, InSelectInfo);
 }
 
 void SSkeletonTree::HandleSelectedSocketChanged(const FSelectedSocketInfo& InSocketInfo)
