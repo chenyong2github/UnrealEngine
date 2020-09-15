@@ -337,6 +337,11 @@ void UMovieSceneTrack::AddSectionPrePostRollRangesToTree(TArrayView<UMovieSceneS
 	}
 }
 
+void UMovieSceneTrack::PreCompile()
+{
+	PreCompileImpl();
+}
+
 const FMovieSceneTrackEvaluationField& UMovieSceneTrack::GetEvaluationField()
 {
 	if (EvaluationFieldGuid != GetSignature() 
