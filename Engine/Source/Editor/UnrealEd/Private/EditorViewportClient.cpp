@@ -837,6 +837,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	const float ModifiedViewFOV = ModifiedViewInfo.FOV;
 	if (bUseControllingActorViewInfo)
 	{
+		ControllingActorViewInfo.Location = ModifiedViewInfo.Location;
+		ControllingActorViewInfo.Rotation = ModifiedViewInfo.Rotation;
 		ControllingActorViewInfo.FOV = ModifiedViewInfo.FOV;
 	}
 
