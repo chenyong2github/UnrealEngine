@@ -222,7 +222,7 @@ FOpenXRInputPlugin::FOpenXRInput::~FOpenXRInput()
 
 void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 {
-	if (bActionsBound)
+	if ((bActionsBound) || (OpenXRHMD == nullptr))
 	{
 		return;
 	}
