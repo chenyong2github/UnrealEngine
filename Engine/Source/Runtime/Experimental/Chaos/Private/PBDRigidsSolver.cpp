@@ -219,7 +219,12 @@ namespace Chaos
 			MSolver->GetCurrentFrame()++;
 			MSolver->PostTickDebugDraw();
 
-			MSolver->CompleteSceneSimulation();
+			//Editor ticks with 0 dt. We don't want to buffer any dirty data from this since it won't be consumed
+			//TODO: handle this more gracefully
+			if(MDeltaTime > 0)
+			{
+				MSolver->CompleteSceneSimulation();
+			}
 		}
 
 	protected:
