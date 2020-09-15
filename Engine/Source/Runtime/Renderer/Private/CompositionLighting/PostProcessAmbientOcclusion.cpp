@@ -90,7 +90,7 @@ static TAutoConsoleVariable<int32> CVarAmbientOcclusionMethod(
 
 static TAutoConsoleVariable<int32> CVarGTAOUseNormals(
 	TEXT("r.GTAO.UseNormals"),
-	1,
+	0,
 	TEXT("Whether to use GBuffer Normals or Depth Derived normals \n ")
 	TEXT("0: Off \n ")
 	TEXT("1: On (default)\n "),
@@ -139,6 +139,13 @@ static TAutoConsoleVariable<float> CVarGTAOPauseJitter(
 	TEXT("Whether to pause Jitter when Temporal filter is off \n "),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarGTAOUpsample(
+	TEXT("r.GTAO.Upsample"),
+	1,
+	TEXT("Enable Simple or Depth aware upsample filter for GTAO \n ")
+	TEXT("0: Simple \n ")
+	TEXT("1: DepthAware (default)\n "),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 float FSSAOHelper::GetAmbientOcclusionQualityRT(const FSceneView& View)
 {
@@ -968,7 +975,6 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGTAOShaderParameters, GTAOParameters)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DepthOutTexture)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT();
 };
 IMPLEMENT_GLOBAL_SHADER(FGTAOHorizonSearchAndIntegrateCS, "/Engine/Private/PostProcessAmbientOcclusion.usf", "GTAOCombinedCS", SF_Compute);
@@ -978,8 +984,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 	const FViewInfo& View,
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture SceneDepth,
-	FScreenPassTexture HZBInput,
-	FScreenPassRenderTarget DepthOutput)
+	FScreenPassTexture HZBInput)
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, GTAO_HorizonSearchIntegrate);
 
@@ -1001,14 +1006,6 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 		Output.ViewRect = OutputViewport.Rect;
 		Output.LoadAction = ERenderTargetLoadAction::ENoAction;
 
-		if (!DepthOutput.IsValid())
-		{
-			OutputDesc.Format = PF_R32_FLOAT;
-
-			DepthOutput.Texture = GraphBuilder.CreateTexture(OutputDesc, TEXT("GTAODepth"));
-			DepthOutput.ViewRect = OutputViewport.Rect;
-			DepthOutput.LoadAction = ERenderTargetLoadAction::ENoAction;
-		}
 	}
 
 	const bool bUseNormals = CVarGTAOUseNormals.GetValueOnRenderThread() >= 1;
@@ -1021,7 +1018,6 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 	PassParameters->GTAOParameters = GetGTAOShaderParameters(View, OutputViewport.Extent);
 
 	PassParameters->OutTexture = GraphBuilder.CreateUAV(Output.Texture);
-	PassParameters->DepthOutTexture = GraphBuilder.CreateUAV(DepthOutput.Texture);
 
 	FGTAOHorizonSearchAndIntegrateCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGTAOHorizonSearchAndIntegrateCS::FShaderQualityDim>(CommonParameters.ShaderQuality);
@@ -1038,7 +1034,6 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 
 	FGTAOHorizonSearchOutputs Outputs;
 	Outputs.Color = Output;
-	Outputs.Depth = DepthOutput;
 	return MoveTemp(Outputs);
 }
 
@@ -1174,8 +1169,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture SceneDepth,
 	FScreenPassTexture HZBInput,
-	FScreenPassRenderTarget HorizonOutput,
-	FScreenPassRenderTarget DepthOutput)
+	FScreenPassRenderTarget HorizonOutput)
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, GTAO_HorizonSearch);
 
@@ -1191,7 +1185,6 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
 	PassParameters->GTAOParameters = GetGTAOShaderParameters(View, OutputViewport.Extent);
 
 	PassParameters->HorizonOutTexture = GraphBuilder.CreateUAV(HorizonOutput.Texture);
-	PassParameters->DepthOutTexture = GraphBuilder.CreateUAV(DepthOutput.Texture);
 
 	FGTAOHorizonSearchCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGTAOHorizonSearchCS::FShaderQualityDim>(CommonParameters.ShaderQuality);
@@ -1207,7 +1200,6 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
 
 	FGTAOHorizonSearchOutputs Outputs;
 	Outputs.Color = HorizonOutput;
-	Outputs.Depth = DepthOutput;
 
 	return MoveTemp(Outputs);
 }
@@ -1267,7 +1259,7 @@ FGTAOTemporalOutputs AddGTAOTemporalPass(
 	const FViewInfo& View,
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture Input,
-	FScreenPassTexture GTAODepths,
+	FScreenPassTexture SceneDepth,
 	FScreenPassTexture SceneVelocity,
 	FScreenPassTexture HistoryColor,
 	FScreenPassTextureViewport HistoryViewport)
@@ -1324,7 +1316,7 @@ FGTAOTemporalOutputs AddGTAOTemporalPass(
 	PassParameters->HistoryTextureSize = HistoryTextureSize;
 	PassParameters->HistoryTexturePixelSize = HistoryTexturePixelSize;
 
-	PassParameters->ZCurrTexture = GTAODepths.Texture;
+	PassParameters->ZCurrTexture		= SceneDepth.Texture;
 	PassParameters->ZCurrTextureSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 
 	PassParameters->SceneVelocityTexture = SceneVelocity.Texture;
@@ -1377,6 +1369,8 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSAOShaderParameters, SSAOParameters)
 
 		SHADER_PARAMETER(FIntPoint, GTAOSpatialFilterExtents)
+		SHADER_PARAMETER(FVector4, GTAOSpatialFilterParams)
+		SHADER_PARAMETER(FVector4, GTAOSpatialFilterWidth)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GTAOSpatialFilterTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GTAOSpatialFilterDepthTexture)
@@ -1421,6 +1415,32 @@ FScreenPassTexture AddGTAOSpatialFilter(
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, InputViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::GTAO);
 
 	PassParameters->GTAOSpatialFilterExtents = OutputViewport.Rect.Size();
+
+
+	FVector4 FilterWidthParamsValue(0.0f, 0.0f, 0.0f, 0.0f);
+	float FilterWidth = CVarGTAOFilterWidth.GetValueOnRenderThread();
+
+	if (FilterWidth == 3.0f)
+	{
+		FilterWidthParamsValue.X = -1.0f;
+		FilterWidthParamsValue.Y = 1.0f;
+	}
+	else if (FilterWidth == 4.0f)
+	{
+		FilterWidthParamsValue.X = -1.0f;
+		FilterWidthParamsValue.Y = 2.0f;
+	}
+	else
+	{
+		FilterWidthParamsValue.X = -2.0f;
+		FilterWidthParamsValue.Y = 2.0f;
+	}
+	PassParameters->GTAOSpatialFilterWidth = FilterWidthParamsValue;
+
+	float DownsampleFactor = 1.0;
+	FVector4 FilterParamsValue((float)DownsampleFactor, 0.0f, 0.0f, 0.0f); // JDW TODO
+
+	PassParameters->GTAOSpatialFilterWidth = FilterParamsValue;
 
 	PassParameters->GTAOSpatialFilterTexture = Input.Texture;
 	PassParameters->GTAOSpatialFilterDepthTexture = InputDepth.Texture;
@@ -1474,7 +1494,6 @@ FScreenPassTexture AddGTAOUpsamplePass(
 	const FGTAOCommonParameters& CommonParameters,
 	FScreenPassTexture Input,
 	FScreenPassTexture SceneDepth,
-	FScreenPassTexture GTAODepths,
 	FScreenPassRenderTarget Output)
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, GTAO_Upsample);

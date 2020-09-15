@@ -1260,7 +1260,6 @@ void SAssetView::OnDragLeave( const FDragDropEvent& DragDropEvent )
 	if( AssetDragDropOp.IsValid() )
 	{
 		AssetDragDropOp->ResetToDefaultToolTip();
-		return;
 	}
 
 	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();

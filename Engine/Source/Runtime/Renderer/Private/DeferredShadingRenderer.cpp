@@ -2077,6 +2077,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 			GCompositionLighting.ProcessAfterBasePass(GraphBuilder, Scene->UniformBuffers, View, SceneTextures);
 		}
+		SceneContext.ScreenSpaceGTAOHorizons.SafeRelease();
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 
