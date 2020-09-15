@@ -1969,7 +1969,8 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& 
 	{
 		ExternalVariable.TypeName = TEXT("int32");
 	}
-	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum)
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum ||
+		InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
 	{
 		if (UEnum* Enum = Cast<UEnum>(InPinType.PinSubCategoryObject))
 		{
