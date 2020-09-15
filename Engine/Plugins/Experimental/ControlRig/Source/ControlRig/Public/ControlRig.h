@@ -15,6 +15,7 @@
 #include "Units/RigUnit.h"
 #include "Units/Control/RigUnit_Control.h"
 #include "RigVMCore/RigVM.h"
+#include "Components/SceneComponent.h"
 
 #if WITH_EDITOR
 #include "RigVMModel/RigVMPin.h"
@@ -547,6 +548,8 @@ protected:
 	int32 PostSetupBracket;
 	int32 InteractionBracket;
 	int32 InterRigSyncBracket;
+
+	TWeakObjectPtr<USceneComponent> OuterSceneComponent;
 
 	FORCEINLINE bool IsInitializing() const
 	{

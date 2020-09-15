@@ -66,12 +66,15 @@ struct FRigUnitContext
 	/** True if the rig is executing during an interaction */
 	bool bDuringInteraction;
 
+	/** The current transform going from rig (global) space to world space */
+	FTransform ToWorldSpaceTransform;
+
 #if WITH_EDITOR
 	/** A handle to the compiler log */
 	FControlRigLog* Log;
 #endif
 
-	const FRigBoneHierarchy* GetBones() const
+	FORCEINLINE const FRigBoneHierarchy* GetBones() const
 	{
 		if (Hierarchy != nullptr)
 		{
@@ -80,7 +83,7 @@ struct FRigUnitContext
 		return nullptr;
 	}
 
-	const FRigSpaceHierarchy* GetSpaces() const
+	FORCEINLINE const FRigSpaceHierarchy* GetSpaces() const
 	{
 		if (Hierarchy != nullptr)
 		{
@@ -89,7 +92,7 @@ struct FRigUnitContext
 		return nullptr;
 	}
 
-	const FRigControlHierarchy* GetControls() const
+	FORCEINLINE const FRigControlHierarchy* GetControls() const
 	{
 		if (Hierarchy != nullptr)
 		{
@@ -98,7 +101,7 @@ struct FRigUnitContext
 		return nullptr;
 	}
 
-	const FRigCurveContainer* GetCurves() const
+	FORCEINLINE const FRigCurveContainer* GetCurves() const
 	{
 		if (Hierarchy != nullptr)
 		{
@@ -114,13 +117,61 @@ struct FRigUnitContext
 	 * @return The requested data source
 	 */
 	template<class T>
-	T* RequestDataSource(const FName& InName) const
+	FORCEINLINE T* RequestDataSource(const FName& InName) const
 	{
 		if (DataSourceRegistry == nullptr)
 		{
 			return nullptr;
 		}
 		return DataSourceRegistry->RequestSource<T>(InName);
+	}
+
+	/**
+	 * Converts a transform from rig (global) space to world space
+	 */
+	FORCEINLINE FTransform ToWorldSpace(const FTransform& InTransform) const
+	{
+		return InTransform * ToWorldSpaceTransform;
+	}
+
+	/**
+	 * Converts a transform from world space to rig (global) space
+	 */
+	FORCEINLINE FTransform ToRigSpace(const FTransform& InTransform) const
+	{
+		return InTransform.GetRelativeTransform(ToWorldSpaceTransform);
+	}
+
+	/**
+	 * Converts a location from rig (global) space to world space
+	 */
+	FORCEINLINE FVector ToWorldSpace(const FVector& InLocation) const
+	{
+		return ToWorldSpaceTransform.TransformPosition(InLocation);
+	}
+
+	/**
+	 * Converts a location from world space to rig (global) space
+	 */
+	FORCEINLINE FVector ToRigSpace(const FVector& InLocation) const
+	{
+		return ToWorldSpaceTransform.InverseTransformPosition(InLocation);
+	}
+
+	/**
+	 * Converts a rotation from rig (global) space to world space
+	 */
+	FORCEINLINE FQuat ToWorldSpace(const FQuat& InRotation) const
+	{
+		return ToWorldSpaceTransform.TransformRotation(InRotation);
+	}
+
+	/**
+	 * Converts a rotation from world space to rig (global) space
+	 */
+	FORCEINLINE FQuat ToRigSpace(const FQuat& InRotation) const
+	{
+		return ToWorldSpaceTransform.InverseTransformRotation(InRotation);
 	}
 };
 
