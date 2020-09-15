@@ -425,6 +425,38 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.State = InState;
 	Context.Hierarchy = &Hierarchy;
 
+	Context.ToWorldSpaceTransform = FTransform::Identity;
+
+	if (!OuterSceneComponent.IsValid())
+	{
+		USceneComponent* SceneComponentFromRegistry = DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);
+		if (SceneComponentFromRegistry)
+		{
+			OuterSceneComponent = SceneComponentFromRegistry;
+		}
+		else
+		{
+			UObject* Parent = this;
+			while (Parent)
+			{
+				Parent = Parent->GetOuter();
+				if (Parent)
+				{
+					if (USceneComponent* SceneComponent = Cast<USceneComponent>(Parent))
+					{
+						OuterSceneComponent = SceneComponent;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if (OuterSceneComponent.IsValid())
+	{
+		Context.ToWorldSpaceTransform = OuterSceneComponent->GetComponentToWorld();
+	}
+
 #if WITH_EDITOR
 	Context.Log = ControlRigLog;
 	if (ControlRigLog != nullptr)
