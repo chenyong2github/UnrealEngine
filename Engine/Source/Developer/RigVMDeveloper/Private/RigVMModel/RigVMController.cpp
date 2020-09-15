@@ -263,20 +263,6 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
-	TArray<FRigVMGraphVariableDescription> ExistingVariables = Graph->GetVariableDescriptions();
-	for (const FRigVMGraphVariableDescription& ExistingVariable : ExistingVariables)
-	{
-		if (ExistingVariable.Name == InVariableName)
-		{
-			if (ExistingVariable.CPPType != InCPPType ||
-				ExistingVariable.CPPTypeObject != InCPPTypeObject)
-			{
-				ReportErrorf(TEXT("Cannot add variable '%s' - variable already exists."), *InVariableName.ToString());
-				return nullptr;
-			}
-		}
-	}
-
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("VariableNode")) : InNodeName);
 	URigVMVariableNode* Node = NewObject<URigVMVariableNode>(Graph, *Name);
 	Node->Position = InPosition;
