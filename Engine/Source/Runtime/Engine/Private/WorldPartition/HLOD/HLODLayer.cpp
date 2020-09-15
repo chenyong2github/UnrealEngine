@@ -15,7 +15,9 @@
 
 UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
 	, LoadingRange(30000)
+#endif
 {
 }
 
