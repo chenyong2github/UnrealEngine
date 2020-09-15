@@ -27,7 +27,6 @@ bool UWorldPartitionHLODsBuilder::Run(UWorld* World, FPackageSourceControlHelper
 {
 	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 	check(WorldPartitionSubsystem);
-	check(WorldPartitionSubsystem->IsEnabled());
 
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	check(WorldPartition);

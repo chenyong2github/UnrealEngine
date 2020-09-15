@@ -324,7 +324,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	InitState = EWorldPartitionInitState::Initialized;
 
-	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+	if (ensure(WorldPartitionSubsystem))
 	{
 		WorldPartitionSubsystem->RegisterWorldPartition(this);
 	}
@@ -394,7 +395,8 @@ void UWorldPartition::Uninitialize()
 		ActorToActorCluster.Empty();
 #endif		
 
-		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+		if (ensure(WorldPartitionSubsystem))
 		{
 			WorldPartitionSubsystem->UnregisterWorldPartition(this);
 		}

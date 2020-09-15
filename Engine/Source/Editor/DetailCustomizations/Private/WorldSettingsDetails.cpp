@@ -93,8 +93,7 @@ void FWorldSettingsDetails::AddLevelExternalActorsCustomization(IDetailLayoutBui
 
 	if (CustomizedLevel)
 	{
-		const UWorldPartitionSubsystem* WorldPartitionSubsystem = CustomizedLevel->GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
-		const bool bIsPartitionedWorld = WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled();
+		const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(CustomizedLevel->GetWorld());
 
 		IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
 		WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)

@@ -3607,6 +3607,25 @@ public:
 	}
 
 	/**
+	 * Check if world has a subsystem of the specified type
+	 */
+	template <typename TSubsystemClass>
+	bool HasSubsystem() const
+	{
+		return GetSubsystem<TSubsystemClass>() != nullptr;
+	}
+
+	/**
+	 * Check if world has a subsystem of the specified type from the provided GameInstance
+	 * returns false if the Subsystem cannot be found or the GameInstance is null
+	 */
+	template <typename TSubsystemClass>
+	static FORCEINLINE bool HasSubsystem(const UWorld* World)
+	{
+		return GetSubsystem<TSubsystemClass>(World) != nullptr;
+	}
+
+	/**
 	 * Get all Subsystem of specified type, this is only necessary for interfaces that can have multiple implementations instanced at a time.
 	 *
 	 * Do not hold onto this Array reference unless you are sure the lifetime is less than that of UGameInstance

@@ -24,9 +24,8 @@ class ENGINE_API UWorldPartitionSubsystem : public UWorldSubsystem, public FTick
 public:
 	UWorldPartitionSubsystem();
 
-	bool IsEnabled() const;
-
 	//~ Begin USubsystem Interface.
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
 

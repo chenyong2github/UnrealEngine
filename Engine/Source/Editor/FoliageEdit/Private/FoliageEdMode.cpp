@@ -1999,12 +1999,9 @@ void FEdModeFoliage::RemoveSelectedInstances(UWorld* InWorld)
 void FEdModeFoliage::GetFoliageTypeFilters(TArray<const UClass*>& OutFilters) const
 {
 	OutFilters.Add(UFoliageType_InstancedStaticMesh::StaticClass());
-	if (UWorldPartitionSubsystem* WorldPartition = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
+	if (GetWorld()->HasSubsystem<UWorldPartitionSubsystem>())
 	{
-		if (WorldPartition->IsEnabled())
-		{
-			return;
-		}
+		return;
 	}
 	// FoliageType Actor only supported in non WorldPartition worlds
 	OutFilters.Add(UFoliageType_Actor::StaticClass());

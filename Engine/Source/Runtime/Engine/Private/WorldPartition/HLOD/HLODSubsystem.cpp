@@ -26,6 +26,11 @@ UHLODSubsystem::~UHLODSubsystem()
 
 bool UHLODSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
+	if (!Super::ShouldCreateSubsystem(Outer))
+	{
+		return false;
+	}
+
 	if (UWorld* WorldOuter = Cast<UWorld>(Outer))
 	{
 		return WorldOuter->GetWorldPartition() != nullptr;

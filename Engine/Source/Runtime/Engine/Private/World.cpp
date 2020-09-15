@@ -7706,8 +7706,7 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 
 		FBox LevelBounds;
 
-		UWorldPartitionSubsystem* WorldPartitionSubsystem = GetSubsystem<UWorldPartitionSubsystem>();
-		if (WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled())
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GetSubsystem<UWorldPartitionSubsystem>())
 		{
 			LevelBounds = WorldPartitionSubsystem->GetWorldBounds();
 		}

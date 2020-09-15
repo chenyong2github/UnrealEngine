@@ -556,8 +556,7 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 	if (SelectedActorInfo.SelectionClass != AWorldSettings::StaticClass())
 	{
 		// Actor Packaging Mode
-		const UWorldPartitionSubsystem* WorldPartitionSubsystem = SelectedActorInfo.SharedWorld ? SelectedActorInfo.SharedWorld->GetSubsystem<UWorldPartitionSubsystem>() : nullptr;
-		const bool bIsPartitionedWorld = WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled();
+		const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(SelectedActorInfo.SharedWorld);
 
 		auto OnGetMenuContent = [=]() -> TSharedRef<SWidget> {
 			FMenuBuilder MenuBuilder(true, nullptr);

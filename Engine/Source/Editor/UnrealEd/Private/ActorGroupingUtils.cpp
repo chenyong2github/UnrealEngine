@@ -108,8 +108,7 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 					SpawnedGroupActor->CenterGroupLocation();
 					SpawnedGroupActor->Lock();
 
-					UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-					if (WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled())
+					if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
 					{
 						WorldPartitionSubsystem->UpdateActorDesc(SpawnedGroupActor);
 					}
@@ -175,8 +174,7 @@ void UActorGroupingUtils::UngroupActors(const TArray<AActor*>& ActorsToUngroup)
 				AGroupActor* GroupActor = OutermostGroupActors[GroupIndex];
 				GroupActor->ClearAndRemove();
 
-				UWorldPartitionSubsystem* WorldPartitionSubsystem = GroupActor->GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
-				if (WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled())
+				if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GroupActor->GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
 				{
 					WorldPartitionSubsystem->UpdateActorDesc(GroupActor);
 				}

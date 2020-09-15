@@ -550,8 +550,7 @@ void ALevelInstance::OnLevelInstanceLoaded()
 			SetIsTemporarilyHiddenInEditor(bHiddenInEditor);
 		}
 
-		UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
-		if (WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled())
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
 		{
 			WorldPartitionSubsystem->UpdateActorDesc(this);
 		}

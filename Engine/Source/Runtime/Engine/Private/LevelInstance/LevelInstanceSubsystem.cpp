@@ -55,8 +55,8 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #if WITH_EDITOR
 	LevelInstanceActorDescFactory.Reset(new FLevelInstanceActorDescFactory());
 
-	Collection.InitializeDependency(UWorldPartitionSubsystem::StaticClass());
-	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = Collection.InitializeDependency<UWorldPartitionSubsystem>();
+	if (WorldPartitionSubsystem)
 	{
 		RegisterActorDescFactories(WorldPartitionSubsystem);
 	}

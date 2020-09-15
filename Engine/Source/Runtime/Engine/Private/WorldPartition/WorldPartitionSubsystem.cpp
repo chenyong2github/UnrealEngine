@@ -26,9 +26,19 @@ static FAutoConsoleCommand CVarDrawRuntimeHash2D(
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 {}
 
-bool UWorldPartitionSubsystem::IsEnabled() const
+bool UWorldPartitionSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
-	return GetMainWorldPartition() != nullptr;
+	if (!Super::ShouldCreateSubsystem(Outer))
+	{
+		return false;
+	}
+
+	if (UWorld* WorldOuter = Cast<UWorld>(Outer))
+	{
+		return WorldOuter->GetWorldPartition() != nullptr;
+	}
+
+	return false;
 }
 
 UWorldPartition* UWorldPartitionSubsystem::GetMainWorldPartition()
@@ -201,10 +211,7 @@ void UWorldPartitionSubsystem::UpdateActorDesc(AActor* Actor)
 
 void UWorldPartitionSubsystem::RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory)
 {
-	if (IsEnabled())
-	{
-		UWorldPartition::RegisterActorDescFactory(Class, Factory);
-	}
+	UWorldPartition::RegisterActorDescFactory(Class, Factory);
 }
 
 FBox UWorldPartitionSubsystem::GetWorldBounds()

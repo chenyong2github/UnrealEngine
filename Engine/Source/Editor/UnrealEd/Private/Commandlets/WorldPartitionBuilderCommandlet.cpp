@@ -87,14 +87,16 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		World->UpdateWorldComponents(true, false);
 	}
 
-	// Retrieve the world partition.
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-	UWorldPartition* WorldPartition = WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled() ? World->GetWorldPartition() : nullptr;
-	if (!WorldPartition)
+	// Make sure the world is partitioned.
+	if (!World->HasSubsystem<UWorldPartitionSubsystem>())
 	{
 		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Commandlet only works on partitioned maps."));
 		return 1;
 	}
+
+	// Retrieve the world partition.
+	UWorldPartition* WorldPartition = World->GetWorldPartition();
+	check(WorldPartition);
 
 	FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true);
 	WorldContext.SetCurrentWorld(World);

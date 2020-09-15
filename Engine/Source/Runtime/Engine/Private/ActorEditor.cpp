@@ -61,8 +61,7 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 	{
 		if (!IsTemplate())
 		{
-			const UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UWorldPartitionSubsystem>() : nullptr;
-			const bool bIsPartitionedWorld = WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled();
+			const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
 			if (!bIsPartitionedWorld)
 			{
 				return false;
@@ -594,13 +593,9 @@ bool AActor::InternalPostEditUndo()
 
 	if (!IsTemplate())
 	{
-		if (UWorld* World = GetWorld())
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(GetWorld()))
 		{
-			UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-			if (WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled())
-			{
-				WorldPartitionSubsystem->UpdateActorDesc(this);
-			}
+			WorldPartitionSubsystem->UpdateActorDesc(this);
 		}
 	}
 

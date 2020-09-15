@@ -201,8 +201,7 @@ UActorPartitionSubsystem::UActorPartitionSubsystem()
 
 bool UActorPartitionSubsystem::IsLevelPartition() const
 {
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
-	return WorldPartitionSubsystem == nullptr || !WorldPartitionSubsystem->IsEnabled();
+	return !GetWorld()->HasSubsystem<UWorldPartitionSubsystem>();
 }
 
 #if WITH_EDITOR
@@ -214,9 +213,8 @@ void UActorPartitionSubsystem::InitializeForWorldPartitionConversion()
 
 void UActorPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	Collection.InitializeDependency(UWorldPartitionSubsystem::StaticClass());
-
-	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>())
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = Collection.InitializeDependency<UWorldPartitionSubsystem>();
+	if (WorldPartitionSubsystem)
 	{
 		WorldPartitionSubsystem->RegisterActorDescFactory(APartitionActor::StaticClass(), &PartitionActorDescFactory);
 	}
