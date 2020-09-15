@@ -1428,7 +1428,23 @@ bool UNiagaraScript::HandleVariableRenames(const TMap<FNiagaraVariable, FNiagara
 	return bConvertedAnything;
 }
 
-bool UNiagaraScript::BinaryToExecData(const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData)
+static bool ValidateExecData(const UNiagaraScript* Script, const FNiagaraVMExecutableData& ExecData, FString& ErrorString)
+{
+	bool IsValid = true;
+
+	for (const auto& Attribute : ExecData.Attributes)
+	{
+		if (!Attribute.IsValid())
+		{
+			ErrorString.Appendf(TEXT("Failure - %s - Attribute [%s] is invalid!\n"), Script ? *Script->GetFullName() : TEXT("<unknown>"), *Attribute.GetName().ToString());
+			IsValid = false;
+		}
+	}
+
+	return IsValid;
+}
+
+bool UNiagaraScript::BinaryToExecData(const UNiagaraScript* Script, const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData)
 {
 	check(IsInGameThread());
 	if (InBinaryData.Num() == 0)
@@ -1440,12 +1456,27 @@ bool UNiagaraScript::BinaryToExecData(const TArray<uint8>& InBinaryData, FNiagar
 	FObjectAndNameAsStringProxyArchive SafeAr(Ar, false);
 	OutExecData.SerializeData(SafeAr, true);
 
+	FString ValidationErrors;
+	if (!ValidateExecData(Script, OutExecData, ValidationErrors))
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to validate FNiagaraVMExecutableData received from DDC, rejecting!  Errors:\n%s"), *ValidationErrors);
+		return false;
+	}
+
 	return !SafeAr.IsError();
 }
 
-bool UNiagaraScript::ExecToBinaryData(TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData)
+bool UNiagaraScript::ExecToBinaryData(const UNiagaraScript* Script, TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData)
 {
 	check(IsInGameThread());
+
+	FString ValidationErrors;
+	if (!ValidateExecData(Script, InExecData, ValidationErrors))
+	{
+		UE_LOG(LogNiagara, Error, TEXT("Failed to validate FNiagaraVMExecutableData being pushed to DDC, rejecting!  Errors:\n%s"), *ValidationErrors);
+		return false;
+	}
+
 	FMemoryWriter Ar(OutBinaryData, true);
 	FObjectAndNameAsStringProxyArchive SafeAr(Ar, false);
 	InExecData.SerializeData(SafeAr, true);
@@ -1722,7 +1753,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 		if (GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(), OutData, GetPathName()))
 		{
 			FNiagaraVMExecutableData ExeData;
-			if (BinaryToExecData(OutData, ExeData))
+			if (BinaryToExecData(this, OutData, ExeData))
 			{
 				COOK_STAT(Timer.AddHit(OutData.Num()));
 				SetVMCompilationResults(LastGeneratedVMId, ExeData, RequestData.Get());
@@ -1740,7 +1771,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 		{
 			SetVMCompilationResults(LastGeneratedVMId, *ExeData, RequestData.Get());
 			// save result to the ddc
-			if (ExecToBinaryData(OutData, *ExeData))
+			if (ExecToBinaryData(this, OutData, *ExeData))
 			{
 				COOK_STAT(Timer.AddMiss(OutData.Num()));
 				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(), OutData, GetPathName());

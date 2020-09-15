@@ -1708,7 +1708,7 @@ bool UNiagaraSystem::ProcessCompilationResult(FEmitterCompiledScriptPair& Script
 
 	// save result to the ddc
 	TArray<uint8> OutData;
-	if (UNiagaraScript::ExecToBinaryData(OutData, *ExeData))
+	if (UNiagaraScript::ExecToBinaryData(ScriptPair.CompiledScript, OutData, *ExeData))
 	{
 		COOK_STAT(Timer.AddMiss(OutData.Num()));
 		GetDerivedDataCacheRef().Put(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), OutData, GetPathName());
@@ -1731,7 +1731,7 @@ bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 	if (ScriptPair.CompiledScript->IsCompilable() && GetDerivedDataCacheRef().GetSynchronous(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), Data, GetPathName()))
 	{
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
-		if (ScriptPair.CompiledScript->BinaryToExecData(Data, *ExeData))
+		if (ScriptPair.CompiledScript->BinaryToExecData(ScriptPair.CompiledScript, Data, *ExeData))
 		{
 			COOK_STAT(Timer.AddHit(Data.Num()));
 			ExeData->CompileTime = 0; // since we didn't actually compile anything
