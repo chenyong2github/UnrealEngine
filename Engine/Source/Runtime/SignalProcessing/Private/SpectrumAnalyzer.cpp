@@ -894,7 +894,7 @@ namespace Audio
 				LockedBufferTimestamp = 0.0;
 			}
 
-			return OutMagnitude;
+			return OutMagnitude / (0.5f * OutVector->Num());
 		}
 
 		// If we got here, something went wrong, so just output zero.
