@@ -1347,31 +1347,32 @@ bool FPythonScriptPlugin::IsDeveloperModeEnabled()
 
 void FPythonScriptPlugin::OnAssetRenamed(const FAssetData& Data, const FString& OldName)
 {
+	FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
 	const FName OldPackageName = *FPackageName::ObjectPathToPackageName(OldName);
-	const UObject* AssetPtr = PyGenUtil::GetTypeRegistryType(Data.GetAsset());
-	if (AssetPtr)
+	
+	// If this asset has an associated Python type, then we need to rename it
+	if (PyWrapperTypeRegistry.HasWrappedTypeForObjectName(OldPackageName))
 	{
-		// If this asset has an associated Python type, then we need to rename it
-		FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
-		if (PyWrapperTypeRegistry.HasWrappedTypeForObjectName(OldPackageName))
+		if (const UObject* AssetPtr = PyGenUtil::GetAssetTypeRegistryType(Data.GetAsset()))
 		{
 			PyWrapperTypeRegistry.UpdateGenerateWrappedTypeForRename(OldPackageName, AssetPtr);
 			OnAssetUpdated(AssetPtr);
+		}
+		else
+		{
+			PyWrapperTypeRegistry.RemoveGenerateWrappedTypeForDelete(OldPackageName);
 		}
 	}
 }
 
 void FPythonScriptPlugin::OnAssetRemoved(const FAssetData& Data)
 {
-	const UObject* AssetPtr = PyGenUtil::GetTypeRegistryType(Data.GetAsset());
-	if (AssetPtr)
+	FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
+	
+	// If this asset has an associated Python type, then we need to remove it
+	if (PyWrapperTypeRegistry.HasWrappedTypeForObjectName(Data.PackageName))
 	{
-		// If this asset has an associated Python type, then we need to remove it
-		FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
-		if (PyWrapperTypeRegistry.HasWrappedTypeForObject(AssetPtr))
-		{
-			PyWrapperTypeRegistry.RemoveGenerateWrappedTypeForDelete(AssetPtr);
-		}
+		PyWrapperTypeRegistry.RemoveGenerateWrappedTypeForDelete(Data.PackageName);
 	}
 }
 
@@ -1389,8 +1390,7 @@ void FPythonScriptPlugin::OnAssetReload(const EPackageReloadPhase InPackageReloa
 
 void FPythonScriptPlugin::OnAssetUpdated(const UObject* InObj)
 {
-	const UObject* AssetPtr = PyGenUtil::GetTypeRegistryType(InObj);
-	if (AssetPtr)
+	if (const UObject* AssetPtr = PyGenUtil::GetAssetTypeRegistryType(InObj))
 	{
 		// If this asset has an associated Python type, then we need to re-generate it
 		FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
