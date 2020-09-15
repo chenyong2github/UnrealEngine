@@ -517,9 +517,33 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			}
 			break;
 		}
-		case ERigVMGraphNotifType::PinExpansionChanged:
 		case ERigVMGraphNotifType::NodeSelected:
+		{
+			if (URigVMCommentNode* ModelNode = Cast<URigVMCommentNode>(InSubject))
+			{
+				// UEdGraphNode_Comment cannot access RigVMCommentNode's selection state, so we have to manually toggle its selection state
+				// UControlRigGraphNode does not need this step because it overrides the IsSelectedInEditor() method
+				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
+				if (EdNode)
+				{
+					GSelectedObjectAnnotation.Set(EdNode);
+				}
+			}
+			break;
+		}
 		case ERigVMGraphNotifType::NodeDeselected:
+		{
+			if (URigVMCommentNode* ModelNode = Cast<URigVMCommentNode>(InSubject))
+			{
+				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
+				if (EdNode)
+				{
+					GSelectedObjectAnnotation.Clear(EdNode);
+				}
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::PinExpansionChanged:
 		default:
 		{
 			break;
