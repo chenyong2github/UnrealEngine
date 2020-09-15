@@ -144,6 +144,7 @@ private:
 	// Scene outliner context menus
 	void RegisterCopyNameAndLabelMenu();
 	void RegisterSelectReferencedAssetsMenu();
+	void RegisterSelectReferencingActorsMenu();
 
 	void CreateScenePreviewTab();
 

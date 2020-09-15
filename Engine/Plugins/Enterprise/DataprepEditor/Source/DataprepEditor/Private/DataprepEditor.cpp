@@ -411,6 +411,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	// Register outliner context menus
 	RegisterCopyNameAndLabelMenu();
 	RegisterSelectReferencedAssetsMenu();
+	RegisterSelectReferencingActorsMenu();
 
 	const TSharedRef<FTabManager::FLayout> Layout = bIsDataprepInstance ? CreateDataprepInstanceLayout() : CreateDataprepLayout();
 
@@ -1002,6 +1003,44 @@ void FDataprepEditor::RegisterSelectReferencedAssetsMenu()
 			FExecuteAction::CreateLambda([this, AssetSelection]()
 			{
 				AssetPreviewView->SelectMatchingItems(AssetSelection);
+			}));
+	}));
+}
+
+void FDataprepEditor::RegisterSelectReferencingActorsMenu()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* Menu = ToolMenus->ExtendMenu("DataprepEditor.AssetContextMenu");
+
+	if (!Menu)
+	{
+		return;
+	}
+
+	FToolMenuSection& Section = Menu->FindOrAddSection("AssetActions");
+
+	Section.AddDynamicEntry("SelectActors", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
+	{
+		UDataprepEditorContextMenuContext* Context = InSection.FindContext<UDataprepEditorContextMenuContext>();
+		if (!Context || Context->SelectedObjects.Num() == 0)
+		{
+			return;
+		}
+
+		TSet<UObject*> Assets(Context->SelectedObjects);
+
+		InSection.AddMenuEntry(
+			"SelectReferencingActors",
+			LOCTEXT("SelectReferencingActorsLabel", "Select Referencing Actors"),
+			LOCTEXT("SelectReferencingActorsTooltip", "Select actors that referene the selected assets"),
+			FSlateIcon(),
+			FExecuteAction::CreateLambda([this, Assets]()
+			{
+				TSet<TWeakObjectPtr<UObject>> Actors = FDataprepEditorUtils::GetActorsReferencingAssets(PreviewWorld.Get(), Assets);
+				if (Actors.Num() > 0)
+				{
+					SetWorldObjectsSelection(MoveTemp(Actors));
+				}
 			}));
 	}));
 }
