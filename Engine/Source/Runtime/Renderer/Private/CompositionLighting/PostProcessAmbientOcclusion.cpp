@@ -139,29 +139,6 @@ static TAutoConsoleVariable<float> CVarGTAOPauseJitter(
 	TEXT("Whether to pause Jitter when Temporal filter is off \n "),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static TAutoConsoleVariable<int32> CVarGTAODownsample(
-	TEXT("r.GTAO.Downsample"),
-	1,
-	TEXT("Perform GTAO at Halfres \n ")
-	TEXT("0: Off \n ")
-	TEXT("1: On (default)\n "),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
-static TAutoConsoleVariable<int32> CVarGTAOTemporalFilter(
-	TEXT("r.GTAO.TemporalFilter"),
-	1,
-	TEXT("Enable Temporal Filter for GTAO \n ")
-	TEXT("0: Off \n ")
-	TEXT("1: On (default)\n "),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
-static TAutoConsoleVariable<int32> CVarGTAOSpatialFilter(
-	TEXT("r.GTAO.SpatialFilter"),
-	1,
-	TEXT("Enable Spatial Filter for GTAO \n ")
-	TEXT("0: Off \n ")
-	TEXT("1: On (default)\n "),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarGTAOUpsample(
 	TEXT("r.GTAO.Upsample"),
