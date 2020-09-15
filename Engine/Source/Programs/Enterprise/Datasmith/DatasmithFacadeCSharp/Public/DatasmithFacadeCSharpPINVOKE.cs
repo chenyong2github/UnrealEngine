@@ -1367,6 +1367,24 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeDirectLink")]
   public static extern void delete_FDatasmithFacadeDirectLink(global::System.Runtime.InteropServices.HandleRef jarg1);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUniqueNameProvider_GenerateUniqueName")]
+  public static extern global::System.IntPtr FDatasmithFacadeUniqueNameProvider_GenerateUniqueName(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUniqueNameProvider_Reserve")]
+  public static extern void FDatasmithFacadeUniqueNameProvider_Reserve(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUniqueNameProvider_AddExistingName")]
+  public static extern void FDatasmithFacadeUniqueNameProvider_AddExistingName(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUniqueNameProvider_RemoveExistingName")]
+  public static extern void FDatasmithFacadeUniqueNameProvider_RemoveExistingName(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeUniqueNameProvider")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeUniqueNameProvider();
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeUniqueNameProvider")]
+  public static extern void delete_FDatasmithFacadeUniqueNameProvider(global::System.Runtime.InteropServices.HandleRef jarg1);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_IDatasmithExporterUIModule_Get")]
   public static extern global::System.IntPtr IDatasmithExporterUIModule_Get();
 
