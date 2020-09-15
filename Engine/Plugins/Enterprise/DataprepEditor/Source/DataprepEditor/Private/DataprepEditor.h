@@ -141,7 +141,9 @@ private:
 
 	void CreateTabs();
 
-	void RegisterMenus();
+	// Scene outliner context menus
+	void RegisterCopyNameAndLabelMenu();
+	void RegisterSelectReferencedAssetsMenu();
 
 	void CreateScenePreviewTab();
 

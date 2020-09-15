@@ -409,4 +409,67 @@ void FDataprepEditorUtils::CreateUserDefinedOperation()
 	DataprepEditorUtils::CreateEditorUtilityBlueprint( UDataprepEditingOperation::StaticClass() );
 }
 
+TSet<UObject*> FDataprepEditorUtils::GetReferencedAssets(const TSet<AActor*>& InActors)
+{
+	auto GetReferencedMeshesAndMaterials = [](const AActor* Actor, TSet<UObject*>& ActorMeshes, TSet<UObject*>& ActorMaterials)
+	{
+		TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents(Actor);
+		for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
+		{
+			UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
+
+			if (Mesh)
+			{
+				ActorMeshes.Add(Mesh);
+
+				for (FStaticMaterial& StaticMaterial : Mesh->StaticMaterials)
+				{
+					if (StaticMaterial.MaterialInterface)
+					{
+						ActorMaterials.Add(StaticMaterial.MaterialInterface);
+					}
+				}
+			}
+
+			for (UMaterialInterface* MeshComponentMaterialInterface : StaticMeshComponent->OverrideMaterials)
+			{
+				if (MeshComponentMaterialInterface)
+				{
+					ActorMaterials.Add(MeshComponentMaterialInterface);
+				}
+			}
+		}
+	};
+
+	TSet<UObject*> StaticMeshes;
+	TSet<UObject*> Materials;
+	TSet<UObject*> Textures;
+
+	for (AActor* Actor : InActors)
+	{
+		GetReferencedMeshesAndMaterials(Actor, StaticMeshes, Materials);
+	}
+
+	for (UObject* Material : Materials)
+	{
+		TArray<UTexture*> MaterialTextures;
+		Cast<UMaterialInterface>(Material)->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, ERHIFeatureLevel::Num, true);
+		for (UTexture* Texture : MaterialTextures)
+		{
+			if (Texture)
+			{
+				Textures.Add(Texture);
+			}
+		}
+	}
+
+	TSet<UObject*> Assets;
+	
+	Assets.Append(StaticMeshes);
+	Assets.Append(Materials);
+	Assets.Append(Textures);
+
+	return MoveTemp(Assets);
+}
+
 #undef LOCTEXT_NAMESPACE
