@@ -24,7 +24,10 @@ struct FPreAnimatedComponentTransformHandler
 
 	static void InitializeOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, FIntermediate3DTransform* Output, FEntityOutputAggregate Aggregate)
 	{
-		ConvertOperationalProperty(CastChecked<USceneComponent>(Object)->GetRelativeTransform(), *Output);
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+		{
+			ConvertOperationalProperty(SceneComponent->GetRelativeTransform(), *Output);
+		}
 	}
 
 	static void UpdateOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, FIntermediate3DTransform* Output, FEntityOutputAggregate Aggregate)
@@ -113,7 +116,10 @@ void UMovieScenePreAnimatedComponentTransformSystem::RestorePreAnimatedState(FSy
 
 	for (const TTuple<UObject*, FIntermediate3DTransform>& Pair : TransformsToRestore)
 	{
-		Pair.Get<1>().ApplyTo(CastChecked<USceneComponent>(Pair.Get<0>()));
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Pair.Get<0>()))
+		{
+			Pair.Get<1>().ApplyTo(SceneComponent);
+		}
 	}
 	TransformsToRestore.Empty();
 }
