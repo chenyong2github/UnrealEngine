@@ -373,6 +373,9 @@ public:
 	/** Defaults to false, used to flag a fallback map. */
 	uint32 bCompleteShadowMap : 1;
 
+	/** Regular shadow map to resample for use as a complete shadow map */
+	FProjectedShadowInfo *CompleteShadowMapCopySource;
+
 	/** */
 	FVirtualShadowMap *VirtualShadowMap;
 
@@ -422,6 +425,8 @@ public:
 		const FWholeSceneProjectedShadowInitializer& Initializer,
 		uint32 InResolutionX,
 		uint32 InResolutionY,
+		uint32 InSnapResolutionX,
+		uint32 InSnapResolutionY,
 		uint32 InBorderSize,
 		bool bInReflectiveShadowMap,
 		TSharedPtr<FVirtualShadowMapCacheEntry> VirtualSmCacheEntry = TSharedPtr<FVirtualShadowMapCacheEntry>()

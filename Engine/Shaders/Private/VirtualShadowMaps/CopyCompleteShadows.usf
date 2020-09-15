@@ -1,0 +1,18 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+
+Texture2D<float> SourceBuffer;
+float4 SourceScaleOffset;
+float4 DestInvTargetExtent;
+
+void CopyToCompleteShadowMapPS(
+	in float4 SvPosition	: SV_Position,
+	out float OutDepth		: SV_Depth
+)
+{
+	float2 DestPos = SvPosition.xy;
+	float2 SourcePos = (DestPos * SourceScaleOffset.xy + SourceScaleOffset.zw);
+	float Depth = SourceBuffer.Load(int3(SourcePos, 0));
+	OutDepth = Depth;
+}

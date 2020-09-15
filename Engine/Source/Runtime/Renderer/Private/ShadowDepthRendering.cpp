@@ -41,6 +41,7 @@
 #include "GPUScene.h"
 #include "SceneTextureReductions.h"
 #include "RendererModule.h"
+#include "PixelShaderUtils.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 
@@ -48,13 +49,6 @@ DECLARE_GPU_DRAWCALL_STAT_NAMED(ShadowDepths, TEXT("Shadow Depths"));
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters, "ShadowDepthPass");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters, "MobileShadowDepthPass");
-
-TAutoConsoleVariable<int32> CVarNaniteShadows(
-	TEXT("r.Shadow.Nanite"),
-	1,
-	TEXT("Enables shadows from Nanite meshes."),
-	ECVF_RenderThreadSafe);
-
 
 template<bool bUsingVertexLayers = false>
 class TScreenVSForGS : public FScreenVS
@@ -92,6 +86,12 @@ static TAutoConsoleVariable<int32> CVarShadowForceSerialSingleRenderPass(
 	TEXT("r.Shadow.ForceSerialSingleRenderPass"),
 	0,
 	TEXT("Force Serial shadow passes to render in 1 pass."),
+	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarNaniteShadows(
+	TEXT("r.Shadow.Nanite"),
+	1,
+	TEXT("Enables shadows from Nanite meshes."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarNaniteShadowsUseHZB(
@@ -1499,6 +1499,178 @@ FRHIGPUMask FSceneRenderer::GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedS
 }
 #endif // WITH_MGPU
 
+
+static void RenderShadowDepthAtlasNanite(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const FSortedShadowMapAtlas& ShadowMapAtlas)
+{
+	const FIntPoint AtlasSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
+
+	bool bWantsNearClip = false;
+	bool bWantsNoNearClip = false;
+	TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
+	TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViewsNoNearClip;
+	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ShadowsToEmit;
+	for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
+	{
+		FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
+
+		// TODO: We avoid rendering Nanite geometry into both movable AND static cached shadows, but has a side effect
+		// that if there is *only* a movable cached shadow map (and not static), it won't rendering anything.
+		// Logic around Nanite and the cached shadows is fuzzy in a bunch of places and the whole thing needs some rethinking
+		// so leaving this like this for now as it is unlikely to happen in realistic scenes.
+		if (!ProjectedShadowInfo->bNaniteGeometry ||
+			ProjectedShadowInfo->CacheMode == SDCM_MovablePrimitivesOnly)
+		{
+			continue;
+		}
+
+		const FIntRect AtlasViewRect = ProjectedShadowInfo->GetViewRectForView();
+
+		Nanite::FPackedViewParams Initializer;
+		Initializer.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
+		Initializer.PrevViewMatrices = Initializer.ViewMatrices;
+		Initializer.ViewRect = AtlasViewRect;
+		Initializer.RasterContextSize = AtlasSize;
+		Initializer.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
+
+		// Orthographic shadow projections want depth clamping rather than clipping
+		if (ProjectedShadowInfo->ShouldClampToNearPlane())
+		{
+			PackedViewsNoNearClip.Add(Nanite::CreatePackedView(Initializer));
+		}
+		else
+		{
+			PackedViews.Add(Nanite::CreatePackedView(Initializer));
+		}
+
+
+		ShadowsToEmit.Add(ProjectedShadowInfo);
+	}
+
+	if (PackedViews.Num() > 0 || PackedViewsNoNearClip.Num() > 0)
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "Nanite Shadows");
+
+		// Need separate passes for near clip on/off currently
+		const bool bSupportsMultiplePasses = (PackedViews.Num() > 0 && PackedViewsNoNearClip.Num() > 0);
+		const bool bPrimaryContext = false;
+
+		// NOTE: Rendering into an atlas like this is not going to work properly with HZB, but we are not currently using HZB here.
+		// It might be worthwhile going through the virtual SM rendering path even for "dense" cases even just for proper handling of all the details.
+		FIntRect FullAtlasViewRect(FIntPoint(0, 0), AtlasSize);
+		const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
+		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, Scene, nullptr, FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false, bPrimaryContext);
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, AtlasSize, Nanite::EOutputBufferMode::DepthOnly);
+
+		if (PackedViews.Num() > 0)
+		{
+			Nanite::FRasterState RasterState;
+			RasterState.bNearClip = true;
+
+			Nanite::CullRasterize(
+				GraphBuilder,
+				Scene,
+				PackedViews,
+				CullingContext,
+				RasterContext,
+				RasterState,
+				nullptr,	// InstanceDraws
+				false		// bExtractStats TODO
+			);
+		}
+
+		if (PackedViewsNoNearClip.Num() > 0)
+		{
+			Nanite::FRasterState RasterState;
+			RasterState.bNearClip = false;
+
+			Nanite::CullRasterize(
+				GraphBuilder,
+				Scene,
+				PackedViewsNoNearClip,
+				CullingContext,
+				RasterContext,
+				RasterState,
+				nullptr,	// InstanceDraws
+				false		// bExtractStats TODO
+			);
+		}
+
+		FRDGTextureRef ShadowMap = GraphBuilder.RegisterExternalTexture(ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("DepthBuffer"));
+		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowsToEmit)
+		{
+			const FIntRect AtlasViewRect = ProjectedShadowInfo->GetViewRectForView();
+
+			Nanite::EmitShadowMap(
+				GraphBuilder,
+				RasterContext,
+				ShadowMap,
+				AtlasViewRect,
+				AtlasViewRect.Min,
+				ProjectedShadowInfo->ShadowDepthView->ViewMatrices.GetProjectionMatrix(),
+				ProjectedShadowInfo->GetShaderDepthBias(),
+				ProjectedShadowInfo->bDirectionalLight
+			);
+		}
+	}
+}
+
+class FCopyToCompleteShadowMapPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyToCompleteShadowMapPS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyToCompleteShadowMapPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector4, SourceScaleOffset)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceBuffer)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FCopyToCompleteShadowMapPS, "/Engine/Private/VirtualShadowMaps/CopyCompleteShadows.usf", "CopyToCompleteShadowMapPS", SF_Pixel);
+
+static void CopyToCompleteShadowMap(
+	FRDGBuilder& GraphBuilder,
+	const FRDGTextureRef SourceBuffer,
+	const FRDGTextureRef DestBuffer,
+	const FIntRect& SourceRect,
+	const FIntRect& DestRect,
+	ERenderTargetLoadAction LoadAction
+	)
+{
+	FVector4 SourceScaleOffset;
+	SourceScaleOffset.X = static_cast<float>(SourceRect.Width() ) / DestRect.Width();
+	SourceScaleOffset.Y = static_cast<float>(SourceRect.Height()) / DestRect.Height();
+	SourceScaleOffset.Z = SourceRect.Min.X - (SourceScaleOffset.X * DestRect.Min.X);
+	SourceScaleOffset.W = SourceRect.Min.Y - (SourceScaleOffset.Y * DestRect.Min.Y);
+
+	auto* PassParameters = GraphBuilder.AllocParameters<FCopyToCompleteShadowMapPS::FParameters>();
+	PassParameters->SourceBuffer = SourceBuffer;
+	PassParameters->SourceScaleOffset = SourceScaleOffset;
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DestBuffer, LoadAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	auto PixelShader = ShaderMap->GetShader<FCopyToCompleteShadowMapPS>();
+
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		ShaderMap,
+		RDG_EVENT_NAME("CopyToCompleteShadowMap"),
+		PixelShader,
+		PassParameters,
+		DestRect,
+		nullptr,
+		nullptr,
+		TStaticDepthStencilState<true, CF_Always>::GetRHI()
+	);
+}
+
 void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICmdList)
 {
 	check(RHICmdList.IsOutsideRenderPass());
@@ -1512,7 +1684,10 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 	bool bCanUseParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 		GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread();
 
-	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
+	const bool bNaniteEnabled = 
+		UseNanite(ShaderPlatform) &&
+		ViewFamily.EngineShowFlags.NaniteMeshes &&
+		CVarNaniteShadows.GetValueOnRenderThread() != 0;
 
 	for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num(); AtlasIndex++)
 	{
@@ -1701,126 +1876,61 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 			CurrentLightForDrawEvent = NULL;
 		}
 
-		if (bNaniteEnabled && CVarNaniteShadows.GetValueOnRenderThread())
+		if (bNaniteEnabled)
 		{
-			bool bWantsNearClip = false;
-			bool bWantsNoNearClip = false;
-			TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
-			TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViewsNoNearClip;
-			TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ShadowsToEmit;
-			for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
-			{
-				FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
-
-				// TODO: We avoid rendering Nanite geometry into both movable AND static cached shadows, but has a side effect
-				// that if there is *only* a movable cached shadow map (and not static), it won't rendering anything.
-				// Logic around Nanite and the cached shadows is fuzzy in a bunch of places and the whole thing needs some rethinking
-				// so leaving this like this for now as it is unlikely to happen in realistic scenes.
-				if (!ProjectedShadowInfo->bNaniteGeometry ||
-					ProjectedShadowInfo->CacheMode == SDCM_MovablePrimitivesOnly)
-				{
-					continue;
-				}
-
-				const FIntRect AtlasViewRect = ProjectedShadowInfo->GetViewRectForView();
-
-				Nanite::FPackedViewParams Initializer;
-				Initializer.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
-				Initializer.PrevViewMatrices = Initializer.ViewMatrices;
-				Initializer.ViewRect = AtlasViewRect;
-				Initializer.RasterContextSize = AtlasSize;
-				Initializer.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
-
-				// Orthographic shadow projections want depth clamping rather than clipping
-				if (ProjectedShadowInfo->ShouldClampToNearPlane())
-				{
-					PackedViewsNoNearClip.Add(Nanite::CreatePackedView(Initializer));
-				}
-				else
-				{
-					PackedViews.Add(Nanite::CreatePackedView(Initializer));
-				}
-				
-
-				ShadowsToEmit.Add(ProjectedShadowInfo);
-			}
-				
-			if (PackedViews.Num() > 0 || PackedViewsNoNearClip.Num() > 0)
-			{
-				FRDGBuilder GraphBuilder(RHICmdList);
-				FRDGTextureRef ShadowMap = GraphBuilder.RegisterExternalTexture(ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("DepthBuffer"));
-
-				{
-					RDG_EVENT_SCOPE(GraphBuilder, "Nanite Shadows");
-
-					// Need separate passes for near clip on/off currently
-					const bool bSupportsMultiplePasses = (PackedViews.Num() > 0 && PackedViewsNoNearClip.Num() > 0);
-					const bool bPrimaryContext = false;
-
-					// NOTE: Rendering into an atlas like this is not going to work properly with HZB, but we are not currently using HZB here.
-					// It might be worthwhile going through the virtual SM rendering path even for "dense" cases even just for proper handling of all the details.
-					FIntRect FullAtlasViewRect(FIntPoint(0, 0), AtlasSize);
-					const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
-					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, nullptr, FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false, bPrimaryContext);
-					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, AtlasSize, Nanite::EOutputBufferMode::DepthOnly);
-							
-					
-					if (PackedViews.Num() > 0)
-					{
-						Nanite::FRasterState RasterState;
-						RasterState.bNearClip = true;
-
-						Nanite::CullRasterize(
-							GraphBuilder,
-							*Scene,
-							PackedViews,
-							CullingContext,
-							RasterContext,
-							RasterState,
-							nullptr,	// InstanceDraws
-							false		// bExtractStats TODO
-						);
-					}
-
-					if (PackedViewsNoNearClip.Num() > 0)
-					{
-						Nanite::FRasterState RasterState;
-						RasterState.bNearClip = false;
-
-						Nanite::CullRasterize(
-							GraphBuilder,
-							*Scene,
-							PackedViewsNoNearClip,
-							CullingContext,
-							RasterContext,
-							RasterState,
-							nullptr,	// InstanceDraws
-							false		// bExtractStats TODO
-						);
-					}
-
-					for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowsToEmit)
-					{
-						const FIntRect AtlasViewRect = ProjectedShadowInfo->GetViewRectForView();
-
-						Nanite::EmitShadowMap(
-							GraphBuilder,
-							RasterContext,
-							ShadowMap,
-							AtlasViewRect,
-							AtlasViewRect.Min,
-							ProjectedShadowInfo->ShadowDepthView->ViewMatrices.GetProjectionMatrix(),
-							ProjectedShadowInfo->GetShaderDepthBias(),
-							ProjectedShadowInfo->bDirectionalLight
-							);
-					}
-				}
-
-				GraphBuilder.Execute();
-			}
+			FRDGBuilder GraphBuilder(RHICmdList);
+			RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas);
+			GraphBuilder.Execute();
 		}
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTarget.TargetableTexture);
+	}
+
+	// Copy/resample shadow maps into "complete" shadow maps and add Nanite geometry
+	if (SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases.Num() > 0)
+	{
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		for (const FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases)
+		{
+			FSceneRenderTargetItem& RenderTarget = ShadowMapAtlas.RenderTargets.DepthTarget->GetRenderTargetItem();
+			FIntPoint AtlasSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
+		
+			FRDGTextureRef DestShadowMap = GraphBuilder.RegisterExternalTexture(ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("DepthBuffer"));
+
+			RDG_EVENT_SCOPE(GraphBuilder, "Complete Atlas %ux%u", AtlasSize.X, AtlasSize.Y);
+
+			bool bCleared = false;
+			for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
+			{
+				FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
+				FProjectedShadowInfo* SourceShadowInfo = ProjectedShadowInfo->CompleteShadowMapCopySource;
+
+				check(SourceShadowInfo);
+				if (SourceShadowInfo && SourceShadowInfo->RenderTargets.DepthTarget != nullptr)
+				{
+					FRDGTextureRef SourceShadowMap = GraphBuilder.RegisterExternalTexture(SourceShadowInfo->RenderTargets.DepthTarget, TEXT("SourceDepthBuffer"));
+					const FIntRect SourceRect = SourceShadowInfo->GetViewRectForView();
+					const FIntRect DestRect = ProjectedShadowInfo->GetViewRectForView();
+					CopyToCompleteShadowMap(GraphBuilder, SourceShadowMap, DestShadowMap, SourceRect, DestRect, bCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
+					bCleared = true;
+				}
+			}
+
+			if (!bCleared)
+			{
+				// If nothing cleared it, ensure it's done before nanite rendering at least
+				AddClearDepthStencilPass(GraphBuilder, DestShadowMap, true, 1.0f, false, 0);
+				bCleared = true;
+			}
+
+			if (bNaniteEnabled)
+			{
+				RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas);
+			}
+		}
+
+		GraphBuilder.Execute();
 	}
 }
 
