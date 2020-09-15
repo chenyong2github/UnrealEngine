@@ -39,24 +39,24 @@ FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
 
 void UVirtualHeightfieldMeshComponent::OnRegister()
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-	if (RuntimeVirtualTextureComponent)
-	{
-		// Bind to delegate so that RuntimeVirtualTextureComponent will pull hide flags from this object.
-		HideFlagDelegateHandle = RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().AddUObject(this, &UVirtualHeightfieldMeshComponent::GatherHideFlags);
-		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
-	}
+// 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
+// 	if (RuntimeVirtualTextureComponent)
+// 	{
+// 		// Bind to delegate so that RuntimeVirtualTextureComponent will pull hide flags from this object.
+// 		HideFlagDelegateHandle = RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().AddUObject(this, &UVirtualHeightfieldMeshComponent::GatherHideFlags);
+// 		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+// 	}
 	Super::OnRegister();
 }
 
 void UVirtualHeightfieldMeshComponent::OnUnregister()
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-	if (RuntimeVirtualTextureComponent)
-	{
-		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().Remove(HideFlagDelegateHandle);
-		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
-	}
+// 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
+// 	if (RuntimeVirtualTextureComponent)
+// 	{
+// 		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().Remove(HideFlagDelegateHandle);
+// 		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+// 	}
 	Super::OnUnregister();
 }
 

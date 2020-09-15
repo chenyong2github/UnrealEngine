@@ -14,7 +14,7 @@ namespace VirtualHeightfieldMesh
 	/** CVar to toggle support for virtual heightfield mesh. */
 	static TAutoConsoleVariable<int32> CVarVHMEnable(
 		TEXT("r.VHM.Enable"),
-		1,
+		0,
 		TEXT("Enable virtual heightfield mesh"),
 		ECVF_RenderThreadSafe
 	);
