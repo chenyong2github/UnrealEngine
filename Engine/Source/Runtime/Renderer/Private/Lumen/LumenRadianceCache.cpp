@@ -655,6 +655,12 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+
+		// Workaround for an internal PC FXC compiler crash when compiling with disabled optimizations
+		if (Parameters.Platform == SP_PCD3D_SM5)
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
+		}
 	}
 };
 

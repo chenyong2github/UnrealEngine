@@ -410,6 +410,17 @@ class FCardVoxelizePS : public FGlobalShader
 
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		// Workaround for an internal PC FXC compiler crash when compiling with disabled optimizations
+		if (Parameters.Platform == SP_PCD3D_SM5)
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
+		}
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FCardVoxelizePS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "CardVoxelizePS", SF_Pixel);
