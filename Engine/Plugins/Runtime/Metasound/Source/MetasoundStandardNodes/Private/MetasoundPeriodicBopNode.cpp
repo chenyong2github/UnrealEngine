@@ -53,7 +53,7 @@ namespace Metasound
 
 	FPeriodicBopOperator::FPeriodicBopOperator(const FOperatorSettings& InSettings, const FFloatTimeReadRef& InPeriod)
 	:	OperatorSettings(InSettings)
-	,	Bop(FBopWriteRef::CreateNew())
+	,	Bop(FBopWriteRef::CreateNew(InSettings))
 	,	Period(InPeriod)
 	,	ExecuteDurationInSamples(InSettings.GetNumFramesPerBlock())
 	,	SampleCountdown(0.f)
@@ -74,7 +74,7 @@ namespace Metasound
 	void FPeriodicBopOperator::Execute()
 	{
 		// Advance internal counter to get rid of old bops.
-		Bop->Advance(OperatorSettings.GetNumFramesPerBlock());
+		Bop->AdvanceBlock();
 
 		float PeriodInSamples = FMath::Max(Period->GetSeconds(), MinimumPeriodSeconds) * OperatorSettings.GetSampleRate();
 

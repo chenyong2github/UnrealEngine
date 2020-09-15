@@ -144,7 +144,7 @@ void USynthComponentMetasoundExample::PostEditChangeProperty(struct FPropertyCha
 }
 #endif
 
-void USynthComponentMetasoundExample::SetGraphOperator(FOperatorUniquePtr InGraphOperator, const FString& InOutputAudioName)
+void USynthComponentMetasoundExample::SetGraphOperator(FOperatorUniquePtr InGraphOperator, const FOperatorSettings& InSettings, const FString& InOutputAudioName)
 {
 	using namespace Metasound;
 
@@ -152,7 +152,7 @@ void USynthComponentMetasoundExample::SetGraphOperator(FOperatorUniquePtr InGrap
 	{
 		FDataReferenceCollection Outputs = InGraphOperator->GetOutputs();
 		FAudioBufferReadRef Audio = Outputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(InOutputAudioName, 256);
-		FBopReadRef OnFinished = FBopReadRef::CreateNew(); // unused in this example
+		FBopReadRef OnFinished = FBopReadRef::CreateNew(InSettings); // unused in this example
 		
 		// Multichannel version:
 		//NumChannels = Audio->GetNumChannels();
@@ -176,7 +176,7 @@ void USynthComponentMetasoundExample::SetGraphOperator(FOperatorUniquePtr InGrap
 	}
 }
 
-bool USynthComponentMetasoundExample::PushGraphOperator(FOperatorUniquePtr InGraphOperator, const FString& InOutputAudioName)
+bool USynthComponentMetasoundExample::PushGraphOperator(FOperatorUniquePtr InGraphOperator, const FOperatorSettings& InOperatorSettings, const FString& InOutputAudioName)
 {
 	using namespace Metasound;
 
@@ -189,7 +189,7 @@ bool USynthComponentMetasoundExample::PushGraphOperator(FOperatorUniquePtr InGra
 	FAudioBufferReadRef AudioReadRef = Outputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(InOutputAudioName, 256);
 	
 	// On Finished isn't used in this example.
-	FBopReadRef OnFinishedRef = FBopReadRef::CreateNew();
+	FBopReadRef OnFinishedRef = FBopReadRef::CreateNew(InOperatorSettings);
 
 	FMetasoundGeneratorInitParams GeneratorInitParams =
 	{
@@ -225,7 +225,7 @@ ISoundGeneratorPtr USynthComponentMetasoundExample::CreateSoundGenerator(const F
 	TArray<IOperatorBuilder::FBuildErrorPtr> Errors;
 	FOperatorUniquePtr Operator = Builder.BuildGraphOperator(*ExampleGraph->Graph, Errors);
 
-	SetGraphOperator(MoveTemp(Operator), TEXT("Audio"));
+	SetGraphOperator(MoveTemp(Operator), Settings, TEXT("Audio"));
 
 	return Generator;
 }

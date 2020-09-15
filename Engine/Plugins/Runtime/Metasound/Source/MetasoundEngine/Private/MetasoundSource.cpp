@@ -7,10 +7,10 @@
 #include "AssetRegistryModule.h"
 
 #include "MetasoundAssetBase.h"
+#include "MetasoundBop.h"
 #include "MetasoundGenerator.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundDataReferenceTypes.h"
 
 #include "MetasoundArchetypeRegistration.h"
 
@@ -82,7 +82,7 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		{
 			MoveTemp(Operator),
 			Outputs.GetDataReadReferenceOrConstruct<Metasound::FAudioBuffer>(GetAudioOutputName(), InSettings.GetNumFramesPerBlock()),
-			Outputs.GetDataReadReferenceOrConstruct<Metasound::FBop>(GetIsFinishedOutputName(), false)
+			Outputs.GetDataReadReferenceOrConstruct<Metasound::FBop>(GetIsFinishedOutputName(), false, InSettings)
 		};
 
 		return ISoundGeneratorPtr(new Metasound::FMetasoundGenerator(MoveTemp(InitParams)));

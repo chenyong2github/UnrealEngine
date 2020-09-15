@@ -2,8 +2,8 @@
 #include "MetasoundGenerator.h"
 
 #include "DSP/Dsp.h"
+#include "MetasoundBop.h"
 #include "MetasoundOperatorInterface.h"
-#include "MetasoundDataReferenceTypes.h"
 #include "MetasoundOscNode.h"
 #include "MetasoundAudioMultiplyNode.h"
 #include "MetasoundADSRNode.h"

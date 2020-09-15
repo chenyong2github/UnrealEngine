@@ -16,11 +16,30 @@
 
 namespace Metasound
 {
+	// TODO: should consider making this a subclass of TInputNode. Both share requirement
+	// of needing a default DataReference. The construction of that gets tricky so 
+	// would be nice to consolidate all that logic. 
+	//
+	//
+	// TODO: Maybe it could work like this...
+	// Can instantiate a factory with default args. Factory is valid as long as constructor of data type supports
+	// parameters (w/ or w/o operator settings.) Factory makes a lambda for creating data type references.
+	// Factory gets instantiated when node is declared.  Basically lets us forward constructor 
+	// args until the creation of the lambda, which requires a copy to capture "[=]". 
+	//
+	// But that still leaves the issue of setting those values on the node. Would be best to have that in NodeInitParams
+	// but its not clear how that is passed about. Maybe something that checks whether it can construct from literal. 
+	//
+	// Or you could go another route where you check whether the Operator constructor takes a specific set of references and 
+	// use that to auto-generate factories.  
+	
 	// This convenience node can be registered and will invoke static_cast<ToDataType>(FromDataType) every time it is executed.
 	template<typename TDataType>
 	class TReceiveNode : public INode
 	{
 		static_assert(TDataReferenceTypeInfo<TDataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an converter node with it.");
+
+
 
 	public:
 		static FString& GetAddressInputName()
@@ -38,10 +57,11 @@ namespace Metasound
 	private:
 		class TReceiverOperator : public TExecutableOperator<TReceiverOperator>
 		{
+				TReceiverOperator() = delete;
 			public:
 
-				TReceiverOperator(TDataReadReference<FSendAddress> InSendAddress, const FOperatorSettings& InOperatorSettings)
-					: OutputData(TDataWriteReference<TDataType>::CreateNew())
+				TReceiverOperator(const TDataWriteReference<TDataType>& Data, TDataReadReference<FSendAddress> InSendAddress, const FOperatorSettings& InOperatorSettings)
+					: OutputData(Data)
 					, SendAddress(InSendAddress)
 					, CachedSendAddress(*InSendAddress)
 					, CachedReceiverParams({InOperatorSettings})
@@ -89,14 +109,43 @@ namespace Metasound
 				FDataReferenceCollection Outputs;
 		};
 
-		class FSendOperatorFactory : public IOperatorFactory
+		template<typename T>
+		struct TReceiverOperatorFactoryHelper
+		{
+			using FDataTypeInfo = TDataReferenceTypeInfo<T>;
+
+			static constexpr bool bUseDefaultCtor = FDataTypeInfo::bCanUseDefaultConstructor && !FDataTypeInfo::bIsConstructableWithSettings;
+			static constexpr bool bUseSettingsCtor = FDataTypeInfo::bIsConstructableWithSettings;
+		};
+
+		class FReceiverOperatorFactory : public IOperatorFactory
 		{
 			public:
-				FSendOperatorFactory() = default;
+				FReceiverOperatorFactory() = default;
+
+				template<
+					typename U = TDataType,
+					typename std::enable_if< TReceiverOperatorFactoryHelper<U>::bUseDefaultCtor, int>::type = 0
+				>
+				TDataWriteReference<TDataType> CreateDefaultWriteReference(const FCreateOperatorParams& InParams) const
+				{
+					return TDataWriteReference<TDataType>::CreateNew();
+				}
+
+				template<
+					typename U = TDataType,
+					typename std::enable_if< TReceiverOperatorFactoryHelper<U>::bUseSettingsCtor, int>::type = 0
+				>
+				TDataWriteReference<TDataType> CreateDefaultWriteReference(const FCreateOperatorParams& InParams) const
+				{
+					return TDataWriteReference<TDataType>::CreateNew(InParams.OperatorSettings);
+				}
+
 
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
 					return MakeUnique<TReceiverOperator>(
+						CreateDefaultWriteReference(InParams),
 						InParams.InputDataReferences.GetDataReadReference<FSendAddress>(GetAddressInputName()),
 						InParams.OperatorSettings
 						);
@@ -120,7 +169,7 @@ namespace Metasound
 			TReceiveNode(const FNodeInitData& InInitData)
 				: NodeDescription(InInitData.InstanceName)
 				, Interface(DeclareVertexInterface())
-				, Factory(MakeOperatorFactoryRef<FSendOperatorFactory>())
+				, Factory(MakeOperatorFactoryRef<FReceiverOperatorFactory>())
 			{
 			}
 

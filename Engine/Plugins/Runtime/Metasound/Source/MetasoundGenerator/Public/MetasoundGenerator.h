@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "DSP/Dsp.h"
+#include "MetasoundBop.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundDataReferenceTypes.h"
 #include "Sound/SoundGenerator.h"
 
 namespace Metasound

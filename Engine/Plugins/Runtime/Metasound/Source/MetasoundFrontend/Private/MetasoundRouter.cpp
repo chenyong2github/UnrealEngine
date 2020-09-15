@@ -68,7 +68,7 @@ static FAutoConsoleCommand GPushIntCommand(
 				return;
 			}
 
-			FName ChannelName = FName(Args[0]);
+			FName ChannelName = FName(*Args[0]);
 			int32 ValueToPush = TCString<TCHAR>::Atoi(*Args[1]);
 
 			Metasound::FDataTypeLiteralParam LiteralParam(ValueToPush);

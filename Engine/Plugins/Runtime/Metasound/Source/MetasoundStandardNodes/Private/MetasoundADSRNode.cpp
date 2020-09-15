@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundADSRNode.h"
+
+#include "DSP/Envelope.h"
+#include "MetasoundAudioBuffer.h"
+#include "MetasoundBop.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundTime.h"
-#include "MetasoundDataReferenceTypes.h"
 #include "MetasoundNodeRegistrationMacro.h"
-#include "DSP/Envelope.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -36,13 +38,18 @@ namespace Metasound
 			void Execute();
 
 		private:
+
+			void GenerateEnvelope(int32 InStartFrame, int32 InEndFrame);
+
 			const FOperatorSettings OperatorSettings;
 
 			// TODO: write envelope gen for metasound more suited to this processing structure. 
 			Audio::FEnvelope Envelope;
 
 			FBopReadRef Bop;
-			int32 StopEnvelopePos;
+			bool bNotReleased;
+			FSampleTime TimeTillRelease;
+			FSampleTime TimePerBlock;
 			FADSRReferences ADSRReferences;
 			FAudioBufferWriteRef EnvelopeBuffer;
 
@@ -53,7 +60,9 @@ namespace Metasound
 	FADSROperator::FADSROperator(const FOperatorSettings& InSettings, const FBopReadRef& InBop, const FADSRReferences& InADSRData)
 	:	OperatorSettings(InSettings)
 	,	Bop(InBop)
-	,	StopEnvelopePos(-1)
+	,	bNotReleased(false)
+	,	TimeTillRelease(0, InSettings.GetSampleRate())
+	,	TimePerBlock(InSettings.GetNumFramesPerBlock(), InSettings.GetSampleRate())
 	,	ADSRReferences(InADSRData)
 	,	EnvelopeBuffer(FAudioBufferWriteRef::CreateNew(InSettings.GetNumFramesPerBlock()))
 	{
@@ -74,66 +83,68 @@ namespace Metasound
 		return OutputDataReferences;
 	}
 
+	void FADSROperator::GenerateEnvelope(int32 InStartFrame, int32 InEndFrame)
+	{
+		float* EnvelopeData = EnvelopeBuffer->GetData();
+
+		const int32 ReleaseFrame = TimeTillRelease.GetNumSamples();
+
+		if (bNotReleased && (ReleaseFrame < InEndFrame))
+		{
+			// If the envelope is expected to be released during these frames,
+			// need to split generation of envelope so envelope can be stopped.
+			for (int32 i = InStartFrame; i < ReleaseFrame; i++)
+			{
+				EnvelopeData[i] = Envelope.Generate();
+			}
+
+			Envelope.Stop();
+
+			bNotReleased = false;
+
+			for (int32 i = FMath::Max(InStartFrame, ReleaseFrame); i < InEndFrame; i++)
+			{
+				EnvelopeData[i] = Envelope.Generate();
+			}
+		}
+		else
+		{
+			for (int32 i = InStartFrame; i < InEndFrame; i++)
+			{
+				EnvelopeData[i] = Envelope.Generate();
+			}
+		}
+	}
+
+
 	void FADSROperator::Execute()
 	{
 		Envelope.SetAttackTime(ADSRReferences.Attack->GetMilliseconds());
 		Envelope.SetDecayTime(ADSRReferences.Decay->GetMilliseconds());
 		Envelope.SetReleaseTime(ADSRReferences.Release->GetMilliseconds());
 
-		float ADSRMilliseconds = ADSRReferences.Attack->GetMilliseconds();
-		ADSRMilliseconds += ADSRReferences.Decay->GetMilliseconds();
-		ADSRMilliseconds += ADSRReferences.Sustain->GetMilliseconds();
-
-		// TODO: Bops need to be sorted.
-		// TODO: Make convenient way to do bop loops like this since it might happen alot.
-		// TODO: Bops need to be done on 4-sample boundaries to allow for SIMD.
-	
-
-		int32 BopIndex = 0;
-		int32 StartPos = 0;
-		int32 NextBop = BopIndex < Bop->Num() ? (*Bop)[BopIndex] : OperatorSettings.GetNumFramesPerBlock() + 1;
-		int32 EndPos = FMath::Min(OperatorSettings.GetNumFramesPerBlock(), NextBop);
+		if (bNotReleased)
+		{
+			// Keep track of when next release should happen
+			TimeTillRelease -= TimePerBlock;
+		}
 		
-		if (StopEnvelopePos > 0)
-		{
-			StopEnvelopePos -= OperatorSettings.GetNumFramesPerBlock();
-			EndPos = FMath::Min(StopEnvelopePos, EndPos);
-		}
-
-		float* EnvelopeData = EnvelopeBuffer->GetData();
-
-		// TODO: GetNumFramesPerBlock() need to be on 4 sample boundaries to allow for SIMD.
-		// TODO: just make GetNumFramesPerBlock() an int32 instead of a uint32
-		while (StartPos < (int32)OperatorSettings.GetNumFramesPerBlock())
-		{
-			int32 i = StartPos;
-			for (; i < EndPos; i++)
+		Bop->ExecuteBlock(
+			// OnPreBop
+			[&](int32 StartFrame, int32 EndFrame) { GenerateEnvelope(StartFrame, EndFrame); },
+			// OnBop
+			[&](int32 StartFrame, int32 EndFrame)
 			{
-				EnvelopeData[i] = Envelope.Generate();
-			}
-
-			StartPos = EndPos;
-			
-			if (EndPos == StopEnvelopePos)
-			{
-				// Stop sustain, start release.
-				Envelope.Stop();
-				StopEnvelopePos = -1;
-				EndPos = FMath::Min((int32)OperatorSettings.GetNumFramesPerBlock(), NextBop);
-			}
-
-			if (EndPos == NextBop)
-			{
-				// Trigger next envelope. 
 				Envelope.Start();
-				StopEnvelopePos = EndPos + FMath::RoundToInt(OperatorSettings.GetSampleRate() * 0.001f * ADSRMilliseconds);
 
-				BopIndex++;
+				// Capture attack, decay and sustain time (skip release).
+				TimeTillRelease = *ADSRReferences.Attack + *ADSRReferences.Decay + *ADSRReferences.Sustain;
 
-				NextBop = BopIndex < Bop->Num() ? (*Bop)[BopIndex] : OperatorSettings.GetNumFramesPerBlock() + 1;
-				EndPos = FMath::Min(StopEnvelopePos, FMath::Min((int32)OperatorSettings.GetNumFramesPerBlock(), NextBop));
+				bNotReleased = true;
+
+				GenerateEnvelope(StartFrame, EndFrame);
 			}
-		}
+		);
 	}
 
 	const FNodeInfo& FADSROperator::GetNodeInfo()
@@ -153,10 +164,10 @@ namespace Metasound
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
 				TInputDataVertexModel<FBop>(TEXT("Bop"), LOCTEXT("BopTooltip", "Trigger for envelope.")),
-				TInputDataVertexModel<FFloatTime>(TEXT("Attack"), LOCTEXT("AttackTooltip", "Attack time in milliseconds.")),
-				TInputDataVertexModel<FFloatTime>(TEXT("Decay"), LOCTEXT("DecayTooltip", "Decay time in milliseconds.")),
-				TInputDataVertexModel<FFloatTime>(TEXT("Sustain"), LOCTEXT("SustainTooltip", "Sustain time in milliseconds.")),
-				TInputDataVertexModel<FFloatTime>(TEXT("Release"), LOCTEXT("ReleaseTooltip", "Release time in milliseconds."))
+				TInputDataVertexModel<FFloatTime>(TEXT("Attack"), LOCTEXT("AttackTooltip", "Attack time.")),
+				TInputDataVertexModel<FFloatTime>(TEXT("Decay"), LOCTEXT("DecayTooltip", "Decay time.")),
+				TInputDataVertexModel<FFloatTime>(TEXT("Sustain"), LOCTEXT("SustainTooltip", "Sustain time.")),
+				TInputDataVertexModel<FFloatTime>(TEXT("Release"), LOCTEXT("ReleaseTooltip", "Release time."))
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("Envelope"), LOCTEXT("EnvelopeTooltip", "The output envelope"))
@@ -174,7 +185,7 @@ namespace Metasound
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
 		// TODO: Could no-op this if the bop is not connected.
-		FBopReadRef Bop = InputCollection.GetDataReadReferenceOrConstruct<FBop>(TEXT("Bop"));
+		FBopReadRef Bop = InputCollection.GetDataReadReferenceOrConstruct<FBop>(TEXT("Bop"), InParams.OperatorSettings);
 
 		// TODO: If none of these are connected, could pre-generate ADSR envelope and return a different operator. 
 		FADSRReferences ADSRReferences = 

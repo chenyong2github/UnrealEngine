@@ -2,7 +2,6 @@
 
 #include "MetasoundWavePlayerNode.h"
 #include "MetasoundExecutableOperator.h"
-#include "MetasoundDataReferenceTypes.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundWave.h"

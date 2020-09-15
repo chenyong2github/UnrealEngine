@@ -7,6 +7,7 @@
 #include "Components/SynthComponent.h"
 
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundOperatorSettings.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundGenerator.h"
@@ -25,6 +26,7 @@ class METASOUNDGENERATOR_API USynthComponentMetasoundExample : public USynthComp
 public:
 	using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
 	using FAudioBufferReadRef = Metasound::FAudioBufferReadRef;
+	using FOperatorSettings = Metasound::FOperatorSettings;
 
     USynthComponentMetasoundExample(const FObjectInitializer& ObjInitializer);
 
@@ -48,18 +50,20 @@ public:
 	 * the next time CreateSoundGenerator(...) is called.
 	 *
 	 * @param InGraphOperator - Operator which executes entire MetasoundGraph.
+	 * @param InOperatorSettings - Settings associated with the graph operator.
 	 * @param InOutputAudioName - Name of the FAudioBufferReadRef data ref in the graph output.
 	 */
-	void SetGraphOperator(FOperatorUniquePtr InGraphOperator, const FString& InOutputAudioName);
+	void SetGraphOperator(FOperatorUniquePtr InGraphOperator, const FOperatorSettings& InOperatorSettings, const FString& InOutputAudioName);
 
 	/** Attempt to push a new graph operator to the existing metasound generator.
 	 *
 	 * @param InGraphOperator - Operator which executes entire MetasoundGraph.
+	 * @param InOperatorSettings - Settings associated with the graph operator.
 	 * @param InOutputAudioName - Name of the FAudioBufferReadRef data ref in the graph output.
 	 *
 	 * @return True on success, false on failure.
 	 */
-	bool PushGraphOperator(FOperatorUniquePtr InGraphOperator, const FString& InOutputAudioName);
+	bool PushGraphOperator(FOperatorUniquePtr InGraphOperator, const FOperatorSettings& InOperatorSettings, const FString& InOutputAudioName);
 
     virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 

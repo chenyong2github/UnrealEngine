@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "MetasoundBop.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundDataReferenceTypes.h"
 #include "MetasoundTime.h"
 #include "MetasoundFrequency.h"
 

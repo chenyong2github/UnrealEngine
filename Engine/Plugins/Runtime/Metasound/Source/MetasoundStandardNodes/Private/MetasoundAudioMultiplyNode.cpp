@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundAudioMultiplyNode.h"
+#include "MetasoundAudioBuffer.h"
 #include "MetasoundExecutableOperator.h"
-#include "MetasoundDataReferenceTypes.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundOperatorSettings.h"
 #include "DSP/BufferVectorOperations.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundAudioMultiplyNode"
