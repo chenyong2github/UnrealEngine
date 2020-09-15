@@ -1,0 +1,150 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+
+#include "DMXFixtureComponentDouble.h"
+#include "DMXFixtureActor.h"
+
+UDMXFixtureComponentDouble::UDMXFixtureComponentDouble()
+{
+	PrimaryComponentTick.bCanEverTick = false;
+	NumChannels = 2;
+	ChannelRefs.Add(DMXChannel1);
+	ChannelRefs.Add(DMXChannel2);
+	InitCells(1);
+}
+
+void UDMXFixtureComponentDouble::InitCells(int NCells)
+{
+	Cells.Init(FCell(), NCells);
+	CurrentCell = &Cells[0];
+
+	// 2 channels per cell
+	for (auto& Cell : Cells)
+	{
+		Cell.ChannelInterpolation.Init(FInterpolationData(), NumChannels);
+	}
+}
+
+float UDMXFixtureComponentDouble::RemapValue(int ChannelIndex, int Value)
+{
+	if (ChannelIndex < NumChannels)
+	{
+		float Alpha = float(Value) / ChannelRefs[ChannelIndex].BitResolution;
+		float Remapped = FMath::Lerp(ChannelRefs[ChannelIndex].MinValue, ChannelRefs[ChannelIndex].MaxValue, Alpha);
+		return Remapped;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+// Propagate RangeValue into ChannelInterpolation data
+void UDMXFixtureComponentDouble::SetRangeValue()
+{
+	for (auto& Cell : Cells)
+	{
+		for (int ChannelIndex=0; ChannelIndex > ChannelRefs.Num(); ChannelIndex++)
+		{
+			Cell.ChannelInterpolation[ChannelIndex].RangeValue = FMath::Abs(ChannelRefs[ChannelIndex].MaxValue - ChannelRefs[ChannelIndex].MinValue);
+		}
+	}
+}
+
+// Set bit resolution based on DMX signal format mapping
+void UDMXFixtureComponentDouble::SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> Map)
+{
+	for (auto& Channel : ChannelRefs)
+	{
+		EDMXFixtureSignalFormat* format = Map.Find(Channel.Name);
+		if (format != nullptr)
+		{
+			unsigned int BitResolution;
+			switch (*format)
+			{
+				case(EDMXFixtureSignalFormat::E8Bit): BitResolution = 255; break;
+				case(EDMXFixtureSignalFormat::E16Bit): BitResolution = 65535; break;
+				case(EDMXFixtureSignalFormat::E24Bit): BitResolution = 16777215; break;
+				case(EDMXFixtureSignalFormat::E32Bit): BitResolution = 4294967295; break;
+				default: BitResolution = 255;
+			}
+			Channel.BitResolution = BitResolution;
+		}
+	}
+}
+
+bool UDMXFixtureComponentDouble::IsTargetValid(int ChannelIndex, float Target)
+{
+	if (ChannelIndex < NumChannels)
+	{
+		return CurrentCell->ChannelInterpolation[ChannelIndex].IsTargetValid(Target, SkipThreshold);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void UDMXFixtureComponentDouble::Push(int ChannelIndex, float Target)
+{
+	if (ChannelIndex < NumChannels)
+	{
+		CurrentCell->ChannelInterpolation[ChannelIndex].Push(Target);
+	}
+}
+
+void UDMXFixtureComponentDouble::SetTarget(int ChannelIndex, float Target)
+{
+	if (ChannelIndex < NumChannels)
+	{
+		CurrentCell->ChannelInterpolation[ChannelIndex].SetTarget(Target);
+	}
+}
+
+float UDMXFixtureComponentDouble::DMXInterpolatedValue(int ChannelIndex)
+{
+	if (ChannelIndex < NumChannels)
+	{
+		return CurrentCell->ChannelInterpolation[ChannelIndex].CurrentValue;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+float UDMXFixtureComponentDouble::DMXInterpolatedStep(int ChannelIndex)
+{
+	if (ChannelIndex < NumChannels)
+	{
+		return (CurrentCell->ChannelInterpolation[ChannelIndex].CurrentSpeed * CurrentCell->ChannelInterpolation[ChannelIndex].Direction);
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+float UDMXFixtureComponentDouble::DMXTargetValue(int ChannelIndex)
+{
+	if (ChannelIndex < NumChannels)
+	{
+		return CurrentCell->ChannelInterpolation[ChannelIndex].TargetValue;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+bool UDMXFixtureComponentDouble::DMXIsInterpolationDone(int ChannelIndex)
+{
+	if (ChannelIndex < NumChannels)
+	{
+		return CurrentCell->ChannelInterpolation[ChannelIndex].IsInterpolationDone();
+	}
+	else
+	{
+		return false;
+	}
+}
