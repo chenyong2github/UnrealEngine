@@ -38,8 +38,7 @@ FDeferredDecalPassTextures GetDeferredDecalPassTextures(
 
 void GetDeferredDecalPassParameters(
 	const FViewInfo& View,
-	const FDeferredDecalPassTextures& Textures,
-	ERenderTargetLoadAction DBufferLoadAction,
+	FDeferredDecalPassTextures& Textures,
 	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode,
 	FDeferredDecalPassParameters& PassParameters)
 {
@@ -95,16 +94,21 @@ void GetDeferredDecalPassParameters(
 
 	case FDecalRenderingCommon::RTM_DBuffer:
 	{
-		AddColorTarget(Textures.DBufferA, DBufferLoadAction);
-		AddColorTarget(Textures.DBufferB, DBufferLoadAction);
-		AddColorTarget(Textures.DBufferC, DBufferLoadAction);
+		AddColorTarget(Textures.DBufferA, Textures.DBufferLoadAction);
+		AddColorTarget(Textures.DBufferB, Textures.DBufferLoadAction);
+		AddColorTarget(Textures.DBufferC, Textures.DBufferLoadAction);
 		if (Textures.DBufferMask)
 		{
-			AddColorTarget(Textures.DBufferMask, DBufferLoadAction);
+			AddColorTarget(Textures.DBufferMask, Textures.DBufferLoadAction);
 		}
 
 		// D-Buffer always uses the resolved depth; no MSAA.
 		DepthTexture = Textures.Depth.Resolve;
+
+		if (!View.Family->bMultiGPUForkAndJoin)
+		{
+			Textures.DBufferLoadAction = ERenderTargetLoadAction::ELoad;
+		}
 		break;
 	}
 	case FDecalRenderingCommon::RTM_AmbientOcclusion:
@@ -451,7 +455,6 @@ void AddDeferredDecalPass(
 	const bool bStencilSizeThreshold = CVarStencilSizeThreshold.GetValueOnRenderThread() >= 0;
 
 	// Attempt to clear the D-Buffer if it's appropriate for this view.
-	ERenderTargetLoadAction DBufferLoadAction = View.DecayLoadAction(ERenderTargetLoadAction::EClear);
 	const EDecalDBufferMaskTechnique DBufferMaskTechnique = GetDBufferMaskTechnique(ShaderPlatform);
 
 	const auto CreateOrImportTexture = [&](TRefCountPtr<IPooledRenderTarget>& Target, const FRDGTextureDesc& Desc, const TCHAR* Name)
@@ -471,7 +474,7 @@ void AddDeferredDecalPass(
 	const auto RenderDecals = [&](uint32 DecalIndexBegin, uint32 DecalIndexEnd, FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
 	{
 		auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
-		GetDeferredDecalPassParameters(View, PassTextures, DBufferLoadAction, RenderTargetMode, *PassParameters);
+		GetDeferredDecalPassParameters(View, PassTextures, RenderTargetMode, *PassParameters);
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Batch [%d, %d]", DecalIndexBegin, DecalIndexEnd - 1),
 			PassParameters,
@@ -525,7 +528,6 @@ void AddDeferredDecalPass(
 				RHICmdList.DrawIndexedPrimitive(GetUnitCubeIndexBuffer(), 0, 0, 8, 0, UE_ARRAY_COUNT(GCubeIndices) / 3, 1);
 			}
 		});
-		DBufferLoadAction = ERenderTargetLoadAction::ELoad;
 	};
 
 	const auto GetRenderTargetMode = [&](const FTransientDecalRenderData& DecalData)
@@ -577,8 +579,7 @@ void AddDeferredDecalPass(
 
 		if (MeshDecalCount > 0 && (DecalRenderStage == DRS_BeforeBasePass || DecalRenderStage == DRS_BeforeLighting || DecalRenderStage == DRS_Emissive))
 		{
-			RenderMeshDecals(GraphBuilder, View, PassTextures, DBufferLoadAction, DecalRenderStage);
-			DBufferLoadAction = ERenderTargetLoadAction::ELoad;
+			RenderMeshDecals(GraphBuilder, View, PassTextures, DecalRenderStage);
 		}
 
 		if (SortedDecalCount > 0)
