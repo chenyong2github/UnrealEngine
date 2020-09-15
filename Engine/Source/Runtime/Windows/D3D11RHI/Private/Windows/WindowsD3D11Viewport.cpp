@@ -186,7 +186,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			}
 			else
 			{
-				UE_LOG(LogD3D11RHI, Warning, TEXT("CreateSwapChainForHwnd failed with result '%s' (0x%08X), falling back to legacy CreateSwapChain."),
+				UE_LOG(LogD3D11RHI, Log, TEXT("CreateSwapChainForHwnd failed with result '%s' (0x%08X), falling back to legacy CreateSwapChain."),
 					*GetD3D11ErrorString(CreateSwapChainForHwndResult, D3DRHI->GetDevice()),
 					CreateSwapChainForHwndResult);
 			}
