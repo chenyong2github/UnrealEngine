@@ -138,6 +138,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	Hierarchy.ControlHierarchy.OnControlSelected.RemoveAll(this);
 	Hierarchy.ControlHierarchy.OnControlSelected.AddUObject(this, &UControlRig::HandleOnControlSelected);
 	Hierarchy.ControlHierarchy.OnControlUISettingsChanged.AddUObject(this, &UControlRig::HandleOnControlUISettingChanged);
+	Hierarchy.OnEventReceived.RemoveAll(this);
 	Hierarchy.OnEventReceived.AddUObject(this, &UControlRig::HandleOnRigEvent);
 }
 
