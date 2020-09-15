@@ -349,7 +349,7 @@ namespace DatasmithRuntime
 
 			Ar << Guid;
 			Ar << DataPointInfo.Name;
-			Ar << DataPointInfo.bIsLocal;
+			Ar << DataPointInfo.bIsOnThisEndpoint;
 
 			ensure(RawInfo.EndpointsInfo.Contains(DataPointInfo.EndpointAddress));
 			FRawInfo::FEndpointInfo& EndpointInfo = const_cast<FRawInfo::FEndpointInfo&>(RawInfo.EndpointsInfo[DataPointInfo.EndpointAddress]);

@@ -66,9 +66,16 @@ FStreamSender::~FStreamSender() = default;
 
 void FStreamSender::HandleHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message)
 {
+	if (Message.Kind == FDirectLinkMsg_HaveListMessage::EKind::AckDeltaMessage)
+	{
+		UE_LOG(LogDirectLinkNet, Verbose, TEXT("Receiver ack message %d"), Message.MessageCode);
+		CurrentCommunicationStatus.TaskCompleted = FMath::Max(CurrentCommunicationStatus.TaskCompleted, Message.MessageCode + 1); // max, because ack messages are unordered
+		return;
+	}
+
 	if (!HaveListReceiver)
 	{
-		UE_LOG(LogDirectLinkIndexer, Warning, TEXT("dropped unexpected HaveList message."));
+		UE_LOG(LogDirectLinkNet, Warning, TEXT("dropped unexpected HaveList message."));
 		return;
 	}
 
@@ -84,12 +91,11 @@ void FStreamSender::SetSceneSnapshot(TSharedPtr<FSceneSnapshot> SceneSnapshot)
 }
 
 
-void FStreamSender::Tick()
+void FStreamSender::Tick(double Now_s)
 {
 	switch (NextStep)
 	{
 		case EStep::Idle:
-		case EStep::Synced:
 		{
 			if (NextSnapshotLock.TryLock())
 			{
@@ -99,10 +105,11 @@ void FStreamSender::Tick()
 
 				if (Snapshot)
 				{
-					NextStep = EStep::SetupScene;
 					++SyncCycle;
 					HaveListReceiver = MakeUnique<FHaveListReceiver>(SyncCycle);
-					return Tick();
+					CurrentCommunicationStatus = FCommunicationStatus();
+					NextStep = EStep::SetupScene;
+					return Tick(Now_s);
 				}
 			}
 
@@ -111,12 +118,15 @@ void FStreamSender::Tick()
 
 		case EStep::SetupScene:
 		{
+			CurrentCommunicationStatus.bIsSending = true;
+
 			check(Snapshot.IsValid());
 			auto& Local = *Snapshot.Get();
 			IDeltaConsumer::FSetupSceneArg SetupSceneArg;
 			SetupSceneArg.SceneId = Local.SceneId;
 			SetupSceneArg.bExpectHaveList = true;
 			SetupSceneArg.SyncCycle = SyncCycle;
+
 			PipeToNetwork.SetupScene(SetupSceneArg);
 			LastHaveListMessage_s = FPlatformTime::Seconds();
 
@@ -126,12 +136,15 @@ void FStreamSender::Tick()
 
 		case EStep::ReceiveHaveList: // wait for completed have list
 		{
-			// waiting for the scene Snapshot confirmation and havelist.
+			CurrentCommunicationStatus.bIsSending = false;
+			CurrentCommunicationStatus.bIsReceiving = true;
+
+			// waiting for the remote havelist.
 			if (ensure(HaveListReceiver) && HaveListReceiver->IsOver())
 			{
 				RemoteScene = MoveTemp(HaveListReceiver->GetRemoteSceneView());
-				NextStep = EStep::SendDelta;
-				return Tick();
+				NextStep = EStep::GenerateDelta;
+				return Tick(Now_s);
 			}
 			else
 			{
@@ -152,8 +165,11 @@ void FStreamSender::Tick()
 			break;
 		}
 
-		case EStep::SendDelta:
+		case EStep::GenerateDelta:
 		{
+			CurrentCommunicationStatus.bIsSending = true;
+			CurrentCommunicationStatus.bIsReceiving = false;
+
 			check(Snapshot.IsValid());
 			FSceneSnapshot& SceneSnapshot = *Snapshot.Get();
 
@@ -164,9 +180,11 @@ void FStreamSender::Tick()
 
 			TSet<FSceneGraphId> LocalIds;
 			LocalIds.Reserve(SceneSnapshot.Elements.Num());
+			int32 CurrentElementIndex = -1;
 
 			for (auto& RefPair : SceneSnapshot.Elements)
 			{
+				++CurrentElementIndex;
 				FSceneGraphId NodeId = RefPair.Key;
 				LocalIds.Add(NodeId);
 
@@ -178,14 +196,14 @@ void FStreamSender::Tick()
 					FElementHash& HaveHash = RemoteScene->GetHashRef(NodeId);
 					if (HaveHash == NodeHash)
 					{
-						UE_LOG(LogDirectLinkIndexer, Verbose, TEXT("diff: Skipped %d, have hash match"), NodeId);
+						UE_LOG(LogDirectLinkNet, Verbose, TEXT("diff: Skipped %d, have hash match"), NodeId);
 						continue;
 					}
 					HaveHash = NodeHash;
 				}
 				IDeltaConsumer::FSetElementArg SetArg;
 				SetArg.Snapshot = RefPair.Value;
-
+				SetArg.ElementIndexHint = CurrentElementIndex;
 				PipeToNetwork.OnSetElement(SetArg);
 			}
 
@@ -201,12 +219,45 @@ void FStreamSender::Tick()
 
 			IDeltaConsumer::FCloseDeltaArg CloseArg;
 			PipeToNetwork.OnCloseDelta(CloseArg);
-			NextStep = EStep::Synced;
+
+			int32 DeltaMessagesCount = PipeToNetwork.GetSentDeltaMessageCount();
+			CurrentCommunicationStatus.TaskTotal = DeltaMessagesCount;
+
+			Snapshot.Reset();
+			NextStep = EStep::SendDelta;
 			break;
 		}
 
+		case EStep::SendDelta:
+		{
+			if (CurrentCommunicationStatus.TaskTotal == CurrentCommunicationStatus.TaskCompleted)
+			{
+				NextStep = EStep::Synced;
+				return Tick(Now_s);
+			}
+			else
+			{
+				UE_LOG(LogDirectLinkNet, Verbose, TEXT("diff: waiting for receiver ack (%d/%d)")
+					, CurrentCommunicationStatus.TaskCompleted
+					, CurrentCommunicationStatus.TaskTotal
+				);
+			}
+			break;
+		}
+
+		case EStep::Synced:
+		{
+			UE_LOG(LogDirectLinkNet, Verbose, TEXT("diff: sync complete! (cycle %d)"), SyncCycle);
+
+			CurrentCommunicationStatus.bIsSending = false;
+			CurrentCommunicationStatus.bIsReceiving = false;
+
+			NextStep = EStep::Idle;
+			return Tick(Now_s);
+		}
+
 		default:
-			check(false);
+			ensure(false);
 	}
 }
 

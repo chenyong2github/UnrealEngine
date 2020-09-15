@@ -185,7 +185,7 @@ struct FDirectLinkMsg_DeltaMessage
 		None,
 		SetupScene, // setup the stream for a scene id
 		OpenDelta,
-		SetElement,
+		SetElements,
 		RemoveElements,
 		CloseDelta,
 	};
@@ -228,6 +228,7 @@ struct FDirectLinkMsg_HaveListMessage
 		None,
 		OpenHaveList, // see Payload
 		HaveListElement, // see NodeIds and Hashes
+		AckDeltaMessage, // trash hack... #ue_directlink_cleanup
 		CloseHaveList,
 	};
 
