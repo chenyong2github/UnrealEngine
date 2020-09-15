@@ -361,6 +361,7 @@ void PathTracingKernel(
 					TLAS,
 					RayFlags,
 					InstanceInclusionMask,
+					uint2(0, 0),
 					LightRay);
 	
 				if (NeePayload.IsMiss())
@@ -502,6 +503,7 @@ void PathTracingKernel(
 			InstanceInclusionMask,
 			Ray,
 			RayCone,
+			uint2(0, 0),
 			bDisableSkyLightContribution,
 			bIgnoreTranslucentMaterials);
 	}
@@ -998,6 +1000,7 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
+			-1,
 			WorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
@@ -1120,6 +1123,7 @@ void StationaryLightShadowTracingMainRG()
 					TLAS,
 					RayFlags,
 					RAY_TRACING_MASK_SHADOW,
+					uint2(0, 0),
 					Ray);
 				
 				uint Visibility = asuint(ShadowMask[TexelIndexInPool][ChannelIndex]);
