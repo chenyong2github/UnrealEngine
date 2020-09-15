@@ -1391,7 +1391,7 @@ public:
 
 	/**Swap the order of the two eye adaptation targets in the double buffer system */
 	void SwapEyeAdaptationTextures(FRDGBuilder& GraphBuilder) const;
-	void SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder) const;
+	void SwapEyeAdaptationBuffers() const;
 	
 	/** Returns the load action to use when overwriting all pixels of a target that you intend to read from. Takes into account the HMD hidden area mesh. */
 	ERenderTargetLoadAction GetOverwriteLoadAction() const;

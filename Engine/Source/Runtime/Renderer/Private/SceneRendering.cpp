@@ -1955,13 +1955,13 @@ const FExposureBufferData* FViewInfo::GetLastEyeAdaptationBuffer(FRHICommandList
 	return nullptr;
 }
 
-void FViewInfo::SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder) const
+void FViewInfo::SwapEyeAdaptationBuffers() const
 {
 	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		EffectiveViewState->SwapEyeAdaptationBuffers(GraphBuilder);
+		EffectiveViewState->SwapEyeAdaptationBuffers();
 	}
 }
 
