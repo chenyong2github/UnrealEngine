@@ -6002,7 +6002,21 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 
 	UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(Mesh->AssetImportData);
 	
-	UFbxImportUI* ReimportUI = NewObject<UFbxImportUI>();
+	UFbxImportUI* ReimportUI;
+	UFbxImportUI* OverrideImportUI = AssetImportTask ? Cast<UFbxImportUI>(AssetImportTask->Options) : nullptr;
+	if (OverrideImportUI)
+	{
+		ReimportUI = OverrideImportUI;
+	}
+	else
+	{
+		if (AssetImportTask && AssetImportTask->Options)
+		{
+			UE_LOG(LogFbx, Display, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
+		}
+		ReimportUI = NewObject<UFbxImportUI>();
+	}
+
 	ReimportUI->MeshTypeToImport = FBXIT_StaticMesh;
 	ReimportUI->StaticMeshImportData->bCombineMeshes = true;
 
@@ -6322,7 +6336,21 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 	UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData);
 	
 	// Prepare the import options
-	UFbxImportUI* ReimportUI = NewObject<UFbxImportUI>();
+	UFbxImportUI* ReimportUI;
+	UFbxImportUI* OverrideImportUI = AssetImportTask ? Cast<UFbxImportUI>(AssetImportTask->Options) : nullptr;
+	if (OverrideImportUI)
+	{
+		ReimportUI = OverrideImportUI;
+	}
+	else
+	{
+		if (AssetImportTask && AssetImportTask->Options)
+		{
+			UE_LOG(LogFbx, Display, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
+		}
+		ReimportUI = NewObject<UFbxImportUI>();
+	}
+
 	ReimportUI->MeshTypeToImport = FBXIT_SkeletalMesh;
 	ReimportUI->Skeleton = SkeletalMesh->Skeleton;
 	ReimportUI->bCreatePhysicsAsset = false;
@@ -6750,13 +6778,6 @@ EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 	{
 		return EReimportResult::Failed;
 	}
-	// If there is no file path provided, can't reimport from source
-// 	if ( !Filename.Len() )
-// 	{
-// 		// Since this is a new system most skeletal meshes don't have paths, so logging has been commented out
-// 		//UE_LOG(LogEditorFactories, Warning, TEXT("-- cannot reimport: skeletal mesh resource does not have path stored."));
-// 		return false;
-// 	}
 
 	UE_LOG(LogEditorFactories, Log, TEXT("Performing atomic reimport of [%s]"), *Filename);
 
@@ -6791,8 +6812,15 @@ EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 		//Set the selected skeleton in the anim sequence
 		AnimSequence->SetSkeleton(Skeleton);
 	}
+
+	UFbxImportUI* OverrideImportUI = AssetImportTask ? Cast<UFbxImportUI>(AssetImportTask->Options) : nullptr;
+	if (!OverrideImportUI && AssetImportTask && AssetImportTask->Options)
+	{
+		UE_LOG(LogFbx, Display, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
+	}
+
 	bool bOutImportAll = false;
-	if ( UEditorEngine::ReimportFbxAnimation(Skeleton, AnimSequence, ImportData, *Filename, bOutImportAll, bShowOption && !IsAutomatedImport()) )
+	if ( UEditorEngine::ReimportFbxAnimation(Skeleton, AnimSequence, ImportData, *Filename, bOutImportAll, bShowOption && !IsAutomatedImport(), OverrideImportUI) )
 	{
 		if (bOutImportAll)
 		{
