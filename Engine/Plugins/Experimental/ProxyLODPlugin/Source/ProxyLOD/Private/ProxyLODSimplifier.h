@@ -211,7 +211,7 @@ namespace ProxyLOD
 		int					GetNumVerts() const { return numVerts; }
 		int					GetNumTris() const { return numTris; }
 
-		void				OutputMesh(MeshVertType* Verts, uint32* Indexes, TArray<int32>* LockedVerts = NULL);
+		void				OutputMesh(MeshVertType* Verts, uint32* Indexes, TArray<int32>* LockedVerts = NULL, int* OutNumVerts = NULL, int* OutNumIndexes = NULL) const;
 
 	protected:
 		void				LockVertFlags(uint32 flag);

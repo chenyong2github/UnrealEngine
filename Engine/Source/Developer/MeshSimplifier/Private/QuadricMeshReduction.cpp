@@ -437,11 +437,8 @@ public:
 		
 		float MaxErrorSqr = MeshSimp->SimplifyMesh(MAX_FLT, TargetNumTriangles, TargetNumVertices);
 
-		NumVerts = MeshSimp->GetNumVerts();
-		NumTris = MeshSimp->GetNumTris();
-		NumIndexes = NumTris * 3;
-
-		MeshSimp->OutputMesh(Verts.GetData(), Indexes.GetData());
+		MeshSimp->OutputMesh(Verts.GetData(), Indexes.GetData(), &NumVerts, &NumIndexes);
+		NumTris = NumIndexes / 3;
 		delete MeshSimp;
 
 		OutMaxDeviation = FMath::Sqrt(MaxErrorSqr) / 8.0f;
