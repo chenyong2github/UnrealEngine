@@ -360,12 +360,17 @@ void ReflectionEnvironmentSkyLighting(
 	if (ShadingModelID != SHADINGMODELID_UNLIT)
 	{
 		float CloudAmbientOcclusion = 1.0f;
+		// Ideally we would compute spatially how much of the sky+cloud is visible for each point in the world. But we evaluate the sky light only once at the sky light component position as of today.
+		// To add some spatial variation, we can affect the sky light diffuse contribution according to cloud occlusion from above.
+		// This is an approximation because clouds are also occluding the sky in the sky light capture (a bit of a double contribution then). but it does help by adding spatially varying details.
+#if 0	// DISABLED for now because it has artefact with specular not being affected (and thus looking too bright which can be confusing for users).
 		if (CloudSkyAOEnabled)
 		{
 			float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
 			float OutOpticalDepth = 0.0f;
 			CloudAmbientOcclusion = GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
 		}
+#endif
 
 		float3 SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor) * CloudAmbientOcclusion;
 
