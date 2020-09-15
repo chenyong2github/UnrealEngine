@@ -622,7 +622,7 @@ ERigVMPinDirection FRigVMVarExprAST::GetPinDirection() const
 
 FString FRigVMVarExprAST::GetDefaultValue() const
 {
-	return Pin->GetDefaultValue();
+	return Pin->GetDefaultValue(GetParser()->GetPinDefaultOverrides());
 }
 
 bool FRigVMVarExprAST::IsExecuteContext() const
@@ -1721,22 +1721,66 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 			continue;
 		}
 
+		TArray<FString> SegmentNames;
+		if (!URigVMPin::SplitPinPath(PinToCompute->GetSegmentPath(), SegmentNames))
+		{
+			SegmentNames.Add(PinToCompute->GetName());
+		}
+
 		FString DefaultValue = DefaultValues[0];
-		if (PinToCompute->IsArray())
+		if (RootPin->IsArray())
 		{
 			DefaultValue = FString::Printf(TEXT("(%s)"), *FString::Join(DefaultValues, TEXT(",")));
 		}
 
-		if (RootPin != PinToCompute)
+		URigVMPin* PinForDefaultValue = RootPin;
+		while (PinForDefaultValue != PinToCompute && SegmentNames.Num() > 0)
 		{
-			InController->SetPinDefaultValue(RootPin, DefaultValue, true, false, false);
-			DefaultValue = PinToCompute->GetDefaultValue();
+			TArray<FString> SplitDefaultValues = URigVMController::SplitDefaultValue(DefaultValue);
+
+			if (PinForDefaultValue->IsArray())
+			{
+				int32 ElementIndex = FCString::Atoi(*SegmentNames[0]);
+				DefaultValue = SplitDefaultValues[ElementIndex];
+				PinForDefaultValue = PinForDefaultValue->GetSubPins()[ElementIndex];
+				URigVMController::PostProcessDefaultValue(PinForDefaultValue, DefaultValue);
+				SegmentNames.RemoveAt(0);
+			}
+			else if (PinForDefaultValue->IsStruct())
+			{
+				for (const FString& MemberNameValuePair : SplitDefaultValues)
+				{
+					FString MemberName, MemberValue;
+					if (MemberNameValuePair.Split(TEXT("="), &MemberName, &MemberValue))
+					{
+						if (MemberName == SegmentNames[0])
+						{
+							URigVMPin* SubPin = PinForDefaultValue->FindSubPin(MemberName);
+							if (SubPin == nullptr)
+							{
+								SegmentNames.Reset();
+								break;
+							}
+
+							DefaultValue = MemberValue;
+							PinForDefaultValue = SubPin;
+							URigVMController::PostProcessDefaultValue(PinForDefaultValue, DefaultValue);
+							SegmentNames.RemoveAt(0);
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				checkNoEntry();
+			}
 		}
 
 		TArray<URigVMPin*> TargetPins = PinToCompute->GetLinkedTargetPins();
 		for (URigVMPin* TargetPin : TargetPins)
 		{
-			InController->SetPinDefaultValue(TargetPin, DefaultValue, true, false, false);
+			PinDefaultValueOverrides.FindOrAdd(TargetPin, DefaultValue);
 		}
 	}
 

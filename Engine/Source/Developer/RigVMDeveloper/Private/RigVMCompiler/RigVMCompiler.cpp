@@ -474,6 +474,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 				if (Pin->RequiresWatch())
 				{
 					FRigVMVarExprAST TempVarExpr(FRigVMExprAST::EType::Var, Pin);
+					TempVarExpr.ParserPtr = InExpr->GetParser();
 					FindOrAddRegister(&TempVarExpr, WorkData, true);
 				}
 			}
@@ -1205,6 +1206,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 	}
 
+	const URigVMPin::FDefaultValueOverride& DefaultValueOverride = InVarExpr->GetParser()->GetPinDefaultOverrides();
 	URigVMPin* Pin = InVarExpr->GetPin();
 	FString BaseCPPType = Pin->IsArray() ? Pin->GetArrayElementCppType() : Pin->GetCPPType();
 	FString Hash = GetPinHash(Pin, InVarExpr, bIsDebugValue);
@@ -1241,14 +1243,14 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 				int32 DesiredArraySize = VMStruct->GetArraySize(Pin->GetFName(), WorkData.RigVMUserData);
 
-				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue());
+				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
 
 				if (DefaultValues.Num() != DesiredArraySize)
 				{
 					FString DefaultValue;
 					if (Pin->GetArraySize() > 0)
 					{
-						DefaultValue = Pin->GetSubPins()[0]->GetDefaultValue();
+						DefaultValue = Pin->GetSubPins()[0]->GetDefaultValue(DefaultValueOverride);
 					}
 
 					DefaultValues.Reset();
@@ -1260,7 +1262,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			}
 			else
 			{
-				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue());
+				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
 			}
 
 			while (DefaultValues.Num() < Pin->GetSubPins().Num())
@@ -1270,7 +1272,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(Pin->GetNode()))
 		{
-			FString EnumValueStr = EnumNode->GetDefaultValue();
+			FString EnumValueStr = EnumNode->GetDefaultValue(DefaultValueOverride);
 			if (UEnum* Enum = EnumNode->GetEnum())
 			{
 				DefaultValues.Add(FString::FromInt((int32)Enum->GetValueByNameString(EnumValueStr)));
@@ -1282,7 +1284,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		else
 		{
-			DefaultValues.Add(Pin->GetDefaultValue());
+			DefaultValues.Add(Pin->GetDefaultValue(DefaultValueOverride));
 		}
 
 		UScriptStruct* ScriptStruct = Pin->GetScriptStruct();
