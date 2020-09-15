@@ -1439,8 +1439,7 @@ FScreenPassTexture AddGTAOSpatialFilter(
 
 	float DownsampleFactor = 1.0;
 	FVector4 FilterParamsValue((float)DownsampleFactor, 0.0f, 0.0f, 0.0f); // JDW TODO
-
-	PassParameters->GTAOSpatialFilterWidth = FilterParamsValue;
+	PassParameters->GTAOSpatialFilterParams = FilterParamsValue;
 
 	PassParameters->GTAOSpatialFilterTexture = Input.Texture;
 	PassParameters->GTAOSpatialFilterDepthTexture = InputDepth.Texture;
