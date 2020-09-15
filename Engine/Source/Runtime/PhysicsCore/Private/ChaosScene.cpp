@@ -31,7 +31,6 @@
 #include "Chaos/Public/EventManager.h"
 #include "Chaos/Public/RewindData.h"
 #include "PhysicsSettingsCore.h"
-#include "Chaos/PhysicsSolverBaseImp.h"
 
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -341,9 +340,29 @@ void FChaosScene::StartFrame()
 #endif
 }
 
-void FChaosScene::OnSyncBodies(int32 SyncTimestamp)
+void FChaosScene::OnSyncBodies(int32 SyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
 {
-	GetSolver()->PullPhysicsStateForEachDirtyProxy_External(SyncTimestamp, [](auto){});
+	using namespace Chaos;
+	//simple implementation that pulls data over. Used for unit testing, engine has its own version of this
+	const FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
+
+	for(FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >* Proxy : DirtyParticleBuffer->DirtyGameThreadParticles)
+	{
+		Proxy->PullFromPhysicsState(SyncTimestamp);
+	}
+
+	for(IPhysicsProxyBase* ProxyBase : DirtyParticleBuffer->PhysicsParticleProxies)
+	{
+		if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
+		{
+			FGeometryCollectionPhysicsProxy* GCProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+			GCProxy->PullFromPhysicsState(SyncTimestamp);
+		} else
+		{
+			ensure(false); // Unhandled physics only particle proxy!
+		}
+	}
+
 }
 
 bool FChaosScene::IsCompletionEventComplete() const
@@ -365,7 +384,20 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 #if WITH_CHAOS
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
 	const int32 SolverSyncTimestamp = Solver->GetMarshallingManager().GetExternalTimestampConsumed_External();
-	OnSyncBodies(SolverSyncTimestamp);
+	Chaos::FPBDRigidDirtyParticlesBufferAccessor Accessor(Solver->GetDirtyParticlesBuffer());
+	OnSyncBodies(SolverSyncTimestamp, Accessor);
+	//
+	// @todo(chaos) : Add Dirty Constraints Support
+	//
+	// This is temporary constraint code until the DirtyParticleBuffer
+	// can be updated to support constraints. In summary : The 
+	// FDirtyPropertiesManager is going to be updated to support a 
+	// FDirtySet that is specific to a TConstraintProperties class.
+	//
+	for (FJointConstraintPhysicsProxy* Proxy : Solver->GetJointConstraintPhysicsProxy())
+	{
+		Proxy->PullFromPhysicsState(SolverSyncTimestamp);
+	}
 #endif
 }
 
