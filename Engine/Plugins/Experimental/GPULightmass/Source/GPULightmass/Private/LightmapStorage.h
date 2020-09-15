@@ -81,9 +81,9 @@ public:
 		int32 Revision = -1;
 		int32 RenderPassIndex = 0;
 		int32 CPURevision = -1;
+		int32 OngoingReadbackRevision = -1;
 		bool bCanBeDenoised = false;
 		bool bWasDenoisedWithoutProximity = false;
-		bool bHasReadbackInFlight = false;
 
 		void Invalidate()
 		{
@@ -97,7 +97,7 @@ public:
 			CPURevision = -1;
 			bCanBeDenoised = false;
 			bWasDenoisedWithoutProximity = false;
-			bHasReadbackInFlight = false;
+			OngoingReadbackRevision = -1;
 		}
 	};
 
