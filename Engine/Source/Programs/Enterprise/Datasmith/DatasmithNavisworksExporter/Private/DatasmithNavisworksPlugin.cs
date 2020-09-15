@@ -2835,8 +2835,8 @@ namespace DatasmithNavisworks
 			public int SceneItemCount => SceneItemList.Count;
 			public double CentimetersPerUnit;
 
-			public double TriangleSizeThreshold => 1e-8 * (CentimetersPerUnit * CentimetersPerUnit);
-			public double PositionThreshold => 0.00002 * CentimetersPerUnit;
+			public double TriangleSizeThreshold => 1e-8 / (CentimetersPerUnit * CentimetersPerUnit);
+			public double PositionThreshold => 0.00002 / CentimetersPerUnit;
 			public double NormalThreshold => 1e-4;
 
 			public int MultipleFragmentGeometryWithDistinctTransform;
