@@ -557,7 +557,13 @@ bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportCl
 		
 		if(bHit)
 		{
-			GetAnimPreviewScene().DeselectAll();
+			// Clear the current selection if we are not multi-selecting
+			const bool bCtrlDown = InViewportClient->Viewport->KeyState(EKeys::LeftControl) || InViewportClient->Viewport->KeyState(EKeys::RightControl);
+			const bool bShiftDown = InViewportClient->Viewport->KeyState(EKeys::LeftShift) || InViewportClient->Viewport->KeyState(EKeys::RightShift);
+			if (!bCtrlDown && !bShiftDown)
+			{
+				GetAnimPreviewScene().DeselectAll();
+			}
 			GetAnimPreviewScene().SetSelectedBone(Result.BoneName, ESelectInfo::OnMouseClick);
 			bHandled = true;
 		}
