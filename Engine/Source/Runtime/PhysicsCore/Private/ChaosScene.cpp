@@ -47,7 +47,8 @@ FChaosScene::FChaosScene(
 	, const FName& DebugName
 #endif
 )
-	: ChaosModule(nullptr)
+	: SolverAccelerationStructure(nullptr)
+	, ChaosModule(nullptr)
 	, SceneSolver(nullptr)
 	, Owner(OwnerPtr)
 {
@@ -124,12 +125,12 @@ void FChaosScene::AddPieModifiedObject(UObject* InObj)
 
 const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration() const
 {
-	return SolverAccelerationStructure.Get();
+	return SolverAccelerationStructure;
 }
 
 Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration()
 {
-	return SolverAccelerationStructure.Get();
+	return SolverAccelerationStructure;
 }
 
 void FChaosScene::CopySolverAccelerationStructure()

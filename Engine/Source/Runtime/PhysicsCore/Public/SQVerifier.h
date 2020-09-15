@@ -265,7 +265,7 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		case FSQCapture::ESQType::Raycast:
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit> ChaosHitBuffer;
-			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
+			ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>* Accelerator = nullptr;
 			
 			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
@@ -282,7 +282,7 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		case FSQCapture::ESQType::Sweep:
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit> ChaosHitBuffer;
-			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
+			ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>* Accelerator = nullptr;
 			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
 			SQAccelerator.Sweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
@@ -305,7 +305,7 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		case FSQCapture::ESQType::Overlap:
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit> ChaosHitBuffer;
-			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
+			ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>* Accelerator = nullptr;
 			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
 			SQAccelerator.Overlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, ChaosHitBuffer, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
