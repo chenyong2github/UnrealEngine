@@ -313,10 +313,13 @@ void FAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager
 	const auto& LocalCategories = InTabManager->GetLocalWorkspaceMenuRoot()->GetChildItems();
 	AssetEditorTabsCategory = LocalCategories.Num() > 0 ? LocalCategories[0] : InTabManager->GetLocalWorkspaceMenuRoot();
 
-	InTabManager->RegisterTabSpawner( ToolbarTabId, FOnSpawnTab::CreateSP(this, &FAssetEditorToolkit::SpawnTab_Toolbar) )
-		.SetDisplayName( LOCTEXT("ToolbarTab", "Toolbar") )
-		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
-		.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "Toolbar.Icon") );
+	if(UsesCustomToolbarPlacement())
+	{
+		InTabManager->RegisterTabSpawner(ToolbarTabId, FOnSpawnTab::CreateSP(this, &FAssetEditorToolkit::SpawnTab_Toolbar))
+			.SetDisplayName(LOCTEXT("ToolbarTab", "Toolbar"))
+			.SetGroup(AssetEditorTabsCategory.ToSharedRef())
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Toolbar.Icon"));
+	}
 }
 
 void FAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

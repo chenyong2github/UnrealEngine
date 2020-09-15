@@ -1962,8 +1962,10 @@ void FBlueprintEditor::InitBlueprintEditor(
 		// Flag the blueprint as having been opened
 		Blueprint->bIsNewlyCreated = false;
 
+		const bool bBaseBlueprintType = (Blueprint->GetClass() == UBlueprint::StaticClass() || Blueprint->GetClass() == ULevelScriptBlueprint::StaticClass());
+
 		// @todo reskin, this is temp for now.  Only the base blueprint editor has had a toolbar treatment as part of the reskin.  All other derived types of BP editors need to use their custom toolbars for now.
-		bUsesCustomToolbar &= (Blueprint->GetClass() != UBlueprint::StaticClass());
+		bUsesCustomToolbar &= (!bBaseBlueprintType);
 
 		Objects.Add( Blueprint );
 	}
