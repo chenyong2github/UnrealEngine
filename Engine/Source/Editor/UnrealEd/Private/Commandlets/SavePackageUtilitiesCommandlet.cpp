@@ -2,6 +2,8 @@
 
 #include "Commandlets/SavePackageUtilitiesCommandlet.h"
 
+#include "Editor.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/CoreMisc.h"

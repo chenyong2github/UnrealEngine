@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
+#include "RenderGraphDefinitions.h"
 
 class FViewInfo;
 

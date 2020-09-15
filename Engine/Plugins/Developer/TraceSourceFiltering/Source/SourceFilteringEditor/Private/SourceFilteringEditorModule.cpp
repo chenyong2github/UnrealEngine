@@ -24,6 +24,9 @@
 
 #include "IGameplayInsightsModule.h"
 
+#include "Engine/Blueprint.h"
+#include "Editor.h"
+
 IMPLEMENT_MODULE(FSourceFilteringEditorModule, SourceFilteringEditor);
 
 FString FSourceFilteringEditorModule::SourceFiltersIni;
