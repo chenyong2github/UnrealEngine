@@ -255,8 +255,8 @@ void SDataprepEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<FDa
 		PreviewSceneWorld->ChangeFeatureLevel(NewFeatureLevel);
 	});
 
-	TFunctionRef<AActor*(USceneComponent*, const TCHAR*)> CreateActor =
-		[&PreviewSceneWorld](USceneComponent* ParentComponent, const TCHAR* ActorName)-> AActor*
+	TFunction<AActor* (USceneComponent*, const TCHAR*)> CreateActor;
+	CreateActor = [&PreviewSceneWorld](USceneComponent* ParentComponent, const TCHAR* ActorName)-> AActor*
 		{
 			AActor* Actor = PreviewSceneWorld->SpawnActor<AActor>( AActor::StaticClass(), FTransform::Identity );
 
