@@ -801,7 +801,7 @@ public:
 	// @param InCompressionMode defines the value input range that is mapped to output range
 	// @param InCubeFace defined which cubemap side is used, only required for cubemap content, then it needs to be a valid side
 	FReadSurfaceDataFlags(ERangeCompressionMode InCompressionMode = RCM_UNorm, ECubeFace InCubeFace = CubeFace_MAX) 
-		:CubeFace(InCubeFace), CompressionMode(InCompressionMode), bLinearToGamma(true), MaxDepthRange(16000.0f), bOutputStencil(false), MipLevel(0)
+		:CubeFace(InCubeFace), CompressionMode(InCompressionMode)
 	{
 	}
 
@@ -856,6 +856,26 @@ public:
 		return FMath::Abs(ConvertFromDeviceZ(DeviceZ) / MaxDepthRange);
 	}
 
+	void SetGPUIndex(uint32 InGPUIndex)
+	{
+		GPUIndex = InGPUIndex;
+	}
+
+	uint32 GetGPUIndex() const
+	{
+		return GPUIndex;
+	}
+
+	void SetArrayIndex(int32 InArrayIndex)
+	{
+		ArrayIndex = InArrayIndex;
+	}
+
+	int32 GetArrayIndex() const
+	{
+		return ArrayIndex;
+	}
+
 private:
 
 	// @return SceneDepth
@@ -869,12 +889,14 @@ private:
 		return 1.0f / (DeviceZ * InvDeviceZToWorldZ.X - InvDeviceZToWorldZ.Y);
 	}
 
-	ECubeFace CubeFace;
-	ERangeCompressionMode CompressionMode;
-	bool bLinearToGamma;	
-	float MaxDepthRange;
-	bool bOutputStencil;
-	uint8 MipLevel;
+	ECubeFace CubeFace = CubeFace_MAX;
+	ERangeCompressionMode CompressionMode = RCM_UNorm;
+	bool bLinearToGamma = true;	
+	float MaxDepthRange = 16000.0f;
+	bool bOutputStencil = false;
+	uint8 MipLevel = 0;
+	int32 ArrayIndex = 0;
+	uint32 GPUIndex = 0;
 };
 
 /** Info for supporting the vertex element types */
