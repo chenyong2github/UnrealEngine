@@ -738,10 +738,13 @@ FFrame3d FGroupTopology::GetSelectionFrame(const FGroupTopologySelection& Select
 
 	for (int32 GroupID : Selection.SelectedGroupIDs)
 	{
-		FFrame3d GroupFrame = GetGroupFrame(GroupID);
-		Accumulated.Origin += GroupFrame.Origin;
-		AccumulatedNormal += GroupFrame.Z();
-		AccumCount++;
+		if (FindGroupByID(GroupID) != nullptr)
+		{
+			FFrame3d GroupFrame = GetGroupFrame(GroupID);
+			Accumulated.Origin += GroupFrame.Origin;
+			AccumulatedNormal += GroupFrame.Z();
+			AccumCount++;
+		}
 	}
 
 	if (AccumCount > 0)
