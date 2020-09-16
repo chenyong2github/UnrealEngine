@@ -14,6 +14,8 @@ class UDMXLibrary;
 class IDMXProtocol;
 class UDMXEntityFixturePatch;
 
+struct FAssetData;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FProtocolReceivedDelegate, FDMXProtocolName, Protocol, int32, RemoteUniverse, const TArray<uint8>&, DMXBuffer);
 
 /**
@@ -39,8 +41,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "FixtureType"))
 	void GetAllFixturesOfType(const FDMXEntityFixtureTypeRef& FixtureType, TArray<UDMXEntityFixturePatch*>& OutResult);
 	
-	/** Load all referenced Objects in the given library. The DMX library should be Loaded at least one in any part of the Unreal Engine */
-	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DisplayName = "Load DMX Library"))
+	UE_DEPRECATED(4.26, "This function is deprecated. The node can simply be removed. Libraries are now accessible at all times, everywhere, without explicit loading.")
 	void LoadDMXLibrary(UDMXLibrary* DMXLibrary) {} // It could be empty. It automatically pre-loads all Objects if we have a reference in the blueprint.
 
 	/**  Return reference to array of Fixture Patch objects of a given category. */
@@ -93,7 +94,7 @@ public:
 
 	/**  Return reference to array of DMX Library objects. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	TArray<UDMXLibrary*> GetAllDMXLibraries();
+	const TArray<UDMXLibrary*>& GetAllDMXLibraries();
 
 	/**
 	 * Return integer given an array of bytes. Up to the first 4 bytes in the array will be used for the conversion.
@@ -265,4 +266,21 @@ private:
 	 * That way we can unbind them when this subsystem is being destroyed and prevent crashes.
 	 */
 	TMap<FName, FDelegateHandle> UniverseInputBufferUpdatedHandles;
+
+private:
+	/** Called when asset registry finished loading files */
+	UFUNCTION()
+	void OnAssetRegistryFinishedLoadingFiles();
+
+	/** Called when asset registry added an asset */
+	UFUNCTION()
+	void OnAssetRegistryAddedAsset(const FAssetData& Asset);
+
+	/** Called when asset registry removed an asset */
+	UFUNCTION()
+	void OnAssetRegistryRemovedAsset(const FAssetData& Asset);
+
+	/** Strongly references all libraries at all times */
+	UPROPERTY()
+	TArray<UDMXLibrary*> LoadedDMXLibraries;
 };
