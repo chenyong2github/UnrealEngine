@@ -735,6 +735,7 @@ void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 	ExposureBufferData[0].SafeRelease();
 	ExposureBufferData[1].SafeRelease();
 	ExposureBufferReadback = nullptr;
+
 }
 
 void FSceneViewState::FEyeAdaptationManager::SwapTextures(FRDGBuilder& GraphBuilder, bool bInUpdateLastExposure)
