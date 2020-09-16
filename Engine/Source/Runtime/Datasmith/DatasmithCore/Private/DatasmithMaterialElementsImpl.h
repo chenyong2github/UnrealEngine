@@ -321,6 +321,9 @@ public:
 	virtual void SetParentLabel( const TCHAR* InParentLabel ) override { ParentLabel = InParentLabel; }
 	virtual const TCHAR* GetParentLabel() const override;
 
+	virtual void SetShadingModel( const EDatasmithShadingModel InShadingModel ) override { ShadingModel = InShadingModel; }
+	virtual EDatasmithShadingModel GetShadingModel() const override { return ShadingModel; }
+
 protected:
 	FDatasmithExpressionInputImpl< IDatasmithExpressionInput > BaseColor;
 	FDatasmithExpressionInputImpl< IDatasmithExpressionInput > Metallic;
@@ -344,6 +347,7 @@ protected:
 	float OpacityMaskClipValue;
 
 	FString ParentLabel;
+	EDatasmithShadingModel ShadingModel;
 };
 
 template< typename InterfaceType >

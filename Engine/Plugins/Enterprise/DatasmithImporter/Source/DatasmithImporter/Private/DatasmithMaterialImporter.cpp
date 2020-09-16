@@ -131,6 +131,7 @@ namespace DatasmithMaterialImporterUtils
 
 		Hash = HashCombine( Hash, GetTypeHash( MaterialElement->GetUseMaterialAttributes() ) );
 		Hash = HashCombine( Hash, GetTypeHash( MaterialElement->GetBlendMode() ) );
+		Hash = HashCombine( Hash, GetTypeHash( MaterialElement->GetShadingModel() ) );
 
 		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetBaseColor() ) );
 		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetMetallic() ) );
