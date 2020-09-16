@@ -896,7 +896,7 @@ void FSceneViewState::FEyeAdaptationManager::SwapBuffers(bool bInUpdateLastExpos
 		}
 	}
 
-	CurrentBuffer = 1 - CurrentBuffer;
+	CurrentBuffer = FMath::Max(1 - CurrentBuffer, 0);
 }
 
 void FSceneViewState::UpdatePreExposure(FViewInfo& View)
