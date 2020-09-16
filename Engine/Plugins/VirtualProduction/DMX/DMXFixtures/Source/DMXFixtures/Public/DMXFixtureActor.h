@@ -3,7 +3,7 @@
 #pragma once
 
 
-#include "DMXSubSystem.h"
+#include "DMXSubsystem.h"
 #include "CoreMinimal.h"
 #include "DMXFixtureComponent.h"
 #include "DMXFixtureComponentDouble.h"
