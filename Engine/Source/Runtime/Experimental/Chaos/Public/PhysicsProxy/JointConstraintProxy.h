@@ -50,6 +50,7 @@ public:
 	EPhysicsProxyType ConcreteType();
 	
 	bool IsValid() { return Constraint != nullptr && Constraint->IsValid(); }
+	bool HasActiveConnections() const;
 
 	bool IsInitialized() const { return bInitialized; }
 	void SetInitialized() { bInitialized = true; }
