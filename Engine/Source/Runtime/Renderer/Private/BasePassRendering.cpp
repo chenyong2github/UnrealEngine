@@ -649,6 +649,9 @@ void CreateOpaqueBasePassUniformBuffer(
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	SetupDistortionParams(BasePassParameters.DistortionParams, View);
 
+	// Strata
+	BindStrataBasePassUniformParameters(View, BasePassParameters.Strata);
+
 	// Misc
 	BasePassParameters.EyeAdaptation = GetEyeAdaptation(View);
 

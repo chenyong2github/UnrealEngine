@@ -1663,6 +1663,14 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+		if (CVar && CVar->GetValueOnAnyThread() > 0)
+		{
+			KeyString += TEXT("_STRATA");
+		}
+	}
+
+	{
 		if (MaskedInEarlyPass(Platform))
 		{
 			KeyString += TEXT("_EZPMM");

@@ -929,6 +929,8 @@ void FViewInfo::Init()
 
 	NumVisibleDynamicPrimitives = 0;
 	NumVisibleDynamicEditorPrimitives = 0;
+
+	StrataData = nullptr;
 }
 
 FViewInfo::~FViewInfo()

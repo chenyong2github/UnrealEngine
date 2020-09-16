@@ -38,6 +38,7 @@ namespace LumenRadianceCache
 struct FSingleLayerWaterPassData;
 struct FHeightFogRenderingParameters;
 struct FRayTracingReflectionOptions;
+struct FStrataData;
 
 class FLightShaftsOutput
 {

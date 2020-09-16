@@ -2710,6 +2710,9 @@ public:
 	/** The runtime virtual textures in the scene. */
 	TSparseArray<FRuntimeVirtualTextureSceneProxy*> RuntimeVirtualTextures;
 
+	/** Strata data shared between all views. */
+	FStrataData StrataData;
+
 	float DefaultMaxDistanceFieldOcclusionDistance;
 
 	float GlobalDistanceFieldViewDistance;

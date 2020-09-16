@@ -51,6 +51,7 @@
 #include "Rendering/NaniteStreamingManager.h"
 #include "SceneTextureReductions.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
+#include "Strata/Strata.h"
 
 extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
@@ -2301,6 +2302,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		FViewInfo& MainView = Views[0];
 		Scene->AllocateAndCaptureFrameSkyEnvMap(RHICmdList, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud);
+	}
+
+	// Strata initialisation
+	{
+		FRDGBuilder GraphBuilder(RHICmdList);
+		InitialiseStrataFrameSceneData(*this, GraphBuilder);
+		GraphBuilder.Execute();
 	}
 
 	// Clear LPVs for all views

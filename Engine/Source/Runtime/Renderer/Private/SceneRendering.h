@@ -48,6 +48,7 @@ struct FExposureBufferData;
 struct FCloudRenderContext;
 struct FSingleLayerWaterPassData;
 class FVirtualShadowMapClipmap;
+struct FStrataData;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -1128,6 +1129,8 @@ public:
 
 	// Used by mobile renderer to determine whether static meshes will be rendered with CSM shaders or not.
 	FMobileCSMVisibilityInfo MobileCSMVisibilityInfo;
+
+	FStrataData* StrataData;
 
 	/** Parameters for exponential height fog. */
 	FVector4 ExponentialFogParameters;
