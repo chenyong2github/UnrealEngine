@@ -158,7 +158,7 @@ int32 UEditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh,
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return -1;
 	}
@@ -494,7 +494,7 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 {
 	TGuardValue<bool> UnattendedScriptGuard( GIsRunningUnattendedScript, true );
 
-	if ( !EditorScriptingUtils::CheckIfInEditorAndPIE() )
+	if ( !EditorScriptingUtils::IsInEditorAndNotPlaying() )
 	{
 		return -1;
 	}
@@ -696,7 +696,7 @@ int32 UEditorStaticMeshLibrary::GetLodCount(UStaticMesh* StaticMesh)
 		return -1;
 	}
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return -1;
 	}
@@ -714,7 +714,7 @@ bool UEditorStaticMeshLibrary::RemoveLods(UStaticMesh* StaticMesh)
 		return false;
 	}
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -756,7 +756,7 @@ TArray<float> UEditorStaticMeshLibrary::GetLodScreenSizes(UStaticMesh* StaticMes
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TArray<float> ScreenSizes;
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return ScreenSizes;
 	}
@@ -794,7 +794,7 @@ int32 UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(UStaticMesh*
 		return INDEX_NONE;
 	}
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return INDEX_NONE;
 	}
@@ -884,7 +884,7 @@ int32 UEditorStaticMeshLibrary::GetSimpleCollisionCount(UStaticMesh* StaticMesh)
 		return -1;
 	}
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return -1;
 	}
@@ -912,7 +912,7 @@ TEnumAsByte<ECollisionTraceFlag> UEditorStaticMeshLibrary::GetCollisionComplexit
 		return ECollisionTraceFlag::CTF_UseDefault;
 	}
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return ECollisionTraceFlag::CTF_UseDefault;
 	}
@@ -935,7 +935,7 @@ int32 UEditorStaticMeshLibrary::GetConvexCollisionCount(UStaticMesh* StaticMesh)
 		return -1;
 	}
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return -1;
 	}
@@ -955,7 +955,7 @@ bool UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotificat
 
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1076,7 +1076,7 @@ bool UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* Sta
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1132,7 +1132,7 @@ void UEditorStaticMeshLibrary::EnableSectionCollision(UStaticMesh* StaticMesh, b
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -1170,7 +1170,7 @@ bool UEditorStaticMeshLibrary::IsSectionCollisionEnabled(UStaticMesh* StaticMesh
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1201,7 +1201,7 @@ void UEditorStaticMeshLibrary::EnableSectionCastShadow(UStaticMesh* StaticMesh, 
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -1239,7 +1239,7 @@ bool UEditorStaticMeshLibrary::HasVertexColors(UStaticMesh* StaticMesh)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1276,7 +1276,7 @@ bool UEditorStaticMeshLibrary::HasInstanceVertexColors(UStaticMeshComponent* Sta
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1302,7 +1302,7 @@ bool UEditorStaticMeshLibrary::SetGenerateLightmapUVs(UStaticMesh* StaticMesh, b
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1350,7 +1350,7 @@ int32 UEditorStaticMeshLibrary::GetNumberVerts(UStaticMesh* StaticMesh, int32 LO
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return 0;
 	}
@@ -1368,7 +1368,7 @@ int32 UEditorStaticMeshLibrary::GetNumberMaterials(UStaticMesh* StaticMesh)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return 0;
 	}
@@ -1386,7 +1386,7 @@ void UEditorStaticMeshLibrary::SetAllowCPUAccess(UStaticMesh* StaticMesh, bool b
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -1406,7 +1406,7 @@ int32 UEditorStaticMeshLibrary::GetNumUVChannels(UStaticMesh* StaticMesh, int32 
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return 0;
 	}
@@ -1430,7 +1430,7 @@ bool UEditorStaticMeshLibrary::AddUVChannel(UStaticMesh* StaticMesh, int32 LODIn
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1460,7 +1460,7 @@ bool UEditorStaticMeshLibrary::InsertUVChannel(UStaticMesh* StaticMesh, int32 LO
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1497,7 +1497,7 @@ bool UEditorStaticMeshLibrary::RemoveUVChannel(UStaticMesh* StaticMesh, int32 LO
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1534,7 +1534,7 @@ bool UEditorStaticMeshLibrary::GeneratePlanarUVChannel(UStaticMesh* StaticMesh, 
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1558,7 +1558,7 @@ bool UEditorStaticMeshLibrary::GenerateCylindricalUVChannel(UStaticMesh* StaticM
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1582,7 +1582,7 @@ bool UEditorStaticMeshLibrary::GenerateBoxUVChannel(UStaticMesh* StaticMesh, int
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
