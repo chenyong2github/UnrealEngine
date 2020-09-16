@@ -250,7 +250,6 @@ bool UDMXSubsystem::GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FI
 		}
 
 		TArray<int32> Channels;
-		int32 AttributeItr = 0;
 		for (const FDMXFixturePixelFunction& PixelFunction : PixelMatrix.PixelFunctions)
 		{
 			if (!PixelMatrix.GetChannelsFromPixel(Pixel, PixelFunction.Attribute, Channels))
@@ -285,13 +284,14 @@ bool UDMXSubsystem::GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FI
 							int32 PixelIndex = PatchStartingIndex + PixelIndexOffset;
 							if (PixelIndex >= DMXBuffer.Num())
 							{
-							break;
+								break;
 							}
 
 							ChannelValues.Add(DMXBuffer[PixelIndex]);
 						}
 
-						const int32 Value = UDMXEntityFixtureType::BytesToInt(PixelFunction.DataType, PixelFunction.bUseLSBMode, &ChannelValues[AttributeItr]);
+						check(ChannelValues.Num() == UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType));
+						const int32 Value = UDMXEntityFixtureType::BytesToInt(PixelFunction.DataType, PixelFunction.bUseLSBMode, &ChannelValues[0]);
 
 						AttributeValueMap.Add(PixelFunction.Attribute, Value);
 					}
@@ -299,7 +299,6 @@ bool UDMXSubsystem::GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FI
 
 			}
 
-			AttributeItr++;
 		}
 
 		return true;
