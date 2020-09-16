@@ -42,7 +42,8 @@ public:
 
 	};
 
-	TRACELOG_API void	Initialize(const ANSICHAR* InChannelName, const InitArgs& Args);
+	TRACELOG_API void	Setup(const ANSICHAR* InChannelName, const InitArgs& Args);
+	TRACELOG_API static void Initialize();
 	static Iter			ReadNew();
 	void				Announce() const;
 	static bool			Toggle(const ANSICHAR* ChannelName, bool bEnabled);
