@@ -506,6 +506,7 @@ void FRenderAssetStreamingManager::ConditionalUpdateStaticData()
 				{
 					Levels.Push(LevelManager->GetLevel());
 					LevelManager->Remove(nullptr);
+					delete LevelManager;
 				}
 			}
 			LevelRenderAssetManagers.Empty();
@@ -1780,6 +1781,7 @@ void FRenderAssetStreamingManager::PropagateLightingScenarioChange()
 		{
 			Levels.Push(LevelManager->GetLevel());
 			LevelManager->Remove(nullptr);
+            delete LevelManager;
 		}
 	}
 
