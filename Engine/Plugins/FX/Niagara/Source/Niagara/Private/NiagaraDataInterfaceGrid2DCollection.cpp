@@ -18,6 +18,7 @@ const FString UNiagaraDataInterfaceGrid2DCollection::GridName(TEXT("Grid_"));
 const FString UNiagaraDataInterfaceGrid2DCollection::OutputGridName(TEXT("OutputGrid_"));
 const FString UNiagaraDataInterfaceGrid2DCollection::SamplerName(TEXT("Sampler_"));
 
+const FName UNiagaraDataInterfaceGrid2DCollection::SetNumCellsFunctionName("SetNumCells");
 
 // Global VM function names, also used by the shaders code generation methods.
 const FName UNiagaraDataInterfaceGrid2DCollection::SetValueFunctionName("SetGridValue");
@@ -240,6 +241,24 @@ void UNiagaraDataInterfaceGrid2DCollection::PostInitProperties()
 void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
 	Super::GetFunctions(OutFunctions);
+
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = SetNumCellsFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsX")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsY")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success")));
+
+		Sig.ModuleUsageBitmask = ENiagaraScriptUsageMask::Emitter | ENiagaraScriptUsageMask::System;
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresExecPin = true;
+		Sig.bRequiresContext = false;
+		Sig.bSupportsCPU = true;
+		Sig.bSupportsGPU = false;
+		OutFunctions.Add(Sig);
+	}
 
 	{
 		FNiagaraFunctionSignature Sig;
@@ -547,6 +566,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunction
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetWorldBBoxSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetCellSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetNumCells);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, SetNumCells);
 void UNiagaraDataInterfaceGrid2DCollection::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
@@ -570,6 +590,11 @@ void UNiagaraDataInterfaceGrid2DCollection::GetVMExternalFunction(const FVMExter
 		// it would be nice to refactor this so it can be part of the super class
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 2);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetNumCells)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == SetNumCellsFunctionName)
+	{
+		check(BindingInfo.GetNumInputs() == 3 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, SetNumCells)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == GetValueFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	else if (BindingInfo.Name == SetValueFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
@@ -1274,6 +1299,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	}
 
 	NumAttribChannelsFound = FMath::Max(NumAttributes, NumAttribChannelsFound);
+	InstanceData->NumAttributes = NumAttribChannelsFound;
+
 	// #todo(dmp): refactor
 	int MaxDim = 16384;
 	int MaxTilesX = floor(MaxDim / NumCellsX);
@@ -1733,6 +1760,101 @@ void UNiagaraDataInterfaceGrid2DCollection::GetNumCells(FVectorVMContext& Contex
 		*OutNumCellsX.GetDestAndAdvance() = InstData->NumCells.X;
 		*OutNumCellsY.GetDestAndAdvance() = InstData->NumCells.Y;
 	}
+}
+
+void UNiagaraDataInterfaceGrid2DCollection::SetNumCells(FVectorVMContext& Context)
+{
+	// This should only be called from a system or emitter script due to a need for only setting up initially.
+	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
+	VectorVM::FExternalFuncInputHandler<int> InNumCellsX(Context);
+	VectorVM::FExternalFuncInputHandler<int> InNumCellsY(Context);
+	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSuccess(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		int NewNumCellsX = InNumCellsX.GetAndAdvance();
+		int NewNumCellsY = InNumCellsY.GetAndAdvance();
+		bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && NumCellsX >= 0 && NumCellsY >= 0);
+		*OutSuccess.GetDestAndAdvance() = bSuccess;
+		if (bSuccess)
+		{
+			FIntPoint OldNumCells = InstData->NumCells;
+	
+			InstData->NumCells.X = NewNumCellsX;
+			InstData->NumCells.Y = NewNumCellsY;
+
+			InstData->NeedsRealloc = OldNumCells != InstData->NumCells;
+		}
+	}
+}
+
+bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+{
+	FGrid2DCollectionRWInstanceData_GameThread* InstanceData = static_cast<FGrid2DCollectionRWInstanceData_GameThread*>(PerInstanceData);
+	bool bNeedsReset = false;
+
+	if (InstanceData->NeedsRealloc)
+	{
+		InstanceData->NeedsRealloc = false;
+		
+		InstanceData->CellSize = InstanceData->WorldBBoxSize / FVector2D(InstanceData->NumCells.X, InstanceData->NumCells.Y);
+
+		int MaxDim = 16384;
+		int MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
+		int MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
+		int32 MaxAttributes = MaxTilesX * MaxTilesY;
+
+		// need to determine number of tiles in x and y based on number of attributes and max dimension size
+		int NumTilesX = InstanceData->NumAttributes <= MaxTilesX ? InstanceData->NumAttributes : MaxTilesX;
+		int NumTilesY = ceil(1.0 * InstanceData->NumAttributes / NumTilesX);
+
+		InstanceData->NumTiles.X = NumTilesX;
+		InstanceData->NumTiles.Y = NumTilesY;
+
+		FTextureResource* RT_Resource = NULL;
+		if (InstanceData->TargetTexture)
+		{
+			// resize RT to match what we need for the output			
+			InstanceData->TargetTexture->InitAutoFormat(InstanceData->NumCells.X * InstanceData->NumTiles.X, InstanceData->NumCells.Y * InstanceData->NumTiles.Y);
+			InstanceData->TargetTexture->UpdateResourceImmediate(true);
+
+			if (InstanceData->TargetTexture->Resource)
+			{
+				RT_Resource = InstanceData->TargetTexture->Resource;
+			}
+		}
+
+		// Push Updates to Proxy.
+		FNiagaraDataInterfaceProxyGrid2DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>();
+		ENQUEUE_RENDER_COMMAND(FUpdateData)(
+			[GridColl = this, TexPtr = InstanceData->TargetTexture, RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId(), RT_InstanceData = *InstanceData, RT_OutputShaderStages = OutputShaderStages, RT_IterationShaderStages = IterationShaderStages](FRHICommandListImmediate& RHICmdList)
+		{
+			check(RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
+			FGrid2DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
+			
+			TargetData->NumCells = RT_InstanceData.NumCells;
+			TargetData->NumTiles = RT_InstanceData.NumTiles;
+			TargetData->CellSize = RT_InstanceData.CellSize;
+			
+			TargetData->Buffers.Empty();
+			TargetData->CurrentData = nullptr;
+			TargetData->DestinationData = nullptr;
+			
+			RT_Proxy->SetElementCount(TargetData->NumCells.X* TargetData->NumCells.Y);
+
+			if (RT_Resource && RT_Resource->TextureRHI.IsValid())
+			{
+				TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
+			}
+			else
+			{
+				TargetData->RenderTargetToCopyTo = nullptr;
+			}
+		});
+
+	}
+
+	return false;
 }
 
 void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRHICommandList& RHICmdList)
