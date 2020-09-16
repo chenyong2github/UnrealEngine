@@ -394,6 +394,7 @@ namespace DatasmithRuntime
 
 		for (const TPair<FGuid, FRawInfo::FDataPointInfo>& MapEntry : RawInfo.DataPointsInfo)
 		{
+			const FGuid& DataPointId = MapEntry.Key;
 			const FRawInfo::FDataPointInfo& DataPointInfo = MapEntry.Value;
 
 			if (DataPointInfo.bIsSource && DataPointInfo.EndpointAddress != RawInfo.ThisEndpointAddress)
@@ -402,26 +403,17 @@ namespace DatasmithRuntime
 				const FRawInfo::FEndpointInfo& EndPointInfo = RawInfo.EndpointsInfo[DataPointInfo.EndpointAddress];
 
 				// #ueent_datasmithruntime: Skip remote end points
-				if (EndPointInfo.ComputerName != FPlatformProcess::ComputerName())
+				if (!EndPointInfo.bIsLocal)
 				{
 					continue;
 				}
 
 				const FString& SourceName = DataPointInfo.Name;
-				const TArray<FNamedId>& EndPointSources = EndPointInfo.Sources;
 
-				int32 Index = EndPointSources.IndexOfByPredicate([&SourceName](const FNamedId& Entry)
-					{
-						return Entry.Name == SourceName;
-					});
+				FString SourceLabel = SourceName + TEXT("-") + EndPointInfo.ExecutableName + TEXT("-") + FString::FromInt((int32)EndPointInfo.ProcessId);
 
-				if (Index != INDEX_NONE)
-				{
-					FString SourceLabel = SourceName + TEXT("-") + EndPointInfo.ExecutableName + TEXT("-") + FString::FromInt((int32)EndPointInfo.ProcessId);
-
-					const uint32 SourceHash = ComputeSourcesHash(EndPointSources[Index].Id, DataPointInfo.EndpointAddress);
-					LastSources.Emplace(*SourceLabel, SourceHash);
-				}
+				const uint32 SourceHash = ComputeSourcesHash(DataPointId, DataPointInfo.EndpointAddress);
+				LastSources.Emplace(*SourceLabel, SourceHash);
 			}
 		}
 
