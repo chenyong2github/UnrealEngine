@@ -21,6 +21,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPostAdvance, Chaos::FReal);
 namespace Chaos
 {
 
+	extern CHAOS_API int32 UseAsyncResults;
+
 	class FPhysicsSolverBase;
 	struct FPendingSpatialDataQueue;
 
@@ -198,6 +200,8 @@ namespace Chaos
 			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(DtWithPause);
 			SetExternalTimestampConsumed_External(MarshallingManager.GetExternalTimestampConsumed_External());
 
+			FGraphEventRef BlockingTasks = PendingTasks;
+
 			if(PushData.Num())	//only kick off sim if enough dt passed
 			{
 				//todo: handle dt etc..
@@ -215,11 +219,16 @@ namespace Chaos
 						Prereqs.Add(PendingTasks);
 					}
 
-					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), DtWithPause);
+					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt);
+					const bool bAsyncResults = !!UseAsyncResults;
+					if(!bAsyncResults)
+					{
+						BlockingTasks = PendingTasks;	//block right away
+					}
 				}
 			}
 
-			return PendingTasks;
+			return BlockingTasks;
 		}
 
 #if CHAOS_CHECKED
@@ -280,6 +289,10 @@ namespace Chaos
 		{
 			bPaused_External = bShouldPause;
 		}
+
+		/** Used to update external thread data structures. RigidFunc allows per dirty rigid code to execute. Include PhysicsSolverBaseImpl.h to call this function*/
+		template <typename RigidLambda>
+		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc);
 
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
