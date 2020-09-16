@@ -1977,7 +1977,7 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 			ParentParameter.ParameterInfo = ParameterInfo;
 
 			Parent->GetMaterialLayersParameterValue(ParameterInfo, ParentParameter.Value, ExpressionId);
-			ParentParameter.Value.CopyGuidsToParent(); // Set parent guids for layers from parent material
+			ParentParameter.Value.LinkAllLayersToParent(); // Set parent guids for layers from parent material
 
 			ParentParameter.ExpressionGUID = ExpressionId;
 			// If the SourceInstance is overriding this parameter, use its settings

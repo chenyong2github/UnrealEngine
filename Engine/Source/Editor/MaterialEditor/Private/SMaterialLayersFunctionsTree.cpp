@@ -136,6 +136,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::OnNameChanged(const FText& InText
 	const FScopedTransaction Transaction(LOCTEXT("RenamedSection", "Renamed layer and blend section"));
 	InTree->FunctionInstanceHandle->NotifyPreChange();
 	InTree->FunctionInstance->LayerNames[Counter] = InText;
+	InTree->FunctionInstance->UnlinkLayerFromParent(Counter);
 	InTree->MaterialEditorInstance->CopyToSourceInstance(true);
 	InTree->FunctionInstanceHandle->NotifyPostChange();
 }
@@ -349,35 +350,35 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 				];
 		}
 
-		// Can only unlink/remove layers that aren't the base layer.
+		// Unlink UI
+		HeaderRowWidget->AddSlot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNullWidget::NullWidget
+			];
+		HeaderRowWidget->AddSlot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.OnClicked(Tree, &SMaterialLayersFunctionsInstanceTree::UnlinkLayer, StackParameterData->ParameterInfo.Index)
+				.Visibility(Tree, &SMaterialLayersFunctionsInstanceTree::GetUnlinkLayerVisibility, StackParameterData->ParameterInfo.Index)
+				.ToolTipText(LOCTEXT("UnlinkLayer", "Whether or not to unlink this layer/blend combination from the parent."))
+				.Content()
+				[
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Text(FEditorFontGlyphs::Chain_Broken) /*fa-filter*/
+				]
+			];
+
+		// Can only remove layers that aren't the base layer.
 		if (StackParameterData->ParameterInfo.Index != 0)
 		{
-			// Unlink UI
-			HeaderRowWidget->AddSlot()
-				.FillWidth(1.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNullWidget::NullWidget
-				];
-			HeaderRowWidget->AddSlot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-				[
-					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-					.OnClicked(Tree, &SMaterialLayersFunctionsInstanceTree::UnlinkLayer, StackParameterData->ParameterInfo.Index)
-					.Visibility(Tree, &SMaterialLayersFunctionsInstanceTree::GetUnlinkLayerVisibility, StackParameterData->ParameterInfo.Index)
-					.ToolTipText(LOCTEXT("UnlinkLayer", "Whether or not to unlink this layer/blend combination from the parent."))
-					.Content()
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FEditorFontGlyphs::Chain_Broken) /*fa-filter*/
-					]
-				];
-
 			HeaderRowWidget->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
