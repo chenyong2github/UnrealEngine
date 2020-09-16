@@ -8,6 +8,7 @@
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraModule.h"
+#include "NiagaraTrace.h"
 #include "NiagaraTypes.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraEmitter.h"
@@ -1427,6 +1428,9 @@ void UNiagaraSystem::ForceGraphToRecompileOnNextCheck()
 
 void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool bShowProgress)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WaitForNiagaraCompilation);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*GetPathName(), NiagaraChannel);
+
 	// Calculate the slow progress for notifying via UI
 	TArray<FNiagaraShaderScript*, TInlineAllocator<16>> GPUScripts;
 	if (bIncludingGPUShaders)
@@ -1589,12 +1593,21 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 		// Now that the above code says they are all complete, go ahead and resolve them all at once.
 		float CombinedCompileTime = 0.0f;
+		bool HasCompiledJobs = false;
 		for (FEmitterCompiledScriptPair& EmitterCompiledScriptPair : ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs)
 		{
-			if ((uint32)INDEX_NONE == EmitterCompiledScriptPair.PendingJobID && !EmitterCompiledScriptPair.bResultsReady)
+			if ((uint32)INDEX_NONE == EmitterCompiledScriptPair.PendingJobID)
 			{
-				continue;
+				if (!EmitterCompiledScriptPair.bResultsReady)
+				{
+					continue;
+				}
 			}
+			else
+			{
+				HasCompiledJobs = true;
+			}
+
 			CombinedCompileTime += EmitterCompiledScriptPair.CompileResults->CompileTime;
 			check(EmitterCompiledScriptPair.bResultsReady);
 
@@ -1670,8 +1683,17 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 		ResolveScalabilitySettings();
 
-		UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (overall compilation time), %f sec (combined shader worker time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
-			CombinedCompileTime);
+		const float ElapsedWallTime = (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime);
+
+		if (HasCompiledJobs)
+		{
+			UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (time since issued), %f sec (combined shader worker time)."),
+				*GetFullName(), ElapsedWallTime, CombinedCompileTime);
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Verbose, TEXT("Compiling System %s took %f sec."), *GetFullName(), ElapsedWallTime);
+		}
 
 		ActiveCompilations.RemoveAt(ActiveCompileIdx);
 
@@ -1721,6 +1743,11 @@ bool UNiagaraSystem::ProcessCompilationResult(FEmitterCompiledScriptPair& Script
 
 bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 {
+	if (!ScriptPair.CompiledScript->IsCompilable())
+	{
+		return false;
+	}
+
 	COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
 
 	FNiagaraVMExecutableDataId NewID;
@@ -1728,7 +1755,7 @@ bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 	ScriptPair.CompileId = NewID;
 
 	TArray<uint8> Data;
-	if (ScriptPair.CompiledScript->IsCompilable() && GetDerivedDataCacheRef().GetSynchronous(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), Data, GetPathName()))
+	if (GetDerivedDataCacheRef().GetSynchronous(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), Data, GetPathName()))
 	{
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
 		if (ScriptPair.CompiledScript->BinaryToExecData(ScriptPair.CompiledScript, Data, *ExeData))
@@ -1739,15 +1766,15 @@ bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 			ScriptPair.bResultsReady = true;
 			if (GNiagaraLogDDCStatusForSystems != 0)
 			{
-				UE_LOG(LogNiagara, Log, TEXT("Niagara Script pulled from DDC ... %s"), *ScriptPair.CompiledScript->GetPathName());
+				UE_LOG(LogNiagara, Verbose, TEXT("Niagara Script pulled from DDC ... %s"), *ScriptPair.CompiledScript->GetPathName());
 			}
 			return true;
 		}
 	}
 	
-	if (GNiagaraLogDDCStatusForSystems != 0 && ScriptPair.CompiledScript->IsCompilable())
+	if (GNiagaraLogDDCStatusForSystems != 0)
 	{
-	    UE_LOG(LogNiagara, Log, TEXT("Need Compile! Niagara Script GotFromDDC could not find ... %s"), *ScriptPair.CompiledScript->GetPathName());
+	    UE_LOG(LogNiagara, Verbose, TEXT("Need Compile! Niagara Script GotFromDDC could not find ... %s"), *ScriptPair.CompiledScript->GetPathName());
 	}
 
 	COOK_STAT(Timer.TrackCyclesOnly());
@@ -1990,6 +2017,15 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 			TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> EmitterPrecompiledData = ActiveCompilation.MappedData.FindChecked(CompiledScript);
 			FEmitterCompiledScriptPair* Pair = ActiveCompilation.EmitterCompiledScriptPairs.FindByPredicate(InPairs);
 			check(Pair);
+
+			// now that we've done the precompile check with the DDC again as our key may have changed.  Currently the Precompile can update the rapid
+			// iteration parameters, which if they are baked out, will impact the DDC key.
+			// TODO - Handling of the rapid iteration parameters should move to follow merging of emitter sripts rather than be a part of the precompile.
+			if (GetFromDDC(*Pair))
+			{
+				continue;
+			}
+
 			if (!CompiledScript->RequestExternallyManagedAsyncCompile(EmitterPrecompiledData, Pair->CompileId, Pair->PendingJobID))
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("For some reason we are reporting that %s is in sync even though AreScriptAndSourceSynchronized returned false!"), *CompiledScript->GetPathName())
