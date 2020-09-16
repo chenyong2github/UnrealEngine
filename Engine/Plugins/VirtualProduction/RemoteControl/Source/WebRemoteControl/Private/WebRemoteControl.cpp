@@ -50,7 +50,7 @@
 
 
 // Boot the server on startup flag
-static TAutoConsoleVariable<int32> CVarWebControlStartOnBoot(TEXT("WebControl.EnableServerOnStartup"), 0, TEXT("Enable the Web Control server on startup."));
+static TAutoConsoleVariable<int32> CVarWebControlStartOnBoot(TEXT("WebControl.EnableServerOnStartup"), 0, TEXT("Enable the Web Control servers (web and websocket) on startup."));
 
 // Enable experimental remote routes
 static TAutoConsoleVariable<int32> CVarWebControlEnableExperimentalRoutes(TEXT("WebControl.EnableExperimentalRoutes"), 0, TEXT("Enable the Web Control server experimental routes."));
@@ -71,9 +71,14 @@ void FWebRemoteControlModule::StartupModule()
 	RegisterConsoleCommands();
 	RegisterRoutes();
 
-	if (CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
+	if (GetDefault<UWebRemoteControlSettings>()->bAutoStartWebServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
 	{
 		StartHttpServer();
+	}
+
+	if (GetDefault<UWebRemoteControlSettings>()->bAutoStartWebSocketServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
+	{
+		StartWebSocketServer();
 	}
 }
 
@@ -986,14 +991,21 @@ void FWebRemoteControlModule::UnregisterSettings()
 bool FWebRemoteControlModule::OnSettingsModified()
 {
 	const UWebRemoteControlSettings* Settings = GetDefault<UWebRemoteControlSettings>();
-	if (Settings->RemoteControlHttpServerPort != HttpServerPort)
+	const bool bIsWebServerStarted = HttpRouter.IsValid();
+	const bool bIsWebSocketServerStarted = WebSocketServer.IsRunning();
+	const bool bRestartHttpServer = Settings->RemoteControlHttpServerPort != HttpServerPort;
+	const bool bRestartWebSocketServer = Settings->RemoteControlWebSocketServerPort != WebSocketServerPort;
+
+	if ((bIsWebServerStarted && bRestartHttpServer)
+		|| (!bIsWebServerStarted && Settings->bAutoStartWebServer))
 	{
 		HttpServerPort = Settings->RemoteControlHttpServerPort;
 		StopHttpServer();
 		StartHttpServer();
 	}
 
-	if (Settings->RemoteControlWebSocketServerPort != WebSocketServerPort)
+	if ((bIsWebSocketServerStarted && bRestartWebSocketServer)
+		|| (!bIsWebSocketServerStarted && Settings->bAutoStartWebSocketServer))
 	{
 		WebSocketServerPort = Settings->RemoteControlWebSocketServerPort;
 		StopWebSocketServer();
