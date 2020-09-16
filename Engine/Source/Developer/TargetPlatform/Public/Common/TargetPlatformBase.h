@@ -42,7 +42,9 @@ public:
 
 	TARGETPLATFORM_API virtual bool UsesBasePassVelocity() const override;
 
-	TARGETPLATFORM_API virtual bool UsesSelectiveBasePassOutputs() const override;
+    TARGETPLATFORM_API virtual bool VelocityEncodeDepth() const override;
+
+    TARGETPLATFORM_API virtual bool UsesSelectiveBasePassOutputs() const override;
 	
 	TARGETPLATFORM_API virtual bool UsesDistanceFields() const override;
 

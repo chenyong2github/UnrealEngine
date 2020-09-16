@@ -1751,4 +1751,9 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	{
 		KeyString += TEXT("_SSD");
 	}
+
+	if (VelocityEncodeDepth(Platform))
+	{
+		KeyString += TEXT("_VED");
+	}
 }
