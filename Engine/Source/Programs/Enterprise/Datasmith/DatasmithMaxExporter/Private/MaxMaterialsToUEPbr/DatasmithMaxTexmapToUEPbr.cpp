@@ -866,7 +866,7 @@ bool FDatasmithMaxNormalToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUEPb
 
 IDatasmithMaterialExpression* FDatasmithMaxNormalToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
-	DatasmithMaxTexmapParser::FNormalMapParameters NormalMapParameters = DatasmithMaxTexmapParser::ParseNormalMap( InTexmap );
+	DatasmithMaxTexmapParser::FNormalMapParameters NormalMapParameters = ParseMap( InTexmap );
 
 	IDatasmithMaterialExpression* NormalExpression = nullptr;
 	{
@@ -987,6 +987,11 @@ IDatasmithMaterialExpression* FDatasmithMaxNormalToUEPbr::Convert( FDatasmithMax
 	}
 
 	return ResultExpression;
+}
+
+DatasmithMaxTexmapParser::FNormalMapParameters FDatasmithMaxNormalToUEPbr::ParseMap( Texmap* InTexmap )
+{
+	return DatasmithMaxTexmapParser::ParseNormalMap( InTexmap );
 }
 
 bool FDatasmithMaxRGBMultiplyToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const
@@ -1531,6 +1536,81 @@ IDatasmithMaterialExpression* FDatasmithMaxTextureOutputToUEPbr::Convert( FDatas
 	return MaxMaterialToUEPbr->ConvertTexmap( MapParameter );
 }
 
+bool FDatasmithMaxColorCorrectionToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const
+{
+	return ( InTexmap && InTexmap->ClassID() == COLORCORRECTCLASS &&
+		( FDatasmithMaxMatHelper::HasNonBakeableSubmap( InTexmap ) || !MaxMaterialToUEPbr->ConvertState.bCanBake ) );
+}
+
+IDatasmithMaterialExpression* FDatasmithMaxColorCorrectionToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+{
+	TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement = MaxMaterialToUEPbr->ConvertState.MaterialElement;
+
+	DatasmithMaxTexmapParser::FColorCorrectionParameters ColorCorrectionParameters = DatasmithMaxTexmapParser::ParseColorCorrection(InTexmap);
+
+	DatasmithMaxTexmapParser::FMapParameter MapParameter;
+	MapParameter.Map = ColorCorrectionParameters.TextureSlot1;
+	MapParameter.Weight = 1.f;
+	MapParameter.bEnabled = ( InTexmap->SubTexmapOn(0) != 0 );
+
+	IDatasmithMaterialExpression* ColorCorrectionExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( MaxMaterialToUEPbr, MapParameter, TEXT("Submap"), ColorCorrectionParameters.Color1, TOptional< float >() );
+
+	if ( !ColorCorrectionExpression )
+	{
+		return nullptr;
+	}
+
+	// Hue shift
+	if ( !FMath::IsNearlyZero( ColorCorrectionParameters.HueShift ) )
+	{
+		IDatasmithMaterialExpressionFunctionCall* HueShiftExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+		HueShiftExpression->SetFunctionPathName( TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions02/HueShift.HueShift'") );
+
+		IDatasmithMaterialExpressionScalar* HueShiftValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		HueShiftValue->SetName( TEXT("Hue Shift") );
+		HueShiftValue->GetScalar() = ColorCorrectionParameters.HueShift;
+
+		HueShiftValue->ConnectExpression( *HueShiftExpression->GetInput(0) );
+		ColorCorrectionExpression->ConnectExpression( *HueShiftExpression->GetInput(1) );
+
+		ColorCorrectionExpression = HueShiftExpression;
+	}
+
+	// Saturation
+	if ( !FMath::IsNearlyZero( ColorCorrectionParameters.Saturation ) )
+	{
+		IDatasmithMaterialExpressionGeneric* DesaturationExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		DesaturationExpression->SetExpressionName( TEXT("Desaturation") );
+
+		IDatasmithMaterialExpressionScalar* DesaturationValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		DesaturationValue->SetName( TEXT("Desaturation") );
+		DesaturationValue->GetScalar() = -ColorCorrectionParameters.Saturation;
+
+		ColorCorrectionExpression->ConnectExpression( *DesaturationExpression->GetInput(0) );
+		DesaturationValue->ConnectExpression( *DesaturationExpression->GetInput(1) );
+
+		ColorCorrectionExpression = DesaturationExpression;
+	}
+
+	// Gamma
+	if ( ColorCorrectionParameters.bAdvancedLightnessMode && !FMath::IsNearlyZero( ColorCorrectionParameters.GammaRGB ) )
+	{
+		IDatasmithMaterialExpressionGeneric* GammaExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		GammaExpression->SetExpressionName( TEXT("Power") );
+
+		IDatasmithMaterialExpressionScalar* GammaValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		GammaValue->SetName( TEXT("Gamma") );
+		GammaValue->GetScalar() = 1.f / ColorCorrectionParameters.GammaRGB;
+
+		ColorCorrectionExpression->ConnectExpression( *GammaExpression->GetInput(0) );
+		GammaValue->ConnectExpression( *GammaExpression->GetInput(1) );
+
+		ColorCorrectionExpression = GammaExpression;
+	}
+
+	return ColorCorrectionExpression;
+}
+
 bool FDatasmithMaxBakeableToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const
 {
 	if ( InTexmap && !FDatasmithMaxMatHelper::HasNonBakeableSubmap( InTexmap ) &&
@@ -1612,10 +1692,6 @@ bool FDatasmithMaxPassthroughToUEPbr::IsSupported( const FDatasmithMaxMaterialsT
 			return true;
 		}
 		else if ( InTexmap->ClassID() == CHECKERCLASS )
-		{
-			return true;
-		}
-		else if ( InTexmap->ClassID() == COLORCORRECTCLASS )
 		{
 			return true;
 		}

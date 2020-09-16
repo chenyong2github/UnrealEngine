@@ -903,122 +903,10 @@ void FDatasmithMaxMatWriter::ExportBlendMaterial(TSharedRef< IDatasmithScene > D
 // value list 2: RewireR RewireG RewireB
 FString FDatasmithMaxMatWriter::DumpColorCorrect(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr<IDatasmithCompositeTexture>& CompTex, Texmap* InTexmap, const TCHAR* Prefix, bool bForceInvert, bool bIsGrayscale)
 {
-	int NumParamBlocks = InTexmap->NumParamBlocks();
-
-	Texmap* TextureSlot1 = nullptr;
-	BMM_Color_fl Color1;
-	BMM_Color_fl Tint;
-
-	float HueShift = 0.f;
-	float Saturation = 0.f;
-	float LiftRGB = 0.f;
-	float Brightness = 0.f;
-	float GammaRGB = 0.f;
-	float Contrast = 0.f;
-	float TintStrength = 0.f;
-
-	int RewireR = 0;
-	int RewireG = 0;
-	int RewireB = 0;
-	int LightnessMode = 0;
-
-	bool bEnableR = false;
-	bool bEnableG = false;
-	bool bEnableB = false;
-
-	for (int j = 0; j < NumParamBlocks; j++)
-	{
-		IParamBlock2* ParamBlock2 = InTexmap->GetParamBlockByID((short)j);
-		// The the descriptor to 'decode'
-		ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
-		// Loop through all the defined parameters therein
-		for (int i = 0; i < ParamBlockDesc->count; i++)
-		{
-			const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
-
-			if (FCString::Stricmp(ParamDefinition.int_name, TEXT("map")) == 0)
-			{
-				TextureSlot1 = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("color")) == 0)
-			{
-				Color1 = (BMM_Color_fl)ParamBlock2->GetColor(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Tint")) == 0)
-			{
-				Tint = (BMM_Color_fl)ParamBlock2->GetColor(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("HueShift")) == 0)
-			{
-				HueShift = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime()) / 360.0f;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Saturation")) == 0)
-			{
-				Saturation = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime()) / 100.0f;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("LiftRGB")) == 0)
-			{
-				LiftRGB = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Brightness")) == 0)
-			{
-				Brightness = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime()) / 100.0f;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("GammaRGB")) == 0)
-			{
-				GammaRGB = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Contrast")) == 0)
-			{
-				Contrast = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime()) / 100.0f;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("TintStrength")) == 0)
-			{
-				TintStrength = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime()) / 100.0f;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("LightnessMode")) == 0)
-			{
-				LightnessMode = ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("RewireR")) == 0)
-			{
-				RewireR = ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("RewireG")) == 0)
-			{
-				RewireG = ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("RewireB")) == 0)
-			{
-				RewireB = ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("bEnableR")) == 0)
-			{
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) != 0)
-				{
-					bEnableR = true;
-				}
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("bEnableG")) == 0)
-			{
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) != 0)
-				{
-					bEnableG = true;
-				}
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("bEnableB")) == 0)
-			{
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) != 0)
-				{
-					bEnableB = true;
-				}
-			}
-		}
-		ParamBlock2->ReleaseDesc();
-	}
+	DatasmithMaxTexmapParser::FColorCorrectionParameters ColorCorrectionParameters = DatasmithMaxTexmapParser::ParseColorCorrection(InTexmap);
 
 	FString ActualPrefix = FString(Prefix) + FString(TEXT("comp"));
-	if (LightnessMode == 0)
+	if (ColorCorrectionParameters.bAdvancedLightnessMode == false)
 	{
 		CompTex->SetMode( EDatasmithCompMode::ColorCorrectContrast );
 	}
@@ -1028,47 +916,34 @@ FString FDatasmithMaxMatWriter::DumpColorCorrect(TSharedRef< IDatasmithScene > D
 	}
 
 	FString Result;
-	if (TextureSlot1 != nullptr)
+	if (ColorCorrectionParameters.TextureSlot1 != nullptr)
 	{
-		Result = DumpTexture(DatasmithScene, CompTex, TextureSlot1, DATASMITH_TEXTURENAME, DATASMITH_COLORNAME, bForceInvert, bIsGrayscale);
+		Result = DumpTexture(DatasmithScene, CompTex, ColorCorrectionParameters.TextureSlot1, DATASMITH_TEXTURENAME, DATASMITH_COLORNAME, bForceInvert, bIsGrayscale);
 	}
 	else
 	{
-		CompTex->AddSurface(FDatasmithMaxMatHelper::MaxColorToFLinearColor(Color1));
+		CompTex->AddSurface(ColorCorrectionParameters.Color1);
 	}
 
-	CompTex->AddSurface(FDatasmithMaxMatHelper::MaxColorToFLinearColor(Tint));
+	CompTex->AddSurface(ColorCorrectionParameters.Tint);
 
-	CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(HueShift, TEXT("HueShift")) );
-	CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(Saturation, TEXT("Saturation")) );
-	if (LightnessMode == 0)
+	CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(ColorCorrectionParameters.HueShift, TEXT("HueShift")) );
+	CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(ColorCorrectionParameters.Saturation, TEXT("Saturation")) );
+	if (ColorCorrectionParameters.bAdvancedLightnessMode == false)
 	{
-		CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(Brightness, TEXT("Brightness")) );
-		CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(Contrast, TEXT("Contrast")) );
+		CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(ColorCorrectionParameters.Brightness, TEXT("Brightness")) );
+		CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(ColorCorrectionParameters.Contrast, TEXT("Contrast")) );
 	}
 	else
 	{
-		CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(LiftRGB, TEXT("LiftRGB")) );
-		CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(GammaRGB, TEXT("GammaRgb")) );
+		CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(ColorCorrectionParameters.LiftRGB, TEXT("LiftRGB")) );
+		CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(ColorCorrectionParameters.GammaRGB, TEXT("GammaRgb")) );
 	}
-	CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(TintStrength, TEXT("TintStrength")) );
+	CompTex->AddParamVal1( IDatasmithCompositeTexture::ParamVal(ColorCorrectionParameters.TintStrength, TEXT("TintStrength")) );
 
-	if (!(RewireR == 0 && RewireG == 1 && RewireB == 2) && !(RewireR == 8 && RewireG == 8 && RewireB == 8) && !(RewireR == 4 && RewireG == 5 && RewireB == 6))
-	{
-		RewireR = 0;
-		RewireG = 1;
-		RewireB = 2;
-		DatasmithMaxLogger::Get().AddGeneralError(TEXT("Color correct cannot use different settings per channel"));
-	}
-
-	if (bEnableR || bEnableG || bEnableB)
-	{
-		DatasmithMaxLogger::Get().AddGeneralError(TEXT("Color correct cannot use different settings per channel"));
-	}
-
-	CompTex->AddParamVal2( IDatasmithCompositeTexture::ParamVal((float)RewireR, TEXT("RewireR")) );
-	CompTex->AddParamVal2( IDatasmithCompositeTexture::ParamVal((float)RewireG, TEXT("RewireG")) );
-	CompTex->AddParamVal2( IDatasmithCompositeTexture::ParamVal((float)RewireB, TEXT("RewireB")) );
+	CompTex->AddParamVal2( IDatasmithCompositeTexture::ParamVal((float)ColorCorrectionParameters.RewireR, TEXT("RewireR")) );
+	CompTex->AddParamVal2( IDatasmithCompositeTexture::ParamVal((float)ColorCorrectionParameters.RewireG, TEXT("RewireG")) );
+	CompTex->AddParamVal2( IDatasmithCompositeTexture::ParamVal((float)ColorCorrectionParameters.RewireB, TEXT("RewireB")) );
 
 	return Result;
 }
