@@ -23,6 +23,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraTrace.h"
 #include "NiagaraCommon.h"
 
 #include "NiagaraFunctionLibrary.h"
@@ -1141,6 +1142,9 @@ static void ConvertFloatToHalf(const FNiagaraCompileOptions& InCompileOptions, T
 
 const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagaraCompileRequestData* InCompileData, const FNiagaraCompileOptions& InCompileOptions, FHlslNiagaraTranslatorOptions InTranslateOptions)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraHlslTranslate);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*InCompileOptions.GetPathName(), NiagaraChannel);
+
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_Translate);
 	check(InCompileData);
 
@@ -5930,7 +5934,6 @@ int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiag
 		if (FuncParam != INDEX_NONE)
 		{
 			//This data interface param has been overridden by the function call so use that index.	
-			UE_LOG(LogNiagaraEditor, Log, TEXT("RegisterDataInterface is funcParam"));
 			return FuncParam;
 		}
 	}

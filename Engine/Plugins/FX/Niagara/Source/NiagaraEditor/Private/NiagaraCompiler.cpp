@@ -27,6 +27,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraTrace.h"
 #include "Serialization/MemoryReader.h"
 #include "../../Niagara/Private/NiagaraPrecompileContainer.h"
 
@@ -643,6 +644,9 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> InvalidPtr;
 		return InvalidPtr;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraPrecompile);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(LogPackage ? *LogPackage->GetName() : *InObj->GetName(), NiagaraChannel);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptSource_PreCompile);
 	double StartTime = FPlatformTime::Seconds();

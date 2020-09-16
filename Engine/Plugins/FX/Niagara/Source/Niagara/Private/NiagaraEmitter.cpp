@@ -6,6 +6,7 @@
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraTrace.h"
 #include "NiagaraCustomVersion.h"
 #include "UObject/Package.h"
 #include "UObject/Linker.h"
@@ -210,6 +211,9 @@ bool UNiagaraEmitter::IsSynchronizedWithParent() const
 
 INiagaraMergeManager::FMergeEmitterResults UNiagaraEmitter::MergeChangesFromParent()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MergeEmitter);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*GetPathName(), NiagaraChannel);
+
 	if (GbEnableEmitterChangeIdMergeLogging)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("Emitter %s is merging changes from parent %s because its Change ID was updated."), *GetPathName(),
