@@ -44,6 +44,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num page prefetch"), STAT_NumPagePrefetch, STAT
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page update"), STAT_NumPageUpdate, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num mapped page update"), STAT_NumMappedPageUpdate, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num continuous page update"), STAT_NumContinuousPageUpdate, STATGROUP_VirtualTexturing);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Num page allocation fails"), STAT_NumPageAllocateFails, STATGROUP_VirtualTexturing);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num stacks requested"), STAT_NumStacksRequested, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num stacks produced"), STAT_NumStacksProduced, STATGROUP_VirtualTexturing);
@@ -1779,6 +1780,7 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_Submit);
 
 		uint32 NumStacksProduced = 0u;
+		uint32 NumPageAllocateFails = 0u;
 		for (uint32 RequestIndex = 0u; RequestIndex < RequestList->GetNumLoadRequests(); ++RequestIndex)
 		{
 			const FVirtualTextureLocalTile TileToLoad = RequestList->GetLoadRequest(RequestIndex);
@@ -1852,13 +1854,19 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 						}
 						else
 						{
-							UE_LOG(LogConsoleResponse, Display, TEXT("Failed to allocate VT page from pool %d"), PhysicalSpace->GetID());
-							for (int TextureIndex = 0; TextureIndex < PhysicalSpace->GetDescription().NumLayers; ++TextureIndex)
+							static bool bWarnedOnce = false;
+							if (!bWarnedOnce)
 							{
-								const FPixelFormatInfo& PoolFormatInfo = GPixelFormats[PhysicalSpace->GetFormat(TextureIndex)];
-								UE_LOG(LogConsoleResponse, Display, TEXT("  PF_%s"), PoolFormatInfo.Name);
+								UE_LOG(LogConsoleResponse, Display, TEXT("Failed to allocate VT page from pool %d"), PhysicalSpace->GetID());
+								for (int TextureIndex = 0; TextureIndex < PhysicalSpace->GetDescription().NumLayers; ++TextureIndex)
+								{
+									const FPixelFormatInfo& PoolFormatInfo = GPixelFormats[PhysicalSpace->GetFormat(TextureIndex)];
+									UE_LOG(LogConsoleResponse, Display, TEXT("  PF_%s"), PoolFormatInfo.Name);
+								}
+								bWarnedOnce = true;
 							}
 							bProduceTargetValid = false;
+							NumPageAllocateFails++;
 							break;
 						}
 					}
@@ -1939,6 +1947,7 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 
 		INC_DWORD_STAT_BY(STAT_NumStacksRequested, RequestList->GetNumLoadRequests());
 		INC_DWORD_STAT_BY(STAT_NumStacksProduced, NumStacksProduced);
+		INC_DWORD_STAT_BY(STAT_NumPageAllocateFails, NumPageAllocateFails);
 	}
 
 	{
