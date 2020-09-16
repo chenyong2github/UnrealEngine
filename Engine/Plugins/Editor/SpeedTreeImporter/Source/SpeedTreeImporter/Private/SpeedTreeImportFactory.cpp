@@ -90,6 +90,38 @@ using namespace SpeedTreeDataBuffer;
 
 DEFINE_LOG_CATEGORY_STATIC(LogSpeedTreeImport, Log, All);
 
+
+namespace UE
+{
+namespace SpeedTreeImporter
+{
+namespace Private
+{
+	TArray<FStaticMaterial> ClearOutOldMesh(UStaticMesh& Mesh)
+	{
+		TArray<FStaticMaterial> OldMaterials;
+	
+		OldMaterials = Mesh.StaticMaterials;
+		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+		for (int32 i = 0; i < OldMaterials.Num(); ++i)
+		{
+			UMaterialInterface* MaterialInterface = OldMaterials[i].MaterialInterface;
+			if(MaterialInterface && MaterialInterface != DefaultMaterial)
+			{
+				MaterialInterface->PreEditChange(NULL);
+				MaterialInterface->PostEditChange();
+			}
+		}
+
+		// Free any RHI resources for existing mesh before we re-create in place.
+		Mesh.PreEditChange(NULL);
+
+		return OldMaterials;
+	}
+}
+}
+}
+
 /** UI to pick options when importing  SpeedTree */
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 class SSpeedTreeImportOptions : public SCompoundWidget
@@ -1914,23 +1946,12 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 			{
 				LoadedPackages.Empty( );
 
-				// clear out old mesh
 				TArray<FStaticMaterial> OldMaterials;
 				FGlobalComponentReregisterContext RecreateComponents;
+				// clear out old mesh
 				if (ExistingMesh)
 				{
-					OldMaterials = ExistingMesh->StaticMaterials;
-					for (int32 i = 0; i < OldMaterials.Num(); ++i)
-					{
-						if(OldMaterials[i].MaterialInterface)
-						{
-							OldMaterials[i].MaterialInterface->PreEditChange(NULL);
-							OldMaterials[i].MaterialInterface->PostEditChange();
-						}
-					}
-
-					// Free any RHI resources for existing mesh before we re-create in place.
-					ExistingMesh->PreEditChange(NULL);
+					OldMaterials = UE::SpeedTreeImporter::Private::ClearOutOldMesh(*ExistingMesh);
 				}
 				
 				StaticMesh = NewObject<UStaticMesh>(Package, FName(*MeshName), Flags | RF_Public);
@@ -2413,19 +2434,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 		FGlobalComponentReregisterContext RecreateComponents;
 		if (ExistingMesh)
 		{
-			OldMaterials = ExistingMesh->StaticMaterials;
-			for (int32 i = 0; i < OldMaterials.Num(); ++i)
-			{
-				if (OldMaterials[i].MaterialInterface != UMaterial::GetDefaultMaterial(MD_Surface))
-				{
-					OldMaterials[i].MaterialInterface->PreEditChange(NULL);
-					OldMaterials[i].MaterialInterface->PostEditChange();
-				}
-			}
-
-			// Free any RHI resources for existing mesh before we re-create in place.
-			ExistingMesh->PreEditChange(NULL);
-
+			OldMaterials = UE::SpeedTreeImporter::Private::ClearOutOldMesh(*ExistingMesh);
 			StaticMesh = ExistingMesh;
 		}
 		else
@@ -2793,19 +2802,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 		FGlobalComponentReregisterContext RecreateComponents;
 		if (ExistingMesh)
 		{
-			OldMaterials = ExistingMesh->StaticMaterials;
-			for (int32 i = 0; i < OldMaterials.Num(); ++i)
-			{
-				if (OldMaterials[i].MaterialInterface != UMaterial::GetDefaultMaterial(MD_Surface))
-				{
-					OldMaterials[i].MaterialInterface->PreEditChange(NULL);
-					OldMaterials[i].MaterialInterface->PostEditChange();
-				}
-			}
-
-			// Free any RHI resources for existing mesh before we re-create in place.
-			ExistingMesh->PreEditChange(NULL);
-
+			OldMaterials = UE::SpeedTreeImporter::Private::ClearOutOldMesh(*ExistingMesh);
 			StaticMesh = ExistingMesh;
 		}
 		else
