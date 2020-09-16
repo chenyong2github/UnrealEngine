@@ -16,7 +16,6 @@
 #include "Engine/LODActor.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/MapBuildDataRegistry.h"
-#include "ActorRegistry.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -709,18 +708,23 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	{
 		UE_SCOPED_TIMER(TEXT("Deleting existing conversion results"), LogWorldPartitionConvertCommandlet, Display);
 
-		// Update AssetRegistry
-		{
-			UE_SCOPED_TIMER(TEXT("Waiting for asset registry"), LogWorldPartitionConvertCommandlet, Display);
-			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-			AssetRegistry.SearchAllAssets(true);
-		}
-
-		TArray<FAssetData> Assets;
 		FString OldLevelName = Tokens[0] + ConversionSuffix;
-		FActorRegistry::GetLevelActors(*OldLevelName, Assets);
+		FString ExternalActorsPath = ULevel::GetExternalActorsPath(OldLevelName);
 
-		if (!PackageHelper.Delete(Assets))
+		bool bResult = IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(ExternalActorsPath), [this](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+		{
+			if (!bIsDirectory)
+			{
+				FString Filename(FilenameOrDirectory);
+				if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+				{
+					return PackageHelper.Delete(Filename);
+				}
+			}
+			return true;
+		});
+
+		if (!bResult)
 		{
 			UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to delete external actor package(s)"));
 			return 1;

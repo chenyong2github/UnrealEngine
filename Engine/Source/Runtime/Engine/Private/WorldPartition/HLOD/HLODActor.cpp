@@ -5,8 +5,6 @@
 #include "Components/PrimitiveComponent.h"
 
 #if WITH_EDITOR
-#include "ActorRegistry.h"
-#include "AssetData.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -167,30 +165,6 @@ void AWorldPartitionHLOD::SetHLODLayer(const UHLODLayer* InSubActorsHLODLayer, i
 {
 	SubActorsHLODLayer = InSubActorsHLODLayer;
 	SubActorsHLODLevel = InSubActorsHLODLevel;
-}
-
-void AWorldPartitionHLOD::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
-{
-	Super::GetAssetRegistryTags(OutTags);
-
-	if (IsPackageExternal())
-	{
-		if (SubActors.Num())
-		{
-			FString SubActorsGUIDsStr;
-			for (FGuid ActorGUID : SubActors)
-			{
-				SubActorsGUIDsStr += ActorGUID.ToString() + TEXT(";");
-			}
-			SubActorsGUIDsStr.RemoveFromEnd(TEXT(";"));
-
-			static const FName NAME_HLODSubActors(TEXT("HLODSubActors"));
-			FActorRegistry::SaveActorMetaData(NAME_HLODSubActors, SubActorsGUIDsStr, OutTags);
-		}
-
-		static const FName NAME_HLODSubActors(TEXT("HLODLayer"));
-		FActorRegistry::SaveActorMetaData(NAME_HLODSubActors, FSoftObjectPath(SubActorsHLODLayer).ToString(), OutTags);
-	}
 }
 
 void AWorldPartitionHLOD::PostActorCreated()

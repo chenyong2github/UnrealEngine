@@ -19,7 +19,6 @@
 #include "WorldPartition/LevelInstance/LevelInstanceActorDescFactory.h"
 #include "Misc/ScopedSlowTask.h"
 #include "AssetRegistryModule.h"
-#include "ActorRegistry.h"
 #include "AssetData.h"
 #include "FileHelpers.h"
 #include "Editor.h"

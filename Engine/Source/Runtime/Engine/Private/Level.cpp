@@ -47,7 +47,6 @@ Level.cpp: Level-related functions
 #include "Engine/LevelBounds.h"
 #include "Async/ParallelFor.h"
 #include "UnrealEngine.h"
-#include "ActorRegistry.h"
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"

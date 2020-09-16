@@ -6,6 +6,8 @@
 #include "Misc/HashBuilder.h"
 #include "UObject/LinkerInstancingContext.h"
 #include "UObject/UObjectHash.h"
+#include "Algo/Transform.h"
+#include "Algo/RemoveIf.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "Editor/GroupActor.h"
@@ -15,9 +17,12 @@
 #if WITH_EDITOR
 uint32 FWorldPartitionActorDesc::GlobalTag = 0;
 
-FWorldPartitionActorDesc::FWorldPartitionActorDesc(AActor* InActor)
+FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: LoadedRefCount(0)
 	, Tag(0)
+{}
+
+bool FWorldPartitionActorDesc::Init(const AActor* InActor)
 {	
 	check(InActor->IsPackageExternal());
 
@@ -53,8 +58,8 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc(AActor* InActor)
 	ActorPath = *InActor->GetPathName();
 	
 	TSet<AActor*> ActorReferences;
-	FArchiveGetActorRefs GetActorRefsAr(InActor, ActorReferences);
-	InActor->Serialize(GetActorRefsAr);
+	FArchiveGetActorRefs GetActorRefsAr((AActor*)InActor, ActorReferences);
+	((AActor*)InActor)->Serialize(GetActorRefsAr);
 
 	if (ActorReferences.Num())
 	{
@@ -64,26 +69,45 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc(AActor* InActor)
 			References.Add(ActorReference->GetActorGuid());
 		}
 	}
+
+	UpdateHash();
+	return true;
 }
 
-FWorldPartitionActorDesc::FWorldPartitionActorDesc(const FWorldPartitionActorDescData& DescData)
-	: LoadedRefCount(0)
-	, Tag(0)
+bool FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& DescData)
 {
-	Guid = DescData.Guid;
-	Class = DescData.Class;
-	BoundsLocation = DescData.BoundsLocation;
-	BoundsExtent = DescData.BoundsExtent;
-	GridPlacement = DescData.GridPlacement;
-	RuntimeGrid = DescData.RuntimeGrid;
-	bActorIsEditorOnly = DescData.bActorIsEditorOnly;
-	bLevelBoundsRelevant = DescData.bLevelBoundsRelevant;
-	Layers = DescData.Layers;
-	References = DescData.References;
-	ActorPackage = DescData.ActorPackage;
+	ActorPackage = DescData.PackageName;
 	ActorPath = DescData.ActorPath;
+	ActorClass = DescData.NativeClass;
+	Class = DescData.NativeClass->GetFName();
 
-	ActorClass = FindObjectChecked<UClass>(ANY_PACKAGE, *Class.ToString(), true);
+	// Serialize actor metadata
+	SerializeMetaData(DescData.Serializer);
+
+	if (!DescData.Serializer->GetHasErrors())
+	{	
+		// Override grid placement by default class value
+		const EActorGridPlacement DefaultGridPlacement = ActorClass->GetDefaultObject<AActor>()->GetDefaultGridPlacement();
+		if (DefaultGridPlacement != EActorGridPlacement::None)
+		{
+			GridPlacement = DefaultGridPlacement;
+		}
+
+		// Transform BoundsLocation and BoundsExtent if necessary
+		if (!DescData.Transform.Equals(FTransform::Identity))
+		{
+			//@todo_ow: This will result in a new BoundsExtent that is larger than it should. To fix this, we would need the Object Oriented BoundingBox of the actor (the BV of the actor without rotation)
+			const FVector BoundsMin = BoundsLocation - BoundsExtent;
+			const FVector BoundsMax = BoundsLocation + BoundsExtent;
+			const FBox NewBounds = FBox(BoundsMin, BoundsMax).TransformBy(DescData.Transform);
+			NewBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+		}
+
+		UpdateHash();
+		return true;
+	}
+
+	return false;
 }
 
 FString FWorldPartitionActorDesc::ToString() const
@@ -100,7 +124,81 @@ void FWorldPartitionActorDesc::UpdateHash()
 
 void FWorldPartitionActorDesc::BuildHash(FHashBuilder& HashBuilder)
 {
-	HashBuilder << Guid << Class << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant << Layers << References << ActorPackage << ActorPath;
+	HashBuilder << Guid << Class << ActorPackage << ActorPath << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant << Layers << References;
+}
+
+void FWorldPartitionActorDesc::SerializeMetaData(FActorMetaDataSerializer* Serializer)
+{
+	bool bValidSerialization = true;
+
+	bValidSerialization &= Serializer->Serialize(TEXT("ActorClass"), Class);
+	bValidSerialization &= Serializer->Serialize(TEXT("ActorGuid"), Guid);
+	bValidSerialization &= Serializer->Serialize(TEXT("BoundsLocation"), BoundsLocation);
+	bValidSerialization &= Serializer->Serialize(TEXT("BoundsExtent"), BoundsExtent);
+	bValidSerialization &= Serializer->Serialize(TEXT("GridPlacement"), (int8&)GridPlacement);
+	bValidSerialization &= Serializer->Serialize(TEXT("RuntimeGrid"), RuntimeGrid);
+	bValidSerialization &= Serializer->Serialize(TEXT("IsEditorOnly"), bActorIsEditorOnly);
+	bValidSerialization &= Serializer->Serialize(TEXT("IsLevelBoundsRelevant"), bLevelBoundsRelevant);
+
+	if (!bValidSerialization)
+	{
+		Serializer->SetHasErrors();
+	}
+
+	FString LayersStr;
+	FString ActorsRefsStr;
+
+	if (Serializer->IsWriting())
+	{
+		if (Layers.Num())
+		{
+			for(FName Layer: Layers)
+			{
+				LayersStr += Layer.ToString() + TEXT(";");
+			}
+			LayersStr.RemoveFromEnd(TEXT(";"));
+		}
+
+		if (References.Num())
+		{
+			for(const FGuid& ActoGuid: References)
+			{
+				ActorsRefsStr += ActoGuid.ToString() + TEXT(";");
+			}
+			ActorsRefsStr.RemoveFromEnd(TEXT(";"));
+		}
+	}
+
+	Serializer->Serialize(TEXT("Layers"), LayersStr);
+	Serializer->Serialize(TEXT("ActorReferences"), ActorsRefsStr);
+
+	if (Serializer->IsReading())
+	{
+		TArray<FString> NewLayers;
+		if (LayersStr.ParseIntoArray(NewLayers, TEXT(";")))
+		{
+			Algo::Transform(NewLayers, Layers, [&](const FString& Layer) { return FName(*Layer); });
+		}
+
+		TArray<FString> ActorsRefs;
+		if (ActorsRefsStr.ParseIntoArray(ActorsRefs, TEXT(";")))
+		{
+			Algo::Transform(ActorsRefs, References, [](const FString& ActorGuidStr)
+			{
+				FGuid ActorGuid;
+				if (!FGuid::Parse(ActorGuidStr, ActorGuid))
+				{
+					ActorGuid.Invalidate();
+				}
+				return ActorGuid;
+			});
+
+			Algo::RemoveIf(References, [](const FGuid& InGuid)
+			{
+				return !InGuid.IsValid();
+			});
+		}
+	}
 }
 
 FBox FWorldPartitionActorDesc::GetBounds() const

@@ -46,9 +46,11 @@
 #include "ObjectTrace.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Engine/AutoDestroySubsystem.h"
-#include "ActorRegistry.h"
 #include "LevelUtils.h"
 #include "Components/DecalComponent.h"
+
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -515,69 +517,17 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 
 	if (IsPackageExternal() && !IsChildActor())
 	{
-		check(ActorGuid.IsValid());
-		static const FName NAME_ActorGuid(TEXT("ActorGuid"));
-		FActorRegistry::SaveActorMetaData(NAME_ActorGuid, ActorGuid, OutTags);
-
-		// Get the first native class in the hierarchy, to be able to recreate the actor descriptor without having to load a BP class
-		UClass* NativeClass = GetParentNativeClass(GetClass());
-		static const FName NAME_ActorClass(TEXT("ActorClass"));
-		FActorRegistry::SaveActorMetaData(NAME_ActorClass, NativeClass->GetFName(), OutTags);
-
-		static const FName NAME_LevelPackage(TEXT("LevelPackage"));
-		FString LevelPackageName = GetOuter()->GetOutermost()->GetName();
-		FActorRegistry::SaveActorMetaData(NAME_LevelPackage, LevelPackageName, OutTags);
-
-		FVector BoundsLocation;
-		FVector BoundsExtent;		
-		GetActorLocationBounds(false, BoundsLocation, BoundsExtent);
-
-		static const FName NAME_BoundsLocation(TEXT("BoundsLocation"));
-		FActorRegistry::SaveActorMetaData(NAME_BoundsLocation, BoundsLocation, OutTags);
-
-		static const FName NAME_BoundsExtent(TEXT("BoundsExtent"));
-		FActorRegistry::SaveActorMetaData(NAME_BoundsExtent, BoundsExtent, OutTags);
-
-		static const FName NAME_GridPlacement(TEXT("GridPlacement"));
-		FActorRegistry::SaveActorMetaData(NAME_GridPlacement, (int32)GridPlacement, OutTags);
-
-		static const FName NAME_RuntimeGrid(TEXT("RuntimeGrid"));
-		FActorRegistry::SaveActorMetaData(NAME_RuntimeGrid, RuntimeGrid, OutTags);
-
-		static const FName NAME_IsEditorOnly(TEXT("IsEditorOnly"));
-		FActorRegistry::SaveActorMetaData(NAME_IsEditorOnly, IsEditorOnly(), OutTags);
-
-		static const FName NAME_IsLevelBoundsRelevant(TEXT("IsLevelBoundsRelevant"));
-		FActorRegistry::SaveActorMetaData(NAME_IsLevelBoundsRelevant, IsLevelBoundsRelevant(), OutTags);		
-
-		if (Layers.Num())
+		if (UWorldPartition* WorldPartition = GetWorldSettings()->GetWorldPartition())
 		{
-			FString ActorLayers;
-			for(FName Layer: Layers)
-			{
-				ActorLayers += Layer.ToString() + TEXT(";");
-			}
-			ActorLayers.RemoveFromEnd(TEXT(";"));
+			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(WorldPartition->GetActorDescFactory(this)->Create());
+			ActorDesc->Init(this);
 
-			static const FName NAME_Layers(TEXT("Layers"));
-			FActorRegistry::SaveActorMetaData(NAME_Layers, ActorLayers, OutTags);
-		}
+			FActorMetaDataWriter ActorMetaDataSerializer(OutTags);
 
-		TSet<AActor*> ActorReferences;
-		FArchiveGetActorRefs GetActorRefsAr((AActor*)this, ActorReferences);
-		((AActor*)this)->Serialize(GetActorRefsAr);
+			FString LevelPackageName = GetOuter()->GetOutermost()->GetName();
+			ActorMetaDataSerializer.Serialize(TEXT("LevelPackage"), LevelPackageName);
 
-		if (ActorReferences.Num())
-		{
-			FString ActorRefs;
-			for(AActor* ActorReference: ActorReferences)
-			{
-				ActorRefs += ActorReference->ActorGuid.ToString() + TEXT(";");
-			}
-			ActorRefs.RemoveFromEnd(TEXT(";"));
-
-			static const FName NAME_ActorReferences(TEXT("ActorReferences"));
-			FActorRegistry::SaveActorMetaData(NAME_ActorReferences, ActorRefs, OutTags);
+			ActorDesc->SerializeMetaData(&ActorMetaDataSerializer);
 		}
 	}
 }

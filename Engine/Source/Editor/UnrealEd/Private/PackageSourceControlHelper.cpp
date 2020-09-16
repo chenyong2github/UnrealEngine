@@ -107,17 +107,6 @@ bool FPackageSourceControlHelper::Delete(UPackage* Package) const
 	return Delete(Packages);
 }
 
-bool FPackageSourceControlHelper::Delete(const TArray<FAssetData>& Assets) const
-{
-	bool bAllPackagesDeleted = true;
-	for (const FAssetData& AssetToDelete : Assets)
-	{
-		bAllPackagesDeleted &= Delete(AssetToDelete.PackageName.ToString());
-	}
-
-	return bAllPackagesDeleted;
-}
-
 bool FPackageSourceControlHelper::Delete(const TArray<UPackage*>& Packages) const
 {
 	if (Packages.IsEmpty())

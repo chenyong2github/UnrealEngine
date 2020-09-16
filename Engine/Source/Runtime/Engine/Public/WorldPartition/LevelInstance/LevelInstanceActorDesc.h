@@ -15,19 +15,20 @@ class UWorldPartition;
  */
 class ENGINE_API FLevelInstanceActorDesc : public FWorldPartitionActorDesc
 {
-public:
 #if WITH_EDITOR
+	friend class FLevelInstanceActorDescFactory;
+
+public:
 	inline FName GetLevelPackage() const { return LevelPackage; }
 
 protected:
-	FLevelInstanceActorDesc() = delete;
-	FLevelInstanceActorDesc(const FWorldPartitionActorDescData& DescData, FName LevelPackage);
-	FLevelInstanceActorDesc(AActor* InActor);
+	virtual bool Init(const AActor* InActor) override;
 
 	virtual void BuildHash(FHashBuilder& HashBuilder) override;
 
-	friend class FLevelInstanceActorDescFactory;
+	virtual void SerializeMetaData(FActorMetaDataSerializer* Serializer) override;
 
 	FName LevelPackage;
+	FTransform LevelInstanceTransform;
 #endif
 };

@@ -2,37 +2,38 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AssetData.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 #include "Containers/Set.h"
 #include "Misc/Guid.h"
 #include "Misc/HashBuilder.h"
+#include "WorldPartition/WorldPartitionActorMetaDataSerializer.h"
+#include "WorldPartition/WorldPartitionActorDescFactory.h"
 
-class FWorldPartitionActorDescData
+#if WITH_EDITOR
+// Struct used to create actor descriptor
+struct FWorldPartitionActorDescInitData
 {
-public:
-	FGuid Guid;
-	FName Class;
-	FName ActorPackage;
+	UClass* NativeClass;
+	FName PackageName;
 	FName ActorPath;
-	FVector BoundsLocation;
-	FVector BoundsExtent;
-	EActorGridPlacement GridPlacement;
-	FName RuntimeGrid;
-	bool bActorIsEditorOnly;
-	bool bLevelBoundsRelevant;
-	TArray<FName> Layers;
-	TArray<FGuid> References;
+	FAssetData AssetData;
+	FTransform Transform;
+	FActorMetaDataSerializer* Serializer;
 };
+#endif
 
 /**
  * Represents a potentially unloaded actor (editor-only)
  */
-class ENGINE_API FWorldPartitionActorDesc : protected FWorldPartitionActorDescData
+class ENGINE_API FWorldPartitionActorDesc 
 {
 #if WITH_EDITOR
-	FWorldPartitionActorDesc() = delete;
+	friend class AActor;
+	friend class UWorldPartition;
+	friend class FWorldPartitionActorDescFactory;
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}
@@ -84,12 +85,27 @@ public:
 	void Unload();
 
 protected:
-	FWorldPartitionActorDesc(AActor* InActor);
-	FWorldPartitionActorDesc(const FWorldPartitionActorDescData& DescData);
-	friend class FWorldPartitionActorDescFactory;
+	FWorldPartitionActorDesc();
+	virtual bool Init(const AActor* InActor);
+	bool Init(const FWorldPartitionActorDescInitData& DescData);
 		
 	void UpdateHash();
 	virtual void BuildHash(FHashBuilder& HashBuilder);
+
+	virtual void SerializeMetaData(FActorMetaDataSerializer* Serializer);
+
+	FGuid						Guid;
+	FName						Class;
+	FName						ActorPackage;
+	FName						ActorPath;
+	FVector						BoundsLocation;
+	FVector						BoundsExtent;
+	EActorGridPlacement			GridPlacement;
+	FName						RuntimeGrid;
+	bool						bActorIsEditorOnly;
+	bool						bLevelBoundsRelevant;
+	TArray<FName>				Layers;
+	TArray<FGuid>				References;
 	
 	mutable uint32				LoadedRefCount;
 	mutable uint32				Hash;

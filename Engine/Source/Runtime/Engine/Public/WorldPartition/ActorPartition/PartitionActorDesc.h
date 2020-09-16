@@ -9,18 +9,20 @@
 
 class ENGINE_API FPartitionActorDesc : public FWorldPartitionActorDesc
 {
+#if WITH_EDITOR
+	friend class FPartitionActorDescFactory;
+
 public:
 	uint32 GridSize;
 	int64 GridIndexX;
 	int64 GridIndexY;
 	int64 GridIndexZ;
 
-#if WITH_EDITOR
 protected:
-	FPartitionActorDesc() = delete;
-	FPartitionActorDesc(const FWorldPartitionActorDescData& DescData, uint32 InGridSize, int64 InGridIndexX, int64 InGridIndexY, int64 InGridIndexZ);
-	FPartitionActorDesc(AActor* InActor);
+	virtual bool Init(const AActor* InActor) override;
+	
+	virtual void BuildHash(FHashBuilder& HashBuilder) override;
 
-	friend class FPartitionActorDescFactory;
+	virtual void SerializeMetaData(FActorMetaDataSerializer* Serializer) override;
 #endif
 };

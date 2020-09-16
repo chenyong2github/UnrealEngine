@@ -4,7 +4,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescFactory.h"
 #include "WorldPartition.generated.h"
 

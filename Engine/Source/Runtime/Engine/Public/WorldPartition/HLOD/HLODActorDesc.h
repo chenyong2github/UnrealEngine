@@ -14,19 +14,19 @@ class UHLODLayer;
  */
 class ENGINE_API FHLODActorDesc : public FWorldPartitionActorDesc
 {
-public:
 #if WITH_EDITOR
+	friend class FHLODActorDescFactory;
+
+public:
 	inline const TArray<FGuid>& GetSubActors() const { return SubActors; }
 	inline const FSoftObjectPath& GetHLODLayer() const { return HLODLayer; }
 
 protected:
-	FHLODActorDesc() = delete;
-	FHLODActorDesc(const FWorldPartitionActorDescData& DescData, const TArray<FGuid>& InSubActors, const FSoftObjectPath& HLODLayer);
-	FHLODActorDesc(AActor* InActor);
+	virtual bool Init(const AActor* InActor) override;
 
 	virtual void BuildHash(FHashBuilder& HashBuilder) override;
 
-	friend class FHLODActorDescFactory;
+	virtual void SerializeMetaData(FActorMetaDataSerializer* Serializer) override;
 
 	TArray<FGuid> SubActors;
 	FSoftObjectPath	HLODLayer;

@@ -24,13 +24,13 @@
 #include "Layers/Layer.h"
 #include "Layers/LayersSubsystem.h"
 #include "Editor/GroupActor.h"
-#include "ActorRegistry.h"
 #include "EditorLevelUtils.h"
 #include "FileHelpers.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeExit.h"
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
+#include "AssetRegistryModule.h"
 #include "WorldPartition/WorldPartitionActorDescFactory.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
@@ -244,9 +244,28 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		TSet<FName> AllLayersNames;
 
+		auto GetLevelActors = [](const FName& LevelPath, TArray<FAssetData>& OutAssets)
+		{
+			if (!LevelPath.IsNone())
+			{
+				FString LevelPathStr = LevelPath.ToString();
+				IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	
+				// Do a synchronous scan of the level external actors path.
+				const bool bForceRescan = true;
+				AssetRegistry.ScanPathsSynchronous({ULevel::GetExternalActorsPath(LevelPath.ToString())}, bForceRescan);
+
+				static const FName NAME_LevelPackage(TEXT("LevelPackage"));
+				FARFilter Filter;
+				Filter.TagsAndValues.Add(NAME_LevelPackage, LevelPathStr);
+				Filter.bIncludeOnlyOnDiskAssets = true;
+				AssetRegistry.GetAssets(Filter, OutAssets);
+			}
+		};
+
 		TArray<FAssetData> Assets;
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
-		FActorRegistry::GetLevelActors(LevelPackage->FileName, Assets);
+		GetLevelActors(LevelPackage->FileName, Assets);
 
 		bool bIsInstanced = (bEditorOnly && !IsRunningCommandlet()) ? OuterWorld->PersistentLevel->IsInstancedLevel() : false;
 
@@ -266,9 +285,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		for (const FAssetData& Asset : Assets)
 		{
+			FActorMetaDataReader ActorMetaDataSerializer(Asset);
+
 			FName ActorClass;
-			static const FName NAME_ActorClass(TEXT("ActorClass"));
-			FActorRegistry::ReadActorMetaData(NAME_ActorClass, ActorClass, Asset);
+			ActorMetaDataSerializer.Serialize(TEXT("ActorClass"), ActorClass);
 
 			FWorldPartitionActorDescInitData ActorDescInitData;
 			ActorDescInitData.NativeClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ActorClass.ToString(), true);
@@ -276,6 +296,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			ActorDescInitData.AssetData = Asset;
 			ActorDescInitData.ActorPath = Asset.ObjectPath;
 			ActorDescInitData.Transform = bIsInstanced ? InstanceTransform : FTransform::Identity;
+			ActorDescInitData.Serializer = &ActorMetaDataSerializer;
 
 			if (bIsInstanced)
 			{
@@ -288,13 +309,16 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				ActorDescInitData.ActorPath = *ActorDescInitData.ActorPath.ToString().Replace(*ReplaceFrom, *ReplaceTo);
 			}
 
-			if (FWorldPartitionActorDesc* NewActorDesc = GetActorDescFactory(ActorDescInitData.NativeClass)->Create(ActorDescInitData))
+			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(GetActorDescFactory(ActorDescInitData.NativeClass)->Create());
+
+			if (NewActorDesc->Init(ActorDescInitData))
 			{
 				if (bEditorOnly)
 				{
 					AllLayersNames.Append(NewActorDesc->GetLayers());
 				}
-				Actors.Add(NewActorDesc->GetGuid(), TUniquePtr<FWorldPartitionActorDesc>(NewActorDesc));
+
+				Actors.Add(NewActorDesc->GetGuid(), MoveTemp(NewActorDesc));
 			}
 		}
 
@@ -500,7 +524,8 @@ void UWorldPartition::UpdateActorDesc(AActor* InActor)
 		}
 		else if (ActorDescPtr && InActor->GetLevel() == World->PersistentLevel)
 		{
-			TUniquePtr<FWorldPartitionActorDesc> NewDesc(GetActorDescFactory(InActor)->Create(InActor));
+			TUniquePtr<FWorldPartitionActorDesc> NewDesc(GetActorDescFactory(InActor)->Create());
+			NewDesc->Init(InActor);
 			
 			if (NewDesc->GetHash() != ActorDescPtr->Get()->GetHash())
 			{
@@ -1018,6 +1043,9 @@ void UWorldPartition::OnActorAdded(AActor* InActor)
 	{
 		TUniquePtr<FWorldPartitionActorDesc>* ActorDescPtr = Actors.Find(InActor->GetActorGuid());
 
+		TUniquePtr<FWorldPartitionActorDesc> NewDesc(GetActorDescFactory(InActor)->Create());
+		NewDesc->Init(InActor);
+
 		if (ActorDescPtr)
 		{
 			// The only case where this is valid is when reinstancing BP actors. In this case, we'll receive the call
@@ -1027,16 +1055,13 @@ void UWorldPartition::OnActorAdded(AActor* InActor)
 
 			RemoveFromPartition(ActorDescPtr->Get(), false);
 
-			TUniquePtr<FWorldPartitionActorDesc> NewDesc(GetActorDescFactory(InActor)->Create(InActor));
 			*ActorDescPtr = MoveTemp(NewDesc);
 		}
 		else
 		{
 			checkSlow(InActor->GetLevel()->Actors.Find(InActor) != INDEX_NONE);
 
-			FWorldPartitionActorDesc* NewDesc(GetActorDescFactory(InActor)->Create(InActor));
-
-			ActorDescPtr = &Actors.Add(InActor->GetActorGuid(), TUniquePtr<FWorldPartitionActorDesc>(NewDesc));
+			ActorDescPtr = &Actors.Add(InActor->GetActorGuid(), MoveTemp(NewDesc));
 		}
 
 		AddToPartition(ActorDescPtr->Get());

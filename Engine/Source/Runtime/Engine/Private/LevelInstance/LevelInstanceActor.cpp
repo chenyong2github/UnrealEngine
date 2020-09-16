@@ -11,7 +11,6 @@
 #include "LevelInstancePrivate.h"
 
 #if WITH_EDITOR
-#include "ActorRegistry.h"
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/MapErrors.h"
@@ -265,21 +264,6 @@ void ALevelInstance::PostEditUndo()
 FString ALevelInstance::GetWorldAssetPackage() const
 {
 	return WorldAsset.GetUniqueID().GetLongPackageName();
-}
-
-void ALevelInstance::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
-{
-	Super::GetAssetRegistryTags(OutTags);
-
-	if (IsPackageExternal())
-	{
-		static const FName NAME_LevelInstancePackage(TEXT("LevelInstancePackage"));
-		FActorRegistry::SaveActorMetaData(NAME_LevelInstancePackage, GetWorldAssetPackage(), OutTags);
-
-		static const FName NAME_LevelInstanceTransform(TEXT("LevelInstanceTransform"));
-		FTransform LevelInstanceTransform(GetActorRotation(), GetActorLocation());
-		FActorRegistry::SaveActorMetaData(NAME_LevelInstanceTransform, LevelInstanceTransform, OutTags);
-	}
 }
 
 void ALevelInstance::PreEditChange(FProperty* PropertyThatWillChange)
