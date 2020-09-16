@@ -982,6 +982,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 				continue; // skip dynamic primitives and other 
 			}
 
+			if (GRayTracingExcludeDecals && RelevantPrimitive.bAnySegmentsDecal)
+			{
+				continue;
+			}
+
 			const int NewInstanceIndex = View.RayTracingGeometryInstances.Num();
 
 
@@ -1001,11 +1006,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					// CommandIndex == -1 indicates that the mesh batch has been filtered by FRayTracingMeshProcessor (like the shadow depth pass batch)
 					// Do nothing in this case
 				}
-			}
-
-			if (GRayTracingExcludeDecals && RelevantPrimitive.bAnySegmentsDecal)
-			{
-				continue;
 			}
 
 			FRayTracingGeometryInstance& RayTracingInstance = View.RayTracingGeometryInstances.Emplace_GetRef();
