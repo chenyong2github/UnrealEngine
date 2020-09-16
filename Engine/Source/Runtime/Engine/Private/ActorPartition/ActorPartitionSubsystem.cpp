@@ -132,7 +132,7 @@ public:
 		: FBaseActorPartition(InWorld)
 	{
 		WorldPartition = InWorld->GetSubsystem<UWorldPartitionSubsystem>();
-		check(WorldPartition || IsRunningCommandlet());
+		check(WorldPartition);
 	}
 
 	UActorPartitionSubsystem::FCellCoord GetActorPartitionHash(const FActorPartitionGetParams& GetParams) const override 
@@ -207,12 +207,6 @@ bool UActorPartitionSubsystem::IsLevelPartition() const
 }
 
 #if WITH_EDITOR
-void UActorPartitionSubsystem::InitializeForWorldPartitionConversion()
-{
-	check(IsRunningCommandlet());
-	ActorPartition.Reset(new FActorPartitionWorldPartition(GetWorld()));
-}
-
 void UActorPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	UWorldPartitionSubsystem* WorldPartitionSubsystem = Collection.InitializeDependency<UWorldPartitionSubsystem>();

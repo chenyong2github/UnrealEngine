@@ -143,7 +143,7 @@ UWorldPartitionConvertCommandlet::UWorldPartitionConvertCommandlet(const FObject
 , ConversionSuffix(TEXT("_WP"))
 {}
 
-ULevel* UWorldPartitionConvertCommandlet::LoadLevel(const FString& LevelToLoad)
+UWorld* UWorldPartitionConvertCommandlet::LoadWorld(const FString& LevelToLoad)
 {
 	SET_WARN_COLOR(COLOR_WHITE);
 	UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Loading level %s."), *LevelToLoad);
@@ -156,39 +156,43 @@ ULevel* UWorldPartitionConvertCommandlet::LoadLevel(const FString& LevelToLoad)
 		return nullptr;
 	}
 
-	UWorld* World = UWorld::FindWorldInPackage(MapPackage);
-	if (World)
+	return UWorld::FindWorldInPackage(MapPackage);
+}
+
+ULevel* UWorldPartitionConvertCommandlet::InitWorld(UWorld* World)
+{
+	SET_WARN_COLOR(COLOR_WHITE);
+	UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Initializing level %s."), *World->GetName());
+	CLEAR_WARN_COLOR();
+
+	// Setup the world.
+	World->WorldType = EWorldType::Editor;
+	World->AddToRoot();
+	if (!World->bIsWorldInitialized)
 	{
-		// Setup the world.
-		World->WorldType = EWorldType::Editor;
-		World->AddToRoot();
-		if (!World->bIsWorldInitialized)
-		{
-			UWorld::InitializationValues IVS;
-			IVS.RequiresHitProxies(false);
-			IVS.ShouldSimulatePhysics(false);
-			IVS.EnableTraceCollision(false);
-			IVS.CreateNavigation(false);
-			IVS.CreateAISystem(false);
-			IVS.AllowAudioPlayback(false);
-			IVS.CreatePhysicsScene(true);
+		UWorld::InitializationValues IVS;
+		IVS.RequiresHitProxies(false);
+		IVS.ShouldSimulatePhysics(false);
+		IVS.EnableTraceCollision(false);
+		IVS.CreateNavigation(false);
+		IVS.CreateAISystem(false);
+		IVS.AllowAudioPlayback(false);
+		IVS.CreatePhysicsScene(true);
 
-			World->InitWorld(IVS);
-			World->PersistentLevel->UpdateModelComponents();
-			World->UpdateWorldComponents(true, false);
+		World->InitWorld(IVS);
+		World->PersistentLevel->UpdateModelComponents();
+		World->UpdateWorldComponents(true, false);
 
-			World->FlushLevelStreaming(EFlushLevelStreamingType::Full);
-		}
-
-		return World->PersistentLevel;
+		World->FlushLevelStreaming(EFlushLevelStreamingType::Full);
 	}
 
-	return nullptr;
+	return World->PersistentLevel;
 }
 
 UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSettings* MainWorldSettings, UWorldComposition* WorldComposition) const
 {
 	UWorldPartition* WorldPartition = NewObject<UWorldPartition>(MainWorldSettings);
+	MainWorldSettings->SetWorldPartition(WorldPartition);
 
 	WorldPartition->EditorHash = NewObject<UWorldPartitionEditorHash>(WorldPartition, EditorHashClass);
 	WorldPartition->RuntimeHash = NewObject<UWorldPartitionRuntimeHash>(WorldPartition, RuntimeHashClass);
@@ -732,25 +736,21 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		}
 	}
 
-	// Load persistent level
-	ULevel* MainLevel = LoadLevel(Tokens[0]);
-	if (!MainLevel)
+	// Load world
+	UWorld* MainWorld = LoadWorld(Tokens[0]);
+	if (!MainWorld)
 	{
-		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Unknown level '%s'"), *Tokens[0]);
+		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Unknown world '%s'"), *Tokens[0]);
 		return 1;
 	}
 
-	if (MainLevel->GetWorldPartition())
+	// Make sure the world isn't already partitionned
+	AWorldSettings* MainWorldSettings = MainWorld->GetWorldSettings();
+	if (MainWorldSettings->GetWorldPartition())
 	{
 		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Level '%s' is already partitionned"), *Tokens[0]);
 		return 1;
 	}
-
-	UWorld* MainWorld = MainLevel->GetWorld();
-	UPackage* MainPackage = MainLevel->GetPackage();
-	AWorldSettings* MainWorldSettings = MainWorld->GetWorldSettings();
-
-	OnWorldLoaded(MainWorld);
 
 	// Setup the world partition object
 	UWorldPartition* WorldPartition = CreateWorldPartition(MainWorldSettings, MainWorld->WorldComposition);
@@ -759,10 +759,19 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	// Make sure ActorPartitionSubsystem uses WorldPartition
+	// Initialize the world, create subsystems, etc.
+	ULevel* MainLevel = InitWorld(MainWorld);
+	if (!MainLevel)
+	{
+		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Unknown level '%s'"), *Tokens[0]);
+		return 1;
+	}
+
+	UPackage* MainPackage = MainLevel->GetPackage();
+
+	OnWorldLoaded(MainWorld);
+
 	UActorPartitionSubsystem* ActorPartitionSubsystem = MainWorld->GetSubsystem<UActorPartitionSubsystem>();
-	ActorPartitionSubsystem->InitializeForWorldPartitionConversion();
-	
 	auto PartitionFoliage = [this, MainWorld, ActorPartitionSubsystem](AInstancedFoliageActor* IFA)
 	{
 		for (auto& Pair : IFA->FoliageInfos)
@@ -1047,7 +1056,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		CollectGarbage(RF_Standalone);
 
 		MainLevel->bUseExternalActors = true;
-		MainWorldSettings->SetWorldPartition(WorldPartition);
 		MainWorld->WorldComposition = nullptr;
 		MainLevel->bIsPartitioned = true;
 

@@ -106,8 +106,6 @@ public:
 	APartitionActor* GetActor(const FActorPartitionGetParams& GetParam);
 	APartitionActor* GetActor(const TSubclassOf<APartitionActor>& InActorClass, const FCellCoord& InCellCoords, bool bInCreate);
 
-	virtual void InitializeForWorldPartitionConversion();
-
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 #endif

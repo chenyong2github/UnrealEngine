@@ -53,7 +53,8 @@ protected:
 	virtual void ReadAdditionalTokensAndSwitches(const TArray<FString>& Tokens, const TArray<FString>& Switches) {}
 
 	UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings, UWorldComposition* WorldComposition) const;
-	ULevel* LoadLevel(const FString& LevelToLoad);
+	UWorld* LoadWorld(const FString& LevelToLoad);
+	ULevel* InitWorld(UWorld* World);
 
 	void ChangeObjectOuter(UObject* Object, UObject* NewOuter);
 	void FixupSoftObjectPaths(UPackage* OuterPackage);
