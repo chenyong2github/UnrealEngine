@@ -295,29 +295,35 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	bool bIsClosed = bInInteractiveExtrude 
 		|| (SnapEngine.HaveActiveSnap() && SnapEngine.GetActiveSnapTargetID() == StartPointSnapID);
 
+	//
+	// Draw the grid
+	//
 	if (bInInteractiveExtrude == false)
 	{
 		FFrame3f DrawFrame((FVector3f)DrawPlaneOrigin, (FQuaternionf)DrawPlaneOrientation);
 		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(RenderCameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 
-	if (bInFixedPolygonMode)
+	//
+	// Generate the fixed polygon contour
+	//
+	if ((bInFixedPolygonMode) && (FixedPolygonClickPoints.Num() > 0))
 	{
-		if (FixedPolygonClickPoints.Num() > 0)
-		{
-			FixedPolygonClickPoints.Add(PreviewVertex);
-			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
-			FixedPolygonClickPoints.Pop(false);
-		}
-		bIsClosed = true;
+		TArray<FVector3d> PreviewClickPoints = FixedPolygonClickPoints;
+		if ( !bInInteractiveExtrude ){ PreviewClickPoints.Add(PreviewVertex); }
+		GenerateFixedPolygon(PreviewClickPoints, PolygonVertices, PolygonHolesVertices);
 	}
+	bIsClosed |= bInFixedPolygonMode;
 
 	int NumVerts = PolygonVertices.Num();
 
+	//
+	// Render snap indicators
+	//
 	if (SnapEngine.HaveActiveSnap())
 	{
 		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapToPoint(), ClosedPolygonColor, 10.0f*PDIScale, SDPG_Foreground);
-		
+
 		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapFromPoint(), SnapHighlightColor, 15.0f*PDIScale, SDPG_Foreground);
 		PDI->DrawLine((FVector)SnapEngine.GetActiveSnapToPoint(), (FVector)SnapEngine.GetActiveSnapFromPoint(),
 			ClosedPolygonColor, SDPG_Foreground, 0.5f*PDIScale, 0.0f, true);
@@ -326,7 +332,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			if (LastSnapGeometry.PointCount == 1) {
 				DrawCircle(PDI, (FVector)LastSnapGeometry.Points[0], RenderCameraState.Right(), RenderCameraState.Up(),
 					SnapHighlightColor, ElementSize, 32, SDPG_Foreground, 1.0f*PDIScale, 0.0f, true);
-			} 
+			}
 			else
 			{
 				PDI->DrawLine((FVector)LastSnapGeometry.Points[0], (FVector)LastSnapGeometry.Points[1],
@@ -361,6 +367,9 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 		}
 	}
 
+	//
+	// Draw Surface Hit Indicator
+	//
 	if (bHaveSurfaceHit)
 	{
 		PDI->DrawPoint((FVector)SurfaceHitPoint, ClosedPolygonColor, 10*PDIScale, SDPG_Foreground);
@@ -375,6 +384,9 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 
 
+	//
+	// Draw the polygon contour preview
+	//
 	if (PolygonVertices.Num() > 0)
 	{
 		FColor UseColor = bIsClosed ? ClosedPolygonColor 
@@ -393,7 +405,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			}
 		};
 
-		// draw thin no-depth
+		// draw thin no-depth (x-ray draw)
 		//DrawVertices(PolygonVertices, SDPG_Foreground, HiddenLineThickness);
 		for (int i = 0; i < NumVerts - 1; ++i)
 		{
