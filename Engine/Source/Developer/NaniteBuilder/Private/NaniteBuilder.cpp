@@ -19,7 +19,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("13D0F6D9-69DA-432F-B439-8F9013E6DC47")
+#define NANITE_DERIVEDDATA_VER TEXT("13D0F6D9-69DA-432F-B440-8F9013E6DC62")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -724,15 +724,14 @@ static void CalculateQuantizedPositions(TArray< Nanite::FCluster >& Clusters, co
 {
 	// Quantize cluster positions to 10:10:10 cluster-local coordinates.
 	const float FLOAT_UINT32_MAX = 4294967040.0f;	// Largest float value smaller than MAX_uint32: 1.11111111111111111111111b * 2^31
-	const FVector ScaleToUINT = FVector(FLOAT_UINT32_MAX) / (MeshBounds.Max - MeshBounds.Min);
-	const FVector BiasToUINT = -MeshBounds.Min * ScaleToUINT + 0.5f;
 
 	auto QuantizeUInt = [](FUIntVector V, uint32 Shift)
 	{
-		//TODO: proper rounding
-		V.X >>= Shift;
-		V.Y >>= Shift;
-		V.Z >>= Shift;
+		// Round to nearest
+		uint32 RoundingOffset = Shift ? (1 << (Shift - 1u)) : 0;
+		V.X = uint32(FMath::Min(uint64(V.X) + RoundingOffset, 0xFFFFFFFFull)) >> Shift;
+		V.Y = uint32(FMath::Min(uint64(V.Y) + RoundingOffset, 0xFFFFFFFFull)) >> Shift;
+		V.Z = uint32(FMath::Min(uint64(V.Z) + RoundingOffset, 0xFFFFFFFFull)) >> Shift;
 		return V;
 	};
 
@@ -780,9 +779,9 @@ static void CalculateQuantizedPositions(TArray< Nanite::FCluster >& Clusters, co
 				FVector UnitPosition = ( Cluster.GetPosition(i) - MeshBounds.Min ) / ( MeshBounds.Max - MeshBounds.Min );
 
 				uint32 VertexIndex = VertexOffset + i;
-				UIntPositions[ VertexIndex ].Position.X = (uint32)FMath::Clamp( (double)UnitPosition.X * (double)MAX_uint32, 0.0, (double)MAX_uint32 );
-				UIntPositions[ VertexIndex ].Position.Y = (uint32)FMath::Clamp( (double)UnitPosition.Y * (double)MAX_uint32, 0.0, (double)MAX_uint32 );
-				UIntPositions[ VertexIndex ].Position.Z = (uint32)FMath::Clamp( (double)UnitPosition.Z * (double)MAX_uint32, 0.0, (double)MAX_uint32 );
+				UIntPositions[ VertexIndex ].Position.X = (uint32)FMath::Clamp( (double)UnitPosition.X * (double)MAX_uint32 + 0.5, 0.0, (double)MAX_uint32 );
+				UIntPositions[ VertexIndex ].Position.Y = (uint32)FMath::Clamp( (double)UnitPosition.Y * (double)MAX_uint32 + 0.5, 0.0, (double)MAX_uint32 );
+				UIntPositions[ VertexIndex ].Position.Z = (uint32)FMath::Clamp( (double)UnitPosition.Z * (double)MAX_uint32 + 0.5, 0.0, (double)MAX_uint32 );
 
 				UIntClusterMax.X = FMath::Max( UIntClusterMax.X, UIntPositions[ VertexIndex ].Position.X );
 				UIntClusterMax.Y = FMath::Max( UIntClusterMax.Y, UIntPositions[ VertexIndex ].Position.Y );
@@ -926,6 +925,29 @@ static void CalculateQuantizedPositions(TArray< Nanite::FCluster >& Clusters, co
 				Cluster.QuantizedPositions[VertexIndex] = QuantizedPosition;
 			}
 		} );
+
+#if 0
+	// Quantization error debug code
+	float MaxError = 0.0f;
+	double TotalError = 0.0;
+	double TotalRelativeError = 0.0;
+	for (uint32 ClusterIndex = 0; ClusterIndex < NumClusters; ClusterIndex++)
+	{
+		const FCluster& Cluster = Clusters[ClusterIndex];
+		const uint32 NumClusterVerts = Cluster.NumVerts;
+		for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
+		{
+			const FUIntVector& QuantizedPosition = Cluster.QuantizedPositions[VertexIndex];
+			FVector Position = Cluster.GetPosition(VertexIndex);
+			FVector DecodedPosition = FVector(QuantizedPosition.X + Cluster.QuantizedPosStart.X, QuantizedPosition.Y + Cluster.QuantizedPosStart.Y, QuantizedPosition.Z + Cluster.QuantizedPosStart.Z) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
+			FVector AbsError = (Position - DecodedPosition).GetAbs();
+			MaxError = FMath::Max(MaxError, AbsError.GetMax());
+			TotalError += AbsError.X + AbsError.Y + AbsError.Z;
+			TotalRelativeError += AbsError.X / Cluster.MeshBoundsDelta.X + AbsError.Y / Cluster.MeshBoundsDelta.Y + AbsError.Z / Cluster.MeshBoundsDelta.Z;
+		}
+	}
+	UE_LOG(LogStaticMesh, Log, TEXT("Position Quantization Error: Max: %f, Avg: %f, RelAvg: %f\n"), MaxError, TotalError / (3.0 * NumTotalVertices), TotalRelativeError / (3.0 * NumTotalVertices));
+#endif
 }
 
 static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& Cluster, bool bHasColors, uint32 NumTexCoords)
