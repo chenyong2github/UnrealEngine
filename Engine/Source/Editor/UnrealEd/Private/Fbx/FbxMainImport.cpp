@@ -36,6 +36,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "IMeshReductionInterfaces.h"
+#include "ObjectTools.h"
 
 DEFINE_LOG_CATEGORY(LogFbx);
 
@@ -1097,10 +1098,10 @@ TSet<FbxFileTexture*> GetFbxMaterialTextures(const FbxSurfaceMaterial& Material)
 		{
 			//We use auto as the parameter type to allow for a generic lambda accepting both FbxProperty and FbxLayeredTexture
 			auto AddSrcTextureToSet =  [&TextureSet](const auto& InObject) {
-				int32 NbTextures = InObject.GetSrcObjectCount<FbxTexture>();
+				int32 NbTextures = InObject.template GetSrcObjectCount<FbxTexture>();
 				for (int32 TexIndex = 0; TexIndex < NbTextures; ++TexIndex)
 				{
-					FbxFileTexture* Texture = InObject.GetSrcObject<FbxFileTexture>(TexIndex);
+					FbxFileTexture* Texture = InObject.template GetSrcObject<FbxFileTexture>(TexIndex);
 					if (Texture)
 					{
 						TextureSet.Add(Texture);
