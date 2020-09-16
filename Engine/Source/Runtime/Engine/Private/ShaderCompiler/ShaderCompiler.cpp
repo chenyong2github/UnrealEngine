@@ -3855,6 +3855,17 @@ void GlobalBeginCompileShader(
 	}
 
 	{
+		if (VelocityEncodeDepth((EShaderPlatform)Target.Platform))
+		{
+			Input.Environment.SetDefine(TEXT("VELOCITY_ENCODE_DEPTH"), 1);
+		}
+		else
+		{
+			Input.Environment.SetDefine(TEXT("VELOCITY_ENCODE_DEPTH"), 0);
+		}
+	}
+
+	{
 		if (MaskedInEarlyPass((EShaderPlatform)Target.Platform))
 		{
 			Input.Environment.SetDefine(TEXT("EARLY_Z_PASS_ONLY_MATERIAL_MASKING"), 1);
