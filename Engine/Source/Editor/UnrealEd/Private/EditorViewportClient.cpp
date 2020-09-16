@@ -839,9 +839,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	{
 		ControllingActorViewInfo.Location = ModifiedViewInfo.Location;
 		ControllingActorViewInfo.Rotation = ModifiedViewInfo.Rotation;
-		ControllingActorViewInfo.FocalLength = ModifiedViewInfo.FocalLength;
 		ControllingActorViewInfo.FOV = ModifiedViewInfo.FOV;
-		ControllingActorViewInfo.SensorSize = ModifiedViewInfo.SensorSize;
 	}
 
 	ViewInitOptions.ViewOrigin = ModifiedViewLocation;
