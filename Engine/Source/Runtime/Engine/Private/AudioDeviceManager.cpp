@@ -249,30 +249,33 @@ bool FAudioDeviceManager::ToggleAudioMixer()
 	// Only need to toggle if we have 2 device module names loaded at init
 	if (AudioDeviceModule && AudioDeviceModuleName.Len() > 0 && AudioMixerModuleName.Len() > 0)
 	{
-		// Check to see if there are still any active handles using this audio device, and either warn or exit early.
-		for (auto& DeviceContainer : Devices)
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
 		{
-			if (DeviceContainer.Value.NumberOfHandlesToThisDevice > 0)
+			// Check to see if there are still any active handles using this audio device, and either warn or exit early.
+			for (auto& DeviceContainer : Devices)
 			{
-
-				UE_LOG(LogAudio, Warning, TEXT("Attempted to toggle the audio mixer while that audio device was in use."));
-
-#if INSTRUMENT_AUDIODEVICE_HANDLES
-				FString ActiveDeviceHandles;
-				for (auto& StackWalkString : DeviceContainer.Value.HandleCreationStackWalks)
+				if (DeviceContainer.Value.NumberOfHandlesToThisDevice > 0)
 				{
-					ActiveDeviceHandles += StackWalkString.Value;
-					ActiveDeviceHandles += TEXT("\n\n");
-				}
 
-				UE_LOG(LogAudio, Warning, TEXT("List Of Active Handles to this device: \n%s"), *ActiveDeviceHandles);
-#else
-				UE_LOG(LogAudio, Warning, TEXT("For more information compile with INSTRUMENT_AUDIODEVICE_HANDLES."));
-#endif
+					UE_LOG(LogAudio, Warning, TEXT("Attempted to toggle the audio mixer while that audio device was in use."));
 
-				if (!GCvarAllowUnsafeAudioMixerToggling)
-				{
-					return false;
+	#if INSTRUMENT_AUDIODEVICE_HANDLES
+					FString ActiveDeviceHandles;
+					for (auto& StackWalkString : DeviceContainer.Value.HandleCreationStackWalks)
+					{
+						ActiveDeviceHandles += StackWalkString.Value;
+						ActiveDeviceHandles += TEXT("\n\n");
+					}
+
+					UE_LOG(LogAudio, Warning, TEXT("List Of Active Handles to this device: \n%s"), *ActiveDeviceHandles);
+	#else
+					UE_LOG(LogAudio, Warning, TEXT("For more information compile with INSTRUMENT_AUDIODEVICE_HANDLES."));
+	#endif
+
+					if (!GCvarAllowUnsafeAudioMixerToggling)
+					{
+						return false;
+					}
 				}
 			}
 		}
@@ -681,20 +684,34 @@ void FAudioDeviceManager::DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InW
 
 		FAudioDeviceContainer& Container = Devices[DeviceID];
 		check(Container.NumberOfHandlesToThisDevice > 0);
-		Container.NumberOfHandlesToThisDevice--;
 
-		// If there is no longer anyone using this device, shut it down.
-		if (!Container.NumberOfHandlesToThisDevice)
+		// Report device being destroyed before actual destruction
+		// to allow listeners to access and respond where applicable.
+		bool bDestroyingDevice = false;
+		if (Container.NumberOfHandlesToThisDevice == 1)
 		{
+			bDestroyingDevice = true;
+			FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
+
 			// If this is the active device and being destroyed, set the main device as the active device.
 			if (DeviceID == ActiveAudioDeviceID)
 			{
 				SetActiveDevice(MainAudioDeviceHandle.GetDeviceID());
 			}
 
-			FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
-			Swap(DeviceToTearDown, Container.Device);
 			UnregisterWorld(InWorld, DeviceID);
+		}
+
+		Container.NumberOfHandlesToThisDevice--;
+
+		// If there is no longer any users of this device, destroy it.
+		if (Container.NumberOfHandlesToThisDevice)
+		{
+			ensureMsgf(!bDestroyingDevice, TEXT("AudioDevice Destruction Failure: 'OnAudioDeviceDestroyed' listener generated new persistent handle(s) to AudioDevice."));
+		}
+		else
+		{
+			Swap(DeviceToTearDown, Container.Device);
 			Devices.Remove(DeviceID);
 		}
 	}
