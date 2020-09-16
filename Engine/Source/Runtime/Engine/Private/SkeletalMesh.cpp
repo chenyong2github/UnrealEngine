@@ -1759,77 +1759,6 @@ void USkeletalMesh::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	OutDeps.Add(Skeleton);
 }
 
-void USkeletalMesh::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-#if WITH_EDITORONLY_DATA
-	//We must not use the same asset for the imported data and duplicate it in the destination skeletalmesh package
-	if (MeshEditorDataObject)
-	{
-		USkeletalMeshEditorData* SourceMeshEditorData = MeshEditorDataObject;
-		check(SourceMeshEditorData);
-		MeshEditorDataObject = nullptr;
-		FSkeletalMeshModel& ImportedModels = *GetImportedModel();
-		//allocate the necessary data before going multi thread
-		ReserveLODImportData(ImportedModels.LODModels.Num() - 1);
-		USkeletalMeshEditorData& DestMeshEditorData = GetMeshEditorData();
-		//We should have a brand new created asset
-		check(MeshEditorDataObject);
-		//Lets duplicate the imported data
-		const int32 NumLODModels = ImportedModels.LODModels.Num();
-		for (int32 LODIndex = 0; LODIndex < NumLODModels; ++LODIndex)
-		{
-			if (!SourceMeshEditorData->IsLODImportDataValid(LODIndex) || SourceMeshEditorData->GetLODImportedData(LODIndex).IsEmpty())
-			{
-				return;
-			}
-			FSkeletalMeshLODModel& ThisLODModel = ImportedModels.LODModels[LODIndex];
-			FRawSkeletalMeshBulkData& SourceRawSkeletalMeshBulkData = SourceMeshEditorData->GetLODImportedData(LODIndex);
-			FSkeletalMeshImportData RawMesh;
-			SourceRawSkeletalMeshBulkData.LoadRawMesh(RawMesh);
-			//This will create the asset into the correct package and assign the transient pointer
-			FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = DestMeshEditorData.GetLODImportedData(LODIndex);
-			RawSkeletalMeshBulkData.SaveRawMesh(RawMesh);
-			RawSkeletalMeshBulkData.GeoImportVersion = SourceRawSkeletalMeshBulkData.GeoImportVersion;
-			RawSkeletalMeshBulkData.SkinningImportVersion = SourceRawSkeletalMeshBulkData.SkinningImportVersion;
-			//Set all the cache data to avoid loading the asset if we do not edit the asset
-			ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
-			ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
-			ThisLODModel.BuildStringID = RawSkeletalMeshBulkData.GetIdString();
-		}
-	}
-#endif //WITH_EDITORONLY_DATA
-}
-
-void USkeletalMesh::PostRename(UObject* OldOuter, const FName OldName)
-{
-	Super::PostRename(OldOuter, OldName);
-#if WITH_EDITORONLY_DATA
-	//We must not use the same asset for the imported data and duplicate it in the destination skeletalmesh package
-	if (MeshEditorDataObject)
-	{
-		FString MeshEditorDataString = GetName() + TEXT("_USkeletalMeshEditorData");
-		UPackage* SkeletalMeshPackage = GetOutermost();
-
-		//If the data is already existing, no need to rename it. Tentative to fix a live crash that we cannot reproduce, will log the data to help us
-		UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, SkeletalMeshPackage, *MeshEditorDataString, true);
-		if(!ExistingObject)
-		{
-			//Do a soft rename avoid: dirty, redirector, transaction and reset of the loaders
-			MeshEditorDataObject->Rename(*MeshEditorDataString, GetOutermost(), (REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders));
-		}
-		else
-		{
-			if (ExistingObject != MeshEditorDataObject)
-			{
-				//Log that the MeshEditorDataObject is not renamed properly.
-				UE_LOG(LogSkeletalMesh, Warning, TEXT("Renaming of skeletal mesh %s failed to rename the sub UObject MeshEditorDataObject (The imported data), because there is already an object with this name!/nMeshEditorDataObject name before renaming %s./nName of the existing object preventing the renaming %s"), *GetFullName(), *MeshEditorDataObject->GetFullName(), *ExistingObject->GetFullName());
-			}
-		}
-	}
-#endif //WITH_EDITORONLY_DATA
-}
-
 void USkeletalMesh::FlushRenderState()
 {
 	//TComponentReregisterContext<USkeletalMeshComponent> ReregisterContext;
@@ -2189,20 +2118,10 @@ USkeletalMeshEditorData& USkeletalMesh::GetMeshEditorData() const
 {
 	if (MeshEditorDataObject == nullptr)
 	{
-		FString MeshEditorDataString = GetName() + TEXT("_USkeletalMeshEditorData");
-		FName MeshEditorDataName = *MeshEditorDataString;
-		//We can have only one USkeletalMeshEditorData asset per skeletalmesh. Find if there is already one existing 
-		UObject* ExistingObject = StaticFindObjectFast(USkeletalMeshEditorData::StaticClass(), GetOutermost(), MeshEditorDataName, true, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
-		if (ExistingObject)
-		{
-			MeshEditorDataObject = Cast<USkeletalMeshEditorData>(ExistingObject);
-		}
-		if (MeshEditorDataObject == nullptr)
-		{
-			//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
-			//StandAlone make sure the asset is save when we save the package(i.e. the skeletalmesh)
-			MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(GetOutermost(), MeshEditorDataName);
-		}
+		//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
+		//RF_Transactional make sure the asset can be transactional if we want to edit it
+		USkeletalMesh* NonConstSkeletalMesh = const_cast<USkeletalMesh*>(this);
+		MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(NonConstSkeletalMesh, NAME_None, RF_Transactional);
 	}
 	//Make sure we have a valid pointer
 	check(MeshEditorDataObject != nullptr);
@@ -2505,6 +2424,16 @@ void USkeletalMesh::PostLoad()
 	}
 
 #if WITH_EDITOR
+
+	// Make sure the mesh editor data object is a sub object of the skeletalmesh, rename it to change the owner to be the skeletalmesh.
+	if (MeshEditorDataObject && MeshEditorDataObject->GetOuter() != this)
+	{
+		//Post load call so no need to: dirty, redirect, transact or reset the loader.
+		const TCHAR* NewName = nullptr;
+		MeshEditorDataObject->Rename(NewName, this, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		MeshEditorDataObject->SetFlags(RF_Transactional);
+	}
+
 	if (!GetOutermost()->bIsCookedForEditor)
 	{
 		// If LODInfo is missing - create array of correct size.
