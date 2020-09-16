@@ -305,8 +305,6 @@ void CullForCardTracing(
 	const FIntVector CullGridSize(CardGridSizeXY.X, CardGridSizeXY.Y, CardGridSizeZ);
 	MeshSDFGridParameters.CullGridSize = CullGridSize;
 
-	FLumenMeshSDFGridCompactParameters GridCompactParameters;
-
 	CullMeshSDFObjectsToViewGrid(
 		View,
 		Scene,
@@ -316,6 +314,5 @@ void CullForCardTracing(
 		CardGridSizeZ,
 		ZParams,
 		GraphBuilder,
-		MeshSDFGridParameters,
-		GridCompactParameters);
+		MeshSDFGridParameters);
 }

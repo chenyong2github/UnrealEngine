@@ -623,7 +623,7 @@ void TraceScreenProbes(
 
 			ScreenProbeParameters.TraceHit = NewTraceHit;
 		}
-		else
+		else if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
 		{
 			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
 				GraphBuilder,

@@ -382,8 +382,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 			{
 				const float CardTraceEndDistanceFromCamera = VisualizeParameters.MaxCardTraceDistance;
 
-				FLumenMeshSDFGridCompactParameters Unused;
-
 				CullMeshSDFObjectsToViewGrid(
 					View,
 					Scene,
@@ -393,8 +391,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 					1,
 					FVector::ZeroVector,
 					GraphBuilder,
-					MeshSDFGridParameters,
-					Unused);
+					MeshSDFGridParameters);
 			}
 
 			extern bool ShouldVisualizeLumenHardwareRayTracingPrimaryRay();

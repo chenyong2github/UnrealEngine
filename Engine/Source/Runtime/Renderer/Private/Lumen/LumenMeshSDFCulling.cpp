@@ -294,23 +294,40 @@ void InitMeshSDFCullingContext(
 void FillGridParameters(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
-	const FMeshSDFCullingContext& Context,
+	const FMeshSDFCullingContext* Context,
 	FLumenMeshSDFGridParameters& OutGridParameters)
 {
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
+	if (Context)
+	{
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
-	OutGridParameters.NumGridCulledMeshSDFObjects = GraphBuilder.CreateSRV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT);
-	OutGridParameters.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateSRV(Context.GridCulledMeshSDFObjectStartOffsetArray, PF_R32_UINT);
-	OutGridParameters.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateSRV(Context.GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
+		OutGridParameters.NumGridCulledMeshSDFObjects = GraphBuilder.CreateSRV(Context->NumGridCulledMeshSDFObjects, PF_R32_UINT);
+		OutGridParameters.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectStartOffsetArray, PF_R32_UINT);
+		OutGridParameters.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
 
-	OutGridParameters.TracingParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-	OutGridParameters.TracingParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-	OutGridParameters.TracingParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+		OutGridParameters.TracingParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+		OutGridParameters.TracingParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+		OutGridParameters.TracingParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
 
-	OutGridParameters.TracingParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-	OutGridParameters.TracingParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	OutGridParameters.TracingParameters.DistanceFieldAtlasTexelSize = Context.DistanceFieldAtlasTexelSize;
+		OutGridParameters.TracingParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+		OutGridParameters.TracingParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		OutGridParameters.TracingParameters.DistanceFieldAtlasTexelSize = Context->DistanceFieldAtlasTexelSize;
+	}
+	else
+	{
+		OutGridParameters.NumGridCulledMeshSDFObjects = nullptr;
+		OutGridParameters.GridCulledMeshSDFObjectStartOffsetArray = nullptr;
+		OutGridParameters.GridCulledMeshSDFObjectIndicesArray = nullptr;
+
+		OutGridParameters.TracingParameters.SceneObjectBounds = nullptr;
+		OutGridParameters.TracingParameters.SceneObjectData = nullptr;
+		OutGridParameters.TracingParameters.NumSceneObjects = 0;
+
+		OutGridParameters.TracingParameters.DistanceFieldTexture = nullptr;
+		OutGridParameters.TracingParameters.DistanceFieldSampler = nullptr;
+		OutGridParameters.TracingParameters.DistanceFieldAtlasTexelSize = FVector::ZeroVector;
+	}
 }
 
 void CullMeshSDFObjectsForView(
@@ -335,7 +352,6 @@ void CullMeshSDFObjectsForView(
 
 	Context.ObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxSDFMeshObjects), TEXT("ObjectIndices"));
 
-	if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
 	{
 		FCullMeshSDFObjectsForViewCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullMeshSDFObjectsForViewCS::FParameters>();
 		PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(Context.ObjectIndexBuffer, PF_R32_UINT);
@@ -367,10 +383,6 @@ void CullMeshSDFObjectsForView(
 			ComputeShader,
 			PassParameters,
 			FIntVector(GroupSize, 1, 1));
-	}
-	else
-	{
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Context.ObjectIndexBuffer, PF_R32_UINT), 0);
 	}
 }
 
@@ -554,7 +566,7 @@ void CullMeshSDFObjectsToProbes(
 	FillGridParameters(
 		GraphBuilder,
 		Scene,
-		Context,
+		&Context,
 		OutGridParameters);
 }
 
@@ -567,136 +579,143 @@ void CullMeshSDFObjectsToViewGrid(
 	int32 GridSizeZ,
 	FVector ZParams,
 	FRDGBuilder& GraphBuilder,
-	FLumenMeshSDFGridParameters& OutGridParameters,
-	FLumenMeshSDFGridCompactParameters& OutGridCompactParameters)
+	FLumenMeshSDFGridParameters& OutGridParameters)
 {
 	LLM_SCOPE(ELLMTag::Lumen);
 
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
-	const FIntPoint CardGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GridPixelsPerCellXY);
-	const FIntVector CullGridSize(CardGridSizeXY.X, CardGridSizeXY.Y, GridSizeZ);
-	const uint32 NumCullGridCells = CullGridSize.X * CullGridSize.Y * CullGridSize.Z;
-
-	uint32 MaxCullGridCells;
-
+	if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
 	{
-		// Allocate buffers using scene render targets size so we won't reallocate every frame with dynamic resolution
-		const FIntPoint BufferSize = FSceneRenderTargets::Get(GraphBuilder.RHICmdList).GetBufferSizeXY();
-		const FIntPoint MaxCardGridSizeXY = FIntPoint::DivideAndRoundUp(BufferSize, GridPixelsPerCellXY);
-		MaxCullGridCells = MaxCardGridSizeXY.X * MaxCardGridSizeXY.Y * GridSizeZ;
-		ensure(MaxCullGridCells >= NumCullGridCells);
-	}
+		const FIntPoint CardGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GridPixelsPerCellXY);
+		const FIntVector CullGridSize(CardGridSizeXY.X, CardGridSizeXY.Y, GridSizeZ);
+		const uint32 NumCullGridCells = CullGridSize.X * CullGridSize.Y * CullGridSize.Z;
 
-	RDG_EVENT_SCOPE(GraphBuilder, "MeshSDFCulling %ux%ux%u cells", CullGridSize.X, CullGridSize.Y, CullGridSize.Z);
+		uint32 MaxCullGridCells;
 
-	FMeshSDFCullingContext Context;
-
-	InitMeshSDFCullingContext(
-		GraphBuilder,
-		MaxCullGridCells,
-		Context);
-
-	CullMeshSDFObjectsForView(
-		GraphBuilder,
-		Scene,
-		View,
-		MaxMeshSDFInfluenceRadius,
-		CardTraceEndDistanceFromCamera,
-		Context);
-
-	// Scatter mesh SDF objects into a temporary array of {ObjectIndex, GridCellIndex}
-	{
-		FMeshSDFObjectCull* PassParameters = GraphBuilder.AllocParameters<FMeshSDFObjectCull>();
-
-		PassParameters->VS.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-		PassParameters->VS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-		PassParameters->VS.ObjectIndexBuffer = GraphBuilder.CreateSRV(Context.ObjectIndexBuffer, PF_R32_UINT);
-		PassParameters->VS.View = View.ViewUniformBuffer;
-
-		// Boost the effective radius so that the edges of the sphere approximation lie on the sphere, instead of the vertices
-		const int32 NumRings = StencilingGeometry::GLowPolyStencilSphereVertexBuffer.GetNumRings();
-		const float RadiansPerRingSegment = PI / (float)NumRings;
-		PassParameters->VS.ConservativeRadiusScale = 1.0f / FMath::Cos(RadiansPerRingSegment);
-		PassParameters->VS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
-
-		PassParameters->PS.RWNumGridCulledMeshSDFObjects = GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT);
-		PassParameters->PS.RWNumCulledObjectsToCompact = GraphBuilder.CreateUAV(Context.NumCulledObjectsToCompact, PF_R32_UINT);
-		PassParameters->PS.RWCulledObjectsToCompactArray = GraphBuilder.CreateUAV(Context.CulledObjectsToCompactArray, PF_R32_UINT);
-		PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
-		PassParameters->PS.CardGridZParams = ZParams;
-		PassParameters->PS.CardGridPixelSizeShift = FMath::FloorLog2(GridPixelsPerCellXY);
-		PassParameters->PS.CullGridSize = CullGridSize;
-		PassParameters->PS.CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
-		PassParameters->PS.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		PassParameters->PS.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		PassParameters->PS.DistanceFieldAtlasTexelSize = Context.DistanceFieldAtlasTexelSize;
-		PassParameters->PS.MaxNumberOfCulledObjects = Context.MaxNumberOfCulledObjects;
-		PassParameters->PS.ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB ? View.ClosestHZB : GSystemTextures.BlackDummy, TEXT("ClosestHZB"));
-		PassParameters->PS.FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB, TEXT("FurthestHZB"));
-		PassParameters->PS.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2(GridPixelsPerCellXY) - 1, 0.0f);
-		PassParameters->PS.HaveClosestHZB = View.ClosestHZB ? 1 : 0;
-		PassParameters->PS.ViewportUVToHZBBufferUV = FVector2D(
-			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
-			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
-		);
-
-		PassParameters->MeshSDFIndirectArgs = Context.ObjectIndirectArguments;
-
-		auto VertexShader = View.ShaderMap->GetShader< FMeshSDFObjectCullVS >();
-		FMeshSDFObjectCullPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FMeshSDFObjectCullPS::FCullToFroxelGrid >(GridSizeZ > 1);
-		auto PixelShader = View.ShaderMap->GetShader<FMeshSDFObjectCullPS>(PermutationVector);
-		const bool bReverseCulling = View.bReverseCulling;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ScatterCardsToFroxelGrid"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[CullGridSize, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			// Allocate buffers using scene render targets size so we won't reallocate every frame with dynamic resolution
+			const FIntPoint BufferSize = FSceneRenderTargets::Get(GraphBuilder.RHICmdList).GetBufferSizeXY();
+			const FIntPoint MaxCardGridSizeXY = FIntPoint::DivideAndRoundUp(BufferSize, GridPixelsPerCellXY);
+			MaxCullGridCells = MaxCardGridSizeXY.X * MaxCardGridSizeXY.Y * GridSizeZ;
+			ensure(MaxCullGridCells >= NumCullGridCells);
+		}
 
-			RHICmdList.SetViewport(0, 0, 0.0f, CullGridSize.X, CullGridSize.Y, 1.0f);
+		RDG_EVENT_SCOPE(GraphBuilder, "MeshSDFCulling %ux%ux%u cells", CullGridSize.X, CullGridSize.Y, CullGridSize.Z);
 
-			// Render backfaces since camera may intersect
-			GraphicsPSOInit.RasterizerState = bReverseCulling ? TStaticRasterizerState<FM_Solid, CM_CW>::GetRHI() : TStaticRasterizerState<FM_Solid, CM_CCW>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		FMeshSDFCullingContext Context;
 
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		InitMeshSDFCullingContext(
+			GraphBuilder,
+			MaxCullGridCells,
+			Context);
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		CullMeshSDFObjectsForView(
+			GraphBuilder,
+			Scene,
+			View,
+			MaxMeshSDFInfluenceRadius,
+			CardTraceEndDistanceFromCamera,
+			Context);
 
-			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+		// Scatter mesh SDF objects into a temporary array of {ObjectIndex, GridCellIndex}
+		{
+			FMeshSDFObjectCull* PassParameters = GraphBuilder.AllocParameters<FMeshSDFObjectCull>();
 
-			RHICmdList.SetStreamSource(0, StencilingGeometry::GLowPolyStencilSphereVertexBuffer.VertexBufferRHI, 0);
+			PassParameters->VS.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+			PassParameters->VS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->VS.ObjectIndexBuffer = GraphBuilder.CreateSRV(Context.ObjectIndexBuffer, PF_R32_UINT);
+			PassParameters->VS.View = View.ViewUniformBuffer;
 
-			RHICmdList.DrawIndexedPrimitiveIndirect(
-				StencilingGeometry::GLowPolyStencilSphereIndexBuffer.IndexBufferRHI,
-				PassParameters->MeshSDFIndirectArgs->GetIndirectRHICallBuffer(),
-				0);
-		});
+			// Boost the effective radius so that the edges of the sphere approximation lie on the sphere, instead of the vertices
+			const int32 NumRings = StencilingGeometry::GLowPolyStencilSphereVertexBuffer.GetNumRings();
+			const float RadiansPerRingSegment = PI / (float)NumRings;
+			PassParameters->VS.ConservativeRadiusScale = 1.0f / FMath::Cos(RadiansPerRingSegment);
+			PassParameters->VS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
+
+			PassParameters->PS.RWNumGridCulledMeshSDFObjects = GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT);
+			PassParameters->PS.RWNumCulledObjectsToCompact = GraphBuilder.CreateUAV(Context.NumCulledObjectsToCompact, PF_R32_UINT);
+			PassParameters->PS.RWCulledObjectsToCompactArray = GraphBuilder.CreateUAV(Context.CulledObjectsToCompactArray, PF_R32_UINT);
+			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->PS.View = View.ViewUniformBuffer;
+			PassParameters->PS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
+			PassParameters->PS.CardGridZParams = ZParams;
+			PassParameters->PS.CardGridPixelSizeShift = FMath::FloorLog2(GridPixelsPerCellXY);
+			PassParameters->PS.CullGridSize = CullGridSize;
+			PassParameters->PS.CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
+			PassParameters->PS.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+			PassParameters->PS.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->PS.DistanceFieldAtlasTexelSize = Context.DistanceFieldAtlasTexelSize;
+			PassParameters->PS.MaxNumberOfCulledObjects = Context.MaxNumberOfCulledObjects;
+			PassParameters->PS.ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB ? View.ClosestHZB : GSystemTextures.BlackDummy, TEXT("ClosestHZB"));
+			PassParameters->PS.FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB, TEXT("FurthestHZB"));
+			PassParameters->PS.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2(GridPixelsPerCellXY) - 1, 0.0f);
+			PassParameters->PS.HaveClosestHZB = View.ClosestHZB ? 1 : 0;
+			PassParameters->PS.ViewportUVToHZBBufferUV = FVector2D(
+				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
+				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
+			);
+
+			PassParameters->MeshSDFIndirectArgs = Context.ObjectIndirectArguments;
+
+			auto VertexShader = View.ShaderMap->GetShader< FMeshSDFObjectCullVS >();
+			FMeshSDFObjectCullPS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FMeshSDFObjectCullPS::FCullToFroxelGrid >(GridSizeZ > 1);
+			auto PixelShader = View.ShaderMap->GetShader<FMeshSDFObjectCullPS>(PermutationVector);
+			const bool bReverseCulling = View.bReverseCulling;
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("ScatterCardsToFroxelGrid"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[CullGridSize, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
+			{
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+				RHICmdList.SetViewport(0, 0, 0.0f, CullGridSize.X, CullGridSize.Y, 1.0f);
+
+				// Render backfaces since camera may intersect
+				GraphicsPSOInit.RasterizerState = bReverseCulling ? TStaticRasterizerState<FM_Solid, CM_CW>::GetRHI() : TStaticRasterizerState<FM_Solid, CM_CCW>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+
+				RHICmdList.SetStreamSource(0, StencilingGeometry::GLowPolyStencilSphereVertexBuffer.VertexBufferRHI, 0);
+
+				RHICmdList.DrawIndexedPrimitiveIndirect(
+					StencilingGeometry::GLowPolyStencilSphereIndexBuffer.IndexBufferRHI,
+					PassParameters->MeshSDFIndirectArgs->GetIndirectRHICallBuffer(),
+					0);
+			});
+		}
+
+		CompactCulledMeshSDFObjectArray(
+			GraphBuilder,
+			View,
+			Context);
+
+		FillGridParameters(
+			GraphBuilder,
+			Scene,
+			&Context,
+			OutGridParameters);
 	}
-
-	CompactCulledMeshSDFObjectArray(
-		GraphBuilder,
-		View,
-		Context);
-
-	FillGridParameters(
-		GraphBuilder,
-		Scene,
-		Context,
-		OutGridParameters);
-
-	OutGridCompactParameters.RWNumGridCulledMeshSDFObjects = GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT);
-	OutGridCompactParameters.RWGridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateUAV(Context.GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
+	else
+	{
+		FillGridParameters(
+			GraphBuilder,
+			Scene,
+			nullptr,
+			OutGridParameters);
+	}
 }

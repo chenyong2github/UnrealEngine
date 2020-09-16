@@ -382,15 +382,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFGridParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumGridCulledMeshSDFObjects)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledMeshSDFObjectStartOffsetArray)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledMeshSDFObjectIndicesArray)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledMeshSDFObjectIndexBitmasks)
 	SHADER_PARAMETER(uint32, CardGridPixelSizeShift)
 	SHADER_PARAMETER(FVector, CardGridZParams)
 	SHADER_PARAMETER(FIntVector, CullGridSize)
-END_SHADER_PARAMETER_STRUCT()
-
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFGridCompactParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWNumGridCulledMeshSDFObjects)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWGridCulledMeshSDFObjectIndicesArray)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenIndirectTracingParameters, )
@@ -435,8 +429,7 @@ extern void CullMeshSDFObjectsToViewGrid(
 	int32 GridSizeZ,
 	FVector ZParams,
 	FRDGBuilder& GraphBuilder,
-	FLumenMeshSDFGridParameters& OutGridParameters,
-	FLumenMeshSDFGridCompactParameters& OutGridCompactParameters);
+	FLumenMeshSDFGridParameters& OutGridParameters);
 
 extern void CullMeshSDFObjectsToProbes(
 	FRDGBuilder& GraphBuilder,
