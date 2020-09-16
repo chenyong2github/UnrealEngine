@@ -22,6 +22,8 @@ UInputSettings::UInputSettings(const FObjectInitializer& ObjectInitializer)
 	, bDefaultViewportMouseLock_DEPRECATED(false)
 	, DefaultViewportMouseCaptureMode(EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown)
 	, DefaultViewportMouseLockMode(EMouseLockMode::LockOnCapture)
+	, DefaultPlayerInputClass(UPlayerInput::StaticClass())
+	, DefaultInputComponentClass(UInputComponent::StaticClass())
 {
 }
 
@@ -407,4 +409,16 @@ const FName UInputSettings::GetAxisMappingsPropertyName()
 	return AxisMappingsName;
 }
 
+UClass* UInputSettings::GetDefaultPlayerInputClass()
+{
+	TSoftClassPtr<UPlayerInput> Class = UInputSettings::GetInputSettings()->DefaultPlayerInputClass;
+	ensureMsgf(Class.IsValid(), TEXT("Invalid PlayerInput class in Input Settings. Manual reset required."));
+	return Class.IsValid() ? Class.Get() : UPlayerInput::StaticClass();
+}
 
+UClass* UInputSettings::GetDefaultInputComponentClass()
+{
+	TSoftClassPtr<UInputComponent> Class = UInputSettings::GetInputSettings()->DefaultInputComponentClass;
+	ensureMsgf(Class.IsValid(), TEXT("Invalid InputComponent class in Input Settings. Manual reset required."));
+	return Class.IsValid() ? Class.Get() : UInputComponent::StaticClass();
+}
