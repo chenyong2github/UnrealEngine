@@ -12,7 +12,7 @@
 #define GMorphTargetDispatchBatchSize 128
 
 RWBuffer<uint> MorphVertexBuffer;
-RWBuffer<uint> MorphNormalizationBuffer;
+RWBuffer<int> MorphNormalizationBuffer;
 
 uint4 ThreadOffsets[GMorphTargetDispatchBatchSize / 4];
 float4 MorphTargetWeight[GMorphTargetDispatchBatchSize / 4];
