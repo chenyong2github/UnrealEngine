@@ -84,6 +84,8 @@ class EDITORSCRIPTINGUTILITIES_API UEditorLevelLibrary : public UBlueprintFuncti
 	GENERATED_BODY()
 
 public:
+
+#if WITH_EDITOR
 	/**
 	 * Find all loaded Actors in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
 	 * @return	List of found Actors
@@ -113,21 +115,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static void SetSelectedLevelActors(const TArray<class AActor*>& ActorsToSelect);
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static void PilotLevelActor(AActor* ActorToPilot);
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static void EjectPilotLevelActor();
 
-#if WITH_EDITOR
-
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static void EditorPlaySimulate();
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static void EditorEndPlay();
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static void EditorInvalidateViewports();
 
 #endif
@@ -202,6 +202,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static bool DestroyActor(class AActor* ActorToDestroy);
 
+#if WITH_EDITOR
 	/**
 	 * Find the World in the world editor. It can then be used as WorldContext by other libraries like GameplayStatics.
 	 * @return	The World used by the world editor.
@@ -211,11 +212,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static UWorld* GetGameWorld();
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static TArray<UWorld*> GetPIEWorlds(bool bIncludeDedicatedServer);
+#endif
 
 public:
+
+#if WITH_EDITOR
 	/**
 	 * Close the current Persistent Level (without saving it). Create a new blank Level and save it. Load the new created level.
 	 * @param	AssetPath		Asset Path of where the level will be saved.
@@ -267,6 +271,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static bool SetCurrentLevelByName(FName LevelName);
+#endif
 
 public:
 	/**

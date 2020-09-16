@@ -18,6 +18,11 @@ namespace EditorScriptingUtils
 {
 	bool CheckIfInEditorAndPIE()
 	{
+		return InEditorAndNotPlaying();
+	}
+
+	bool IsInEditorAndNotPlaying()
+	{
 		if (!IsInGameThread())
 		{
 			UE_LOG(LogEditorScripting, Error, TEXT("You are not on the main thread."));

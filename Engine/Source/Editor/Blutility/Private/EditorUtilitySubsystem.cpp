@@ -297,6 +297,16 @@ void UEditorUtilitySubsystem::RemoveTaskFromActiveList(UEditorUtilityTask* Task)
 	}
 }
 
+void UEditorUtilitySubsystem::RegisterReferencedObject(UObject* ObjectToReference)
+{
+	ReferencedObjects.Add(ObjectToReference);
+}
+
+void UEditorUtilitySubsystem::UnregisterReferencedObject(UObject* ObjectToReference)
+{
+	ReferencedObjects.Remove(ObjectToReference);
+}
+
 UClass* UEditorUtilitySubsystem::FindClassByName(const FString& RawTargetName)
 {
 	FString TargetName = RawTargetName;

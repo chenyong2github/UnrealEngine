@@ -9,14 +9,65 @@
 #include "IContentBrowserSingleton.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
+#include "EditorUtilitySubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "BlutilityLevelEditorExtensions"
+
+UEditorUtilityBlueprintAsyncActionBase::UEditorUtilityBlueprintAsyncActionBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+void UEditorUtilityBlueprintAsyncActionBase::RegisterWithGameInstance(UObject* WorldContextObject)
+{
+	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
+	EditorUtilitySubsystem->RegisterReferencedObject(this);
+}
+
+void UEditorUtilityBlueprintAsyncActionBase::SetReadyToDestroy()
+{
+	if (UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>())
+	{
+		EditorUtilitySubsystem->UnregisterReferencedObject(this);
+	}
+}
+
+UAsyncEditorDelay::UAsyncEditorDelay(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+#if WITH_EDITOR
+
+UAsyncEditorDelay* UAsyncEditorDelay::AsyncEditorDelay(float Seconds)
+{
+	UAsyncEditorDelay* NewTask = NewObject<UAsyncEditorDelay>();
+	NewTask->Start(Seconds);
+
+	return NewTask;
+}
+
+#endif
+
+void UAsyncEditorDelay::Start(float Seconds)
+{
+	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorDelay::HandleComplete), Seconds);
+}
+
+bool UAsyncEditorDelay::HandleComplete(float DeltaTime)
+{
+	Complete.Broadcast();
+	SetReadyToDestroy();
+	return false;
+}
 
 UEditorUtilityLibrary::UEditorUtilityLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
+
+#if WITH_EDITOR
 
 TArray<AActor*> UEditorUtilityLibrary::GetSelectionSet()
 {
@@ -122,5 +173,7 @@ AActor* UEditorUtilityLibrary::GetActorReference(FString PathToActor)
 	return nullptr;
 #endif //WITH_EDITOR
 }
+
+#endif
 
 #undef LOCTEXT_NAMESPACE
