@@ -748,6 +748,15 @@ void FChaosEngineInterface::SetGravityEnabled_AssumesLocked(const FPhysicsActorH
 	}
 }
 
+void FChaosEngineInterface::SetOneWayInteraction_AssumesLocked(const FPhysicsActorHandle& InHandle, bool InOneWayInteraction)
+{
+	Chaos::TPBDRigidParticle<float, 3>* Rigid = InHandle->CastToRigidParticle();
+	if (Rigid)
+	{
+		Rigid->SetOneWayInteraction(InOneWayInteraction);
+	}
+}
+
 float FChaosEngineInterface::GetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	return 0;
