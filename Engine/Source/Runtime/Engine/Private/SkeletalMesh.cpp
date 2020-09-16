@@ -1395,16 +1395,21 @@ void USkeletalMesh::BeginDestroy()
 #endif // #if WITH_APEX_CLOTHING
 #endif // WITH_EDITORONLY_DATA
 
-	// Release the mesh's render resources.
-	ReleaseResources();
+	// Release the mesh's render resources now if no pending streaming op.
+	if (!UpdateStreamingStatus())
+	{
+		ReleaseResources();
+	}
 }
 
 bool USkeletalMesh::IsReadyForFinishDestroy()
 {
-	if (!Super::IsReadyForFinishDestroy())
+	if (UpdateStreamingStatus() || !Super::IsReadyForFinishDestroy())
 	{
 		return false;
 	}
+
+	ReleaseResources();
 
 	// see if we have hit the resource flush fence
 	return ReleaseResourcesFence.IsFenceComplete();
