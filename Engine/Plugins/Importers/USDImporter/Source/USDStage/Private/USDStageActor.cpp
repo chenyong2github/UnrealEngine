@@ -37,6 +37,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "PropertyEditorModule.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "ScopedTransaction.h"
 #include "StaticMeshAttributes.h"
@@ -45,7 +46,10 @@
 #include "Tracks/MovieScene3DTransformTrack.h"
 
 #if WITH_EDITOR
+#include "Editor/TransBuffer.h"
+#include "Editor/UnrealEdEngine.h"
 #include "LevelEditor.h"
+#include "UnrealEdGlobals.h"
 #endif // WITH_EDITOR
 
 
@@ -70,6 +74,7 @@ struct FUsdStageActorImpl
 		TranslationContext->ObjectFlags = DefaultObjFlag;
 		TranslationContext->Time = StageActor->GetTime();
 		TranslationContext->PurposesToLoad = (EUsdPurpose) StageActor->PurposesToLoad;
+		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 
 		// Its more convenient to toggle between variants using the USDStage window, as opposed to parsing LODs
 		TranslationContext->bAllowInterpretingLODs = false;
@@ -93,6 +98,34 @@ struct FUsdStageActorImpl
 		}
 
 		return TranslationContext;
+	}
+
+	// Workaround some issues where the details panel will crash when showing a property of a component we'll force-delete
+	static void DeselectActorsAndComponents( AUsdStageActor* StageActor )
+	{
+		if ( !StageActor )
+		{
+			return;
+		}
+
+		TArray<UObject*> ObjectsToDelete;
+		const bool bRecursive = true;
+		StageActor->RootUsdTwin->Iterate( [ &ObjectsToDelete ]( UUsdPrimTwin& PrimTwin )
+		{
+			if ( AActor* ReferencedActor = PrimTwin.SpawnedActor.Get() )
+			{
+				ObjectsToDelete.Add( ReferencedActor );
+			}
+			if ( USceneComponent* ReferencedComponent = PrimTwin.SceneComponent.Get() )
+			{
+				ObjectsToDelete.Add( ReferencedComponent );
+			}
+		}, bRecursive );
+
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
+		PropertyEditorModule.RemoveDeletedObjects( ObjectsToDelete );
+
+		GEditor->NoteSelectionChange();
 	}
 };
 
@@ -141,6 +174,53 @@ AUsdStageActor::AUsdStageActor()
 
 		FUsdDelegates::OnPostUsdImport.AddUObject( this, &AUsdStageActor::OnPostUsdImport );
 		FUsdDelegates::OnPreUsdImport.AddUObject( this, &AUsdStageActor::OnPreUsdImport );
+
+		// When another client of a multi-user session modifies their version of this actor, the transaction will be replicated here.
+		// The multi-user system uses "redo" to apply those transactions, so this is our best chance to respond to events as e.g. neither
+		// PostTransacted nor Destroyed get called when the other user deletes the actor
+		if ( UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>( GUnrealEd->Trans ) : nullptr )
+		{
+			// We can't use AddUObject here as we may specifically want to respond *after* we're marked as pending kill
+			OnRedoHandle = TransBuffer->OnRedo().AddLambda(
+				[ this ]( const FTransactionContext& TransactionContext, bool bSucceeded )
+				{
+					// This text should match the one in ConcertClientTransactionBridge.cpp
+					if ( this &&
+						 HasAutorithyOverStage() &&
+						 TransactionContext.Title.EqualTo( LOCTEXT( "ConcertTransactionEvent", "Concert Transaction Event" ) ) &&
+						 !RootLayer.FilePath.IsEmpty() )
+					{
+						// Other user deleted us
+						if ( this->IsPendingKill() )
+						{
+							Reset();
+						}
+						// We have a valid filepath but no objects/assets spawned, so it's likely we were just spawned on the
+						// other client, and were replicated here with our RootLayer path already filled out, meaning we should just load that stage
+						else if ( ObjectsToWatch.Num() == 0 && AssetsCache.Num() == 0 )
+						{
+							bool bNeedLoad = true;
+
+							TArray<UE::FUsdStage> OpenedStages = UnrealUSDWrapper::GetAllStagesFromCache();
+							for ( const UE::FUsdStage& Stage : OpenedStages )
+							{
+								if ( FPaths::IsSamePath( Stage.GetRootLayer().GetRealPath(), RootLayer.FilePath ) )
+								{
+									bNeedLoad = false;
+									break;
+								}
+							}
+
+							if ( bNeedLoad )
+							{
+								this->LoadUsdStage();
+								AUsdStageActor::OnActorLoaded.Broadcast( this );
+							}
+						}
+					}
+				}
+			);
+		}
 #endif // WITH_EDITOR
 
 		OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
@@ -167,7 +247,7 @@ AUsdStageActor::AUsdStageActor()
 			}
 		);
 
-		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject( this, &AUsdStageActor::OnPrimObjectPropertyChanged );
+		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject( this, &AUsdStageActor::OnObjectPropertyChanged );
 	}
 }
 
@@ -198,11 +278,19 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 	TSet< FString > UpdatedComponents;
 	TSet< FString > ResyncedComponents;
 
+	bool bDeselected = false;
+
 	for ( const TPair< FString, bool >& PrimChangedInfo : SortedPrimsChangedList )
 	{
 		RefreshStageTask.EnterProgressFrame();
 
 		const bool bIsResync = PrimChangedInfo.Value;
+
+		if ( bIsResync && !bDeselected )
+		{
+			FUsdStageActorImpl::DeselectActorsAndComponents( this );
+			bDeselected = true;
+		}
 
 		auto UnwindToNonCollapsedPrim = [ &PrimChangedInfo, this ]( FUsdSchemaTranslator::ECollapsingType CollapsingType ) -> UE::FSdfPath
 		{
@@ -317,7 +405,7 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 AUsdStageActor::~AUsdStageActor()
 {
 #if WITH_EDITOR
-	if ( HasAutorithyOverStage() )
+	if ( !IsEngineExitRequested() && HasAutorithyOverStage() )
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 		LevelEditorModule.OnMapChanged().RemoveAll(this);
@@ -327,6 +415,10 @@ AUsdStageActor::~AUsdStageActor()
 		FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 		FUsdDelegates::OnPostUsdImport.RemoveAll(this);
 		FUsdDelegates::OnPreUsdImport.RemoveAll(this);
+		if ( UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>( GUnrealEd->Trans ) : nullptr )
+		{
+			TransBuffer->OnRedo().Remove( OnRedoHandle );
+		}
 
 		// This clears the SUSDStage window whenever the level we're currently in gets destroyed.
 		// Note that this is not called when deleting from the Editor, as the actor goes into the undo buffer.
@@ -345,12 +437,18 @@ USDSTAGE_API void AUsdStageActor::Reset()
 
 	Modify();
 
+	FUsdStageActorImpl::DeselectActorsAndComponents( this );
+
 	Clear();
 	AssetsCache.Reset();
 	BlendShapesByPath.Reset();
+	MaterialToPrimvarToUVIndex.Reset();
 
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
-	LevelSequence = nullptr;
+	if ( LevelSequence )
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
+		LevelSequence = nullptr;
+	}
 	Time = 0.f;
 
 	RootUsdTwin->Clear();
@@ -363,6 +461,16 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	UsdStage = UE::FUsdStage();
 
 	OnStageChanged.Broadcast();
+}
+
+void AUsdStageActor::StopMonitoringLevelSequence()
+{
+	LevelSequenceHelper.StopMonitoringChanges();
+}
+
+void AUsdStageActor::ResumeMonitoringLevelSequence()
+{
+	LevelSequenceHelper.StartMonitoringChanges();
 }
 
 UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPath )
@@ -540,33 +648,6 @@ void AUsdStageActor::SetTime(float InTime)
 	Refresh();
 }
 
-void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
-	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
-
-	if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootLayer ) )
-	{
-		UnrealUSDWrapper::EraseStageFromCache( UsdStage );
-		UsdStage = UE::FUsdStage();
-
-		AssetsCache.Reset(); // We've changed USD file, clear the cache
-		BlendShapesByPath.Reset();
-		LoadUsdStage();
-	}
-	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, Time ) )
-	{
-		Refresh();
-	}
-	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, InitialLoadSet ) ||
-		      PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
-	{
-		LoadUsdStage();
-	}
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
 void AUsdStageActor::Clear()
 {
 	PrimPathsToAssets.Reset();
@@ -582,13 +663,6 @@ void AUsdStageActor::OpenUsdStage()
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::OpenUsdStage );
-
-	FUsdLevelSequenceHelper::FBlockMonitoring BlockSequenceMonitoring( LevelSequenceHelper );
-
-	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("OpenStageTransaction", "Open USD stage '{0}'"),
-		FText::FromString( RootLayer.FilePath )
-	));
 
 	UsdUtils::StartMonitoringErrors();
 
@@ -651,6 +725,8 @@ void AUsdStageActor::LoadUsdStage()
 	SlowTask.MakeDialog();
 
 	Clear();
+
+	FUsdStageActorImpl::DeselectActorsAndComponents( this );
 
 	RootUsdTwin->Clear();
 	RootUsdTwin->PrimPath = TEXT("/");
@@ -762,8 +838,22 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		else if (ChangedProperties.Contains(GET_MEMBER_NAME_CHECKED(AUsdStageActor, Time)))
 		{
 			Refresh();
+
+			// Sometimes when we undo/redo changes that modify SkinnedMeshComponents, their render state is not correctly updated which can show some
+			// very garbled meshes. Here we workaround that by recreating all those render states manually
+			const bool bRecurive = true;
+			RootUsdTwin->Iterate([](UUsdPrimTwin& PrimTwin)
+			{
+				if ( USkinnedMeshComponent* Component = Cast<USkinnedMeshComponent>( PrimTwin.GetSceneComponent() ) )
+				{
+					FRenderStateRecreator RecreateRenderState{ Component };
+				}
+			}, bRecurive);
 		}
 	}
+
+	// Fire OnObjectTransacted so that multi-user can track our transactions
+	Super::PostTransacted( TransactionEvent );
 }
 
 void AUsdStageActor::PostDuplicate( bool bDuplicateForPIE )
@@ -804,7 +894,27 @@ void AUsdStageActor::Serialize(FArchive& Ar)
 		Ar << AssetsCache;
 		Ar << PrimPathsToAssets;
 		Ar << BlendShapesByPath;
+		Ar << MaterialToPrimvarToUVIndex;
 	}
+}
+
+void AUsdStageActor::Destroyed()
+{
+	// This is fired before the actor is actually deleted or components/actors are detached.
+	// We modify our child actors here because they will be detached by UWorld::DestroyActor before they're modified. Later,
+	// on AUsdStageActor::Reset (called from PostTransacted), we would Modify() these actors, but if their first modify is in
+	// this detached state, they're saved to the transaction as being detached from us. If we undo that transaction,
+	// they will be restored as detached, which we don't want, so here we make sure they are first recorded as attached.
+
+	TArray<AActor*> ChildActors;
+	GetAttachedActors( ChildActors );
+
+	for ( AActor* Child : ChildActors )
+	{
+		Child->Modify();
+	}
+
+	Super::Destroyed();
 }
 
 void AUsdStageActor::OnLevelAddedToWorld( ULevel* Level, UWorld* World )
@@ -928,10 +1038,11 @@ void AUsdStageActor::OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin )
 	LevelSequenceHelper.RemovePrim( UsdPrimTwin );
 }
 
-void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
+void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
 {
 	if ( ObjectBeingModified == this )
 	{
+		HandlePropertyChangedEvent( PropertyChangedEvent );
 		return;
 	}
 
@@ -1000,6 +1111,37 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 				}
 			}
 		}
+	}
+}
+
+void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& PropertyChangedEvent )
+{
+	// Handle property changed events with this function (called from our OnObjectPropertyChanged delegate) instead of overriding PostEditChangeProperty because replicated
+	// multi-user transactions directly broadcast OnObjectPropertyChanged on the properties that were changed, instead of making PostEditChangeProperty events.
+	// Note that UObject::PostEditChangeProperty ends up broadcasting OnObjectPropertyChanged anyway, so this works just the same as before.
+	// see ConcertClientTransactionBridge.cpp, function ConcertClientTransactionBridgeUtil::ProcessTransactionEvent
+
+	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
+
+	if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootLayer ) )
+	{
+		UnrealUSDWrapper::EraseStageFromCache( UsdStage );
+		UsdStage = UE::FUsdStage();
+
+		AssetsCache.Reset(); // We've changed USD file, clear the cache
+		BlendShapesByPath.Reset();
+		MaterialToPrimvarToUVIndex.Reset();
+		LoadUsdStage();
+	}
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, Time ) )
+	{
+		Refresh();
+	}
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, InitialLoadSet ) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
+	{
+		LoadUsdStage();
 	}
 }
 

@@ -19,6 +19,7 @@ public:
 
 	void Construct( const FArguments& InArgs, AUsdStageActor* InUsdStageActor );
 	void RefreshStageInfos( AUsdStageActor* InUsdStageActor );
+	~SUsdStageInfo();
 
 private:
 	struct FStageInfos

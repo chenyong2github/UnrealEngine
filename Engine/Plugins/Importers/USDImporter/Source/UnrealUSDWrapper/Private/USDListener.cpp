@@ -32,9 +32,9 @@ public:
 
 	virtual ~FUsdListenerImpl();
 
-	FUsdListener::FOnStageChanged OnStageChanged;
 	FUsdListener::FOnStageEditTargetChanged OnStageEditTargetChanged;
 	FUsdListener::FOnPrimsChanged OnPrimsChanged;
+	FUsdListener::FOnStageInfoChanged OnStageInfoChanged;
 	FUsdListener::FOnLayersChanged OnLayersChanged;
 
 	FThreadSafeCounter IsBlocked;
@@ -91,11 +91,6 @@ bool FUsdListener::IsBlocked() const
 	return Impl->IsBlocked.GetValue() > 0;
 }
 
-FUsdListener::FOnStageChanged& FUsdListener::GetOnStageChanged()
-{
-	return Impl->OnStageChanged;
-}
-
 FUsdListener::FOnStageEditTargetChanged& FUsdListener::GetOnStageEditTargetChanged()
 {
 	return Impl->OnStageEditTargetChanged;
@@ -104,6 +99,11 @@ FUsdListener::FOnStageEditTargetChanged& FUsdListener::GetOnStageEditTargetChang
 FUsdListener::FOnPrimsChanged& FUsdListener::GetOnPrimsChanged()
 {
 	return Impl->OnPrimsChanged;
+}
+
+FUsdListener::FOnStageInfoChanged& FUsdListener::GetOnStageInfoChanged()
+{
+	return Impl->OnStageInfoChanged;
 }
 
 FUsdListener::FOnLayersChanged& FUsdListener::GetOnLayersChanged()
@@ -155,65 +155,87 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 	using namespace pxr;
 	using PathRange = UsdNotice::ObjectsChanged::PathRange;
 
-	if ( !OnPrimsChanged.IsBound() || IsBlocked.GetValue() > 0 )
+	if ( (!OnPrimsChanged.IsBound() && !OnStageInfoChanged.IsBound()) || IsBlocked.GetValue() > 0 )
 	{
 		return;
 	}
 
+	// If the change is just about the stage updating some info like startTimeSeconds or framesPerSecond, then we don't
+	// need to refresh all prims. This is important because when undo/redoing, we may resync the movie scene, which shouldn't trigger prim spawning
+	bool bIsPureStageInfoChange = true;
 	TMap< FString, bool > PrimsChangedList;
+	TArray< FString > StageChangedFields;
 
 	FScopedUsdAllocs UsdAllocs;
 
 	PathRange PathsToUpdate = Notice.GetResyncedPaths();
-
 	for ( PathRange::const_iterator It = PathsToUpdate.begin(); It != PathsToUpdate.end(); ++It )
 	{
 		constexpr bool bResync = true;
+		bIsPureStageInfoChange = false;
 		PrimsChangedList.Add( ANSI_TO_TCHAR( It->GetAbsoluteRootOrPrimPath().GetString().c_str() ), bResync );
 	}
 
 	PathsToUpdate = Notice.GetChangedInfoOnlyPaths();
-
 	for ( PathRange::const_iterator  PathToUpdateIt = PathsToUpdate.begin(); PathToUpdateIt != PathsToUpdate.end(); ++PathToUpdateIt )
 	{
 		const FString PrimPath = ANSI_TO_TCHAR( PathToUpdateIt->GetAbsoluteRootOrPrimPath().GetString().c_str() );
 
-		if ( !PrimsChangedList.Contains( PrimPath ) )
+		if ( PrimsChangedList.Contains( PrimPath ) )
 		{
-			bool bResync = false;
-
-			// If the layer reloaded, anything could have happened, so we must resync from the layer down
-			const std::vector<const SdfChangeList::Entry*>& Changes = PathToUpdateIt.base()->second;
-			for ( const SdfChangeList::Entry* Change : Changes )
-			{
-				if ( Change && Change->flags.didReloadContent )
-				{
-					bResync = true;
-				}
-			}
-
-			if ( PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath() )
-			{
-				pxr::TfTokenVector ChangedFields = PathToUpdateIt.GetChangedFields();
-
-				for ( const pxr::TfToken& ChangeField : ChangedFields )
-				{
-					if ( ChangeField == UsdGeomTokens->metersPerUnit )
-					{
-						bResync = true; // Force a resync when changing the metersPerUnit since it affects all coordinates
-						break;
-					}
-				}
-			}
-
-			PrimsChangedList.Add( PrimPath, bResync );
+			continue;
 		}
+
+		bool bResync = false;
+
+		// If the layer reloaded, anything could have happened, so we must resync from the layer down
+		const std::vector<const SdfChangeList::Entry*>& Changes = PathToUpdateIt.base()->second;
+		for ( const SdfChangeList::Entry* Change : Changes )
+		{
+			if ( Change && Change->flags.didReloadContent )
+			{
+				bResync = true;
+				bIsPureStageInfoChange = false;
+			}
+		}
+
+		// Change on the stage root
+		if ( PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath() )
+		{
+			pxr::TfTokenVector ChangedFields = PathToUpdateIt.GetChangedFields();
+
+			for ( const pxr::TfToken& ChangedField : ChangedFields )
+			{
+				StageChangedFields.Add( ANSI_TO_TCHAR( ChangedField.GetString().c_str() ) );
+
+				if ( ChangedField == UsdGeomTokens->metersPerUnit )
+				{
+					bResync = true; // Force a resync when changing the metersPerUnit since it affects all coordinates
+					bIsPureStageInfoChange = false;
+					break;
+				}
+			}
+		}
+		else
+		{
+			bIsPureStageInfoChange = false;
+		}
+
+		PrimsChangedList.Add( PrimPath, bResync );
 	}
 
 	if ( PrimsChangedList.Num() > 0 )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		OnPrimsChanged.Broadcast( PrimsChangedList );
+
+		if ( bIsPureStageInfoChange )
+		{
+			OnStageInfoChanged.Broadcast( StageChangedFields );
+		}
+		else
+		{
+			OnPrimsChanged.Broadcast( PrimsChangedList );
+		}
 	}
 }
 

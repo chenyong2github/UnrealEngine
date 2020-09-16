@@ -103,11 +103,11 @@ public:
 	TMap< FString, UObject* > GetPrimPathsToAssets() { return PrimPathsToAssets; }
 
 public:
-	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual void PostDuplicate( bool bDuplicateForPIE ) override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void Destroyed() override;
 
 	void OnLevelAddedToWorld(ULevel* Level, UWorld* World);
 	void OnLevelRemovedFromWorld(ULevel* Level, UWorld* World);
@@ -131,7 +131,8 @@ private:
 	void OnPrimsChanged( const TMap< FString, bool >& PrimsChangedList );
 	void OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin );
 
-	void OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
+	void OnObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
+	void HandlePropertyChangedEvent( FPropertyChangedEvent& PropertyChangedEvent );
 	bool HasAutorithyOverStage() const;
 
 private:
@@ -156,12 +157,23 @@ private:
 	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
 	UsdUtils::FBlendShapeMap BlendShapesByPath;
 
+	/**
+	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
+	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
+	 * We keep this here as these are generated when the materials stored in AssetsCache are parsed, so it should accompany them
+	 */
+	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
+
 public:
 	USDSTAGE_API UE::FUsdStage& GetUsdStage();
 	USDSTAGE_API const UE::FUsdStage& GetUsdStage() const;
 
 	FUsdListener& GetUsdListener() { return UsdListener; }
 	const FUsdListener& GetUsdListener() const { return UsdListener; }
+
+	/** Prevents writing back data to the USD stage whenever our LevelSequences are modified */
+	USDSTAGE_API void StopMonitoringLevelSequence();
+	USDSTAGE_API void ResumeMonitoringLevelSequence();
 
 	UUsdPrimTwin* GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPath );
 	UUsdPrimTwin* ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext );
@@ -181,4 +193,6 @@ private:
 	FUsdListener UsdListener;
 
 	FUsdLevelSequenceHelper LevelSequenceHelper;
+
+	FDelegateHandle OnRedoHandle;
 };
