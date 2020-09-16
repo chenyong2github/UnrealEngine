@@ -205,6 +205,26 @@ void FSkeletalMeshStreamIn::DoFinishUpdate(const FContext& Context)
 				IntermediateBuffersArray[LODIndex].TransferBuffers(LODResource, Batcher);
 			}
 		}
+
+#if RHI_RAYTRACING
+		// Must happen after the batched updates have been flushed
+		if (IsRayTracingEnabled())
+		{
+			for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
+			{
+				// Skip LODs that have their render data stripped
+				if (RenderData->LODRenderData[LODIndex].GetNumVertices() > 0)
+				{
+					if (RenderData->LODRenderData[LODIndex].bReferencedByStaticSkeletalMeshObjects_RenderThread)
+					{
+						ensure(!RenderData->LODRenderData[LODIndex].StaticRayTracingGeometry.IsInitialized());
+						RenderData->LODRenderData[LODIndex].StaticRayTracingGeometry.InitResource();
+					}
+				}
+			}
+		}
+#endif
+
 		RenderData->PendingFirstLODIdx = RenderData->CurrentFirstLODIdx = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumRequestedLODs);
 	}
 	else
@@ -345,6 +365,16 @@ void FSkeletalMeshStreamOut::ReleaseBuffers(const FContext& Context)
 			{
 				// TODO requires more testing : LODResource.ReleaseCPUResources(true);
 			}
+
+#if RHI_RAYTRACING
+			if (IsRayTracingEnabled())
+			{
+				if (RenderData->LODRenderData[LODIndex].bReferencedByStaticSkeletalMeshObjects_RenderThread)
+				{
+					LODResource.StaticRayTracingGeometry.ReleaseResource();
+				}
+			}
+#endif
 		}
 	}
 }
