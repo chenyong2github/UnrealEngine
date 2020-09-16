@@ -561,6 +561,21 @@ FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Textur
 	return Result;
 }
 
+FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Texture, uint32 GPUIndex)
+{
+	FD3D12TextureBase* Result = GetD3D12TextureFromRHITexture(Texture);
+	if (Result != nullptr)
+	{
+		Result = Result->GetLinkedObject(GPUIndex);
+		check(Result);
+		return Result;
+	}
+	else
+	{
+		return Result;
+	}
+}
+
 class FD3D12TextureStats
 {
 public:
