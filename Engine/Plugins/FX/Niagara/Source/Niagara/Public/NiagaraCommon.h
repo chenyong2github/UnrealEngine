@@ -609,11 +609,11 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
 	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Emitter, bReInit); }
-	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Script, bReInit); }
-	//FNiagaraSystemUpdateContext(UNiagaraDataInterface* Interface, bool bReinit) : Add(Interface, bReinit) {}
+	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Script, bReInit); }	
 	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive) { Add(Collection, bReInit); }
 #endif
-	FNiagaraSystemUpdateContext():bDestroyOnAdd(false), bOnlyActive(false){ }
+	FNiagaraSystemUpdateContext() :bDestroyOnAdd(false), bOnlyActive(false) { }
+	FNiagaraSystemUpdateContext(FNiagaraSystemUpdateContext& Other) = delete;
 
 	~FNiagaraSystemUpdateContext();
 
@@ -624,7 +624,6 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 #if WITH_EDITORONLY_DATA
 	void Add(const UNiagaraEmitter* Emitter, bool bReInit);
 	void Add(const UNiagaraScript* Script, bool bReInit);
-	//void Add(UNiagaraDataInterface* Interface, bool bReinit);
 	void Add(const UNiagaraParameterCollection* Collection, bool bReInit);
 #endif
 
@@ -636,12 +635,13 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 
 private:
 	void AddInternal(class UNiagaraComponent* Comp, bool bReInit);
-	FNiagaraSystemUpdateContext(FNiagaraSystemUpdateContext& Other) :bDestroyOnAdd(false) { }
 
 	UPROPERTY(transient)
 	TArray<UNiagaraComponent*> ComponentsToReset;
 	UPROPERTY(transient)
 	TArray<UNiagaraComponent*> ComponentsToReInit;
+	UPROPERTY(transient)
+	TArray<UNiagaraComponent*> ComponentsToNotifySimDestroy;
 	UPROPERTY(transient)
 	TArray<UNiagaraSystem*> SystemSimsToDestroy;
 
