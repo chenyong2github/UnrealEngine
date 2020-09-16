@@ -29,21 +29,27 @@ namespace RuntimeVirtualTexture
 		LocalTransform.SetComponents(TargetRotation, TargetPosition, FVector::OneVector);
 		FTransform WorldToLocal = LocalTransform.Inverse();
 
-		// Expand bounds for all primitive components that write to this virtual texture.
+		// Expand bounds for the BoundsAlignActor and all primitive components that write to this virtual texture.
 		FBox Bounds(ForceInit);
 		for (TObjectIterator<UPrimitiveComponent> It(RF_ClassDefaultObject, true, EInternalObjectFlags::PendingKill); It; ++It)
 		{
-			for (URuntimeVirtualTexture* ItVirtualTexture : It->GetRuntimeVirtualTextures())
-			{
-				if (ItVirtualTexture == InComponent->GetVirtualTexture())
-				{
-					FBoxSphereBounds LocalSpaceBounds = It->CalcBounds(It->GetComponentTransform() * WorldToLocal);
-					if (LocalSpaceBounds.GetBox().GetVolume() > 0.f)
-					{
-						Bounds += LocalSpaceBounds.GetBox();
-					}
+			bool bUseBounds = It->GetOwner() == BoundsAlignActor.Get();
 
-					break;
+			TArray<URuntimeVirtualTexture*> const& VirtualTextures = It->GetRuntimeVirtualTextures();
+			for (int32 Index = 0; !bUseBounds && Index < VirtualTextures.Num(); ++Index) 
+			{
+				if (VirtualTextures[Index] == InComponent->GetVirtualTexture())
+				{
+					bUseBounds = true;
+				}
+			}
+
+			if (bUseBounds)
+			{
+				FBoxSphereBounds LocalSpaceBounds = It->CalcBounds(It->GetComponentTransform() * WorldToLocal);
+				if (LocalSpaceBounds.GetBox().GetVolume() > 0.f)
+				{
+					Bounds += LocalSpaceBounds.GetBox();
 				}
 			}
 		}
