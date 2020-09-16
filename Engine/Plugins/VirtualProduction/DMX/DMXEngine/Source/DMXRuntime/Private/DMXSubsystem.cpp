@@ -11,6 +11,7 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
+#include "AssetRegistryModule.h"
 #include "EngineUtils.h"
 #include "UObject/UObjectIterator.h"
 #include "Async/Async.h"
@@ -1079,16 +1080,9 @@ UDMXEntityController* UDMXSubsystem::GetControllerByName(const UDMXLibrary* DMXL
 	return GetDMXEntityByName<UDMXEntityController>(DMXLibrary, Name);
 }
 
-TArray<UDMXLibrary*> UDMXSubsystem::GetAllDMXLibraries()
+const TArray<UDMXLibrary*>& UDMXSubsystem::GetAllDMXLibraries()
 {
-	TArray<UDMXLibrary*> LibrariesFound;
-
-	for (TObjectIterator<UDMXLibrary> LibraryItr; LibraryItr; ++LibraryItr)
-	{
-		LibrariesFound.Add(*LibraryItr);
-	}
-
-	return LibrariesFound;
+	return LoadedDMXLibraries;
 }
 
 FORCEINLINE EDMXFixtureSignalFormat SignalFormatFromBytesNum(uint32 InBytesNum)
@@ -1202,6 +1196,11 @@ float UDMXSubsystem::GetNormalizedAttributeValue(UDMXEntityFixturePatch* InFixtu
 
 void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry")).Get();
+	AssetRegistry.OnFilesLoaded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles);
+	AssetRegistry.OnAssetAdded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryAddedAsset);
+	AssetRegistry.OnAssetRemoved().AddUObject(this, &UDMXSubsystem::OnAssetRegistryRemovedAsset);
+
 	for (const FName& ProtocolName : IDMXProtocol::GetProtocolNames())
 	{
 		if (IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName))
@@ -1245,5 +1244,40 @@ void UDMXSubsystem::Deinitialize()
 		{
 			Protocol->GetOnUniverseInputBufferUpdated().Remove(It.Value);
 		}
+	}
+}
+
+void UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles()
+{
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry")).Get();
+
+	TArray<FAssetData> Assets;
+	AssetRegistry.GetAssetsByClass(UDMXLibrary::StaticClass()->GetFName(), Assets, true);
+
+	for (const FAssetData& Asset : Assets)
+	{
+		UObject* AssetObject = Asset.GetAsset();
+		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
+		LoadedDMXLibraries.AddUnique(Library);
+	}
+}
+
+void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
+{
+	if (Asset.AssetClass == UDMXLibrary::StaticClass()->GetFName())
+	{
+		UObject* AssetObject = Asset.GetAsset();
+		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
+		LoadedDMXLibraries.AddUnique(Library);
+	}
+}
+
+void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
+{
+	if (Asset.AssetClass == UDMXLibrary::StaticClass()->GetFName())
+	{
+		UObject* AssetObject = Asset.GetAsset();
+		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
+		LoadedDMXLibraries.Remove(Library);
 	}
 }
