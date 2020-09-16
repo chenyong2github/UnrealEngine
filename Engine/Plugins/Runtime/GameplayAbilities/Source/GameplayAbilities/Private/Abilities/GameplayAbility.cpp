@@ -354,7 +354,7 @@ bool UGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 	if (bHasBlueprintCanUse)
 	{
-		if (K2_CanActivateAbility(*ActorInfo, OutTags) == false)
+		if (K2_CanActivateAbility(*ActorInfo, Handle, OutTags) == false)
 		{
 			ABILITY_LOG(Log, TEXT("CanActivateAbility %s failed, blueprint refused"), *GetName());
 			return false;
@@ -1469,6 +1469,11 @@ int32 UGameplayAbility::GetAbilityLevel(FGameplayAbilitySpecHandle Handle, const
 	return 1;
 }
 
+int32 UGameplayAbility::GetAbilityLevel_BP(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo& ActorInfo) const
+{
+	return GetAbilityLevel(Handle, &ActorInfo);
+}
+
 FGameplayAbilitySpec* UGameplayAbility::GetCurrentAbilitySpec() const
 {
 	check(IsInstantiated()); // You should not call this on non instanced abilities.
@@ -1525,6 +1530,11 @@ UObject* UGameplayAbility::GetSourceObject(FGameplayAbilitySpecHandle Handle, co
 		}
 	}
 	return nullptr;
+}
+
+UObject* UGameplayAbility::GetSourceObject_BP(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo& ActorInfo) const
+{
+	return GetSourceObject(Handle, &ActorInfo);
 }
 
 UObject* UGameplayAbility::GetCurrentSourceObject() const
