@@ -174,7 +174,7 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdTyped& Schema, UMovieScene3DTr
 	for ( double UsdTimeSample : UsdTimeSamples )
 	{
 		// Frame Number
-		int32 FrameNumber = FMath::RoundToInt( UsdTimeSample );
+		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
 		float SubFrameNumber = UsdTimeSample - FrameNumber;
 
 		FFrameTime FrameTime( FrameNumber, SubFrameNumber );
@@ -449,11 +449,6 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 	{
 		TArray< TPair< FFrameNumber, float > > Values;
 
-		if ( Channel->GetTimes().Num() == 0 )
-		{
-			return {};
-		}
-
 		if ( PlaybackRange.HasLowerBound() && PlaybackRange.HasUpperBound() )
 		{
 			const FFrameTime Interval = FFrameRate::TransformTime( 1, DisplayRate, Resolution );
@@ -579,7 +574,7 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 			++ValueIndex;
 		}
 	}
-	
+
 	return true;
 }
 

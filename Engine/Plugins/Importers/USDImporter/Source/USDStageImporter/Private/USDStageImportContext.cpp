@@ -24,16 +24,19 @@ FUsdStageImportContext::FUsdStageImportContext()
 	OriginalMetersPerUnit = 0.01f;
 }
 
-bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport, bool bAllowActorImport)
+bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePath, const FString& InInitialPackagePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport, bool bAllowActorImport)
 {
 	ObjectName = InName;
 	FilePath = InFilePath;
 	bIsAutomated = bInIsAutomated;
 	ImportObjectFlags = InFlags | RF_Public | RF_Standalone | RF_Transactional;
 	World = GEditor->GetEditorWorldContext().World();
-	PackagePath = "/Game/"; // Trailing '/' is needed to set the default path
+	PackagePath = TEXT("/Game/"); // Trailing '/' is needed to set the default path
 
 	FPaths::NormalizeFilename(FilePath);
+
+	AssetsCache.Empty();
+	PrimPathsToAssets.Empty();
 
 	if(!bIsAutomated)
 	{
@@ -43,7 +46,7 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 			TSharedRef<SDlgPickPath> PickContentPathDlg =
 				SNew(SDlgPickPath)
 				.Title(NSLOCTEXT("USDStageImportContext", "ChooseImportRootContentPath", "Choose where to place the imported USD assets"))
-				.DefaultPath(FText::FromString(PackagePath));
+				.DefaultPath(FText::FromString( InInitialPackagePath ));
 
 			if (PickContentPathDlg->ShowModal() == EAppReturnType::Cancel)
 			{

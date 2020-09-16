@@ -25,6 +25,15 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 {
 	RefreshStageInfos( InUsdStageActor );
 
+	if ( InUsdStageActor )
+	{
+		// Just adapt the event signature as we don't use the ChangedFields yet
+		InUsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddLambda( [ this, InUsdStageActor ]( const TArray<FString>& ChangedFields )
+		{
+			this->RefreshStageInfos( InUsdStageActor );
+		});
+	}
+
 	ChildSlot
 	[
 		SNew( SVerticalBox )
@@ -80,6 +89,14 @@ void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* InUsdStageActor )
 	{
 		StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
 		StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
+	}
+}
+
+SUsdStageInfo::~SUsdStageInfo()
+{
+	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+	{
+		StageActor->GetUsdListener().GetOnStageInfoChanged().RemoveAll( this );
 	}
 }
 

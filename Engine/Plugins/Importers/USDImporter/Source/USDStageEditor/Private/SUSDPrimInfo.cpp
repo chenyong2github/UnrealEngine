@@ -84,6 +84,11 @@ void SUsdPrimInfo::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* Prim
 		PropertiesList->SetPrimPath( PrimPath );
 	}
 
+	if ( VariantsList )
+	{
+		VariantsList->SetPrimPath( UsdStage, PrimPath );
+	}
+
 	if ( VariantSetsBox )
 	{
 		VariantSetsBox->SetContent( GenerateVariantSetsWidget( UsdStage, PrimPath ) );
@@ -113,19 +118,6 @@ TSharedRef< SWidget > SUsdPrimInfo::GenerateVariantSetsWidget( const UE::FUsdSta
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew( SBorder )
-			.BorderImage( &FCoreStyle::Get().GetWidgetStyle< FHeaderRowStyle >("TableView.Header").BackgroundBrush  )
-			.Padding( UsdPrimInfoWidgetConstants::CategoryHeaderPadding )
-			[
-				SNew( STextBlock )
-				.Font( FEditorStyle::GetFontStyle( TEXT("DetailsView.CategoryFontStyle") ) )
-				.Text( LOCTEXT( "Variants", "Variants" ) )
-			]
-		]
-
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
 			SAssignNew( VariantsList, SVariantsList, UsdStage, PrimPath )
 		];
 	}
@@ -147,19 +139,6 @@ TSharedRef< SWidget > SUsdPrimInfo::GenerateReferencesListWidget( const UE::FUsd
 	if ( UsdPrim && UsdPrim.HasAuthoredReferences() )
 	{
 		SAssignNew( ReferencesListWidget, SVerticalBox )
-
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew( SBorder )
-			.BorderImage( &FCoreStyle::Get().GetWidgetStyle< FHeaderRowStyle >("TableView.Header").BackgroundBrush  )
-			.Padding( UsdPrimInfoWidgetConstants::CategoryHeaderPadding )
-			[
-				SNew( STextBlock )
-				.Font( FEditorStyle::GetFontStyle( TEXT("DetailsView.CategoryFontStyle") ) )
-				.Text( LOCTEXT( "References", "References" ) )
-			]
-		]
 
 		+SVerticalBox::Slot()
 		.AutoHeight()

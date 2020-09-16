@@ -7,6 +7,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
+#include "USDErrorUtils.h"
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
@@ -37,6 +38,8 @@
 	#include "pxr/usd/usdShade/materialBindingAPI.h"
 	#include "pxr/usd/usdShade/tokens.h"
 #include "USDIncludesEnd.h"
+
+#define LOCTEXT_NAMESPACE "USDGeomMeshConversion"
 
 namespace UsdToUnrealImpl
 {
@@ -463,6 +466,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 		struct FUVSet
 		{
+			int32 UVSetIndexUE; // The user may only have 'uv4' and 'uv5', so we can't just use array indices to find the target UV channel
 			TOptional< VtIntArray > UVIndices; // UVs might be indexed or they might be flat (one per vertex)
 			VtVec2fArray UVs;
 
@@ -473,8 +477,8 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 		TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames );
 
-		int32 UVChannelIndex = 0;
-		while ( true )
+		int32 HighestAddedUVChannel = 0;
+		for ( int32 UVChannelIndex = 0; UVChannelIndex < PrimvarsByUVIndex.Num(); ++UVChannelIndex )
 		{
 			if ( !PrimvarsByUVIndex.IsValidIndex( UVChannelIndex ) )
 			{
@@ -484,11 +488,13 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 			UsdGeomPrimvar& Primvar = PrimvarsByUVIndex[UVChannelIndex].Get();
 			if ( !Primvar )
 			{
-				break;
+				// The user may have name their UV sets 'uv4' and 'uv5', in which case we have no UV sets below 4, so just skip them
+				continue;
 			}
 
 			FUVSet UVSet;
 			UVSet.InterpType = Primvar.GetInterpolation();
+			UVSet.UVSetIndexUE = UVChannelIndex;
 
 			if ( Primvar.IsIndexed() )
 			{
@@ -499,6 +505,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 					if ( UVSet.UVs.size() > 0 )
 					{
 						UVSets.Add( MoveTemp( UVSet ) );
+						HighestAddedUVChannel = UVSet.UVSetIndexUE;
 					}
 				}
 			}
@@ -509,17 +516,16 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 					if ( UVSet.UVs.size() > 0 )
 					{
 						UVSets.Add( MoveTemp( UVSet ) );
+						HighestAddedUVChannel = UVSet.UVSetIndexUE;
 					}
 				}
 			}
-
-			++UVChannelIndex;
 		}
 
 		// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
 		{
 			int32 ExistingUVCount = MeshDescriptionUVs.GetNumIndices();
-			int32 NumUVs = FMath::Max(UVSets.Num(), ExistingUVCount);
+			int32 NumUVs = FMath::Max( HighestAddedUVChannel + 1, ExistingUVCount);
 			NumUVs = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, NumUVs);
 			// At least one UV set must exist.
 			NumUVs = FMath::Max<int32>(1, NumUVs);
@@ -596,7 +602,6 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 					}
 				}
 
-				int32 UVLayerIndex = 0;
 				for ( const FUVSet& UVSet : UVSets )
 				{
 					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( UVSet.InterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
@@ -617,9 +622,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 					// Flip V for Unreal uv's which match directx
 					FVector2D FinalUVVector( UV[0], 1.f - UV[1] );
-					MeshDescriptionUVs.Set( AddedVertexInstanceId, UVLayerIndex, FinalUVVector );
-
-					++UVLayerIndex;
+					MeshDescriptionUVs.Set( AddedVertexInstanceId, UVSet.UVSetIndexUE, FinalUVVector );
 				}
 
 				// Vertex color
@@ -706,7 +709,7 @@ bool UsdToUnreal::ConvertDisplayColor( const UsdUtils::FDisplayColorMaterial& Di
 	return true;
 }
 
-UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode )
+UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, bool bProvideMaterialIndices )
 {
 	if ( !UsdPrim )
 	{
@@ -767,6 +770,18 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 	{
 		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
 		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial();
+		if ( !ShadeMaterial )
+		{
+			return {};
+		}
+
+		// Ignore this material if UsdToUnreal::ConvertMaterial would as well
+		pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource();
+		if ( !SurfaceShader )
+		{
+			return {};
+		}
+
 		pxr::UsdPrim ShadeMaterialPrim = ShadeMaterial.GetPrim();
 		if ( ShadeMaterialPrim )
 		{
@@ -790,17 +805,32 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 
 			if ( Targets.size() > 0 )
 			{
-				FString MaterialPrimPath = UsdToUnreal::ConvertPath( Targets[ 0 ] );
-				if ( MaterialPrimPath.Len() > 0 )
+				const pxr::SdfPath& TargetMaterialPrimPath = Targets[0];
+				pxr::UsdPrim MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( TargetMaterialPrimPath );
+				pxr::UsdShadeMaterial UsdShadeMaterial{ MaterialPrim };
+				if ( !UsdShadeMaterial )
 				{
-					if ( Targets.size() > 1 )
-					{
-						UE_LOG( LogUsd, Warning, TEXT( "Found more than on material:binding targets on prim '%s'. The first material ('%s') will be used, and the rest ignored." ),
-							*UsdToUnreal::ConvertPath( UsdPrim.GetPath() ), *MaterialPrimPath );
-					}
-
-					return MaterialPrimPath;
+					return {};
 				}
+
+				// Ignore this material if UsdToUnreal::ConvertMaterial would as well
+				pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
+				if ( !SurfaceShader )
+				{
+					return {};
+				}
+
+				FString MaterialPrimPath = UsdToUnreal::ConvertPath( TargetMaterialPrimPath );
+				if ( Targets.size() > 1 )
+				{
+					FUsdLogManager::LogMessage(
+						EMessageSeverity::Warning,
+						FText::Format( LOCTEXT( "MoreThanOneMaterialBinding", "Found more than on material:binding targets on prim '{0}'. The first material ('{1}') will be used, and the rest ignored." ),
+						FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) ), FText::FromString( MaterialPrimPath ) )
+					);
+				}
+
+				return MaterialPrimPath;
 			}
 		}
 
@@ -826,7 +856,10 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 			return Result;
 		}
 
-		Result.MaterialIndices.SetNumZeroed( NumFaces );
+		if ( bProvideMaterialIndices )
+		{
+			Result.MaterialIndices.SetNumZeroed( NumFaces );
+		}
 	}
 
 	// Priority 1: unrealMaterial attribute directly on the prim
@@ -865,6 +898,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 	std::vector<pxr::UsdGeomSubset> GeomSubsets = pxr::UsdShadeMaterialBindingAPI( UsdPrim ).GetMaterialBindSubsets();
 	if ( GeomSubsets.size() > 0 )
 	{
+		// We need to do this even if we won't provide indices because we may create an additional slot for unassigned polygons
 		pxr::VtIntArray UnassignedIndices;
 		std::string ReasonWhyNotPartition;
 		bool ValidPartition = pxr::UsdGeomSubset::ValidateSubsets( GeomSubsets, NumFaces, pxr::UsdGeomTokens->partition, &ReasonWhyNotPartition );
@@ -928,10 +962,13 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 			pxr::VtIntArray PolygonIndicesInSubset;
 			GeomSubset.GetIndicesAttr().Get( &PolygonIndicesInSubset, TimeCode );
 
-			int32 LastAssignmentIndex = Result.Slots.Num() - 1;
-			for ( int PolygonIndex : PolygonIndicesInSubset )
+			if ( bProvideMaterialIndices )
 			{
-				Result.MaterialIndices[ PolygonIndex ] = LastAssignmentIndex;
+				int32 LastAssignmentIndex = Result.Slots.Num() - 1;
+				for ( int PolygonIndex : PolygonIndicesInSubset )
+				{
+					Result.MaterialIndices[ PolygonIndex ] = LastAssignmentIndex;
+				}
 			}
 		}
 
@@ -945,10 +982,13 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 				Slot.AssignmentType = UsdUtils::EPrimAssignmentType::DisplayColor;
 			}
 
-			int32 LastAssignmentIndex = Result.Slots.Num() - 1;
-			for ( int PolygonIndex : UnassignedIndices )
+			if ( bProvideMaterialIndices )
 			{
-				Result.MaterialIndices[ PolygonIndex ] = LastAssignmentIndex;
+				int32 LastAssignmentIndex = Result.Slots.Num() - 1;
+				for ( int PolygonIndex : UnassignedIndices )
+				{
+					Result.MaterialIndices[ PolygonIndex ] = LastAssignmentIndex;
+				}
 			}
 		}
 
@@ -1141,8 +1181,9 @@ TOptional<UsdUtils::FDisplayColorMaterial> UsdUtils::ExtractDisplayColorMaterial
 	return Desc;
 }
 
-bool UsdUtils::IsGeomMeshALOD( const pxr::UsdGeomMesh& UsdMesh )
+bool UsdUtils::IsGeomMeshALOD( const pxr::UsdPrim& UsdMeshPrim )
 {
+	pxr::UsdGeomMesh UsdMesh{ UsdMeshPrim };
 	if ( !UsdMesh )
 	{
 		return false;
@@ -1150,7 +1191,6 @@ bool UsdUtils::IsGeomMeshALOD( const pxr::UsdGeomMesh& UsdMesh )
 
 	FScopedUsdAllocs Allocs;
 
-	pxr::UsdPrim UsdMeshPrim = UsdMesh.GetPrim();
 	std::string MeshName = UsdMeshPrim.GetName();
 
 	pxr::UsdPrim ParentPrim = UsdMeshPrim.GetParent();
@@ -1176,6 +1216,21 @@ bool UsdUtils::IsGeomMeshALOD( const pxr::UsdGeomMesh& UsdMesh )
 	}
 
 	return false;
+}
+
+int32 UsdUtils::GetNumberOfLODVariants( const pxr::UsdPrim& Prim )
+{
+	FScopedUsdAllocs Allocs;
+
+	const std::string LODString = UnrealIdentifiers::LOD.GetString();
+
+	pxr::UsdVariantSets VariantSets = Prim.GetVariantSets();
+	if ( !VariantSets.HasVariantSet( LODString ) )
+	{
+		return 1;
+	}
+
+	return VariantSets.GetVariantSet( LODString ).GetVariantNames().size();
 }
 
 bool UsdUtils::IterateLODMeshes( const pxr::UsdPrim& ParentPrim, TFunction<bool( const pxr::UsdGeomMesh & LODMesh, int32 LODIndex )> Func )
@@ -1230,5 +1285,7 @@ bool UsdUtils::IterateLODMeshes( const pxr::UsdPrim& ParentPrim, TFunction<bool(
 	LODVariantSet.SetVariantSelection( OriginalVariant );
 	return bHasValidVariant;
 }
+
+#undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK

@@ -44,7 +44,10 @@ UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 	UObject* ImportedObject = nullptr;
 
 #if USE_USD_SDK
-	if (ImportContext.Init(InName.ToString(), Filename, Flags, IsAutomatedImport()))
+	const FString InitialPackagePath =InParent ? InParent->GetName() : TEXT( "/Game/" );
+	const bool bIsReimport = false;
+	const bool bAllowActorImport = true;
+	if (ImportContext.Init(InName.ToString(), Filename, InitialPackagePath, Flags, IsAutomatedImport(), bIsReimport, bAllowActorImport))
 	{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport( this, InClass, InParent, InName, Parms );
 

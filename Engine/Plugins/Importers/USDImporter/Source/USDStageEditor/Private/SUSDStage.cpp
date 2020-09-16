@@ -153,6 +153,7 @@ void SUsdStage::SetupStageActorDelegates()
 			}
 		);
 
+		// Fired when we switch which is the currently opened stage
 		OnStageChangedHandle = ViewModel.UsdStageActor->OnStageChanged.AddLambda(
 			[ this ]()
 			{
@@ -165,6 +166,17 @@ void SUsdStage::SetupStageActorDelegates()
 				}
 
 				this->Refresh();
+			}
+		);
+
+		// Fired when the currently opened stage changes its info (e.g. startTimeSeconds, framesPerSecond, etc.)
+		OnStageInfoChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddLambda(
+			[ this ]( const TArray< FString >& ChangedFields )
+			{
+				if ( this->UsdStageInfoWidget )
+				{
+					this->UsdStageInfoWidget->RefreshStageInfos( ViewModel.UsdStageActor.Get() );
+				}
 			}
 		);
 
@@ -199,6 +211,7 @@ void SUsdStage::ClearStageActorDelegates()
 		ViewModel.UsdStageActor->OnActorDestroyed.Remove ( OnActorDestroyedHandle );
 
 		ViewModel.UsdStageActor->GetUsdListener().GetOnStageEditTargetChanged().Remove( OnStageEditTargetChangedHandle );
+		ViewModel.UsdStageActor->GetUsdListener().GetOnStageInfoChanged().Remove( OnStageInfoChangedHandle );
 	}
 }
 
@@ -498,6 +511,8 @@ void SUsdStage::OnSave()
 
 void SUsdStage::OnReloadStage()
 {
+	FScopedTransaction Transaction( LOCTEXT( "ReloadTransaction", "Reload USD stage" ) );
+
 	ViewModel.ReloadStage();
 
 	if ( UsdLayersTreeView )
@@ -537,15 +552,35 @@ void SUsdStage::OnPrimSelected( FString PrimPath )
 
 void SUsdStage::OpenStage( const TCHAR* FilePath )
 {
-	if ( !ViewModel.UsdStageActor.IsValid() )
+	// This scope is important so that we can resume monitoring the level sequence after our scoped transaction is finished
 	{
-		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-		ViewModel.UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
+		// Create the transaction before calling UsdStageModule.GetUsdStageActor as that may create the actor, and we want
+		// the actor spawning to be part of the transaction
+		FScopedTransaction Transaction( FText::Format(
+			LOCTEXT( "OpenStageTransaction", "Open USD stage '{0}'" ),
+			FText::FromString( FilePath )
+		) );
 
-		SetupStageActorDelegates();
+		if ( !ViewModel.UsdStageActor.IsValid() )
+		{
+			IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
+			ViewModel.UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
+
+			SetupStageActorDelegates();
+		}
+
+		// Block writing level sequence changes back to the USD stage until we finished this transaction, because once we do
+		// the movie scene and tracks will all trigger OnObjectTransacted. We listen for those on FUsdLevelSequenceHelperImpl::OnObjectTransacted,
+		// and would otherwise end up writing all of the data we just loaded back to the USD stage
+		ViewModel.UsdStageActor->StopMonitoringLevelSequence();
+
+		ViewModel.OpenStage( FilePath );
 	}
 
-	ViewModel.OpenStage( FilePath );
+	if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+	{
+		StageActor->ResumeMonitoringLevelSequence();
+	}
 }
 
 void SUsdStage::Refresh()

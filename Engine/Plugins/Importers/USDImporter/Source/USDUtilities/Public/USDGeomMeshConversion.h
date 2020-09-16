@@ -132,12 +132,16 @@ namespace UsdUtils
 	 * Guaranteed to return at least one material slot. If UsdPrim is a UsdGeomMesh, it is also guaranteed to have valid material indices (one for every face).
 	 * @param UsdPrim - Prim to extract material assignments from
 	 * @param TimeCode - Instant where the material data is sampled
+	 * @param bProvideMaterialIndices - Whether to fill out the material index information for the assignment info (which can be expensive). If this is false, MaterialIndices on the result Struct will have zero values
 	 * @return Struct containing an array of material assignments, and a corresponding array of material indices for all polygons of the prim, matching the ordering of the material assignments.
 	 */
-	USDUTILITIES_API FUsdPrimMaterialAssignmentInfo GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
+	USDUTILITIES_API FUsdPrimMaterialAssignmentInfo GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime(), bool bProvideMaterialIndices = true);
 
 	/** Returns whether this UsdMesh can be interpreted as a LOD of a mesh with multiple LODs */
-	USDUTILITIES_API bool IsGeomMeshALOD( const pxr::UsdGeomMesh& UsdMesh );
+	USDUTILITIES_API bool IsGeomMeshALOD( const pxr::UsdPrim& UsdMeshPrim );
+
+	/** Returns how many LOD variants the Prim has. Note that this will return 0 if called on one of the LOD meshes themselves, it's meant to be called on its parent */
+	USDUTILITIES_API int32 GetNumberOfLODVariants( const pxr::UsdPrim& Prim );
 
 	/**
 	 * If a prim has a variant set named "LOD", with variants named "LOD0", "LOD1", etc., and each has a single Mesh prim, this function
