@@ -665,9 +665,9 @@ void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClo
 			// Update initial state for collisions
 			LODData[(int32)ECollisionDataType::LODless].ResetStartPose(Solver, Cloth);
 		}
-		else if (PrevLODIndex > 0)
+		else if (PrevLODIndex >= (int32)ECollisionDataType::LODs)
 		{
-			// Disable previous LOD (can't be index 0, since it is not a LOD and therefore is always left enabled)
+			// Disable previous LOD
 			LODData[PrevLODIndex].Enable(Solver, Cloth, false);
 		}
 		if (LODIndex >= (int32)ECollisionDataType::LODs)
