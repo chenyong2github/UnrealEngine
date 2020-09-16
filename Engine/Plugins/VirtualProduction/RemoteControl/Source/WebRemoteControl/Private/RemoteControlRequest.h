@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "IRemoteControlModule.h"
+#include "RemoteControlModels.h"
 #include "RemoteControlRequest.generated.h"
 
 struct FBlockDelimiters
@@ -47,6 +48,7 @@ struct FRCRequestWrapper : public FRCRequest
 	GENERATED_BODY()
 	
 	FRCRequestWrapper()
+		: RequestId(-1)
 	{
 		AddStructParameter(BodyLabel());
 	}
@@ -319,18 +321,18 @@ struct FSearchAssetRequest : public FRCRequest
 	{
 	}
 
-	/*
-	 * The search query.
+	/**
+	 * The search query which will be compared with the asset names.
 	 */
 	UPROPERTY()
 	FString Query;
-	
-	/**
-	 * The type of asset to search.
+
+	/*
+	 * The filter applied to this search.
 	 */
 	UPROPERTY()
-	FString Type;
-
+	FRCAssetFilter Filter;
+	
 	/**
 	 * The maximum number of search results returned.
 	 */
