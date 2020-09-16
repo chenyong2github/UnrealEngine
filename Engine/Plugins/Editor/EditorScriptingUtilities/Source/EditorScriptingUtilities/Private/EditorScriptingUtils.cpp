@@ -18,7 +18,7 @@ namespace EditorScriptingUtils
 {
 	bool CheckIfInEditorAndPIE()
 	{
-		return InEditorAndNotPlaying();
+		return IsInEditorAndNotPlaying();
 	}
 
 	bool IsInEditorAndNotPlaying()
