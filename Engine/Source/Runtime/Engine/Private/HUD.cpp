@@ -735,8 +735,7 @@ void AHUD::DrawDebugTextList()
 			// don't draw text behind the camera
 			if (((WorldTextLoc - CameraLoc) | CameraRot.Vector()) > 0.f)
 			{
-				// Project() will give a DPI-scaled position, but DrawItem will also DPI-scale before drawing. So unscale it here to get the right position.
-				FVector ScreenLoc = Canvas->Project(WorldTextLoc) / DebugCanvas->GetDPIScale();
+				FVector ScreenLoc = DebugCanvas->Project(WorldTextLoc);
 				TextItem.SetColor(DebugTextList[Idx].TextColor);
 				TextItem.Text = FText::FromString(DebugTextList[Idx].DebugText);
 				TextItem.Scale = FVector2D(DebugTextList[Idx].FontScale, DebugTextList[Idx].FontScale);
