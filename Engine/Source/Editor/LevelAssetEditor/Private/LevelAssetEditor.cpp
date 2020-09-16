@@ -8,6 +8,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ToolMenus.h"
 #include "ULevelAssetEditor.h"
+#include "Settings/LevelEditorMiscSettings.h"
 
 static const FName LevelAssetEditorTabName("LevelAssetEditor");
 
@@ -21,9 +22,13 @@ void FLevelAssetEditorModule::StartupModule()
 	PluginCommands->MapAction(
 		FLevelAssetEditorCommands::Get().OpenPluginWindow,
 		FExecuteAction::CreateRaw(this, &FLevelAssetEditorModule::PluginButtonClicked),
-		FCanExecuteAction());
+		FCanExecuteAction(),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateRaw(this, &FLevelAssetEditorModule::IsEnabled));
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FLevelAssetEditorModule::RegisterMenus));
+
+	FModuleManager::Get().LoadModule("AssetPlacementEdMode");
 }
 
 void FLevelAssetEditorModule::ShutdownModule()
@@ -54,6 +59,11 @@ void FLevelAssetEditorModule::RegisterMenus()
 			Section.AddMenuEntryWithCommandList(FLevelAssetEditorCommands::Get().OpenPluginWindow, PluginCommands);
 		}
 	}
+}
+
+bool FLevelAssetEditorModule::IsEnabled() const
+{
+	return GetDefault<ULevelEditorMiscSettings>()->bEnableExperimentalLevelEditor;
 }
 
 #undef LOCTEXT_NAMESPACE

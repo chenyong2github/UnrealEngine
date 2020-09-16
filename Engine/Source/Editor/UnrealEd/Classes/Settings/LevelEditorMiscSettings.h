@@ -43,6 +43,14 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Editing, meta=( DisplayName = "Preserve Actor Scale on Replace" ))
 	uint32 bReplaceRespectsScale:1;
 
+	/** If enabled, the experimental level editor will be available */
+	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Editing)
+	bool bEnableExperimentalLevelEditor = false;
+
+	/** If enabled, the experimental asset placement mode will be available in the level editor */
+	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Editing, meta = (ConfigRestartRequired = true))
+	bool bEnableAssetPlacementMode = false;
+
 	/** If enabled, will avoid relabeling actors in UUnrealEdEngine::edactPasteSelected */
 	UPROPERTY(EditAnywhere, config, Category = Editing, meta = (DisplayName = "Avoid Actor Relabel on Paste Selected"))
 	uint32 bAvoidRelabelOnPasteSelected:1;

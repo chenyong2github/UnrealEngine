@@ -22,6 +22,7 @@ public:
 private:
 
 	void RegisterMenus();
+	bool IsEnabled() const;
 
 private:
 	TSharedPtr<class FUICommandList> PluginCommands;
