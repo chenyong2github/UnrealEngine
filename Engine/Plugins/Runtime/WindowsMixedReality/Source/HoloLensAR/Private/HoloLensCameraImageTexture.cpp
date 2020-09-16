@@ -120,7 +120,7 @@ public:
 	}
 };
 
-IMPLEMENT_SHADER_TYPE(, FHoloLensCameraImageConversionVS, TEXT("/Plugin/HoloLensAR/HoloLensCameraImageConversion.usf"), TEXT("MainVS"), SF_Vertex)
+IMPLEMENT_SHADER_TYPE(, FHoloLensCameraImageConversionVS, TEXT("/Plugin/WindowsMixedReality/Private/HoloLensCameraImageConversion.usf"), TEXT("MainVS"), SF_Vertex)
 
 class FHoloLensCameraImageConversionPS :
 	public FGlobalShader
@@ -161,7 +161,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, BilinearClampedSamplerUV);
 };
 
-IMPLEMENT_SHADER_TYPE(, FHoloLensCameraImageConversionPS, TEXT("/Plugin/HoloLensAR/HoloLensCameraImageConversion.usf"), TEXT("MainPS"), SF_Pixel)
+IMPLEMENT_SHADER_TYPE(, FHoloLensCameraImageConversionPS, TEXT("/Plugin/WindowsMixedReality/Private/HoloLensCameraImageConversion.usf"), TEXT("MainPS"), SF_Pixel)
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 

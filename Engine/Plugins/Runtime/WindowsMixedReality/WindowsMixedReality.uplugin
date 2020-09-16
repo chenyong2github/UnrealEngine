@@ -1,19 +1,19 @@
 {
-	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
-	"FriendlyName" : "Microsoft Windows Mixed Reality",
-	"Description" : "Support for Microsoft Windows Mixed Reality compatible devices.",
-	"Category" : "Virtual Reality",
-	"CreatedBy" : "Microsoft Corporation",
-	"CreatedByURL" : "http://www.microsoft.com",
-	"DocsURL" : "",
-	"MarketplaceURL" : "",
-	"SupportURL" : "",
-	"EnabledByDefault" : false,
-	"CanContainContent" : false,
-	"IsBetaVersion" : false,
-	"Installed" : false,
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Microsoft Windows Mixed Reality",
+	"Description": "Support for Microsoft Windows Mixed Reality compatible devices.",
+	"Category": "Virtual Reality",
+	"CreatedBy": "Microsoft Corporation",
+	"CreatedByURL": "http://www.microsoft.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"Installed": false,
 	"SupportedTargetPlatforms": [
 		"Win64",
 		"HoloLens"
@@ -88,6 +88,15 @@
 			"WhitelistPlatforms": [
 				"Win64"
 			]
+		},
+		{
+			"Name": "HoloLensAR",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"HoloLens",
+				"Win64"
+			]
 		}
 	],
 	"Plugins": [
@@ -98,14 +107,6 @@
 		{
 			"Name": "LiveLink",
 			"Enabled": true
-		},
-		{
-			"Name": "HoloLensAR",
-			"Enabled": true,
-			"WhitelistPlatforms": [
-				"Win64",
-				"HoloLens"
-			]
 		}
 	]
 }
