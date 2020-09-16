@@ -59,6 +59,17 @@ TAutoConsoleVariable<int32> GRHIThreadCvar(
 	TEXT("2 to use multiple RHI Thread\n")
 );
 
+int32 GVulkanInputAttachmentShaderRead = -1;
+static FAutoConsoleVariableRef GCVarInputAttachmentShaderRead(
+	TEXT("r.Vulkan.InputAttachmentShaderRead"),
+	GVulkanInputAttachmentShaderRead,
+	TEXT("Whether to use VK_ACCESS_SHADER_READ_BIT an input attachments to workaround rendering issues\n")
+	TEXT("-1 decide automatically (default)\n")
+	TEXT("0 use: VK_ACCESS_INPUT_ATTACHMENT_READ_BIT\n")
+	TEXT("1 use: VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_SHADER_READ_BIT\n"),
+	ECVF_ReadOnly
+);
+
 bool GGPUCrashDebuggingEnabled = false;
 
 
@@ -787,6 +798,12 @@ void FVulkanDynamicRHI::InitInstance()
 
 #endif
 
+		if (Device->GetVendorId() == EGpuVendorId::Qualcomm && GVulkanInputAttachmentShaderRead == -1)
+		{
+			GVulkanInputAttachmentShaderRead = 1;
+		}
+		UE_CLOG((GVulkanInputAttachmentShaderRead == 1), LogVulkanRHI, Display, TEXT("Using VK_ACCESS_SHADER_READ_BIT workaround for input attachments."));
+		
 		// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
 		GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
 		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
@@ -1588,7 +1605,10 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 			SubpassDep.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			SubpassDep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 			SubpassDep.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-			SubpassDep.dstAccessMask|= VK_ACCESS_SHADER_READ_BIT; // this is not required, but flickers without on Adreno
+			if (GVulkanInputAttachmentShaderRead == 1)
+			{
+				SubpassDep.dstAccessMask|= VK_ACCESS_SHADER_READ_BIT; // this is not required, but flickers on some device without
+			}
 			SubpassDep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 		}
 
@@ -1621,7 +1641,10 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 			SubpassDep.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			SubpassDep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 			SubpassDep.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-			SubpassDep.dstAccessMask|= VK_ACCESS_SHADER_READ_BIT; // this is not required, but flickers without on Adreno
+			if (GVulkanInputAttachmentShaderRead == 1)
+			{
+				SubpassDep.dstAccessMask|= VK_ACCESS_SHADER_READ_BIT; // this is not required, but flickers on some device without
+			}
 			SubpassDep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 		}
 	}
