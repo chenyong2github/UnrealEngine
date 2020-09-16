@@ -271,16 +271,16 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	const double StartTime = FPlatformTime::Seconds();
 
+	const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+	const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
+
 	// Update Solver animatable parameters
-	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f));
+	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bNeedsReset);
 	Solver->SetWindVelocity(Context->WindVelocity);
 	Solver->SetGravity(bUseGravityOverride ? GravityOverride : Context->WorldGravity);
 	Solver->EnableClothGravityOverride(!bUseGravityOverride);  // Disable all cloth gravity overrides when the interactor takes over
 
 	// Check teleport modes
-	const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
-	const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
-
 	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 	{
 		// Update Cloth animatable parameters
