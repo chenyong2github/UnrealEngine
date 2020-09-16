@@ -224,6 +224,8 @@ TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogInfo(const FText& InIn
 
 bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
 {
+	Options->BaseOptions.AssetOptions.PackagePath = FName(*InImportPath); // Package path displayed in options window
+
 	return InitOptions(InScene, ImportSettingsJson, bSilent)
 		&& SetupDestination(InImportPath, InFlags, InWarn, bSilent);
 }
