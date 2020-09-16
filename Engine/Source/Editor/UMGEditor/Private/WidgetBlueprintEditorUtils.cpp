@@ -3,6 +3,7 @@
 #include "WidgetBlueprintEditorUtils.h"
 #include "Components/PanelSlot.h"
 #include "Components/PanelWidget.h"
+#include "Components/ContentWidget.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
@@ -1326,6 +1327,17 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 		return TArray<UWidget*>();
 	}
 
+	// If we're pasting into a content widget of the same type, treat it as a sibling duplication
+	UWidget* FirstPastedWidget = *PastedWidgets.CreateIterator();
+	if (FirstPastedWidget->IsA(UContentWidget::StaticClass()) && FirstPastedWidget->GetClass() == ParentWidgetRef.GetTemplate()->GetClass())
+	{
+		UPanelWidget* TargetParentWidget = ParentWidgetRef.GetTemplate()->GetParent();
+		if (TargetParentWidget && TargetParentWidget->CanAddMoreChildren())
+		{
+			bForceSibling = true;
+		}
+	}
+
 	TArray<UWidget*> RootPasteWidgets;
 	for ( UWidget* NewWidget : PastedWidgets )
 	{
@@ -1396,16 +1408,19 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 		if ( ParentWidget )
 		{
 			// If parent widget can only have one child and that slot is already occupied, we will remove its contents so the pasted widgets can be inserted in their place
+			UWidget* ChildWidgetToDelete = nullptr;
 			if ( !ParentWidget->CanHaveMultipleChildren() )
 			{
 				if ( ParentWidget->GetChildrenCount() > 0 || RootPasteWidgets.Num() > 1 )
 				{
+					// Delete the singular child
+					ChildWidgetToDelete = ParentWidget->GetAllChildren()[0];
+					ChildWidgetToDelete->SetFlags(RF_Transactional);
+					ChildWidgetToDelete->Modify();
+
+					ParentWidget->SetFlags(RF_Transactional);
 					ParentWidget->Modify();
-					for (UWidget* ChildWidget : ParentWidget->GetAllChildren())
-					{
-						ChildWidget->Modify();
-						ParentWidget->RemoveChild(ChildWidget);
-					}
+					ParentWidget->RemoveChild(ChildWidgetToDelete);
 				}
 			}
 
@@ -1485,6 +1500,11 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 					FWidgetBlueprintEditorUtils::ExportPropertiesToText(PreviewSlot, SlotProperties);
 					FWidgetBlueprintEditorUtils::ImportPropertiesFromText(TemplateSlot, SlotProperties);
 				}
+			}
+
+			if (ChildWidgetToDelete)
+			{
+				DeleteWidgets(BP, { BlueprintEditor->GetReferenceFromTemplate(ChildWidgetToDelete) });
 			}
 
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
