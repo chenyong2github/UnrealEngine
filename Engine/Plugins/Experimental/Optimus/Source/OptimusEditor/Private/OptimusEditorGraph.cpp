@@ -150,6 +150,8 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			{
 				Modify();
 				RemoveNode(GraphNode, true);
+
+				GraphNode->ModelNode = nullptr;
 			}
 		}
 		break;

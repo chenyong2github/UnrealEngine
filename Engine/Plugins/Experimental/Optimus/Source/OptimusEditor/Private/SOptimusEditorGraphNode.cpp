@@ -239,6 +239,21 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 };
 
 
+static void SetTreeExpansion_Recursive(
+	TSharedPtr<STreeView<UOptimusNodePin*>>& InTreeWidget, 
+	const TArray<UOptimusNodePin*> &InItems
+	)
+{
+	for (UOptimusNodePin *Pin: InItems)
+	{
+		if (Pin->GetIsExpanded())
+		{
+			InTreeWidget->SetItemExpansion(Pin, true);
+
+			SetTreeExpansion_Recursive(InTreeWidget, Pin->GetSubPins());
+		}
+	}
+}
 
 void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 {
@@ -288,7 +303,8 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 		];
 
 	// FIXME: Do expansion from stored expansion data.
-
+	SetTreeExpansion_Recursive(InputTree, *EditorGraphNode->GetTopLevelInputPins());
+	SetTreeExpansion_Recursive(OutputTree, *EditorGraphNode->GetTopLevelOutputPins());
 }
 
 
@@ -537,7 +553,7 @@ void SOptimusEditorGraphNode::HandleExpansionChanged(
 	bool bExpanded
 	)
 {
-	// TBD: Add storage of expansion state to UOptimusNodePin.
+	InItem->SetIsExpanded(bExpanded);
 }
 
 

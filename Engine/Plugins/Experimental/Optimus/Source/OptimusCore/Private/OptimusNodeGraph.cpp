@@ -304,7 +304,7 @@ UOptimusNode* UOptimusNodeGraph::CreateNodeDirect(
 {
 	check(InNodeClass->IsChildOf(UOptimusNode::StaticClass()));
 
-	UOptimusNode* NewNode = NewObject<UOptimusNode>(this, InNodeClass, InName, RF_Transactional);
+	UOptimusNode* NewNode = NewObject<UOptimusNode>(this, InNodeClass, InName);
 
 	// Configure the node as needed.
 	if (InConfigureNodeFunc && !InConfigureNodeFunc(NewNode))
@@ -423,8 +423,7 @@ bool UOptimusNodeGraph::AddLinkDirect(UOptimusNodePin* NodeOutputPin, UOptimusNo
 		}
 	}
 
-	UOptimusNodeLink* NewLink = NewObject<UOptimusNodeLink>(
-		this, UOptimusNodeLink::StaticClass(), NAME_None, RF_Transactional);
+	UOptimusNodeLink* NewLink = NewObject<UOptimusNodeLink>(this);
 	NewLink->NodeOutputPin = NodeOutputPin;
 	NewLink->NodeInputPin = NodeInputPin;
 	Links.Add(NewLink);

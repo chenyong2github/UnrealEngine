@@ -332,6 +332,20 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 }
 
 
+void UOptimusNodePin::SetIsExpanded(bool bInIsExpanded)
+{
+	// We store the expansion state on the node, since we don't store the pin data when doing
+	// delete/undo.
+	GetNode()->SetPinExpanded(this, bInIsExpanded);
+}
+
+
+bool UOptimusNodePin::GetIsExpanded() const
+{
+	return GetNode()->GetPinExpanded(this);
+}
+
+
 void UOptimusNodePin::Initialize(
     EOptimusNodePinDirection InDirection,
     EOptimusNodePinStorageType InStorageType,

@@ -105,6 +105,13 @@ public:
 	/// @return True if the connection can be made, false otherwise.
 	bool CanCannect(const UOptimusNodePin *InOtherPin, FString *OutReason = nullptr) const;
 
+	/** Set the expansion state of this pin. This is purely driven by the UI and is not
+	    an undoable operation. No notifications are sent if the state changes. */
+	void SetIsExpanded(bool bInIsExpanded);
+
+	/** Returns the stored expansion state */
+	bool GetIsExpanded() const;
+
 protected:
 	friend class UOptimusNode;
 

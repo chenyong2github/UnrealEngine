@@ -249,7 +249,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
 	)
 {
 	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
-	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName, RF_Public | RF_Transactional);
+	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName);
 
 	Pin->Initialize(InDirection, InStorageType, InDataType);
 
@@ -273,6 +273,26 @@ UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
 	}
 
 	return Pin;
+}
+
+
+void UOptimusNode::SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded)
+{
+	FName Name = InPin->GetUniqueName();
+	if (bInExpanded)
+	{
+		ExpandedPins.Add(Name);
+	}
+	else
+	{
+		ExpandedPins.Remove(Name);
+	}
+}
+
+
+bool UOptimusNode::GetPinExpanded(const UOptimusNodePin* InPin) const
+{
+	return ExpandedPins.Contains(InPin->GetUniqueName());
 }
 
 

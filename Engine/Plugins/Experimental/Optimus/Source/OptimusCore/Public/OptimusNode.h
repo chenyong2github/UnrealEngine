@@ -143,6 +143,9 @@ protected:
 	    UOptimusNodePin* InParentPin = nullptr
 		);
 
+	void SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded);
+	bool GetPinExpanded(const UOptimusNodePin* InPin) const;
+
 private:
 	void Notify(
 		EOptimusGraphNotifyType InNotifyType
@@ -165,6 +168,9 @@ private:
 	// The list of pins. 
 	UPROPERTY()
 	TArray<UOptimusNodePin *> Pins;
+
+	UPROPERTY()
+	TSet<FName> ExpandedPins;
 
 	/// Cached pin lookups
 	mutable TMap<TArray<FName>, UOptimusNodePin*> CachedPinLookup;

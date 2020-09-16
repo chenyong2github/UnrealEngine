@@ -100,10 +100,9 @@ bool FOptimusNodeGraphAction_RemoveGraph::Do(IOptimusNodeGraphCollectionOwner* I
 		return false;
 	}
 
+	// Serialize all stored properties and referenced object 
 	{
-		FObjectWriter GraphArchive(GraphData);
-		GraphArchive.SetWantBinaryPropertySerialization(true);
-		Graph->Serialize(GraphArchive);
+		Optimus::FBinaryObjectWriter GraphArchive(Graph, GraphData);
 	}
 
 	return InRoot->RemoveGraph(Graph);
@@ -288,7 +287,7 @@ bool FOptimusNodeGraphAction_RemoveNode::Do(IOptimusNodeGraphCollectionOwner* In
 		return false;
 	}
 
-	// Take a copy of the node's contents.
+	// Take a copy of the node's contents but not sub-data (like pins).
 	{
 		FMemoryWriter NodeArchive(NodeData);
 		// This fella does the heavy lifting of serializing object references. 
@@ -320,10 +319,11 @@ bool FOptimusNodeGraphAction_RemoveNode::Undo(IOptimusNodeGraphCollectionOwner* 
 	{
 		FMemoryReader NodeArchive(NodeData);
 		FObjectAndNameAsStringProxyArchive NodeProxyArchive(
-			NodeArchive, /* bInLoadIfFindFails=*/ true);
+				NodeArchive, /* bInLoadIfFindFails=*/true);
 		Node->SerializeScriptProperties(NodeProxyArchive);
 	}
 
+	// Create the pins.
 	Node->PostCreateNode();
 
 	return Graph->AddNodeDirect(Node);

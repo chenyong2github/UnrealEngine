@@ -469,33 +469,23 @@ UOptimusNodeGraph* UOptimusDeformer::ResolveGraphPath(
 	FString& OutRemainingPath
 	)
 {
-	FString Path = InPath;
-	UObject* ScopeObject = this;
-	UOptimusNodeGraph* LastGraph = nullptr;
+	FString GraphName;
 
-	// FIXME: This will require tweaking once we have graph/function nodes.
-	for (;;)
+	if (!InPath.Split(TEXT("/"), &GraphName, &OutRemainingPath))
 	{
-		FString GraphName;
-
-		if (!Path.Split(TEXT("/"), &GraphName, &OutRemainingPath))
-		{
-			GraphName = Path;
-		}
-
-		UOptimusNodeGraph* CandidateGraph = FindObject<UOptimusNodeGraph>(ScopeObject, *GraphName);
-		if (CandidateGraph == nullptr)
-		{
-			return LastGraph;
-		}
-		if (OutRemainingPath.IsEmpty())
-		{
-			return CandidateGraph;
-		}
-
-		LastGraph = CandidateGraph;
-		ScopeObject = CandidateGraph;
+		GraphName = InPath;
 	}
+	
+	// FIXME: Once we have encapsulation, we need to do a recursive traversal here.
+	for (UOptimusNodeGraph* Graph : Graphs)
+	{
+		if (Graph->GetName().Equals(GraphName, ESearchCase::IgnoreCase))
+		{
+			return Graph;
+		}
+	}
+
+	return nullptr;
 }
 
 UOptimusNode* UOptimusDeformer::ResolveNodePath(
@@ -517,7 +507,15 @@ UOptimusNode* UOptimusDeformer::ResolveNodePath(
 		NodeName = NodePath;
 	}
 
-	return FindObject<UOptimusNode>(Graph, *NodeName);
+	for (UOptimusNode* Node : Graph->GetAllNodes())
+	{
+		if (Node->GetName().Equals(NodeName, ESearchCase::IgnoreCase))
+		{
+			return Node;
+		}
+	}
+
+	return nullptr;
 }
 
 
