@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Task)
 	void SetTaskNotificationText(const FText& Text);
 
+	void RequestCancel();
+	bool WasCancelRequested() const;
+
 protected:
 	virtual void BeginExecution() {}
 
@@ -50,6 +53,9 @@ private:
 private:
 	UPROPERTY(Transient)
 	UEditorUtilitySubsystem* MyTaskManager;
+
+	UPROPERTY(Transient)
+	bool bCancelRequested = false;
 
 	TUniquePtr<FAsyncTaskNotification> TaskNotification;
 

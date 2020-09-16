@@ -81,12 +81,14 @@ protected:
 	void ProcessRunTaskCommands();
 
 	void RunTaskCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar);
+	void CancelAllTasksCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar);
 
 	UClass* FindClassByName(const FString& RawTargetName);
 	UClass* FindBlueprintClass(const FString& TargetNameRaw);
 
 private:
 	IConsoleObject* RunTaskCommandObject = nullptr;
+	IConsoleObject* CancelAllTasksCommandObject = nullptr;
 	
 	UPROPERTY()
 	TMap<UObject* /*Asset*/, UObject* /*Instance*/> ObjectInstances;

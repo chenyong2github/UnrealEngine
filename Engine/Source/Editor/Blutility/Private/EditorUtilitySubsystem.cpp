@@ -32,6 +32,13 @@ void UEditorUtilitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		ECVF_Default
 	);
 
+	CancelAllTasksCommandObject = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("CancelAllTasks"),
+		TEXT(""),
+		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateUObject(this, &UEditorUtilitySubsystem::CancelAllTasksCommand),
+		ECVF_Default
+	);
+
 	IMainFrameModule& MainFrameModule = IMainFrameModule::Get();
 	if (MainFrameModule.IsWindowInitialized())
 	{
@@ -222,6 +229,11 @@ bool UEditorUtilitySubsystem::Tick(float DeltaTime)
 		ActiveTask->StartExecutingTask();
 	}
 
+	if (ActiveTask && ActiveTask->WasCancelRequested())
+	{
+		ActiveTask->FinishExecutingTask();
+	}
+
 	return true;
 }
 
@@ -255,6 +267,18 @@ void UEditorUtilitySubsystem::RunTaskCommand(const TArray<FString>& Params, UWor
 	else
 	{
 		UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("No task specified.  RunTask <Name of Task>"));
+	}
+}
+
+void UEditorUtilitySubsystem::CancelAllTasksCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar)
+{
+	PendingTasks.Reset();
+
+	if (ActiveTask)
+	{
+		ActiveTask->RequestCancel();
+		ActiveTask->FinishExecutingTask();
+		ActiveTask = nullptr;
 	}
 }
 
