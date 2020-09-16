@@ -107,14 +107,7 @@ namespace Lumen
 {
 	bool UseHardwareRayTracedScreenProbeGather()
 	{
-		bool bUseHardwareRayTracedDiffuseIndirect = false;
-
-#if RHI_RAYTRACING
-		static IConsoleVariable* CVarRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
-		bUseHardwareRayTracedDiffuseIndirect = (CVarRayTracing ? (CVarRayTracing->GetInt() != 0) : false) && (GLumenScreenProbeGatherHardwareTraceCards != 0) && IsRayTracingEnabled();
-#endif
-
-		return bUseHardwareRayTracedDiffuseIndirect;
+		return (GLumenScreenProbeGatherHardwareTraceCards != 0) && IsRayTracingEnabled();
 	}
 }
 
