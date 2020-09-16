@@ -108,10 +108,14 @@ public:
 	/// Find the pin from the given path array.
 	UOptimusNodePin* FindPinFromPath(const TArray<FName>& InPinPath) const;
 
-	/// Find the pin associated with the given FProperty object.
-	/// @param InPinPath The property representing the pin we're interested in.
+	/// Find the pin associated with the given FProperty object(s).
+	/// @param InRootProperty The property representing the pin root we're interested in.
+	/// @param InSubProperty The property representing the actual pin the value changed on.
 	/// @return The pin object, if found, otherwise nullptr.
-	UOptimusNodePin* FindPinFromProperty(const FProperty *InProperty) const;
+	UOptimusNodePin* FindPinFromProperty(
+	    const FProperty* InRootProperty,
+	    const FProperty* InSubProperty
+		) const;
 
 	/// @brief Returns the class of all non-deprecated UOptimusNodeBase nodes that are defined, 
 	/// in no particular order.

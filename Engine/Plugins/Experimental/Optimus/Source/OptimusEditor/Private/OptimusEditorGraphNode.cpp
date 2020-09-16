@@ -66,32 +66,35 @@ UEdGraphPin* UOptimusEditorGraphNode::FindGraphPinFromModelPin(
 }
 
 
-void UOptimusEditorGraphNode::SynchronizeGraphPinValueWithModelPin(UEdGraphPin* InGraphPin)
+void UOptimusEditorGraphNode::SynchronizeGraphPinValueWithModelPin(
+	const UOptimusNodePin* InModelPin
+	)
 {
-	const UOptimusNodePin* ModelPin = FindModelPinFromGraphPin(InGraphPin);
-	if (!ModelPin)
+	if (ensure(InModelPin))
 	{
-		return;
-	}
+		if (InModelPin->GetSubPins().IsEmpty())
+		{
+			UEdGraphPin *GraphPin = FindGraphPinFromModelPin(InModelPin);
 
-	// This pin doesn't care about value display.
-	if (InGraphPin->bDefaultValueIsIgnored)
-	{
-		return;
-	}
+			// Only update the value if the pin cares about it.
+			if (ensure(GraphPin) && !GraphPin->bDefaultValueIsIgnored)
+			{
+				FString ValueString = InModelPin->GetValueAsString();
 
-	// If the pin has sub-pins, don't bother.
-	if (!ModelPin->GetSubPins().IsEmpty())
-	{
-		return;
-	}
-
-	FString ValueString = ModelPin->GetValueAsString();
-
-	if (InGraphPin->DefaultValue != ValueString)
-	{
-		InGraphPin->Modify();
-		InGraphPin->DefaultValue = ValueString;
+				if (GraphPin->DefaultValue != ValueString)
+				{
+					GraphPin->Modify();
+					GraphPin->DefaultValue = ValueString;
+				}
+			}
+		}
+		else
+		{
+			for (const UOptimusNodePin* ModelSubPin : InModelPin->GetSubPins())
+			{
+				SynchronizeGraphPinValueWithModelPin(ModelSubPin);
+			}
+		}
 	}
 }
 

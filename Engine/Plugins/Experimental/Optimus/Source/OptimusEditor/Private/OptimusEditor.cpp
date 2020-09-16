@@ -280,7 +280,7 @@ bool FOptimusEditor::CanDeleteSelectedNodes() const
 void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
-	TSet<UOptimusEditorGraphNode *> SelectedNodes;
+	TSet<UOptimusEditorGraphNode*> SelectedNodes;
 
 	for (UObject* Object : NewSelection)
 	{
@@ -711,7 +711,7 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 	InEvents.OnSpawnNodeByShortcut = 
 		SGraphEditor::FOnSpawnNodeByShortcut::CreateSP(
 			this, &FOptimusEditor::OnSpawnGraphNodeByShortcut, 
-			static_cast<UEdGraph *>(EditorGraph));
+			static_cast<UEdGraph*>(EditorGraph));
 
 	// Create the title bar widget
 	TSharedPtr<SWidget> TitleBarWidget = SNew(SOptimusGraphTitleBar)
@@ -777,7 +777,7 @@ void FOptimusEditor::OnDeformerModified(
 	{
 		// If the currently editing graph is being removed, then switch to the previous graph
 		// or the update graph if no previous graph.
-		UOptimusNodeGraph *RemovedGraph = Cast<UOptimusNodeGraph>(InModifiedObject);
+		UOptimusNodeGraph* RemovedGraph = Cast<UOptimusNodeGraph>(InModifiedObject);
 		if (EditorGraph->NodeGraph == RemovedGraph)
 		{
 			if (ensure(PreviousEditedNodeGraph))
@@ -801,22 +801,22 @@ void FOptimusEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& P
 {
 	if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ValueSet)
 	{
-		FProperty *Property = PropertyChangedEvent.Property;
+		FProperty* Property = PropertyChangedEvent.Property;
 
 		for (int32 Index = 0; Index < PropertyChangedEvent.GetNumObjectsBeingEdited(); Index++ )
 		{
-			if (const UOptimusNode *ModelNode = Cast<const UOptimusNode>(PropertyChangedEvent.GetObjectBeingEdited(Index)))
+			if (const UOptimusNode* ModelNode = Cast<const UOptimusNode>(PropertyChangedEvent.GetObjectBeingEdited(Index)))
 			{
-				UOptimusNodeGraph *ModelGraph = ModelNode->GetOwningGraph();
+				UOptimusNodeGraph* ModelGraph = ModelNode->GetOwningGraph();
 				if (UpdateGraph && UpdateGraph == ModelGraph)
 				{
-					UOptimusNodePin* NodePin = ModelNode->FindPinFromProperty(Property);
+					const UOptimusNodePin* ModelPin = ModelNode->FindPinFromProperty(
+						PropertyChangedEvent.MemberProperty,
+						PropertyChangedEvent.Property);
 
 					if (UOptimusEditorGraphNode* GraphNode = EditorGraph->FindGraphNodeFromModelNode(ModelNode))
 					{
-						UEdGraphPin* GraphPin = GraphNode->FindGraphPinFromModelPin(NodePin);
-
-						GraphNode->SynchronizeGraphPinValueWithModelPin(GraphPin);
+						GraphNode->SynchronizeGraphPinValueWithModelPin(ModelPin);
 					}
 				}
 			}

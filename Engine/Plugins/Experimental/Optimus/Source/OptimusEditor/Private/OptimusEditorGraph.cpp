@@ -205,17 +205,17 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 		case EOptimusGraphNotifyType::PinValueChanged:
 		{
-			// The pin's value was changed on the model pin itself. The pin has already taken
-			// care of ensuring the value is properly set on the 
+			// The pin's value was changed on the model pin itself. The model pin has already
+			// updated the stored node value. We just need to ensure that the graph node shows
+			// the same value (which may now include clamping and sanitizing).
 			UOptimusNodePin *ModelPin = Cast<UOptimusNodePin>(InSubject);
 			if (ensure(ModelPin))
 			{
 			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
-				UEdGraphPin *GraphPin = GraphNode->FindGraphPinFromModelPin(ModelPin);
 
-				if (ensure(GraphPin))
+				if (ensure(GraphNode))
 				{
-				    GraphNode->SynchronizeGraphPinValueWithModelPin(GraphPin);
+				    GraphNode->SynchronizeGraphPinValueWithModelPin(ModelPin);
 				}
 			}
 		}

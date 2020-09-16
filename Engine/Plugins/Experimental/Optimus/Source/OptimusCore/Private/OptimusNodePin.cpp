@@ -26,7 +26,7 @@ const UOptimusNodePin* UOptimusNodePin::GetParentPin() const
 UOptimusNodePin* UOptimusNodePin::GetRootPin()
 {
 	UOptimusNodePin* CurrentPin = this;
-	while (UOptimusNodePin* ParentPin = GetParentPin())
+	while (UOptimusNodePin* ParentPin = CurrentPin->GetParentPin())
 	{
 		CurrentPin = ParentPin;
 	}
@@ -195,19 +195,15 @@ uint8* UOptimusNodePin::GetPropertyValuePtr() const
 
 FString UOptimusNodePin::GetValueAsString() const
 {
-	UObject *NodeObject = GetNode();
 	FString ValueString;
 
 	// We can have pins with no underlying properties (e.g. Get/Set Resource nodes).
 	// FIXME: Change to support nested properties.
-	if (GetParentPin() == nullptr)
+	const FProperty *Property = GetPropertyFromPin();
+	const uint8 *ValueData = GetPropertyValuePtr();
+	if (Property && ValueData)
 	{
-		const FProperty *Property = GetPropertyFromPin();
-		const uint8 *ValueData = GetPropertyValuePtr();
-		if (Property && ValueData)
-		{
-			Property->ExportTextItem(ValueString, ValueData, nullptr, NodeObject, PPF_None);
-		}
+		Property->ExportTextItem(ValueString, ValueData, nullptr, GetNode(), PPF_None);
 	}
 
 	return ValueString;
@@ -223,7 +219,6 @@ bool UOptimusNodePin::SetValueFromString(const FString& InStringValue)
 
 bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 {
-	UOptimusNode* Node = GetNode();
 	FProperty* Property = GetPropertyFromPin();
 	uint8* ValueData = GetPropertyValuePtr();
 
@@ -231,6 +226,8 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 
 	if (ensure(Property) && ValueData)
 	{
+		UOptimusNode* Node = GetNode();
+
 		FEditPropertyChain PropertyChain;
 		PropertyChain.AddHead(Property);
 		Node->PreEditChange(PropertyChain);
@@ -241,8 +238,8 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 
 		// We notify that the value change occurred, whether that's true or not. This way
 		// the graph pin value sync will ensure that if an invalid value was entered, it will
-		// get reverted back to the true value.
-		FPropertyChangedEvent ChangedEvent(Property);
+		// get reverted back to the true value. 
+		FPropertyChangedEvent ChangedEvent(GetRootPin()->GetPropertyFromPin());
 		Node->PostEditChangeProperty(ChangedEvent);
 
 		Notify(EOptimusGraphNotifyType::PinValueChanged);

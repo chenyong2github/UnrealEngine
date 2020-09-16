@@ -23,8 +23,8 @@ public:
 	UEdGraphPin* FindGraphPinFromModelPin(const UOptimusNodePin* InModelPin);
 
 	/// Synchronize the stored value on the graph pin with the value stored on the node. 
-	/// 
-	void SynchronizeGraphPinValueWithModelPin(UEdGraphPin* InGraphPin);
+	/// If the pin has sub-pins, the value update is done recursively.
+	void SynchronizeGraphPinValueWithModelPin(const UOptimusNodePin* InModelPin);
 
 	// UEdGraphNode overrides
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

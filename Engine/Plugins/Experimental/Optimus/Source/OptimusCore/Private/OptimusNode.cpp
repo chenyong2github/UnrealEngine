@@ -179,17 +179,48 @@ UOptimusNodePin* UOptimusNode::FindPinFromPath(const TArray<FName>& InPinPath) c
 }
 
 
-UOptimusNodePin* UOptimusNode::FindPinFromProperty(const FProperty* InProperty) const
+UOptimusNodePin* UOptimusNode::FindPinFromProperty(
+	const FProperty* InRootProperty,
+	const FProperty* InSubProperty
+	) const
 {
 	TArray<FName> PinPath;
-	while (InProperty)
+
+	// This feels quite icky.
+	if (InRootProperty == InSubProperty || InSubProperty == nullptr)
 	{
-		PinPath.Add(InProperty->GetFName());
-		InProperty = InProperty->GetOwner<FProperty>();
+		PinPath.Add(InRootProperty->GetFName());
+	}
+	else if (const FStructProperty* StructProp = CastField<const FStructProperty>(InRootProperty))
+	{
+		const UStruct *Struct = StructProp->Struct;
+
+		// Crawl up the property hierarchy until we hit the root prop UStruct.
+		while (ensure(InSubProperty))
+		{
+			PinPath.Add(InSubProperty->GetFName());
+
+			if (const UStruct *OwnerStruct = InSubProperty->GetOwnerStruct())
+			{
+				if (ensure(OwnerStruct == Struct))
+				{
+					PinPath.Add(InRootProperty->GetFName());
+					break;
+				}
+				else
+				{
+					return nullptr;
+				}
+			}
+			else
+			{
+				InSubProperty = InSubProperty->GetOwner<const FProperty>();
+			}
+		}
+
+		Algo::Reverse(PinPath);
 	}
 
-	Algo::Reverse(PinPath);
-	
 	return FindPinFromPath(PinPath);
 }
 
