@@ -601,6 +601,12 @@ void UDrawPolygonTool::OnBeginClickSequence(const FInputDeviceRay& ClickPos)
 
 	bInFixedPolygonMode = (PolygonProperties->PolygonType != EDrawPolygonDrawMode::Freehand);
 	FixedPolygonClickPoints.Reset();
+
+	// Actually process the click.
+	// TODO: This slightly awkward organization is a reflection of an earlier time when
+	// MultiClickSequenceInputBehavior issued a duplicate OnNextSequenceClick() call 
+	// immediately after OnBeginClickSequence(). The code could be cleaned up.
+	OnNextSequenceClick(ClickPos);
 }
 
 void UDrawPolygonTool::OnNextSequencePreview(const FInputDeviceRay& ClickPos)
