@@ -1189,8 +1189,7 @@ bool SDMXEntityList::CanDuplicateNodes() const
 
 void SDMXEntityList::OnDuplicateNodes()
 {
-	TArray<UDMXEntity*>&& SelectedEntities = GetSelectedEntities();
-
+	TArray<UDMXEntity*> SelectedEntities = GetSelectedEntities();
 	// Sort selected entities by universe and starting channel to get a meaningful order when auto assign addresses
 	SelectedEntities.Sort([&](UDMXEntity& FirstEntity, UDMXEntity& SecondEntity) {
 		UDMXEntityFixturePatch* FirstPatch = CastChecked<UDMXEntityFixturePatch>(&FirstEntity);
@@ -1200,6 +1199,7 @@ void SDMXEntityList::OnDuplicateNodes()
 			(FirstPatch->UniverseID == SecondPatch->UniverseID &&
 				FirstPatch->GetStartingChannel() <= SecondPatch->GetStartingChannel());
 		});
+	
 	UDMXLibrary* Library = GetDMXLibrary();
 	if (SelectedEntities.Num() > 0 && Library != nullptr)
 	{
@@ -1211,46 +1211,34 @@ void SDMXEntityList::OnDuplicateNodes()
 		const FScopedTransaction Transaction(SelectedEntities.Num() > 1 ? LOCTEXT("DuplicateEntities", "Duplicate Entities") : LOCTEXT("DuplicateEntity", "Duplicate Entity"));
 		Library->Modify();
 
-		// Store new entities to select them after updating the tree
 		TArray<UDMXEntity*> NewEntities;
 		NewEntities.Reserve(SelectedEntities.Num());
 
 		// We'll have the duplicates be placed right after their original counterparts
 		int32 NewEntityIndex = Library->FindEntityIndex(SelectedEntities.Last(0));
-		// Duplicate each selected entity
 		for (UDMXEntity* Entity : SelectedEntities)
 		{
 			FObjectDuplicationParameters DuplicationParams(Entity, GetDMXLibrary());
+			
 			if (UDMXEntity* EntityCopy = CastChecked<UDMXEntity>(StaticDuplicateObjectEx(DuplicationParams)))
 			{
 				EntityCopy->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, EntityCopy->GetClass(), EntityCopy->GetDisplayName()));
-				Library->AddEntity(EntityCopy);
 				NewEntities.Add(EntityCopy);
+				
+				Library->AddEntity(EntityCopy);
 				Library->SetEntityIndex(EntityCopy, ++NewEntityIndex);
 
-				OnEntitiesAdded.ExecuteIfBound();
+				if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(EntityCopy))
+				{
+					AutoAssignCopiedPatch(FixturePatch);
+				}
 			}
 		}
-
-		// Refresh entities tree to contain nodes with the new entities and select them
-		UpdateTree();
-		SelectItemsByEntity(NewEntities, ESelectInfo::OnMouseClick); // OnMouseClick triggers selection updated event
-
-		SelectedEntities = GetSelectedEntities();
-
-		// Auto assign the addresses of the newly added entities
-		for (UDMXEntity* Entity : SelectedEntities)
-		{
-			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
-			{
-				AutoAssignCopiedPatch(FixturePatch);
-			}
-		}
-		// Hacky solution to update UI after auto assignment
+		
 		OnEntitiesAdded.ExecuteIfBound();
-
-		// Update the tree anew since addresses changed
-		UpdateTree();
+		
+		UpdateTree(); // Need to refresh tree so new entities have nodes created for them
+		SelectItemsByEntity(NewEntities, ESelectInfo::OnMouseClick); // OnMouseClick triggers selection updated event
 	}
 }
 
@@ -1509,7 +1497,7 @@ void SDMXEntityList::SelectItemsByEntity(const TArray<UDMXEntity*>& InEntities, 
 				}
 			}
 		}
-		EntitiesTreeWidget->SetItemSelection(SelectedNodes, true);
+		EntitiesTreeWidget->SetItemSelection(SelectedNodes, true, ESelectInfo::OnMouseClick);
 
 		// Scroll the first selected node into view
 		if (FirstNode.IsValid())

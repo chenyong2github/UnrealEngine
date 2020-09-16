@@ -610,6 +610,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress,
 			TArray<UDMXEntityFixturePatch*>& PatchesToAssign, 
 			int32 MinimumAddress,
+			const int32 UniverseToAssignTo,
 			TArray<UDMXEntityFixturePatch*>& UnassignedPatches)
 		{
 			if(PatchesToAssign.Num() == 0)
@@ -632,7 +633,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 					if(HasEnoughSpaceToUniverseEnd(ToAssign, MinimumAddress))
 					{
 						IndexOfFirstPatchWithMinAddress = 0;
-						AssignPatchTo(ToAssign, MinimumAddress);
+						AssignPatchTo(ToAssign, MinimumAddress, UniverseToAssignTo);
 						SortedPatchesWithSetAddress.Add(ToAssign);
 					}
 					else
@@ -642,13 +643,13 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 					continue;
 				}
 
-				const bool bFoundGap = FillIntoFirstGap(ToAssign, MinimumAddress, IndexOfFirstPatchWithMinAddress, SortedPatchesWithSetAddress);
+				const bool bFoundGap = FillIntoFirstGap(ToAssign, UniverseToAssignTo, MinimumAddress, IndexOfFirstPatchWithMinAddress, SortedPatchesWithSetAddress);
 				if(!bFoundGap)
 				{
 					UDMXEntityFixturePatch* LastPatchInUniverse = SortedPatchesWithSetAddress[SortedPatchesWithSetAddress.Num() - 1];
 					if(HasEnoughSpaceToUniverseEnd(ToAssign, GetEndAddressOf(LastPatchInUniverse) + 1))
 					{
-						AssignPatchTo(ToAssign, GetEndAddressOf(LastPatchInUniverse) + 1);
+						AssignPatchTo(ToAssign, GetEndAddressOf(LastPatchInUniverse) + 1, UniverseToAssignTo);
 						SortedPatchesWithSetAddress.Add(ToAssign);
 					}
 					else
@@ -665,12 +666,18 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			return (DMX_UNIVERSE_SIZE + 1) - AtAddress >= Patch->GetChannelSpan();
 		}
 		
-		static void AssignPatchTo(UDMXEntityFixturePatch* Patch, int32 ToAddress)
+		static void AssignPatchTo(UDMXEntityFixturePatch* Patch, int32 ToAddress, int32 UniverseToAssignTo)
 		{
 			Patch->AutoStartingAddress = ToAddress;
+			Patch->UniverseID = UniverseToAssignTo;
 		}
 
-		static bool FillIntoFirstGap(UDMXEntityFixturePatch* ToAssign, int32& MinimumAddress, int32& IndexOfFirstPatchWithMinAddress, TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress)
+		static bool FillIntoFirstGap(
+			UDMXEntityFixturePatch* ToAssign,
+			int32 UniverseToAssignTo,
+			int32& MinimumAddress,
+			int32& IndexOfFirstPatchWithMinAddress, 
+			TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress)
 		{
 			const int32 NeededSpan = ToAssign->GetChannelSpan();
 			check(NeededSpan > 0);
@@ -680,7 +687,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 				&& FirstPatchWithMinAddress->GetStartingChannel() - MinimumAddress >= NeededSpan;
 			if(bDoesPatchFitBeforeFirstPatchWithMinAddress)
 			{
-				AssignPatchTo(ToAssign, MinimumAddress);
+				AssignPatchTo(ToAssign, MinimumAddress, UniverseToAssignTo);
 				SortedPatchesWithSetAddress.Insert(ToAssign, 0);
 
 				MinimumAddress = ToAssign->GetEndingChannel() + 1;
@@ -703,7 +710,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 
 				if (UnoccupiedSpan >= NeededSpan)
 				{
-					AssignPatchTo(ToAssign, PrevAvailableAddress);
+					AssignPatchTo(ToAssign, PrevAvailableAddress, UniverseToAssignTo);
 					SortedPatchesWithSetAddress.Insert(ToAssign, iPatchInUniverse);
 					return true;
 				}
@@ -742,13 +749,13 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 	TArray<UDMXEntityFixturePatch*> PatchesToAssignInNextUniverse;
 	for(auto UniverseIterator = UniverseToAllPatches.CreateIterator(); UniverseIterator; ++UniverseIterator)
 	{
-		TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress = [&, UniverseIterator, PatchesToAutoAssign]() -> TArray<UDMXEntityFixturePatch*>&
+		const int32 CurrentUniverse = UniverseIterator->Key;
+		TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress = [&UniverseIterator, &PatchesToAutoAssign, CurrentUniverse]() -> TArray<UDMXEntityFixturePatch*>&
 		{
 			TArray<UDMXEntityFixturePatch*>& Result = UniverseIterator->Value;
 			Result.RemoveAll([&, PatchesToAutoAssign](UDMXEntityFixturePatch* Patch) {
 				return PatchesToAutoAssign.Contains(Patch);
 				});
-			const int32 CurrentUniverse = UniverseIterator->Key;
 			Result.RemoveAll([&, PatchesToAutoAssign, CurrentUniverse](UDMXEntityFixturePatch* Patch) {
 				return Patch->UniverseID != CurrentUniverse;
 				});
@@ -760,10 +767,9 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			);
 			return Result;
 		}();
-		TArray<UDMXEntityFixturePatch*> PatchesToAssignInThisUniverse = [&, UniverseIterator, PatchesToAutoAssign]()
+		TArray<UDMXEntityFixturePatch*> PatchesToAssignInThisUniverse = [&UniverseIterator, &PatchesToAutoAssign, CurrentUniverse]()
 		{
 			TArray<UDMXEntityFixturePatch*> Result = PatchesToAutoAssign;
-			const int32 CurrentUniverse = UniverseIterator->Key;
 			Result.RemoveAll([&, UniverseIterator](UDMXEntityFixturePatch* Patch)
 				{
 					return Patch->UniverseID != CurrentUniverse;
@@ -773,13 +779,13 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 
 		if(bCanChangePatchUniverses)
 		{
-			for (UDMXEntityFixturePatch* LeftFromLastUniverse : PatchesToAssignInNextUniverse)
-			{
-				PatchesToAssignInThisUniverse.Add(LeftFromLastUniverse);
-			}
-			PatchesToAssignInNextUniverse.Empty();
+			// The patches in PatchesToAssignInNextUniverse are left over from last universe: hence they should ignore the MinimumAddress. 
+			TArray<UDMXEntityFixturePatch*> ToAssignNextUniverse;
+			Local::AssignAddressesInUniverse(SortedPatchesWithSetAddress, PatchesToAssignInNextUniverse, 1, CurrentUniverse, ToAssignNextUniverse);
+
+			PatchesToAssignInNextUniverse = ToAssignNextUniverse;
 		}
-		Local::AssignAddressesInUniverse(SortedPatchesWithSetAddress, PatchesToAssignInThisUniverse, MinimumAddress, PatchesToAssignInNextUniverse);
+		Local::AssignAddressesInUniverse(SortedPatchesWithSetAddress, PatchesToAssignInThisUniverse, MinimumAddress, CurrentUniverse, PatchesToAssignInNextUniverse);
 	}
 
 	const bool bNeedNewUniverse = PatchesToAssignInNextUniverse.Num() > 0;
