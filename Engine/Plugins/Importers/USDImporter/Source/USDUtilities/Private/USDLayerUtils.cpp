@@ -72,7 +72,7 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 		UE_LOG(LogUsd, Error, TEXT("No file extensions supported by the USD SDK!"));
 		return {};
 	}
-	FString JoinedExtensions = FString::Join(SupportedExtensions, TEXT("; *.")); // Combine "usd" and "usda" into "usd; *.usda"
+	FString JoinedExtensions = FString::Join(SupportedExtensions, TEXT(";*.")); // Combine "usd" and "usda" into "usd; *.usda"
 	FString FileTypes = FString::Printf(TEXT("usd files (*.%s)|*.%s"), *JoinedExtensions, *JoinedExtensions);
 
 	switch ( Mode )

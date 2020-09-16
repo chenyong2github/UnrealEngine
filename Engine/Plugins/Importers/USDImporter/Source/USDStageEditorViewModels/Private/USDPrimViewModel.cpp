@@ -173,6 +173,17 @@ bool FUsdPrimViewModel::CanExecutePrimAction() const
 #endif // #if USE_USD_SDK
 }
 
+bool FUsdPrimViewModel::HasVisibilityAttribute() const
+{
+#if USE_USD_SDK
+	if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( UsdPrim ) )
+	{
+		return true;
+	}
+#endif // #if USE_USD_SDK
+	return false;
+}
+
 void FUsdPrimViewModel::ToggleVisibility()
 {
 #if USE_USD_SDK

@@ -39,7 +39,8 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		ImportData->PrimPath = PrimPath.GetString();
 		NewMaterial->AssetImportData = ImportData;
 
-		TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex.FindOrAdd( PrimPath.GetString() );
+		TMap<FString, int32> Unused;
+		TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;
 
 		if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetsCache, PrimvarToUVIndex ) )
 		{
