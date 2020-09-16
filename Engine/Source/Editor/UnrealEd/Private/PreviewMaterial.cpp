@@ -1088,11 +1088,6 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 					ParameterValue.bOverride = true;
 					ParameterValue.ParameterValue = SourceParam.ParameterValue;
 				}
-				if(ParameterInfo.Name.IsEqual(SourceParam.ParameterInfo.Name) && ParameterInfo.Association == SourceParam.ParameterInfo.Association && ParameterInfo.Index == SourceParam.ParameterInfo.Index)
-				{
-					ParameterValue.bOverride = true;
-					ParameterValue.ParameterValue = SourceParam.ParameterValue;
-				}
 			}
 			
 			SourceInstance->GetParameterSortPriority(ParameterInfo, ParameterValue.SortPriority);
