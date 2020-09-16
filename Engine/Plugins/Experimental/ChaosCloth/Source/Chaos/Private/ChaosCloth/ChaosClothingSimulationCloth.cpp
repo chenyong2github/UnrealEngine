@@ -622,6 +622,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	// Update reference space transform from the mesh's reference bone transform  TODO: Add override in the style of LODIndexOverride
 	const TRigidTransform<float, 3> OldReferenceSpaceTransform = ReferenceSpaceTransform;
 	ReferenceSpaceTransform = Mesh->GetReferenceBoneTransform();
+	ReferenceSpaceTransform.SetScale3D(TVector<float, 3>(1.f));
 
 	// Update Cloth Colliders
 	for (FClothingSimulationCollider* Collider : Colliders)
@@ -697,12 +698,14 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 
 			// Reset to start pose
 			LODData[LODIndex].ResetStartPose(Solver);
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Cloth in group Id %d Needs reset."), GroupId);
 		}
 		else if (bNeedsTeleport)
 		{
 			// Remove all impulse velocity from the last frame
 			OutLinearVelocityScale = TVector<float, 3>(0.f);
 			OutAngularVelocityScale = 0.f;
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Cloth in group Id %d Needs teleport."), GroupId);
 		}
 		else
 		{
