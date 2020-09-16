@@ -301,3 +301,126 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 
 	MaterialElement = PbrMaterialElement;
 }
+
+bool FDatasmithMaxBlendMaterialsToUEPbr::IsSupported( Mtl* Material )
+{
+	if ( !Material )
+	{
+		return false;
+	}
+
+	bool bAllMaterialsSupported = true;
+
+	if ( Mtl* BaseMaterial = Material->GetSubMtl(0) )
+	{
+		FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( BaseMaterial );
+		bAllMaterialsSupported &= MaterialConverter && MaterialConverter->IsSupported( BaseMaterial );
+	}
+
+	if ( Mtl* CoatMaterial = Material->GetSubMtl(1) )
+	{
+		FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( CoatMaterial );
+		bAllMaterialsSupported &= MaterialConverter && MaterialConverter->IsSupported( CoatMaterial );
+	}
+
+	return bAllMaterialsSupported;
+}
+
+void FDatasmithMaxBlendMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithBaseMaterialElement >& MaterialElement, Mtl* Material, const TCHAR* AssetsPath )
+{
+	if ( !Material )
+	{
+		return;
+	}
+
+	Mtl* BaseMaterial = Material->GetSubMtl(0);
+	Mtl* CoatMaterial = Material->GetSubMtl(1);
+	DatasmithMaxTexmapParser::FMapParameter Mask;
+	float MixAmount = 0.5f;
+
+	for ( int ParamBlockIndex = 0; ParamBlockIndex < Material->NumParamBlocks(); ++ParamBlockIndex )
+	{
+		IParamBlock2* ParamBlock2 = Material->GetParamBlockByID( (short)ParamBlockIndex );
+		ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
+
+		for ( int ParamIndex = 0; ParamIndex < ParamBlockDesc->count; ++ParamIndex )
+		{
+			const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[ParamIndex];
+
+			if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("Mask")) == 0 )
+			{
+				Mask.Map = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
+			}
+			else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("bMaskEnabled")) == 0 )
+			{
+				Mask.bEnabled = ( ParamBlock2->GetInt( ParamDefinition.ID, GetCOREInterface()->GetTime() ) != 0 );
+			}
+			else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("MixAmount")) == 0 )
+			{
+				MixAmount = (float)ParamBlock2->GetFloat( ParamDefinition.ID, GetCOREInterface()->GetTime() );
+			}
+		}
+		ParamBlock2->ReleaseDesc();
+	}
+
+	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(Material->GetName().data());
+	FScopedConvertState ScopedConvertState(ConvertState);
+	ConvertState.DatasmithScene = DatasmithScene;
+	ConvertState.MaterialElement = PbrMaterialElement;
+	ConvertState.AssetsPath = AssetsPath;
+
+	//Exporting the base material.
+	IDatasmithMaterialExpressionFunctionCall* BaseMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+	if ( TSharedPtr<IDatasmithBaseMaterialElement> ExportedMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial( DatasmithScene, BaseMaterial, AssetsPath ) )
+	{
+		BaseMaterialFunctionCall->SetFunctionPathName(ExportedMaterial->GetName());
+	}
+
+	IDatasmithMaterialExpression* PreviousExpression = BaseMaterialFunctionCall;
+
+	//Exporting the coat material.
+	if ( CoatMaterial != nullptr )
+	{
+		IDatasmithMaterialExpressionFunctionCall* BlendFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+		BlendFunctionCall->SetFunctionPathName( TEXT("/Engine/Functions/MaterialLayerFunctions/MatLayerBlend_Standard.MatLayerBlend_Standard") );
+		PreviousExpression->ConnectExpression( *BlendFunctionCall->GetInput(0) );
+		PreviousExpression = BlendFunctionCall;
+
+		IDatasmithMaterialExpressionFunctionCall* LayerMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+		if (TSharedPtr<IDatasmithBaseMaterialElement> LayerMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial( DatasmithScene, CoatMaterial, AssetsPath ))
+		{
+			LayerMaterialFunctionCall->SetFunctionPathName( LayerMaterial->GetName() );
+		}
+		LayerMaterialFunctionCall->ConnectExpression( *BlendFunctionCall->GetInput(1) );
+
+		IDatasmithMaterialExpression* AlphaExpression = nullptr;
+
+		IDatasmithMaterialExpression* MaskExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, Mask, TEXT("MixAmount"),
+			FLinearColor::White, TOptional< float >());
+		AlphaExpression = MaskExpression;
+
+		if ( !AlphaExpression )
+		{
+			IDatasmithMaterialExpressionScalar* MixAmountExpression = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+			MixAmountExpression->SetName( TEXT("Mix Amount") );
+			MixAmountExpression->GetScalar() = MixAmount;
+
+			AlphaExpression = MixAmountExpression;
+		}
+
+		//AlphaExpression is nullptr only when there is no mask and the mask weight is ~100% so we add scalar 0 instead.
+		if ( !AlphaExpression ) 
+		{
+			IDatasmithMaterialExpressionScalar* WeightExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+			WeightExpression->GetScalar() = 0.f;
+			AlphaExpression = WeightExpression;
+		}
+
+		AlphaExpression->ConnectExpression( *BlendFunctionCall->GetInput(2) );
+	}
+
+	PbrMaterialElement->SetUseMaterialAttributes( true );
+	PreviousExpression->ConnectExpression( PbrMaterialElement->GetMaterialAttributes() );
+	MaterialElement = PbrMaterialElement;
+}
+
