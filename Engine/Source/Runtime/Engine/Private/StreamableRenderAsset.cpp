@@ -228,7 +228,9 @@ void UStreamableRenderAsset::UnlinkStreaming()
 bool UStreamableRenderAsset::IsFullyStreamedIn()
 {
 	// Note that if CachedSRRState is not valid, then this asset is not streamable and is then at max resolution.
-	if (!CachedSRRState.IsValid() || CachedSRRState.NumResidentLODs == CachedSRRState.MaxNumLODs)
+	if (!CachedSRRState.IsValid() 
+		|| !CachedSRRState.bSupportsStreaming 
+		|| (CachedSRRState.NumResidentLODs >= (CachedSRRState.MaxNumLODs - CachedCombinedLODBias)))
 	{
 		return true;
 	}
