@@ -2726,7 +2726,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 			}
 			else
 			{
-				UE_ASYNC_PACKAGE_LOG(Error, Package->Desc, TEXT("StartBundleIoRequests: FailedRead"),
+				UE_ASYNC_PACKAGE_LOG(Fatal, Package->Desc, TEXT("StartBundleIoRequests: FailedRead"),
 					TEXT("Failed reading chunk for package: %s"), *Result.Status().ToString());
 				Package->bLoadHasFailed = true;
 			}

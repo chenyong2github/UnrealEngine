@@ -459,15 +459,22 @@ private:
 
 		if (!Request->Status.IsCompleted())
 		{
-			Request->Status = EIoErrorCode::Ok;
-			if (Request->Callback)
+			if (Request->bFailed)
+			{
+				Request->Status = EIoErrorCode::ReadError;
+			}
+			else
+			{
+				Request->Status = EIoErrorCode::Ok;
+			}
+		}
+		if (Request->Callback)
+		{
+			if (Request->Status.IsOk())
 			{
 				Request->Callback(Request->IoBuffer);
 			}
-		}
-		else
-		{
-			if (Request->Callback)
+			else
 			{
 				Request->Callback(Request->Status);
 			}
