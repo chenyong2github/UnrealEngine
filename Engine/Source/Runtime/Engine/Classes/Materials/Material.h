@@ -1345,7 +1345,11 @@ public:
 	template<typename ExpressionType>
 	ExpressionType* FindExpressionByGUID(const FGuid &InGUID)
 	{
-		return FindExpressionByGUIDRecursive<ExpressionType>(InGUID, Expressions);
+		if (InGUID.IsValid())
+		{
+			return FindExpressionByGUIDRecursive<ExpressionType>(InGUID, Expressions);
+		}
+		return nullptr;
 	}
 
 	/* Get all expressions of the requested type */
