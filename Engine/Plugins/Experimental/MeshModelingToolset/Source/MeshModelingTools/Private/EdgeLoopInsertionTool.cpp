@@ -179,10 +179,13 @@ void UEdgeLoopInsertionTool::SetupPreview()
 			LatestOpTopologyResult = Op->ResultTopology;
 		}
 		});
-	Preview->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator*) {
+	// In case of failure, we want to hide the broken preview, since we wouldn't accept it on
+	// a click. Note that this can't be fired OnOpCompleted because the preview is updated
+	// with the op result after that callback, which would undo the reset. The preview edge
+	// extraction can't be lumped in here because it needs the op rather than the preview object.
+	Preview->OnMeshUpdated.AddLambda([this]( UMeshOpPreviewWithBackgroundCompute*) {
 		if (!bLastComputeSucceeded)
 		{
-			// Don't show the broken preview, since we wouldn't accept it on click.
 			Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
 		}
 		});
