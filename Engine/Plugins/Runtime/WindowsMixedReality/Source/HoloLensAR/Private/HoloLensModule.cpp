@@ -57,8 +57,12 @@ void FHoloLensModuleAR::StartupModule()
 	FCoreDelegates::OnPreExit.AddRaw(this, &FHoloLensModuleAR::PreExit);
 
 	// Map our shader directory
-	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("HoloLensAR"))->GetBaseDir(), TEXT("Shaders"));
-	AddShaderSourceDirectoryMapping(TEXT("/Plugin/HoloLensAR"), PluginShaderDir);
+	const FString VirtualShaderDir = TEXT("/Plugin/WindowsMixedReality");
+	if (!AllShaderSourceDirectoryMappings().Contains(VirtualShaderDir))  // Two modules try to map this, so we have to check if its already set.
+	{
+		FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir(), TEXT("Shaders"));
+		AddShaderSourceDirectoryMapping(VirtualShaderDir, PluginShaderDir);
+	}
 }
 
 void FHoloLensModuleAR::PreExit()
