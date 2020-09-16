@@ -25,6 +25,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Async/ParallelFor.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
@@ -42,6 +43,22 @@ static TAutoConsoleVariable<int32> CVarStreamingAllowFastForceResident(
 	TEXT("Whether it is allowed to load in missing mips for fast-force-resident assets ASAP. ")
 	TEXT("Useful to accelerate force-resident process but risks disturbing streaming metric calculation. ")
 	TEXT("Fast-force-resident mips can't be sacrificed even when overbudget so use with caution."),
+	ECVF_Default);
+
+static int32 GAllowParallelUpdateStreamingRenderAssets = 0;
+static FAutoConsoleVariableRef CVarStreamingAllowParallelUpdateStreamingRenderAssets(
+	TEXT("r.Streaming.AllowParallelStreamingRenderAssets"),
+	GAllowParallelUpdateStreamingRenderAssets,
+	TEXT("Whether it is allowed to do UpdateStreamingRenderAssets with a ParallelFor to use more cores."),
+	ECVF_Default);
+
+static int32 GParallelRenderAssetsNumWorkgroups = 2;
+static FAutoConsoleVariableRef CVarStreamingParallelRenderAssetsNumWorkgroups(
+	TEXT("r.Streaming.ParallelRenderAssetsNumWorkgroups"),
+	GParallelRenderAssetsNumWorkgroups,
+	TEXT("How many workgroups we want to use for ParellelRenderAsset updates. ")
+	TEXT("Splits the work up a bit more so we don't get as many waits. ")
+	TEXT("Though adds overhead to GameThread if too high."),
 	ECVF_Default);
 
 bool TrackRenderAsset( const FString& AssetName );
@@ -1121,33 +1138,113 @@ void FRenderAssetStreamingManager::UpdateStreamingRenderAssets(int32 StageIndex,
 
 	int32 StartIndex = CurrentUpdateStreamingRenderAssetIndex;
 	int32 EndIndex = StreamingRenderAssets.Num() * (StageIndex + 1) / NumUpdateStages;
-	for ( int32 Index=StartIndex; Index < EndIndex; ++Index )
+
+#if !STATS
+	if (GAllowParallelUpdateStreamingRenderAssets)
 	{
-		FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[Index];
-		FPlatformMisc::Prefetch( &StreamingRenderAsset + 1 );
-
-		// Is this texture/mesh marked for removal? Will get cleanup once the async task is done.
-		if (!StreamingRenderAsset.RenderAsset) continue;
-
-		STAT(int32 PreviousResidentMips = StreamingRenderAsset.ResidentMips;)
-
-		const int32* NumStreamedMips;
-		const int32 NumLODGroups = GetNumStreamedMipsArray(StreamingRenderAsset.RenderAssetType, NumStreamedMips);
-
-		StreamingRenderAsset.UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, bWaitForMipFading, bAsync ? &DeferredTickCBAssets : nullptr);
-
-		// Make a list of each texture/mesh that can potentially require additional UpdateStreamingStatus
-		if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
+		struct FPacket
 		{
-			InflightRenderAssets.Add(Index);
+			FPacket(int32 InStartIndex,
+				int32 InEndIndex,
+				TArray<FStreamingRenderAsset>& InStreamingRenderAssets)
+				: StartIndex(InStartIndex),
+				EndIndex(InEndIndex),
+				StreamingRenderAssets(InStreamingRenderAssets)
+			{
+			}
+			int32 StartIndex;
+			int32 EndIndex;
+			TArray<FStreamingRenderAsset>& StreamingRenderAssets;
+			TArray<int32> LocalInflightRenderAssets;
+			TArray<UStreamableRenderAsset*> LocalDeferredTickCBAssets;
+			char FalseSharingSpacerBuffer[PLATFORM_CACHE_LINE_SIZE];		// separate Packets to avoid false sharing
+		};
+		// In order to pass the InflightRenderAssets and DeferredTickCBAssets to each parallel for loop we need to break this into a number of workgroups.
+		// Cannot be too large or the overhead of consolidating all the arrays will take too long.  Cannot be too small or the parallel for will not have
+		// enough work.  Can be adjusted by CVarStreamingParallelRenderAssetsNumWorkgroups.
+		int32 Num = EndIndex - StartIndex;
+		int32 NumThreadTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads() * GParallelRenderAssetsNumWorkgroups, Num - 1);
+		TArray<FPacket> Packets;
+		Packets.Reset(NumThreadTasks); // Go ahead and reserve space up front
+		int32 Start = StartIndex;
+		int32 NumRemaining = Num;
+		int32 NumItemsPerGroup = Num / NumThreadTasks + 1;
+		for (int32 i = 0; i < NumThreadTasks; ++i)
+		{
+			int32 NumAssetsToProcess = FMath::Min<int32>(NumRemaining, NumItemsPerGroup);
+			Packets.Add(FPacket(Start, Start + NumAssetsToProcess, StreamingRenderAssets));
+			Start += NumAssetsToProcess;
+			NumRemaining -= NumAssetsToProcess;
+			if (NumRemaining <= 0)
+			{
+				break;
+			}
 		}
+
+		ParallelFor(Packets.Num(), [this, &Packets, &bWaitForMipFading, &bAsync](int32 PacketIndex)
+		{
+			for (int32 Index = Packets[PacketIndex].StartIndex; Index < Packets[PacketIndex].EndIndex; ++Index)
+			{
+				FStreamingRenderAsset& StreamingRenderAsset = Packets[PacketIndex].StreamingRenderAssets[Index];
+
+				// Is this texture/mesh marked for removal? Will get cleanup once the async task is done.
+				if (!StreamingRenderAsset.RenderAsset)
+				{
+					continue;
+				}
+
+				const int32* NumStreamedMips;
+				const int32 NumLODGroups = GetNumStreamedMipsArray(StreamingRenderAsset.RenderAssetType, NumStreamedMips);
+
+				StreamingRenderAsset.UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, bWaitForMipFading, &Packets[PacketIndex].LocalDeferredTickCBAssets); // We always use the Deferred CBs when doing the ParallelFor since those CBs are not thread safe.
+
+				// Make a list of each texture/mesh that can potentially require additional UpdateStreamingStatus
+				if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
+				{
+					Packets[PacketIndex].LocalInflightRenderAssets.Add(Index);
+				}
+			}
+		});
+
+		for (FPacket Packet : Packets) {
+			InflightRenderAssets.Append(Packet.LocalInflightRenderAssets);
+			DeferredTickCBAssets.Append(Packet.LocalDeferredTickCBAssets);
+			Packet.LocalInflightRenderAssets.Empty();
+			Packet.LocalDeferredTickCBAssets.Empty();
+		}
+		Packets.Empty();
+	}
+	else
+#endif
+	{
+		for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+		{
+			FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[Index];
+			FPlatformMisc::Prefetch(&StreamingRenderAsset + 1);
+
+			// Is this texture/mesh marked for removal? Will get cleanup once the async task is done.
+			if (!StreamingRenderAsset.RenderAsset) continue;
+
+			STAT(int32 PreviousResidentMips = StreamingRenderAsset.ResidentMips;)
+
+			const int32* NumStreamedMips;
+			const int32 NumLODGroups = GetNumStreamedMipsArray(StreamingRenderAsset.RenderAssetType, NumStreamedMips);
+
+			StreamingRenderAsset.UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, bWaitForMipFading, bAsync ? &DeferredTickCBAssets : nullptr);
+
+			// Make a list of each texture/mesh that can potentially require additional UpdateStreamingStatus
+			if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
+			{
+				InflightRenderAssets.Add(Index);
+			}
 
 #if STATS
-		if (StreamingRenderAsset.ResidentMips > PreviousResidentMips)
-		{
-			GatheredStats.MipIOBandwidth += StreamingRenderAsset.GetSize(StreamingRenderAsset.ResidentMips) - StreamingRenderAsset.GetSize(PreviousResidentMips);
-		}
+			if (StreamingRenderAsset.ResidentMips > PreviousResidentMips)
+			{
+				GatheredStats.MipIOBandwidth += StreamingRenderAsset.GetSize(StreamingRenderAsset.ResidentMips) - StreamingRenderAsset.GetSize(PreviousResidentMips);
+			}
 #endif
+		}
 	}
 	CurrentUpdateStreamingRenderAssetIndex = EndIndex;
 }
