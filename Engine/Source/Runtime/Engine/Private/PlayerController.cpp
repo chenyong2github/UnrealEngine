@@ -655,7 +655,7 @@ void APlayerController::InitInputSystem()
 {
 	if (PlayerInput == NULL)
 	{
-		PlayerInput = NewObject<UPlayerInput>(this);
+		PlayerInput = NewObject<UPlayerInput>(this, UInputSettings::GetDefaultPlayerInputClass());
 	}
 
 	SetupInputComponent();
@@ -2441,7 +2441,7 @@ void APlayerController::SetupInputComponent()
 	// A subclass could create a different InputComponent class but still want the default bindings
 	if (InputComponent == NULL)
 	{
-		InputComponent = NewObject<UInputComponent>(this, TEXT("PC_InputComponent0"));
+		InputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), TEXT("PC_InputComponent0"));
 		InputComponent->RegisterComponent();
 	}
 
@@ -4958,7 +4958,7 @@ void APlayerController::UpdateStateInputComponents()
 		if (InactiveStateInputComponent == NULL)
 		{
 			static const FName InactiveStateInputComponentName(TEXT("PC_InactiveStateInputComponent0"));
-			InactiveStateInputComponent = NewObject<UInputComponent>(this, InactiveStateInputComponentName);
+			InactiveStateInputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), InactiveStateInputComponentName);
 			SetupInactiveStateInputComponent(InactiveStateInputComponent);
 			InactiveStateInputComponent->RegisterComponent();
 			PushInputComponent(InactiveStateInputComponent);
