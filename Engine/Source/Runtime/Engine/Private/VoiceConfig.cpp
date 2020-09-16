@@ -48,7 +48,7 @@ FAutoConsoleVariableRef CVarJitterBufferDelay(
 static float MicNoiseGateThresholdCvar = 0.08f;
 FAutoConsoleVariableRef CVarMicNoiseGateThreshold(
 	TEXT("voice.MicNoiseGateThreshold"),
-	JitterBufferDelayCvar,
+	MicNoiseGateThresholdCvar,
 	TEXT("Our threshold, in linear amplitude, for  our noise gate on input. Similar to voice.SilenceDetectionThreshold, except that audio quieter than our noise gate threshold will still output silence.\n")
 	TEXT("Value: Number of seconds of audio we buffer."),
 	ECVF_Default);
