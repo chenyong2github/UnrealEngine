@@ -947,8 +947,7 @@ void* FD3D12DynamicHeapAllocator::AllocUploadResource(uint32 Size, uint32 Alignm
 		Size = 16;
 	}
 	
-	//Work loads like infiltrator create enourmous amounts of buffer space in setup
-	//clean up as we go as it can even run out of memory before the first frame.
+	// Clean up the release queue of resources which are currently not used by the GPU anymore
 	if (Adapter->GetDeferredDeletionQueue().QueueSize() > 128)
 	{
 		Adapter->GetDeferredDeletionQueue().ReleaseResources(true, false);
