@@ -3,6 +3,9 @@
 #include "DatasmithMaxTexmapParser.h"
 
 #include "DatasmithMaxExporterDefines.h"
+#include "DatasmithMaxLogger.h"
+#include "DatasmithMaxSceneExporter.h"
+#include "DatasmithMaxWriter.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 MAX_INCLUDES_START
@@ -300,5 +303,236 @@ namespace DatasmithMaxTexmapParser
 		}
 
 		return AutodeskBitmapParameters;
+	}
+
+	FCoronaBitmapParameters ParseCoronaBitmap(Texmap* InTexmap)
+	{
+		FCoronaBitmapParameters CoronaBitmapParameters;
+
+		const TimeValue CurrentTime = GetCOREInterface()->GetTime();
+
+		const int NumParamBlocks = InTexmap->NumParamBlocks();
+		for (int j = 0; j < NumParamBlocks; j++)
+		{
+			IParamBlock2* ParamBlock2 = InTexmap->GetParamBlockByID((short)j);
+			ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
+
+			for (int i = 0; i < ParamBlockDesc->count; i++)
+			{
+				const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
+
+				if (FCString::Stricmp(ParamDefinition.int_name, TEXT("filename")) == 0)
+				{
+					CoronaBitmapParameters.Path = FDatasmithMaxSceneExporter::GetActualPath(ParamBlock2->GetStr(ParamDefinition.ID, GetCOREInterface()->GetTime()));
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("uvwScale")) == 0)
+				{
+					Point3 Point = ParamBlock2->GetPoint3(ParamDefinition.ID,CurrentTime);
+					CoronaBitmapParameters.TileU = Point.x;
+					CoronaBitmapParameters.TileV = Point.y;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("uvwOffset")) == 0)
+				{
+					Point3 Point = ParamBlock2->GetPoint3(ParamDefinition.ID, CurrentTime);
+					CoronaBitmapParameters.OffsetU = Point.x;
+					CoronaBitmapParameters.OffsetV = Point.y;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("uvwAngle")) == 0)
+				{
+					Point3 Point = ParamBlock2->GetPoint3(ParamDefinition.ID, CurrentTime);
+					CoronaBitmapParameters.RotW = Point.z;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("uvwChannel")) == 0)
+				{
+					CoronaBitmapParameters.UVCoordinate = ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) - 1;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("tilingU")) == 0)
+				{
+					if (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) == 2)
+					{
+						CoronaBitmapParameters.MirrorU = 2;
+					}
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("tilingV")) == 0)
+				{
+					if (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) == 2)
+					{
+						CoronaBitmapParameters.MirrorV = 2;
+					}
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("gamma")) == 0)
+				{
+					CoronaBitmapParameters.Gamma = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime);
+				}
+			}
+
+			ParamBlock2->ReleaseDesc();
+		}
+
+		return CoronaBitmapParameters;
+	}
+
+	FCoronaColorParameters ParseCoronaColor(Texmap* InTexmap)
+	{
+		FCoronaColorParameters CoronaColorParameters;
+
+		const TimeValue CurrentTime = GetCOREInterface()->GetTime();
+
+		for ( int ParamBlockIndex = 0; ParamBlockIndex < InTexmap->NumParamBlocks(); ++ParamBlockIndex )
+		{
+			IParamBlock2* ParamBlock2 = InTexmap->GetParamBlockByID((short)ParamBlockIndex);
+			const ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
+
+			for ( int ParamIndex = 0; ParamIndex < ParamBlockDesc->count; ++ParamIndex )
+			{
+				const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[ParamIndex];
+
+				if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("color")) == 0 )
+				{
+					CoronaColorParameters.RgbColor = FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor( (BMM_Color_fl)ParamBlock2->GetColor(ParamDefinition.ID, CurrentTime) );
+				}
+				else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("ColorHdr")) == 0 )
+				{
+					Point3 ColorHdr = ParamBlock2->GetPoint3(ParamDefinition.ID, CurrentTime);
+					CoronaColorParameters.ColorHdr = FVector{ ColorHdr.x, ColorHdr.y, ColorHdr.z };
+				}
+				else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("Multiplier")) == 0 )
+				{
+					CoronaColorParameters.Multiplier = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime);
+				}
+				else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("Temperature")) == 0 )
+				{
+					CoronaColorParameters.Temperature = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime);
+				}
+				else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("Method")) == 0 )
+				{
+					CoronaColorParameters.Method = ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime);
+				}
+				else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("inputIsLinear")) == 0 )
+				{
+					CoronaColorParameters.bInputIsLinear = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) != 0);
+				}
+				else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("HexColor")) == 0 )
+				{
+					CoronaColorParameters.HexColor = ParamBlock2->GetStr(ParamDefinition.ID, CurrentTime);
+				}
+			}
+			ParamBlock2->ReleaseDesc();
+		}
+
+		return CoronaColorParameters;
+	}
+
+	FColorCorrectionParameters ParseColorCorrection(Texmap* InTexmap)
+	{
+		const TimeValue CurrentTime = GetCOREInterface()->GetTime();
+		FColorCorrectionParameters ColorCorrectionParameters;
+
+		for (int j = 0; j < InTexmap->NumParamBlocks(); j++)
+		{
+			IParamBlock2* ParamBlock2 = InTexmap->GetParamBlockByID((short)j);
+			ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
+
+			for (int i = 0; i < ParamBlockDesc->count; i++)
+			{
+				const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
+
+				if (FCString::Stricmp(ParamDefinition.int_name, TEXT("map")) == 0)
+				{
+					ColorCorrectionParameters.TextureSlot1 = ParamBlock2->GetTexmap(ParamDefinition.ID, CurrentTime);
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("color")) == 0)
+				{
+					ColorCorrectionParameters.Color1 = FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor( (BMM_Color_fl)ParamBlock2->GetColor(ParamDefinition.ID, CurrentTime) );
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Tint")) == 0)
+				{
+					ColorCorrectionParameters.Tint = FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor( (BMM_Color_fl)ParamBlock2->GetColor(ParamDefinition.ID, CurrentTime) );
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("HueShift")) == 0)
+				{
+					ColorCorrectionParameters.HueShift = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime) / 360.0f;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Saturation")) == 0)
+				{
+					ColorCorrectionParameters.Saturation = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime) / 100.0f;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("LiftRGB")) == 0)
+				{
+					ColorCorrectionParameters.LiftRGB = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime);
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Brightness")) == 0)
+				{
+					ColorCorrectionParameters.Brightness = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime) / 100.0f;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("GammaRGB")) == 0)
+				{
+					ColorCorrectionParameters.GammaRGB = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime);
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Contrast")) == 0)
+				{
+					ColorCorrectionParameters.Contrast = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime) / 100.0f;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("TintStrength")) == 0)
+				{
+					ColorCorrectionParameters.TintStrength = ParamBlock2->GetFloat(ParamDefinition.ID, CurrentTime) / 100.0f;
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("LightnessMode")) == 0)
+				{
+					ColorCorrectionParameters.bAdvancedLightnessMode = ( ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) != 0);
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("RewireR")) == 0)
+				{
+					ColorCorrectionParameters.RewireR = ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime);
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("RewireG")) == 0)
+				{
+					ColorCorrectionParameters.RewireG = ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime);
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("RewireB")) == 0)
+				{
+					ColorCorrectionParameters.RewireB = ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime);
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("bEnableR")) == 0)
+				{
+					if (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) != 0)
+					{
+						ColorCorrectionParameters.bEnableR = true;
+					}
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("bEnableG")) == 0)
+				{
+					if (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) != 0)
+					{
+						ColorCorrectionParameters.bEnableG = true;
+					}
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("bEnableB")) == 0)
+				{
+					if (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime) != 0)
+					{
+						ColorCorrectionParameters.bEnableB = true;
+					}
+				}
+			}
+			ParamBlock2->ReleaseDesc();
+		}
+
+		if (!(ColorCorrectionParameters.RewireR == 0 && ColorCorrectionParameters.RewireG == 1 && ColorCorrectionParameters.RewireB == 2) &&
+			!(ColorCorrectionParameters.RewireR == 8 && ColorCorrectionParameters.RewireG == 8 && ColorCorrectionParameters.RewireB == 8) &&
+			!(ColorCorrectionParameters.RewireR == 4 && ColorCorrectionParameters.RewireG == 5 && ColorCorrectionParameters.RewireB == 6))
+		{
+			ColorCorrectionParameters.RewireR = 0;
+			ColorCorrectionParameters.RewireG = 1;
+			ColorCorrectionParameters.RewireB = 2;
+			DatasmithMaxLogger::Get().AddGeneralError(TEXT("Color correct cannot use different settings per channel"));
+		}
+
+		if (ColorCorrectionParameters.bEnableR || ColorCorrectionParameters.bEnableG || ColorCorrectionParameters.bEnableB)
+		{
+			DatasmithMaxLogger::Get().AddGeneralError(TEXT("Color correct cannot use different settings per channel"));
+		}
+
+		return ColorCorrectionParameters;
 	}
 }
