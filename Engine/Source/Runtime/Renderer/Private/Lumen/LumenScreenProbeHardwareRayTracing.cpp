@@ -107,7 +107,11 @@ namespace Lumen
 {
 	bool UseHardwareRayTracedScreenProbeGather()
 	{
+	#if RHI_RAYTRACING
 		return (GLumenScreenProbeGatherHardwareTraceCards != 0) && IsRayTracingEnabled();
+	#else
+		return false;
+	#endif
 	}
 }
 
