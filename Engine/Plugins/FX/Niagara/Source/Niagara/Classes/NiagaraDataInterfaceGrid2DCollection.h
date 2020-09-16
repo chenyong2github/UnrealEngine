@@ -33,6 +33,7 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 {
 	FIntPoint NumCells = FIntPoint(EForceInit::ForceInitToZero);
 	FIntPoint NumTiles = FIntPoint(EForceInit::ForceInitToZero);
+	int32 NumAttributes = 0;
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
@@ -44,6 +45,7 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 	TArray<FNiagaraVariableBase> Vars;
 	TArray<uint32> Offsets;
 
+	bool NeedsRealloc = false;
 };
 
 struct FGrid2DCollectionRWInstanceData_RenderThread
@@ -120,7 +122,9 @@ public:
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FGrid2DCollectionRWInstanceData_GameThread); }
+	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool HasPreSimulateTick() const override { return true; }
+	virtual bool HasPostSimulateTick() const override { return true; }
 
 	virtual bool CanExposeVariables() const override { return true;}
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
@@ -145,6 +149,7 @@ public:
 	void GetWorldBBoxSize(FVectorVMContext& Context);
 	void GetCellSize(FVectorVMContext& Context);
 	void GetNumCells(FVectorVMContext& Context);
+	void SetNumCells(FVectorVMContext& Context);
 
 	static const FString NumTilesName;
 
@@ -174,6 +179,8 @@ public:
 	static const FName SetFloatValueFunctionName;
 	static const FName GetFloatValueFunctionName;
 	static const FName SampleGridFloatFunctionName;
+
+	static const FName SetNumCellsFunctionName;
 
 #if WITH_EDITOR
 	virtual bool SupportsSetupAndTeardownHLSL() const { return true; }
