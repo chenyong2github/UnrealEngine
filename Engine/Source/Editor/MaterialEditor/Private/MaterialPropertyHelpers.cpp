@@ -119,34 +119,25 @@ void FMaterialPropertyHelpers::OnMaterialLayerAssetChanged(const struct FAssetDa
 	const FName FilterTag = FName(TEXT("MaterialFunctionUsage"));
 	if (InAssetData.TagsAndValues.Contains(FilterTag) || InAssetData.AssetName == NAME_None)
 	{
+		UMaterialFunctionInterface* LayerFunction = Cast<UMaterialFunctionInterface>(InAssetData.GetAsset());
 		switch (MaterialType)
 		{
 		case EMaterialParameterAssociation::LayerParameter:
-		{
-			if (Cast<UMaterialFunctionInterface>(InAssetData.GetAsset()))
+			if (InMaterialFunction->Layers[Index] != LayerFunction)
 			{
-				InMaterialFunction->Layers[Index] = Cast<UMaterialFunctionInterface>(InAssetData.GetAsset());
+				InMaterialFunction->Layers[Index] = LayerFunction;
+				InMaterialFunction->UnlinkLayerFromParent(Index);
 			}
-			else
-			{
-				InMaterialFunction->Layers[Index] = nullptr;
-			}
-		}
-		break;
+			break;
 		case EMaterialParameterAssociation::BlendParameter:
-		{
-			if (Cast<UMaterialFunctionInterface>(InAssetData.GetAsset()))
+			if (InMaterialFunction->Blends[Index] != LayerFunction)
 			{
-				InMaterialFunction->Blends[Index] = Cast<UMaterialFunctionInterface>(InAssetData.GetAsset());
+				InMaterialFunction->Blends[Index] = LayerFunction;
+				InMaterialFunction->UnlinkLayerFromParent(Index + 1); // Blend indices are offset by 1, no blend for base layer
 			}
-			else
-			{
-				InMaterialFunction->Blends[Index] = nullptr;
-			}
-		}
-		break;
+			break;
 		default:
-		break;
+			break;
 		}
 	}
 	InHandle->NotifyPostChange();

@@ -276,8 +276,8 @@ static bool GetLocalLayerParameterInfo(const FMaterialLayersFunctions& MaterialL
 	// Guid of the layer
 	const FGuid& LayerGuid = MaterialLayers.LayerGuids[SrcLayerIndex];
 	// Find local layer index that's parented to that guid
-	int32 LocalLayerIndex = LocalMaterialLayers.ParentLayerGuids.Find(LayerGuid);
-	if (LocalLayerIndex != INDEX_NONE)
+	int32 LocalLayerIndex = LocalMaterialLayers.LayerGuids.Find(LayerGuid);
+	if (LocalLayerIndex != INDEX_NONE && LocalMaterialLayers.LayerLinkStates[LocalLayerIndex] == EMaterialLayerLinkState::LinkedToParent)
 	{
 		if (ParameterInfo.Association == BlendParameter)
 		{
