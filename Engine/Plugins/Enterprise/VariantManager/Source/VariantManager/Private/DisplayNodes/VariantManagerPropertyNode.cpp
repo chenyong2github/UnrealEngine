@@ -373,7 +373,8 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow)
 {
 	// Using this syncs all splitters between property nodes and also the header
-	FPropertyColumnSizeData& ColumnSizeData = GetVariantManager().Pin()->GetVariantManagerWidget()->GetPropertyColumnSizeData();
+	TSharedPtr<SVariantManager> VariantManagerWidget = GetVariantManager().Pin()->GetVariantManagerWidget();
+	FColumnSizeData& ColumnSizeData = VariantManagerWidget->GetPropertiesColumnSizeData();
 
 	return SNew(SBox)
 	[
@@ -390,12 +391,8 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 			.Orientation(Orient_Horizontal)
 
 			+ SSplitter::Slot()
-			.Value(ColumnSizeData.LeftColumnWidth)
-			.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth)
-			{
-				 //This has to be bound or the splitter will take it upon itself to determine the size
-				 //We do nothing here because it is handled by the column size data
-			}))
+			.Value( ColumnSizeData.MiddleColumnWidth )
+			.OnSlotResized( SSplitter::FOnSlotResized::CreateLambda( []( float InNewWidth ) {} ) )
 			[
 				SNew(SBox)
 				.VAlign(VAlign_Center)
@@ -415,8 +412,8 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 			]
 
 			+ SSplitter::Slot()
-			.Value(ColumnSizeData.RightColumnWidth)
-			.OnSlotResized(ColumnSizeData.OnWidthChanged)
+			.Value( ColumnSizeData.RightColumnWidth )
+			.OnSlotResized( ColumnSizeData.OnSecondSplitterChanged )
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
