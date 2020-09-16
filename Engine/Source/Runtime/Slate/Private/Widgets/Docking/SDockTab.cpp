@@ -646,7 +646,7 @@ void SDockTab::Construct( const FArguments& InArgs )
 					SNew(SButton)
 					.ButtonStyle( CloseButtonStyle )
 					.OnClicked( this, &SDockTab::OnCloseButtonClicked )
-					.ContentPadding( 0 )
+					.ContentPadding(FMargin(0.0, 1.5, 0.0, 0.0))
 					.ToolTipText(this, &SDockTab::GetCloseButtonToolTipText)
 					.Visibility(this, &SDockTab::HandleIsCloseButtonVisible)
 					[

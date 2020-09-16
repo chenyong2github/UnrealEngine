@@ -1421,9 +1421,9 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 	const FSlateColor& TabFlashColor = SelectionColor;
 
 	const FButtonStyle CloseButton = FButtonStyle()
-		.SetNormal(IMAGE_BRUSH_SVG("Starship/Common/close", Icon16x16, FStyleColors::Foreground))
-		.SetPressed(IMAGE_BRUSH_SVG("Starship/Common/close", Icon16x16, FStyleColors::Foreground))
-		.SetHovered(IMAGE_BRUSH_SVG("Starship/Common/close", Icon16x16, FStyleColors::ForegroundHover));
+		.SetNormal(IMAGE_BRUSH_SVG("Starship/Common/close-small", Icon16x16, FStyleColors::Foreground))
+		.SetPressed(IMAGE_BRUSH_SVG("Starship/Common/close-small", Icon16x16, FStyleColors::Foreground))
+		.SetHovered(IMAGE_BRUSH_SVG("Starship/Common/close-small", Icon16x16, FStyleColors::ForegroundHover));
 
 
 	FLinearColor DockColor_Inactive(FColor(45, 45, 45));
