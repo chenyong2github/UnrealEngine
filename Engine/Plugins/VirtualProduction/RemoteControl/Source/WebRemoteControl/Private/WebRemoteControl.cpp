@@ -46,6 +46,10 @@
 #include "RemoteControlModels.h"
 #include "HttpServerHttpVersion.h"
 
+// Asset registry
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+
 #define LOCTEXT_NAMESPACE "WebRemoteControl"
 
 
@@ -286,6 +290,13 @@ void FWebRemoteControlModule::RegisterRoutes()
 		FHttpPath(TEXT("/remote/preset/:preset")),
 		EHttpServerRequestVerbs::VERB_GET,
 		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleGetPresetRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Search for assets"),
+		FHttpPath(TEXT("/remote/search/assets")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleSearchAssetRoute)
 		});
 
 
@@ -901,8 +912,48 @@ bool FWebRemoteControlModule::HandleSearchActorRoute(const FHttpServerRequest& R
 
 bool FWebRemoteControlModule::HandleSearchAssetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::NotSupported);
-	WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Route not implemented."), Response->Body);
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	FSearchAssetRequest SearchAssetRequest;
+	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SearchAssetRequest))
+	{
+		return true;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	FARFilter Filter = SearchAssetRequest.Filter.ToARFilter();
+
+	TArray<FAssetData> Assets;
+	AssetRegistryModule.Get().GetAssets(Filter, Assets);
+	TArrayView<FAssetData> AssetsView{Assets};
+	int32 ArrayEnd = FMath::Min(SearchAssetRequest.Limit, Assets.Num());
+
+	TArray<FAssetData> FilteredAssets;
+	FilteredAssets.Reserve(SearchAssetRequest.Limit);
+
+	for (const FAssetData& AssetData : Assets)
+	{	
+		if (!SearchAssetRequest.Query.IsEmpty())
+		{
+			if (AssetData.AssetName.ToString().Contains(*SearchAssetRequest.Query))
+			{
+				FilteredAssets.Add(AssetData);
+			}
+		}
+		else
+		{
+			FilteredAssets.Add(AssetData);
+		}
+
+		if (FilteredAssets.Num() >= SearchAssetRequest.Limit)
+		{
+			break;
+		}
+	}
+
+	WebRemoteControlUtils::SerializeResponse(FSearchAssetResponse{ MoveTemp(FilteredAssets) }, Response->Body);
+	Response->Code = EHttpServerResponseCodes::Accepted;
+
 	OnComplete(MoveTemp(Response));
 	return true;
 }
@@ -1016,7 +1067,6 @@ bool FWebRemoteControlModule::OnSettingsModified()
 }
 
 #endif
-
 
 #undef LOCTEXT_NAMESPACE /* WebRemoteControl */
 

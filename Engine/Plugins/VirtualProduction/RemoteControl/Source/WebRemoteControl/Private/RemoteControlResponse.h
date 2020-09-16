@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma  once
 
+#include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
+#include "RemoteControlField.h"
 #include "RemoteControlModels.h"
 #include "RemoteControlPreset.h"
-#include "RemoteControlField.h"
-#include "Algo/Transform.h"
+
 #include "RemoteControlResponse.generated.h"
 
 USTRUCT()
@@ -90,7 +91,7 @@ struct FSearchAssetResponse
 
 	FSearchAssetResponse(const TArray<FAssetData>& InAssets)
 	{
-		Algo::Transform(InAssets, Assets, [] (const FAssetData& Asset) { return Asset; } );
+		Assets.Append(InAssets);
 	}
 
 	UPROPERTY()
@@ -107,7 +108,7 @@ struct FSearchActorResponse
 
 	FSearchActorResponse(const TArray<AActor*>& InActors)
 	{
-		Algo::Transform(InActors, Actors, [](const AActor* Actor) { return Actor; });
+		Actors.Append(InActors);
 	}
 
 	UPROPERTY()

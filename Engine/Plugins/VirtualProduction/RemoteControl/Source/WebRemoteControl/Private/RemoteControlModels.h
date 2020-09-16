@@ -2,11 +2,13 @@
 #pragma  once
 
 #include "CoreMinimal.h"
-#include "RemoteControlPreset.h"
-#include "RemoteControlField.h"
 #include "Algo/Transform.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/ARFilter.h"
 #include "GameFramework/Actor.h"
+#include "RemoteControlField.h"
+#include "RemoteControlPreset.h"
+
 #include "RemoteControlModels.generated.h"
 
 USTRUCT()
@@ -217,16 +219,16 @@ struct FRCShortPresetDescription
 	FString Path;
 };
 
-USTRUCT() 
+USTRUCT()
 struct FRCAssetDescription
 {
 	GENERATED_BODY()
 
 	FRCAssetDescription() = default;
-
 	FRCAssetDescription(const FAssetData& InAsset)
-	 : Name(InAsset.AssetName)
-	 , Path(InAsset.GetFullName())
+		: Name(InAsset.AssetName)
+		, Class(InAsset.AssetClass)
+		, Path(InAsset.ObjectPath)
 	{
 	}
 
@@ -234,7 +236,10 @@ struct FRCAssetDescription
 	FName Name;
 
 	UPROPERTY()
-	FString Path;
+	FName Class;
+
+	UPROPERTY()
+	FName Path;
 };
 
 USTRUCT()
@@ -353,7 +358,7 @@ struct FRCPresetFieldsRenamedEvent
 		: ResponseType(TEXT("FieldsRenamed"))
 		, PresetName(InPresetName)
 	{
-		Algo::Transform(InRenamedFields, RenamedFields, [] (const TTuple<FName, FName>& InRenamedField) { return FRCPresetFieldRenamed{InRenamedField}; } );
+		RenamedFields.Append(InRenamedFields);
 	}
 
 	UPROPERTY()
@@ -365,3 +370,61 @@ struct FRCPresetFieldsRenamedEvent
 	UPROPERTY()
 	TArray<FRCPresetFieldRenamed> RenamedFields;
 };
+
+USTRUCT()
+struct FRCAssetFilter
+{
+	GENERATED_BODY()
+
+	FRCAssetFilter() = default;
+
+	FARFilter ToARFilter() const
+	{
+		FARFilter Filter;
+		Filter.PackageNames = PackageNames;
+		Filter.ClassNames = ClassNames;
+		Filter.RecursiveClassesExclusionSet = RecursiveClassesExclusionSet;
+		Filter.bRecursiveClasses = bRecursiveClasses;
+
+		// Default to a recursive search at root if no filter is specified.
+		if (Filter.PackageNames.Num() == 0
+			&& Filter.ClassNames.Num() == 0
+			&& Filter.PackagePaths.Num() == 0)
+		{
+			Filter.PackagePaths = { FName("/Game") };
+			Filter.bRecursivePaths = true;
+		}
+		else
+		{
+			Filter.PackagePaths = PackagePaths;
+			Filter.bRecursivePaths = bRecursivePaths;
+		}
+
+		return Filter;
+	}
+
+	/** The filter component for package names */
+	UPROPERTY()
+	TArray<FName> PackageNames;
+
+	/** The filter component for package paths */
+	UPROPERTY()
+	TArray<FName> PackagePaths;
+
+	/** The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
+	UPROPERTY()
+	TArray<FName> ClassNames;
+
+	/** Only if bRecursiveClasses is true, the results will exclude classes (and subclasses) in this list */
+	UPROPERTY()
+	TSet<FName> RecursiveClassesExclusionSet;
+
+	/** If true, subclasses of ClassNames will also be included and RecursiveClassesExclusionSet will be excluded. */
+	UPROPERTY()
+	bool bRecursiveClasses = false;
+
+	/** If true, PackagePath components will be recursive */
+	UPROPERTY()
+	bool bRecursivePaths = false;
+};
+
