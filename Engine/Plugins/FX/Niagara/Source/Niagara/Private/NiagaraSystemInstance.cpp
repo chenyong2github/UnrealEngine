@@ -2168,6 +2168,18 @@ TSet<int32> FNiagaraSystemInstance::GetParticlesWithActiveComponents(USceneCompo
 	return Result;
 }
 
+void FNiagaraSystemInstance::OnSimulationDestroyed()
+{
+	// This notifies us that the simulation we're holding a reference to is being abandoned by the world manager and we should also
+	// release our reference
+	ensureMsgf(!IsSolo(), TEXT("OnSimulationDestroyed should only happen for systems referencing a simulation from the world manager"));
+	if (SystemSimulation.IsValid())
+	{
+		UnbindParameters();
+		SystemSimulation = nullptr;
+	}
+}
+
 void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 {
 	FRWScopeLock WriteLock(ComponentPoolLock, SLT_Write);

@@ -145,6 +145,19 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 		}
 	}
 	ComponentsToReset.Empty();
+
+	for (UNiagaraComponent* Comp : ComponentsToNotifySimDestroy)
+	{
+		if (Comp)
+		{
+			if (FNiagaraSystemInstance* SystemInstance = Comp->GetSystemInstance())
+			{
+				SystemInstance->OnSimulationDestroyed();
+			}			
+			Comp->EndUpdateContextReset();
+		}
+	}
+	ComponentsToReInit.Empty();
 }
 
 void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
@@ -154,29 +167,7 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
 
-		Comp->BeginUpdateContextReset();
-
-		bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
-
-		if (bReInit)
-		{
-			//Always destroy the system sims on a reinit, even if we're not reactivating the component.
-			SystemSimsToDestroy.AddUnique(Comp->GetAsset());
-		}
-
-		if (bDestroyOnAdd)
-		{
-			Comp->DeactivateImmediate();
-		}
-
-		if (bIsActive || bOnlyActive == false)
-		{
-			AddInternal(Comp, bReInit);
-		}
-		else
-		{
-			Comp->EndUpdateContextReset();
-		}
+		AddInternal(Comp, bReInit);
 	}
 }
 
@@ -188,29 +179,7 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 		check(Comp);
 		if (Comp->GetAsset() == System)
 		{
-			Comp->BeginUpdateContextReset();
-
-			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
-
-			if (bReInit)
-			{
-				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
-				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
-			}
-
-			if (bDestroyOnAdd)
-			{
-				Comp->DeactivateImmediate();
-			}
-
-			if (bIsActive || bOnlyActive == false)
-			{
-				AddInternal(Comp, bReInit);
-			}
-			else
-			{
-				Comp->EndUpdateContextReset();
-			}
+			AddInternal(Comp, bReInit);
 		}
 	}
 }
@@ -225,29 +194,7 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
 		if (SystemInst && SystemInst->UsesEmitter(Emitter))
 		{
-			Comp->BeginUpdateContextReset();
-
-			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
-
-			if (bReInit)
-			{
-				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
-				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
-			}
-
-			if (bDestroyOnAdd)
-			{
-				Comp->DeactivateImmediate();
-			}
-
-			if (bIsActive || bOnlyActive == false)
-			{
-				AddInternal(Comp, bReInit);
-			}
-			else
-			{
-				Comp->EndUpdateContextReset();
-			}
+			AddInternal(Comp, bReInit);
 		}
 	}
 }
@@ -261,48 +208,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 		UNiagaraSystem* System = Comp->GetAsset();
 		if (System && System->UsesScript(Script))
 		{
-			Comp->BeginUpdateContextReset();
-
-			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
-
-			if (bReInit)
-			{
-				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
-				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
-			}
-
-			if (bDestroyOnAdd)
-			{
-				Comp->DeactivateImmediate();
-			}
-
-			if (bIsActive || bOnlyActive == false)
-			{
-				AddInternal(Comp, bReInit);
-			}
-			else
-			{
-				Comp->EndUpdateContextReset();
-			}
+			AddInternal(Comp, bReInit);
 		}
 	}
 }
-
-// void FNiagaraSystemUpdateContext::Add(UNiagaraDataInterface* Interface, bool bReInit)
-// {
-// 	for (TObjectIterator<UNiagaraComponent> It; It; ++It)
-// 	{
-// 		UNiagaraComponent* Comp = *It;
-// 		check(Comp);		
-// 		if (FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance())
-// 		{
-// 			if (SystemInst->ContainsDataInterface(Interface))
-// 			{
-// 				AddInternal(SystemInst, bReInit);
-// 			}
-// 		}
-// 	}
-// }
 
 void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collection, bool bReInit)
 {
@@ -313,28 +222,7 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
 		if (SystemInst && SystemInst->UsesCollection(Collection))
 		{
-			Comp->BeginUpdateContextReset();
-			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
-
-			if (bReInit)
-			{
-				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
-				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
-			}
-
-			if (bDestroyOnAdd)
-			{
-				Comp->DeactivateImmediate();
-			}
-
-			if (bIsActive || bOnlyActive == false)
-			{
-				AddInternal(Comp, bReInit);
-			}
-			else
-			{
-				Comp->EndUpdateContextReset();
-			}
+			AddInternal(Comp, bReInit);
 		}
 	}
 }
@@ -342,14 +230,49 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 
 void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReInit)
 {
+	Comp->BeginUpdateContextReset();
+
 	if (bReInit)
 	{
-		ComponentsToReInit.AddUnique(Comp);
+		//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+		SystemSimsToDestroy.AddUnique(Comp->GetAsset());
 	}
-	else
+
+	bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+	
+	if (bDestroyOnAdd)
 	{
-		ComponentsToReset.AddUnique(Comp);
+		Comp->DeactivateImmediate();
 	}
+
+	if (bIsActive || bOnlyActive == false)
+	{
+		if (bReInit)
+		{
+			ComponentsToReInit.AddUnique(Comp);
+		}
+		else
+		{
+			ComponentsToReset.AddUnique(Comp);
+		}		
+		return;
+	}
+	else if (bReInit)
+	{
+		// Inactive components that have references to the simulations we're about to destroy need to clear them out in case they get reactivated.
+		// Otherwise, they will hold reference and bind or remain bound to a system simulation that has been abandoned by the world manager
+		if (FNiagaraSystemInstance* SystemInstance = Comp->GetSystemInstance())
+		{
+			if (!SystemInstance->IsSolo() && SystemInstance->GetSystemSimulation().IsValid())
+			{
+				ComponentsToNotifySimDestroy.Add(Comp);
+				return;
+			}
+		}
+	}
+	
+	// If we got here, we didn't add the component to any list, so end the reset immediately
+	Comp->EndUpdateContextReset();
 }
 
 //////////////////////////////////////////////////////////////////////////
