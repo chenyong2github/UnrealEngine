@@ -2307,7 +2307,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Strata initialisation
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
-		InitialiseStrataFrameSceneData(*this, GraphBuilder);
+		Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
 		GraphBuilder.Execute();
 	}
 

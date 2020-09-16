@@ -27,7 +27,7 @@ struct FStrataData
 {
 	uint32 MaxBytesPerPixel;
 	TRefCountPtr<IPooledRenderTarget> MaterialLobesTexture; // This should be a RDG resource when the refactoring gets in
-	FRWByteAddressBuffer MaterialLobesBuffer;							// This should be a RDG resource	"		"		"
+	FRWByteAddressBuffer MaterialLobesBuffer;				// This should be a RDG resource	"		"		"
 
 	FStrataData()
 	{
@@ -36,10 +36,16 @@ struct FStrataData
 
 
 
+
+namespace Strata
+{
+
 bool IsStrataEnabled();
 
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder);
 
 void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePassUniformParameters& OutStrataUniformParameters);
+
+};
 
 

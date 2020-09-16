@@ -18,12 +18,13 @@ static TAutoConsoleVariable<int32> CVarStrata(
 
 
 
+namespace Strata
+{
+
 bool IsStrataEnabled()
 {
 	return CVarStrata.GetValueOnRenderThread() > 0;
 }
-
-
 
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder)
 {
@@ -72,8 +73,6 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	}
 }
 
-
-
 void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePassUniformParameters& OutStrataUniformParameters)
 {
 	if (View.StrataData)
@@ -89,5 +88,7 @@ void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePas
 		OutStrataUniformParameters.MaterialLobesBufferUAV = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 	}
 }
+
+} // namespace Strata
 
 

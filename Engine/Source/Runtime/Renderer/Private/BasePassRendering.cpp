@@ -650,7 +650,7 @@ void CreateOpaqueBasePassUniformBuffer(
 	SetupDistortionParams(BasePassParameters.DistortionParams, View);
 
 	// Strata
-	BindStrataBasePassUniformParameters(View, BasePassParameters.Strata);
+	Strata::BindStrataBasePassUniformParameters(View, BasePassParameters.Strata);
 
 	// Misc
 	BasePassParameters.EyeAdaptation = GetEyeAdaptation(View);
