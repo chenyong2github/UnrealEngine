@@ -1244,6 +1244,13 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialElement( const TSharedRef< 
 	WriteValue( Archive, Indent + 1, DATASMITH_BLENDMODE, MaterialElement->GetBlendMode() );
 	WriteValue( Archive, Indent + 1, DATASMITH_OPACITYMASKCLIPVALUE, MaterialElement->GetOpacityMaskClipValue() );
 
+	if ( MaterialElement->GetShadingModel() != EDatasmithShadingModel::DefaultLit && (int32)MaterialElement->GetShadingModel() < UE_ARRAY_COUNT( DatasmithShadingModelStrings ) )
+	{
+		XmlString.Empty();
+		AppendXMLChild( XmlString, Indent + 1, DATASMITH_SHADINGMODEL, TEXT("value"), DatasmithShadingModelStrings[ (int32)MaterialElement->GetShadingModel() ] );
+		SerializeToArchive( Archive, XmlString );
+	}
+
 	WriteIndent( Archive, Indent );
 	XmlString = TEXT("</") + FString(DATASMITH_UEPBRMATERIALNAME) + TEXT(">") + LINE_TERMINATOR;
 	SerializeToArchive( Archive, XmlString );
