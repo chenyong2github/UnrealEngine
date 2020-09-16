@@ -48,6 +48,11 @@ FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterial
 		static FDatasmithMaxScanlineMaterialsToUEPbr ScanlineConverter = FDatasmithMaxScanlineMaterialsToUEPbr();
 		MaterialConverter = &ScanlineConverter;
 	}
+	else if ( MaterialClassID == BLENDMATCLASS )
+	{
+		static FDatasmithMaxBlendMaterialsToUEPbr BlendConverter = FDatasmithMaxBlendMaterialsToUEPbr();
+		MaterialConverter = &BlendConverter;
+	}
 	else if ( MaterialClassID == CORONAMATCLASS )
 	{
 		static FDatasmithMaxCoronaMaterialsToUEPbr CoronaConverter = FDatasmithMaxCoronaMaterialsToUEPbr();
