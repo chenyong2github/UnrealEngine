@@ -15,6 +15,7 @@ public class WebRemoteControl : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AssetRegistry",
 				"HTTPServer",
 				"RemoteControl",
 				"Serialization",
