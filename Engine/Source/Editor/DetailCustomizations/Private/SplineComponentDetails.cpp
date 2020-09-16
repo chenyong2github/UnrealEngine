@@ -572,6 +572,8 @@ void FSplinePointDetails::OnSetInputKey(float NewValue, ETextCommit::Type Commit
 	SplineComp->bSplineHasBeenEdited = true;
 	FComponentVisualizer::NotifyPropertyModified(SplineComp, SplineCurvesProperty);
 	UpdateValues();
+
+	GEditor->RedrawLevelEditingViewports(true);
 }
 
 void FSplinePointDetails::OnSetPosition(float NewValue, ETextCommit::Type CommitInfo, int32 Axis)
@@ -595,6 +597,8 @@ void FSplinePointDetails::OnSetPosition(float NewValue, ETextCommit::Type Commit
 	SplineComp->bSplineHasBeenEdited = true;
 	FComponentVisualizer::NotifyPropertyModified(SplineComp, SplineCurvesProperty);
 	UpdateValues();
+
+	GEditor->RedrawLevelEditingViewports(true);
 }
 
 void FSplinePointDetails::OnSetArriveTangent(float NewValue, ETextCommit::Type CommitInfo, int32 Axis)
@@ -619,6 +623,8 @@ void FSplinePointDetails::OnSetArriveTangent(float NewValue, ETextCommit::Type C
 	SplineComp->bSplineHasBeenEdited = true;
 	FComponentVisualizer::NotifyPropertyModified(SplineComp, SplineCurvesProperty);
 	UpdateValues();
+
+	GEditor->RedrawLevelEditingViewports(true);
 }
 
 void FSplinePointDetails::OnSetLeaveTangent(float NewValue, ETextCommit::Type CommitInfo, int32 Axis)
@@ -643,6 +649,8 @@ void FSplinePointDetails::OnSetLeaveTangent(float NewValue, ETextCommit::Type Co
 	SplineComp->bSplineHasBeenEdited = true;
 	FComponentVisualizer::NotifyPropertyModified(SplineComp, SplineCurvesProperty);
 	UpdateValues();
+
+	GEditor->RedrawLevelEditingViewports(true);
 }
 
 void FSplinePointDetails::OnSetRotation(float NewValue, ETextCommit::Type CommitInfo, int32 Axis)
@@ -673,6 +681,8 @@ void FSplinePointDetails::OnSetRotation(float NewValue, ETextCommit::Type Commit
 	SplineComp->bSplineHasBeenEdited = true;
 	FComponentVisualizer::NotifyPropertyModified(SplineComp, SplineCurvesProperty);
 	UpdateValues();
+
+	GEditor->RedrawLevelEditingViewports(true);
 }
 
 void FSplinePointDetails::OnSetScale(float NewValue, ETextCommit::Type CommitInfo, int32 Axis)
@@ -696,6 +706,8 @@ void FSplinePointDetails::OnSetScale(float NewValue, ETextCommit::Type CommitInf
 	SplineComp->bSplineHasBeenEdited = true;
 	FComponentVisualizer::NotifyPropertyModified(SplineComp, SplineCurvesProperty);
 	UpdateValues();
+
+	GEditor->RedrawLevelEditingViewports(true);
 }
 
 FText FSplinePointDetails::GetPointType() const
@@ -729,6 +741,8 @@ void FSplinePointDetails::OnSplinePointTypeChanged(TSharedPtr<FString> NewValue,
 	SplineComp->bSplineHasBeenEdited = true;
 	FComponentVisualizer::NotifyPropertyModified(SplineComp, SplineCurvesProperty);
 	UpdateValues();
+
+	GEditor->RedrawLevelEditingViewports(true);
 }
 
 TSharedRef<SWidget> FSplinePointDetails::OnGenerateComboWidget(TSharedPtr<FString> InComboString)
