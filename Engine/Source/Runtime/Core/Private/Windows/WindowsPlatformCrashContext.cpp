@@ -550,8 +550,8 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 			// The file is not required anymore.
 			IFileManager::Get().Delete(*PidFilePathname, /*RequireExist*/false, /*EvenReadOnly*/true);
 
-			// Acquire a handle on the final CRC instance responsible to handle the crash/reports.
-			Handle = RepawnedCrcPid != 0 ? FPlatformProcess::OpenProcess(RepawnedCrcPid) : FProcHandle();
+			// Acquire a handle on the final CRC instance responsible to handle the crash/reports, but forbid this process from terminating it in case we try to terminate it by accident (like a stomped handle that would terminate the wrong process)
+			Handle = RepawnedCrcPid != 0 ? FProcHandle(::OpenProcess(PROCESS_ALL_ACCESS & ~(PROCESS_TERMINATE), 0, RepawnedCrcPid)) : FProcHandle();
 
 			// Update the PID returned to the client.
 			if (OutCrashReportClientProcessId != nullptr)
