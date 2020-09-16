@@ -3790,7 +3790,8 @@ bool FActiveGameplayEffectsContainer::HasApplicationImmunityToSpec(const FGamepl
 
 bool FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 {
-	if (Owner)
+	// these tests are only necessary when sending
+	if (DeltaParms.Writer != nullptr && Owner != nullptr)
 	{
 		EGameplayEffectReplicationMode ReplicationMode = Owner->ReplicationMode;
 		if (ReplicationMode == EGameplayEffectReplicationMode::Minimal)
