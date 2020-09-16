@@ -1667,6 +1667,19 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 		{
 			OutElement->SetMaterialFunctionOnly( DatasmithSceneXmlReaderImpl::ValueFromString< bool >( ChildNode->GetAttribute( TEXT("enabled") ) ) );
 		}
+		else if ( ChildNode->GetTag() == DATASMITH_SHADINGMODEL )
+		{
+			TArrayView< const TCHAR* > EnumStrings( DatasmithShadingModelStrings );
+			int32 IndexOfEnumValue = EnumStrings.IndexOfByPredicate( [ TypeString = ChildNode->GetAttribute(TEXT("value")) ]( const TCHAR* Value )
+			{
+				return TypeString == Value;
+			} );
+
+			if ( IndexOfEnumValue != INDEX_NONE )
+			{
+				OutElement->SetShadingModel( (EDatasmithShadingModel)IndexOfEnumValue );
+			}
+		}
 	}
 }
 
