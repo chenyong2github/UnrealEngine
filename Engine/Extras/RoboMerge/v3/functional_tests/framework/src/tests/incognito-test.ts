@@ -8,6 +8,7 @@ const streams: Stream[] =
 	, {name: 'Dev-Perkin-Child', streamType: 'development', parent: 'Dev-Perkin'}
 	, {name: 'Dev-Pootle', streamType: 'development', parent: 'Main'}
 	, {name: 'Dev-Pootle-Child', streamType: 'development', parent: 'Dev-Pootle'}
+	, {name: 'Dev-Pootle-Grandchild', streamType: 'development', parent: 'Dev-Pootle-Child'}
 	]
 
 export class IncognitoTest extends FunctionalTest {
@@ -21,14 +22,17 @@ export class IncognitoTest extends FunctionalTest {
 
 		await Promise.all([
 			this.p4.populate(this.getStreamPath('Dev-Perkin'), desc)
-				.then(() => void this.p4.populate(this.getStreamPath('Dev-Perkin-Child'), desc)),
+				.then(() => this.p4.populate(this.getStreamPath('Dev-Perkin-Child'), desc)),
 			this.p4.populate(this.getStreamPath('Dev-Pootle'), desc)
-				.then(() => void this.p4.populate(this.getStreamPath('Dev-Pootle-Child'), desc)) 
+				.then(() => this.p4.populate(this.getStreamPath('Dev-Pootle-Child'), desc)) 
+				.then(() => this.p4.populate(this.getStreamPath('Dev-Pootle-Grandchild'), desc)) 
 		])
 	}
 
-	run() {
-		return P4Util.editFileAndSubmit(this.getClient('Main'), 'test.txt', 'Initial content\n\nMore stuff')
+	async run() {
+		const mainClient = this.getClient('Main')
+		await P4Util.editFileAndSubmit(mainClient, 'test.txt', 'Initial content\n\nMore stuff')
+		// await P4Util.editFileAndSubmit(mainClient, 'test.txt', 'Initial content\n\nMore stuff\n\nand some more', 'grandchild')
 	}
 
 	verify() {
@@ -75,11 +79,14 @@ export class IncognitoTest extends FunctionalTest {
 	}
 
 	getBranches() {
+		const grandchildBranch = this.branch('Dev-Pootle-Grandchild', [])
+		grandchildBranch.aliases = ['grandchild']
 		return [ this.branch('Main', ['Dev-Perkin', 'Dev-Pootle'])
 		       , this.branch('Dev-Perkin', ['Dev-Perkin-Child'])
 		       , this.branch('Dev-Pootle', ['Dev-Pootle-Child'], true)
+		       , this.branch('Dev-Pootle-Child', ['Dev-Pootle-Grandchild'])
 		       , this.branch('Dev-Perkin-Child', [])
-		       , this.branch('Dev-Pootle-Child', [])
+		       , grandchildBranch
 		       ]
 	}
 }

@@ -228,6 +228,9 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 					if (errStr.length > MAX_ERROR_LENGTH_TO_REPORT) {
 						errStr = errStr.substr(0, MAX_ERROR_LENGTH_TO_REPORT) + ` ... (error length ${errStr.length})`
 					}
+					else {
+						errStr += err.stack
+					}
 					this.lastError = {
 						nodeBot: bot.fullName,
 						error: errStr
