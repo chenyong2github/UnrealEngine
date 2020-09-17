@@ -1241,7 +1241,7 @@ void FStaticLightingSystem::EncodeTextures(bool bLightingSuccessful)
 		FLightmassStatistics::FScopedGather EncodeStatScope2(LightmassStatistics.EncodingLightmapsTime);
 		// Flush pending shadow-map and light-map encoding.
 		SlowTask.EnterProgressFrame(1, LOCTEXT("EncodingImportedStaticLightMapsStatusMessage", "Encoding imported static light maps."));
-		FLightMap2D::EncodeTextures(World, bLightingSuccessful, GMultithreadedLightmapEncode ? true : false);
+		FLightMap2D::EncodeTextures(World, LightingScenario, bLightingSuccessful, GMultithreadedLightmapEncode ? true : false);
 	}
 
 	{
