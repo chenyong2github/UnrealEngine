@@ -2,7 +2,7 @@
 
 import { Branch, MergeAction, MergeMode } from './branch-interfaces';
 import { BranchGraphInterface, PendingChange, Target, TargetInfo } from './branch-interfaces';
-import { BotName, Edge, Graph, Node, makeTargetName } from '../new/graph';
+import { BotName, Edge, GraphAPI, Node, makeTargetName } from '../new/graph';
 import { ContextualLogger } from '../common/logger';
 
 // const NEW_STUFF = false
@@ -286,7 +286,7 @@ type OtherBotInfo = {
 export function processOtherBotTargets(
 	parsedLines: DescriptionParser,
 	sourceBranch: Branch,
-	ubergraph: Graph,
+	ubergraph: GraphAPI,
 	actions: MergeAction[],
 	errors: string[]
 	) {
@@ -321,7 +321,7 @@ export function processOtherBotTargets(
 	let skipNodes: Node[] | null = null
 
 	for (const [bot, arg] of parsedLines.otherBotArguments) {
-		const targetBranchGraph = ubergraph.branchGraphAliases.get(bot.toUpperCase())
+		const targetBranchGraph = ubergraph.getBranchGraph(bot.toUpperCase() as BotName)
 		if (!targetBranchGraph) {
 			errors.push(`Bot '${bot}' not found in ubergraph`)
 			continue
@@ -490,7 +490,7 @@ type ComputeTargetsResult =
 // public so it can be called from unit tests
 export function computeTargetsImpl(
 	sourceBranch: Branch, 
-	ubergraph: Graph,
+	ubergraph: GraphAPI,
 	cl: number,
 	forceStomp: boolean,
 	commandArguments: string[],
@@ -612,7 +612,7 @@ export function computeTargetsImpl(
 
 export function computeTargets(
 	sourceBranch: Branch,
-	ubergraph: Graph,
+	ubergraph: GraphAPI,
 	cl: number,
 	info: TargetInfo,
 	commandArguments: string[],
