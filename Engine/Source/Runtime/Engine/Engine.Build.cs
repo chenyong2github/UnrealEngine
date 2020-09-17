@@ -413,6 +413,11 @@ public class Engine : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 		{
+			PublicIncludePaths.AddRange(
+            	new string[] {
+               		"Runtime/IOS/IOSPlatformFeatures/Public"
+                });
+
 			PrivateIncludePathModuleNames.Add("IOSRuntimeSettings");
 		}
 

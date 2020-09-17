@@ -538,6 +538,15 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 	TArray<TouchInput> TouchesArray;
 	for (UITouch* Touch in Touches)
 	{
+        // ignore mouse-produced touches, these will be handled by FIOSInputInterface
+        if (@available(iOS 14, *))
+        {
+            if ( Touch.type == UITouchTypeIndirectPointer ) // Requires UIApplicationSupportsIndirectInputEvents:true in plist
+            {
+                continue;
+            }
+        }
+        
 		// get info from the touch
 		CGPoint Loc = [Touch locationInView:self];
 		CGPoint PrevLoc = [Touch previousLocationInView:self];
@@ -682,6 +691,8 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 			// Dismiss the existing keyboard, if one exists, so the style can be overridden.
 			[self endEditing:YES];
 			[self becomeFirstResponder];
+            
+            FIOSInputInterface::SetKeyboardInhibited(true);
 		}
 		
 		FPlatformAtomics::InterlockedDecrement(&KeyboardShowCount);
@@ -702,6 +713,7 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 			{
 				// Dismiss the existing keyboard, if one exists.
 				[self endEditing:YES];
+                FIOSInputInterface::SetKeyboardInhibited(false);
 			}
 		}
 	});
@@ -1075,6 +1087,12 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 - (BOOL)prefersStatusBarHidden
 {
 	return YES;
+}
+
+- (BOOL)prefersPointerLocked
+{
+    UE_LOG(LogIOS, Log, TEXT("IOSViewController prefersPointerLocked"));
+    return YES;
 }
 
 /**

@@ -23,6 +23,7 @@ class ACameraActor;
 class APlayerController;
 class UPrimitiveComponent;
 class USceneComponent;
+class UTexture2D;
 
 UENUM(BlueprintType)
 namespace EDrawDebugTrace
@@ -1672,7 +1673,13 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	* Returns name of controller if assigned to a gamepad (or None if not assigned) (Android and iOS only)
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Platform")
-	static FString GetGamepadControllerName(int32 ControllerId);
+    static FString GetGamepadControllerName(int32 ControllerId);
+    
+    /**
+    * Returns glyph assigned to a gamepad button (or a null ptr if not assigned) (iOS and tvOS only)
+    */
+    UFUNCTION(BlueprintPure, Category = "Utilities|Platform")
+    static UTexture2D* GetGamepadButtonGlyph(const FString& ButtonKey, int32 ControllerIndex);
 
 	/**
 	 * Sets the state of the transition message rendered by the viewport. (The blue text displayed when the game is paused and so forth.)
