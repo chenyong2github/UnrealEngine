@@ -1329,7 +1329,8 @@ bool FMaterialResource::IsDitheredLODTransition() const
 
 bool FMaterialResource::IsTranslucencyWritingCustomDepth() const
 {
-	return Material->IsTranslucencyWritingCustomDepth();
+	// We cannot call UMaterial::IsTranslucencyWritingCustomDepth because we need to check the instance potentially overriden blend mode.
+	return  Material->AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode());
 }
 
 bool FMaterialResource::IsTranslucencyWritingVelocity() const
