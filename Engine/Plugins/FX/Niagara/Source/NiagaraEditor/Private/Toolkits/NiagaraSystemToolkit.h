@@ -88,6 +88,10 @@ protected:
 	void ToggleStatPerformanceTypeMax();
 	bool IsStatPerformanceTypeAvg();
 	bool IsStatPerformanceTypeMax();
+	void ToggleStatPerformanceModePercent();
+	void ToggleStatPerformanceModeAbsolute();
+	bool IsStatPerformanceModePercent();
+	bool IsStatPerformanceModeAbsolute();
 
 	void ToggleDrawOption(int32 Element);
 	bool IsDrawOptionEnabled(int32 Element) const;
@@ -192,6 +196,9 @@ private:
 	bool bChangesDiscarded;
 
 	bool bScratchPadChangesDiscarded;
+
+	static IConsoleVariable* VmStatEnabledVar;
+	static IConsoleVariable* GpuStatEnabledVar;
 
 public:
 	static const FName ViewportTabID;

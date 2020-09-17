@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "Misc/Build.h"
+#include "RHIResources.h"
 #include "HAL/Platform.h"
+#include "Misc/Build.h"
 
 #if STATS
+#include "Stats/Stats2.h"
+
 struct FNiagaraGPUTimingResult
 {
 	uint64 ReporterHandle;

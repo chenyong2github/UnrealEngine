@@ -332,6 +332,7 @@ public:
 	void ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate);
 
 	ENiagaraStatEvaluationType StatEvaluationType = ENiagaraStatEvaluationType::Average;
+	ENiagaraStatDisplayMode StatDisplayMode = ENiagaraStatDisplayMode::Percent;
 
 private:
 
