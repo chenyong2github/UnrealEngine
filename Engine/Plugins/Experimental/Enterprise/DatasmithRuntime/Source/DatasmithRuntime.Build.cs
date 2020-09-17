@@ -25,13 +25,11 @@ public class DatasmithRuntime : ModuleRules
 				"CinematicCamera",
 				"Core",
 				"CoreUObject",
-				"DesktopPlatform",
 				"Engine",
 				"FreeImage",
 				"Landscape",
 				"LevelSequence",
 				"MeshDescription",
-				"MessageLog",
 				"MeshUtilitiesCommon",
 				"RawMesh",
 				"RHI",
@@ -40,5 +38,15 @@ public class DatasmithRuntime : ModuleRules
 				"StaticMeshDescription",
 			}
 		);
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"DesktopPlatform",
+					"MessageLog",
+				}
+			);
+		}
 	}
 }
