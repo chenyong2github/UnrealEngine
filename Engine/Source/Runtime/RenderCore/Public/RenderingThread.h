@@ -65,18 +65,6 @@ extern RENDERCORE_API bool IsRenderingThreadHealthy();
 extern RENDERCORE_API void AdvanceRenderingThreadStatsGT( bool bDiscardCallstack, int64 StatsFrame, int32 MasterDisableChangeTagStartFrame );
 
 /**
- * Adds a task that must be completed either before the next scene draw or a flush rendering commands
- * This can be called from any thread though it probably doesn't make sense to call it from the render thread.
- * @param TaskToAdd, task to add as a pending render thread task
- */
-extern RENDERCORE_API void AddFrameRenderPrerequisite(const FGraphEventRef& TaskToAdd);
-
-/**
- * Gather the frame render prerequisites and make sure all render commands are at least queued
- */
-extern RENDERCORE_API void AdvanceFrameRenderPrerequisite();
-
-/**
  * Waits for the rendering thread to finish executing all pending rendering commands.  Should only be used from the game thread.
  */
 extern RENDERCORE_API void FlushRenderingCommands(bool bFlushDeferredDeletes = false);
