@@ -115,7 +115,7 @@ public:
 FORCEINLINE FMaterialParameterInfo::FMaterialParameterInfo(const struct FMemoryImageMaterialParameterInfo& Rhs)
 	: Name(ScriptNameToName(Rhs.Name))
 	, Association(Rhs.Association)
-	, Index(Rhs.Association)
+	, Index(Rhs.Index)
 {
 }
 
