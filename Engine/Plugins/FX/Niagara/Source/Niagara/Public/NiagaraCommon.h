@@ -71,6 +71,8 @@ enum class ENiagaraGpuBufferFormat : uint8
 	HalfFloat,
 	/** 8-bit per channel fixed point, range [0, 1]. */
 	UnsignedNormalizedByte,
+
+	Max UMETA(Hidden),
 };
 
 // TODO: Custom will eventually mean that the default value or binding will be overridden by a subgraph default, i.e. expose it to a "Initialize variable" node. 

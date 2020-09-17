@@ -56,6 +56,22 @@ FNiagaraTypeDefinition GetValueTypeFromFuncName(const FName& FuncName)
 	return FNiagaraTypeDefinition();
 }
 
+static float GNiagaraGrid2DResolutionMultiplier = 1.0f;
+static FAutoConsoleVariableRef CVarNiagaraGrid2DResolutionMultiplier(
+	TEXT("fx.Niagara.Grid2D.ResolutionMultiplier"),
+	GNiagaraGrid2DResolutionMultiplier,
+	TEXT("Optional global modifier to grid resolution\n"),
+	ECVF_Default
+);
+
+static int32 GNiagaraGrid2DOverrideFormat = -1;
+static FAutoConsoleVariableRef CVarNiagaraGrid2DOverrideFormat(
+	TEXT("fx.Niagara.Grid2D.OverrideFormat"),
+	GNiagaraGrid2DOverrideFormat,
+	TEXT("Optional override for all grids to use this format.\n"),
+	ECVF_Default
+);
+
 /*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataInterfaceParametersCS
 {
@@ -1279,6 +1295,18 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	InstanceData->WorldBBoxSize = WorldBBoxSize;
 
 	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
+
+	if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)) )
+	{
+		InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat));
+	}
+
+	if (!FMath::IsNearlyEqual(GNiagaraGrid2DResolutionMultiplier, 1.0f))
+	{
+		InstanceData->NumCells.X = FMath::Max(1, int32(float(InstanceData->NumCells.X) * GNiagaraGrid2DResolutionMultiplier));
+		InstanceData->NumCells.Y = FMath::Max(1, int32(float(InstanceData->NumCells.Y) * GNiagaraGrid2DResolutionMultiplier));
+	}
+
 
 	// If we are setting the grid from the voxel size, then recompute NumVoxels and change bbox	
 	if (SetGridFromMaxAxis)
