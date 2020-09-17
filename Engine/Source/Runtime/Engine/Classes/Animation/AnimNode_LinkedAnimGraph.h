@@ -51,6 +51,9 @@ public:
 	// Our node index
 	int32 NodeIndex;
 
+	// Cached node index for our linked function
+	int32 CachedLinkedNodeIndex;
+
 protected:
 	// Inertial blending duration to request next update
 	float PendingBlendDuration;
