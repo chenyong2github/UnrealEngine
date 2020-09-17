@@ -359,7 +359,7 @@ void CreateExceptionInfoString(EXCEPTION_RECORD* ExceptionRecord)
 		{
 			ErrorString += TEXT("writing address ");
 		}
-		ErrorString += FString::Printf(TEXT("0x%08x"), (uint32)ExceptionRecord->ExceptionInformation[1]);
+		ErrorString += FString::Printf(TEXT("0x%016llx"), ExceptionRecord->ExceptionInformation[1]);
 		break;
 	HANDLE_CASE(EXCEPTION_ARRAY_BOUNDS_EXCEEDED)
 	HANDLE_CASE(EXCEPTION_DATATYPE_MISALIGNMENT)
