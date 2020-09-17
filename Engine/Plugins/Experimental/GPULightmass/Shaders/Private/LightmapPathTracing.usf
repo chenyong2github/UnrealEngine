@@ -270,7 +270,7 @@ void PathTracingKernel(
 		uint CoarseLevelSpacing = IrradianceCachingParameters.Spacing;
 		uint DetailLevelSpacing = IrradianceCachingParameters.Spacing;
 		
-		if (Bounces >= 1 && Payload.HitT >= DetailLevelSpacing && !bShouldAccumulateToCacheRecord)
+		if (Bounces >= 1 && Payload.HitT >= DetailLevelSpacing * IrradianceCachingParameters.CornerRejection && !bShouldAccumulateToCacheRecord)
 		{
 			bool bIrradianceQuerySuccessful = false;
 			bool bGeometryQuerySuccessful = false;

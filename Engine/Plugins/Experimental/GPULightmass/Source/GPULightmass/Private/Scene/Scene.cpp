@@ -25,18 +25,9 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "LightmapDenoising.h"
 #include "Misc/FileHelper.h"
+#include "Components/ReflectionCaptureComponent.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
-
-int32 GGPULightmassDenoiseGIOnCompletion = WITH_INTELOIDN;
-#if WITH_INTELOIDN
-static FAutoConsoleVariableRef CVarGGPULightmassDenoiseOnCompletion(
-	TEXT("r.GPULightmass.DenoiseGIOnCompletion"),
-	GGPULightmassDenoiseGIOnCompletion,
-	TEXT("\n"),
-	ECVF_Default
-);
-#endif
 
 extern RENDERER_API void SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(FVector4* OutSkyIrradianceEnvironmentMap, const FSHVectorRGB3 SkyIrradiance);
 extern ENGINE_API bool GCompressLightmaps;
@@ -48,11 +39,14 @@ namespace GPULightmass
 
 FScene::FScene(FGPULightmass* InGPULightmass)
 	: GPULightmass(InGPULightmass)
+	, Settings(InGPULightmass->Settings)
 	, Geometries(*this)
 {
 	StaticMeshInstances.LinkRenderStateArray(RenderState.StaticMeshInstanceRenderStates);
 	InstanceGroups.LinkRenderStateArray(RenderState.InstanceGroupRenderStates);
 	Landscapes.LinkRenderStateArray(RenderState.LandscapeRenderStates);
+
+	RenderState.Settings = Settings;
 
 	ENQUEUE_RENDER_COMMAND(RenderThreadInit)(
 		[&RenderState = RenderState](FRHICommandListImmediate&) mutable
@@ -67,7 +61,7 @@ void FSceneRenderState::RenderThreadInit()
 
 	LightmapRenderer = MakeUnique<FLightmapRenderer>(this);
 	VolumetricLightmapRenderer = MakeUnique<FVolumetricLightmapRenderer>(this);
-	IrradianceCache = MakeUnique<FIrradianceCache>();
+	IrradianceCache = MakeUnique<FIrradianceCache>(Settings->IrradianceCacheQuality, Settings->IrradianceCacheSpacing, Settings->IrradianceCacheCornerRejection);
 	IrradianceCache->CurrentRevision = LightmapRenderer->GetCurrentRevision();
 }
 
@@ -1682,10 +1676,10 @@ void FScene::BackgroundTick()
 
 	if (GPULightmass->LightBuildNotification.IsValid())
 	{
-		bool bLastFewFramesIdle = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
-		if (bLastFewFramesIdle)
+		bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
+		if (bIsViewportNonRealtime)
 		{
-			if (!GPULightmass->bOnlyBakeWhatYouSee)
+			if (GPULightmass->Settings->Mode == EGPULightmassMode::FullBake)
 			{
 				FText Text = FText::Format(LOCTEXT("LightBuildProgressMessage", "Building lighting{0}:  {1}%"), FText(), FText::AsNumber(Percentage));
 				GPULightmass->LightBuildNotification->SetText(Text);
@@ -1698,7 +1692,7 @@ void FScene::BackgroundTick()
 		}
 		else
 		{
-			if (!GPULightmass->bOnlyBakeWhatYouSee)
+			if (GPULightmass->Settings->Mode == EGPULightmassMode::FullBake)
 			{
 				FText Text = FText::Format(LOCTEXT("LightBuildProgressSlowModeMessage", "Building lighting{0}:  {1}% (slow mode)"), FText(), FText::AsNumber(Percentage));
 				GPULightmass->LightBuildNotification->SetText(Text);
@@ -1712,7 +1706,7 @@ void FScene::BackgroundTick()
 	}
 	GPULightmass->LightBuildPercentage = Percentage;
 
-	if (Percentage < 100 || GPULightmass->bOnlyBakeWhatYouSee)
+	if (Percentage < 100 || GPULightmass->Settings->Mode == EGPULightmassMode::BakeWhatYouSee)
 	{
 		if (bNeedsVoxelization)
 		{
@@ -1744,7 +1738,7 @@ void FSceneRenderState::BackgroundTick()
 
 	if (IrradianceCache->CurrentRevision != LightmapRenderer->GetCurrentRevision())
 	{
-		IrradianceCache = MakeUnique<FIrradianceCache>();
+		IrradianceCache = MakeUnique<FIrradianceCache>(Settings->IrradianceCacheQuality, Settings->IrradianceCacheSpacing, Settings->IrradianceCacheCornerRejection);
 		IrradianceCache->CurrentRevision = LightmapRenderer->GetCurrentRevision();
 	}
 
@@ -1765,10 +1759,10 @@ void FSceneRenderState::BackgroundTick()
 					{
 						FTileVirtualCoordinates VirtualCoordinates(FIntPoint(X, Y), 0);
 
-						TotalSamples += GGPULightmassSamplesPerTexel * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+						TotalSamples += Settings->GISamples * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 						SamplesTaken += (Lightmap.DoesTileHaveValidCPUData(VirtualCoordinates, LightmapRenderer->GetCurrentRevision()) ?
-							GGPULightmassSamplesPerTexel :
-							FMath::Min(Lightmap.RetrieveTileState(VirtualCoordinates).RenderPassIndex, GGPULightmassSamplesPerTexel - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+							Settings->GISamples :
+							FMath::Min(Lightmap.RetrieveTileState(VirtualCoordinates).RenderPassIndex, Settings->GISamples - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 					}
 				}
 			}
@@ -1776,7 +1770,7 @@ void FSceneRenderState::BackgroundTick()
 			{
 				int32 NumCellsPerBrick = 5 * 5 * 5;
 				SamplesTaken += VolumetricLightmapRenderer->SamplesTaken;
-				TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * GGPULightmassSamplesPerTexel;
+				TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * Settings->GISamples;
 			}
 		}
 		else
@@ -1785,11 +1779,11 @@ void FSceneRenderState::BackgroundTick()
 			{
 				for (FLightmapTileRequest& Tile : FrameRequests)
 				{
-					TotalSamples += GGPULightmassSamplesPerTexel * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+					TotalSamples += Settings->GISamples * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 
 					SamplesTaken += (Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, LightmapRenderer->GetCurrentRevision()) ?
-						GGPULightmassSamplesPerTexel :
-						FMath::Min(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex, GGPULightmassSamplesPerTexel - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+						Settings->GISamples :
+						FMath::Min(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex, Settings->GISamples - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 				}
 			}
 		}
@@ -1873,6 +1867,52 @@ void ReadbackVolumetricLightmapDataLayerFromGPU(FRHICommandListImmediate& RHICmd
 
 }
 
+void GatherBuildDataResourcesToKeep(const ULevel* InLevel, ULevel* LightingScenario, TSet<FGuid>& BuildDataResourcesToKeep)
+{
+	// This is only required is using a lighting scenario, otherwise the build data is saved within the level itself and follows it's inclusion in the lighting build.
+	if (InLevel && LightingScenario)
+	{
+		BuildDataResourcesToKeep.Add(InLevel->LevelBuildDataId);
+
+		for (const AActor* Actor : InLevel->Actors)
+		{
+			if (!Actor) // Skip null actors
+			{
+				continue;
+			}
+
+			for (const UActorComponent* Component : Actor->GetComponents())
+			{
+				if (!Component) // Skip null components
+				{
+					continue;
+				}
+
+				const UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
+				if (PrimitiveComponent)
+				{
+					PrimitiveComponent->AddMapBuildDataGUIDs(BuildDataResourcesToKeep);
+					continue;
+				}
+
+				const ULightComponent* LightComponent = Cast<ULightComponent>(Component);
+				if (LightComponent)
+				{
+					BuildDataResourcesToKeep.Add(LightComponent->LightGuid);
+					continue;
+				}
+
+				const UReflectionCaptureComponent* ReflectionCaptureComponent = Cast<UReflectionCaptureComponent>(Component);
+				if (ReflectionCaptureComponent)
+				{
+					BuildDataResourcesToKeep.Add(ReflectionCaptureComponent->MapBuildDataId);
+					continue;
+				}
+			}
+		}
+	}
+}
+
 void FScene::ApplyFinishedLightmapsToWorld()
 {
 	UWorld* World = GPULightmass->World;
@@ -1885,27 +1925,43 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 		FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext; // Implicit FlushRenderingCommands();
 
+		ULevel* LightingScenario = World->GetActiveLightingScenario();
+
 		// Now we can access RT scene & preview lightmap textures directly
+
+		TSet<FGuid> BuildDataResourcesToKeep;
+
 		for (int32 LevelIndex = 0; LevelIndex < World->GetNumLevels(); LevelIndex++)
 		{
-			bool bMarkLevelDirty = false;
 			ULevel* Level = World->GetLevel(LevelIndex);
 
-			// Clear all the atmosphere guids from the MapBuildData when starting a new build.
-			Level->GetOrCreateMapBuildData()->ClearSkyAtmosphereBuildData();
-
-			Level->ReleaseRenderingResources();
-
-			if (Level->MapBuildData)
+			if (Level)
 			{
-				TSet<FGuid> BuildDataResourcesToKeep;
-				Level->MapBuildData->InvalidateStaticLighting(World, false, &BuildDataResourcesToKeep);
+				if (!Level->bIsVisible && !Level->bIsLightingScenario)
+				{
+					// Do not touch invisible, normal levels
+					GatherBuildDataResourcesToKeep(Level, LightingScenario, BuildDataResourcesToKeep);
+				}
 			}
+		}
 
-			if (Level == World->PersistentLevel)
+		for (int32 LevelIndex = 0; LevelIndex < World->GetNumLevels(); LevelIndex++)
+		{
+			ULevel* Level = World->GetLevel(LevelIndex);
+
+			if (Level)
 			{
-				Level->PrecomputedVisibilityHandler.Invalidate(World->Scene);
-				Level->PrecomputedVolumeDistanceField.Invalidate(World->Scene);
+				// Invalidate static lighting for normal visible levels, and the current lighting scenario
+				// Since the current lighting scenario can contain build data for invisible normal levels, use BuildDataResourcesToKeep
+				if (Level->bIsVisible && (!Level->bIsLightingScenario || Level == LightingScenario))
+				{
+					Level->ReleaseRenderingResources();
+
+					if (Level->MapBuildData)
+					{
+						Level->MapBuildData->InvalidateStaticLighting(World, false, &BuildDataResourcesToKeep);
+					}
+				}
 			}
 		}
 
@@ -1914,7 +1970,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			UDirectionalLightComponent* Light = DirectionalLight.ComponentUObject;
 			check(!DirectionalLight.bStationary || Light->PreviewShadowMapChannel != INDEX_NONE);
 
-			ULevel* StorageLevel = Light->GetOwner()->GetLevel();
+			ULevel* StorageLevel = LightingScenario ? LightingScenario : Light->GetOwner()->GetLevel();
 			UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 			FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(Light->LightGuid, true);
 			LightBuildData.ShadowMapChannel = DirectionalLight.bStationary ? Light->PreviewShadowMapChannel : INDEX_NONE;
@@ -1925,7 +1981,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			UPointLightComponent* Light = PointLight.ComponentUObject;
 			check(!PointLight.bStationary || Light->PreviewShadowMapChannel != INDEX_NONE);
 
-			ULevel* StorageLevel = Light->GetOwner()->GetLevel();
+			ULevel* StorageLevel = LightingScenario ? LightingScenario : Light->GetOwner()->GetLevel();
 			UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 			FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(Light->LightGuid, true);
 			LightBuildData.ShadowMapChannel = PointLight.bStationary ? Light->PreviewShadowMapChannel : INDEX_NONE;
@@ -1936,7 +1992,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			USpotLightComponent* Light = SpotLight.ComponentUObject;
 			check(!SpotLight.bStationary || Light->PreviewShadowMapChannel != INDEX_NONE);
 
-			ULevel* StorageLevel = Light->GetOwner()->GetLevel();
+			ULevel* StorageLevel = LightingScenario ? LightingScenario : Light->GetOwner()->GetLevel();
 			UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 			FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(Light->LightGuid, true);
 			LightBuildData.ShadowMapChannel = SpotLight.bStationary ? Light->PreviewShadowMapChannel : INDEX_NONE;
@@ -1947,14 +2003,14 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			URectLightComponent* Light = RectLight.ComponentUObject;
 			check(!RectLight.bStationary || Light->PreviewShadowMapChannel != INDEX_NONE);
 
-			ULevel* StorageLevel = Light->GetOwner()->GetLevel();
+			ULevel* StorageLevel = LightingScenario ? LightingScenario : Light->GetOwner()->GetLevel();
 			UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 			FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(Light->LightGuid, true);
 			LightBuildData.ShadowMapChannel = RectLight.bStationary ? Light->PreviewShadowMapChannel : INDEX_NONE;
 		}
 
 		{
-			ULevel* SubLevelStorageLevel = World->PersistentLevel;
+			ULevel* SubLevelStorageLevel = LightingScenario ? LightingScenario : World->PersistentLevel;
 			UMapBuildDataRegistry* SubLevelRegistry = SubLevelStorageLevel->GetOrCreateMapBuildData();
 			FPrecomputedVolumetricLightmapData& SubLevelData = SubLevelRegistry->AllocateLevelPrecomputedVolumetricLightmapBuildData(World->PersistentLevel->LevelBuildDataId);
 
@@ -2065,7 +2121,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 				{
 					if (StaticMeshInstances.Elements[InstanceIndex].LODLightmaps[LODIndex].IsValid())
 					{
-						if (GGPULightmassDenoiseGIOnCompletion && !RenderState.LightmapRenderer->bDenoiseDuringInteractiveBake)
+						if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
 						{
 							SubSlowTask.EnterProgressFrame(1, LOCTEXT("DenoisingAndTranscodingLightmaps", "Denoising & transcoding lightmaps"));
 						}
@@ -2143,7 +2199,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						}
 #endif
 
-						if (GGPULightmassDenoiseGIOnCompletion && !RenderState.LightmapRenderer->bDenoiseDuringInteractiveBake)
+						if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
 						{
 							DenoiseLightSampleData(Lightmap.GetSize(), LightSampleData, DenoiserContext);
 						}
@@ -2290,7 +2346,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								ELightMapPaddingType PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
 								const bool bHasNonZeroData = QuantizedLightmapData->HasNonZeroData();
 
-								ULevel* StorageLevel = StaticMeshComponent->GetOwner()->GetLevel();
+								ULevel* StorageLevel = LightingScenario ? LightingScenario : StaticMeshComponent->GetOwner()->GetLevel();
 								UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 								FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(ComponentLODInfo.MapBuildDataId, true);
 
@@ -2324,7 +2380,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 				{
 					if (InstanceGroups.Elements[InstanceGroupIndex].LODLightmaps[LODIndex].IsValid())
 					{
-						if (GGPULightmassDenoiseGIOnCompletion && !RenderState.LightmapRenderer->bDenoiseDuringInteractiveBake)
+						if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
 						{
 							SubSlowTask.EnterProgressFrame(1, LOCTEXT("DenoisingAndTranscodingLightmaps", "Denoising & transcoding lightmaps"));
 						}
@@ -2377,7 +2433,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								});
 							}
 
-							if (GGPULightmassDenoiseGIOnCompletion && !RenderState.LightmapRenderer->bDenoiseDuringInteractiveBake)
+							if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
 							{
 								DenoiseLightSampleData(FIntPoint(BaseLightMapWidth, BaseLightMapHeight), LightSampleData, DenoiserContext);
 							}
@@ -2569,7 +2625,6 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							InstanceGroup.ComponentUObject->MarkPackageDirty();
 						}
 
-						ULevel* LightingScenario = nullptr;
 						ULevel* StorageLevel = LightingScenario ? LightingScenario : InstanceGroup.ComponentUObject->GetOwner()->GetLevel();
 						UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 						FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(InstanceGroup.ComponentUObject->LODData[LODIndex].MapBuildDataId, true);
@@ -2597,7 +2652,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 				{
 					if (Landscapes.Elements[LandscapeIndex].LODLightmaps[LODIndex].IsValid())
 					{
-						if (GGPULightmassDenoiseGIOnCompletion && !RenderState.LightmapRenderer->bDenoiseDuringInteractiveBake)
+						if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
 						{
 							SubSlowTask.EnterProgressFrame(1, LOCTEXT("DenoisingAndTranscodingLightmaps", "Denoising & transcoding lightmaps"));
 						}
@@ -2627,7 +2682,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							});
 						}
 
-						if (GGPULightmassDenoiseGIOnCompletion && !RenderState.LightmapRenderer->bDenoiseDuringInteractiveBake)
+						if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
 						{
 							DenoiseLightSampleData(Lightmap.GetSize(), LightSampleData, DenoiserContext);
 						}
@@ -2751,7 +2806,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							ELightMapPaddingType PaddingType = LMPT_NoPadding;
 							const bool bHasNonZeroData = QuantizedLightmapData->HasNonZeroData();
 
-							ULevel* StorageLevel = LandscapeComponent->GetOwner()->GetLevel();
+							ULevel* StorageLevel = LightingScenario ? LightingScenario : LandscapeComponent->GetOwner()->GetLevel();
 							UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 							FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(LandscapeComponent->MapBuildDataId, true);
 
@@ -2789,8 +2844,8 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 		GCompressLightmaps = World->GetWorldSettings()->LightmassSettings.bCompressLightmaps;
 
-		FLightMap2D::EncodeTextures(World, true, true);
-		FShadowMap2D::EncodeTextures(World, nullptr, true, true);
+		FLightMap2D::EncodeTextures(World, LightingScenario, true, true);
+		FShadowMap2D::EncodeTextures(World, LightingScenario, true, true);
 
 		SlowTask.EnterProgressFrame(1, LOCTEXT("ApplyingNewLighting", "Applying new lighting"));
 
@@ -2799,10 +2854,18 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			bool bMarkLevelDirty = false;
 			ULevel* Level = World->GetLevel(LevelIndex);
 
-			// Clear all the atmosphere guids from the MapBuildData when starting a new build.
-			Level->GetOrCreateMapBuildData()->SetupLightmapResourceClusters();
+			if (Level)
+			{
+				if (Level->bIsVisible && (!Level->bIsLightingScenario || Level == LightingScenario))
+				{
+					ULevel* StorageLevel = LightingScenario ? LightingScenario : Level;
+					UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 
-			Level->InitializeRenderingResources();
+					Registry->SetupLightmapResourceClusters();
+
+					Level->InitializeRenderingResources();
+				}
+			}
 		}
 	}
 }
