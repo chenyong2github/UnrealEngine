@@ -692,7 +692,7 @@ void FDataprepEditor::OnBuildWorld()
 		return;
 	}
 
-	if (!ensureAlways(PreviewWorld) && !ensureAlways(PreviewWorld->IsValidLowLevel()))
+	if (!ensureAlways(PreviewWorld) || !ensureAlways(PreviewWorld->IsValidLowLevel()))
 	{
 		return;
 	}
