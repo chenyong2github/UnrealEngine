@@ -1516,9 +1516,9 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		const parsedLines = parseDescriptionLines(
 			descLines,
 			this.branch.isDefaultBot,
-			(this.branchGraph.config.alias || '').toUpperCase(),
-			change.change,
 			this.graphBotName,
+			change.change,
+			(this.branchGraph.config.alias || '').toUpperCase(),
 			this.branchGraph.config.macros,
 			this.nodeBotLogger
 		)
