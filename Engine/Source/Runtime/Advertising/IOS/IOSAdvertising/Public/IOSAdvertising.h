@@ -8,10 +8,6 @@
 class FIOSAdvertisingProvider : public IAdvertisingProvider
 {
 public:
-	virtual void ShowAdBanner( bool bShowOnBottomOfScreen, int32 AdID ) override;
-	virtual void HideAdBanner() override;
-	virtual void CloseAdBanner() override;
-	virtual int32 GetAdIDCount() override;
 
 	//empty functions for now, this is Android-only support until iAd is replaced by AdMob
 	virtual void LoadInterstitialAd(int32 adID) override {}
