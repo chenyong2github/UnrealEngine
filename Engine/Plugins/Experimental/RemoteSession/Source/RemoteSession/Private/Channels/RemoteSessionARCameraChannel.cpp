@@ -416,7 +416,7 @@ void FRemoteSessionARCameraChannel::QueueARCameraImage()
 		return;
 	}
 
-	UARTextureCameraImage* CameraImage = UARBlueprintLibrary::GetCameraImage();
+	UARTexture* CameraImage = UARBlueprintLibrary::GetARTexture(EARTextureType::CameraImage);
 	if (CameraImage != nullptr)
     {
 		CompressionTask = MakeShareable(new FCompressionTask());
