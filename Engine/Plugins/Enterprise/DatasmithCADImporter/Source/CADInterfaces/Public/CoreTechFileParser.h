@@ -99,6 +99,7 @@ private:
 	bool ReadBody(CT_OBJECT_ID NodeId, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, bool bNeedRepair);
 
 	bool FindFile(FFileDescription& FileDescription);
+	uint32 GetFileHash();
 
 	void LoadSceneGraphArchive(const FString& SceneGraphFilePath);
 
@@ -113,7 +114,7 @@ private:
 	void ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FString>& OutMetaData);
 	void GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName, FString& OutMetaDataValue);
 
-	CT_FLAGS SetCoreTechImportOption(const FString& MainFileExt);
+	CT_FLAGS SetCoreTechImportOption();
 	void GetAttributeValue(CT_ATTRIB_TYPE attrib_type, int ith_field, FString& value);
 
 	void ExportSceneGraphFile();
@@ -123,6 +124,7 @@ protected:
 	FString CachePath;
 
 	CADLibrary::FFileDescription FileDescription;
+	int64 FileSize;
 
 	FArchiveSceneGraph SceneGraphArchive;
 	TArray<FString> WarningMessages;
