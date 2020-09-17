@@ -355,7 +355,6 @@ void FClothingSimulation::GetSimulationData(
 
 		if (Cloth->GetLODIndex(Solver.Get()) == INDEX_NONE || Cloth->GetOffset(Solver.Get()) == INDEX_NONE)
 		{
-			Data.Reset();
 			continue;
 		}
 
