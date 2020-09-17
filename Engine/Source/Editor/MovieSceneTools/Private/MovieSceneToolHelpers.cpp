@@ -1632,12 +1632,21 @@ static bool ImportFBXTransformToChannels(FString NodeName, FFrameNumber StartFra
 			EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2]);
 	}
 
-	if (Channels.Num() == 1)
+	if (IntegerChannels.Num() == 1)
 	{
 		FControlRigChannelEnum Channel = FControlRigChannelEnum::Integer;
 		SetChannelValue(nullptr,nullptr, nullptr, IntegerChannels[0], FrameRate, StartFrame,
 			Channel,  ImportFBXControlRigSettings,DefaultTransform,
 			Translation[0], Translation[1], Translation[2], EulerRotation[0], 
+			EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2]);
+	}
+
+	if (Channels.Num() == 1)
+	{
+		FControlRigChannelEnum Channel = FControlRigChannelEnum::Float;
+		SetChannelValue(Channels[0], nullptr, nullptr, nullptr, FrameRate, StartFrame,
+			Channel, ImportFBXControlRigSettings, DefaultTransform,
+			Translation[0], Translation[1], Translation[2], EulerRotation[0],
 			EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2]);
 	}
 	else if (Channels.Num() == 2)
@@ -2006,7 +2015,7 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(UMovieScene* MovieSc
 	ImportOptions->bConvertScene = true;
 	ImportOptions->bConvertSceneUnit = true;
 	ImportOptions->bForceFrontXAxis = ImportFBXControlRigSettings->bForceFrontXAxis;
-	ImportOptions->AnimationLengthImportType = FBXALIT_AnimatedKey;
+	ImportOptions->AnimationLengthImportType = FBXALIT_ExportedTime;
 
 	const FString FileExtension = FPaths::GetExtension(ImportFilename);
 	if (!FbxImporter->ImportFromFile(*ImportFilename, FileExtension, true))
@@ -2172,7 +2181,7 @@ bool MovieSceneToolHelpers::ImportFBXIntoChannelsWithDialog(const TSharedRef<ISe
 	UnFbx::FBXImportOptions* ImportOptions = FbxImporter->GetImportOptions();
 
 	EFBXAnimationLengthImportType AnimLengthType = ImportOptions->AnimationLengthImportType;
-	ImportOptions->AnimationLengthImportType = FBXALIT_AnimatedKey;
+	ImportOptions->AnimationLengthImportType = FBXALIT_ExportedTime;
 	const FString FileExtension = FPaths::GetExtension(OpenFilenames[0]);
 	if (!FbxImporter->ImportFromFile(*OpenFilenames[0], FileExtension, true))
 	{
