@@ -215,7 +215,7 @@ void SModulationPatchEditorViewStacked::DrawLabels(const FGeometry& AllottedGeom
 	const double ValuePerPixel = 1.0 / StackedHeight;
 	const double ValueSpacePadding = StackedPadding * ValuePerPixel;
 
-	const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("FontAwesome.11");
+	const FSlateFontInfo FontInfo = FEditorStyle::GetFontStyle("CurveEd.LabelFont");
 	const FVector2D LocalSize = AllottedGeometry.GetLocalSize();
 	const FCurveEditorScreenSpace ViewSpace = GetViewSpace();
 
@@ -383,7 +383,7 @@ void SModulationPatchEditorViewStacked::DrawViewGridLineX(FSlateWindowElementLis
 	const double PixelTop = DrawInfo.GetPixelTop();
 
 	const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont");
+	const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("CurveEd.InfoFont");
 
 	FLinearColor Color = bIsMajor ? DrawInfo.GetMajorGridColor() : DrawInfo.GetMinorGridColor();
 
@@ -444,7 +444,7 @@ void SModulationPatchEditorViewStacked::DrawViewGridLineY(const float VerticalLi
 
 		if (Label)
 		{
-			const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont");
+			const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("CurveEd.InfoFont");
 
 			const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 			const FVector2D LabelSize = FontMeasure->Measure(*Label, FontInfo);
