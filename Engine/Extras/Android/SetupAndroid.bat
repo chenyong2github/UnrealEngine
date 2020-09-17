@@ -2,11 +2,11 @@
 setlocal ENABLEEXTENSIONS
 set KEY_NAME=HKLM\SOFTWARE\Android Studio
 set VALUE_NAME=Path
-set STUDIO_PATH=""
+set STUDIO_PATH=
 
-FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set STUDIO_PATH="%%B")
+FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set STUDIO_PATH=%%B)
 
-if %STUDIO_PATH% == "" (
+if "%STUDIO_PATH%" == "" (
 	echo Android Studio not installed, please download Android Studio 3.5.3 from https://developer.android.com/studio
 	pause
 	exit /b 1
@@ -14,12 +14,12 @@ if %STUDIO_PATH% == "" (
 echo Android Studio Path: %STUDIO_PATH%
 
 set VALUE_NAME=SdkPath
-set STUDIO_SDK_PATH=""
-FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set STUDIO_SDK_PATH="%%B")
+set STUDIO_SDK_PATH=
+FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set STUDIO_SDK_PATH=%%B)
 
 set ANDROID_LOCAL=%LOCALAPPDATA%\Android\Sdk
 
-if %STUDIO_SDK_PATH% == "" (
+if "%STUDIO_SDK_PATH%" == "" (
 	IF EXIST "%ANDROID_LOCAL%" (
 		set STUDIO_SDK_PATH=%ANDROID_LOCAL%
 	) ELSE (
@@ -36,20 +36,20 @@ echo Android Studio SDK Path: %STUDIO_SDK_PATH%
 
 if DEFINED ANDROID_HOME (set a=1) ELSE (
 	set ANDROID_HOME=%STUDIO_SDK_PATH%
-	setx ANDROID_HOME %STUDIO_SDK_PATH%
+	setx ANDROID_HOME "%STUDIO_SDK_PATH%"
 )
 if DEFINED JAVA_HOME (set a=1) ELSE (
 	set JAVA_HOME=%STUDIO_PATH%\jre
-	setx JAVA_HOME %STUDIO_PATH%\jre
+	setx JAVA_HOME "%STUDIO_PATH%\jre"
 )
 set NDKINSTALLPATH=%STUDIO_SDK_PATH%\ndk\21.1.6352462
 set PLATFORMTOOLS=%STUDIO_SDK_PATH%\platform-tools;%STUDIO_SDK_PATH%\tools
 
 set KEY_NAME=HKCU\Environment
 set VALUE_NAME=Path
-set USERPATH=""
+set USERPATH=
 
-FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set USERPATH="%%B")
+FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set USERPATH=%%B)
 
 where.exe /Q adb.exe
 IF /I "%ERRORLEVEL%" NEQ "0" (
@@ -80,10 +80,10 @@ IF /I "%ERRORLEVEL%" NEQ "0" (
 	exit /b 1
 )
 
-if EXIST %NDKINSTALLPATH% (
+if EXIST "%NDKINSTALLPATH%" (
 	echo Success!
-	setx NDKROOT %NDKINSTALLPATH%
-	setx NDK_ROOT %NDKINSTALLPATH%
+	setx NDKROOT "%NDKINSTALLPATH%"
+	setx NDK_ROOT "%NDKINSTALLPATH%"
 ) ELSE (
 	echo Update failed. Did you accept the license agreement?
 	pause
