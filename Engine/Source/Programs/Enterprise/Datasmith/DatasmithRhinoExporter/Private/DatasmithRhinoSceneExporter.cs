@@ -4,14 +4,18 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 
 namespace DatasmithRhino
 {
+	// Exception thrown when the user cancels.
+	public class DatasmithExportCancelledException : Exception
+	{
+	}
+
 	public static class DatasmithRhinoSceneExporter
 	{
-		public static bool Export(string Filename, RhinoDoc RhinoDocument, Rhino.FileIO.FileWriteOptions Options)
+		public static Rhino.PlugIns.WriteFileResult Export(string Filename, RhinoDoc RhinoDocument, Rhino.FileIO.FileWriteOptions Options)
 		{
 			string RhinoAppName = Rhino.RhinoApp.Name;
 			string RhinoVersion = Rhino.RhinoApp.ExeVersion.ToString();
@@ -22,6 +26,9 @@ namespace DatasmithRhino
 
 			try
 			{
+				RhinoApp.WriteLine(string.Format("Exporting to {0}.", System.IO.Path.GetFileName(Filename)));
+				RhinoApp.WriteLine("Press Esc key to cancel...");
+
 				FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
 				DatasmithRhinoSceneParser SceneParser = new DatasmithRhinoSceneParser(RhinoDocument, Options);
 				SceneParser.ParseDocument();
@@ -34,16 +41,20 @@ namespace DatasmithRhino
 					DatasmithScene.ExportScene(Filename);
 				}
 			}
+			catch (DatasmithExportCancelledException)
+			{
+				return Rhino.PlugIns.WriteFileResult.Cancel;
+			}
 			catch (Exception)
 			{
-				return false;
+				return Rhino.PlugIns.WriteFileResult.Failure;
 			}
 			finally
 			{
 				FDatasmithRhinoProgressManager.Instance.StopProgress();
 			}
 
-			return true;
+			return Rhino.PlugIns.WriteFileResult.Success;
 		}
 
 		public static Rhino.Commands.Result ExportScene(DatasmithRhinoSceneParser SceneParser, FDatasmithFacadeScene DatasmithScene)
