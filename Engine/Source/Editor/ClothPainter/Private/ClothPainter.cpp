@@ -277,8 +277,8 @@ void FClothPainter::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 					Asset->ApplyParameterMasks();
 				}
 			}
-		
-			SkeletalMeshComponent->RebuildClothingSectionsFixedVerts();
+			static const bool bInvalidateDerivedDataCache = false;  // No need to rebuild the DDC while previewing
+			SkeletalMeshComponent->RebuildClothingSectionsFixedVerts(bInvalidateDerivedDataCache);
 		}
 
 		FComponentReregisterContext ReregisterContext(SkeletalMeshComponent);
