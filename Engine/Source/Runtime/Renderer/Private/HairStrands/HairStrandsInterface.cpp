@@ -115,21 +115,21 @@ void FHairGroupPublicData::ReleaseRHI()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void TransitBufferToReadable(FRHICommandListImmediate& RHICmdList, FBufferTransitionQueue& BuffersToTransit)
+void TransitBufferToReadable(FRDGBuilder& GraphBuilder, FBufferTransitionQueue& BuffersToTransit)
 {
 	if (BuffersToTransit.Num())
 	{
-		FMemMark Mark(FMemStack::Get());
-		TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
-		Transitions.Reserve(BuffersToTransit.Num());
-		for (FRHIUnorderedAccessView* UAV : BuffersToTransit)
+		AddPass(GraphBuilder, [LocalBuffersToTransit = MoveTemp(BuffersToTransit)](FRHICommandList& RHICmdList)
 		{
-			// TODO: do we know the source state here?
-			Transitions.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-		}
-		RHICmdList.Transition(Transitions);
-		BuffersToTransit.SetNum(0, false);
+			FMemMark Mark(FMemStack::Get());
+			TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
+			Transitions.Reserve(LocalBuffersToTransit.Num());
+			for (FRHIUnorderedAccessView* UAV : LocalBuffersToTransit)
+			{
+				Transitions.Add(FRHITransitionInfo(UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+			}
+			RHICmdList.Transition(Transitions);
+		});
 	}
 }
 
@@ -150,11 +150,11 @@ void RegisterBookmarkFunction(THairStrandsBookmarkFunction Bookmark, THairStrand
 	}
 }
 
-void RunHairStrandsBookmark(FRHICommandListImmediate& RHICmdList, EHairStrandsBookmark Bookmark, FHairStrandsBookmarkParameters& Parameters)
+void RunHairStrandsBookmark(FRDGBuilder& GraphBuilder, EHairStrandsBookmark Bookmark, FHairStrandsBookmarkParameters& Parameters)
 {
 	if (GHairStrandsBookmarkFunction)
 	{
-		GHairStrandsBookmarkFunction(RHICmdList, Bookmark, Parameters);
+		GHairStrandsBookmarkFunction(GraphBuilder, Bookmark, Parameters);
 	}
 }
 

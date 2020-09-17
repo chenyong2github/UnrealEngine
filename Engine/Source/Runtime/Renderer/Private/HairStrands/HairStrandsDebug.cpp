@@ -297,40 +297,31 @@ static void AddDebugHairPrintPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FShaderResourceViewRHIRef& InDepthStencilTexture)
 {
-	const TRefCountPtr<IPooledRenderTarget>& InViewHairCountTexture = VisibilityData.ViewHairCountTexture;
-	const TRefCountPtr<IPooledRenderTarget>& InCategorizationTexture = VisibilityData.CategorizationTexture;
-	const TRefCountPtr<IPooledRenderTarget>& InNodeIndex = VisibilityData.NodeIndex;
-	const TRefCountPtr<FRDGPooledBuffer>& InNodeData = VisibilityData.NodeData;
-	
-	if (!InCategorizationTexture || !InNodeIndex || !InNodeData || !InDepthStencilTexture) return;
+	if (!VisibilityData.CategorizationTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData || !InDepthStencilTexture) return;
 
-	FRDGTextureRef ViewHairCountTexture = InViewHairCountTexture ? GraphBuilder.RegisterExternalTexture(InViewHairCountTexture, TEXT("ViewHairCountTexture")) : GSystemTextures.GetBlackDummy(GraphBuilder);
-	FRDGTextureRef ViewHairCountUintTexture = VisibilityData.ViewHairCountUintTexture ? GraphBuilder.RegisterExternalTexture(VisibilityData.ViewHairCountUintTexture, TEXT("ViewHairCountUintTexture")) : GSystemTextures.GetBlackDummy(GraphBuilder);
-	FRDGTextureRef CategorizationTexture = InCategorizationTexture ? GraphBuilder.RegisterExternalTexture(InCategorizationTexture, TEXT("CategorizationTexture")) : nullptr;
-	FRDGTextureRef NodeIndex = InNodeIndex ? GraphBuilder.RegisterExternalTexture(InNodeIndex, TEXT("NodeIndex")) : nullptr;
-	FRDGBufferRef  NodeData  = InNodeData ? GraphBuilder.RegisterExternalBuffer(InNodeData, TEXT("NodeData")) : nullptr;
-	FRDGBufferRef  HairMacroGroupAABBBuffer = GraphBuilder.RegisterExternalBuffer(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer, TEXT("MacroGroupData"));
+	FRDGTextureRef ViewHairCountTexture = VisibilityData.ViewHairCountTexture ? VisibilityData.ViewHairCountTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
+	FRDGTextureRef ViewHairCountUintTexture = VisibilityData.ViewHairCountUintTexture ? VisibilityData.ViewHairCountUintTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
 
 	const FIntRect Viewport = View->ViewRect;
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
 
 	FHairDebugPrintCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintCS::FParameters>();
 	Parameters->GroupSize = GetVendorOptimalGroupSize2D();
-	Parameters->MaxResolution = CategorizationTexture ? CategorizationTexture->Desc.Extent : FIntPoint(0,0);
+	Parameters->MaxResolution = VisibilityData.CategorizationTexture ? VisibilityData.CategorizationTexture->Desc.Extent : FIntPoint(0,0);
 	Parameters->PixelCoord = View->CursorPos;
 	Parameters->FastResolveMask = STENCIL_TEMPORAL_RESPONSIVE_AA_MASK;
-	Parameters->CategorizationTexture = CategorizationTexture;
+	Parameters->CategorizationTexture = VisibilityData.CategorizationTexture;
 	Parameters->HairCountTexture = ViewHairCountTexture;
 	Parameters->HairCountUintTexture = ViewHairCountUintTexture;
-	Parameters->HairVisibilityNodeData = GraphBuilder.CreateSRV(NodeData);
-	Parameters->HairVisibilityNodeOffsetAndCount = NodeIndex;
-	Parameters->HairVisibilityIndirectArgsBuffer = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VisibilityData.NodeIndirectArg), PF_R32_UINT);
+	Parameters->HairVisibilityNodeData = GraphBuilder.CreateSRV(VisibilityData.NodeData);
+	Parameters->HairVisibilityNodeOffsetAndCount = VisibilityData.NodeIndex;
+	Parameters->HairVisibilityIndirectArgsBuffer = GraphBuilder.CreateSRV(VisibilityData.NodeIndirectArg, PF_R32_UINT);
 	Parameters->HairVisibilityNodeGroupSize = VisibilityData.NodeGroupSize;
 	Parameters->DepthStencilTexture = InDepthStencilTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->HairMacroGroupCount = MacroGroupDatas.Datas.Num();
 	Parameters->MaxSampleCount = VisibilityData.MaxSampleCount;
-	Parameters->HairMacroGroupAABBBuffer = GraphBuilder.CreateSRV(HairMacroGroupAABBBuffer, PF_R32_SINT);
+	Parameters->HairMacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 	ShaderPrint::SetParameters(*View, Parameters->ShaderPrintUniformBuffer);
 	ShaderDrawDebug::SetParameters(GraphBuilder, View->ShaderDrawData, Parameters->ShaderDrawUniformBuffer);
 	TShaderMapRef<FHairDebugPrintCS> ComputeShader(View->ShaderMap);
@@ -396,21 +387,12 @@ static void AddDebugHairPass(
 		InDebugMode == EHairDebugMode::MaterialTangent ||
 		InDebugMode == EHairDebugMode::Tile);
 
-	const TRefCountPtr<IPooledRenderTarget>& InCategorizationTexture = VisibilityData.CategorizationTexture;
-	const TRefCountPtr<IPooledRenderTarget>& InNodeIndex = VisibilityData.NodeIndex;
-	const TRefCountPtr<FRDGPooledBuffer>& InNodeData = VisibilityData.NodeData;
-	const TRefCountPtr<IPooledRenderTarget>& InTileIndexTexture = VisibilityData.TileIndexTexture;
-
-	if (!InCategorizationTexture || !InNodeIndex || !InNodeData || !InTileIndexTexture) return;
+	if (!VisibilityData.CategorizationTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData || !VisibilityData.TileIndexTexture) return;
 	if (InDebugMode == EHairDebugMode::TAAResolveType && !InDepthStencilTexture) return;
 
-	FRDGTextureRef CategorizationTexture = InCategorizationTexture ? GraphBuilder.RegisterExternalTexture(InCategorizationTexture, TEXT("CategorizationTexture")) : nullptr;
-	FRDGTextureRef NodeIndex = InNodeIndex ? GraphBuilder.RegisterExternalTexture(InNodeIndex, TEXT("NodeIndex")) : nullptr;
-	FRDGBufferRef  NodeData = InNodeData ? GraphBuilder.RegisterExternalBuffer(InNodeData, TEXT("NodeData")) : nullptr;
-	FRDGTextureRef TileIndexTexture = InTileIndexTexture ? GraphBuilder.RegisterExternalTexture(InTileIndexTexture, TEXT("TileIndexTexture")) : nullptr;
+	FRDGTextureRef HairCountTexture = VisibilityData.ViewHairCountTexture ? VisibilityData.ViewHairCountTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
+	FRDGTextureRef HairCountUintTexture = VisibilityData.ViewHairCountUintTexture ? VisibilityData.ViewHairCountUintTexture : GSystemTextures.GetBlackDummy(GraphBuilder); 
 
-	FRDGTextureRef HairCountTexture = VisibilityData.ViewHairCountTexture ? GraphBuilder.RegisterExternalTexture(VisibilityData.ViewHairCountTexture, TEXT("HairCount")) : GSystemTextures.GetBlackDummy(GraphBuilder);
-	FRDGTextureRef HairCountUintTexture = VisibilityData.ViewHairCountUintTexture ? GraphBuilder.RegisterExternalTexture(VisibilityData.ViewHairCountUintTexture, TEXT("HairCountUint")) : GSystemTextures.GetBlackDummy(GraphBuilder); 
 	const FIntRect Viewport = View->ViewRect;
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
 
@@ -433,12 +415,12 @@ static void AddDebugHairPass(
 	Parameters->ViewUniformBuffer = View->ViewUniformBuffer;
 	Parameters->OutputResolution = Resolution;
 	Parameters->FastResolveMask = STENCIL_TEMPORAL_RESPONSIVE_AA_MASK;
-	Parameters->CategorizationTexture = CategorizationTexture;
+	Parameters->CategorizationTexture = VisibilityData.CategorizationTexture;
 	Parameters->HairCountTexture = HairCountTexture;
 	Parameters->HairCountUintTexture = HairCountUintTexture;
-	Parameters->NodeIndex = NodeIndex;
-	Parameters->NodeData = GraphBuilder.CreateSRV(NodeData);
-	Parameters->TileIndexTexture = TileIndexTexture;
+	Parameters->NodeIndex = VisibilityData.NodeIndex;
+	Parameters->NodeData = GraphBuilder.CreateSRV(VisibilityData.NodeData);
+	Parameters->TileIndexTexture = VisibilityData.TileIndexTexture;
 	Parameters->TileSize = VisibilityData.TileSize;
 	Parameters->DepthStencilTexture = InDepthStencilTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -533,17 +515,12 @@ static void AddDebugDeepShadowTexturePass(
 {
 	check(OutTarget);
 
-	FRDGTextureRef DeepShadowDepthTexture = nullptr;
-	FRDGTextureRef DeepShadowLayerTexture = nullptr;
 	FIntPoint AtlasResolution(0, 0);
 	FVector2D AltasOffset(0, 0);
 	FVector2D AltasScale(0, 0);
 	if (ShadowData)
 	{
-		DeepShadowDepthTexture = GraphBuilder.RegisterExternalTexture(Resources->DepthAtlasTexture, TEXT("DOMDepthTexture"));
-		DeepShadowLayerTexture = GraphBuilder.RegisterExternalTexture(Resources->LayersAtlasTexture, TEXT("DOMLayerTexture"));
-
-		AtlasResolution = FIntPoint(DeepShadowDepthTexture->Desc.Extent.X, DeepShadowDepthTexture->Desc.Extent.Y);
+		AtlasResolution = FIntPoint(Resources->DepthAtlasTexture->Desc.Extent.X, Resources->DepthAtlasTexture->Desc.Extent.Y);
 		AltasOffset = FVector2D(ShadowData->AtlasRect.Min.X / float(AtlasResolution.X), ShadowData->AtlasRect.Min.Y / float(AtlasResolution.Y));
 		AltasScale = FVector2D((ShadowData->AtlasRect.Max.X - ShadowData->AtlasRect.Min.X) / float(AtlasResolution.X), (ShadowData->AtlasRect.Max.Y - ShadowData->AtlasRect.Min.Y) / float(AtlasResolution.Y));
 	}
@@ -557,8 +534,8 @@ static void AddDebugDeepShadowTexturePass(
 	Parameters->DomAtlasScale = AltasScale;
 	Parameters->OutputResolution = Resolution;
 	Parameters->InvOutputResolution = FVector2D(1.f / Resolution.X, 1.f / Resolution.Y);
-	Parameters->DeepShadowDepthTexture = DeepShadowDepthTexture;
-	Parameters->DeepShadowLayerTexture = DeepShadowLayerTexture;
+	Parameters->DeepShadowDepthTexture = Resources->DepthAtlasTexture;
+	Parameters->DeepShadowLayerTexture = Resources->LayersAtlasTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->HairViewRect = FIntVector4(HairViewRect.Min.X, HairViewRect.Min.Y, HairViewRect.Width(), HairViewRect.Height());
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutTarget, ERenderTargetLoadAction::ELoad, 0);
@@ -646,9 +623,6 @@ static void AddDeepShadowInfoPass(
 
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
-	FRDGBufferRef MacroGroupAABBsBuffer = GraphBuilder.RegisterExternalBuffer(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer);
-	FRDGBufferRef DeepShadowWorldToLightTransforms = GraphBuilder.RegisterExternalBuffer(MacroGroupDatas.DeepShadowResources.DeepShadowWorldToLightTransforms);
-
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	FDeepShadowInfoCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDeepShadowInfoCS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
@@ -656,8 +630,8 @@ static void AddDeepShadowInfoPass(
 	Parameters->AllocatedSlotCount = MacroGroupDatas.DeepShadowResources.TotalAtlasSlotCount;
 	Parameters->MacroGroupCount = MacroGroupDatas.MacroGroupResources.MacroGroupCount;
 	Parameters->SceneTextures = SceneTextures;
-	Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupAABBsBuffer, PF_R32_SINT);
-	Parameters->ShadowWorldToLightTransformBuffer = GraphBuilder.CreateSRV(DeepShadowWorldToLightTransforms);
+	Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
+	Parameters->ShadowWorldToLightTransformBuffer = GraphBuilder.CreateSRV(MacroGroupDatas.DeepShadowResources.DeepShadowWorldToLightTransforms);
 	ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
 	ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
 	Parameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
@@ -686,7 +660,7 @@ class FVoxelVirtualRaymarchingCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, MacroGroupCount)
 		SHADER_PARAMETER(uint32, MaxTotalPageIndexCount)
-		SHADER_PARAMETER_STRUCT_REF(FVirtualVoxelParameters, VirtualVoxel)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TotalValidPageCounter)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture)
@@ -716,10 +690,6 @@ static void AddVoxelPageRaymarchingPass(
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
 	{
-		const FRDGBufferRef PageIndexBuffer	= GraphBuilder.RegisterExternalBuffer(VoxelResources.PageIndexBuffer, TEXT("HairVoxelPageIndexBuffer"));
-		const FRDGTextureRef PageTexture = GraphBuilder.RegisterExternalTexture(VoxelResources.PageTexture, TEXT("HairVoxelPageTexture"));
-		const FRDGBufferRef PageIndexGlobalCounter = GraphBuilder.RegisterExternalBuffer(VoxelResources.PageIndexGlobalCounter, TEXT("HairVoxelValidPageCountBuffer"));
-
 		FVoxelVirtualRaymarchingCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelVirtualRaymarchingCS::FParameters>();
 		Parameters->ViewUniformBuffer		= View.ViewUniformBuffer;
 		Parameters->OutputResolution		= Resolution;
@@ -729,7 +699,7 @@ static void AddVoxelPageRaymarchingPass(
 		Parameters->MacroGroupCount			= MacroGroupDatas.Datas.Num();
 		Parameters->MaxTotalPageIndexCount  = VoxelResources.Parameters.Common.PageIndexCount;
 		Parameters->VirtualVoxel			= VoxelResources.UniformBuffer;
-		Parameters->TotalValidPageCounter	= GraphBuilder.CreateSRV(PageIndexGlobalCounter, PF_R32_UINT);
+		Parameters->TotalValidPageCounter	= GraphBuilder.CreateSRV(VoxelResources.PageIndexGlobalCounter, PF_R32_UINT);
 		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
 		ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
 		Parameters->OutputTexture			= GraphBuilder.CreateUAV(OutputTexture);
@@ -877,7 +847,7 @@ static void AddPlotSamplePass(
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	FHairStrandsPlotSamplePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPlotSamplePS::FParameters>();
 	
-	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder.RHICmdList, View);
+	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
 
 	FHairStrandsDebugData::SetParameters(GraphBuilder, DebugData, Parameters->DebugData);
 	Parameters->OutputOffset = FIntPoint(100, 100);
@@ -885,7 +855,7 @@ static void AddPlotSamplePass(
 	Parameters->MaxResolution = OutputTexture->Desc.Extent;
 	Parameters->HairComponents = ToBitfield(GetHairComponents());
 	Parameters->Exposure = GHairStrandsDebugPlotBsdfExposure;
-	Parameters->HairScatteringLUTTexture = GraphBuilder.RegisterExternalTexture(InHairLUT.Textures[HairLUTType_DualScattering], TEXT("HairScatteringEnergyLUTTexture"));
+	Parameters->HairScatteringLUTTexture = InHairLUT.Textures[HairLUTType_DualScattering];
 	Parameters->HairLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
 
@@ -1128,7 +1098,7 @@ void RenderHairStrandsDebugInfo(
 	{
 		FHairStrandsBookmarkParameters Params = CreateHairStrandsBookmarkParameters(Views[0]);
 		Params.SceneColorTexture = SceneTargets.GetSceneColor();
-		RunHairStrandsBookmark(GraphBuilder.RHICmdList, EHairStrandsBookmark::ProcessDebug, Params);
+		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessDebug, Params);
 	}
 
 	const FScreenPassRenderTarget SceneColor(SceneColorTexture, View.ViewRect, ERenderTargetLoadAction::ELoad);
@@ -1205,10 +1175,7 @@ void RenderHairStrandsDebugInfo(
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
 			for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas.Datas)
 			{
-				TRefCountPtr<IPooledRenderTarget> DepthTexture = MacroGroupDatas.DeepShadowResources.DepthAtlasTexture;
-				TRefCountPtr<IPooledRenderTarget> LayerTexture = MacroGroupDatas.DeepShadowResources.LayersAtlasTexture;
-
-				if (!DepthTexture || !LayerTexture)
+				if (!MacroGroupDatas.DeepShadowResources.DepthAtlasTexture || !MacroGroupDatas.DeepShadowResources.LayersAtlasTexture)
 				{
 					continue;
 				}
@@ -1350,17 +1317,13 @@ void RenderHairStrandsDebugInfo(
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 		if (GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debug view is enabled.
 		{
-			FRDGTextureRef PPLLNodeCounterTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.PPLLNodeCounterTexture, TEXT("PPLLNodeCounterTexture"));
-			FRDGTextureRef PPLLNodeIndexTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.PPLLNodeIndexTexture, TEXT("PPLLNodeIndexTexture"));
-			FRDGBufferRef  PPLLNodeDataBuffer = GraphBuilder.RegisterExternalBuffer(VisibilityData.PPLLNodeDataBuffer, TEXT("PPLLNodeDataBuffer"));
-
-			const FIntPoint PPLLResolution = VisibilityData.PPLLNodeIndexTexture->GetDesc().Extent;
+			const FIntPoint PPLLResolution = VisibilityData.PPLLNodeIndexTexture->Desc.Extent;
 			FHairVisibilityDebugPPLLCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLCS::FParameters>();
 			PassParameters->PPLLMeanListElementCountPerPixel = float(VisibilityData.MaxSampleCount);
 			PassParameters->PPLLMaxTotalListElementCount = float(VisibilityData.MaxSampleCount * PPLLResolution.X * PPLLResolution.Y);
-			PassParameters->PPLLCounter = PPLLNodeCounterTexture;
-			PassParameters->PPLLNodeIndex = PPLLNodeIndexTexture;
-			PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(PPLLNodeDataBuffer));
+			PassParameters->PPLLCounter = VisibilityData.PPLLNodeCounterTexture;
+			PassParameters->PPLLNodeIndex = VisibilityData.PPLLNodeIndexTexture;
+			PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(VisibilityData.PPLLNodeDataBuffer));
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->SceneColorTextureUAV = GraphBuilder.CreateUAV(SceneColorTexture);
 			ShaderPrint::SetParameters(View, PassParameters->ShaderPrintParameters);
@@ -1391,7 +1354,7 @@ void RenderHairStrandsDebugInfo(
 			if (ViewIndex < uint32(InMacroGroupViews.Views.Num()))
 			{
 				const FDeepShadowResources& Resources = InMacroGroupViews.Views[ViewIndex].DeepShadowResources;
-				AtlasResolution = Resources.DepthAtlasTexture ? Resources.DepthAtlasTexture->GetRenderTargetItem().TargetableTexture->GetTexture2D()->GetSizeXY() : FIntPoint(0, 0);
+				AtlasResolution = Resources.DepthAtlasTexture ? Resources.DepthAtlasTexture->Desc.Extent : FIntPoint(0, 0);
 				AtlasAllocatedSlot = Resources.TotalAtlasSlotCount;
 				bIsGPUDriven = Resources.bIsGPUDriven;
 			}

@@ -162,7 +162,7 @@ static void RasterToTexture(int32 Resolution, int32 KernelExtent, uint32 Channel
 
 // GPU raster
 static void InternalGenerateFollicleTexture_GPU(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	bool bCopyDataBackToCPU,
 	EPixelFormat Format,
 	uint32 InKernelSizeInPixels,
@@ -190,7 +190,6 @@ static void InternalGenerateFollicleTexture_GPU(
 	const FIntPoint Resolution(OutTexture->Resource->GetSizeX(), OutTexture->Resource->GetSizeY());
 	check(OutTexture->Resource->GetSizeX() == OutTexture->Resource->GetSizeY());
 
-	FRDGBuilder GraphBuilder(RHICmdList);
 	FRDGTextureRef FollicleMaskTexture = nullptr;
 	if (InRootUVBuffers_R.Num())
 	{
@@ -247,7 +246,6 @@ static void InternalGenerateFollicleTexture_GPU(
 	AddComputeMipsPass(GraphBuilder, ShaderMap, FollicleMaskTexture);
 
 	GraphBuilder.QueueTextureExtraction(FollicleMaskTexture, &OutMaskTexture);
-	GraphBuilder.Execute();
 
 	check(FollicleMaskTexture->Desc.Format == OutTexture->GetPixelFormat());
 
@@ -255,61 +253,73 @@ static void InternalGenerateFollicleTexture_GPU(
 #if WITH_EDITOR
 	if (bCopyDataBackToCPU)
 	{
-		FRHIResourceCreateInfo CreateInfo;
-		FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
-			FollicleMaskTexture->Desc.Extent.X,
-			FollicleMaskTexture->Desc.Extent.Y,
-			FollicleMaskTexture->Desc.Format,
-			FollicleMaskTexture->Desc.NumMips,
-			1, TexCreate_CPUReadback, CreateInfo);
-
-		FRHICopyTextureInfo CopyInfo;
-		CopyInfo.NumMips = MipCount;
-		RHICmdList.CopyTexture(
-			OutMaskTexture->GetRenderTargetItem().ShaderResourceTexture,
-			StagingTexture->GetTexture2D(),// OutTexture->Resource->TextureRHI,
-			CopyInfo);
-
-		GDynamicRHI->RHISubmitCommandsAndFlushGPU();
-		GDynamicRHI->RHIBlockUntilGPUIdle();
-
-		void* InData = nullptr;
-		int32 Width = 0, Height = 0;
-		RHICmdList.MapStagingSurface(StagingTexture, InData, Width, Height);
-		uint32* InDataRGBA8 = (uint32*)InData;
-
-		uint64 Offset = 0;
-		uint8 MipIndex = 0;
-		for (FTexture2DMipMap& Mip : OutTexture->PlatformData->Mips)
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("ReadbackGroomTextures"),
+			ERDGPassFlags::None,
+			[FollicleMaskTexture, OutMaskTexture, MipCount, OutTexture](FRHICommandListImmediate& RHICmdList)
 		{
-			const uint32 MipResolution = Mip.SizeX;
-			const uint32 SizeInBytes = sizeof(uint32) * MipResolution * MipResolution;
-			const uint32 PixelCount = MipResolution * MipResolution;
+			FRHIResourceCreateInfo CreateInfo;
+			FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
+				FollicleMaskTexture->Desc.Extent.X,
+				FollicleMaskTexture->Desc.Extent.Y,
+				FollicleMaskTexture->Desc.Format,
+				FollicleMaskTexture->Desc.NumMips,
+				1, TexCreate_CPUReadback, CreateInfo);
 
-			// Store the mapped data into the texture 'source' data for being enable to 
-			// reimport/recompression/process per platform (the bulk data will be populated on save)
-			uint8* OutData = OutTexture->Source.LockMip(MipIndex);
-			FMemory::Memcpy(OutData, InDataRGBA8 + Offset, SizeInBytes);
-			OutTexture->Source.UnlockMip(MipIndex);
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.NumMips = MipCount;
+			RHICmdList.CopyTexture(
+				OutMaskTexture->GetRenderTargetItem().ShaderResourceTexture,
+				StagingTexture->GetTexture2D(),// OutTexture->Resource->TextureRHI,
+				CopyInfo);
 
-			Offset += PixelCount;
-			++MipIndex;
-		}
+			GDynamicRHI->RHISubmitCommandsAndFlushGPU();
+			GDynamicRHI->RHIBlockUntilGPUIdle();
 
-		RHICmdList.UnmapStagingSurface(StagingTexture);
+			void* InData = nullptr;
+			int32 Width = 0, Height = 0;
+			RHICmdList.MapStagingSurface(StagingTexture, InData, Width, Height);
+			uint32* InDataRGBA8 = (uint32*)InData;
 
-		OutTexture->DeferCompression = true; // This forces reloading data when the asset is saved
-		OutTexture->MarkPackageDirty();
+			uint64 Offset = 0;
+			uint8 MipIndex = 0;
+			for (FTexture2DMipMap& Mip : OutTexture->PlatformData->Mips)
+			{
+				const uint32 MipResolution = Mip.SizeX;
+				const uint32 SizeInBytes = sizeof(uint32) * MipResolution * MipResolution;
+				const uint32 PixelCount = MipResolution * MipResolution;
+
+				// Store the mapped data into the texture 'source' data for being enable to 
+				// reimport/recompression/process per platform (the bulk data will be populated on save)
+				uint8* OutData = OutTexture->Source.LockMip(MipIndex);
+				FMemory::Memcpy(OutData, InDataRGBA8 + Offset, SizeInBytes);
+				OutTexture->Source.UnlockMip(MipIndex);
+
+				Offset += PixelCount;
+				++MipIndex;
+			}
+
+			RHICmdList.UnmapStagingSurface(StagingTexture);
+
+			OutTexture->DeferCompression = true; // This forces reloading data when the asset is saved
+			OutTexture->MarkPackageDirty();
+		});
 	}
 	else
 #endif
 	{
-		FRHICopyTextureInfo CopyInfo;
-		CopyInfo.NumMips = MipCount;
-		RHICmdList.CopyTexture(
-			OutMaskTexture->GetRenderTargetItem().ShaderResourceTexture,
-			OutTexture->Resource->TextureRHI,
-			CopyInfo);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("CopyGroomTextures"),
+			ERDGPassFlags::None,
+		[OutMaskTexture, MipCount, OutTexture](FRHICommandListImmediate& RHICmdList)
+		{
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.NumMips = MipCount;
+			RHICmdList.CopyTexture(
+				OutMaskTexture->GetRenderTargetItem().ShaderResourceTexture,
+				OutTexture->Resource->TextureRHI,
+				CopyInfo);
+		});
 	}
 }
 
@@ -354,7 +364,7 @@ static void InternalBuildFollicleTexture_CPU(const TArray<FFollicleInfo>& InInfo
 
 // GPU path
 static void InternalBuildFollicleTexture_GPU(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const TArray<FFollicleInfo>& InInfos,
 	UTexture2D* OutTexture)
 {
@@ -393,7 +403,7 @@ static void InternalBuildFollicleTexture_GPU(
 	}
 
 	const EPixelFormat Format = bCopyDataBackToCPU ? PF_B8G8R8A8 : PF_R8G8B8A8;		 
-	InternalGenerateFollicleTexture_GPU(RHICmdList, bCopyDataBackToCPU, Format, KernelSizeInPixels, RootUVBuffers[0], RootUVBuffers[1], RootUVBuffers[2], RootUVBuffers[3], OutTexture);
+	InternalGenerateFollicleTexture_GPU(GraphBuilder, bCopyDataBackToCPU, Format, KernelSizeInPixels, RootUVBuffers[0], RootUVBuffers[1], RootUVBuffers[2], RootUVBuffers[3], OutTexture);
 
 	for (uint32 Channel = 0; Channel < 4; ++Channel)
 	{
@@ -418,14 +428,14 @@ bool HasHairStrandsFolliculeMaskQueries()
 	return !GFollicleQueries.IsEmpty();
 }
 
-void RunHairStrandsFolliculeMaskQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap)
+void RunHairStrandsFolliculeMaskQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap)
 {
 	FFollicleQuery Q;
 	while (GFollicleQueries.Dequeue(Q))
 	{
 		if (Q.Infos.Num() > 0 && Q.OutTexture)
 		{
-			InternalBuildFollicleTexture_GPU(RHICmdList, Q.Infos, Q.OutTexture);
+			InternalBuildFollicleTexture_GPU(GraphBuilder, Q.Infos, Q.OutTexture);
 		}
 	}
 }
@@ -705,8 +715,57 @@ static void InternalGenerateHairStrandsTextures(
 		});
 }
 
+
+// TODO: Wrap this into a Graph pass
+void AddReadBackTexturePass(FRDGBuilder& GraphBuilder, uint32 OutputResolution, TRefCountPtr<IPooledRenderTarget>& InTexture, const FRDGTextureDesc& InDesc, UTexture2D* OutTexture)
+{
+	AddPass(GraphBuilder, [OutputResolution, InTexture, InDesc, OutTexture](FRHICommandListImmediate& RHICmdList)
+	{
+		check(OutTexture->GetSurfaceWidth() == OutputResolution);
+		check(OutTexture->GetSurfaceHeight() == OutputResolution);
+
+		FRHIResourceCreateInfo CreateInfo;
+		FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
+			InDesc.Extent.X,
+			InDesc.Extent.Y,
+			InDesc.Format,
+			InDesc.NumMips,
+			1, TexCreate_CPUReadback, CreateInfo);
+
+		FRHICopyTextureInfo CopyInfo;
+		CopyInfo.NumMips = InDesc.NumMips;
+		RHICmdList.CopyTexture(
+			InTexture->GetRenderTargetItem().ShaderResourceTexture,
+			StagingTexture->GetTexture2D(),
+			CopyInfo);
+
+		// Flush, to ensure that all texture generation is done
+		GDynamicRHI->RHISubmitCommandsAndFlushGPU();
+		GDynamicRHI->RHIBlockUntilGPUIdle();
+
+		// don't think we can mark package as a dirty in the package build
+	#if WITH_EDITORONLY_DATA
+		void* InData = nullptr;
+		int32 Width = 0, Height = 0;
+		RHICmdList.MapStagingSurface(StagingTexture, InData, Width, Height);
+		uint32* InDataRGBA8 = (uint32*)InData;
+
+		uint8 MipIndex = 0;
+		const uint32 SizeInBytes = sizeof(uint32) * OutputResolution * OutputResolution;
+		uint8* OutData = OutTexture->Source.LockMip(0);
+		FMemory::Memcpy(OutData, InDataRGBA8, SizeInBytes);
+		OutTexture->Source.UnlockMip(0);
+
+		RHICmdList.UnmapStagingSurface(StagingTexture);
+
+		OutTexture->DeferCompression = true; // This forces reloading data when the asset is saved
+		OutTexture->MarkPackageDirty();
+	#endif // #if WITH_EDITORONLY_DATA
+	});
+}
+
 static void InternalBuildStrandsTextures_GPU(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FStrandsTexturesInfo& InInfo,
 	const FStrandsTexturesOutput& Output,
 	const struct FShaderDrawDebugData* DebugShaderData)
@@ -722,7 +781,6 @@ static void InternalBuildStrandsTextures_GPU(
 	const bool bUseSkeletalMesh = SkeletalMesh != nullptr;
 
 	const uint32 OutputResolution = FMath::Clamp(InInfo.Resolution, 512u, 16384u);
-	FRDGBuilder GraphBuilder(RHICmdList);
 
 	FRDGTextureDesc Desc;
 	Desc.Extent.X = OutputResolution;
@@ -862,10 +920,12 @@ static void InternalBuildStrandsTextures_GPU(
 	GraphBuilder.QueueTextureExtraction(CoverageTexture, &CoverageTextureRT);
 	GraphBuilder.QueueTextureExtraction(TangentTexture, &TangentTextureRT);
 	GraphBuilder.QueueTextureExtraction(Attribute_Texture, &AttributeTextureRT);
-	
-	GraphBuilder.Execute();
 
 	// Readback
+
+
+	/*
+	// TODO: Wrap this into a Graph pass
 	auto ReadBackTexture = [&RHICmdList, OutputResolution](TRefCountPtr<IPooledRenderTarget>& InTexture, const FRDGTextureDesc& InDesc, UTexture2D* OutTexture)
 	{
 		check(OutTexture->GetSurfaceWidth() == OutputResolution);
@@ -909,10 +969,11 @@ static void InternalBuildStrandsTextures_GPU(
 		OutTexture->MarkPackageDirty();
 #endif // #if WITH_EDITORONLY_DATA
 	};
+	*/
 
-	ReadBackTexture(CoverageTextureRT, CoverageTexture->Desc, Output.Coverage);
-	ReadBackTexture(TangentTextureRT, TangentTexture->Desc, Output.Tangent);
-	ReadBackTexture(AttributeTextureRT, TangentTexture->Desc, Output.Attribute);
+	AddReadBackTexturePass(GraphBuilder, OutputResolution, CoverageTextureRT, CoverageTexture->Desc, Output.Coverage);
+	AddReadBackTexturePass(GraphBuilder, OutputResolution, TangentTextureRT, TangentTexture->Desc, Output.Tangent);
+	AddReadBackTexturePass(GraphBuilder, OutputResolution, AttributeTextureRT, TangentTexture->Desc, Output.Attribute);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -930,12 +991,12 @@ bool HasHairStrandsTexturesQueries()
 	return !GStrandsTexturesQueries.IsEmpty();
 }
 
-void RunHairStrandsTexturesQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData)
+void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData)
 {
 	FStrandsTexturesQuery Q;
 	while (GStrandsTexturesQueries.Dequeue(Q))
 	{
-		InternalBuildStrandsTextures_GPU(RHICmdList, Q.Info, Q.Output, DebugShaderData);
+		InternalBuildStrandsTextures_GPU(GraphBuilder, Q.Info, Q.Output, DebugShaderData);
 	}
 }
 

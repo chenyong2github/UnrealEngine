@@ -376,7 +376,7 @@ public:
 
 		if (HairVisibilityNodeCount.IsBound() && VisibilityData->NodeCount)
 		{
-			SetTextureParameter(RHICmdList,	ShaderRHI, HairVisibilityNodeCount, VisibilityData->NodeCount->GetRenderTargetItem().ShaderResourceTexture);
+			SetTextureParameter(RHICmdList,	ShaderRHI, HairVisibilityNodeCount, TryGetRHI(VisibilityData->NodeCount));
 		}
 
 		SetShaderValue(RHICmdList, ShaderRHI, MaxViewportResolution, VisibilityData->SampleLightingViewportResolution);
@@ -1148,11 +1148,11 @@ static FHairStrandsOcclusionResources GetHairStrandsResources(int32 ViewIndex, F
 	{
 		if (HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture)
 		{
-			Out.CategorizationTexture = GraphBuilder.RegisterExternalTexture(HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture);
+			Out.CategorizationTexture = HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture;
 		}
 		if (HairDatas->HairVisibilityViews.HairDatas[ViewIndex].LightChannelMaskTexture)
 		{
-			Out.LightChannelMaskTexture = GraphBuilder.RegisterExternalTexture(HairDatas->HairVisibilityViews.HairDatas[ViewIndex].LightChannelMaskTexture);
+			Out.LightChannelMaskTexture = HairDatas->HairVisibilityViews.HairDatas[ViewIndex].LightChannelMaskTexture;
 		}
 
 		Out.VoxelResources = &HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources;
@@ -1163,8 +1163,9 @@ static FHairStrandsOcclusionResources GetHairStrandsResources(int32 ViewIndex, F
 /** Shader parameters to use when creating a RenderLight(...) pass. */
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	RDG_TEXTURE_ACCESS(HairCategorizationTexture, ERHIAccess::SRVGraphics)
 	RDG_TEXTURE_ACCESS(ShadowMaskTexture, ERHIAccess::SRVGraphics)
-	RDG_TEXTURE_ACCESS(LightingChannelsTexture, ERHIAccess::SRVGraphics)
+	RDG_TEXTURE_ACCESS(LightingChannelsTexture, ERHIAccess::SRVGraphics) 
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -1174,11 +1175,13 @@ void GetRenderLightParameters(
 	FRDGTextureRef ShadowMaskTexture,
 	FRDGTextureRef LightingChannelsTexture,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FHairStrandsVisibilityViews* InHairVisibilityViews,
 	FRenderLightParameters& Parameters)
 {
 	Parameters.SceneTextures = SceneTexturesUniformBuffer;
 	Parameters.ShadowMaskTexture = ShadowMaskTexture;
 	Parameters.LightingChannelsTexture = LightingChannelsTexture;
+	Parameters.HairCategorizationTexture = InHairVisibilityViews && InHairVisibilityViews->HairDatas.Num() > 0 ? InHairVisibilityViews->HairDatas[0].CategorizationTexture : nullptr;
 	Parameters.RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
 	if (SceneDepthTexture)
@@ -1282,7 +1285,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 			if (!bUseHairLighting)
 			{
 				FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
-				GetRenderLightParameters(SceneColorTexture, SceneDepthTexture, nullptr, LightingChannelsTexture, SceneTexturesUniformBuffer, *PassParameters);
+				GetRenderLightParameters(SceneColorTexture, SceneDepthTexture, nullptr, LightingChannelsTexture, SceneTexturesUniformBuffer, HairDatas ? &HairDatas->HairVisibilityViews : nullptr, *PassParameters);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("StandardDeferredLighting"),
@@ -2079,7 +2082,7 @@ void FDeferredShadingSceneRenderer::RenderStationaryLightOverlap(
 	if (Scene->bIsEditorScene)
 	{
 		FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
-		GetRenderLightParameters(SceneColorTexture, SceneDepthTexture, nullptr, LightingChannelsTexture, SceneTexturesUniformBuffer, *PassParameters);
+		GetRenderLightParameters(SceneColorTexture, SceneDepthTexture, nullptr, LightingChannelsTexture, SceneTexturesUniformBuffer, nullptr, *PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("StationaryLightOverlap"),
@@ -2238,7 +2241,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 		const bool bHairLighting = InHairVisibilityViews && ViewIndex < InHairVisibilityViews->HairDatas.Num() && InHairVisibilityViews->HairDatas[ViewIndex].CategorizationTexture != nullptr;
 		if (bHairLighting)
 		{
-			RenderLightParams.HairCategorizationTexture = InHairVisibilityViews->HairDatas[ViewIndex].CategorizationTexture;
+			RenderLightParams.HairCategorizationTexture = InHairVisibilityViews->HairDatas[ViewIndex].CategorizationTexture->GetPooledRenderTarget();
 		}
 		if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
 		{
@@ -2411,7 +2414,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 	bool bRenderOverlap)
 {
 	FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
-	GetRenderLightParameters(SceneColorTexture, SceneDepthTexture, ScreenShadowMaskTexture, LightingChannelsTexture, SceneTexturesUniformBuffer, *PassParameters);
+	GetRenderLightParameters(SceneColorTexture, SceneDepthTexture, ScreenShadowMaskTexture, LightingChannelsTexture, SceneTexturesUniformBuffer, InHairVisibilityViews, *PassParameters);
 
 	ERDGPassFlags PassFlags = ERDGPassFlags::Raster;
 
@@ -2439,7 +2442,14 @@ void FDeferredShadingSceneRenderer::RenderLight(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightForHairParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRenderLightParameters, Light)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(, TransmittanceMaskBuffer)
+	RDG_TEXTURE_ACCESS(HairIndexAndCountTexture, ERHIAccess::SRVGraphics)
+	RDG_TEXTURE_ACCESS(HairNodeCount, ERHIAccess::SRVGraphics)
+	RDG_BUFFER_ACCESS(HairTransmittanceMask, ERHIAccess::SRVGraphics)
+	RDG_BUFFER_ACCESS(HairVisibilityNodeData, ERHIAccess::SRVGraphics)
+	RDG_BUFFER_ACCESS(HairVisibilityNodeCoords, ERHIAccess::SRVGraphics)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairTransmittanceMaskSRV)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairVisibilityNodeDataSRV)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairVisibilityNodeCoordsSRV)
 END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderLightForHair(
@@ -2480,28 +2490,35 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 			continue;
 		}
 
-		FRDGTextureRef SampleLightingBuffer = GraphBuilder.RegisterExternalTexture(HairVisibilityData.SampleLightingBuffer, ERenderTargetTexture::Targetable);
-
 		FRenderLightForHairParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightForHairParameters>();
-		GetRenderLightParameters(SampleLightingBuffer, nullptr, HairShadowMaskTexture, LightingChannelsTexture, SceneTexturesUniformBuffer, PassParameters->Light);
-		PassParameters->TransmittanceMaskBuffer = InTransmittanceMaskData.TransmittanceMaskSRV;
+		GetRenderLightParameters(HairVisibilityData.SampleLightingBuffer, nullptr, HairShadowMaskTexture, LightingChannelsTexture, SceneTexturesUniformBuffer, InHairVisibilityViews, PassParameters->Light);
+		PassParameters->HairIndexAndCountTexture = HairVisibilityData.NodeIndex;
 
+		PassParameters->HairTransmittanceMask = InTransmittanceMaskData.TransmittanceMask;
+		PassParameters->HairVisibilityNodeData = HairVisibilityData.NodeData;
+		PassParameters->HairVisibilityNodeCoords = HairVisibilityData.NodeCoord;
+		PassParameters->HairNodeCount = HairVisibilityData.NodeCount;
+		PassParameters->HairTransmittanceMaskSRV = GraphBuilder.CreateSRV(InTransmittanceMaskData.TransmittanceMask);
+		PassParameters->HairVisibilityNodeDataSRV = GraphBuilder.CreateSRV(HairVisibilityData.NodeData);
+		PassParameters->HairVisibilityNodeCoordsSRV = GraphBuilder.CreateSRV(HairVisibilityData.NodeCoord);
+
+		const uint32 MaxTransmittanceElementCount = InTransmittanceMaskData.TransmittanceMask ? InTransmittanceMaskData.TransmittanceMask->Desc.NumElements : 0;
 		GraphBuilder.AddPass(
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::UntrackedAccess,
-			[&HairVisibilityData, &View, LightSceneInfo, HairShadowMaskTexture, LightingChannelsTexture, InTransmittanceMaskData](FRHICommandList& RHICmdList)
+			[&HairVisibilityData, &View, PassParameters, LightSceneInfo, MaxTransmittanceElementCount, HairShadowMaskTexture, LightingChannelsTexture](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(0, 0, 0.0f, HairVisibilityData.SampleLightingViewportResolution.X, HairVisibilityData.SampleLightingViewportResolution.Y, 1.0f);
 
 			FRenderLightParams RenderLightParams;
-			RenderLightParams.DeepShadow_TransmittanceMaskBuffer = InTransmittanceMaskData.TransmittanceMaskSRV->GetRHI();
-			RenderLightParams.DeepShadow_TransmittanceMaskBufferMaxCount = InTransmittanceMaskData.TransmittanceMask ? InTransmittanceMaskData.TransmittanceMask->Desc.NumElements : 0;
-			RenderLightParams.ScreenShadowMaskSubPixelTexture = HairShadowMaskTexture->GetPooledRenderTarget();
-			RenderLightParams.HairVisibilityNodeOffsetAndCount = HairVisibilityData.NodeIndex;
-			RenderLightParams.HairVisibilityNodeDataSRV = HairVisibilityData.NodeDataSRV;
-			RenderLightParams.HairVisibilityNodeCoordsSRV = HairVisibilityData.NodeCoordSRV;
-			RenderLightParams.HairCategorizationTexture = HairVisibilityData.CategorizationTexture;
+			RenderLightParams.DeepShadow_TransmittanceMaskBufferMaxCount = MaxTransmittanceElementCount;
+			RenderLightParams.ScreenShadowMaskSubPixelTexture = PassParameters->Light.ShadowMaskTexture->GetPooledRenderTarget();
+			RenderLightParams.DeepShadow_TransmittanceMaskBuffer = PassParameters->HairTransmittanceMaskSRV->GetRHI();
+			RenderLightParams.HairVisibilityNodeOffsetAndCount = PassParameters->HairIndexAndCountTexture->GetPooledRenderTarget();
+			RenderLightParams.HairVisibilityNodeDataSRV = PassParameters->HairVisibilityNodeDataSRV->GetRHI();
+			RenderLightParams.HairVisibilityNodeCoordsSRV = PassParameters->HairVisibilityNodeCoordsSRV->GetRHI();
+			RenderLightParams.HairCategorizationTexture = PassParameters->Light.HairCategorizationTexture->GetPooledRenderTarget();
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
