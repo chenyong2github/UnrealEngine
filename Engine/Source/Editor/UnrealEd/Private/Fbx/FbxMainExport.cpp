@@ -22,6 +22,8 @@
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneStringChannel.h"
 #include "Animation/AnimTypes.h"
+#include "Animation/AnimSequenceBase.h"
+#include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Engine/Brush.h"
@@ -82,6 +84,7 @@
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/MovieSceneFloatTrack.h"
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
+#include "Sections/MovieSceneSkeletalAnimationSection.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Sections/MovieSceneFloatSection.h"
 #include "Evaluation/MovieScenePlayback.h"
@@ -1800,11 +1803,12 @@ FbxNode* FFbxExporter::FLevelSequenceNodeNameAdapter::GetFbxNode(UObject* InObje
 	return nullptr;
 }
 
-FLevelSequenceAnimTrackAdapter::FLevelSequenceAnimTrackAdapter( IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform)
+FLevelSequenceAnimTrackAdapter::FLevelSequenceAnimTrackAdapter( IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform, UMovieSceneSkeletalAnimationTrack* InAnimTrack)
 {
 	MovieScenePlayer = InMovieScenePlayer;
 	MovieScene = InMovieScene;
 	RootToLocalTransform = InRootToLocalTransform;
+	AnimTrack = InAnimTrack;
 }
 
 int32 FLevelSequenceAnimTrackAdapter::GetLocalStartFrame() const
@@ -1845,6 +1849,52 @@ void FLevelSequenceAnimTrackAdapter::UpdateAnimation( int32 LocalFrame )
 float FLevelSequenceAnimTrackAdapter::GetFrameRate() const
 {
 	return MovieScene->GetDisplayRate().AsDecimal();
+}
+		
+UAnimSequence* FLevelSequenceAnimTrackAdapter::GetAnimSequence(int32 LocalFrame) const
+{
+	if (!AnimTrack)
+	{
+		return nullptr;
+	}
+
+	FFrameRate TickResolution = MovieScene->GetTickResolution();
+	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	FFrameTime LocalTime = FFrameRate::TransformTime(FFrameTime(LocalFrame), DisplayRate, TickResolution);
+
+	for (UMovieSceneSection* Section : AnimTrack->GetAnimSectionsAtTime(LocalTime.FrameNumber))
+	{
+		if (UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section))
+		{
+			return Cast<UAnimSequence>(AnimSection->Params.Animation);
+		}
+	}
+
+	return nullptr;
+}
+
+float FLevelSequenceAnimTrackAdapter::GetAnimTime(int32 LocalFrame) const
+{
+	if (!AnimTrack)
+	{
+		return 0.f;
+	}
+
+	FFrameRate TickResolution = MovieScene->GetTickResolution();
+	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	FFrameTime LocalTime = FFrameRate::TransformTime(FFrameTime(LocalFrame), DisplayRate, TickResolution);
+
+	for (UMovieSceneSection* Section : AnimTrack->GetAnimSectionsAtTime(LocalTime.FrameNumber))
+	{
+		if (UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section))
+		{
+			return AnimSection->MapTimeToAnimation(LocalTime, TickResolution);
+		}
+	}
+
+	return 0.f;
 }
 
 bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef InSequenceID, FbxNode* FbxActor, UObject* BoundObject, const TArray<UMovieSceneTrack*>& Tracks, const FMovieSceneSequenceTransform& RootToLocalTransform)
@@ -1905,7 +1955,7 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 			if (SkeletalMeshComp)
 			{
 				bExportedAnimTrack = true;
-				FLevelSequenceAnimTrackAdapter AnimTrackAdapter(MovieScenePlayer, MovieScene, RootToLocalTransform);
+				FLevelSequenceAnimTrackAdapter AnimTrackAdapter(MovieScenePlayer, MovieScene, RootToLocalTransform, Cast<UMovieSceneSkeletalAnimationTrack>(Track));
 				ExportAnimTrack(AnimTrackAdapter, Actor, SkeletalMeshComp, 1.0 / DisplayRate.AsDecimal());
 			}
 		}
