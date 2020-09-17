@@ -117,6 +117,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (InlineEditConditionToggle))
 	bool bUseSelfCollisions = false;
 
+	// This parameter is automatically set by the migration code. It can be overriden here to use the old way of authoring the backstop distances.
+	// The legacy backstop requires the sphere radius to be included within the painted distance mask, making it difficult to author correctly. In this case the backstop distance is the distance from the animated mesh to the center of the corresponding backstop collision sphere.
+	// The non legacy backstop automatically adds the matching sphere's radius to the distance calculations at runtime to make for a simpler authoring of the backstop distances. In this case the backstop distance is the distance from the animated mesh to the surface of the backstop collision sphere.
+	// In both cases, a positive backstop distance goes against the corresponding animated mesh's normal, and a negative backstop distance goes along the corresponding animated mesh's normal.
+	UPROPERTY(EditAnywhere, Category = "Collision Properties")
+	bool bUseLegacyBackstop = false;
+
 	// The radius of the spheres used in self collision 
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", EditCondition = "bUseSelfCollisions"))
 	float SelfCollisionThickness = 2.0f;
