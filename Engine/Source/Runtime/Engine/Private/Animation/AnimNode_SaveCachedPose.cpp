@@ -67,11 +67,13 @@ void FAnimNode_SaveCachedPose::Evaluate_AnyThread(FPoseContext& Output)
 		Pose.Evaluate(CachingContext);
 		CachedPose.MoveBonesFrom(CachingContext.Pose);
 		CachedCurve.MoveFrom(CachingContext.Curve);
+		CachedAttributes.MoveFrom(CachingContext.CustomAttributes);
 	}
 
 	// Return the cached result
 	Output.Pose.CopyBonesFrom(CachedPose);
 	Output.Curve.CopyFrom(CachedCurve);
+	Output.CustomAttributes.CopyFrom(CachedAttributes);
 }
 
 void FAnimNode_SaveCachedPose::GatherDebugData(FNodeDebugData& DebugData)

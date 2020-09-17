@@ -141,6 +141,7 @@
 #include "DebugCameraControllerSettingsCustomization.h"
 #include "BoundsCopyComponentDetails.h"
 #include "SupportedRangeTypes.h"	// StructsSupportingRangeVisibility
+#include "CustomAttributeCustomization.h"
 
 IMPLEMENT_MODULE( FDetailCustomizationsModule, DetailCustomizations );
 
@@ -280,6 +281,8 @@ void FDetailCustomizationsModule::RegisterPropertyTypeCustomizations()
 	RegisterCustomPropertyTypeLayout("ComponentReference", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FComponentReferenceCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("EMaterialShadingModel", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMaterialShadingModelCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("DebugCameraControllerSettingsViewModeIndex", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDebugCameraControllerSettingsViewModeIndexCustomization::MakeInstance));
+	RegisterCustomPropertyTypeLayout("CustomAttributePerBoneData", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FCustomAttributePerBoneDataCustomization::MakeInstance));
+	RegisterCustomPropertyTypeLayout("CustomAttribute", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FCustomAttributeCustomization::MakeInstance));
 }
 
 #undef REGISTER_UIMINMAX_CUSTOMIZATION

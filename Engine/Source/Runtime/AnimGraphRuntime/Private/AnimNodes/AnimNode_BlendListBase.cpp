@@ -248,8 +248,11 @@ void FAnimNode_BlendListBase::Evaluate_AnyThread(FPoseContext& Output)
 		// Scratch arrays for evaluation, stack allocated
 		TArray<FCompactPose, TInlineAllocator<8>> FilteredPoses;
 		TArray<FBlendedCurve, TInlineAllocator<8>> FilteredCurve;
+		TArray<FStackCustomAttributes, TInlineAllocator<8>> FilteredAttributes;
+
 		FilteredPoses.SetNum(NumPoses, false);
 		FilteredCurve.SetNum(NumPoses, false);
+		FilteredAttributes.SetNum(NumPoses, false);
 
 		int32 NumActivePoses = 0;
 		for (int32 i = 0; i < PosesToEvaluate.Num(); ++i)
@@ -263,16 +266,19 @@ void FAnimNode_BlendListBase::Evaluate_AnyThread(FPoseContext& Output)
 
 			FilteredPoses[i].MoveBonesFrom(EvaluateContext.Pose);
 			FilteredCurve[i].MoveFrom(EvaluateContext.Curve);
+			FilteredAttributes[i].MoveFrom(EvaluateContext.CustomAttributes);
 		}
+
+		FAnimationPoseData OutAnimationPoseData(Output);
 
 		// Use the calculated blend sample data if we're blending per-bone
 		if (BlendProfile)
 		{
-			FAnimationRuntime::BlendPosesTogetherPerBone(FilteredPoses, FilteredCurve, BlendProfile, PerBoneSampleData, PosesToEvaluate, Output.Pose, Output.Curve);
+			FAnimationRuntime::BlendPosesTogetherPerBone(FilteredPoses, FilteredCurve, FilteredAttributes, BlendProfile, PerBoneSampleData, PosesToEvaluate, OutAnimationPoseData);
 		}
 		else
 		{
-			FAnimationRuntime::BlendPosesTogether(FilteredPoses, FilteredCurve, BlendWeights, PosesToEvaluate, Output.Pose, Output.Curve);
+			FAnimationRuntime::BlendPosesTogether(FilteredPoses, FilteredCurve, FilteredAttributes, BlendWeights, PosesToEvaluate, OutAnimationPoseData);
 		}		
 	}
 	else

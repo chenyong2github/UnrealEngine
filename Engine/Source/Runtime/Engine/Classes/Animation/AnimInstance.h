@@ -35,6 +35,13 @@ struct FAnimNode_LinkedAnimLayer;
 
 typedef TArray<FTransform> FTransformArrayA2;
 
+struct FParallelEvaluationData
+{
+	FBlendedHeapCurve& OutCurve;
+	FCompactPose& OutPose;
+	FHeapCustomAttributes& OutAttributes;
+};
+
 UENUM()
 enum class EMontagePlayReturnType : uint8
 {
@@ -173,6 +180,7 @@ struct FSlotEvaluationPose
 	/* These Pose/Curve is stack allocator. You should not use it outside of stack. */
 	FCompactPose Pose;
 	FBlendedCurve Curve;
+	FStackCustomAttributes Attributes;
 
 	FSlotEvaluationPose()
 		: AdditiveType(AAT_None)
@@ -192,6 +200,7 @@ struct FSlotEvaluationPose
 	{
 		Pose.MoveBonesFrom(InEvaluationPose.Pose);
 		Curve.MoveFrom(InEvaluationPose.Curve);
+		Attributes.MoveFrom(InEvaluationPose.Attributes);
 	}
 
 	FSlotEvaluationPose(const FSlotEvaluationPose& InEvaluationPose) = default;
@@ -1113,10 +1122,10 @@ public:
 	bool ParallelCanEvaluate(const USkeletalMesh* InSkeletalMesh) const;
 
 	/** Perform evaluation. Can be called from worker threads. */
-	void ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose);
+	void ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FParallelEvaluationData& OutAnimationPoseData);
 
-	UE_DEPRECATED(4.23, "Please use ParallelEvaluateAnimation without passing OutBoneSpaceTransforms.")
-	void ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, TArray<FTransform>& OutBoneSpaceTransforms, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose);
+	UE_DEPRECATED(4.26, "Please use ParallelEvaluateAnimation with different signature.")
+	void ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose);
 
 	void PostEvaluateAnimation();
 	void UninitializeAnimation();

@@ -53,6 +53,8 @@ void FAnimNode_MakeDynamicAdditive::Evaluate_AnyThread(FPoseContext& Output)
 
 	FAnimationRuntime::ConvertPoseToAdditive(Output.Pose, BaseEvalContext.Pose);
 	Output.Curve.ConvertToAdditive(BaseEvalContext.Curve);
+
+	FCustomAttributesRuntime::SubtractAttributes(BaseEvalContext.CustomAttributes, Output.CustomAttributes);
 }
 
 void FAnimNode_MakeDynamicAdditive::GatherDebugData(FNodeDebugData& DebugData)
