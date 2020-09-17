@@ -44,7 +44,7 @@ void UDMXFixtureComponentDouble::SetRangeValue()
 {
 	for (auto& Cell : Cells)
 	{
-		for (int ChannelIndex=0; ChannelIndex > ChannelRefs.Num(); ChannelIndex++)
+		for (int ChannelIndex=0; ChannelIndex < ChannelRefs.Num(); ChannelIndex++)
 		{
 			Cell.ChannelInterpolation[ChannelIndex].RangeValue = FMath::Abs(ChannelRefs[ChannelIndex].MaxValue - ChannelRefs[ChannelIndex].MinValue);
 		}
