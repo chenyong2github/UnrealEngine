@@ -13,13 +13,13 @@ static const FName NAME_WorldPartitionRuntimeHash("WorldPartitionRuntimeHash");
 
 static int32 GDrawRuntimeHash3D = 0;
 static FAutoConsoleCommand CVarDrawRuntimeHash3D(
-	TEXT("WorldPartition.ToggleDrawRuntimeHash3D"),
+	TEXT("wp.Runtime.ToggleDrawRuntimeHash3D"),
 	TEXT("Toggles 3D debug display of world partition runtime hash."),
 	FConsoleCommandDelegate::CreateLambda([] { GDrawRuntimeHash3D = !GDrawRuntimeHash3D; }));
 
 static int32 GDrawRuntimeHash2D = 0;
 static FAutoConsoleCommand CVarDrawRuntimeHash2D(
-	TEXT("WorldPartition.ToggleDrawRuntimeHash2D"),
+	TEXT("wp.Runtime.ToggleDrawRuntimeHash2D"),
 	TEXT("Toggles 2D debug display of world partition runtime hash."),
 	FConsoleCommandDelegate::CreateLambda([] { GDrawRuntimeHash2D = !GDrawRuntimeHash2D; }));
 

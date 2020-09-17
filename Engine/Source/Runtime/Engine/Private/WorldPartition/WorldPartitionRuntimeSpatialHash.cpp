@@ -78,25 +78,25 @@ private:
 
 static int32 GShowRuntimeSpatialHashGridLevel = 0;
 static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridLevel(
-	TEXT("WorldPartition.ShowRuntimeSpatialHashGridLevel"),
+	TEXT("wp.Runtime.ShowRuntimeSpatialHashGridLevel"),
 	GShowRuntimeSpatialHashGridLevel,
 	TEXT("Used to choose which grid level to display when showing world partition runtime hash."));
 
 static int32 GShowRuntimeSpatialHashGridLevelCount = 1;
 static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridLevelCount(
-	TEXT("WorldPartition.ShowRuntimeSpatialHashGridLevelCount"),
+	TEXT("wp.Runtime.ShowRuntimeSpatialHashGridLevelCount"),
 	GShowRuntimeSpatialHashGridLevelCount,
 	TEXT("Used to choose how many grid levels to display when showing world partition runtime hash."));
 
 static int32 GShowRuntimeSpatialHashGridIndex = 0;
 static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridIndex(
-	TEXT("WorldPartition.ShowRuntimeSpatialHashGridIndex"),
+	TEXT("wp.Runtime.ShowRuntimeSpatialHashGridIndex"),
 	GShowRuntimeSpatialHashGridIndex,
-	TEXT("Used to show only one particual grid when showing world partition runtime hash (invalid index will show all)."));
+	TEXT("Used to show only one particular grid when showing world partition runtime hash (invalid index will show all)."));
 
 static float GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance = 0.4f; // Value between [0, 1]
 static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributionToCellImportance(
-	TEXT("WorldPartition.RuntimeSpatialHashCellToSourceAngleContributionToCellImportance"),
+	TEXT("wp.Runtime.RuntimeSpatialHashCellToSourceAngleContributionToCellImportance"),
 	GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance,
 	TEXT("Value between 0 and 1 that modulates the contribution of the angle between streaming source-to-cell vector and source-forward vector to the cell importance. The closest to 0, the less the angle will contribute to the cell importance."));
 
@@ -1274,7 +1274,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 #endif
 
 FAutoConsoleCommand UWorldPartitionRuntimeSpatialHash::OverrideLoadingRangeCommand(
-	TEXT("WorldPartition.OverrideRuntimeSpatialHashLoadingRange"),
+	TEXT("wp.Runtime.OverrideRuntimeSpatialHashLoadingRange"),
 	TEXT("Sets runtime loading range. Args -grid=[index] -range=[override_loading_range]"),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{

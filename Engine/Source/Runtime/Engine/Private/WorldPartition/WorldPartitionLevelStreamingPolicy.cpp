@@ -20,7 +20,7 @@
 
 static int32 GMaxLoadingLevelStreamingCells = 4;
 static FAutoConsoleVariableRef CMaxLoadingLevelStreamingCells(
-	TEXT("WorldPartition.MaxLoadingLevelStreamingCells"),
+	TEXT("wp.Runtime.MaxLoadingLevelStreamingCells"),
 	GMaxLoadingLevelStreamingCells,
 	TEXT("Used to limit the number of concurrent loading world partition streaming cells."));
 
