@@ -5,13 +5,10 @@
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVAudioSession.h>
 #import <GameKit/GKGameCenterViewController.h>
+#import <UserNotifications/UserNotifications.h>
 #include "Delegates/Delegate.h"
 #include "Logging/LogMacros.h"
 #include "Containers/UnrealString.h"
-
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
-#import <UserNotifications/UserNotifications.h>
-#endif
 
 #define USE_MUTE_SWITCH_DETECTION 0
 
@@ -109,9 +106,7 @@ APPLICATIONCORE_API
 	UIGestureRecognizerDelegate,
 #endif
 	GKGameCenterControllerDelegate,
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
 	UNUserNotificationCenterDelegate,
-#endif
 	UITextFieldDelegate>
 {
     bool bForceExit;
