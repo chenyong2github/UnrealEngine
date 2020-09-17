@@ -2291,14 +2291,12 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			continue;
 		}
 
-		// LOD0, LOD1, etc
+		// LOD0, LOD1, etc.
 		std::string VariantName = UnrealIdentifiers::LOD.GetString() + UnrealToUsd::ConvertString( *LexToString( LODIndex ) ).Get();
 		if ( LowestLODAdded.size() == 0 )
 		{
 			LowestLODAdded = VariantName;
 		}
-
-		pxr::SdfPath LODPrimPath = ParentPrimPath.AppendPath( pxr::SdfPath( VariantName ) );
 
 		// Enable the variant edit context, if we are creating variant LODs
 		TUniquePtr< pxr::UsdEditContext > EditContext;
@@ -2315,7 +2313,8 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			EditContext = MakeUnique< pxr::UsdEditContext>( VariantSet.GetVariantEditContext() );
 		}
 
-		pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( LODPrimPath, UnrealToUsd::ConvertToken( TEXT( "Mesh" ) ).Get() );
+		pxr::SdfPath MeshPrimPath = ParentPrimPath.AppendPath( pxr::SdfPath( bExportMultipleLODs ? VariantName : UnrealToUsd::ConvertString( *SkeletalMesh->GetName() ).Get() ) );
+		pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( MeshPrimPath, UnrealToUsd::ConvertToken( TEXT( "Mesh" ) ).Get() );
 		pxr::UsdGeomMesh UsdLODPrimGeomMesh{ UsdLODPrim };
 
 		TArray<int32> LODMaterialMap;
