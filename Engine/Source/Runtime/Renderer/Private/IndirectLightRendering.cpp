@@ -303,10 +303,10 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 	OutParameters.SkyLightCubemapBrightness = SkyAverageBrightness;
 
 	// Note: GBlackCubeArrayTexture has an alpha of 0, which is needed to represent invalid data so the sky cubemap can still be applied
-	FRHITexture* CubeArrayTexture = View.FeatureLevel >= ERHIFeatureLevel::SM5 ? GBlackCubeArrayTexture->TextureRHI : GBlackTextureCube->TextureRHI;
+	FRHITexture* CubeArrayTexture = (SupportsTextureCubeArray(View.FeatureLevel))? GBlackCubeArrayTexture->TextureRHI : GBlackTextureCube->TextureRHI;
 
 	if (View.Family->EngineShowFlags.ReflectionEnvironment
-		&& View.FeatureLevel >= ERHIFeatureLevel::SM5
+		&& SupportsTextureCubeArray(View.FeatureLevel)
 		&& Scene
 		&& Scene->ReflectionSceneData.CubemapArray.IsValid()
 		&& Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num())

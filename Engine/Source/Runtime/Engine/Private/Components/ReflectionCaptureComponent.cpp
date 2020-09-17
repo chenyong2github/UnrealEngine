@@ -1089,7 +1089,7 @@ void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldT
 #if WITH_EDITOR
 void UReflectionCaptureComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFeatureLevel)
 {
-	if (PendingFeatureLevel == ERHIFeatureLevel::SM5)
+	if (SupportsTextureCubeArray(PendingFeatureLevel))
 	{
 		if (EncodedHDRCubemap)
 		{
