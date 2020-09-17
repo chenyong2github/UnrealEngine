@@ -108,6 +108,12 @@ enum class ENiagaraAgeUpdateMode : uint8
 	DesiredAgeNoSeek
 };
 
+UENUM()
+enum class ENiagaraStatEvaluationType : uint8
+{
+	Average,
+    Maximum,
+};
 
 UENUM()
 enum class ENiagaraDataSetType : uint8

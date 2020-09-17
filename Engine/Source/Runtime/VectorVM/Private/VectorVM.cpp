@@ -500,10 +500,12 @@ void FVectorVMContext::PrepareForExec(
 }
 
 #if STATS
-void FVectorVMContext::SetStatScopes(TArrayView<const TStatId> InStatScopes)
+void FVectorVMContext::SetStatScopes(TArrayView<FStatScopeData> InStatScopes)
 {
 	StatScopes = InStatScopes;
 	StatCounterStack.Reserve(StatScopes.Num());
+	ScopeExecCycles.Reset(StatScopes.Num());
+	ScopeExecCycles.AddZeroed(StatScopes.Num());
 }
 #elif ENABLE_STATNAMEDEVENTS
 void FVectorVMContext::SetStatNamedEventScopes(TArrayView<const FString> InStatNamedEventScopes)
@@ -563,7 +565,16 @@ void FVectorVMContext::FinishExec()
 	}
 
 #if STATS
-	StatScopes = TArrayView<TStatId>();
+	check(ScopeExecCycles.Num() == StatScopes.Num());
+	for (int i = 0; i < StatScopes.Num(); i++)
+	{
+		uint64 ExecTime = ScopeExecCycles[i];
+		if (ExecTime > 0)
+		{
+			std::atomic_fetch_add(&StatScopes[i].ExecutionCycleCount, ExecTime);
+		}
+	}
+	StatScopes = TArrayView<FStatScopeData>();
 #elif ENABLE_STATNAMEDEVENTS
 	StatNamedEventScopes = TArrayView<FString>();
 #endif
@@ -1177,7 +1188,9 @@ struct FVectorKernelEnterStatScope
 		if (GbDetailedVMScriptStats && Context.StatScopes.Num())
 		{
 			int32 CounterIdx = Context.StatCounterStack.AddDefaulted(1);
-			Context.StatCounterStack[CounterIdx].Start(Context.StatScopes[ScopeIdx.Get()]);
+			int32 ScopeIndex = ScopeIdx.Get();
+			Context.StatCounterStack[CounterIdx].CycleCounter.Start(Context.StatScopes[ScopeIndex].StatId);
+			Context.StatCounterStack[CounterIdx].VmCycleCounter = { ScopeIndex, FPlatformTime::Cycles64() };
 		}
 #elif ENABLE_STATNAMEDEVENTS
 		if (Context.StatNamedEventScopes.Num())
@@ -1207,7 +1220,9 @@ struct FVectorKernelExitStatScope
 #if STATS
 		if (GbDetailedVMScriptStats && Context.StatScopes.Num())
 		{
-			Context.StatCounterStack.Last().Stop();
+			FStatStackEntry& StackEntry = Context.StatCounterStack.Last();
+			StackEntry.CycleCounter.Stop();
+			Context.ScopeExecCycles[StackEntry.VmCycleCounter.ScopeIndex] += FPlatformTime::Cycles64() - StackEntry.VmCycleCounter.ScopeEnterCycles;
 			Context.StatCounterStack.Pop(false);
 		}
 #elif ENABLE_STATNAMEDEVENTS
@@ -2491,7 +2506,7 @@ void VectorVM::Exec(
 	void** UserPtrTable,
 	int32 NumInstances
 #if STATS
-	, TArrayView<const TStatId> StatScopes
+	, TArrayView<FStatScopeData> StatScopes
 #elif ENABLE_STATNAMEDEVENTS
 	, TArrayView<const FString> StatNamedEventsScopes
 #endif

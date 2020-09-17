@@ -14,12 +14,12 @@
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "ViewModels/Stack/NiagaraStackSelection.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "SNiagaraStack.h"
 #include "Stack/SNiagaraStackItemGroupAddButton.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
+#include "Stack/SNiagaraStackRowPerfWidget.h"
 #include "NiagaraStackCommandContext.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraEditorModule.h"
@@ -33,10 +33,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SToolTip.h"
 #include "EditorStyleSet.h"
-#include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Commands/GenericCommands.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
@@ -735,6 +733,12 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			[
 				SNew(SNiagaraSystemOverviewItemName, StackItem)
 			]
+			+ SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(6, 0, 9, 0)
+            [
+                SNew(SNiagaraStackRowPerfWidget, Item)
+            ]
 			// Enabled checkbox
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -779,7 +783,13 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.GroupHeaderText")
 				.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
-			];
+			]
+			+ SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(6, 0, 5, 0)
+            [
+                SNew(SNiagaraStackRowPerfWidget, Item)
+            ];
 
 		if (StackItemGroup->GetAddUtilities() != nullptr)
 		{

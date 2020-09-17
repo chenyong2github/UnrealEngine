@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include <atomic>
+
 #include "UObject/ObjectMacros.h"
 #include "Math/RandomStream.h"
 #include "Misc/ByteSwap.h"
@@ -156,6 +159,33 @@ enum class EVectorVMOp : uint8
 	NumOpcodes
 };
 
+#if STATS
+struct FVMCycleCounter
+{
+	int32 ScopeIndex;
+	uint64 ScopeEnterCycles;
+};
+
+struct FStatScopeData
+{
+	TStatId StatId;
+	std::atomic<uint64> ExecutionCycleCount;
+
+	FStatScopeData(TStatId InStatId) : StatId(InStatId) {}
+	
+	FStatScopeData(const FStatScopeData& InObj)
+	{
+		StatId = InObj.StatId;
+		ExecutionCycleCount.store(InObj.ExecutionCycleCount.load());
+	}
+};
+
+struct FStatStackEntry
+{
+	FCycleCounter CycleCounter;
+	FVMCycleCounter VmCycleCounter;
+};
+#endif
 
 //TODO: 
 //All of this stuff can be handled by the VM compiler rather than dirtying the VM code.
@@ -308,8 +338,9 @@ public:
 	TArray<FDataSetThreadLocalTempData> ThreadLocalTempData;
 
 #if STATS
-	TArray<FCycleCounter, TInlineAllocator<64>> StatCounterStack;
-	TArrayView<const TStatId> StatScopes;
+	TArray<FStatStackEntry, TInlineAllocator<64>> StatCounterStack;
+	TArrayView<FStatScopeData> StatScopes;
+	TArray<uint64, TInlineAllocator<64>> ScopeExecCycles;
 #elif ENABLE_STATNAMEDEVENTS
 	TArrayView<const FString> StatNamedEventScopes;
 #endif
@@ -344,7 +375,7 @@ public:
 		bool bInParallelExecution);
 
 #if STATS
-	void SetStatScopes(TArrayView<const TStatId> InStatScopes);
+	void SetStatScopes(TArrayView<FStatScopeData> InStatScopes);
 #elif ENABLE_STATNAMEDEVENTS
 	void SetStatNamedEventScopes(TArrayView<const FString> InStatNamedEventScopes);
 #endif
@@ -471,7 +502,7 @@ namespace VectorVM
 		void** UserPtrTable,
 		int32 NumInstances
 #if STATS
-		, TArrayView<const TStatId> StatScopes
+		, TArrayView<FStatScopeData> StatScopes
 #elif ENABLE_STATNAMEDEVENTS
 		, TArrayView<const FString> StatNamedEventsScopes
 #endif
