@@ -78,6 +78,39 @@ export interface DescribeResult {
 	date: Date | null
 }
 
+/**
+	Example tracing output
+
+	2020/09/12 19:40:33 576199000 pid 23850: <-  NetTcpTransport 10.200.65.101:63841 closing 10.200.21.246:1667
+ */
+
+type TraceOutput = {
+	pid: string
+	entries: [string, string][] // date stamp and text
+}
+
+
+const TRACE_OUTPUT_REGEX = /(\d\d\d\d\/\d\d\/\d\d \d\d:\d\d:\d\d \d+) pid (\d+): /
+
+function parseTrace(response: string): [TraceOutput, string] {
+	const nonTrace: string[] = []
+	const output: TraceOutput = {
+		pid: '',
+		entries: []
+	}
+	for (const line of response.split('\n')) {
+		const m = line.match(TRACE_OUTPUT_REGEX)
+		if (m) {
+			output.entries.push([m[1], line.substr(m[0].length)])
+			output.pid = m[2]
+		}
+		else {
+			nonTrace.push(line)
+		}
+	}
+	return [output, nonTrace.join('\n')]
+}
+
 
 // parse the perforce tagged output format into an array of objects
 // TODO: probably should switch this to scrape Python dictionary format (-G) since ztag is super inconsistent with multiline fields
@@ -244,6 +277,7 @@ interface ExecOpts {
 	noCwd?: boolean;
 	noUsername?: boolean;
 	numRetries?: number;
+	trace?: boolean;
 }
 
 interface ExecZtagOpts extends ExecOpts {
@@ -475,8 +509,8 @@ export class PerforceContext {
 	}
 
 	async latestChange(path: string): Promise<Change> {
-		const args = ['changes', '-l', '-ssubmitted', '-m1', path]
-		const result = await this.execAndParse(null, args, {quiet: true}, changeResultExpectedShape)
+		const args = ['-v1', 'changes', '-l', '-ssubmitted', '-m1', path]
+		const result = await this.execAndParse(null, args, {quiet: true, trace: true}, changeResultExpectedShape)
 		if (!result || result.length !== 1) {
 			throw new Error("Expected exactly one change")
 		}
@@ -1281,7 +1315,18 @@ export class PerforceContext {
 						if (response.length > 10 * 1024) {
 							logger.info(`Response size: ${Math.round(response.length / 1024.)}K`)
 						}
-						done(response)
+
+						if (opts.trace) {
+							const [traceResult, rest] = parseTrace(response)
+							const durationSeconds = (Date.now() - cmd_rec.start.valueOf()) / 1000
+							if (durationSeconds > 10) {
+								logger.info(`Duration: ${durationSeconds}s, pid: ${traceResult.pid}\n${traceResult.entries.join('\n')}`)
+							}
+							done(rest)
+						}
+						else {
+							done(response)
+						}
 					}
 				});
 
