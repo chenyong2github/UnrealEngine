@@ -14,7 +14,7 @@ struct FPropertyAccessEditorSystem
 {
 	struct FResolveSegmentsContext
 	{
-		FResolveSegmentsContext(UStruct* InStruct, TArrayView<FString> InPath, FPropertyAccessPath& InAccessPath)
+		FResolveSegmentsContext(const UStruct* InStruct, TArrayView<FString> InPath, FPropertyAccessPath& InAccessPath)
 			: Struct(InStruct)
 			, CurrentStruct(InStruct)
 			, Path(InPath)
@@ -22,10 +22,10 @@ struct FPropertyAccessEditorSystem
 		{}
 
 		// Starting struct
-		UStruct* Struct;
+		const UStruct* Struct;
 
-		// Starting struct
-		UStruct* CurrentStruct;
+		// Current struct
+		const UStruct* CurrentStruct;
 
 		// Path as FStrings with optional array markup
 		TArrayView<FString> Path;
@@ -247,7 +247,7 @@ struct FPropertyAccessEditorSystem
 		}
 	}
 
-	static EPropertyAccessResolveResult ResolveLeafProperty(UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex)
+	static EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex)
 	{
 		FPropertyAccessPath AccessPath;
 		FResolveSegmentsContext Context(InStruct, InPath, AccessPath);
@@ -376,7 +376,7 @@ struct FPropertyAccessEditorSystem
 		return EPropertyAccessCopyType::None;
 	}
 
-	static bool CompileCopy(UStruct* InStruct, FPropertyAccessLibrary& InLibrary, FPropertyAccessLibraryCompiler::FQueuedCopy& OutCopy)
+	static bool CompileCopy(const UStruct* InStruct, FPropertyAccessLibrary& InLibrary, FPropertyAccessLibraryCompiler::FQueuedCopy& OutCopy)
 	{
 		FPropertyAccessPath SrcAccessPath;
 		FPropertyAccessPath DestAccessPath;
@@ -430,7 +430,7 @@ struct FPropertyAccessEditorSystem
 
 namespace PropertyAccess
 {
-	EPropertyAccessResolveResult ResolveLeafProperty(UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex)
+	EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex)
 	{
 		return ::FPropertyAccessEditorSystem::ResolveLeafProperty(InStruct, InPath, OutProperty, OutArrayIndex);
 	}
@@ -567,6 +567,14 @@ FPropertyAccessLibraryCompiler::FPropertyAccessLibraryCompiler()
 {
 }
 
+void FPropertyAccessLibraryCompiler::BeginCompilation(const UClass* InClass)
+{
+	if(Class && Library)
+	{
+		*Library = FPropertyAccessLibrary();
+	}
+}
+
 int32 FPropertyAccessLibraryCompiler::AddCopy(TArrayView<FString> InSourcePath, TArrayView<FString> InDestPath, EPropertyAccessBatchType InBatchType, UObject* InAssociatedObject)
 {
 	FQueuedCopy QueuedCopy;
@@ -630,6 +638,12 @@ int32 FPropertyAccessLibraryCompiler::MapCopyIndex(int32 InIndex) const
 	}
 
 	return INDEX_NONE;
+}
+
+void FPropertyAccessLibraryCompiler::Setup(const UClass* InClass, FPropertyAccessLibrary* InLibrary)
+{
+	Class = InClass;
+	Library = InLibrary;
 }
 
 #undef LOCTEXT_NAMESPACE

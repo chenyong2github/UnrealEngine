@@ -11,7 +11,6 @@ public class PropertyAccess : ModuleRules
 			"Core",
 			"CoreUObject",
 			"PropertyPath",
-			"Engine",
 		});
 	}
 }

@@ -15,27 +15,25 @@
 #include "K2Node_VariableGet.h"
 #include "AnimationGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "IPropertyAccessCompilerSubsystem.h"
-#include "AnimBlueprintCompilerSubsystem.h"
+#include "PropertyAccessCompilerHandler.h"
 #include "Modules/ModuleManager.h"
 #include "IPropertyAccessEditor.h"
 #include "IPropertyAccessCompiler.h"
 #include "Features/IModularFeatures.h"
+#include "IAnimBlueprintCompilationContext.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_PropertyAccess"
 
-void UK2Node_PropertyAccess::CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext)
+void UK2Node_PropertyAccess::CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext)
 {
 	GeneratedPropertyName = NAME_None;
 
 	if(ResolvedPinType != FEdGraphPinType() && ResolvedPinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard)
 	{
 		// Create internal generated destination property
-		if(FProperty* DestProperty = FKismetCompilerUtilities::CreatePropertyOnScope(InCompilerContext.NewClass, GetFName(), ResolvedPinType, InCompilerContext.NewClass, CPF_None, CastChecked<UEdGraphSchema_K2>(GetSchema()), InCompilerContext.MessageLog))
+		if(FProperty* DestProperty = InCreationContext.CreateVariable(GetFName(), ResolvedPinType))
 		{
 			GeneratedPropertyName = DestProperty->GetFName();
-
-			FKismetCompilerUtilities::LinkAddedProperty(InCompilerContext.NewClass, DestProperty);
 		}
 	}
 }
@@ -50,9 +48,10 @@ void UK2Node_PropertyAccess::ExpandNode(FKismetCompilerContext& InCompilerContex
 		DestPropertyPath.Add(GeneratedPropertyName.ToString());
 
 		// Create a copy event in the complied generated class
-		IPropertyAccessCompilerSubsystem* PropertyAccessSubsystem = UAnimBlueprintCompilerSubsystem::FindSubsystemWithInterface<IPropertyAccessCompilerSubsystem>(InCompilerContext);
-		check(PropertyAccessSubsystem);
-		PropertyAccessSubsystem->AddCopy(Path, DestPropertyPath, EPropertyAccessBatchType::Batched, this);
+		TUniquePtr<IAnimBlueprintCompilationContext> CompilationContext = IAnimBlueprintCompilationContext::Get(InCompilerContext);
+		FPropertyAccessCompilerHandler* PropertyAccessHandler = CompilationContext->GetHandler<FPropertyAccessCompilerHandler>("PropertyAccessCompilerHandler");
+		check(PropertyAccessHandler);
+		PropertyAccessHandler->AddCopy(Path, DestPropertyPath, EPropertyAccessBatchType::Batched, this);
 
 		// Replace us with a get node
 		UK2Node_VariableGet* VariableGetNode = InCompilerContext.SpawnIntermediateNode<UK2Node_VariableGet>(this, InSourceGraph);
