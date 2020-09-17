@@ -260,7 +260,7 @@ void* FMacCursor::CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Width, 
 			hasAlpha : YES
 			isPlanar : NO
 			colorSpaceName : NSCalibratedRGBColorSpace
-			bitmapFormat : NSAlphaFirstBitmapFormat
+			bitmapFormat : NSBitmapFormatAlphaFirst
 			bytesPerRow : Width * 4
 			bitsPerPixel : 32];
 

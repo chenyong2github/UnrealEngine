@@ -88,7 +88,8 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 	WindowMode = NewWindowMode;
 	
 	NSView* OpenGLView = [self openGLView];
-	[[NSNotificationCenter defaultCenter] postNotificationName:NSViewGlobalFrameDidChangeNotification object:OpenGLView];
+	[[NSNotificationCenter defaultCenter] postNotificationName:NSViewFrameDidChangeNotification object:OpenGLView];
+	[[NSNotificationCenter defaultCenter] postNotificationName:NSViewBoundsDidChangeNotification object:OpenGLView];
 }
 
 - (EWindowMode::Type)windowMode
@@ -333,8 +334,9 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 	bZoomed = [self isZoomed];
 	
 	NSView* OpenGLView = [self openGLView];
-	[[NSNotificationCenter defaultCenter] postNotificationName:NSViewGlobalFrameDidChangeNotification object:OpenGLView];
-	
+	[[NSNotificationCenter defaultCenter] postNotificationName:NSViewFrameDidChangeNotification object:OpenGLView];
+	[[NSNotificationCenter defaultCenter] postNotificationName:NSViewBoundsDidChangeNotification object:OpenGLView];
+
 	if (MacApplication)
 	{
 		MacApplication->DeferEvent(Notification);
