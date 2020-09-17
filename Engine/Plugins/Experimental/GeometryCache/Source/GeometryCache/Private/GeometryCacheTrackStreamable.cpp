@@ -19,7 +19,7 @@ DECLARE_CYCLE_STAT(TEXT("Encode Mesh Frame"), STAT_AddMeshSample, STATGROUP_Geom
 void UGeometryCacheTrackStreamable::TriggerSerializationCrash()
 {
 	const FString PackageName = TEXT("/Game/CrashTest/CrashTest");
-	UPackage *AssetPackage = CreatePackage(NULL, *PackageName);
+	UPackage *AssetPackage = CreatePackage(*PackageName);
 	EObjectFlags Flags = RF_Public | RF_Standalone;
 
 	UGeometryCacheTrackStreamable* Track = NewObject<UGeometryCacheTrackStreamable>(AssetPackage, FName(*FString(TEXT("DeleteMe"))), Flags);

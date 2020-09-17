@@ -85,7 +85,7 @@ UObject* FAutomationEditorCommonUtils::ImportAssetUsingFactory(UFactory* ImportF
 {
 	UObject* ImportedAsset = NULL;
 
-	UPackage* Pkg = CreatePackage(NULL, *PackagePath);
+	UPackage* Pkg = CreatePackage( *PackagePath);
 	if (Pkg)
 	{
 		// Make sure the destination package is loaded

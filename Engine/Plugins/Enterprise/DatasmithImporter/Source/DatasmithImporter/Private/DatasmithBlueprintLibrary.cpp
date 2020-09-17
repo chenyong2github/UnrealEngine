@@ -130,7 +130,7 @@ namespace DatasmithBlueprintLibraryImpl
 			return false;
 		}
 
-		OutPackage = CreatePackage( nullptr, *PackageName );
+		OutPackage = CreatePackage( *PackageName );
 		return OutPackage != nullptr;
 	}
 }
@@ -419,7 +419,7 @@ namespace DatasmithSceneElementUtil
 							UDatasmithScene* SceneAsset = FDatasmithImporterUtils::FindObject< UDatasmithScene >(nullptr, PackageName);
 							if (!SceneAsset)
 							{
-								UPackage* Package = CreatePackage(nullptr, *PackageName);
+								UPackage* Package = CreatePackage( *PackageName);
 								if (!ensure(Package))
 								{
 									ImportContext.LogError(CreateAssetFailure);

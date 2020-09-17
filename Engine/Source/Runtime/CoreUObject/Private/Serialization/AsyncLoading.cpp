@@ -5644,7 +5644,7 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 		{
 			SCOPED_LOADTIMER(CreateLinker_CreatePackage);
 			FGCScopeGuard GCGuard;
-			Package = CreatePackage(nullptr, *Desc.Name.ToString());
+			Package = CreatePackage(*Desc.Name.ToString());
 			if (!Package)
 			{
 				UE_LOG(LogStreaming, Error, TEXT("Failed to create package %s requested by async loading code. NameToLoad: %s"), *Desc.Name.ToString(), *Desc.NameToLoad.ToString());

@@ -78,7 +78,7 @@ UTexture* UnFbx::FFbxImporter::ImportTexture(FbxFileTexture* FbxTexture, bool bS
 		FString FinalPackageName;
 		AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, TextureName);
 
-		TexturePackage = CreatePackage(NULL, *FinalPackageName);
+		TexturePackage = CreatePackage( *FinalPackageName);
 	}
 	else
 	{
@@ -625,7 +625,7 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, FinalMaterialName);
 
-	UPackage* Package = CreatePackage(nullptr, *FinalPackageName);
+	UPackage* Package = CreatePackage( *FinalPackageName);
 	
 	// Check if we can use the specified base material to instance from it
 	FBXImportOptions* FbxImportOptions = GetImportOptions();

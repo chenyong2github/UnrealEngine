@@ -1072,7 +1072,7 @@ UNiagaraEmitterConversionContext* UNiagaraSystemConversionContext::AddEmptyEmitt
 	const TSharedPtr<FNiagaraSystemViewModel>& SystemViewModel = UFXConverterUtilitiesLibrary::GuidToNiagaraSystemViewModelMap.FindChecked(SystemViewModelGuid);
 
 	UNiagaraEmitterFactoryNew* Factory = NewObject<UNiagaraEmitterFactoryNew>();
-	UPackage* Pkg = CreatePackage(NULL, NULL);
+	UPackage* Pkg = CreatePackage(nullptr);
 	FName NewEmitterName = FName(*NewEmitterNameString);
 	EObjectFlags Flags = RF_Public | RF_Standalone;
 	UNiagaraEmitter* NewEmitter = CastChecked<UNiagaraEmitter>(Factory->FactoryCreateNew(UNiagaraEmitter::StaticClass(), Pkg, NewEmitterName, Flags, NULL, GWarn));

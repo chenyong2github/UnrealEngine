@@ -2634,7 +2634,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		UPackage* Package = InOuter;
 		if (Package == nullptr)
 		{
-			Package = CreatePackage(NULL, *PackageName);
+			Package = CreatePackage( *PackageName);
 			check(Package);
 			Package->FullyLoad();
 			Package->Modify();
@@ -2646,11 +2646,11 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			if(ExistingObject && !ExistingObject->GetClass()->IsChildOf(UStaticMesh::StaticClass()))
 			{
 				// Change name of merged static mesh to avoid name collision
-				UPackage* ParentPackage = CreatePackage(nullptr, *FPaths::GetPath(Package->GetPathName()));
+				UPackage* ParentPackage = CreatePackage( *FPaths::GetPath(Package->GetPathName()));
 				ParentPackage->FullyLoad();
 
 				AssetName = MakeUniqueObjectName( ParentPackage, UStaticMesh::StaticClass(), *AssetName).ToString();
-				Package = CreatePackage(NULL, *(ParentPackage->GetPathName() / AssetName ));
+				Package = CreatePackage( *(ParentPackage->GetPathName() / AssetName ));
 				check(Package);
 				Package->FullyLoad();
 				Package->Modify();
@@ -3348,7 +3348,7 @@ UMaterialInterface* FMeshMergeUtilities::CreateProxyMaterial(const FString &InBa
 	UPackage* MaterialPackage = InOuter;
 	if (MaterialPackage == nullptr)
 	{
-		MaterialPackage = CreatePackage(nullptr, *(MaterialPackageName + MaterialAssetName));
+		MaterialPackage = CreatePackage( *(MaterialPackageName + MaterialAssetName));
 		check(MaterialPackage);
 		MaterialPackage->FullyLoad();
 		MaterialPackage->Modify();

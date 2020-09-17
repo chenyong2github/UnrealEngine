@@ -1178,7 +1178,7 @@ void FEditorFileUtils::SaveAssetsAs(const TArray<UObject*>& Assets, TArray<UObje
 		{
 			// duplicate asset at destination
 			const FString NewAssetName = FPackageName::GetLongPackageAssetName(NewPackageName);
-			UPackage* DuplicatedPackage = CreatePackage(nullptr, *NewPackageName);
+			UPackage* DuplicatedPackage = CreatePackage( *NewPackageName);
 			UObject* DuplicatedAsset = StaticDuplicateObject(Asset, DuplicatedPackage, *NewAssetName);
 
 			if (DuplicatedAsset != nullptr)

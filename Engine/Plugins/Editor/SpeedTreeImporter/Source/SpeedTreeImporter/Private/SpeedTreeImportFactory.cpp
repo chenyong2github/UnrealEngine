@@ -462,7 +462,7 @@ UTexture* CreateSpeedTreeMaterialTexture(UObject* Parent,const FString& Filename
 		FString FinalPackageName;
 		AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, TextureName);
 
-		Package = CreatePackage(nullptr, *FinalPackageName);
+		Package = CreatePackage(*FinalPackageName);
 	}
 
 	// try opening from absolute path
@@ -1283,7 +1283,7 @@ UMaterialInterface* CreateSpeedTreeMaterial9(UObject* Parent, FString MaterialFu
 		FString FinalPackageName;
 		AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, FixedMaterialName);
 
-		Package = CreatePackage(nullptr, *FinalPackageName);
+		Package = CreatePackage(*FinalPackageName);
 	}
 
 	// does not override existing materials
@@ -2774,7 +2774,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 		FString FinalPackageName;
 		AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, MeshName);
 
-		Package = CreatePackage(nullptr, *FinalPackageName);
+		Package = CreatePackage(*FinalPackageName);
 	}
 
 	USpeedTreeImportData* ExistingImportData = nullptr;

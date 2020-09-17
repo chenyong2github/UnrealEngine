@@ -3220,7 +3220,7 @@ FReply FPersonaMeshDetails::OnSaveLODSettings()
 			const FString SaveAssetName = FPaths::GetBaseFilename(SavePackageName);
 
 			// create package and create object
-			UPackage* Package = CreatePackage(nullptr, *SavePackageName);
+			UPackage* Package = CreatePackage( *SavePackageName);
 			USkeletalMeshLODSettings* NewLODSettingAsset = NewObject<USkeletalMeshLODSettings>(Package, *SaveAssetName, RF_Public | RF_Standalone);
 			if (NewLODSettingAsset && SkelMesh->GetLODNum() > 0)
 			{

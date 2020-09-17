@@ -180,7 +180,7 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 
 UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(const FString& PackageName, const FString& AssetName, const FBakeOutput& BakeOutput, const FMeshData& MeshData, const FMaterialData& MaterialData, UMaterialOptions* Options)
 {
-	UPackage* MaterialPackage = CreatePackage(nullptr, *PackageName);
+	UPackage* MaterialPackage = CreatePackage( *PackageName);
 	check(MaterialPackage);
 	MaterialPackage->FullyLoad();
 	MaterialPackage->Modify();
@@ -1060,7 +1060,7 @@ UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenM
 	UPackage* MaterialOuter = InOuter;
 	if (MaterialOuter == NULL)
 	{
-		MaterialOuter = CreatePackage(NULL, *(AssetBasePath / MaterialAssetName));
+		MaterialOuter = CreatePackage( *(AssetBasePath / MaterialAssetName));
 		MaterialOuter->FullyLoad();
 		MaterialOuter->Modify();
 	}
@@ -1466,7 +1466,7 @@ UMaterialInstanceConstant* FMaterialUtilities::CreateInstancedMaterial(UMaterial
 	UPackage* MaterialOuter = InOuter;
 	if (MaterialOuter == NULL)
 	{		
-		MaterialOuter = CreatePackage(NULL, *(AssetBasePath / MaterialAssetName));
+		MaterialOuter = CreatePackage( *(AssetBasePath / MaterialAssetName));
 		MaterialOuter->FullyLoad();
 		MaterialOuter->Modify();
 	}
@@ -1500,7 +1500,7 @@ UTexture2D* FMaterialUtilities::CreateTexture(UPackage* Outer, const FString& As
 
 	if (Outer == nullptr)
 	{
-		Outer = CreatePackage(NULL, *AssetLongName);
+		Outer = CreatePackage( *AssetLongName);
 		Outer->FullyLoad();
 		Outer->Modify();
 	}

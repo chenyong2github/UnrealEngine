@@ -722,7 +722,7 @@ namespace ObjectTools
 		if ( ensure(ExistingObject == NULL) )
 		{
 			EDuplicateMode::Type DuplicateMode = Object->IsA(UWorld::StaticClass()) ? EDuplicateMode::World : EDuplicateMode::Normal;
-			DupObject = StaticDuplicateObject( Object, CreatePackage(NULL,*PkgName), *ObjName, RF_AllFlags, nullptr, DuplicateMode );
+			DupObject = StaticDuplicateObject( Object, CreatePackage(*PkgName), *ObjName, RF_AllFlags, nullptr, DuplicateMode );
 		}
 
 		if( DupObject )
@@ -3580,7 +3580,7 @@ namespace ObjectTools
 				else
 				{
 					// We can rename on top of an object redirection (basically destroy the redirection and put us in its place).
-					UPackage* NewPackage = CreatePackage( NULL, *FullPackageName );
+					UPackage* NewPackage = CreatePackage( *FullPackageName );
 					NewPackage->GetOutermost()->FullyLoad();
 
 					// Make sure we copy all the cooked package flags if the asset was already cooked.
@@ -3609,10 +3609,10 @@ namespace ObjectTools
 						&& Redirector->DestinationObject->GetClass() == Object->GetClass() )
 					{
 						// Test renaming the redirector into a dummy package.
-						if ( Redirector->Rename(*Redirector->GetName(), CreatePackage(NULL, TEXT("/Temp/TempRedirectors")), REN_Test) )
+						if ( Redirector->Rename(*Redirector->GetName(), CreatePackage( TEXT("/Temp/TempRedirectors")), REN_Test) )
 						{
 							// Actually rename the redirector here so it doesn't get in the way of the rename below.
-							Redirector->Rename(*Redirector->GetName(), CreatePackage(NULL, TEXT("/Temp/TempRedirectors")), REN_DontCreateRedirectors);
+							Redirector->Rename(*Redirector->GetName(), CreatePackage( TEXT("/Temp/TempRedirectors")), REN_DontCreateRedirectors);
 
 							bFoundCompatibleRedirector = true;
 						}
@@ -3697,7 +3697,7 @@ namespace ObjectTools
 			}
 
 			UPackage* OldPackage = Object->GetOutermost();
-			UPackage* NewPackage = CreatePackage( NULL, *PkgName );
+			UPackage* NewPackage = CreatePackage( *PkgName );
 
 			// if this object is being renamed out of the MyLevel package into a content package, we need to mark it RF_Standalone
 			// so that it will be saved (UWorld::CleanupWorld() clears this flag for all objects inside the package)

@@ -617,7 +617,7 @@ void SMoviePipelineQueuePanel::OnSaveAsAsset()
 	
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
-	UPackage* NewPackage = CreatePackage(nullptr, *PackageName);
+	UPackage* NewPackage = CreatePackage(*PackageName);
 	UMoviePipelineQueue* DuplicateQueue = DuplicateObject<UMoviePipelineQueue>(CurrentQueue, NewPackage, *NewAssetName);
 
 	if (DuplicateQueue)

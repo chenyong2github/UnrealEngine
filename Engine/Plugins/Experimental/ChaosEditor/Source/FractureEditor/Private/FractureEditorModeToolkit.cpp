@@ -1437,7 +1437,7 @@ class AGeometryCollectionActor* FFractureEditorModeToolkit::CreateNewGeometryAct
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetToolsModule.Get().CreateUniqueAssetName(UniquePackageName, TEXT(""), UniquePackageName, UniqueAssetName);
 
-	UPackage* Package = CreatePackage(NULL, *UniquePackageName);
+	UPackage* Package = CreatePackage(*UniquePackageName);
 	UGeometryCollection* InGeometryCollection = static_cast<UGeometryCollection*>(NewObject<UGeometryCollection>(Package, UGeometryCollection::StaticClass(), FName(*UniqueAssetName), RF_Transactional | RF_Public | RF_Standalone));
 
 	// Create the new Geometry Collection actor
