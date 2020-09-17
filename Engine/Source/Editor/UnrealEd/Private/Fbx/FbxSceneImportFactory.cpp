@@ -2362,6 +2362,7 @@ UObject* UFbxSceneImportFactory::ImportANode(void* VoidFbxImporter, TArray<void*
 	}
 	else
 	{
+		Pkg->SetDirtyFlag(false);
 		Pkg->RemoveFromRoot();
 		Pkg->ConditionalBeginDestroy();
 	}

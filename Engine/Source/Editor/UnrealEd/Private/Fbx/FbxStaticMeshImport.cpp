@@ -1999,6 +1999,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		// If we couldn't build the static mesh, its package is invalid. We should reject it entirely to prevent issues from arising from trying to use it in the editor.
 		if (!NewPackageName.IsEmpty())
 		{
+			Package->SetDirtyFlag(false);
 			Package->RemoveFromRoot();
 			Package->ConditionalBeginDestroy();
 		}
