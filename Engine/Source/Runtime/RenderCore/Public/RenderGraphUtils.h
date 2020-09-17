@@ -646,6 +646,12 @@ RENDERCORE_API void ConvertToUntrackedExternalTexture(
 	TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget,
 	ERHIAccess AccessFinal);
 
+RENDERCORE_API void ConvertToUntrackedExternalBuffer(
+	FRDGBuilder& GraphBuilder,
+	FRDGBufferRef Buffer,
+	TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer,
+	ERHIAccess AccessFinal);
+
 // Used to help port code over to RDG. If the graph builder is null, creates a passthrough RDG texture instead. Will be removed once port is complete.
 RENDERCORE_API FRDGTextureRef RegisterExternalOrPassthroughTexture(
 	FRDGBuilder* GraphBuilder,
