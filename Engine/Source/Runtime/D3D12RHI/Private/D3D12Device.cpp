@@ -348,13 +348,13 @@ void FD3D12Device::Cleanup()
 			int RefCount = CommandQueue->Release();
 			if (RefCount < 0)
 			{
-				UE_LOG(LogD3D12RHI, Error, TEXT("%s CommandQueue is already destroyed!"), Name);
+				UE_LOG(LogD3D12RHI, Error, TEXT("%s CommandQueue is already destroyed  (Refcount %d)!"), Name, RefCount);
 			}
 			else if (RefCount > 2)
 			{
 				UE_LOG(LogD3D12RHI, Warning, TEXT("%s CommandQueue is leaking (Refcount %d)"), Name, RefCount);
 			}
-			check(RefCount >= 1);
+			ensure(RefCount >= 1);
 		}
 	};
 
