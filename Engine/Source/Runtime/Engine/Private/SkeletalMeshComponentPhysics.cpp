@@ -71,6 +71,10 @@ TAutoConsoleVariable<int32> CVarEnableKinematicDeferralPrePhysicsCondition(TEXT(
 DECLARE_CYCLE_STAT(TEXT("Cloth Total"), STAT_ClothTotalTime, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Cloth Writeback"), STAT_ClothWriteback, STATGROUP_Physics);
 
+// Used as a default return value for invalid cloth data access
+static const TMap<int32, FClothSimulData> SEmptyClothSimulationData;
+
+
 void FSkeletalMeshComponentClothTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FSkeletalMeshComponentClothTickFunction_ExecuteTick);
@@ -3312,7 +3316,30 @@ public:
 	}
 };
 
-bool USkeletalMeshComponent::ShouldWaitForParallelClothTask() const
+bool USkeletalMeshComponent::RequiresPreEndOfFrameSync() const
+{
+	if ((ClothingSimulation != nullptr) && (CVarEnableClothPhysics.GetValueOnGameThread() != 0))
+	{
+		// By default we await the cloth task in the ClothTickFunction, but...
+		// If we have cloth and have no game-thread dependencies on the cloth output, 
+		// then we will wait for the cloth task in SendAllEndOfFrameUpdates.
+		if (!ShouldWaitForClothInTickFunction())
+		{
+			return true;
+		}
+	}
+	return Super::RequiresPreEndOfFrameSync();
+}
+
+void USkeletalMeshComponent::OnPreEndOfFrameSync()
+{
+	Super::OnPreEndOfFrameSync();
+
+	HandleExistingParallelClothSimulation();
+}
+
+
+bool USkeletalMeshComponent::ShouldWaitForClothInTickFunction() const
 {
 	return bWaitForParallelClothTask || (CVarClothPhysicsTickWaitForParallelClothTask.GetValueOnAnyThread() != 0);
 }
@@ -3320,7 +3347,7 @@ bool USkeletalMeshComponent::ShouldWaitForParallelClothTask() const
 const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingData_GameThread() const
 {
 	// We require the cloth tick to wait for the simulation results if we want to use them for some reason other than rendering.
-	if (!ShouldWaitForParallelClothTask())
+	if (!ShouldWaitForClothInTickFunction())
 	{
 		// Log a one-time warning
 		UE_LOG(LogSkeletalMesh, Warning, TEXT("Use of USkeletalMeshComponent::GetCurrentClothingData_GameThread requires that property bWaitForParallelClothTask be set to true"));
@@ -3329,8 +3356,7 @@ const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingDa
 		const_cast<USkeletalMeshComponent*>(this)->bWaitForParallelClothTask = true;
 
 		// Return an empty dataset
-		static const TMap<int32, FClothSimulData> SEmptySimulationData;
-		return SEmptySimulationData;
+		return SEmptyClothSimulationData;
 	}
 
 	return CurrentSimulationData;
@@ -3338,16 +3364,15 @@ const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingDa
 
 const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingData_AnyThread() const
 {
-	// If we did not wait for cloth data in the tick task, we must wait here
-	// Only required if forced waiting is not enabled. Note, we are deliberately not checking bWaitForParallelClothTask here since that
-	// could have been changed this frame in GetCurrentClothingData_GameThread(). This is ok though, see HandleExistingParallelClothSimulation which
-	// if fine to call if the task has already completed.
-	if (CVarClothPhysicsTickWaitForParallelClothTask.GetValueOnAnyThread() == 0)
+	// This is called during EndOfFrameUpdates, usually in a parallel-for loop. We need to be sure that
+	// the cloth task (if there is one) is complete, but it cannpt be waited for here. See OnPreEndOfFrameUpdateSync
+	// which is called just before EOF updates and is where we would have waited for the cloth task.
+	if (!IsValidRef(ParallelClothTask) || ParallelClothTask->IsComplete())
 	{
-		const_cast<USkeletalMeshComponent*>(this)->HandleExistingParallelClothSimulation();
+		return CurrentSimulationData;
 	}
 
-	return CurrentSimulationData;
+	return SEmptyClothSimulationData;
 }
 
 void USkeletalMeshComponent::UpdateClothStateAndSimulate(float DeltaTime, FTickFunction& ThisTickFunction)
@@ -3390,7 +3415,7 @@ void USkeletalMeshComponent::UpdateClothStateAndSimulate(float DeltaTime, FTickF
 	{
 		ParallelClothTask = TGraphTask<FParallelClothTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(*this, DeltaTime);
 		
-		if (ShouldWaitForParallelClothTask())
+		if (ShouldWaitForClothInTickFunction())
 		{
 			FGraphEventArray Prerequisites;
 			Prerequisites.Add(ParallelClothTask);

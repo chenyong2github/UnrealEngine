@@ -265,6 +265,8 @@ UActorComponent::UActorComponent(const FObjectInitializer& ObjectInitializer /*=
 
 	bCanEverAffectNavigation = false;
 	bNavigationRelevant = false;
+
+	bMarkedForPreEndOfFrameSync = false;
 }
 
 void UActorComponent::PostInitProperties()
@@ -1738,6 +1740,11 @@ bool UActorComponent::RequiresGameThreadEndOfFrameUpdates() const
 bool UActorComponent::RequiresGameThreadEndOfFrameRecreate() const
 {
 	return true;
+}
+
+bool UActorComponent::RequiresPreEndOfFrameSync() const
+{
+	return false;
 }
 
 void UActorComponent::Activate(bool bReset)

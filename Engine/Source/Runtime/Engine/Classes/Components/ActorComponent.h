@@ -285,6 +285,9 @@ private:
 	/** Tracks whether the component has been added to one of the world's end of frame update lists */
 	uint8 MarkedForEndOfFrameUpdateState:2;
 
+	/** Tracks whether the component has been added to the world's pre end of frame sync list */
+	uint8 bMarkedForPreEndOfFrameSync : 1;
+
 public:
 	/** Describes how a component instance will be created */
 	UPROPERTY()
@@ -312,6 +315,9 @@ public:
 
 	/** Tracks whether the component has been added to one of the world's end of frame update lists */
 	uint32 GetMarkedForEndOfFrameUpdateState() const { return MarkedForEndOfFrameUpdateState; }
+
+	/** Tracks whether the component has been added to one of the world's end of frame update lists */
+	uint32 GetMarkedForPreEndOfFrameSync() const { return bMarkedForPreEndOfFrameSync; }
 
 	/** Initializes the list of properties that are modified by the UserConstructionScript */
 	void DetermineUCSModifiedProperties();
@@ -518,6 +524,9 @@ public:
 
 	/** Allows components to handle an EOF update happening mid tick. Can be used to block on in-flight async tasks etc. This should ensure the the component's tick is complete so that it's render update is correct. */
 	virtual void OnEndOfFrameUpdateDuringTick() {}
+
+	/** Allows components to wait on outstanding tasks prior to sending EOF update data. Executed on Game Thread and may await tasks. */
+	virtual void OnPreEndOfFrameSync() {}
 
 private:
 	/** Cached pointer to owning actor */
@@ -796,6 +805,9 @@ public:
 
 	/** return true if this component requires end of frame recreates to happen from the game thread. */
 	virtual bool RequiresGameThreadEndOfFrameRecreate() const;
+
+	/** return true if this component needs to sync to tasks before end of frame updates are executed */
+	virtual bool RequiresPreEndOfFrameSync() const;
 
 	/** 
 	 * Recreate the render state right away. Generally you always want to call MarkRenderStateDirty instead. 

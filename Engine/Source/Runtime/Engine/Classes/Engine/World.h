@@ -1352,6 +1352,10 @@ public:
 #endif
 private:
 
+	/** Array of components that need to wait on tasks before end of frame updates */
+	UPROPERTY(Transient, NonTransactional)
+	TSet<UActorComponent*> ComponentsThatNeedPreEndOfFrameSync;
+
 	/** Array of components that need updates at the end of the frame */
 	UPROPERTY(Transient, NonTransactional)
 	TArray<UActorComponent*> ComponentsThatNeedEndOfFrameUpdate;
