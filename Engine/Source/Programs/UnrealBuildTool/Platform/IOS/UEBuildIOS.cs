@@ -439,9 +439,9 @@ namespace UnrealBuildTool
 			FileReference ProjectFile = ProjectSettings.ProjectFile;
             if (!string.IsNullOrEmpty(SigningCertificate))
             {
-                // verify the certificate
-                Process IPPProcess = new Process();
-                if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+				// verify the certificate
+				Process IPPProcess = new Process();
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
                 {
                     string IPPCmd = "\"" + UnrealBuildTool.EngineDirectory + "/Binaries/DotNET/IOS/IPhonePackager.exe\" certificates " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bForDistribtion ? " -distribution" : "");
                     IPPProcess.StartInfo.WorkingDirectory = UnrealBuildTool.EngineDirectory.ToString();
