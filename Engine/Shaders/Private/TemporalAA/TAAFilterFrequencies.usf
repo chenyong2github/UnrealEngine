@@ -269,7 +269,7 @@ void MainCS(
 	}
 	
 	#if 1
-		uint2 OutputPixelPos = uint2(InputBufferUV * InputInfo_ExtentInverse);
+		uint2 OutputPixelPos = uint2(InputBufferUV * InputInfo_Extent);
 	#else
 		uint2 OutputPixelPos = InputPixelPos;
 	#endif
