@@ -263,7 +263,7 @@ void* FMallocLinked::Realloc(void* Ptr, SIZE_T NewSize, uint32 Alignment)
 
 	if (Result != nullptr)
 	{
-		memcpy(Result, Ptr, FMath::Min(NewSize, AllocationSize));
+		FMemory::Memcpy(Result, Ptr, FMath::Min(NewSize, AllocationSize));
 	}
 
 	Free(Ptr);
