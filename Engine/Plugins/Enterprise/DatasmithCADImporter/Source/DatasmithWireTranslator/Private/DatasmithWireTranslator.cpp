@@ -63,6 +63,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDatasmithWireTranslator, Log, All);
 #ifdef USE_OPENMODEL
 
 using namespace OpenModelUtils;
+using namespace CADLibrary;
 
 class BodyData
 {
