@@ -30,92 +30,6 @@ FLinearColor YellowToRedFromScalar(float Scalar)
 	return FLinearColor(1.0f, 1.0f * (1.0f - Scalar), 0.0f);
 }
 
-struct FInvalidatedWidgetDrawer
-{
-	FWidgetProxyHandle ProxyHandle;
-	FCurveSequence FadeCurve;
-	double StartTime;
-	FLinearColor InvalidationColor;
-
-	FInvalidatedWidgetDrawer(const FWidgetProxyHandle& InProxyHandle)
-		: ProxyHandle(InProxyHandle)
-		, FadeCurve(0, 1.0f, ECurveEaseFunction::Linear)
-
-	{
-	}
-
-	/** Widget was invalidated */
-	void Refresh(const FLinearColor* CustomInvalidationColor = nullptr)
-	{
-		if (ProxyHandle.IsValid())
-		{
-			if (CustomInvalidationColor)
-			{
-				InvalidationColor = *CustomInvalidationColor;
-			}
-			else if (FadeCurve.IsPlaying())
-			{
-				// Color more red based on how recently  this was already invalidated
-				InvalidationColor = YellowToRedFromScalar(1.0f - FadeCurve.GetLerp());
-			}
-			else
-			{
-				InvalidationColor = FLinearColor::Yellow;
-			}
-
-			FadeCurve.Play(SNullWidget::NullWidget, false, 0.0f, false);
-		}
-	}
-
-	bool Draw(const FPaintArgs& PaintArgs, FSlateWindowElementList& ElementList)
-	{
-		static const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush(TEXT("FocusRectangle"));
-
-		static const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle(TEXT("SmallFont"));
-
-		if (ProxyHandle.IsValid() && !FadeCurve.IsAtEnd() && ProxyHandle.GetProxy().Widget)
-		{
-			SWidget* Widget = ProxyHandle.GetProxy().Widget;
-
-			const FSlateWidgetPersistentState& MyState = Widget->GetPersistentState();
-			if (MyState.InitialClipState.IsSet())
-			{
-				ElementList.GetClippingManager().PushClippingState(MyState.InitialClipState.GetValue());
-			}
-		
-			//ElementList.PushAbsoluteBatchPriortyGroup(MyState.BatchPriorityGroup);
-		/*	FSlateDrawElement::MakeText(
-				ElementList,
-				MyState.OutgoingLayerId + 1,
-				MyState.AllottedGeometry.ToPaintGeometry(),
-				FText::Format(FText::FromString(TEXT("{0} {1}")), FText::FromString(Widget->GetTypeAsString()), MyState.LayerId),
-				FontInfo,
-				ESlateDrawEffect::None,
-				InvalidationColor.CopyWithNewOpacity(FMath::Lerp(1.0f, 0.0f, FadeCurve.GetLerp()))
-			);
-*/
-
-			FSlateDrawElement::MakeBox(
-				ElementList,
-				MyState.OutgoingLayerId + 1,
-				MyState.AllottedGeometry.ToPaintGeometry(),
-				WhiteBrush,
-				ESlateDrawEffect::None,
-				InvalidationColor.CopyWithNewOpacity(FMath::Lerp(1.0f, 0.0f, FadeCurve.GetLerp()))
-			);
-
-			//ElementList.PopBatchPriortyGroup();
-
-			if (MyState.InitialClipState.IsSet())
-			{
-				ElementList.PopClip();
-			}
-			return true;
-		}
-		return false;
-	}
-};
-
 FSlateDebuggingInputEventArgs::FSlateDebuggingInputEventArgs(ESlateDebuggingInputEvent InInputEventType, const FReply& InReply, const TSharedPtr<SWidget>& InHandlerWidget, const FString& InAdditionalContent)
 	: InputEventType(InInputEventType)
 	, Reply(InReply)
@@ -429,7 +343,6 @@ FSlateDebugging::FUICommandRun FSlateDebugging::CommandRun;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetMouseCaptureEvent, const FSlateDebuggingMouseCaptureEventArgs& /*EventArgs*/);
 
-TArray<struct FInvalidatedWidgetDrawer> FSlateDebugging::InvalidatedWidgetDrawers;
 FSlateDebugging::FLastCursorQuery FSlateDebugging::LastCursorQuery;
 
 TArray<FSlateDebugging::IWidgetInputRoutingEvent*> FSlateDebugging::RoutingEvents;
@@ -679,72 +592,6 @@ void FSlateDebugging::BroadcastWidgetUpdatedByPaint(const SWidget* Invalidated, 
 	if (WidgetUpdatedEvent.IsBound())
 	{
 		WidgetUpdatedEvent.Broadcast(FSlateDebuggingWidgetUpdatedEventArgs(Invalidated, UpdateFlags, true));
-	}
-}
-
-void FSlateDebugging::WidgetInvalidated(FSlateInvalidationRoot& InvalidationRoot, const class FWidgetProxy& WidgetProxy, const FLinearColor* CustomInvalidationColor)
-{
-	if(FSlateApplicationBase::IsInitialized())
-	{
-		int32 Index = WidgetProxy.Index;
-	
-		FInvalidatedWidgetDrawer* Drawer = InvalidatedWidgetDrawers.FindByPredicate([&InvalidationRoot, Index](FInvalidatedWidgetDrawer& InDrawer) { 
-			return InDrawer.ProxyHandle.GetInvalidationRoot() == &InvalidationRoot && InDrawer.ProxyHandle.GetIndex() == Index;
-		});
-
-		if (!Drawer) 
-		{
-			Drawer = &InvalidatedWidgetDrawers.Emplace_GetRef(FWidgetProxyHandle(InvalidationRoot, WidgetProxy.Index));
-		}
-
-		Drawer->Refresh(CustomInvalidationColor);
-	}
-}
-
-void FSlateDebugging::DrawInvalidationRoot(const SWidget& RootWidget, int32 LayerId, FSlateWindowElementList& OutDrawElements)
-{
-	if(GSlateInvalidationDebugging)
-	{
-		static const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush(TEXT("FocusRectangle"));
-
-		FSlateDrawElement::MakeBox(
-			OutDrawElements,
-			LayerId,
-			RootWidget.GetPaintSpaceGeometry().ToPaintGeometry(),
-			WhiteBrush,
-			ESlateDrawEffect::None,
-			FLinearColor(128, 0, 128)
-		);
-	}
-}
-
-void FSlateDebugging::DrawInvalidatedWidgets(const FSlateInvalidationRoot& Root, const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements)
-{
-	for (int DrawerIdx = 0; DrawerIdx < InvalidatedWidgetDrawers.Num(); ++DrawerIdx)
-	{		
-		FInvalidatedWidgetDrawer& Drawer = InvalidatedWidgetDrawers[DrawerIdx];
-		
-		if(Drawer.ProxyHandle.GetInvalidationRoot() == &Root)
-		{
-			if (!Drawer.Draw(PaintArgs, OutDrawElements))
-			{
-				InvalidatedWidgetDrawers.RemoveAtSwap(DrawerIdx, 1, false);
-				--DrawerIdx;
-			}
-		}
-	}
-}
-
-void FSlateDebugging::ClearInvalidatedWidgets(const FSlateInvalidationRoot& Root)
-{
-	for (int DrawerIdx = 0; DrawerIdx < InvalidatedWidgetDrawers.Num(); ++DrawerIdx)
-	{
-		FInvalidatedWidgetDrawer& Drawer = InvalidatedWidgetDrawers[DrawerIdx];
-
-		if (Drawer.ProxyHandle.GetInvalidationRoot() == &Root)
-		{
-			InvalidatedWidgetDrawers.RemoveAtSwap(DrawerIdx, 1, false);
-		}
 	}
 }
 

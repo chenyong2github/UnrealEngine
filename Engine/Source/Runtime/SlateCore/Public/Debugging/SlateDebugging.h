@@ -384,20 +384,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FUICommandRun, const FName& /*CommandName*/, const FText& /*CommandLabel*/);
 	static FUICommandRun CommandRun;
 
-public:
-	static void WidgetInvalidated(FSlateInvalidationRoot& InvalidationRoot, const class FWidgetProxy& WidgetProxy, const FLinearColor* CustomInvalidationColor = nullptr);
-
-	static void DrawInvalidationRoot(const SWidget& RootWidget, int32 LayerId, FSlateWindowElementList& OutDrawElements);
-
-	static void DrawInvalidatedWidgets(const FSlateInvalidationRoot& Root, const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements);
-
-	static void ClearInvalidatedWidgets(const FSlateInvalidationRoot& Root);
 private:
 
 	// This class is only for namespace use
-	FSlateDebugging() {}
-
-	static TArray<struct FInvalidatedWidgetDrawer> InvalidatedWidgetDrawers;
+	FSlateDebugging() = default;
 
 	struct FLastCursorQuery
 	{
