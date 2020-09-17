@@ -939,6 +939,10 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 			ScriptExecutionParamStore.CoalescePaddingInfo();
 		}
 
+		if (!HasValidParameterBindings())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
+		}
 	}
 #endif
 
@@ -1055,6 +1059,17 @@ void UNiagaraScript::PostLoad()
 	if (FPlatformProperties::RequiresCookedData())
 	{
 		ScriptExecutionParamStore.PostLoad();
+
+		// if our bindings aren't valid, then something has gone wrong with our cook and we need to disable this Script, which will in turn
+		// disable the owning script and system
+		if (!HasValidParameterBindings())
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
+
+			CachedScriptVM.Reset();
+			return;
+		}
+
 		RapidIterationParameters.Bind(&ScriptExecutionParamStore, &ScriptExecutionBoundParameters);
 		ScriptExecutionParamStore.bInitialized = true;
 		ScriptExecutionBoundParameters.Empty();
@@ -2566,4 +2581,23 @@ bool UNiagaraScript::UsesCollection(const UNiagaraParameterCollection* Collectio
 		}) != NULL;
 	}
 	return false;
+}
+
+bool UNiagaraScript::HasValidParameterBindings() const
+{
+	const int32 RapidIterationParameterSize = RapidIterationParameters.GetParameterDataArray().Num();
+	const int32 ScriptExecutionParameterSize = ScriptExecutionParamStore.GetParameterDataArray().Num();
+
+	for (const auto& Binding : ScriptExecutionBoundParameters)
+	{
+		const int32 ParameterSize = Binding.Parameter.GetSizeInBytes();
+
+		if (((Binding.SrcOffset + ParameterSize) > RapidIterationParameterSize)
+			|| ((Binding.DestOffset + ParameterSize) > ScriptExecutionParameterSize))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }

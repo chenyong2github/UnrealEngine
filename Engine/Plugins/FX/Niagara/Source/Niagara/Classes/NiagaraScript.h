@@ -698,6 +698,9 @@ private:
 	/** Generates all of the function bindings for DI that don't require user data */
 	void GenerateDefaultFunctionBindings();
 
+	/** Returns whether the parameter store bindings are valid */
+	bool HasValidParameterBindings() const;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
 	FNiagaraScriptExecutionParameterStore ScriptExecutionParamStoreCPU;
