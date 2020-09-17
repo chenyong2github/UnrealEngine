@@ -7,7 +7,6 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "ComposurePostMoves.h"
 #include "ComposureUVMap.h"
-#include "ActorLayerUtilities.h"
 
 #include "ComposureBlueprintLibrary.generated.h"
 
@@ -49,12 +48,6 @@ class UComposureBlueprintLibrary : public UBlueprintFunctionLibrary
 		UVMapSettings.SetMaterialParameters(Material);
 	}
 	
-	/**
-	* Get all the actors for a given Layer
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Composure", meta = (WorldContext = "WorldContextObject"))
-	static TArray<AActor*> GetActors(UObject* WorldContextObject, const FActorLayer& ActorLayer);
-
 	/**
 	 * Converts displacement encoding parameters to decoding parameters.
 	 * Can also be used to convert displacement decoding parameters to encoding parameters.
