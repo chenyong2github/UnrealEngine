@@ -82,7 +82,7 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 			// Get each individual channel value from the Function
 			uint8 FunctionValue[4] = { 0 };
 			UDMXEntityFixtureType::FunctionValueToBytes(Function, Function.DefaultValue, FunctionValue);
-
+			
 			// Write each channel (byte) to the fragment map
 			const int32 FunctionEndChannel = UDMXEntityFixtureType::GetFunctionLastChannel(Function) + PatchChannelOffset;
 
@@ -352,10 +352,10 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 			for (const TPair<uint16, IDMXFragmentMap>& Universe_FragmentMaps : Protocol_Universes.Value)
 			{
 				IDMXProtocolPtr Protocol = Protocol_Universes.Key;
-				bool bReceiveDMXEnabled = Protocol->IsReceiveDMXEnabled();
+				bool bCanLoopback = Protocol->IsReceiveDMXEnabled() && Protocol->IsSendDMXEnabled();
 
 				// If sent DMX will not be looped back via network, input it directly
-				if (!bReceiveDMXEnabled)
+				if (!bCanLoopback)
 				{
 					Protocol->InputDMXFragment(Universe_FragmentMaps.Key, Universe_FragmentMaps.Value);
 				}
