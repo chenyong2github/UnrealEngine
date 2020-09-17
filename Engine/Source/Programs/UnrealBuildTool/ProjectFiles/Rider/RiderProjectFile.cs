@@ -40,7 +40,7 @@ namespace UnrealBuildTool
 			PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			string ProjectName = ProjectFilePath.GetFileNameWithoutAnyExtensions();
-			DirectoryReference ProjectRootFolder = DirectoryReference.Combine(RootPath, ".Rider");
+			DirectoryReference ProjectRootFolder = RootPath;
 			List<Tuple<FileReference, UEBuildTarget>> FileToTarget = new List<Tuple<FileReference, UEBuildTarget>>();
 			foreach (UnrealTargetPlatform Platform in InPlatforms)
 			{
