@@ -3513,7 +3513,13 @@ int32 FLinkerLoad::LoadMetaDataFromExportMap(bool bForcePreload)
 	// Make sure the meta-data is referenced by its package to avoid premature GC
 	if (LinkerRoot)
 	{
-		LinkerRoot->MetaData = MetaData;
+		// If we didn't find a MetaData, keep the existing MetaData we may have constructed after previously noticing LoadMetaDataFromExportMap didn't find one
+		if (MetaData)
+		{
+			UE_CLOG(LinkerRoot->MetaData && LinkerRoot->MetaData != MetaData, LogLinker, Warning,
+				TEXT("LoadMetaDataFromExportMap was called after the MetaData was already loaded, and it found a different MetaData. Discarding the previously loaded MetaData."));
+			LinkerRoot->MetaData = MetaData;
+		}
 	}
 
 	return MetaDataIndex;
