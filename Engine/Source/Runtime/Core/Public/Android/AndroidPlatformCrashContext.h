@@ -82,4 +82,14 @@ private:
 	char ReportDirectory[CrashReportMaxPathSize];
 };
 
+struct CORE_API FAndroidMemoryWarningContext : public FGenericMemoryWarningContext
+{
+	FAndroidMemoryWarningContext() : LastTrimMemoryState(-1), LastNativeMemoryAdvisorState(-1) {}
+
+	// value last recorded from java side's OnTrimMemory. -1 if unset.
+	int LastTrimMemoryState;
+	// last value recorded from java side's memory advisor. -1 if unset.
+	int LastNativeMemoryAdvisorState;
+};
+
 typedef FAndroidCrashContext FPlatformCrashContext;

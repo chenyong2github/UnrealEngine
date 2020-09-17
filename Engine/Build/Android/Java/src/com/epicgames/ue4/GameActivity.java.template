@@ -2386,22 +2386,22 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					{
 						case UNKNOWN:
 							Log.warn("Cannot determine memory state");
-							nativeOnMemoryWarningChanged(_activity, -1);
+							nativeOnMemoryWarningChanged(-1);
 							break;
 						case OK:
 							if (MemState != MemoryAdvisor.MemoryState.UNKNOWN)
 							{
 								Log.warn("Available memory is back to safe limits. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) / MB + " MB");
 							}
-							nativeOnMemoryWarningChanged(_activity, 0);
+							nativeOnMemoryWarningChanged(0);
 							break;
 						case APPROACHING_LIMIT:
 							Log.warn("Approaching memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) / MB + " MB");
-							nativeOnMemoryWarningChanged(_activity, 1);
+							nativeOnMemoryWarningChanged(1);
 							break;
 						case CRITICAL:
 							Log.warn("Critical memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) / MB + " MB");
-							nativeOnMemoryWarningChanged(_activity, 2);
+							nativeOnMemoryWarningChanged(2);
 							break;
 					}
 					
@@ -3171,7 +3171,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				public void onThermalStatusChanged(int status) 
 				{
 					Log.debug("=== Thermal status changed to " + status);
-					nativeOnThermalStatusChangedListener(null, status);
+					nativeOnThermalStatusChangedListener(status);
 				}
 			});
 		}
@@ -3692,6 +3692,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				Log.debug("==============> GameActive.onTrimMemory(" + level + ") called!");
 				break;
 		}
+		nativeOnTrimMemory(level);
 	}
 
 	@Override
@@ -6391,9 +6392,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public native void nativeOnInitialDownloadStarted();
 	public native void nativeOnInitialDownloadCompleted();
 	
-	public native void nativeOnThermalStatusChangedListener(GameActivity activity, int status);
-	public native void nativeOnMemoryWarningChanged(GameActivity activity, int status);
-
+	public native void nativeOnThermalStatusChangedListener(int status);
+	public native void nativeOnMemoryWarningChanged(int status);
+	public native void nativeOnTrimMemory(int MemoryTrimValue);
 	static
 	{
 		System.loadLibrary("UE4");
