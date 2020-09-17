@@ -591,7 +591,10 @@ enum class EDownsampleDepthFilter
 	Point,
 
 	// Produces a conservative max depth value.
-	Max
+	Max,
+
+	// Produces a checkerboarded selection of min and max depth values
+	Checkerboard
 };
 
 void AddDownsampleDepthPass(
@@ -599,6 +602,6 @@ void AddDownsampleDepthPass(
 	const FViewInfo& View,
 	FScreenPassTexture Input,
 	FScreenPassRenderTarget Output,
-	EDownsampleDepthFilter Filter);
+	EDownsampleDepthFilter DownsampleDepthFilter);
 
 #include "ScreenPass.inl"
