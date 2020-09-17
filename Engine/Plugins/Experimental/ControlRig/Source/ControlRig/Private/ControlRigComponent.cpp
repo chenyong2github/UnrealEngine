@@ -193,7 +193,7 @@ void UControlRigComponent::Initialize()
 		}
 		else
 		{
-			CR->DrawInterface = nullptr;;
+			CR->DrawInterface.Reset();
 			CR->GetHierarchy()->Initialize(true);
 			CR->RequestInit();
 		}
@@ -214,7 +214,6 @@ void UControlRigComponent::Update(float DeltaTime)
 		{
 			CR->SetDeltaTime(DeltaTime);
 			CR->bResetInitialTransformsBeforeSetup = bResetInitialsBeforeSetup;
-			CR->DrawInterface = &DrawInterface;
 
 			// todo: set log
 			// todo: set external data providers
@@ -238,7 +237,7 @@ void UControlRigComponent::Update(float DeltaTime)
 
 			CR->Evaluate_AnyThread();
 
-			CR->DrawInterface = nullptr;;
+			CR->DrawInterface.Reset();
 		}
 	}
 

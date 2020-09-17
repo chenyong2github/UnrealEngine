@@ -417,7 +417,7 @@ private:
 	FControlRigDrawContainer DrawContainer;
 
 	/** The draw interface for the units to use */
-	FControlRigDrawInterface* DrawInterface;
+	FControlRigDrawInterface DrawInterface;
 
 	/** The registry to access data source */
 	UPROPERTY(transient)
