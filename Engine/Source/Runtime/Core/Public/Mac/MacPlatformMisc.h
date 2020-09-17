@@ -123,30 +123,80 @@ struct CORE_API FMacPlatformMisc : public FApplePlatformMisc
     
     static void MergeDefaultArgumentsIntoCommandLine(FString& CommandLine, FString DefaultArguments);
 	
-	/** Descriptor of each GPU in the OS that provides stock details about the GPU that are innaccessible from the higher-level rendering APIs and provides a direct link to the GPU in the IORegistry. */
-	struct FGPUDescriptor
+	/** Common descriptor of each GPU in the OS that provides stock details about the GPU that are innaccessible from the higher-level rendering APIs and provides a direct link to the GPU in the IORegistry. */
+	template<typename T>
+	class FGPUDescriptorCommon
 	{
-		FGPUDescriptor();
-		FGPUDescriptor(FGPUDescriptor const& Other);
-		
-		~FGPUDescriptor();
-		
-		FGPUDescriptor& operator=(FGPUDescriptor const& Other);
-		TMap<FString, float> GetPerformanceStatistics() const;
-		
-		uint64 RegistryID;
-		uint32 PCIDevice; // This is really an io_registry_entry_t which is a mach port name
-		NSString* GPUName;
-		NSString* GPUMetalBundle;
-		NSString* GPUOpenGLBundle;
-		NSString* GPUBundleID;
-		uint32 GPUVendorId;
-		uint32 GPUDeviceId;
-		uint32 GPUMemoryMB;
-		uint32 GPUIndex;
-		bool GPUHeadless;
+		public:
+			virtual ~FGPUDescriptorCommon();
+
+			FGPUDescriptorCommon& operator=(FGPUDescriptorCommon const& Other);
+
+			TMap<FString, float> GetPerformanceStatistics() const;
+
+		protected:
+			FGPUDescriptorCommon() = default;
+			FGPUDescriptorCommon(FGPUDescriptorCommon const& Other) = delete;
+			FGPUDescriptorCommon(FGPUDescriptorCommon&& Other) = delete;
+
+			void CopyFrom(FGPUDescriptorCommon const& Other);
+
+		public:
+			NSString*	GPUName			= nil;
+			NSString*	GPUMetalBundle	= nil;
+			NSString*	GPUOpenGLBundle	= nil;
+			NSString*	GPUBundleID		= nil;
+			uint32		GPUVendorId		= 0;
+			uint32		GPUDeviceId		= 0;
+			uint32		GPUMemoryMB		= 0;
+			uint32		GPUIndex		= 0;
+
+			bool GPUHeadless			= false;
 	};
-	
+
+#if PLATFORM_MAC_X86
+	/** Intel architecture descriptor of each GPU in the OS that provides stock details about the GPU that are innaccessible from the higher-level rendering APIs and provides a direct link to the GPU in the IORegistry. */
+	typedef class FGPUDescriptorX86_64 : public FGPUDescriptorCommon<FGPUDescriptorX86_64>
+	{
+		friend class FGPUDescriptorCommon<FGPUDescriptorX86_64>;
+
+		public:
+			FGPUDescriptorX86_64() = default;
+			FGPUDescriptorX86_64(FGPUDescriptorX86_64 const& Other);
+
+			virtual ~FGPUDescriptorX86_64();
+
+		protected:
+			void CopyFromImpl(FGPUDescriptorCommon const& Other);
+			TMap<FString, float> GetPerformanceStatisticsImpl() const;
+
+		public:
+			uint64 RegistryID;
+			uint32 PCIDevice; // This is really an io_registry_entry_t which is a mach port name
+
+	} FGPUDescriptor;
+
+#elif PLATFORM_MAC_ARM64
+	typedef class FGPUDescriptorARM64 : public FGPUDescriptorCommon<FGPUDescriptorARM64>
+	{
+		friend class FGPUDescriptorCommon<FGPUDescriptorARM64>;
+
+		public:
+			FGPUDescriptorARM64() = default;
+			FGPUDescriptorARM64(FGPUDescriptorARM64 const& Other);
+
+			virtual ~FGPUDescriptorARM64();
+
+		protected:
+			void CopyFromImpl(FGPUDescriptorCommon const& Other);
+			TMap<FString, float> GetPerformanceStatisticsImpl() const;
+
+	} FGPUDescriptor;
+
+#else
+	#error "Undefined Mac platform"
+#endif
+
 	enum class EMacGPUNotification : uint8
 	{
 		Added,
