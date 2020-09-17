@@ -64,7 +64,7 @@ bool UMovieScenePreAnimatedComponentTransformSystem::IsRelevantImpl(UMovieSceneE
 {
 	using namespace UE::MovieScene;
 
-	return InLinker->EntityManager.Contains(FEntityComponentFilter().All({
+	return InLinker->ShouldCaptureGlobalState() ||  InLinker->EntityManager.Contains(FEntityComponentFilter().All({
 			FMovieSceneTracksComponentTypes::Get()->ComponentTransform.PropertyTag,
 			FBuiltInComponentTypes::Get()->Tags.RestoreState,
 			FBuiltInComponentTypes::Get()->BoundObject
