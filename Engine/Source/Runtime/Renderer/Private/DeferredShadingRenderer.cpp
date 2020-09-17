@@ -2260,20 +2260,25 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderSkyAtmosphere(GraphBuilder, SceneTextures, SceneColorTexture.Target, SceneDepthTexture.Target);
 	}
 
-	// Draw volumetric clouds when using per pixel tracing
-	if (bShouldRenderVolumetricCloud)
-	{
-		bool bSkipVolumetricRenderTarget = true;
-		bool bSkipPerPixelTracing = false;
-		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), bSkipVolumetricRenderTarget, bSkipPerPixelTracing, SceneColorTexture, SceneDepthTexture);
-	}
-
 	// Draw fog.
 	if (bCanOverlayRayTracingOutput && ShouldRenderFog(ViewFamily))
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderFog);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFog);
 		RenderFog(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target, LightShaftOcclusionTexture, SceneTextures);
+	}
+
+	// After the height fog, Draw volumetric clouds (having fog applied on them already) when using per pixel tracing,
+	if (bShouldRenderVolumetricCloud)
+	{
+		bool bSkipVolumetricRenderTarget = true;
+		bool bSkipPerPixelTracing = false;
+		RenderVolumetricCloud(GraphBuilder, GetSceneTextureShaderParameters(SceneTextures), bSkipVolumetricRenderTarget, bSkipPerPixelTracing, SceneColorTexture, SceneDepthTexture);
+	}
+	// or composite the off screen buffer over the scene.
+	if (bVolumetricRenderTargetRequired)
+	{
+		ComposeVolumetricRenderTargetOverScene(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target);
 	}
 
 	FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
@@ -2304,12 +2309,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			ServiceLocalQueue();
 		});
-	}
-
-
-	if (bVolumetricRenderTargetRequired)
-	{
-		ComposeVolumetricRenderTargetOverScene(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target);
 	}
 
 	if (bShouldRenderSkyAtmosphere)
