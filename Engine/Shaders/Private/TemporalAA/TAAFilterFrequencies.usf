@@ -268,9 +268,15 @@ void MainCS(
 		FilteredHistory *= SafeRcp(FilteredHistoryWeight);
 	}
 	
+	#if 1
+		uint2 OutputPixelPos = uint2(InputBufferUV * InputInfo_ExtentInverse);
+	#else
+		uint2 OutputPixelPos = InputPixelPos;
+	#endif
+
 	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 	{
-		uint2 Random = Rand3DPCG16(int3(InputPixelPos, View.StateFrameIndexMod8)).xy;
+		uint2 Random = Rand3DPCG16(int3(OutputPixelPos, View.StateFrameIndexMod8)).xy;
 		float2 E = Hammersley16(0, 1, Random);
 
 		FilteredInput += FilteredInput * (E.x * OutputQuantizationError);
@@ -279,14 +285,14 @@ void MainCS(
 	#endif
 
 
-	if (all(InputPixelPos < InputInfo_ViewportSize))
+	if (all(OutputPixelPos < InputInfo_ViewportSize))
 	{
-		FilteredInputOutput[InputPixelPos] = FilteredInput; // * (HdrWeight4(FilteredInput) * 10);
-		FilteredPredictionSceneColorOutput[InputPixelPos] = FilteredHistory; // * (HdrWeight4(FilteredHistory) * 10);
+		FilteredInputOutput[OutputPixelPos] = FilteredInput; // * (HdrWeight4(FilteredInput) * 10);
+		FilteredPredictionSceneColorOutput[OutputPixelPos] = FilteredHistory; // * (HdrWeight4(FilteredHistory) * 10);
 		
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[InputPixelPos] = Debug;
+			DebugOutput[OutputPixelPos] = Debug;
 		}
 		#endif
 	}
