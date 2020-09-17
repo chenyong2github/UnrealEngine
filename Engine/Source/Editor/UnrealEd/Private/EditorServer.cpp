@@ -4797,7 +4797,8 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 				}
 				else
 				{
-					TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(Actor);
+					const bool bIncludeFromChildActors = true;
+					TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(Actor, bIncludeFromChildActors);
 
 					for(int32 ComponentIndex = 0; ComponentIndex < PrimitiveComponents.Num(); ++ComponentIndex)
 					{
