@@ -92,7 +92,7 @@ float3 OutputQuantizationError;
 
 Texture2D<taa_half3> InputTexture;
 Texture2D<taa_half3> PredictionSceneColorTexture;
-Texture2D<taa_half> PredictionInfoTexture;
+Texture2D<taa_half> ParallaxRejectionMaskTexture;
 
 RWTexture2D<taa_half3> FilteredInputOutput;
 RWTexture2D<taa_half3> FilteredPredictionSceneColorOutput;
@@ -111,6 +111,10 @@ taa_half ComputeColorWeight(taa_half3 Color)
 }
 #endif
 
+taa_half ParallaxRejectionMaskToHistoryValidity(taa_half ParallaxRejectionMask)
+{
+	return (ParallaxRejectionMask < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD)) ? taa_half(0.0) : taa_half(1.0);
+}
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -141,7 +145,8 @@ void MainCS(
 
 		taa_half3 InputSample = InputTexture.SampleLevel(GlobalPointClampedSampler, InputBufferUV, 0);
 		taa_half3 HistorySample = PredictionSceneColorTexture.SampleLevel(GlobalPointClampedSampler, InputBufferUV, 0);
-		taa_half HistorySampleValidity = PredictionInfoTexture.SampleLevel(GlobalPointClampedSampler, InputBufferUV, 0);
+		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
+			ParallaxRejectionMaskTexture.SampleLevel(GlobalPointClampedSampler, InputBufferUV, 0));
 		
 		taa_half InputWeight = ComputeColorWeight(InputSample);
 		taa_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);
@@ -246,7 +251,8 @@ void MainCS(
 
 		taa_half3 InputSample = InputTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
 		taa_half3 HistorySample = PredictionSceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
-		taa_half HistorySampleValidity = PredictionInfoTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
+		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
+			ParallaxRejectionMaskTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0));
 		
 		taa_half InputWeight = HistorySampleValidity * ComputeColorWeight(InputSample);
 		taa_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);

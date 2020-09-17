@@ -17,14 +17,16 @@ float HistoryPreExposureCorrection;
 uint bCameraCut;
 
 Texture2D<float2> DilatedVelocityTexture;
-Texture2D<taa_half> ParallaxRejectionMaskTexture;
+Texture2D<float> ClosestDepthTexture;
+Texture2D<uint> PrevUseCountTexture;
+Texture2D<uint> PrevClosestDepthTexture;
 
 Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
 Texture2D<taa_half2> PrevHistory_Textures_2;
 
 RWTexture2D<taa_half3> PredictionSceneColorOutput;
-RWTexture2D<taa_half> PredictionInfoOutput;
+RWTexture2D<taa_half> ParallaxRejectionMaskOutput;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -45,18 +47,64 @@ void MainCS(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	float4 Debug = 0;
-
+	
 	uint2 DispatchThreadId = (
 		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
-	
-	uint2 InputPixelPos = DispatchThreadId;
 
+	uint2 InputPixelPos = DispatchThreadId;
+	
+	float2 ViewportUV = (float2(InputPixelPos) + 0.5f) * InputInfo_ViewportSizeInverse;
+	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
+	float2 InputBufferUV = (InputPixelPos + 0.5) * InputInfo_ExtentInverse;
+	
 	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
-	taa_half ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
+	float DeviceZ = ClosestDepthTexture[InputPixelPos];
+
+	float WorldDepth = ConvertFromDeviceZ(DeviceZ);
+	
+	// Compute the parralax rejection mask
+	float ParallaxRejectionMask = 0.0;
+	{
+		float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
+		
+		FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(PrevInputBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
+
+		UNROLL_N(4)
+		for (uint i = 0; i < 4; i++)
+		{
+			float BilinearWeight = GetSampleWeight(BilinearInter, i);
+			uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
+
+			bool bValidPixelPos = all(PixelPos < uint2(InputInfo_ViewportSize));
+
+			uint HistoryUseCount = PrevUseCountTexture[PixelPos];
+			float HistoryClosestDeviceZ = f16tof32(PrevClosestDepthTexture[PixelPos]);
+			float HistoryClosestWorldDepth = ConvertFromDeviceZ(HistoryClosestDeviceZ);
+
+			float DepthRejection;
+			{
+				const float WorldDepthToPixelWorldRadius = GetTanHalfFieldOfView().x * InputInfo_ExtentInverse.x;
+				const float PixelDepthError = 3.0;
+				const float RadiusToDiamater = 2.0;
+			
+				float WorldDepthEpsilon = (WorldDepthToPixelWorldRadius * RadiusToDiamater * PixelDepthError) * HistoryClosestWorldDepth; 
+				float DeltaDepth = abs(HistoryClosestWorldDepth - WorldDepth);
+
+				DepthRejection = saturate(2.0 - DeltaDepth / WorldDepthEpsilon);
+			}
+
+			float HistoryGhostingRejection = saturate(1.0 - 3.0 * abs(HistoryUseCount * rcp(256) - 1.0));
+
+			FLATTEN
+			if (bValidPixelPos)
+				ParallaxRejectionMask += BilinearWeight * max(DepthRejection, HistoryGhostingRejection);
+		}
+	}
 
 	// Pixel coordinate of the input pixel in the predictor viewport.
-	float2 InputPPCk = float2(DispatchThreadId) + 0.5f - InputJitter;
+	float2 InputPPCk = float2(InputPixelPos) + 0.5f - InputJitter;
 	float2 OutputViewportUV = InputPPCk * InputInfo_ViewportSizeInverse;
 	float2 OutputScreenPos = ViewportUVToScreenPos(OutputViewportUV);
 
@@ -75,7 +123,6 @@ void MainCS(
 	
 	taa_half3 DecimatedColor;
 	taa_half HistoryValidity;
-	#if CONFIG_KERNEL == 0
 	{
 		float2 KernelHistoryBufferUV = clamp(
 			HistoryPPCk * PrevHistoryInfo_ExtentInverse,
@@ -83,158 +130,7 @@ void MainCS(
 			PrevHistoryInfo_UVViewportBilinearMax);
 
 		DecimatedColor = PrevHistory_Textures_0.SampleLevel(GlobalBilinearClampedSampler, KernelHistoryBufferUV, 0);
-
-		HistoryValidity = (ParallaxRejectionMask < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD)) ? taa_half(0.0) : taa_half(1.0);
 	}
-	#elif CONFIG_KERNEL == 1
-	{
-		float2 KernelHistoryBufferUV = clamp(
-			HistoryPPCk * PrevHistoryInfo_ExtentInverse,
-			PrevHistoryInfo_UVViewportBilinearMin,
-			PrevHistoryInfo_UVViewportBilinearMax);
-
-		FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(KernelHistoryBufferUV, PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
-		
-		DecimatedColor = taa_half(0.0);
-		HistoryValidity = taa_half(0.0);
-
-		taa_half PrevHistoryWeight = taa_half(0.0);
-		taa_half KernelSampleWeight = taa_half(0.0);
-		
-		UNROLL_N(4)
-		for (uint i = 0; i < 4; i++)
-		{
-			taa_half SampleSpatialWeight = taa_half(GetSampleWeight(BilinearInter, i));
-			float2 SampleHistoryBufferUV = GetSampleUV(BilinearInter, i);
-			//SampleHistoryBufferUV = clamp(SampleHistoryBufferUV, PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
-			
-			taa_half3 HistoryFallbackSample = PrevHistory_Textures_0.SampleLevel(GlobalPointClampedSampler, SampleHistoryBufferUV, 0);
-			taa_half ParallaxRejectionMask;
-			{
-				float2 SampleViewportUV = SampleHistoryBufferUV * HistoryInfo_Extent * HistoryInfo_ViewportSizeInverse;
-
-				// Pixel coordinate of the center of output pixel O in the input viewport.
-				float2 SamplePPCo = SampleViewportUV * InputInfo_ViewportSize + InputJitter;
-
-				// Pixel coordinate of the center of the nearest input pixel K.
-				float2 SamplePPCk = floor(SamplePPCo) + 0.5;
-
-				uint2 SampleInputPixelPos = uint2(SamplePPCk);
-
-				ParallaxRejectionMask = ParallaxRejectionMaskTexture[SampleInputPixelPos];
-			}
-			
-			taa_half SampleHistoryValidity = (ParallaxRejectionMask < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD)) ? taa_half(0.0) : taa_half(1.0); //RawSample.a;
-
-			taa_half SampleFinalWeight = SampleHistoryValidity * SampleSpatialWeight;
-
-			DecimatedColor += HistoryFallbackSample * SampleFinalWeight;
-			PrevHistoryWeight += SampleFinalWeight;
-
-			HistoryValidity += SampleHistoryValidity * SampleSpatialWeight;
-			KernelSampleWeight += SampleSpatialWeight;
-		}
-		
-		{
-			DecimatedColor *= SafeRcp(PrevHistoryWeight) * HistoryPreExposureCorrection;
-
-			HistoryValidity *= SafeRcp(KernelSampleWeight);
-		}
-	}
-	#elif CONFIG_KERNEL == 2
-	{
-		const float UpscaleFactor = 1.0;
-
-		DecimatedColor = 0.0;
-		HistoryValidity = 0.0;
-
-		taa_half PrevHistoryWeight = 0.0;
-		taa_half KernelSampleWeight = 0.0;
-		
-		taa_half3 CenterInput;
-		{
-			float2 PixelOffset = 0.0;
-
-			float2 SampleHistoryBufferUV = (HistoryPPCo + PixelOffset) * PrevHistoryInfo_ExtentInverse;
-			SampleHistoryBufferUV = clamp(SampleHistoryBufferUV, PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
-
-			taa_half2 dPP = taa_half2(PixelOffset) - dKO;
-			taa_half SampleSpatialWeight = taa_half(ComputeSampleWeigth(UpscaleFactor, dPP, /* MinimalContribution = */ 0.0));
-
-			taa_half3 HistoryFallbackSample = PrevHistory_Textures_0.SampleLevel(GlobalPointClampedSampler, SampleHistoryBufferUV, 0);
-			taa_half ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
-
-			taa_half SampleHistoryValidity = (ParallaxRejectionMask < PARALLAX_REJECTION_MASK_THRESHOLD) ? 0.0 : 1.0;
-			
-			taa_half SampleFinalWeight = SampleHistoryValidity * SampleSpatialWeight;
-
-			DecimatedColor = HistoryFallbackSample * SampleFinalWeight;
-			PrevHistoryWeight = SampleFinalWeight;
-
-			HistoryValidity = SampleHistoryValidity * SampleSpatialWeight;
-			KernelSampleWeight = SampleSpatialWeight;
-
-			CenterInput = SampleHistoryMoment1;
-		}
-
-
-		const uint kSpatialSampleCount = 9;
-
-		UNROLL
-		for (uint i = 0; i < kSpatialSampleCount; i++)
-		{
-			float2 PixelOffset = float2(kOffsets3x3[i]);
-			
-			if (!TakeOnlyOneSamplePair(PixelOffset))
-			{
-				continue;
-			}
-
-			for (uint k = 0; k < 2; k++)
-			{
-				float2 SampleHistoryBufferUV = (HistoryPPCo + PixelOffset * (k == 1 ? -1.0 : 1.0)) * PrevHistoryInfo_ExtentInverse;
-				SampleHistoryBufferUV = clamp(SampleHistoryBufferUV, PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
-
-				taa_half2 dPP = taa_half2(PixelOffset) - dKO;
-				taa_half SampleSpatialWeight = ComputeSampleWeigth(UpscaleFactor, dPP, /* MinimalContribution = */ 0.0);
-
-				taa_half3 HistoryFallbackSample = PrevHistory_Textures_0.SampleLevel(GlobalPointClampedSampler, SampleHistoryBufferUV, 0);
-				taa_half ParallaxRejectionMask;
-				{
-					float2 SampleViewportUV = SampleHistoryBufferUV * HistoryInfo_Extent * HistoryInfo_ViewportSizeInverse;
-
-					// Pixel coordinate of the center of output pixel O in the input viewport.
-					float2 SamplePPCo = SampleViewportUV * InputInfo_ViewportSize + InputJitter;
-
-					// Pixel coordinate of the center of the nearest input pixel K.
-					float2 SamplePPCk = floor(SamplePPCo) + 0.5;
-
-					uint2 SampleInputPixelPos = uint2(SamplePPCk);
-
-					ParallaxRejectionMask = ParallaxRejectionMaskTexture[SampleInputPixelPos];
-				}
-
-				taa_half SampleHistoryValidity = (ParallaxRejectionMask < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD)) ? taa_half(0.0) : taa_half(1.0); //RawSample.a;
-
-				taa_half SampleFinalWeight = SampleHistoryValidity * SampleSpatialWeight;
-
-				DecimatedColor += HistoryFallbackSample * SampleFinalWeight;
-				PrevHistoryWeight += SampleFinalWeight;
-
-				HistoryValidity += SampleHistoryValidity * SampleSpatialWeight;
-				KernelSampleWeight += SampleSpatialWeight;
-			}
-		}
-		
-		{
-			DecimatedColor *= SafeRcp(PrevHistoryWeight) * HistoryPreExposureCorrection;
-
-			HistoryValidity *= SafeRcp(KernelSampleWeight);
-		}
-	}
-	#else
-		#error Unknown kernel
-	#endif
 
 
 	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
@@ -260,7 +156,7 @@ void MainCS(
 	if (all(InputPixelPos < InputInfo_ViewportSize))
 	{
 		PredictionSceneColorOutput[InputPixelPos] = DecimatedColor;
-		PredictionInfoOutput[InputPixelPos] = HistoryValidity;
+		ParallaxRejectionMaskOutput[InputPixelPos] = ParallaxRejectionMask;
 		
 		#if DEBUG_OUTPUT
 		{
