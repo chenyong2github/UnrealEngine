@@ -649,13 +649,6 @@ void FNiagaraSystemInstance::Complete()
 	if (!bPooled)
 	{
 		UnbindParameters(true);
-
-		if (!IsSolo())
-		{
-			// Release our reference to the world manager's simulation so this system doesn't pin it down in case it gets
-			// destroyed (i.e. from global scalability settings change) and so we will re-acquire it if we get reactivated
-			SystemSimulation = nullptr;
-		}
 	}
 
 	bPendingSpawn = false;
