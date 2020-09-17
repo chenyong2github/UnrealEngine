@@ -386,10 +386,8 @@ protected:
 	uint32 FrameCounter;
 
 #if D3D12_SUBMISSION_GAP_RECORDER
-	TArray<uint64> StartOfSubmissionTimestamp[2];
-	TArray<uint64> EndOfSubmissionTimestamp[2];
-
-	int32 CurrentContextIndex;
+	TArray<uint64> StartOfSubmissionTimestamps;
+	TArray<uint64> EndOfSubmissionTimestamps;
 #endif
 
 #if WITH_MGPU

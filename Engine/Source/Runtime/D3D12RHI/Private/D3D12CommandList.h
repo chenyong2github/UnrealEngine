@@ -217,7 +217,6 @@ private:
 		typedef TPair<uint64, FD3D12SyncPoint>	GenerationSyncPointPair;	// Pair of command list generation to a sync point
 		TQueue<GenerationSyncPointPair>			ActiveGenerations;	// Queue of active command list generations and their sync points. Used to determine what command lists have been completed on the GPU.
 		FCriticalSection						ActiveGenerationsCS;	// While only a single thread can record to a command list at any given time, multiple threads can ask for the state of a given command list. So the associated tracking must be thread-safe.
-		uint32									FrameSubmitted;				// Used by the gap recorder to track which frame the command list was issued on
 
 		// Array of resources who's state needs to be synced between submits.
 		TArray<FD3D12PendingResourceBarrier>	PendingResourceBarriers;
@@ -265,10 +264,6 @@ private:
 
 		/** Disable execution time tracking and mark commandlist end time */
 		void FinishTrackingCommandListTime();
-
-#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-		int32 StartTimeQueryIdx;
-#endif
 	};
 
 public:
@@ -469,18 +464,6 @@ public:
 	{
 		check(CommandListData);
 		return CommandListData->IsClosed;
-	}
-
-	uint32 FrameSubmitted() const
-	{
-		check(CommandListData);
-		return CommandListData->FrameSubmitted;
-	}
-
-	void SetFrameSubmitted(uint32 FrameSubmitted) 
-	{
-		check(CommandListData);
-		CommandListData->FrameSubmitted = FrameSubmitted;
 	}
 
 	bool IsComplete(uint64 Generation) const
