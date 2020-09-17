@@ -488,6 +488,15 @@ FSkeletalAnimationSection::FSkeletalAnimationSection( UMovieSceneSection& InSect
 { 
 }
 
+void FSkeletalAnimationSection::BeginDilateSection()
+{
+	Section.PreviousPlayRate = Section.Params.PlayRate; //make sure to cache the play rate
+}
+void FSkeletalAnimationSection::DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor)
+{
+	Section.Params.PlayRate = Section.PreviousPlayRate / DilationFactor;
+	Section.SetRange(NewRange);
+}
 
 UMovieSceneSection* FSkeletalAnimationSection::GetSectionObject()
 { 
