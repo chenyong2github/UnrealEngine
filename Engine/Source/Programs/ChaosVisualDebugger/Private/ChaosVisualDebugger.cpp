@@ -7,7 +7,6 @@
 #include "ChaosVisualDebugger.h"
 #include "ChaosVisualDebuggerMain.h"
 #include "RequiredProgramMainCPPInclude.h"
-#include "Widgets/Testing/STestSuite.h"
 #include "Windows/WindowsHWrapper.h"
 
 /**
