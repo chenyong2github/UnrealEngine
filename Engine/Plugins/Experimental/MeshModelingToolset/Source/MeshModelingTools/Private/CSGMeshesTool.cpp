@@ -21,6 +21,11 @@ void UCSGMeshesTool::SetupProperties()
 	CSGProperties = NewObject<UCSGMeshesToolProperties>(this);
 	CSGProperties->RestoreProperties(this);
 	AddToolPropertySource(CSGProperties);
+
+	SetToolDisplayName(LOCTEXT("CSGMeshesToolName", "Mesh Boolean Tool"));
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartTool", "Compute CSG Booleans on the input meshes. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
+		EToolMessageLevel::UserNotification);
 }
 
 void UCSGMeshesTool::SaveProperties()
