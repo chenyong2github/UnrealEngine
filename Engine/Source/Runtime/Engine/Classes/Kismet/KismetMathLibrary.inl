@@ -492,6 +492,36 @@ double UKismetMathLibrary::Divide_DoubleDouble(double A, double B)
 }
 
 KISMET_MATH_FORCEINLINE
+bool UKismetMathLibrary::Less_DoubleDouble(double A, double B)
+{
+	return A < B;
+}
+
+KISMET_MATH_FORCEINLINE
+bool UKismetMathLibrary::Greater_DoubleDouble(double A, double B)
+{
+	return A > B;
+}
+
+KISMET_MATH_FORCEINLINE
+bool UKismetMathLibrary::LessEqual_DoubleDouble(double A, double B)
+{
+	return A <= B;
+}
+
+KISMET_MATH_FORCEINLINE
+bool UKismetMathLibrary::GreaterEqual_DoubleDouble(double A, double B)
+{
+	return A >= B;
+}
+
+KISMET_MATH_FORCEINLINE
+bool UKismetMathLibrary::EqualEqual_DoubleDouble(double A, double B)
+{
+	return A == B;
+}
+
+KISMET_MATH_FORCEINLINE
 float UKismetMathLibrary::Add_FloatFloat(float A, float B)
 {
 	return A + B;
