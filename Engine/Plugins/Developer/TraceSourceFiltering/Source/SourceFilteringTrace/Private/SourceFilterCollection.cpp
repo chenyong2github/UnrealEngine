@@ -57,6 +57,11 @@ void USourceFilterCollection::OnObjectsReplaced(const TMap<UObject*, UObject*>& 
 	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
+UDataSourceFilterSet* USourceFilterCollection::GetParentForFilter(UDataSourceFilter* Filter)
+{
+	return ChildToParent.FindChecked(Filter);
+}
+
 void USourceFilterCollection::AddClassFilter(TSubclassOf<AActor> InClass)
 {
 	ClassFilters.AddUnique({ FSoftClassPath(InClass), false });
@@ -113,17 +118,8 @@ UDataSourceFilter* USourceFilterCollection::AddFilterOfClassToSet(const TSubclas
 	checkf(FilterClass.Get() && FilterSet, TEXT("Cannot add filter using a null class, or null target set"));
 	if (FilterSet)
 	{
-		FilterSet->Modify();
-
 		UDataSourceFilter* NewFilter = CreateNewFilter<UDataSourceFilter>(FilterClass.Get());
-		FilterSet->Filters.Add(NewFilter);
-		ChildToParent.Add(NewFilter, FilterSet);
-		AddClassName(NewFilter);
-
-		TRACE_FILTER_INSTANCE(NewFilter);
-
-		TRACE_FILTER_OPERATION(NewFilter, ESourceActorFilterOperation::MoveFilter, TRACE_FILTER_IDENTIFIER(FilterSet));
-		SourceFiltersUpdatedDelegate.Broadcast();
+		AddFilterToSet(NewFilter, FilterSet);
 
 		return NewFilter;
 	}
@@ -142,7 +138,7 @@ UDataSourceFilterSet* USourceFilterCollection::ConvertFilterToSet(UDataSourceFil
 	NewFilterSet->SetFilterMode(Mode);
 
 	ReplaceFilter(ReplacedFilter, NewFilterSet);
-	MoveFilter(ReplacedFilter, NewFilterSet);
+	AddFilterToSet(ReplacedFilter, NewFilterSet);
 
 	return NewFilterSet;
 }
@@ -159,7 +155,7 @@ UDataSourceFilterSet* USourceFilterCollection::MakeFilterSet(UDataSourceFilter* 
 
 	ReplaceFilter(FilterOne, NewFilterSet);
 
-	MoveFilter(FilterOne, NewFilterSet);
+	AddFilterToSet(FilterOne, NewFilterSet);
 	MoveFilter(FilterTwo, NewFilterSet);
 
 	return NewFilterSet;
@@ -330,11 +326,29 @@ void USourceFilterCollection::RemoveFilterRecursive(UDataSourceFilter* ToRemoveF
 	TRACE_FILTER_OPERATION(ToRemoveFilter, ESourceActorFilterOperation::RemoveFilter, TRACE_FILTER_IDENTIFIER(Cast<UDataSourceFilterSet>(ToRemoveFilter)));
 }
 
+void USourceFilterCollection::AddFilterToSet(UDataSourceFilter* Filter, UDataSourceFilterSet* FilterSet)
+{
+	if (FilterSet)
+	{
+		FilterSet->Modify();
+
+		FilterSet->Filters.Add(Filter);
+		ChildToParent.Add(Filter, FilterSet);
+		AddClassName(Filter);
+
+		TRACE_FILTER_INSTANCE(Filter);
+		TRACE_FILTER_OPERATION(Filter, ESourceActorFilterOperation::MoveFilter, TRACE_FILTER_IDENTIFIER(FilterSet));
+		SourceFiltersUpdatedDelegate.Broadcast();
+	}
+}
+
 void USourceFilterCollection::ReplaceFilter(UDataSourceFilter* Destination, UDataSourceFilter* Source)
 {
 	TRACE_FILTER_OPERATION(Source, ESourceActorFilterOperation::ReplaceFilter, TRACE_FILTER_IDENTIFIER(Destination));
 
-	UDataSourceFilterSet* OuterFilterSet = ChildToParent.FindChecked(Destination);
+	UDataSourceFilterSet* OuterFilterSet = nullptr;
+	ChildToParent.RemoveAndCopyValue(Destination, OuterFilterSet);
+
 	if (OuterFilterSet)
 	{
 		OuterFilterSet->Modify();
@@ -407,6 +421,11 @@ void USourceFilterCollection::Reset()
 	ClassFilters.Empty();
 
 	SourceFiltersUpdatedDelegate.Broadcast();
+}
+
+void USourceFilterCollection::GetFlatFilters(TArray<UDataSourceFilter*>& OutFilters)
+{
+	ChildToParent.GenerateKeyArray(OutFilters);
 }
 
 void USourceFilterCollection::CopyData(USourceFilterCollection* OtherCollection)
