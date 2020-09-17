@@ -61,27 +61,47 @@ namespace AutomationUtils.Automation
 				}
 				{
 					List<string> Tags;
-					BundleConfig.GetArray(SectionName, "Tags", out Tags);
-					Bundle.Tags = Tags;
+					if (BundleConfig.GetArray(SectionName, "Tags", out Tags))
+					{
+						Bundle.Tags = Tags;
+					}
+					else 
+					{
+						Bundle.Tags = new List<string>(); 
+					}
 				}
 				{
 					List<string> Dependencies;
-					BundleConfig.GetArray(SectionName, "Dependencies", out Dependencies);
-					Bundle.Dependencies = Dependencies;
+					if (BundleConfig.GetArray(SectionName, "Dependencies", out Dependencies))
+					{
+						Bundle.Dependencies = Dependencies;
+					}
+					else
+					{
+						Bundle.Dependencies = new List<string>();
+					}
 				}
 				{
 					List<string> FileRegex;
-					BundleConfig.GetArray(SectionName, "FileRegex", out FileRegex);
-					Bundle.FileRegex = FileRegex;
+					if (BundleConfig.GetArray(SectionName, "FileRegex", out FileRegex))
+					{
+						Bundle.FileRegex = FileRegex;
+					}
+					else
+					{
+						Bundle.FileRegex = new List<string>();
+					}
 				}
 				{
 					bool bContainsShaderLibrary;
-					BundleConfig.GetBool(SectionName, "ContainsShaderLibrary", out bContainsShaderLibrary);
-					Bundle.bContainsShaderLibrary = bContainsShaderLibrary;
-				}
-				if (Bundle.Tags == null)
-				{
-					Bundle.Tags = new List<string>();
+					if (BundleConfig.GetBool(SectionName, "ContainsShaderLibrary", out bContainsShaderLibrary))
+					{
+						Bundle.bContainsShaderLibrary = bContainsShaderLibrary;
+					}
+					else 
+					{
+						Bundle.bContainsShaderLibrary = false;
+					}
 				}
 
 				GetPlatformSettings(Bundle, BundleConfig, BundleDefinitionPrefix + Bundle.Name);
