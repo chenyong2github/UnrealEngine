@@ -199,7 +199,13 @@ UMovieSceneEntitySystem::UMovieSceneEntitySystem(const FObjectInitializer& ObjIn
 	}
 	else
 	{
+#if STATS
 		TStatId NewStatID = FDynamicStats::CreateStatId<STAT_GROUP_TO_FStatGroup(STATGROUP_MovieSceneECS)>(GetClass()->GetName());
+#else
+		// Just use the base UObject stat ID if we only have named events
+		TStatId NewStatID = GetStatID(true /* bForDeferredUse */);
+#endif
+
 		StatID = NewStatID;
 		SystemStats.Add(GetClass()->GetFName(), NewStatID);
 	}
