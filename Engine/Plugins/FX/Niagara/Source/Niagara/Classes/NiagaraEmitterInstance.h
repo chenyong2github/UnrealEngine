@@ -144,6 +144,7 @@ public:
 	const FNiagaraParameterStore& GetRendererBoundVariables() const { return RendererBindings; }
 	FNiagaraParameterStore& GetRendererBoundVariables() { return RendererBindings; }
 
+	int32 GetInstanceSeed() const { return InstanceSeed; }
 
 private:
 	void CheckForErrors();
