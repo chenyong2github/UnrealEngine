@@ -8,6 +8,7 @@
 #include "Classes/Camera/PlayerCameraManager.h"
 #include "Classes/GameFramework/PlayerController.h"
 #include "Classes/Engine/LocalPlayer.h"
+#include "EngineUtils.h"
 
 #include "ComposurePlayerCompositingTarget.h"
 #include "ComposureUtils.h"
@@ -92,4 +93,27 @@ void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraCompone
 		// But restore the original blendables
 		DstPPSettings.WeightedBlendables = DstWeightedBlendables;
 	}
+}
+
+TArray<AActor*> UComposureBlueprintLibrary::GetActors(UObject* WorldContextObject, const FActorLayer& ActorLayer)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		return TArray<AActor*>();
+	}
+
+	TArray<AActor*> AllActors;
+
+	// Iterate over all actors, looking for actors in the specified layers.
+	for (const TWeakObjectPtr<AActor> WeakActor : FActorRange(World))
+	{
+		AActor* Actor = WeakActor.Get();
+		if (Actor && Actor->Layers.Contains(ActorLayer.Name))
+		{
+			AllActors.Add(Actor);
+		}
+	}
+
+	return AllActors;
 }
