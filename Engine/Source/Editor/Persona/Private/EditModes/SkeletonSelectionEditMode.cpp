@@ -478,11 +478,14 @@ FVector FSkeletonSelectionEditMode::GetWidgetLocation() const
 	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 	if (BoneIndex != INDEX_NONE)
 	{
-		const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+		if (PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh)
+		{
+			const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
 
-		FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
+			const FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
 
-		return BoneMatrix.GetOrigin();
+			return BoneMatrix.GetOrigin();
+		}		
 	}
 	else if (GetAnimPreviewScene().GetSelectedSocket().IsValid())
 	{
