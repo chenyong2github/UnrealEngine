@@ -203,6 +203,7 @@ private:
 	/* The age of the emitter*/
 	float EmitterAge = 0.0f;
 
+	int32 InstanceSeed = FGenericPlatformMath::Rand();
 	int32 TickCount = 0;
 
 	int32 TotalSpawnedParticles = 0;

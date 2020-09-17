@@ -1696,9 +1696,9 @@ struct alignas(16) FNiagaraEmitterParameters
 	float EmitterSpawnCountScale = 1.0f;
 	float EmitterAge = 0.0f;
 	int32 EmitterRandomSeed = 0;
+	int32 EmitterInstanceSeed = 0;
 
 	// todo - what else should be inserted here?  we could put an array of spawninfos/interp spawn values
 	int32 _Pad0;
 	int32 _Pad1;
-	int32 _Pad2;
 };
