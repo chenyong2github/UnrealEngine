@@ -156,6 +156,7 @@ public:
 
 
 template<> CHAOS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
+template<> CHAOS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::HasActiveConnections() const;
 template<> CHAOS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer);
 template<> CHAOS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp);
 
