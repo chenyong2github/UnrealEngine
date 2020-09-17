@@ -1693,7 +1693,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			FHairCullingParams CullingParams;
 			CullingParams.bCullingProcessSkipped = false;
 			CullingParams.bShadowViewMode = false;
-			//MERGE Zach to fix/port
 			ComputeHairStrandsClustersCulling(GraphBuilder, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
 
 			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessStrandsInterpolation, HairStrandsBookmarkParameters);
