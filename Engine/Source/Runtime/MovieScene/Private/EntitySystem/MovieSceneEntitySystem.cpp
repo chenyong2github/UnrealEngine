@@ -190,7 +190,7 @@ UMovieSceneEntitySystem::UMovieSceneEntitySystem(const FObjectInitializer& ObjIn
 		GlobalDependencyGraphID = MAX_uint16;
 	}
 
-#if STATS
+#if STATS || ENABLE_STATNAMEDEVENTS
 	const TStatId* ExistingStat = SystemStats.Find(GetClass()->GetFName());
 
 	if (ExistingStat)
@@ -321,7 +321,7 @@ void UMovieSceneEntitySystem::FinishDestroy()
 
 void UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
-#if STATS
+#if STATS || ENABLE_STATNAMEDEVENTS
 	FScopeCycleCounter Scope(StatID);
 #endif
 

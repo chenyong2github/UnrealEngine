@@ -169,7 +169,7 @@ protected:
 
 	UE::MovieScene::EEntitySystemContext SystemExclusionContext;
 
-#if STATS
+#if STATS || ENABLE_STATNAMEDEVENTS
 	TStatId StatID;
 #endif
 };
