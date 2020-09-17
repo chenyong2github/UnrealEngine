@@ -1575,6 +1575,11 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			info.owner = parsedLines.owner
 		}
 
+		if (parsedLines.errors.length > 0) {
+			info.errors = parsedLines.errors
+			return info
+		}
+
 		// compute targets if list is not empty
 		const defaultTargets = commandOverride ? [] :
 								parsedLines.useDefaultFlow ? this.branch.defaultFlow :
