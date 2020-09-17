@@ -233,6 +233,10 @@ void UHoleFillTool::Setup()
 		ComponentTarget->SetOwnerVisibility(false);
 	}
 
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("HoleFillToolDescription",
+			"Fill Holes in the selected Mesh by adding triangles. Click on individual holes to fill them, or use the Select All button to fill all holes."),
+		EToolMessageLevel::UserNotification);
 }
 
 void UHoleFillTool::OnTick(float DeltaTime)

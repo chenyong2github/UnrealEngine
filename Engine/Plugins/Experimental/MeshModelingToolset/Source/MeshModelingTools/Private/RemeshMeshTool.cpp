@@ -148,6 +148,10 @@ void URemeshMeshTool::Setup()
 	AddToolPropertySource(MeshStatisticsProperties);
 
 	Preview->InvalidateResult();
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartTool", "Retriangulate the selected Mesh. Use the Boundary Constraints to preserve mesh borders. Enable Discard Attributes to ignore UV/Normal Seams. "),
+		EToolMessageLevel::UserNotification);
 }
 
 void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)

@@ -48,7 +48,7 @@ enum class EGroupTopologyDeformationStrategy : uint8
 	Linear UMETA(DisplayName = "Linear"),
 
 	/** Deforms the mesh using laplacian deformation*/
-	Laplacian UMETA(DisplayName = "Laplacian")
+	Laplacian UMETA(DisplayName = "Smooth")
 };
 
 /** Laplacian weight schemes determine how we will look at the curvature at a given vertex in relation to its neighborhood*/
@@ -100,20 +100,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	EQuickTransformerMode TransformMode;
 
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = SelectionFilter)
 	bool bSelectFaces;
 
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = SelectionFilter)
 	bool bSelectEdges;
 
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = SelectionFilter)
 	bool bSelectVertices;
 
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bShowWireframe;
-
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Snapping)
 	bool bSnapToWorldGrid;
+
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowWireframe;
 
 	//Laplacian Deformation Options, currently not exposed.
 

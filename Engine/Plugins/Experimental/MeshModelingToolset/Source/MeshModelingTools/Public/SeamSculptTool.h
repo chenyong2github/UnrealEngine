@@ -51,6 +51,7 @@ class MESHMODELINGTOOLS_API USeamSculptTool : public UDynamicMeshBrushTool
 {
 	GENERATED_BODY()
 public:
+	USeamSculptTool();
 
 	virtual void SetWorld(UWorld* World);
 
