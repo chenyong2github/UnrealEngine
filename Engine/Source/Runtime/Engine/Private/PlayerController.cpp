@@ -643,8 +643,16 @@ bool APlayerController::HasClientLoadedCurrentWorld()
 	if (Connection != NULL)
 	{
 		// NOTE: To prevent exploits, child connections must not use the parent connections ClientWorldPackageName value at all.
-
-		return (Connection->GetClientWorldPackageName() == GetWorld()->GetOutermost()->GetFName());
+		bool bInCorrectWorld = (Connection->GetClientWorldPackageName() == GetWorld()->GetOutermost()->GetFName());
+		if (SeamlessTravelCount > 0)
+		{
+			// In the case where seamless travel has occurred, make sure the client has actually completed the travel
+			return bInCorrectWorld && (LastCompletedSeamlessTravelCount == SeamlessTravelCount);
+		}
+		else
+		{
+			return bInCorrectWorld;
+		}
 	}
 	else
 	{
