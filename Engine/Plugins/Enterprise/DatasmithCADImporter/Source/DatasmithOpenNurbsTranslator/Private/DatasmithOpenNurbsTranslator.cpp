@@ -10,6 +10,7 @@
 #include "RhinoCoretechWrapper.h"
 #endif // CAD_LIBRARY
 
+#include "CADInterfacesModule.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaterialsUtils.h"
@@ -3545,7 +3546,12 @@ void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPt
 
 void FDatasmithOpenNurbsTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	Options.Add(Datasmith::MakeOptions<UDatasmithOpenNurbsImportOptions>());
+	TStrongObjectPtr<UDatasmithOpenNurbsImportOptions> OpenNurbsOptionsPtr = Datasmith::MakeOptions<UDatasmithOpenNurbsImportOptions>();
+	if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
+	{
+		OpenNurbsOptionsPtr->Options.Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes;
+	}
+	Options.Add(OpenNurbsOptionsPtr);
 }
 
 #undef LOCTEXT_NAMESPACE // "DatasmithOpenNurbsTranslator"
