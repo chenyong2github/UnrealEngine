@@ -108,6 +108,9 @@ struct CORE_API FReleaseObjectVersion
 		// Added Weight member to FMeshToMeshVertData
 		WeightFMeshToMeshVertData,
 
+		// Dummy version to allow us to fix up the fact that ReleaseObjectVersion was changed elsewhere
+		ReleaseObjectVersionFixup,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
