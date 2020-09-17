@@ -9,6 +9,7 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FIrradianceCachingParameters, )
 	SHADER_PARAMETER(uint32, CacheSize)
 	SHADER_PARAMETER(int32, Quality)
 	SHADER_PARAMETER(float, Spacing)
+	SHADER_PARAMETER(float, CornerRejection)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<FIrradianceCacheRecord>, IrradianceCacheRecords)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RWHashTable)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RWHashToIndex)
@@ -35,7 +36,7 @@ struct FIrradianceCache
 
 	TUniformBufferRef<FIrradianceCachingParameters> IrradianceCachingParametersUniformBuffer;
 
-	FIrradianceCache();
+	FIrradianceCache(int32 Quality, float Spacing, float CornerRejection);
 
 	FRWBuffer HashTable;
 	FRWBuffer HashToIndex;

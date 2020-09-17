@@ -169,9 +169,8 @@ public:
 		return TileRelevantLightSampleCountStates[LinearIndex];
 	}
 
-	bool IsTileGIConverged(FTileVirtualCoordinates Coords);
-	bool IsTileShadowConverged(FTileVirtualCoordinates Coords);
-	bool IsTileFullyConverged(FTileVirtualCoordinates Coords);
+	bool IsTileGIConverged(FTileVirtualCoordinates Coords, int32 NumGISamples);
+	bool IsTileShadowConverged(FTileVirtualCoordinates Coords, int32 NumShadowSamples);
 	bool DoesTileHaveValidCPUData(FTileVirtualCoordinates Coords, int32 CurrentRevision);
 
 	FString Name;

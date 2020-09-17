@@ -21,96 +21,6 @@
 #include "CanvasTypes.h"
 #include "LightmapDenoising.h"
 
-int32 GGPULightmassSamplesPerTexel = 512;
-static FAutoConsoleVariableRef CVarGPULightmassSamplesPerTexel(
-	TEXT("r.GPULightmass.SamplesPerTexel"),
-	GGPULightmassSamplesPerTexel,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassShadowSamplesPerTexel = 512; // 512 samples to reach good image plane stratification. Shadow samples are 100x faster than path samples
-static FAutoConsoleVariableRef CVarGPULightmassShadowSamplesPerTexel(
-	TEXT("r.GPULightmass.ShadowSamplesPerTexel"),
-	GGPULightmassShadowSamplesPerTexel,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassShowProgressBars = 1;
-static FAutoConsoleVariableRef CVarGPULightmassShowProgressBars(
-	TEXT("r.GPULightmass.ShowProgressBars"),
-	GGPULightmassShowProgressBars,
-	TEXT("\n"),
-	ECVF_Default
-	);
-
-int32 GGPULightmassUseIrradianceCaching = 0; 
-static FAutoConsoleVariableRef CVarGPULightmassUseIrradianceCaching(
-	TEXT("r.GPULightmass.IrradianceCaching"),
-	GGPULightmassUseIrradianceCaching,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassVisualizeIrradianceCache = 0;
-static FAutoConsoleVariableRef CVarGPULightmassVisualizeIrradianceCache(
-	TEXT("r.GPULightmass.IrradianceCaching.Visualize"),
-	GGPULightmassVisualizeIrradianceCache,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassUseFirstBounceRayGuiding = 0;
-static FAutoConsoleVariableRef CVarGPULightmassUseFirstBounceRayGuiding(
-	TEXT("r.GPULightmass.FirstBounceRayGuiding"),
-	GGPULightmassUseFirstBounceRayGuiding,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassFirstBounceRayGuidingTrialSamples = 128;
-static FAutoConsoleVariableRef CVarGPULightmassFirstBounceRayGuidingTrialSamples(
-	TEXT("r.GPULightmass.FirstBounceRayGuiding.TrialSamples"),
-	GGPULightmassFirstBounceRayGuidingTrialSamples,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassDenoiseGIDuringInteractiveBake = 0;
-#if WITH_INTELOIDN
-static FAutoConsoleVariableRef CVarGGPULightmassDenoiseGIDuringInteractiveBake(
-	TEXT("r.GPULightmass.DenoiseGIDuringInteractiveBake"),
-	GGPULightmassDenoiseGIDuringInteractiveBake,
-	TEXT("\n"),
-	ECVF_Default
-);
-#endif
-
-int32 GGPULightmassOnlyBakeWhatYouSee = 0;
-static FAutoConsoleVariableRef CVarGPULightmassOnlyBakeWhatYouSee(
-	TEXT("r.GPULightmass.OnlyBakeWhatYouSee"),
-	GGPULightmassOnlyBakeWhatYouSee,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassOnlyBakeWhatYouSee_FramesToRememberRequests = 60;
-static FAutoConsoleVariableRef CVarGPULightmassOnlyBakeWhatYouSee_FramesToRememberRequests(
-	TEXT("r.GPULightmass.OnlyBakeWhatYouSee.FramesToRememberRequests"),
-	GGPULightmassOnlyBakeWhatYouSee_FramesToRememberRequests,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassGPUTilePoolSize = 40;
-static FAutoConsoleVariableRef CVarGPULightmassGPUTilePoolSize(
-	TEXT("r.GPULightmass.System.GPUTilePoolSize"),
-	GGPULightmassGPUTilePoolSize,
-	TEXT("\n"),
-	ECVF_Default
-);
-
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCopyConvergedLightmapTilesCS)
@@ -430,12 +340,12 @@ namespace GPULightmass
 
 FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 	: Scene(InScene)
-	, LightmapTilePoolGPU(FIntPoint(GGPULightmassGPUTilePoolSize, GGPULightmassGPUTilePoolSize))
+	, LightmapTilePoolGPU(FIntPoint(Scene->Settings->LightmapTilePoolSize))
 {
-	bUseFirstBounceRayGuiding = GGPULightmassUseFirstBounceRayGuiding == 1;
+	bUseFirstBounceRayGuiding = Scene->Settings->bUseFirstBounceRayGuiding;
 	if (bUseFirstBounceRayGuiding)
 	{
-		NumFirstBounceRayGuidingTrialSamples = GGPULightmassFirstBounceRayGuidingTrialSamples;
+		NumFirstBounceRayGuidingTrialSamples = Scene->Settings->FirstBounceRayGuidingTrialSamples;
 	}
 
 	if (!bUseFirstBounceRayGuiding)
@@ -465,14 +375,14 @@ FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 			});
 	}
 
-	bDenoiseDuringInteractiveBake = GGPULightmassDenoiseGIDuringInteractiveBake == 1;
-	bOnlyBakeWhatYouSee = GGPULightmassOnlyBakeWhatYouSee == 1;
+	bDenoiseDuringInteractiveBake = Scene->Settings->DenoisingOptions == EGPULightmassDenoisingOptions::DuringInteractivePreview;
+	bOnlyBakeWhatYouSee = Scene->Settings->Mode == EGPULightmassMode::BakeWhatYouSee;
 	DenoisingThreadPool = FQueuedThreadPool::Allocate();
 	DenoisingThreadPool->Create(1);
 
 	if (bOnlyBakeWhatYouSee)
 	{
-		TilesVisibleLastFewFrames.AddDefaulted(GGPULightmassOnlyBakeWhatYouSee_FramesToRememberRequests);
+		TilesVisibleLastFewFrames.AddDefaulted(60);
 	}
 }
 
@@ -1544,10 +1454,10 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 	}
 
 	bool bLastFewFramesIdle = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
-	int32 NumSamplesPerFrame = (bInsideBackgroundTick && bLastFewFramesIdle) ? 8 : 1;
+	int32 NumSamplesPerFrame = (bInsideBackgroundTick && bLastFewFramesIdle) ? Scene->Settings->TilePassesInFullSpeedMode : Scene->Settings->TilePassesInSlowMode;
 
 	{
-		TArray<FLightmapTileRequest> PendingGITileRequests = PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return !Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates); });
+		TArray<FLightmapTileRequest> PendingGITileRequests = PendingTileRequests.FilterByPredicate([NumGISamples = Scene->Settings->GISamples](const FLightmapTileRequest& Tile) { return !Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, NumGISamples); });
 
 		// Render GI
 		for (int32 SampleIndex = 0; SampleIndex < NumSamplesPerFrame; SampleIndex++)
@@ -1602,7 +1512,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 							for (const FLightmapTileRequest& Tile : PendingGITileRequests)
 							{							
-								if (Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates)) continue;
+								if (Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, Scene->Settings->GISamples)) continue;
 								uint32 AssignedGPUIndex = (Tile.RenderState->DistributionPrefixSum + Tile.RenderState->RetrieveTileStateIndex(Tile.VirtualCoordinates)) % GNumExplicitGPUsForRendering;
 								if (AssignedGPUIndex != GPUIndex) continue;
 
@@ -1672,7 +1582,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 								TileDesc.OutputLayer2Position = Tile.OutputPhysicalCoordinates[2] * GPreviewLightmapPhysicalTileSize;
 								TileDesc.FrameIndex = Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).Revision;
 								TileDesc.RenderPassIndex = Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex;
-								if (!Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates))
+								if (!Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, Scene->Settings->GISamples))
 								{
 									Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex++;
 
@@ -1736,7 +1646,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 									{
 										FLightmapPathTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLightmapPathTracingRGS::FParameters>();
 										PassParameters->LastInvalidationFrame = LastInvalidationFrame;
-										PassParameters->NumTotalSamples = GGPULightmassSamplesPerTexel;
+										PassParameters->NumTotalSamples = Scene->Settings->GISamples;
 										PassParameters->TLAS = Scene->RayTracingScene->GetShaderResourceView();
 										PassParameters->GBufferWorldPosition = GraphBuilder.CreateUAV(GBufferWorldPosition);
 										PassParameters->GBufferWorldNormal = GraphBuilder.CreateUAV(GBufferWorldNormal);
@@ -1770,8 +1680,8 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 										FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 										PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(bUseFirstBounceRayGuiding);
-										PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(GGPULightmassUseIrradianceCaching == 1);
-										PermutationVector.Set<FLightmapPathTracingRGS::FVisualizeIrradianceCache>(GGPULightmassVisualizeIrradianceCache == 1);
+										PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Scene->Settings->bUseIrradianceCaching);
+										PermutationVector.Set<FLightmapPathTracingRGS::FVisualizeIrradianceCache>(Scene->Settings->bVisualizeIrradianceCache);
 										auto RayGenerationShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FLightmapPathTracingRGS>(FLightmapPathTracingRGS::RemapPermutation(PermutationVector));
 										ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
@@ -1827,7 +1737,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 		// Render shadow mask
 		{
-			TArray<FLightmapTileRequest> PendingShadowTileRequestsOnAllGPUs = PendingTileRequests.FilterByPredicate([](const FLightmapTileRequest& Tile) { return !Tile.RenderState->IsTileShadowConverged(Tile.VirtualCoordinates); });
+			TArray<FLightmapTileRequest> PendingShadowTileRequestsOnAllGPUs = PendingTileRequests.FilterByPredicate([NumShadowSamples = Scene->Settings->StationaryLightShadowSamples](const FLightmapTileRequest& Tile) { return !Tile.RenderState->IsTileShadowConverged(Tile.VirtualCoordinates, NumShadowSamples); });
 
 			if (PendingShadowTileRequestsOnAllGPUs.Num() > 0)
 			{
@@ -1914,7 +1824,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 						for (auto& Pair : Tile.RenderState->RetrieveTileRelevantLightSampleState(Tile.VirtualCoordinates).RelevantDirectionalLightSampleCount)
 						{
-							if (GGPULightmassShadowSamplesPerTexel < 0 || Pair.Value < GGPULightmassShadowSamplesPerTexel)
+							if (Pair.Value < Scene->Settings->StationaryLightShadowSamples)
 							{
 								UnconvergedLightTypeArray.Add(0);
 								UnconvergedChannelIndexArray.Add(Pair.Key->ShadowMapChannel);
@@ -1925,7 +1835,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 						for (auto& Pair : Tile.RenderState->RetrieveTileRelevantLightSampleState(Tile.VirtualCoordinates).RelevantPointLightSampleCount)
 						{
-							if (GGPULightmassShadowSamplesPerTexel < 0 || Pair.Value < GGPULightmassShadowSamplesPerTexel)
+							if (Pair.Value < Scene->Settings->StationaryLightShadowSamples)
 							{
 								UnconvergedLightTypeArray.Add(1);
 								UnconvergedChannelIndexArray.Add(Pair.Key->ShadowMapChannel);
@@ -1936,7 +1846,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 						for (auto& Pair : Tile.RenderState->RetrieveTileRelevantLightSampleState(Tile.VirtualCoordinates).RelevantSpotLightSampleCount)
 						{
-							if (GGPULightmassShadowSamplesPerTexel < 0 || Pair.Value < GGPULightmassShadowSamplesPerTexel)
+							if (Pair.Value < Scene->Settings->StationaryLightShadowSamples)
 							{
 								UnconvergedLightTypeArray.Add(2);
 								UnconvergedChannelIndexArray.Add(Pair.Key->ShadowMapChannel);
@@ -1947,7 +1857,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 						for (auto& Pair : Tile.RenderState->RetrieveTileRelevantLightSampleState(Tile.VirtualCoordinates).RelevantRectLightSampleCount)
 						{
-							if (GGPULightmassShadowSamplesPerTexel < 0 || Pair.Value < GGPULightmassShadowSamplesPerTexel)
+							if (Pair.Value < Scene->Settings->StationaryLightShadowSamples)
 							{
 								UnconvergedLightTypeArray.Add(3);
 								UnconvergedChannelIndexArray.Add(Pair.Key->ShadowMapChannel);
@@ -1971,7 +1881,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 							for (auto& Pair : Tile.RenderState->RetrieveTileRelevantLightSampleState(Tile.VirtualCoordinates).RelevantDirectionalLightSampleCount)
 							{
-								if (GGPULightmassShadowSamplesPerTexel < 0 || Pair.Value < GGPULightmassShadowSamplesPerTexel)
+								if (Pair.Value < Scene->Settings->StationaryLightShadowSamples)
 								{
 									if (LightIndex == PickedLightIndex)
 									{
@@ -1985,7 +1895,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 							for (auto& Pair : Tile.RenderState->RetrieveTileRelevantLightSampleState(Tile.VirtualCoordinates).RelevantPointLightSampleCount)
 							{
-								if (GGPULightmassShadowSamplesPerTexel < 0 || Pair.Value < GGPULightmassShadowSamplesPerTexel)
+								if (Pair.Value < Scene->Settings->StationaryLightShadowSamples)
 								{
 									if (LightIndex == PickedLightIndex)
 									{
@@ -1999,7 +1909,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 							for (auto& Pair : Tile.RenderState->RetrieveTileRelevantLightSampleState(Tile.VirtualCoordinates).RelevantSpotLightSampleCount)
 							{
-								if (GGPULightmassShadowSamplesPerTexel < 0 || Pair.Value < GGPULightmassShadowSamplesPerTexel)
+								if (Pair.Value < Scene->Settings->StationaryLightShadowSamples)
 								{
 									if (LightIndex == PickedLightIndex)
 									{
@@ -2013,7 +1923,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 							for (auto& Pair : Tile.RenderState->RetrieveTileRelevantLightSampleState(Tile.VirtualCoordinates).RelevantRectLightSampleCount)
 							{
-								if (GGPULightmassShadowSamplesPerTexel < 0 || Pair.Value < GGPULightmassShadowSamplesPerTexel)
+								if (Pair.Value < Scene->Settings->StationaryLightShadowSamples)
 								{
 									if (LightIndex == PickedLightIndex)
 									{
@@ -2263,13 +2173,13 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 				FSelectiveLightmapOutputCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FSelectiveLightmapOutputCS::FOutputLayerDim>(0);
-				PermutationVector.Set<FSelectiveLightmapOutputCS::FDrawProgressBars>(GGPULightmassShowProgressBars == 1);
+				PermutationVector.Set<FSelectiveLightmapOutputCS::FDrawProgressBars>(Scene->Settings->bShowProgressBars);
 
 				auto Shader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectiveLightmapOutputCS>(PermutationVector);
 
 				FSelectiveLightmapOutputCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectiveLightmapOutputCS::FParameters>();
 				PassParameters->NumBatchedTiles = GPUBatchedTileRequests.BatchedTilesDesc.Num();
-				PassParameters->NumTotalSamples = GGPULightmassSamplesPerTexel;
+				PassParameters->NumTotalSamples = Scene->Settings->GISamples;
 				PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
 				PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
 				PassParameters->OutputTileAtlas = GraphBuilder.CreateUAV(RenderTargetTileAtlas);
@@ -2291,13 +2201,13 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 				FSelectiveLightmapOutputCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FSelectiveLightmapOutputCS::FOutputLayerDim>(2);
-				PermutationVector.Set<FSelectiveLightmapOutputCS::FDrawProgressBars>(GGPULightmassShowProgressBars == 1);
+				PermutationVector.Set<FSelectiveLightmapOutputCS::FDrawProgressBars>(Scene->Settings->bShowProgressBars);
 
 				auto Shader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectiveLightmapOutputCS>(PermutationVector);
 
 				FSelectiveLightmapOutputCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectiveLightmapOutputCS::FParameters>();
 				PassParameters->NumBatchedTiles = GPUBatchedTileRequests.BatchedTilesDesc.Num();
-				PassParameters->NumTotalSamples = GGPULightmassSamplesPerTexel;
+				PassParameters->NumTotalSamples = Scene->Settings->GISamples;
 				PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
 				PassParameters->OutputTileAtlas = GraphBuilder.CreateUAV(RenderTargetTileAtlas);
 				PassParameters->ShadowMask = GraphBuilder.CreateUAV(ShadowMask);
@@ -2320,11 +2230,16 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 	// Perform readback on any potential converged tiles
 	{
 		auto ConvergedTileRequests = PendingTileRequests.FilterByPredicate(
-			[bOnlyBakeWhatYouSee = bOnlyBakeWhatYouSee, bDenoiseDuringInteractiveBake = bDenoiseDuringInteractiveBake](const FLightmapTileRequest& TileRequest)
+			[
+				NumGISamples = Scene->Settings->GISamples,
+				NumShadowSamples = Scene->Settings->StationaryLightShadowSamples,
+				bOnlyBakeWhatYouSee = bOnlyBakeWhatYouSee, 
+				bDenoiseDuringInteractiveBake = bDenoiseDuringInteractiveBake
+			](const FLightmapTileRequest& TileRequest)
 		{
 			return
 				(TileRequest.VirtualCoordinates.MipLevel == 0 || bDenoiseDuringInteractiveBake || bOnlyBakeWhatYouSee) && // Only mip 0 tiles will be saved
-				TileRequest.RenderState->IsTileFullyConverged(TileRequest.VirtualCoordinates);
+				TileRequest.RenderState->IsTileGIConverged(TileRequest.VirtualCoordinates, NumGISamples) && TileRequest.RenderState->IsTileShadowConverged(TileRequest.VirtualCoordinates, NumShadowSamples);
 		}
 		);
 
@@ -2813,7 +2728,7 @@ void FLightmapRenderer::BackgroundTick()
 
 	if (!bOnlyBakeWhatYouSee)
 	{
-		const int32 NumWorkPerFrame = !bLastFewFramesIdle ? 32 : 512;
+		const int32 NumWorkPerFrame = !bLastFewFramesIdle ? 32 : 128;
 
 		if (Mip0WorkDoneLastFrame < NumWorkPerFrame)
 		{
