@@ -191,30 +191,33 @@ void FGPULightmassEditorModule::CreateBuildMenu(FMenuBuilder& Builder)
 
 void FGPULightmassEditorModule::Tick(float DeltaTime)
 {
-	if (!IsRayTracingEnabled())
+	if (Messages.IsValid())
 	{
-		Messages->SetText(LOCTEXT("GPULightmassRayTracingDsiabled", "GPU Lightmass requires ray tracing support which is disabled."));
-		return;
-	}
-
-	bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
-
-	if (bIsViewportNonRealtime)
-	{
-		UWorld* World = GEditor->GetEditorWorldContext().World();
-		if (World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning())
+		if (!IsRayTracingEnabled())
 		{
-			FText Text = FText::Format(LOCTEXT("GPULightmassBuildingLighting", "GPU Lightmass is building lighting for {0}."), FText::FromString(World->GetActiveLightingScenario() ? World->GetActiveLightingScenario()->GetOuter()->GetName() : World->GetName()));
-			Messages->SetText(Text);
+			Messages->SetText(LOCTEXT("GPULightmassRayTracingDsiabled", "GPU Lightmass requires ray tracing support which is disabled."));
+			return;
+		}
+
+		bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
+
+		if (bIsViewportNonRealtime)
+		{
+			UWorld* World = GEditor->GetEditorWorldContext().World();
+			if (World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning())
+			{
+				FText Text = FText::Format(LOCTEXT("GPULightmassBuildingLighting", "GPU Lightmass is building lighting for {0}."), FText::FromString(World->GetActiveLightingScenario() ? World->GetActiveLightingScenario()->GetOuter()->GetName() : World->GetName()));
+				Messages->SetText(Text);
+			}
+			else
+			{
+				Messages->SetText(FText(LOCTEXT("GPULightmassReady", "GPU Lightmass is ready.")));
+			}
 		}
 		else
 		{
-			Messages->SetText(FText(LOCTEXT("GPULightmassReady", "GPU Lightmass is ready.")));
-		}		
-	}
-	else
-	{
-		Messages->SetText(LOCTEXT("GPULightmassSpeedModes", "GPU Lightmass runs in slow mode when the viewport is realtime to avoid freezing. Uncheck realtime on the viewport (or press Ctrl+R) to get full speed."));
+			Messages->SetText(LOCTEXT("GPULightmassSpeedModes", "GPU Lightmass runs in slow mode when the viewport is realtime to avoid freezing. Uncheck realtime on the viewport (or press Ctrl+R) to get full speed."));
+		}
 	}
 }
 
