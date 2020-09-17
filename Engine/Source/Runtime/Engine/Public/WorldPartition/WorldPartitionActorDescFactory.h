@@ -8,6 +8,8 @@ class FWorldPartitionActorDesc;
 class ENGINE_API FWorldPartitionActorDescFactory
 {
 public:
+	virtual ~FWorldPartitionActorDescFactory() = default;
+
 #if WITH_EDITOR
 	virtual FWorldPartitionActorDesc* Create();
 #endif
