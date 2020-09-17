@@ -498,17 +498,7 @@ int32 FMaterialAttributesInput::CompileWithDefault(class FMaterialCompiler* Comp
 	}
 
 	EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
-
-	// Note that we only do a proper check for MP_Anisotropy since we are not confident of which materials/feaures
-	// are relying the very permissive else clause path.
-	if (Property == MP_Anisotropy)
-	{
-		SetConnectedProperty(Property, Compiler->IsMaterialPropertyUsed(Property, Ret));
-	}
-	else
-	{
-		SetConnectedProperty(Property, Ret != INDEX_NONE);
-	}
+	SetConnectedProperty(Property, Ret != INDEX_NONE);
 
 	if( Ret == INDEX_NONE )
 	{
@@ -1407,10 +1397,7 @@ bool FMaterialResource::HasEmissiveColorConnected() const
 
 bool FMaterialResource::HasAnisotropyConnected() const
 {
-	// Note that anisotropy does a proper check when the MaterialAttributes node is used.
-	// The other other HasXXXConnected() was not updated to remain conservative and be 
-	// backwards compatible. Consider fixing in the future.
-	return (HasMaterialAttributesConnected() && Material->MaterialAttributes.IsConnected(MP_Anisotropy)) || Material->HasAnisotropyConnected();
+	return HasMaterialAttributesConnected() || Material->HasAnisotropyConnected();
 }
 
 bool FMaterialResource::HasAmbientOcclusionConnected() const

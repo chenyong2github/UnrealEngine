@@ -224,7 +224,13 @@ FDirectLighting DefaultLitBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L,
 {
 	BxDFContext Context;
 
+#if SUPPORTS_ANISOTROPIC_MATERIALS
 	bool bHasAnisotropy = HasAnisotropy(GBuffer.SelectiveOutputMask);
+#else
+	bool bHasAnisotropy = false;
+#endif
+
+	BRANCH
 	if (bHasAnisotropy)
 	{
 		half3 X = GBuffer.WorldTangent;
@@ -236,11 +242,13 @@ FDirectLighting DefaultLitBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L,
 		Init(Context, N, V, L);
 		SphereMaxNoH(Context, AreaLight.SphereSinAlpha, true);
 	}
+
 	Context.NoV = saturate(abs( Context.NoV ) + 1e-5);
 
 	FDirectLighting Lighting;
 	Lighting.Diffuse  = AreaLight.FalloffColor * (Falloff * NoL) * Diffuse_Lambert( GBuffer.DiffuseColor );
 
+	BRANCH
 	if (bHasAnisotropy)
 	{
 		//Lighting.Specular = GBuffer.WorldTangent * .5f + .5f;
@@ -360,9 +368,16 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		Nspec = GBuffer.WorldNormal;
 	}
 
+#if SUPPORTS_ANISOTROPIC_MATERIALS
+	bool bHasAnisotropy = HasAnisotropy(GBuffer.SelectiveOutputMask);
+#else
+	bool bHasAnisotropy = false;
+#endif
+
 	half3 X = 0;
 	half3 Y = 0;
-	bool bHasAnisotropy = HasAnisotropy(GBuffer.SelectiveOutputMask);
+
+	BRANCH
 	if (bHasAnisotropy)
 	{
 		X = GBuffer.WorldTangent;
@@ -417,6 +432,7 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	{
 		BxDFContext TempContext;
 
+		BRANCH
 		if (bHasAnisotropy)
 		{
 			Init(TempContext, N, X, Y, V, L);
@@ -483,6 +499,7 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		float D2 = 0;
 		float Vis2 = 0;
 
+		BRANCH
 		if (bHasAnisotropy)
 		{
 			float ax = 0;
@@ -503,6 +520,8 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		float3 RefractedF = lerp(0.0, F, GBuffer.Metallic);
 		
 		float Energy = 0;
+
+		BRANCH
 		if (bHasAnisotropy)
 		{
 			FAreaLight Punctual = AreaLight;
