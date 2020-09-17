@@ -229,10 +229,15 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		}
 		case ESwitchboardTaskType::KillAll:
 			return KillAllProcesses();
-		case ESwitchboardTaskType::TransferFile:
+		case ESwitchboardTaskType::ReceiveFileFromClient:
 		{
-			const FSwitchboardTransferFileTask& TransferTask = static_cast<const FSwitchboardTransferFileTask&>(InTask);
-			return TransferFile(TransferTask);
+			const FSwitchboardReceiveFileFromClientTask& ReceiveFileFromClientTask = static_cast<const FSwitchboardReceiveFileFromClientTask&>(InTask);
+			return ReceiveFileFromClient(ReceiveFileFromClientTask);
+		}
+		case ESwitchboardTaskType::SendFileToClient:
+		{
+			const FSwitchboardSendFileToClientTask& SendFileToClientTask = static_cast<const FSwitchboardSendFileToClientTask&>(InTask);
+			return SendFileToClient(SendFileToClientTask);
 		}
 		case ESwitchboardTaskType::VcsInit:
 		{
@@ -272,6 +277,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 		UE_LOG(LogSwitchboard, Error, TEXT("Could not create pipe to read process output!"));
 		return false;
 	}
+	
 	const bool bLaunchDetached = false;
 	const bool bLaunchHidden = false;
 	const bool bLaunchReallyHidden = false;
@@ -281,15 +287,19 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 
 	if (NewProcess.Handle.IsValid() && FPlatformProcess::IsProcRunning(NewProcess.Handle))
 	{
+		UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess.PID, *InRunTask.Command, *InRunTask.Arguments);
+
 		FGenericPlatformMisc::CreateGuid(NewProcess.UUID);
 		RunningProcesses.Add(NewProcess);
 
-		SendMessage(CreateProgramStartedMessage(NewProcess.UUID.ToString()), InRunTask.Recipient);
+		SendMessage(CreateProgramStartedMessage(NewProcess.UUID.ToString(), InRunTask.TaskID.ToString()), InRunTask.Recipient);
 		return true;
 	}
 	else
 	{
-		SendMessage(CreateProgramStartFailedMessage((TEXT("Could not start program %s"), *InRunTask.Command)), InRunTask.Recipient);
+		const FString ErrorMsg = FString::Printf(TEXT("Could not start program %s"), *InRunTask.Command);
+		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
+		SendMessage(CreateProgramStartFailedMessage(ErrorMsg, InRunTask.TaskID.ToString()), InRunTask.Recipient);
 		return false;
 	}
 }
@@ -317,9 +327,9 @@ bool FSwitchboardListener::KillAllProcesses()
 	return bAllKilled;
 }
 
-bool FSwitchboardListener::TransferFile(const FSwitchboardTransferFileTask& TransferTask)
+bool FSwitchboardListener::ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask)
 {
-	FString Destination = TransferTask.Destination;
+	FString Destination = InReceiveFileFromClientTask.Destination;
 
 	if (Destination.Contains(TEXT("%TEMP%")))
 	{
@@ -338,24 +348,52 @@ bool FSwitchboardListener::TransferFile(const FSwitchboardTransferFileTask& Tran
 	if (FPaths::FileExists(Destination))
 	{
 		const FString ErrorMsg = FString::Printf(TEXT("Destination %s already exist"), *Destination);
-		SendMessage(CreateFileTransferFailedMessage(Destination, ErrorMsg), TransferTask.Recipient);
+		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
+		SendMessage(CreateReceiveFileFromClientFailedMessage(Destination, ErrorMsg), InReceiveFileFromClientTask.Recipient);
 		return false;
 	}
 
-	FString DecodedFileContent;
-	FBase64::Decode(TransferTask.FileContent, DecodedFileContent);
+	TArray<uint8> DecodedFileContent = {};
+	FBase64::Decode(InReceiveFileFromClientTask.FileContent, DecodedFileContent);
 
-	UE_LOG(LogSwitchboard, Display, TEXT("Writing to %s"), *Destination);
-	if (FFileHelper::SaveStringToFile(DecodedFileContent, *Destination))
+	UE_LOG(LogSwitchboard, Display, TEXT("Writing %d bytes to %s"), DecodedFileContent.Num(), *Destination);
+	if (FFileHelper::SaveArrayToFile(DecodedFileContent, *Destination))
 	{
-		SendMessage(CreateFileTransferCompletedMessage(Destination), TransferTask.Recipient);
+		SendMessage(CreateReceiveFileFromClientCompletedMessage(Destination), InReceiveFileFromClientTask.Recipient);
 		return true;
 	}
 
-	UE_LOG(LogSwitchboard, Display, TEXT("Error while trying to write to %s"), *Destination);
-	const FString ErrorMsg = FString::Printf(TEXT("Could not write to %s"), *Destination);
-	SendMessage(CreateFileTransferFailedMessage(Destination, ErrorMsg), TransferTask.Recipient);
+	const FString ErrorMsg = FString::Printf(TEXT("Error while trying to write to %s"), *Destination);
+	UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
+	SendMessage(CreateReceiveFileFromClientFailedMessage(Destination, ErrorMsg), InReceiveFileFromClientTask.Recipient);
 	return false;
+}
+
+bool FSwitchboardListener::SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask)
+{
+	FString SourceFilePath = InSendFileToClientTask.Source;
+	FPlatformMisc::NormalizePath(SourceFilePath);
+	FPaths::MakePlatformFilename(SourceFilePath);
+
+	if (!FPaths::FileExists(SourceFilePath))
+	{
+		const FString ErrorMsg = FString::Printf(TEXT("Could not find file %s"), *SourceFilePath);
+		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
+		SendMessage(CreateSendFileToClientFailedMessage(InSendFileToClientTask.Source, ErrorMsg), InSendFileToClientTask.Recipient);
+		return false;
+	}
+
+	TArray<uint8> FileContent;
+	if (!FFileHelper::LoadFileToArray(FileContent, *SourceFilePath))
+	{
+		const FString ErrorMsg = FString::Printf(TEXT("Error reading from file %s"), *SourceFilePath);
+		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
+		SendMessage(CreateSendFileToClientFailedMessage(InSendFileToClientTask.Source, ErrorMsg), InSendFileToClientTask.Recipient);
+		return false;
+	}
+
+	const FString EncodedFileContent = FBase64::Encode(FileContent);
+	return SendMessage(CreateSendFileToClientCompletedMessage(InSendFileToClientTask.Source, EncodedFileContent), InSendFileToClientTask.Recipient);
 }
 
 bool FSwitchboardListener::InitVersionControlSystem(const FSwitchboardVcsInitTask& InVcsInitTask)
@@ -399,7 +437,7 @@ void FSwitchboardListener::CleanUpDisconnectedSockets()
 		const FIPv4Endpoint& Client = LastActivity.Key;
 		if (CurrentTime - LastActivity.Value > SecondsUntilInactiveClientDisconnect)
 		{
-			UE_LOG(LogSwitchboard, Warning, TEXT("Client %s has been inactive for more than 5s -- closing connection"), *Client.ToString());
+			UE_LOG(LogSwitchboard, Warning, TEXT("Client %s has been inactive for more than %.1fs -- closing connection"), *Client.ToString(), SecondsUntilInactiveClientDisconnect);
 			TUniquePtr<FSwitchboardDisconnectTask> DisconnectTask = MakeUnique<FSwitchboardDisconnectTask>(FGuid(), Client);
 			DisconnectTasks.Enqueue(MoveTemp(DisconnectTask));
 		}

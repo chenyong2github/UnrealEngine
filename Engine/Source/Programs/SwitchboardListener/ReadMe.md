@@ -59,16 +59,22 @@ List of commands sent from Switchboard to the Listener:
 	'command': 'restart',
 	'id': '16fd2706-8baf-433b-82eb-8c7fada847da'
 }
-- Transfer file
+- Send file
 {
-	'command': 'transfer file',
+	'command': 'send file',
 	'id': '16fd2706-8baf-433b-82eb-8c7fada847da',
 	# the destination accepts the variables %TEMP% and %RANDOM%
 	# %TEMP% will be replaced with a path to the system's temp folder
 	# %RANDOM% will generate a random string and make sure that the resulting path does not exist yet
 	# example: %TEMP%/folder/%RANDOM%.jpg would result in something like C:\Users\Username\AppData\Local\Temp\folder\718938484A70E535DBC5648DEACEBFE5.jpg
 	'destination': 'absolute system path to destination file',
-	'content': 'ofoiwefijefioefj'
+	'content': base64 encoded file content
+}
+- Receive file
+{
+	'command': 'receive file',
+	'id': '16fd2706-8baf-433b-82eb-8c7fada847da',
+	'source': 'absolute path to file on listener machine'
 }
 - Disconnect, lets the listener know the client is about to disconnect from the socket
 {
@@ -98,13 +104,14 @@ Responses sent by the listener to Switchboard:
 - Program Started
 {
 	'program started': True,
-	'program id': '6fa459ea-ee8a-3ca4-894e-db77e160355e'
+	'program id': '6fa459ea-ee8a-3ca4-894e-db77e160355e',
+	'message id': '16fd2706-8baf-433b-82eb-8c7fada847da'
 }
 - Program start failed
 {
 	'program started': False,
-	'program id': '6fa459ea-ee8a-3ca4-894e-db77e160355e',
-	'error': string
+	'error': string,
+	'message id': '16fd2706-8baf-433b-82eb-8c7fada847da'
 }
 - Program ended (on its own)
 {
@@ -153,16 +160,27 @@ Responses sent by the listener to Switchboard:
 	'vcs sync complete': False,
 	'error': string
 }
-- File Transfer completed
+- Send file completed
 {
-	'transfer file complete': True,
+	'send file complete': True,
 	# the path to the file that was actually written to, which might be different from the path specified
-	# in the transfer command in case variables had been specified
+	# in the send command in case variables had been specified
 	'destination': string
 }
-- File Transfer failed
+- Send file failed
 {
-	'transfer file complete': false,
+	'send file complete': false,
 	'destination': string,
+	'error': string
+}
+- Receive file completed
+{
+	'receive file complete': True,
+	'content': 'base64 encoded file content'
+}
+- Receive file failed
+{
+	'receive file complete': False,
+	'source': 'path to source file that listener tried to send',
 	'error': string
 }
