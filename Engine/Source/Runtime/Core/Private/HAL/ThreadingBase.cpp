@@ -44,6 +44,8 @@ CORE_API bool IsInSlateThread()
 	return GSlateLoadingThreadId != 0 && FPlatformTLS::GetCurrentThreadId() == GSlateLoadingThreadId;
 }
 
+CORE_API TAtomic<bool> GIsAudioThreadSuspended(false);
+
 CORE_API FRunnableThread* GAudioThread = nullptr;
 
 CORE_API bool IsAudioThreadRunning()
@@ -56,8 +58,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 CORE_API bool IsInAudioThread()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// True if this is the audio thread or if there is no audio thread, then if it is the game thread
-	return FPlatformTLS::GetCurrentThreadId() == (GAudioThreadId ? GAudioThreadId : GGameThreadId);
+	// Check if audio thread null or if audio thread is suspended 
+	if (nullptr == GAudioThread || GIsAudioThreadSuspended.Load(EMemoryOrder::Relaxed))
+	{
+		// If the audio thread is suspended or does not exist, true if in game thread. 
+		return FPlatformTLS::GetCurrentThreadId() == GGameThreadId;
+	}
+	else
+	{
+		// If the audio thread is not suspended, true if in actual audio thread. 
+		return FPlatformTLS::GetCurrentThreadId() == GAudioThread->GetThreadID();
+	} 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
