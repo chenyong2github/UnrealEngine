@@ -89,20 +89,24 @@ public:
 	/** Get Frame Time as Animation Time*/
 	MOVIESCENETRACKS_API float MapTimeToAnimation(FFrameTime InPosition, FFrameRate InFrameRate) const;
 	
-
+	//~ UMovieSceneSection interface
+	virtual void SetRange(const TRange<FFrameNumber>& NewRange) override;
+	virtual void SetStartFrame(TRangeBound<FFrameNumber> NewStartFrame) override;
+	virtual void SetEndFrame(TRangeBound<FFrameNumber> NewEndFrame)override;
 
 protected:
 
-	//~ UMovieSceneSection interface
 	virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const override;
 	virtual void TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys) override;
 	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys) override;
 	virtual void GetSnapTimes(TArray<FFrameNumber>& OutSnapTimes, bool bGetSectionBorders) const override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override;
 	virtual float GetTotalWeightValue(FFrameTime InTime) const override;
+
 	/** ~UObject interface */
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
+
 
 private:
 

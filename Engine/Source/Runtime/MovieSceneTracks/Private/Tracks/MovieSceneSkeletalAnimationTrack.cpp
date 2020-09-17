@@ -461,8 +461,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 		TArray<FTransform> CurrentTransforms;
 		TArray<float> CurrentWeights;
 
-		FTransform CurrentTransform;
-		float CurrentWeight;
+
 		//UMovieSceneSkeletalAnimationSection* AnimSection = Cast< UMovieSceneSkeletalAnimationSection>(AnimationSections[SmallestActiveSection]);
 		//AnimSection->AllocateRootMotionCache(FrameRateInSeconds);
 		FFrameTime PreviousFrame = RootMotionParams.StartFrame;
@@ -472,6 +471,8 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 		{
 			CurrentTransforms.SetNum(0);
 			CurrentWeights.SetNum(0);
+			FTransform CurrentTransform = FTransform::Identity;
+			float CurrentWeight;
 			UMovieSceneSkeletalAnimationSection* PrevSection = nullptr;
 			for (UMovieSceneSection* Section : AnimationSections)
 			{
