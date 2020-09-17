@@ -1194,11 +1194,11 @@ void FNiagaraOpInfo::Init()
 	Op->Description = NSLOCTEXT("NiagaraOpInfo", "MatrixMatrix Desc", "Multiplies one matrix by another.");
 	Op->Inputs.Add(FNiagaraOpInOutInfo(A, MatrixType, AText, AText, Default_MatrixOne));
 	Op->Inputs.Add(FNiagaraOpInOutInfo(B, MatrixType, BText, BText, Default_MatrixOne));
-	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, MatrixType, ResultText, ResultText, Default_MatrixOne, TEXT("{0} * {1}")));
+	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, MatrixType, ResultText, ResultText, Default_MatrixOne, TEXT("mul({0},{1})")));
 	Op->BuildName(TEXT("MatrixMultiply"), MatrixCategoryName);
 	Op->bSupportsAddedInputs = true;
 	Op->AddedInputTypeRestrictions.Add(MatrixType);
-	Op->AddedInputFormatting = TEXT("{A} * {B}");
+	Op->AddedInputFormatting = TEXT("mul({A},{B})");
 	OpInfoMap.Add(Op->Name) = Idx;
 	
 	Idx = OpInfos.AddDefaulted();
