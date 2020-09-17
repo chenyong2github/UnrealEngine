@@ -1327,9 +1327,12 @@ void UNiagaraComponent::OnPooledReuse(UWorld* NewWorld)
 		Rename(nullptr, NewWorld, REN_ForceNoResetLoaders);
 	}
 
+	SetLastRenderTime(-1000.0f);
+
 	if (SystemInstance != nullptr)
 	{
 		SystemInstance->OnPooledReuse(*NewWorld);
+		SystemInstance->SetLastRenderTime(GetLastRenderTime());
 	}
 }
 
