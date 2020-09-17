@@ -9,23 +9,25 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Async/Async.h"
 #include "LightmapRenderer.h"
+#include "GPULightmassSettings.h"
+
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
 extern ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld);
 
-extern int32 GGPULightmassOnlyBakeWhatYouSee;
-
-FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmassModule)
+FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmassModule, UGPULightmassSettings* InSettings)
 	: World(InWorld)
 	, GPULightmassModule(InGPULightmassModule)
+	, Settings(InSettings)
 	, Scene(this)
 	, LightBuildPercentage(0)
 {
 	check(IsInGameThread());
+	check(Settings);
 
 	InstallGameThreadEventHooks();
 
-	bOnlyBakeWhatYouSee = GGPULightmassOnlyBakeWhatYouSee == 1;
+	SettingsGuard = MakeUnique<FGCObjectScopeGuard>(Settings);
 
 	// Start the lightmass 'progress' notification
 	FNotificationInfo Info(LOCTEXT("LightBuildMessage", "Building lighting"));
@@ -37,7 +39,7 @@ FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmas
 	Info.ButtonDetails.Add(FNotificationButtonInfo(
 		LOCTEXT("LightBuildCancel", "Cancel"),
 		LOCTEXT("LightBuildCancelToolTip", "Cancels the lighting build in progress."),
-		FSimpleDelegate::CreateLambda([InWorld]() { ToggleLightmapPreview_GameThread(InWorld); })));
+		FSimpleDelegate::CreateLambda([InWorld]() { InWorld->GetSubsystem<UGPULightmassSubsystem>()->Stop(); })));
 
 	LightBuildNotification = FSlateNotificationManager::Get().AddNotification(Info);
 	if (LightBuildNotification.IsValid())

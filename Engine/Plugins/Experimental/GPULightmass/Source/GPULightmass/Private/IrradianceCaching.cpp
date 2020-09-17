@@ -10,23 +10,7 @@
 
 IMPLEMENT_UNIFORM_BUFFER_STRUCT(FIrradianceCachingParameters, "IrradianceCachingParameters");
 
-int32 GGPULightmassIrradianceCachingQuality = 128;
-static FAutoConsoleVariableRef CVarGPULightmassIrradianceCachingQuality(
-	TEXT("r.GPULightmass.IrradianceCaching.Quality"),
-	GGPULightmassIrradianceCachingQuality,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-float GGPULightmassIrradianceCachingSpacing = 32.0f;
-static FAutoConsoleVariableRef CVarGPULightmassIrradianceCachingSpacing(
-	TEXT("r.GPULightmass.IrradianceCaching.Spacing"),
-	GGPULightmassIrradianceCachingSpacing,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-FIrradianceCache::FIrradianceCache()
+FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRejection)
 {
 	uint32 IrradianceCacheTotalBytes = 0;
 
@@ -67,8 +51,9 @@ FIrradianceCache::FIrradianceCache()
 
 	FIrradianceCachingParameters IrradianceCachingParameters;
 	IrradianceCachingParameters.IrradianceCacheRecords = IrradianceCacheRecordsUAV;
-	IrradianceCachingParameters.Quality = GGPULightmassIrradianceCachingQuality;
-	IrradianceCachingParameters.Spacing = GGPULightmassIrradianceCachingSpacing;
+	IrradianceCachingParameters.Quality = Quality;
+	IrradianceCachingParameters.Spacing = Spacing;
+	IrradianceCachingParameters.CornerRejection = CornerRejection;
 	IrradianceCachingParameters.HashTableSize = HashTableSize;
 	IrradianceCachingParameters.CacheSize = IrradianceCacheMaxSize;
 	IrradianceCachingParameters.RWHashTable = HashTable.UAV;

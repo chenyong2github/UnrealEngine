@@ -154,6 +154,3 @@ private:
 };
 
 }
-
-extern int32 GGPULightmassSamplesPerTexel;
-extern int32 GGPULightmassShadowSamplesPerTexel;
