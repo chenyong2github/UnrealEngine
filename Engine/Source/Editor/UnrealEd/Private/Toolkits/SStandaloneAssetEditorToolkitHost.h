@@ -91,6 +91,7 @@ public:
 
 private:
 	void OnTabClosed(TSharedRef<SDockTab> TabClosed) const;
+	void ShutdownToolkitHost();
 
 	FName GetMenuName() const;
 
