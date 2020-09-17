@@ -305,6 +305,10 @@ public:
 	// The path of the ssh permissions key to be used when connecting to the remote server.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bUseRSync", DisplayName = "Override existing SSH permissions file", ConfigHierarchyEditable))
 	FIOSBuildResourceFilePath SSHPrivateKeyOverridePath;
+    
+    // Should the app be compatible with Multi-User feature on tvOS ?　If checked, the game will will shutdown with the typical exit flow.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (DisplayName = "Support user switching on tvOS."))
+    bool bRunAsCurrentUser;
 
 	// If checked, the game will be able to handle multiple gamepads at the same time (the Siri Remote is a gamepad)
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Can the Game have multiple gamepads connected at a single time"))
