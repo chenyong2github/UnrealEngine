@@ -2038,7 +2038,13 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnThermalStatusChanged
 
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnMemoryWarningChanged(JNIEnv* jenv, jobject thiz, jint status)
 {
+	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::MemoryAdvisor, status);
 	FAndroidStats::OnMemoryWarningChanged(status);
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnTrimMemory(JNIEnv* jenv, jobject thiz, jint MemoryTrimValue)
+{
+	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::OSTrim, MemoryTrimValue);
 }
 
 class FAndroidEmbeddedExec : public FSelfRegisteringExec

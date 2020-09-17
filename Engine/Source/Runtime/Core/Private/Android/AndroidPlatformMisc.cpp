@@ -51,6 +51,7 @@
 #include "Misc/OutputDevice.h"
 #include "Logging/LogMacros.h"
 #include "Misc/OutputDeviceError.h"
+#include "Async/Async.h"
 
 #if USE_ANDROID_JNI
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
@@ -2895,6 +2896,56 @@ int32 FAndroidMisc::GetNativeDisplayRefreshRate()
 	return 60;
 #endif
 
+}
+
+static FAndroidMemoryWarningContext GAndroidMemoryWarningContext;
+void (*GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NULL;
+void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value)
+{
+	switch (OSMemoryStatusCategory)
+	{
+		case EOSMemoryStatusCategory::OSTrim:
+		{
+			GAndroidMemoryWarningContext.LastTrimMemoryState = value;
+			break;
+		}
+		case EOSMemoryStatusCategory::MemoryAdvisor:
+		{
+			GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState = value;
+			break;
+		}
+		default:
+			checkNoEntry();
+	}
+
+	if (FTaskGraphInterface::IsRunning())
+	{
+		// Run on game thread to avoid mem handler callback getting confused.
+		AsyncTask(ENamedThreads::GameThread, [AndroidMemoryWarningContext = GAndroidMemoryWarningContext]()
+			{
+				if (GMemoryWarningHandler)
+				{
+					// note that we may also call this when recovering from low memory conditions. (i.e. not in low memory state.)
+					GMemoryWarningHandler(AndroidMemoryWarningContext);
+				}
+			});
+	}
+	else
+	{
+		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. %d, %d"), GAndroidMemoryWarningContext.LastTrimMemoryState, GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState);
+	}
+}
+
+void FAndroidMisc::SetMemoryWarningHandler(void (*InHandler)(const FGenericMemoryWarningContext& Context))
+{
+	check(IsInGameThread());
+	GMemoryWarningHandler = InHandler;
+}
+
+bool FAndroidMisc::HasMemoryWarningHandler()
+{
+	check(IsInGameThread());
+	return GMemoryWarningHandler != nullptr;
 }
 
 bool FAndroidMisc::SupportsBackbufferSampling()
