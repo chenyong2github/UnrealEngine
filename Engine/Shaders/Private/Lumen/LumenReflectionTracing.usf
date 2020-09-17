@@ -244,7 +244,7 @@ void TraceCards(
 	FConeTraceResult TraceResult;
 	ConeTraceLumenSceneCards(TraceInput, TraceResult);
 
-	float3 Lighting = TraceResult.Lighting;
+	float3 Lighting = TraceResult.Lighting * View.PreExposure;
 	float Transparency = TraceResult.Transparency;
 	float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
 
@@ -264,7 +264,7 @@ void TraceCards(
 	#if DEBUG_VISUALIZE_TRACE_TYPES
 		RWTraceRadiance[ReflectionTracingCoord] = float3(0, .5f, 0) * View.PreExposure;
 	#else
-		RWTraceRadiance[ReflectionTracingCoord] = Lighting * View.PreExposure;
+		RWTraceRadiance[ReflectionTracingCoord] = Lighting;
 	#endif
 
 	if (Transparency < InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, 0))
@@ -337,6 +337,7 @@ void TraceVoxels(
 
 	EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
 	
+	TraceResult.Lighting *= View.PreExposure;
 	float MaxLighting = max3(TraceResult.Lighting.x, TraceResult.Lighting.y, TraceResult.Lighting.z);
 
 	if (MaxLighting > MaxRayIntensity)
@@ -347,7 +348,7 @@ void TraceVoxels(
 	#if DEBUG_VISUALIZE_TRACE_TYPES
 		RWTraceRadiance[ReflectionTracingCoord] = float3(0, 0, .5f) * View.PreExposure;
 	#else
-		RWTraceRadiance[ReflectionTracingCoord] = TraceResult.Lighting * View.PreExposure;
+		RWTraceRadiance[ReflectionTracingCoord] = TraceResult.Lighting;
 	#endif
 
 	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(TraceHitDistance, bHit);

@@ -82,7 +82,7 @@ FAutoConsoleVariableRef CVarLumenReflectionHistoryDistanceThreshold(
 	ECVF_RenderThreadSafe
 	);
 
-float GLumenReflectionMaxRayIntensity = 20;
+float GLumenReflectionMaxRayIntensity = 100;
 FAutoConsoleVariableRef GVarLumenReflectionMaxRayIntensity(
 	TEXT("r.Lumen.Reflections.MaxRayIntensity"),
 	GLumenReflectionMaxRayIntensity,
