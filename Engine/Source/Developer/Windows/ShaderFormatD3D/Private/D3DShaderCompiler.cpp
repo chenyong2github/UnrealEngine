@@ -927,6 +927,9 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		Exceptions.AddUnique(TEXT("SV_CullDistance6"));
 		Exceptions.AddUnique(TEXT("SV_CullDistance7"));
 		
+		// Write the preprocessed file out in case so we can debug issues on HlslParser
+		DumpDebugShaderUSF(PreprocessedShaderSource, Input);
+
 		TArray<FString> Errors;
 		if (!RemoveUnusedOutputs(PreprocessedShaderSource, UsedOutputs, Exceptions, EntryPointName, Errors))
 		{
@@ -1079,6 +1082,15 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 				NewError.StrippedErrorMessage = CurrentError;
 			}
 			Output.Errors.Add(NewError);
+		}
+	}
+
+	const bool bDirectCompile = FParse::Param(FCommandLine::Get(), TEXT("directcompile"));
+	if (bDirectCompile)
+	{
+		for (const auto& Error : Output.Errors)
+		{
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorString());
 		}
 	}
 
