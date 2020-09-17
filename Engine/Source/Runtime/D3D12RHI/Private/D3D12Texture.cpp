@@ -3122,3 +3122,7 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 	DestTexture->SetReadBackListHandle(CommandListHandle);
 }
 
+FRHITexture* FD3D12BackBufferReferenceTexture2D::GetBackBufferTexture()
+{
+	return bIsSDR ? Viewport->GetSDRBackBuffer_RHIThread() : Viewport->GetBackBuffer_RHIThread();
+}
