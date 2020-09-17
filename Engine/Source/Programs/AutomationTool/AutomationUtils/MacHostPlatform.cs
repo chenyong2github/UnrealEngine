@@ -161,6 +161,14 @@ namespace AutomationTool
 			{
 				return false;
 			}
+			if (ModuleName.StartsWith("FortniteGame", StringComparison.OrdinalIgnoreCase))
+			{
+				return false;
+			}
+			if (ModuleName.StartsWith("AWSSDK.Core", StringComparison.OrdinalIgnoreCase))
+			{
+				return false;
+			}
 			return true;
 		}
 
