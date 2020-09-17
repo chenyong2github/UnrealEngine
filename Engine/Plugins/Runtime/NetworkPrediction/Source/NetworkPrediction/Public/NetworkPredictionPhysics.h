@@ -254,12 +254,25 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	// Current state to string
 	static void ToString(FBodyInstance* BodyInstance, FAnsiStringBuilderBase& Builder)
 	{
-		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
-		
-		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = Handle->CastToKinematicParticle();
-		if (npEnsure(Kinematic))
+		if (BodyInstance)
 		{
-			ToStringInternal(Kinematic->X(), Kinematic->R(), Kinematic->V(), Kinematic->W(), Builder);
+			FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+			if (Handle)
+			{
+				Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = Handle->CastToKinematicParticle();
+				if (npEnsure(Kinematic))
+				{
+					ToStringInternal(Kinematic->X(), Kinematic->R(), Kinematic->V(), Kinematic->W(), Builder);
+				}
+			}
+			else
+			{
+				Builder.Append("Null PhysicsActorHandle\n");
+			}
+		}
+		else
+		{
+			Builder.Append("Null BodyInstance\n");
 		}
 	}
 
