@@ -2718,7 +2718,7 @@ FString VectorVM::GetOpName(EVectorVMOp Op)
 	FString OpStr = g_VectorVMEnumStateObj->GetNameByValue((uint8)Op).ToString();
 	int32 LastIdx = 0;
 	OpStr.FindLastChar(TEXT(':'),LastIdx);
-	return OpStr.RightChop(LastIdx);
+	return OpStr.RightChop(LastIdx+1);
 }
 
 FString VectorVM::GetOperandLocationName(EVectorVMOperandLocation Location)
@@ -2728,7 +2728,7 @@ FString VectorVM::GetOperandLocationName(EVectorVMOperandLocation Location)
 	FString LocStr = g_VectorVMEnumOperandObj->GetNameByValue((uint8)Location).ToString();
 	int32 LastIdx = 0;
 	LocStr.FindLastChar(TEXT(':'), LastIdx);
-	return LocStr.RightChop(LastIdx);
+	return LocStr.RightChop(LastIdx+1);
 }
 #endif
 

@@ -1194,6 +1194,17 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	return JobID;
 }
 
+void FHlslNiagaraCompiler::FixupVMAssembly(FString& Asm)
+{
+	for (int32 OpCode = 0; OpCode < VectorVM::GetNumOpCodes(); ++OpCode)
+	{
+		//TODO: reduce string ops here by moving these out to a static list.
+		FString ToReplace = TEXT("__OP__") + LexToString(OpCode) + TEXT("(");
+		FString Replacement = VectorVM::GetOpName(EVectorVMOp(OpCode)) + TEXT("(");
+		Asm.ReplaceInline(*ToReplace, *Replacement);
+	}
+}
+
 //TODO: Map Lines of HLSL to their source Nodes and flag those nodes with errors associated with their lines.
 void FHlslNiagaraCompiler::DumpDebugInfo(const FNiagaraCompileResults& CompileResult, const FShaderCompilerInput& Input, bool bGPUScript)
 {
@@ -1319,6 +1330,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.Data->ByteCode = CompilationOutput.ByteCode;
 		Results.Data->NumTempRegisters = CompilationOutput.MaxTempRegistersUsed + 1;
 		Results.Data->LastAssemblyTranslation = CompilationOutput.AssemblyAsString;
+		FixupVMAssembly(Results.Data->LastAssemblyTranslation);
 		Results.Data->LastOpCount = CompilationOutput.NumOps;
 
 		if (GbForceNiagaraVMBinaryDump != 0 && Results.Data.IsValid())
