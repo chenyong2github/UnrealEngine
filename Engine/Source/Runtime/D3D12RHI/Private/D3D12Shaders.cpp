@@ -327,14 +327,10 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 
 	FD3D12Adapter& Adapter = GetAdapter();
 
-#if USE_STATIC_ROOT_SIGNATURE
-	Shader->pRootSignature = Adapter.GetStaticComputeRootSignature();
-#else // USE_STATIC_ROOT_SIGNATURE
 	const D3D12_RESOURCE_BINDING_TIER Tier = Adapter.GetResourceBindingTier();
 	FD3D12QuantizedBoundShaderState QBSS;
 	QuantizeBoundShaderState(ShaderFrequency, Tier, Shader, QBSS);
 	Shader->pRootSignature = Adapter.GetRootSignature(QBSS);
-#endif // USE_STATIC_ROOT_SIGNATURE
 
 	return Shader;
 }
