@@ -2,6 +2,7 @@
 
 #include "DataDrivenCVars/DataDrivenCVars.h"
 #include "HAL/ConsoleManager.h"
+#include "Engine/Engine.h"
 
 FDataDrivenConsoleVariable::~FDataDrivenConsoleVariable()
 {

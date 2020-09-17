@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "HAL/IConsoleManager.h"
+#include "Subsystems/EngineSubsystem.h"
 #include "Engine/DeveloperSettings.h"
 #include "DataDrivenCVars.generated.h"
 
