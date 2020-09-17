@@ -25,6 +25,8 @@
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "Misc/SecureHash.h"
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
 #include "String/ParseTokens.h"
 
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes"), STAT_NiagaraEditor_Graph_FindInputNodes, STATGROUP_NiagaraEditor);
@@ -2016,16 +2018,58 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 	// Optionally log out the information for debugging.
 	if (FNiagaraCompileHashVisitor::LogCompileIdGeneration == 2 && InTraversal.Num() > 0)
 	{
-		UE_LOG(LogNiagaraEditor, Log, TEXT("UNiagaraGraph::AppendCompileHash %s %s\n==========================="), *GetFullName(), *InTraversal[InTraversal.Num()- 1]->GetNodeTitle(ENodeTitleType::ListView).ToString());
+		FString RelativePath;
+		UObject* Package = GetOutermost();
+		if (Package != nullptr)
+		{
+			RelativePath += Package->GetName() + TEXT("/");
+		}
+
+
+		UObject* Parent = GetOuter();
+		while (Parent != Package)
+		{
+			bool bSkipName = false;
+			if (Parent->IsA<UNiagaraGraph>()) // Removing common clutter
+				bSkipName = true;
+			else if (Parent->IsA<UNiagaraScriptSourceBase>()) // Removing common clutter
+				bSkipName = true;
+
+			if (!bSkipName)
+				RelativePath = RelativePath + Parent->GetName() + TEXT("/");
+			Parent = Parent->GetOuter();
+		}
+
+	
+		FString ObjName = GetName();
+		FString DumpDebugInfoPath = FPaths::ProjectSavedDir() + TEXT("NiagaraHashes/") + RelativePath ;
+		FPaths::NormalizeDirectoryName(DumpDebugInfoPath);
+		DumpDebugInfoPath.ReplaceInline(TEXT("<"), TEXT("("));
+		DumpDebugInfoPath.ReplaceInline(TEXT(">"), TEXT(")"));
+		DumpDebugInfoPath.ReplaceInline(TEXT("::"), TEXT("=="));
+		DumpDebugInfoPath.ReplaceInline(TEXT("|"), TEXT("_"));
+		DumpDebugInfoPath.ReplaceInline(TEXT("*"), TEXT("-"));
+		DumpDebugInfoPath.ReplaceInline(TEXT("?"), TEXT("!"));
+		DumpDebugInfoPath.ReplaceInline(TEXT("\""), TEXT("\'"));
+
+
+		if (!IFileManager::Get().DirectoryExists(*DumpDebugInfoPath))
+		{
+			if (!IFileManager::Get().MakeDirectory(*DumpDebugInfoPath, true))
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Failed to create directory for debug info '%s'"), *DumpDebugInfoPath);
+		}
+		FString ExportText = FString::Printf(TEXT("UNiagaraGraph::AppendCompileHash %s %s\n===========================\n"), *GetFullName(), *InTraversal[InTraversal.Num()- 1]->GetNodeTitle(ENodeTitleType::ListView).ToString());
 		for (int32 i = 0; i < InVisitor->Values.Num(); i++)
 		{
-			UE_LOG(LogNiagaraEditor, Log, TEXT("Object[%d]: %s"), i, *InVisitor->Values[i].Object);
+			ExportText += FString::Printf(TEXT("Object[%d]: %s\n"), i, *InVisitor->Values[i].Object);
 			ensure(InVisitor->Values[i].PropertyKeys.Num() == InVisitor->Values[i].PropertyValues.Num());
 			for (int32 j = 0; j < InVisitor->Values[i].PropertyKeys.Num(); j++)
 			{
-				UE_LOG(LogNiagaraEditor, Log, TEXT("\tProperty[%d]: %s = %s"), j, *InVisitor->Values[i].PropertyKeys[j], *InVisitor->Values[i].PropertyValues[j]);
+				ExportText += FString::Printf(TEXT("\tProperty[%d]: %s = %s\n"), j, *InVisitor->Values[i].PropertyKeys[j], *InVisitor->Values[i].PropertyValues[j]);
 			}
 		}
+
+		FNiagaraEditorUtilities::WriteTextFileToDisk(DumpDebugInfoPath, ObjName + TEXT(".txt"), ExportText, true);
 	}
 #endif
 	return true;
