@@ -738,6 +738,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AssetRegistrySearchable, BlueprintSetter = SetLODSettings, Category = LODSettings)
 	USkeletalMeshLODSettings* LODSettings;
+
+	/** The Default Control Rig To Animate with when used in Sequnecer. */
+	UPROPERTY(EditAnywhere, Category = AnimationRig, meta = (AllowedClasses = "ControlRigBlueprint"))
+	TSoftObjectPtr<UObject> DefaultAnimatingRig;
+
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
