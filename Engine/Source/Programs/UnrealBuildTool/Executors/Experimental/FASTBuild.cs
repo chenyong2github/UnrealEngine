@@ -75,45 +75,66 @@ namespace UnrealBuildTool
 		/////////////////
 		// Executable
 
-		// Used to specify the location of fbuild.exe if the distributed binary isn't being used
+		/// <summary>
+		/// Used to specify the location of fbuild.exe if the distributed binary isn't being used
+		/// </summary>
 		[XmlConfigFile]
 		public static string FBuildExecutablePath	= null;
 
 		/////////////////
 		// Distribution
 
-		// Controls network build distribution
+		/// <summary>
+		/// Controls network build distribution
+		/// </summary>
 		[XmlConfigFile]
 		public static bool bEnableDistribution		= true;
 
-		// Used to specify the location of the brokerage. If null, FASTBuild will fall back to checking FASTBUILD_BROKERAGE_PATH
+		/// <summary>
+		/// Used to specify the location of the brokerage. If null, FASTBuild will fall back to checking FASTBUILD_BROKERAGE_PATH
+		/// </summary>
 		[XmlConfigFile]
 		public static string FBuildBrokeragePath	= null;
 
 		/////////////////
 		// Caching
 
-		// Controls whether to use caching at all. CachePath and FASTCacheMode are only relevant if this is enabled.
+		/// <summary>
+		/// Controls whether to use caching at all. CachePath and FASTCacheMode are only relevant if this is enabled.
+		/// </summary>
 		[XmlConfigFile]
 		public static bool bEnableCaching			= true;
 
-		// Cache access mode - only relevant if bEnableCaching is true;
+		/// <summary>
+		/// Cache access mode - only relevant if bEnableCaching is true;
+		/// </summary>
 		[XmlConfigFile]
 		public static FASTBuildCacheMode CacheMode	= FASTBuildCacheMode.ReadOnly;
 
-		// Used to specify the location of the cache. If null, FASTBuild will fall back to checking FASTBUILD_CACHE_PATH
+		/// <summary>
+		/// Used to specify the location of the cache. If null, FASTBuild will fall back to checking FASTBUILD_CACHE_PATH
+		/// </summary>
 		[XmlConfigFile]
 		public static string FBuildCachePath		= null;
 
 		/////////////////
 		// Misc Options
 
+		/// <summary>
+		/// Whether to force remote
+		/// </summary>
 		[XmlConfigFile]
 		public static bool bForceRemote				= false;
 
+		/// <summary>
+		/// Whether to stop on error
+		/// </summary>
 		[XmlConfigFile]
 		public static bool bStopOnError				= false;
 
+		/// <summary>
+		/// Which MSVC CRT Redist version to use
+		/// </summary>
 		[XmlConfigFile]
 		public static String MsvcCRTRedistVersion = "";
 
