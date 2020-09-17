@@ -437,9 +437,20 @@ FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 Lo
 							min3(PC011.w, PC100.w, PC101.w),
 							min( PC110.w, PC111.w));
 
-
-		Cull.bCrossesNearPlane = MinW < 0.0;                // MinW <  0: At least one point is in front of near plane
-		Cull.bIsVisible = MaxW >= 0.0 && Cull.bIsVisible;   // MaxW >= 0: At least one point is behind the near plane
+		if (MinW <= 0.0f && MaxW > 0.0f)
+		{
+			// Some, but not all, points have (w<=0), so the Cull.RectMin/Cull.RectMax bounds are invalid.
+			// Assume the whole screen is covered. Frustum test still culls boxes that are completely outside the frustum.
+			Cull.bCrossesNearPlane = true;
+			Cull.bIsVisible = true;
+			Cull.RectMin = float3(-1, -1, -1);
+			Cull.RectMax = float3( 1,  1,  1);
+		}
+		else
+		{
+			Cull.bCrossesNearPlane = MinW <= 0.0;				// MinW <= 0:	At least one point has w<=0
+			Cull.bIsVisible = MaxW > 0.0 && Cull.bIsVisible;	// MaxW > 0:	At least one point has w>0
+		}
 	}
 	else
 	{
