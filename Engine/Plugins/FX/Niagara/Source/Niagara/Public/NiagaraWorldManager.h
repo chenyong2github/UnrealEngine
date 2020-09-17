@@ -60,6 +60,7 @@ private:
 
 	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
 	FPostOpaqueRenderDelegate PostOpaqueDelegate;
+	FDelegateHandle PostOpaqueDelegateHandle;
 };
 
 extern TGlobalResource<FNiagaraViewDataMgr> GNiagaraViewDataManager;

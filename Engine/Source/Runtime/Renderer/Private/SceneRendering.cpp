@@ -3841,14 +3841,24 @@ void FRendererModule::DrawRectangle(
 	::DrawRectangle( RHICmdList, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize, VertexShader, Flags );
 }
 
-void FRendererModule::RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDelegate& InPostOpaqueRenderDelegate)
+FDelegateHandle FRendererModule::RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDelegate& InPostOpaqueRenderDelegate)
 {
-	this->PostOpaqueRenderDelegate = InPostOpaqueRenderDelegate;
+	return PostOpaqueRenderDelegate.Add(InPostOpaqueRenderDelegate);
 }
 
-void FRendererModule::RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& InOverlayRenderDelegate)
+void FRendererModule::RemovePostOpaqueRenderDelegate(FDelegateHandle InPostOpaqueRenderDelegate)
 {
-	this->OverlayRenderDelegate = InOverlayRenderDelegate;
+	PostOpaqueRenderDelegate.Remove(InPostOpaqueRenderDelegate);
+}
+
+FDelegateHandle FRendererModule::RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& InOverlayRenderDelegate)
+{
+	return OverlayRenderDelegate.Add(InOverlayRenderDelegate);
+}
+
+void FRendererModule::RemoveOverlayRenderDelegate(FDelegateHandle InOverlayRenderDelegate)
+{
+	OverlayRenderDelegate.Remove(InOverlayRenderDelegate);
 }
 
 void FRendererModule::RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FSceneRenderTargets& SceneContext)
@@ -3882,7 +3892,7 @@ void FRendererModule::RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArr
 				RenderParameters.RHICmdList = &RHICmdList;
 
 				RenderParameters.Uid = (void*)(&View);
-				PostOpaqueRenderDelegate.Execute(RenderParameters);
+				PostOpaqueRenderDelegate.Broadcast(RenderParameters);
 			});
 		}
 	}
@@ -3914,7 +3924,7 @@ void FRendererModule::RenderOverlayExtensions(FRDGBuilder& GraphBuilder, TArrayV
 				RenderParameters.RHICmdList = &RHICmdList;
 
 				RenderParameters.Uid = (void*)(&View);
-				OverlayRenderDelegate.Execute(RenderParameters);
+				OverlayRenderDelegate.Broadcast(RenderParameters);
 			});
 		}
 	}

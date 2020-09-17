@@ -77,8 +77,10 @@ public:
 	virtual void RegisterCustomCullingImpl(ICustomCulling* impl) override;
 	virtual void UnregisterCustomCullingImpl(ICustomCulling* impl) override;
 
-	virtual void RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDelegate& PostOpaqueRenderDelegate) override;
-	virtual void RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& OverlayRenderDelegate) override;
+	virtual FDelegateHandle RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDelegate& InPostOpaqueRenderDelegate) override;
+	virtual void RemovePostOpaqueRenderDelegate(FDelegateHandle InPostOpaqueRenderDelegate) override;
+	virtual FDelegateHandle RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& InOverlayRenderDelegate) override;
+	virtual void RemoveOverlayRenderDelegate(FDelegateHandle InOverlayRenderDelegate) override;
 
 	virtual FOnResolvedSceneColor& GetResolvedSceneColorCallbacks() override
 	{
@@ -107,8 +109,8 @@ public:
 
 private:
 	TSet<FSceneInterface*> AllocatedScenes;
-	FPostOpaqueRenderDelegate PostOpaqueRenderDelegate;
-	FPostOpaqueRenderDelegate OverlayRenderDelegate;
+	FOnPostOpaqueRender PostOpaqueRenderDelegate;
+	FOnPostOpaqueRender OverlayRenderDelegate;
 	FOnResolvedSceneColor PostResolvedSceneColorCallbacks;
 };
 

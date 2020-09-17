@@ -142,11 +142,14 @@ void FNiagaraViewDataMgr::Init()
 	IRendererModule& RendererModule = GetRendererModule();
 
 	GNiagaraViewDataManager.PostOpaqueDelegate.BindRaw(&GNiagaraViewDataManager, &FNiagaraViewDataMgr::PostOpaqueRender);
-	RendererModule.RegisterPostOpaqueRenderDelegate(GNiagaraViewDataManager.PostOpaqueDelegate);
+	GNiagaraViewDataManager.PostOpaqueDelegateHandle = RendererModule.RegisterPostOpaqueRenderDelegate(GNiagaraViewDataManager.PostOpaqueDelegate);
 }
 
 void FNiagaraViewDataMgr::Shutdown()
 {
+	IRendererModule& RendererModule = GetRendererModule();
+
+	RendererModule.RemovePostOpaqueRenderDelegate(GNiagaraViewDataManager.PostOpaqueDelegateHandle);
 	GNiagaraViewDataManager.ReleaseDynamicRHI();
 }
 
