@@ -528,7 +528,6 @@ void FAnimBlueprintCompilerHandler_Base::CreateEvaluationHandler(IAnimBlueprintC
 				}
 				else
 				{
-					check(!TargetPin->PinType.IsContainer());
 					// Single property
 					if (SourceInfo->CopyRecords.Num() > 0 && SourceInfo->CopyRecords[0].DestPin != nullptr)
 					{
