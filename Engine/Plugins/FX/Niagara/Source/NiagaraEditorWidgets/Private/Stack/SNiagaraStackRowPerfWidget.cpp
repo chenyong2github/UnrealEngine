@@ -22,10 +22,11 @@
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackRowPerfWidget"
 
+IConsoleVariable* SNiagaraStackRowPerfWidget::StatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
+
 void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraStackEntry* InStackEntry)
 {
 	StackEntry = InStackEntry;
-	StatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
 	SetToolTipText(CreateTooltipText());
 	
 	TSharedRef<SWidget> PerfWidget =
@@ -105,7 +106,19 @@ void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraSta
 
 void SNiagaraStackRowPerfWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	GroupOverallTime = CalculateGroupOverallTime("Main");
+	if (!HasPerformanceData())
+	{
+		return;
+	}
+	GroupOverallTime = CalculateGroupOverallTime(IsEmitterStack() ? GetEmitter()->GetUniqueEmitterName() : "Main");
+	if (IsSystemStack())
+	{
+		EmitterTimeTotal = 0;
+		for (const FNiagaraEmitterHandle& Handle : StackEntry->GetSystemViewModel()->GetSystem().GetEmitterHandles())
+		{
+			EmitterTimeTotal += CalculateGroupOverallTime(Handle.GetInstance()->GetUniqueEmitterName());
+		}
+	}
 	if (IsGpuEmitter())
 	{
 		if (GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript)
@@ -147,6 +160,11 @@ FOptionalSize SNiagaraStackRowPerfWidget::GetVisualizationBrushWidth() const
 			float Factor = GroupOverallTime == 0 ? 1 : (1 - UpdateInSpawnTime / GroupOverallTime);
 			return GetFullBarWidth() * FMath::Min(Factor, 1.0f);
 		}
+		if (IsSystemStack())
+		{
+			float Factor = GroupOverallTime == 0 ? 1 : (1 - EmitterTimeTotal / GroupOverallTime);
+			return GetFullBarWidth() * FMath::Min(Factor, 1.0f);
+		}
 		return GetFullBarWidth();
 	}
 	float PercentageFactor = GroupOverallTime == 0 ? 0 : StackEntryTime / GroupOverallTime;
@@ -173,13 +191,13 @@ FLinearColor SNiagaraStackRowPerfWidget::GetVisualizationBrushColor() const
 	{
 		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleSpawn");
 	}
-	if (Usage == ENiagaraScriptUsage::SystemSpawnScript)
+	if (Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript)
 	{
-		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystemSpawn");
-	}
-	if (Usage == ENiagaraScriptUsage::SystemUpdateScript)
-	{
-		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystemUpdate");
+		if (IsEmitterStack())
+		{
+			return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorEmitter");
+		}
+		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystem");
 	}
 	if (Usage == ENiagaraScriptUsage::ParticleSimulationStageScript)
 	{
@@ -194,6 +212,14 @@ FLinearColor SNiagaraStackRowPerfWidget::GetPlaceholderBrushColor() const
 	{
 		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleUpdate");
 	}
+	if (IsGroupHeaderEntry() && GetUsage() == ENiagaraScriptUsage::SystemUpdateScript && IsSystemStack())
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorEmitter");
+	}
+	if (IsGroupHeaderEntry() && GetUsage() == ENiagaraScriptUsage::SystemSpawnScript && IsSystemStack())
+	{
+		return FLinearColor(FColor(241, 99, 6));
+	}
 	return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimePlaceholderColor");
 }
 
@@ -201,13 +227,9 @@ bool SNiagaraStackRowPerfWidget::HasPerformanceData() const
 {
 #if STATS
 	bool IsPerfCaptureEnabled = StatEnabledVar && StatEnabledVar->GetBool();
-	if (IsPerfCaptureEnabled && IsSystemStack())
+	if (IsPerfCaptureEnabled && (IsSystemStack() || IsEmitterStack()))
 	{
 		return (IsGroupHeaderEntry() || IsModuleEntry()) && (StackEntry->GetExecutionSubcategoryName() != UNiagaraStackEntry::FExecutionSubcategoryNames::Settings);
-	}
-	if (IsPerfCaptureEnabled && IsEmitterStack())
-	{
-		return IsModuleEntry() && (StackEntry->GetExecutionSubcategoryName() != UNiagaraStackEntry::FExecutionSubcategoryNames::Settings);
 	}
 	if (IsPerfCaptureEnabled && IsParticleStack())
 	{
@@ -241,26 +263,30 @@ EVisibility SNiagaraStackRowPerfWidget::IsVisible() const
 
 FText SNiagaraStackRowPerfWidget::GetPerformanceDisplayText() const
 {
+	FNumberFormattingOptions TimeFormatOptions;
+	TimeFormatOptions.MinimumIntegralDigits = 1;
+	TimeFormatOptions.MinimumFractionalDigits = 2;
+	TimeFormatOptions.MaximumFractionalDigits = 2;
+	
 	if (IsGroupHeaderEntry())
 	{
 		if (GroupOverallTime == 0)
 		{
 			return FText::FromString("N/A");
 		}
-
-		FNumberFormattingOptions Options;
-		Options.MinimumIntegralDigits = 1;
-		Options.MinimumFractionalDigits = 2;
-		Options.MaximumFractionalDigits = 2;
-		return FText::Format(FText::FromString("{0}ms"), FText::AsNumber(GroupOverallTime, &Options));
+		return FText::Format(FText::FromString("{0}ms"), FText::AsNumber(GroupOverallTime, &TimeFormatOptions));
 	}
-	FNumberFormattingOptions Options;
-	Options.MinimumIntegralDigits = 1;
-	Options.MinimumFractionalDigits = 1;
-	Options.MaximumFractionalDigits = 1;
-	Options.RoundingMode = HalfToZero;
+	if (GetDisplayMode() == ENiagaraStatDisplayMode::Absolute)
+	{
+		return FText::Format(FText::FromString("{0}ms"), FText::AsNumber(StackEntryTime, &TimeFormatOptions));
+	}
+	FNumberFormattingOptions PercentFormatOptions;
+	PercentFormatOptions.MinimumIntegralDigits = 1;
+	PercentFormatOptions.MinimumFractionalDigits = 1;
+	PercentFormatOptions.MaximumFractionalDigits = 1;
+	PercentFormatOptions.RoundingMode = HalfToZero;
 	float RuntimeFactor = GroupOverallTime == 0 ? 0 : StackEntryTime / GroupOverallTime;
-	return FText::Format(FText::FromString("{0}%"), FText::AsNumber(RuntimeFactor * 100, &Options));
+	return FText::Format(FText::FromString("{0}%"), FText::AsNumber(RuntimeFactor * 100, &PercentFormatOptions));
 }
 
 FText SNiagaraStackRowPerfWidget::GetEvalTypeDisplayText() const
@@ -313,7 +339,11 @@ FText SNiagaraStackRowPerfWidget::CreateTooltipText() const
 	{
 		if (IsEmitterStack())
 		{
-			return LOCTEXT("EmitterEntryTooltip", "This shows the emitter module runtime cost in percent.\nNote that the displayed percentage relates to the system script, where the emitter scripts are embedded.\nThe module cost does not include work from DI calls to other threads, e.g. async collision traces.");
+			return LOCTEXT("EmitterEntryTooltip", "This shows the module runtime cost in percent.\nThe displayed percentages relate only to the parent emitter script, not the whole system script.\nNote that the module calls do not add up to 100% because the emitter script itself has some overhead as well.");
+		}
+		if (IsSystemStack())
+		{
+			return LOCTEXT("SystemEntryTooltip", "This shows the module runtime cost in percent.\nThe displayed percentages relate to the full system script, which has the emitter scripts embedded.\nNote that even without emitter cost, the module calls do not add up to 100% because the system script itself has some overhead as well.");
 		}
 		return LOCTEXT("ModuleEntryTooltip", "This shows the module runtime cost in percent.\nThe displayed percentage relates only to the parent script, not the whole emitter.\nThe module cost does not include work from DI calls to other threads, e.g. async collision traces.");
 	}
@@ -321,7 +351,11 @@ FText SNiagaraStackRowPerfWidget::CreateTooltipText() const
 	{
 		if (IsSystemStack())
 		{
-			return LOCTEXT("GroupHeaderSystemTooltip", "This is the total runtime cost of the system script and its module calls.\nSince the emitter scripts are embedded in the system scripts, they are part of this cost as well.\nNote that the module calls do not add up to 100% because the script itself has some overhead as well.");
+			return LOCTEXT("GroupHeaderSystemTooltip", "This is the total runtime cost of the system script and its module calls.\nSince the emitter scripts are embedded in the system scripts, they are part of this cost as well and visualized in a different color.\nNote that the module calls do not add up to 100% because the system script itself has some overhead as well.");
+		}
+		if (IsEmitterStack())
+		{
+			return LOCTEXT("GroupHeaderEmitterTooltip", "This is the total runtime cost of the emitter script and its module calls.\nNote that the module calls do not add up to 100% because the script itself has some overhead as well.");
 		}
 		if (GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript)
 		{
@@ -394,6 +428,13 @@ ENiagaraStatEvaluationType SNiagaraStackRowPerfWidget::GetEvaluationType() const
 	return StackEntry.IsValid()
 		       ? StackEntry->GetSystemViewModel()->StatEvaluationType
 		       : ENiagaraStatEvaluationType::Average;
+}
+
+ENiagaraStatDisplayMode SNiagaraStackRowPerfWidget::GetDisplayMode() const
+{
+	return StackEntry.IsValid()
+               ? StackEntry->GetSystemViewModel()->StatDisplayMode
+               : ENiagaraStatDisplayMode::Percent;
 }
 
 bool SNiagaraStackRowPerfWidget::IsInterpolatedSpawnEnabled() const
