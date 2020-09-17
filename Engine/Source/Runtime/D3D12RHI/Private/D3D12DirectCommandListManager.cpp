@@ -338,10 +338,12 @@ FD3D12CommandListManager::FD3D12CommandListManager(FD3D12Device* InParent, D3D12
 	, bShouldTrackCmdListTime(false)
 #endif
 {
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(CmdListTimingQueryBatchTokens); ++Idx)
 	{
 		CmdListTimingQueryBatchTokens[Idx] = INDEX_NONE;
 	}
+#endif
 }
 
 FD3D12CommandListManager::~FD3D12CommandListManager()
