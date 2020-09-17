@@ -429,10 +429,16 @@ void SHierarchyView::RecursiveExpand(TSharedPtr<FHierarchyModel>& Model, EExpand
 
 void SHierarchyView::RestoreSelectedItems()
 {
+	// Use single selection mode to update the navigation item as we select.
+	// Otherwise keyboard navigation will be off.
+	WidgetTreeView->SetSelectionMode(ESelectionMode::Single);
+
 	for ( TSharedPtr<FHierarchyModel>& Model : RootWidgets )
 	{
 		RecursiveSelection(Model);
 	}
+
+	WidgetTreeView->SetSelectionMode(ESelectionMode::Multi);
 }
 
 void SHierarchyView::RecursiveSelection(TSharedPtr<FHierarchyModel>& Model)
