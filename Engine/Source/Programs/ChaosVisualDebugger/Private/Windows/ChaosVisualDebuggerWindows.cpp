@@ -4,10 +4,13 @@
 
 // This translation unit is windows specific
 
-#include "ChaosVisualDebugger.h"
+#include "ChaosVisualDebuggerWindows.h"
 #include "ChaosVisualDebuggerMain.h"
-#include "RequiredProgramMainCPPInclude.h"
+#include "HAL/ExceptionHandling.h"
 #include "Windows/WindowsHWrapper.h"
+#include "LaunchEngineLoop.h"
+#include "Misc/CommandLine.h"
+#include "Misc/OutputDeviceError.h"
 
 /**
  * The main application entry point for the Visual debugger on Windows platforms.
