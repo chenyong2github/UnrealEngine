@@ -16,10 +16,13 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 
+#define LOCTEXT_NAMESPACE "SNiagaraStackRowPerfWidget"
+
 void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraStackEntry* InStackEntry)
 {
 	StackEntry = InStackEntry;
 	StatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
+	SetToolTipText(CreateTooltipText());
 	
 	TSharedRef<SWidget> PerfWidget =
 		SNew(SBox)
@@ -60,7 +63,7 @@ void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraSta
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(FMargin(30, 0, 0, 2))
+			.Padding(FMargin(70 - GetFullBarWidth(), 0, 0, 2))
             .VAlign(VAlign_Bottom)
             [
 				SNew(SWrapBox)
@@ -73,7 +76,7 @@ void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraSta
                     .WidthOverride(this, &SNiagaraStackRowPerfWidget::GetPlaceholderBrushWidth)
                     [
                         SNew(SColorBlock)
-                        .Color(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimePlaceholderColor"))
+                        .Color(this, &SNiagaraStackRowPerfWidget::GetPlaceholderBrushColor)
                     ]
                 ]
                 +SWrapBox::Slot()
@@ -84,7 +87,7 @@ void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraSta
                     .WidthOverride(this, &SNiagaraStackRowPerfWidget::GetVisualizationBrushWidth)
                     [
                         SNew(SColorBlock)
-                        .Color(this, &SNiagaraStackRowPerfWidget::GetBrushUsageColor)
+                        .Color(this, &SNiagaraStackRowPerfWidget::GetVisualizationBrushColor)
                     ]
                 ]
             ]
@@ -98,26 +101,40 @@ void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraSta
 
 void SNiagaraStackRowPerfWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	GroupOverallTime = CalculateGroupOverallTime();
+	GroupOverallTime = CalculateGroupOverallTime("Main");
 	StackEntryTime = CalculateStackEntryTime();
+	if (GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript && IsInterpolatedSpawnEnabled())
+	{
+		UpdateInSpawnTime = CalculateGroupOverallTime("MapUpdateMain");
+	}
+}
+
+float SNiagaraStackRowPerfWidget::GetFullBarWidth() const
+{
+	return IsGroupHeaderEntry() ? 54 : 40;
 }
 
 FOptionalSize SNiagaraStackRowPerfWidget::GetVisualizationBrushWidth() const
 {
 	if (IsGroupHeaderEntry())
 	{
-		return 40;
+		if (GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript && IsInterpolatedSpawnEnabled())
+		{
+			float Factor = GroupOverallTime == 0 ? 1 : (1 - UpdateInSpawnTime / GroupOverallTime);
+			return GetFullBarWidth() * FMath::Min(Factor, 1.0f);
+		}
+		return GetFullBarWidth();
 	}
 	float PercentageFactor = GroupOverallTime == 0 ? 0 : StackEntryTime / GroupOverallTime;
-	return 40 * FMath::Min(PercentageFactor, 1.0f);
+	return GetFullBarWidth() * FMath::Min(PercentageFactor, 1.0f);
 }
 
 FOptionalSize SNiagaraStackRowPerfWidget::GetPlaceholderBrushWidth() const
 {
-	return 40 - GetVisualizationBrushWidth().Get();
+	return GetFullBarWidth() - GetVisualizationBrushWidth().Get();
 }
 
-FLinearColor SNiagaraStackRowPerfWidget::GetBrushUsageColor() const
+FLinearColor SNiagaraStackRowPerfWidget::GetVisualizationBrushColor() const
 {
 	ENiagaraScriptUsage Usage = GetUsage();
 	if (Usage == ENiagaraScriptUsage::ParticleUpdateScript)
@@ -129,6 +146,15 @@ FLinearColor SNiagaraStackRowPerfWidget::GetBrushUsageColor() const
 		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleSpawn");
 	}
 	return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorDefault");
+}
+
+FLinearColor SNiagaraStackRowPerfWidget::GetPlaceholderBrushColor() const
+{
+	if (IsGroupHeaderEntry() && GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript && IsInterpolatedSpawnEnabled())
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleUpdate");
+	}
+	return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Stats.RuntimePlaceholderColor");
 }
 
 bool SNiagaraStackRowPerfWidget::HasPerformanceData() const
@@ -152,16 +178,14 @@ FText SNiagaraStackRowPerfWidget::GetPerformanceDisplayText() const
 	{
 		if (GroupOverallTime == 0)
 		{
-			return FText::FromString(FString("N/A"));
+			return FText::FromString("N/A");
 		}
 
 		FNumberFormattingOptions Options;
 		Options.MinimumIntegralDigits = 1;
-
-		FString Format = "{0}ms";
 		Options.MinimumFractionalDigits = 2;
 		Options.MaximumFractionalDigits = 2;
-		return FText::Format(FText::FromString(Format), FText::AsNumber(GroupOverallTime, &Options));
+		return FText::Format(FText::FromString("{0}ms"), FText::AsNumber(GroupOverallTime, &Options));
 	}
 	FNumberFormattingOptions Options;
 	Options.MinimumIntegralDigits = 1;
@@ -169,7 +193,7 @@ FText SNiagaraStackRowPerfWidget::GetPerformanceDisplayText() const
 	Options.MaximumFractionalDigits = 1;
 	Options.RoundingMode = HalfToZero;
 	float RuntimeFactor = GroupOverallTime == 0 ? 0 : StackEntryTime / GroupOverallTime;
-	return FText::Format(FText::FromString(FString("{0}%")), FText::AsNumber(RuntimeFactor * 100, &Options));
+	return FText::Format(FText::FromString("{0}%"), FText::AsNumber(RuntimeFactor * 100, &Options));
 }
 
 FText SNiagaraStackRowPerfWidget::GetEvalTypeDisplayText() const
@@ -216,6 +240,23 @@ FSlateFontInfo SNiagaraStackRowPerfWidget::GetPerformanceDisplayTextFont() const
 	return FNiagaraEditorWidgetsStyle::Get().GetFontStyle("NiagaraEditor.Stack.Stats.DetailFont");
 }
 
+FText SNiagaraStackRowPerfWidget::CreateTooltipText() const
+{
+	if (IsModuleEntry())
+	{
+		return LOCTEXT("ModuleEntryTooltip", "This shows the module runtime cost in percent.\nThe displayed percentage relates only to the parent script, not the whole emitter.\nThe module cost does not include work from DI calls to other threads, e.g. async collision traces.");
+	}
+	if (IsGroupHeaderEntry())
+	{
+		if (GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript)
+		{
+			return LOCTEXT("GroupHeaderSpawnTooltip", "This is the total runtime cost of the spawn script and its module calls.\nNote that the module calls do not add up to 100% because the script itself has some overhead as well.\nWhen interpolated spawn is enabled, this also includes the cost of running the update script on the spawned particles.");
+		}
+		return LOCTEXT("GroupHeaderTooltip", "This is the total runtime cost of the script and its module calls.\nNote that the module calls do not add up to 100% because the script itself has some overhead as well.");
+	}
+	return FText();
+}
+
 bool SNiagaraStackRowPerfWidget::IsGroupHeaderEntry() const
 {
 	return StackEntry.IsValid() && StackEntry->IsA(UNiagaraStackScriptItemGroup::StaticClass());
@@ -253,22 +294,22 @@ ENiagaraScriptUsage SNiagaraStackRowPerfWidget::GetUsage() const
 	UNiagaraEmitter* Emitter = GetEmitter();
 	if (!Emitter)
 	{
-		return ENiagaraScriptUsage::Function;
+		return ENiagaraScriptUsage::Module;
 	}
 	FName SubcategoryName = StackEntry->GetExecutionSubcategoryName();
 	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Event)
 	{
 		return ENiagaraScriptUsage::ParticleEventScript;
 	}
-	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Update)
-	{
-		return ENiagaraScriptUsage::ParticleUpdateScript;
-	}
 	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::SimulationStage)
 	{
 		return ENiagaraScriptUsage::ParticleSimulationStageScript;
 	}
-	return ENiagaraScriptUsage::ParticleSpawnScript;
+	if (SubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn)
+	{
+		return ENiagaraScriptUsage::ParticleSpawnScript;
+	}
+	return ENiagaraScriptUsage::ParticleUpdateScript;
 }
 
 ENiagaraStatEvaluationType SNiagaraStackRowPerfWidget::GetEvaluationType() const
@@ -278,7 +319,17 @@ ENiagaraStatEvaluationType SNiagaraStackRowPerfWidget::GetEvaluationType() const
 		       : ENiagaraStatEvaluationType::Average;
 }
 
-float SNiagaraStackRowPerfWidget::CalculateGroupOverallTime() const
+bool SNiagaraStackRowPerfWidget::IsInterpolatedSpawnEnabled() const
+{
+	UNiagaraEmitter* Emitter = GetEmitter();
+	if (!Emitter)
+	{
+		return false;
+	}
+	return Emitter->bInterpolatedSpawning;
+}
+
+float SNiagaraStackRowPerfWidget::CalculateGroupOverallTime(FString StatScopeName) const
 {
 #if STATS
 	if (!HasPerformanceData())
@@ -290,7 +341,6 @@ float SNiagaraStackRowPerfWidget::CalculateGroupOverallTime() const
 	{
 		return 0;
 	}
-	FString StatScopeName = "Main";
 	TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(StatScopeName);
 	return FPlatformTime::ToMilliseconds(Emitter->GetRuntimeStat(StatId.GetName(), GetUsage(), GetEvaluationType()));
 #else
@@ -327,3 +377,5 @@ float SNiagaraStackRowPerfWidget::CalculateStackEntryTime() const
 	return 0;
 #endif
 }
+
+#undef LOCTEXT_NAMESPACE
