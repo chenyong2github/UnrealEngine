@@ -2,7 +2,7 @@
 
 #include "Unix/UnixForkPageProtector.h"
 
-#if ENABLE_FORK_PAGE_PROTECTOR
+#if COMPILE_FORK_PAGE_PROTECTOR
 #include "HAL/PlatformStackWalk.h"
 #include "Misc/Fork.h"
 #include "Misc/ScopeLock.h"
@@ -749,4 +749,4 @@ int pthread_create(pthread_t* thread, const pthread_attr_t* attr, void*(*start_r
 	return RealPThreadCreate(thread, attr, start_routine, arg);
 }
 } // namespace UE
-#endif
+#endif // COMPILE_FORK_PAGE_PROTECTOR
