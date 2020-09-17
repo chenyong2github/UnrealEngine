@@ -109,6 +109,11 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
 		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
 	}
+	else if (FileDescription.Extension == TEXT("dwg")) // Autocad
+	{
+		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
+		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
+	}
 
 	FString CachePath = FPaths::ConvertRelativePathToFull(FDatasmithCADTranslatorModule::Get().GetCacheDir());
 
