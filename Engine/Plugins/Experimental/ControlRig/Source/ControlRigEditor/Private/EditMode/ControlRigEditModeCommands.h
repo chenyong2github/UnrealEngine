@@ -29,6 +29,16 @@ public:
 	/** Reset Transforms for Controls */
 	TSharedPtr< FUICommandInfo > ResetAllTransforms;
 
+	/** Increase Gizmo Size */
+	TSharedPtr< FUICommandInfo > IncreaseGizmoSize;
+
+	/** Decrease Gizmo Size */
+	TSharedPtr< FUICommandInfo > DecreaseGizmoSize;
+
+	/** Reset Gizmo Size */
+	TSharedPtr< FUICommandInfo > ResetGizmoSize;
+
+
 	/**
 	 * Initialize commands
 	 */

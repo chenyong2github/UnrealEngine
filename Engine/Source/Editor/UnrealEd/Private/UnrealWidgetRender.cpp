@@ -18,23 +18,24 @@
  */
 struct FSpaceDescriptor
 {
-    /*
-     *  Creates a new FSpaceDescriptor.
-     *
-     *  @param View         The virtual view for the space.
-     *  @param Viewport     The real viewport for the space.
-     *  @param InLocation   The location of the camera in the virtual space.
-     */
-    FSpaceDescriptor(const FSceneView* View, const FEditorViewportClient* Viewport, const FVector& InLocation) :
-        bIsPerspective(View->ViewMatrices.GetProjectionMatrix().M[3][3] < 1.0f),
-        bIsLocalSpace(Viewport->GetWidgetCoordSystemSpace() == COORD_Local),
-        bIsOrthoXY(!bIsPerspective && FMath::Abs(View->ViewMatrices.GetViewMatrix().M[2][2]) > 0.0f),
-        bIsOrthoXZ(!bIsPerspective && FMath::Abs(View->ViewMatrices.GetViewMatrix().M[1][2]) > 0.0f),
-        bIsOrthoYZ(!bIsPerspective && FMath::Abs(View->ViewMatrices.GetViewMatrix().M[0][2]) > 0.0f),
-        UniformScale(View->WorldToScreen(InLocation).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0])),
-        Scale(CreateScale())
-    {
-    }
+	/*
+	*  Creates a new FSpaceDescriptor.
+	*
+	*  @param View         The virtual view for the space.
+	*  @param Viewport     The real viewport for the space.
+	*  @param InLocation   The location of the camera in the virtual space.
+	*  @param ExternalScale ExtraScale Factor to apply to the UniformScale to allow for the Widget To Get Scaled.
+	*/
+	FSpaceDescriptor(const FSceneView* View, const FEditorViewportClient* Viewport, const FVector& InLocation, const float ExternalScale) :
+		bIsPerspective(View->ViewMatrices.GetProjectionMatrix().M[3][3] < 1.0f),
+		bIsLocalSpace(Viewport->GetWidgetCoordSystemSpace() == COORD_Local),
+		bIsOrthoXY(!bIsPerspective && FMath::Abs(View->ViewMatrices.GetViewMatrix().M[2][2]) > 0.0f),
+		bIsOrthoXZ(!bIsPerspective && FMath::Abs(View->ViewMatrices.GetViewMatrix().M[1][2]) > 0.0f),
+		bIsOrthoYZ(!bIsPerspective && FMath::Abs(View->ViewMatrices.GetViewMatrix().M[0][2]) > 0.0f),
+		UniformScale(ExternalScale * View->WorldToScreen(InLocation).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0])),
+		Scale(CreateScale())
+	{
+	}
 
     // Wether or not the view is perspective.
     const bool bIsPerspective;
@@ -449,7 +450,8 @@ void FWidget::Render_Translate( const FSceneView* View, FPrimitiveDrawInterface*
 	const EAxisList::Type DrawAxis = GetAxisToDraw( ViewportClient->GetWidgetMode() );
 	const bool bDisabled = IsWidgetDisabled();
 
-    FSpaceDescriptor Space(View, ViewportClient, InLocation);
+	const float ExternalScale = EditorModeTools ? EditorModeTools->GetWidgetScale() : 1.0f;
+	FSpaceDescriptor Space(View, ViewportClient, InLocation, ExternalScale);
 
 	// Draw the axis lines with arrow heads
 	if( Space.ShouldDrawAxisX(DrawAxis) )
@@ -637,7 +639,8 @@ void FWidget::DrawColoredSphere(FPrimitiveDrawInterface* PDI, const FVector& Cen
 void FWidget::Render_Rotate( const FSceneView* View,FPrimitiveDrawInterface* PDI, FEditorViewportClient* ViewportClient, const FVector& InLocation, bool bDrawWidget )
 {
 	float Scale = View->WorldToScreen(InLocation).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]);
-
+	const float ExternalScale = EditorModeTools ? EditorModeTools->GetWidgetScale() : 1.0f;
+	Scale *= ExternalScale;
 	//get the axes 
 	FVector XAxis = CustomCoordSystem.TransformVector(FVector(1, 0, 0));
 	FVector YAxis = CustomCoordSystem.TransformVector(FVector(0, 1, 0));
@@ -741,7 +744,8 @@ void FWidget::Render_Scale( const FSceneView* View,FPrimitiveDrawInterface* PDI,
 
 	FMatrix WidgetMatrix = CustomCoordSystem * FTranslationMatrix( InLocation );
 	const EAxisList::Type DrawAxis = GetAxisToDraw( ViewportClient->GetWidgetMode() );
-    FSpaceDescriptor Space(View, ViewportClient, InLocation);
+	const float ExternalScale = EditorModeTools ? EditorModeTools->GetWidgetScale() : 1.0f;
+	FSpaceDescriptor Space(View, ViewportClient, InLocation, ExternalScale);
 
 	// Use a constant uniform scale for this widget since orthographic view for it is not supported.
 	const FVector UniformScale(Space.UniformScale);
@@ -835,7 +839,8 @@ void FWidget::Render_TranslateRotateZ( const FSceneView* View, FPrimitiveDrawInt
 	FMatrix AxisMatrix = CustomCoordSystem * FTranslationMatrix( InLocation );
 	EAxisList::Type DrawAxis = GetAxisToDraw( ViewportClient->GetWidgetMode() );
 
-	FSpaceDescriptor Space(View, ViewportClient, InLocation);
+	const float ExternalScale = EditorModeTools ? EditorModeTools->GetWidgetScale() : 1.0f;
+	FSpaceDescriptor Space(View, ViewportClient, InLocation, ExternalScale);
 
 	// Draw the grabbers
 	if( bDrawWidget )
@@ -915,7 +920,8 @@ void FWidget::Render_2D(const FSceneView* View, FPrimitiveDrawInterface* PDI, FE
 	// Figure out axis matrices
 	FMatrix WidgetMatrix = CustomCoordSystem * FTranslationMatrix(InLocation);
 
-    FSpaceDescriptor Space(View, ViewportClient, InLocation);
+	const float ExternalScale = EditorModeTools ? EditorModeTools->GetWidgetScale() : 1.0f;
+	FSpaceDescriptor Space(View, ViewportClient, InLocation, ExternalScale);
 
 	EAxisList::Type DrawAxis = EAxisList::None;
 	if (Space.bIsOrthoXY)
