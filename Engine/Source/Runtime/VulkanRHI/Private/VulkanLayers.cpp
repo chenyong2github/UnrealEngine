@@ -121,6 +121,12 @@ static const ANSICHAR* GDeviceExtensions[] =
 
 	//VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME,
 	
+#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
+	VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
+#endif
+
+	VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
+
 	nullptr
 };
 
@@ -290,16 +296,24 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		}
 	}
 
-	FoundUniqueLayers.Sort();
-	for (const FString& Name : FoundUniqueLayers)
+	UE_LOG(LogVulkanRHI, Display, TEXT("- Found %d instance layers"), FoundUniqueLayers.Num());
+	if (FoundUniqueLayers.Num() > 0)
 	{
-		UE_LOG(LogVulkanRHI, Display, TEXT("- Found instance layer %s"), *Name);
+		FoundUniqueLayers.Sort();
+		for (const FString& Name : FoundUniqueLayers)
+		{
+			UE_LOG(LogVulkanRHI, Display, TEXT("* %s"), *Name);
+		}
 	}
 
-	FoundUniqueExtensions.Sort();
-	for (const FString& Name : FoundUniqueExtensions)
+	UE_LOG(LogVulkanRHI, Display, TEXT("- Found %d instance extensions"), FoundUniqueExtensions.Num());
+	if (FoundUniqueExtensions.Num() > 0)
 	{
-		UE_LOG(LogVulkanRHI, Display, TEXT("- Found instance extension %s"), *Name);
+		FoundUniqueExtensions.Sort();
+		for (const FString& Name : FoundUniqueExtensions)
+		{
+			UE_LOG(LogVulkanRHI, Display, TEXT("* %s"), *Name);
+		}
 	}
 
 	FVulkanPlatform::NotifyFoundInstanceLayersAndExtensions(FoundUniqueLayers, FoundUniqueExtensions);
@@ -806,6 +820,10 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 
 #if VULKAN_SUPPORTS_QCOM_RENDERPASS_TRANSFORM
 	HasQcomRenderPassTransform = HasExtension(DeviceExtensions, VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
+	HasAtomicInt64 = HasExtension(DeviceExtensions, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME);
 #endif
 }
 
