@@ -10,7 +10,9 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "Animation/AnimCurveTypes.h"
 #include "BonePose.h" 
+#include "Algo/Transform.h"
 
 #include "AnimationRuntime.h"
 
@@ -42,6 +44,49 @@ void UAnimationBlueprintLibrary::GetAnimationTrackNames(const UAnimSequence* Ani
 	{
 		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetAnimationTrackNames"));
 	}	
+}
+
+void UAnimationBlueprintLibrary::GetAnimationCurveNames(const UAnimSequence* AnimationSequence, ERawCurveTrackTypes CurveType, TArray<FName>& CurveNames)
+{
+	CurveNames.Empty();
+	if (AnimationSequence)
+	{
+		auto GetCurveName = [](const auto& Curve) -> FName
+		{
+			return Curve.Name.DisplayName;
+		};
+
+		switch (CurveType)
+		{
+			case ERawCurveTrackTypes::RCT_Float:
+			{
+				Algo::Transform(AnimationSequence->RawCurveData.FloatCurves, CurveNames, GetCurveName);
+				break;
+			}
+
+			case ERawCurveTrackTypes::RCT_Vector:
+			{
+				Algo::Transform(AnimationSequence->RawCurveData.VectorCurves, CurveNames, GetCurveName);				
+				break;
+			}
+
+			case ERawCurveTrackTypes::RCT_Transform:
+			{
+				Algo::Transform(AnimationSequence->RawCurveData.TransformCurves, CurveNames, GetCurveName);
+				break;
+			}
+
+			default:
+			{
+				UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid CurveType supplied for GetAnimationCurveNames"));
+			}
+		}
+		
+	}
+	else
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetAnimationCurveNames"));
+	}
 }
 
 void UAnimationBlueprintLibrary::GetRawTrackPositionData(const UAnimSequence* AnimationSequence, const FName TrackName, TArray<FVector>& PositionData)
