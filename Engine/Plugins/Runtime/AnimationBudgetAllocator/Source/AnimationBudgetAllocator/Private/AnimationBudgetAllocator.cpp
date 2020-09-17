@@ -1038,6 +1038,9 @@ void FAnimationBudgetAllocator::SetEnabled(bool bInEnabled)
 				ComponentData.Component->bEnableUpdateRateOptimizations = true;
 				ComponentData.Component->EnableExternalTickRateControl(false);
 				ComponentData.Component->SetAnimationBudgetAllocator(nullptr);
+
+				// Re-enable ticking in case the component was currently skipping
+				TickEnableHelper(ComponentData.Component, true);
 			}
 		}
 
