@@ -5,8 +5,7 @@ import { ContextualLogger } from '../common/logger';
 import { BranchSpec } from '../common/perforce';
 import { Branch, BranchGraphInterface, TargetInfo } from './branch-interfaces';
 import { BotConfig, BranchDefs, BranchGraphDefinition, EdgeOptions, EdgeProperties, IntegrationMethod, NodeOptions } from './branchdefs';
-// temp, until I move computeTargets in here
-import { NodeBot } from './nodebot';
+import { computeTargets, computeImplicitTargets } from './targets';
 
 type ConfigBlendMode = 'override' | 'accumulate'
 
@@ -219,7 +218,6 @@ if (botname === '__TEST__') {
 			rootPath: options.rootPath || "",
 			badgeProject: options.badgeProject || null,
 			isDefaultBot: BranchGraph._getBoolConfig(options.isDefaultBot, this.config.isDefaultBot),
-			maxFilesPerIntegration: options.maxFilesPerIntegration || this.config.maxFilesPerIntegration,
 			emailOnBlockage: BranchGraph._getBoolConfig(options.emailOnBlockage, this.config.emailOnBlockage),
 			flowsTo: options.flowsTo || [],
 			notify: (options.notify || []).concat(this.config.globalNotify),
@@ -386,8 +384,7 @@ if (botname === '__TEST__') {
 
 	computeImplicitTargets(errors: string[], source: Branch, targets: Branch[]) {
 
-		// temp: hijack test code until we refactor NodeBot
-		return NodeBot.computeImplicitTargets(source, source.parent, errors, new Set(targets), new Set()) /* not supporting skipping yet - should check can divert route this way */
+		return computeImplicitTargets(source, source.parent, errors, new Set(targets), new Set()) /* not supporting skipping yet - should check can divert route this way */
 
 	}
 
@@ -512,7 +509,7 @@ function runComputeTargetTest(targets: string[], self: string, ...flows: string[
 	const branchGraph = new BranchGraph('__TEST__', makeBranchDataForComputeTargetTest(flows))
 	const selfBranch = branchGraph.getBranch(self)!
 	const results: TargetInfo = {author: 'author', forceStompChanges: false, sendNoShelfEmail: false}
-	NodeBot.computeTargets(selfBranch, selfBranch.parent, results, targets, selfBranch.forceFlowTo, new ContextualLogger('runComputeTargetTest'))
+	computeTargets(selfBranch, selfBranch.parent, results, targets, selfBranch.forceFlowTo, new ContextualLogger('runComputeTargetTest'))
 	const result = results.errors || (results.targets ?
 		results.targets.map(action => computeTargetTestActionToShortString(action) + ': ' + action.furtherMerges.map(x => computeTargetTestActionToShortString(x)).join(', '))
 		: ['no targets'])
