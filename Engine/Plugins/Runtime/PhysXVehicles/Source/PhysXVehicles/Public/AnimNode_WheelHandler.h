@@ -14,7 +14,7 @@
  *	Simple controller that replaces or adds to the translation/rotation of a single bone.
  */
 USTRUCT()
-struct PHYSXVEHICLES_API FAnimNode_WheelHandler : public FAnimNode_SkeletalControlBase
+struct UE_DEPRECATED(4.26, "PhysX is deprecated. Use the FAnimNode_WheelController from the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API FAnimNode_WheelHandler : public FAnimNode_SkeletalControlBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -42,5 +42,7 @@ private:
 	};
 
 	TArray<FWheelLookupData> Wheels;
-	const FVehicleAnimInstanceProxy* AnimInstanceProxy;	//TODO: we only cache this to use in eval where it's safe. Should change API to pass proxy into eval
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const FVehicleAnimInstanceProxy* AnimInstanceProxy;	//TODO: we only cache this to use in eval where it's safe. Should change API to pass proxy into eval
+PRAGMA_ENABLE_DEPRECATION_WARNINGS 
 };

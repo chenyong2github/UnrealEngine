@@ -34,7 +34,7 @@ struct FTireConfigMaterialFriction
 
 /** Represents a type of tire surface used to specify friction values against physical materials. */
 UCLASS()
-class PHYSXVEHICLES_API UTireConfig : public UDataAsset
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the Chaos physics and the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API UTireConfig : public UDataAsset
 {
 	GENERATED_BODY()
 

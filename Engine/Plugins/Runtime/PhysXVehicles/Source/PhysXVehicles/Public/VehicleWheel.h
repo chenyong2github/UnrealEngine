@@ -35,7 +35,7 @@ enum EWheelSweepType
 };
 
 UCLASS(BlueprintType, Blueprintable)
-class PHYSXVEHICLES_API UVehicleWheel : public UObject
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the UChaosVehicleWheel from the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API UVehicleWheel : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

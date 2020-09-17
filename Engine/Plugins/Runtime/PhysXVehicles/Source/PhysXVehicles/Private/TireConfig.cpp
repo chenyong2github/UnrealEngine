@@ -9,6 +9,8 @@
 #include "PhysXVehicleManager.h"
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 TArray<TWeakObjectPtr<UTireConfig>> UTireConfig::AllTireConfigs;
 
 UTireConfig::UTireConfig()
@@ -133,3 +135,4 @@ float UTireConfig::GetTireFriction(UPhysicalMaterial* PhysicalMaterial)
 }
 
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

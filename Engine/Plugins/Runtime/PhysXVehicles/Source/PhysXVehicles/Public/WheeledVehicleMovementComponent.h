@@ -96,9 +96,11 @@ struct PHYSXVEHICLES_API FWheelSetup
 {
 	GENERATED_USTRUCT_BODY()
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// The wheel class to use
 	UPROPERTY(EditAnywhere, Category=WheelSetup)
 	TSubclassOf<UVehicleWheel> WheelClass;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Bone name on mesh to create wheel at
 	UPROPERTY(EditAnywhere, Category=WheelSetup)
@@ -176,7 +178,7 @@ struct PHYSXVEHICLES_API FVehicleInputRate
  * Component to handle the vehicle simulation for an actor.
  */
 UCLASS(Abstract, hidecategories=(PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
-class PHYSXVEHICLES_API UWheeledVehicleMovementComponent : public UPawnMovementComponent, public IRVOAvoidanceInterface
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the UChaosWheeledVehicleMovementComponent fron the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API UWheeledVehicleMovementComponent : public UPawnMovementComponent, public IRVOAvoidanceInterface
 {
 	GENERATED_UCLASS_BODY()
 
