@@ -74,7 +74,7 @@ namespace DatasmithRuntime
 			FString BaseName = FPaths::GetBaseFilename(TextureElement->GetFile());
 			FString TextureName = BaseName + TEXT("_LU_") + FString::FromInt(TextureData.ElementId);
 			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
-			UPackage* Package = CreatePackage(nullptr, *FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
 			Texture2D->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture2D->SetFlags(RF_Public);
 #endif
@@ -130,7 +130,7 @@ namespace DatasmithRuntime
 			FString BaseName = FPaths::GetBaseFilename(TextureElement->GetFile());
 			FString TextureName = BaseName + TEXT("_LU_") + FString::FromInt(TextureData.ElementId);
 			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
-			UPackage* Package = CreatePackage(nullptr, *FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
 			Texture->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture->SetFlags(RF_Public);
 #endif

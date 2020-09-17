@@ -186,7 +186,7 @@ bool FMDLMaterialFactory::CreateMaterials(const FString& Filename, UObject* Pare
 	CleanUp();
 
 	FString  MaterialPackageName = UPackageTools::SanitizePackageName(*(ParentPackage->GetName() / Materials.Name));
-	UObject* MaterialPackage     = CreatePackage(nullptr, *MaterialPackageName);
+	UObject* MaterialPackage     = CreatePackage(*MaterialPackageName);
 
 	for (const Mdl::FMaterial& MdlMaterial : Materials)
 	{

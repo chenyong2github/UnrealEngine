@@ -98,7 +98,7 @@ public:
 					if (bForceOverwrite)
 					{
 						const FString PackageName = SafePackagePath + TEXT("/") + SafeAssetName;
-						UPackage* Pkg = CreatePackage(nullptr,*PackageName);
+						UPackage* Pkg = CreatePackage(*PackageName);
 
 						// Search for UObject instead of ULevelVariantSets as we also want to catch redirectors
 						UObject* ExistingObject = StaticFindObject( UObject::StaticClass(), Pkg, *SafeAssetName );
@@ -118,7 +118,7 @@ public:
 								CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 
 								// Old package will be GC'ed... create a new one here
-								Pkg = CreatePackage(nullptr,*PackageName);
+								Pkg = CreatePackage(*PackageName);
 								Pkg->MarkAsFullyLoaded();
 							}
 

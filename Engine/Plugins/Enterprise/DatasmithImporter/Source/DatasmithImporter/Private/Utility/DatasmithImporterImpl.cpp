@@ -116,7 +116,7 @@ UObject* FDatasmithImporterImpl::PublicizeAsset( UObject* SourceAsset, const TCH
 
 		ExistingAsset = FDatasmithImporterUtils::FindObject<UObject>( nullptr, DestinationAssetPath );
 
-		DestinationPackage = ExistingAsset ? ExistingAsset->GetOutermost() : CreatePackage( nullptr, *DestinationPackagePath );
+		DestinationPackage = ExistingAsset ? ExistingAsset->GetOutermost() : CreatePackage( *DestinationPackagePath );
 	}
 	else
 	{

@@ -1534,7 +1534,7 @@ static ULandscapeLayerInfoObject* GetLandscapeLayerInfoObject(FName LayerName, c
 	UPackage* Package = FindPackage(nullptr, *PackageName);
 	if (Package == nullptr)
 	{
-		Package = CreatePackage(nullptr, *PackageName);
+		Package = CreatePackage( *PackageName);
 	}
 
 	ULandscapeLayerInfoObject* LayerInfo = FindObject<ULandscapeLayerInfoObject>(Package, *LayerObjectName);
@@ -1999,7 +1999,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 		const FString LODLevelFileName = FPackageName::LongPackageNameToFilename(LODLevelPackageName) + FPackageName::GetMapPackageExtension();
 
 		// Create a package for a LOD level
-		UPackage* LODPackage = CreatePackage(NULL, *LODLevelPackageName);
+		UPackage* LODPackage = CreatePackage( *LODLevelPackageName);
 		LODPackage->FullyLoad();
 		LODPackage->Modify();
 		// This is a hack to avoid save file dialog when we will be saving LOD map package
@@ -2137,7 +2137,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 			UPackage* MeshOuter = AssetsOuter;
 			if (SimplificationDetails.bCreatePackagePerAsset)
 			{
-				MeshOuter = CreatePackage(nullptr, *(AssetsPath + LandscapeMeshAssetName));
+				MeshOuter = CreatePackage( *(AssetsPath + LandscapeMeshAssetName));
 				MeshOuter->FullyLoad();
 				MeshOuter->Modify();
 			}

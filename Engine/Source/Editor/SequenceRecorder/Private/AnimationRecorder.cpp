@@ -137,7 +137,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	FString ValidatedAssetPath = InAssetPath;
 	FString ValidatedAssetName = InAssetName;
 
-	UObject* Parent = bValidPackageName ? CreatePackage(nullptr, *ValidatedAssetPath) : nullptr;
+	UObject* Parent = bValidPackageName ? CreatePackage( *ValidatedAssetPath) : nullptr;
 	if (Parent == nullptr)
 	{
 		// bad or no path passed in, do the popup
@@ -146,7 +146,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 			return false;
 		}
 		
-		Parent = CreatePackage(nullptr, *ValidatedAssetPath);
+		Parent = CreatePackage( *ValidatedAssetPath);
 	}
 
 	UObject* const Object = LoadObject<UObject>(Parent, *ValidatedAssetName, nullptr, LOAD_Quiet, nullptr);

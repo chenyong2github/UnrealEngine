@@ -904,7 +904,7 @@ FLinkerLoad* CreateLinkerForFilename(FUObjectSerializeContext* LoadContext, cons
 	UPackage* Package = FindObjectFast<UPackage>(nullptr, *TempPackageName);
 	if (!Package)
 	{
-		Package = CreatePackage(nullptr, *TempPackageName);
+		Package = CreatePackage( *TempPackageName);
 	}
 	FLinkerLoad* Linker = FLinkerLoad::CreateLinker(LoadContext, Package, *InFilename, LOAD_NoVerify);
 	return Linker;
@@ -1617,7 +1617,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 			Package = FindObjectFast<UPackage>(nullptr, *TempPackageName);
 			if (!Package)
 			{
-				Package = CreatePackage(nullptr, *TempPackageName);
+				Package = CreatePackage( *TempPackageName);
 			}
 
 			Reader = FArchiveStackTraceReader::CreateFromFile(*Filename);

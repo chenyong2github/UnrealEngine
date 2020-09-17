@@ -489,7 +489,7 @@ namespace ClassViewer
 			FString PackageName = InBlueprintName;
 
 			// Then find/create it.
-			UPackage* Package = CreatePackage(nullptr, *PackageName);
+			UPackage* Package = CreatePackage( *PackageName);
 			check(Package);
 
 			// Handle fully loading packages before creating new objects.
@@ -503,7 +503,7 @@ namespace ClassViewer
 
 			FName BPName(*FPackageName::GetLongPackageAssetName(PackageName));
 
-			if(PromptUserIfExistingObject(BPName.ToString(), PackageName,FString(), Package))
+			if(PromptUserIfExistingObject(BPName.ToString(), PackageName, Package))
 			{
 				// Create and init a new Blueprint
 				UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(InCreationClass, Package, BPName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("ClassViewer"));

@@ -419,7 +419,7 @@ bool UEditorEngine::SafeExec( UWorld* InWorld, const TCHAR* InStr, FOutputDevice
 			NewObject = UFactory::StaticImportObject
 			(
 				FactoryClass,
-				CreatePackage(NULL,*(GroupName != TEXT("") ? (PackageName+TEXT(".")+GroupName) : PackageName)),
+				CreatePackage(*(GroupName != TEXT("") ? (PackageName+TEXT(".")+GroupName) : PackageName)),
 				*ObjectName,
 				Flags,
 				bOperationCanceled,
@@ -2286,7 +2286,7 @@ UWorld* UEditorEngine::NewMap()
 	Factory->WorldType = EWorldType::Editor;
 	Factory->bInformEngineOfWorld = true;
 	Factory->FeatureLevel = DefaultWorldFeatureLevel;
-	UPackage* Pkg = CreatePackage( NULL, NULL );
+	UPackage* Pkg = CreatePackage(nullptr);
 	EObjectFlags Flags = RF_Public | RF_Standalone;
 	UWorld* NewWorld = CastChecked<UWorld>(Factory->FactoryCreateNew(UWorld::StaticClass(), Pkg, TEXT("Untitled"), Flags, NULL, GWarn));
 	Context.SetCurrentWorld(NewWorld);
@@ -2610,7 +2610,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					LoadScope.EnterProgressFrame();
 
 					//create a package with the proper name
-					WorldPackage = CreatePackage(NULL, *(MakeUniqueObjectName(NULL, UPackage::StaticClass()).ToString()));
+					WorldPackage = CreatePackage( *(MakeUniqueObjectName(NULL, UPackage::StaticClass()).ToString()));
 
 					LoadScope.EnterProgressFrame();
 
@@ -4653,12 +4653,8 @@ bool UEditorEngine::Exec_Obj( const TCHAR* Str, FOutputDevice& Ar )
 		}
 		ParseObject<UObject>( Str, TEXT("OLDNAME="), Object, OldPackage );
 		FParse::Value( Str, TEXT("NEWPACKAGE="), NewPackage );
-		UPackage* Pkg = CreatePackage(NULL,*NewPackage);
+		UPackage* Pkg = CreatePackage(*NewPackage);
 		Pkg->SetDirtyFlag(true);
-		if( FParse::Value(Str,TEXT("NEWGROUP="),NewGroup) && FCString::Stricmp(*NewGroup,TEXT("None"))!= 0)
-		{
-			Pkg = CreatePackage( Pkg, *NewGroup );
-		}
 		FParse::Value( Str, TEXT("NEWNAME="), NewName );
 		if( Object )
 		{

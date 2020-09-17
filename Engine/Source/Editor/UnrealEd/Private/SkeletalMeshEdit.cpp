@@ -619,7 +619,7 @@ UAnimSequence * UnFbx::FFbxImporter::ImportAnimations(USkeleton* Skeleton, UObje
 		SequenceName = ObjectTools::SanitizeObjectName(SequenceName);
 
 		FString 	ParentPath = FString::Printf(TEXT("%s/%s"), *FPackageName::GetLongPackagePath(*Outer->GetName()), *SequenceName);
-		UObject* 	ParentPackage = CreatePackage(NULL, *ParentPath);
+		UObject* 	ParentPackage = CreatePackage( *ParentPath);
 		UObject* Object = LoadObject<UObject>(ParentPackage, *SequenceName, NULL, (LOAD_Quiet | LOAD_NoWarn), NULL);
 		UAnimSequence * DestSeq = Cast<UAnimSequence>(Object);
 		// if object with same name exists, warn user

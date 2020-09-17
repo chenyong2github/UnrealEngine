@@ -1197,7 +1197,7 @@ void SNewClassDialog::FinishClicked()
 		}
 		else if (!NewClassPath.IsEmpty() && !NewClassName.IsEmpty())
 		{
-			UPackage* Package = CreatePackage(NULL, *PackagePath);
+			UPackage* Package = CreatePackage( *PackagePath);
 			if (Package)
 			{
 				// Create and init a new Blueprint

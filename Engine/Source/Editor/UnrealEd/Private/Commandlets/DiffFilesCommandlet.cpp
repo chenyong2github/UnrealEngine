@@ -137,7 +137,7 @@ void UDiffFilesCommandlet::LoadAndDiff()
 
 	check(PackageInfos.Num() >= 2);
 
-	UPackage *Package = CreatePackage(NULL, TEXT("Package_(0)"));
+	UPackage *Package = CreatePackage( TEXT("Package_(0)"));
 
 
 	Package = LoadPackage(Package, *FString::Printf(TEXT("%s;%s"), *PackageInfos[0].FullPath, *PackageInfos[1].FullPath), LOAD_ForDiff | LOAD_ForFileDiff);

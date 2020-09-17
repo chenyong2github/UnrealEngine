@@ -61,7 +61,7 @@ namespace DatasmithRuntime
 		{
 #ifdef ASSET_DEBUG
 			MaterialName = FDatasmithUtils::SanitizeObjectName(MaterialName);
-			UPackage* Package = CreatePackage(nullptr, *FPaths::Combine( TEXT("/Engine/Transient/LU"), MaterialName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), MaterialName));
 			MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
 			MaterialData.Object->SetFlags(RF_Public);
 #else

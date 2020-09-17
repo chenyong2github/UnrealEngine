@@ -537,12 +537,12 @@ void FDatasmithAssetsImportContext::ReInit(const FString& NewRootFolder)
 {
 	RootFolderPath = UPackageTools::SanitizePackageName(NewRootFolder);
 
-	StaticMeshesFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Geometries") ) ) );
-	MaterialsFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Materials") ) ) );
-	TexturesFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Textures") ) ) );
-	LightPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Lights") ) ) );
-	LevelSequencesFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Animations") ) ) );
-	LevelVariantSetsFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Variants") ) ) );
+	StaticMeshesFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Geometries") ) ) );
+	MaterialsFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Materials") ) ) );
+	TexturesFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Textures") ) ) );
+	LightPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Lights") ) ) );
+	LevelSequencesFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Animations") ) ) );
+	LevelVariantSetsFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Variants") ) ) );
 
 	TransientFolderPath = FPaths::Combine( RootFolderPath, TEXT("Temp") );
 

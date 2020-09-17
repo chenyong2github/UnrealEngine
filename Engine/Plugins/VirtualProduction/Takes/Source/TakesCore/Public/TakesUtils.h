@@ -72,7 +72,7 @@ namespace TakesUtils
 
 		// Create the asset to record into
 		const FString NewAssetName = FPackageName::GetLongPackageAssetName(InPackageName);
-		UPackage*     NewPackage = CreatePackage(nullptr, *InPackageName);
+		UPackage*     NewPackage = CreatePackage( *InPackageName);
 
 		if (OptionalBase)
 		{
@@ -125,7 +125,7 @@ namespace TakesUtils
 		FString FileName;
 		if (FPackageName::TryConvertLongPackageNameToFilename(AssetPath, FileName))
 		{
-			UObject* Package = CreatePackage(nullptr, *AssetPath);
+			UObject* Package = CreatePackage( *AssetPath);
 			return NewObject<AssetType>(Package, *AssetName, RF_Public | RF_Standalone);
 		}
 
