@@ -194,7 +194,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE"), Category = "DMX")
 	bool PatchIsOfSelectedType(UDMXEntityFixturePatch* InFixturePatch, FString RefTypeValue);
 
-
 	/** Get a DMX Subsystem, pure version */
 	UFUNCTION(BlueprintPure, Category = "DMX Subsystem", meta = (BlueprintInternalUseOnly = "true"))
 	static UDMXSubsystem* GetDMXSubsystem_Pure();
@@ -222,10 +221,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	bool GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap);
 
-	/**  Get DMX Pixel Channel using matrix coordinates. */
-	UE_DEPRECATED(4.26, "This function is deprecated, please use GetMatrixPixelChannelsRelative instead.")
-	bool GetMatrixPixelChannels(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
-
 	/**  Get DMX Pixel Channel using matrix coordinates. Returns the Starting Channel relative to the Starting Channel of the patch. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	bool GetMatrixPixelChannelsRelative(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
@@ -238,9 +233,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DMX")
 	bool GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXPixelMatrix& MatrixProperties);
 
-	/**  Get all atttributes for the matrix pixel. */
+	/**  Get all attributes for the matrix pixel. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetPixelAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& PixelAtributes);
+	bool GetPixelAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& PixelAttributes);
 
 	/**  Get data for single pixel. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
