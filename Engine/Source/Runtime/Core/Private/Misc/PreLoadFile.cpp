@@ -80,6 +80,9 @@ void FPreLoadFile::KickOffRead()
 		}
 		else
 		{
+			// it's possible pak files with the file weren't mounted yet, so note that we didn't find it, and try again in TakeOwnership time
+			bFailedToOpenInKickOff = true;
+
 			FileSize = -1;
 			CompletionEvent->Trigger();
 			delete AsyncReadHandle;
@@ -117,18 +120,30 @@ void FPreLoadFile::KickOffRead()
 
 void* FPreLoadFile::TakeOwnershipOfLoadedData(int64* OutFileSize)
 {
+	if (CompletionEvent)
+	{
+		if (CompletionEvent->Wait(0) == false)
+		{
+			// wait until we are done
+			CompletionEvent->Wait();
+		}
+	}
+
 	// may need to attempt to read again, if (re-)requesting data after the initial boot sequence, or if a pak file wasn't mounted in time
 	if (!CompletionEvent || bFailedToOpenInKickOff)
 	{
-		KickOffRead();
-	}
+		check(CompletionEvent == nullptr || !CompletionEvent->IsManualReset());
 
-	check(CompletionEvent);
-	if (CompletionEvent->Wait(0) == false)
-	{
-		// wait until we are done
-		CompletionEvent->Wait();
+		KickOffRead();
+
+		check(CompletionEvent); // KickOffRead() should make a completion event
+		if (CompletionEvent->Wait(0) == false)
+		{
+			// wait until we are done
+			CompletionEvent->Wait();
+		}
 	}
+	
 	FPlatformProcess::ReturnSynchEventToPool(CompletionEvent);
 	CompletionEvent = nullptr;
 
