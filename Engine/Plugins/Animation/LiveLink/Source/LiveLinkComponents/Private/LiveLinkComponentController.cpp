@@ -7,6 +7,7 @@
 #include "LiveLinkControllerBase.h"
 
 #include "Features/IModularFeatures.h"
+#include "GameFramework/Actor.h"
 #include "Logging/LogMacros.h"
 #include "UObject/EnterpriseObjectVersion.h"
 #include "UObject/UObjectIterator.h"
