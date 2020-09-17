@@ -23,8 +23,9 @@ struct FWheelAnimData
 };
 
  /** Proxy override for this UAnimInstance-derived class */
+struct UE_DEPRECATED(4.26, "PhysX is deprecated. Use the FVehicleAnimationInstanceProxy from the ChaosVehiclePhysics Plugin.") FVehicleAnimInstanceProxy;
 USTRUCT()
-struct UE_DEPRECATED(4.26, "PhysX is deprecated. Use the FVehicleAnimationInstanceProxy from the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API FVehicleAnimInstanceProxy : public FAnimInstanceProxy
+struct PHYSXVEHICLES_API FVehicleAnimInstanceProxy : public FAnimInstanceProxy
 {
 	GENERATED_BODY()
 
@@ -55,8 +56,9 @@ private:
 	TArray<FWheelAnimData> WheelInstances;
 };
 
+class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the UVehicleAnimationInstance from the ChaosVehiclePhysics Plugin.") UVehicleAnimInstance;
 UCLASS(transient)
-class UE_DEPRECATED(4.26, "PhysX is deprecated. Use the UVehicleAnimationInstance from the ChaosVehiclePhysics Plugin.") PHYSXVEHICLES_API UVehicleAnimInstance : public UAnimInstance
+class PHYSXVEHICLES_API UVehicleAnimInstance : public UAnimInstance
 {
 	GENERATED_UCLASS_BODY()
 
