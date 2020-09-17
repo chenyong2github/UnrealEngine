@@ -209,11 +209,30 @@ bool UNiagaraDataInterfaceRenderTarget2D::Equals(const UNiagaraDataInterface* Ot
 	{
 		return false;
 	}
-	//const UNiagaraDataInterfaceRenderTarget2D* OtherTyped = CastChecked<const UNiagaraDataInterfaceRenderTarget2D>(Other);
+	
+	const UNiagaraDataInterfaceRenderTarget2D* OtherTyped = CastChecked<const UNiagaraDataInterfaceRenderTarget2D>(Other);
+	return
+		OtherTyped != nullptr &&
+		OtherTyped->Size == Size;
+}
 
-	//return OtherTyped != nullptr && OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter && OtherTyped->bCreateRenderTarget == bCreateRenderTarget;
+bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* Destination) const
+{
+	if (!Super::CopyToInternal(Destination))
+	{
+		return false;
+	}
+
+	UNiagaraDataInterfaceRenderTarget2D* DestinationTyped = CastChecked<UNiagaraDataInterfaceRenderTarget2D>(Destination);
+	if (!DestinationTyped)
+	{
+		return false;
+	}
+
+	DestinationTyped->Size = Size;
 	return true;
 }
+
 
 void UNiagaraDataInterfaceRenderTarget2D::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
@@ -274,33 +293,19 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInte
 	return false;
 }
 
-bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* Destination) const
-{
-	if (!Super::CopyToInternal(Destination))
-	{
-		return false;
-	}
-
-	UNiagaraDataInterfaceRenderTarget2D* OtherTyped = CastChecked<UNiagaraDataInterfaceRenderTarget2D>(Destination);
-
-	return true;
-}
-
 bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
 	check(Proxy);
 
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTarget2DRWInstanceData_GameThread();
-	if (!InstanceData->TargetTexture)
-	{
-		InstanceData->TargetTexture = NewObject<UTextureRenderTarget2D>(this);
-		InstanceData->TargetTexture->bCanCreateUAV = true;
-		InstanceData->TargetTexture->RenderTargetFormat = RTF_RGBA16f;
-		InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
-		InstanceData->TargetTexture->bAutoGenerateMips = false;
-		FNiagaraSystemInstanceID SysID = SystemInstance->GetId();
-		ManagedRenderTargets.Add(SysID) = InstanceData->TargetTexture;
-	}
+	InstanceData->Size = Size;
+	InstanceData->TargetTexture = NewObject<UTextureRenderTarget2D>(this);
+	InstanceData->TargetTexture->bCanCreateUAV = true;
+	InstanceData->TargetTexture->RenderTargetFormat = RTF_RGBA16f;
+	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
+	InstanceData->TargetTexture->bAutoGenerateMips = false;
+	FNiagaraSystemInstanceID SysID = SystemInstance->GetId();
+	ManagedRenderTargets.Add(SysID) = InstanceData->TargetTexture;
 
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyRenderTarget2DProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTarget2DProxy>();
@@ -364,16 +369,16 @@ void UNiagaraDataInterfaceRenderTarget2D::SetSize(FVectorVMContext& Context)
 {
 	// This should only be called from a system or emitter script due to a need for only setting up initially.
 	VectorVM::FUserPtrHandler<FRenderTarget2DRWInstanceData_GameThread> InstData(Context);
-	VectorVM::FExternalFuncInputHandler<int> InSizeX(Context);
-	VectorVM::FExternalFuncInputHandler<int> InSizeY(Context);
-	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSuccess(Context);
+	FNDIInputParam<int> InSizeX(Context);
+	FNDIInputParam<int> InSizeY(Context);
+	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
-		int SizeX = InSizeX.GetAndAdvance();
-		int SizeY = InSizeY.GetAndAdvance();
-		bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && SizeX >= 0 && SizeY >= 0);
-		*OutSuccess.GetDestAndAdvance() =  bSuccess;
+		const int SizeX = InSizeX.GetAndAdvance();
+		const int SizeY = InSizeY.GetAndAdvance();
+		const bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && SizeX >= 0 && SizeY >= 0);
+		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{
 			InstData->Size.X = SizeX;
