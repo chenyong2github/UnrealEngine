@@ -40,8 +40,6 @@
 
 DEFINE_LOG_CATEGORY(LogWorldPartition);
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
 #if WITH_EDITOR
@@ -635,7 +633,7 @@ void UWorldPartition::AddToClusters(const FWorldPartitionActorDesc* ActorDesc)
 			const FWorldPartitionActorDesc* ReferenceActorDesc = GetActorDesc(ReferenceGuid);
 
 			// Don't include references to editor-only actors
-			if (ReferenceActorDesc && !ReferenceActorDesc->GetActorIsEditorOnly())
+			if (!ReferenceActorDesc->GetActorIsEditorOnly())
 			{
 				FActorCluster* ReferenceCluster = ActorToActorCluster.FindRef(ReferenceGuid);
 				if (ReferenceCluster)
@@ -680,10 +678,7 @@ void UWorldPartition::RemoveFromClusters(const FWorldPartitionActorDesc* ActorDe
 
 	for (const FGuid& Guid : ActorCluster->Actors)
 	{
-		if (FWorldPartitionActorDesc* ClusterActorDesc = GetActorDesc(Guid))
-		{
-			AddToClusters(ClusterActorDesc);
-		}
+		AddToClusters(GetActorDesc(Guid));
 	}
 
 	delete ActorCluster;
@@ -1315,4 +1310,3 @@ FBox UWorldPartition::GetWorldBounds() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
-PRAGMA_ENABLE_OPTIMIZATION
