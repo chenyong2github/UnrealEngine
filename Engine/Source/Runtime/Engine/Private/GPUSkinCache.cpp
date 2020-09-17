@@ -711,7 +711,7 @@ void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList)
 		{
 			UAVs.Add(FRHITransitionInfo(*SetIt, ERHIAccess::Unknown, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask));
 		}
-		RHICmdList.Transition(MakeArrayView(UAVs.GetData(), UAVs.Num()));
+		RHICmdList.Transition(UAVs);
 
 		BuffersToTransition.Empty(BuffersToTransition.Num());
 	}
@@ -1151,29 +1151,23 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 	int32 BatchCount = BatchDispatches.Num();
 	INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumChunks, BatchCount);
 
-	RHICmdList.BeginUAVOverlap();
+	for (int32 i = 0; i < BatchCount; ++i)
 	{
-		for (int32 i = 0; i < BatchCount; ++i)
-		{
-			FDispatchEntry& DispatchItem = BatchDispatches[i];
-			DispatchUpdateSkinning(RHICmdList, DispatchItem.SkinCacheEntry, DispatchItem.Section, DispatchItem.RevisionNumber);
-		}
+		FDispatchEntry& DispatchItem = BatchDispatches[i];
+		DispatchUpdateSkinning(RHICmdList, DispatchItem.SkinCacheEntry, DispatchItem.Section, DispatchItem.RevisionNumber);
 	}
-	RHICmdList.EndUAVOverlap();
 
+	for (int32 i = 0; i < BatchCount; ++i)
 	{
-		for (int32 i = 0; i < BatchCount; ++i)
+		FDispatchEntry& DispatchItem = BatchDispatches[i];
+		DispatchItem.SkinCacheEntry->UpdateVertexFactoryDeclaration(DispatchItem.Section);
+
+		if (DispatchItem.SkinCacheEntry->DispatchData[DispatchItem.Section].IndexBuffer)
 		{
-			FDispatchEntry& DispatchItem = BatchDispatches[i];
-			DispatchItem.SkinCacheEntry->UpdateVertexFactoryDeclaration(DispatchItem.Section);
-
-			if (DispatchItem.SkinCacheEntry->DispatchData[DispatchItem.Section].IndexBuffer)
-			{
-				DispatchUpdateSkinTangents(RHICmdList, DispatchItem.SkinCacheEntry, DispatchItem.Section);
-			}
-
-			DispatchItem.SkinCacheEntry->UpdateVertexFactoryDeclaration(DispatchItem.Section);
+			DispatchUpdateSkinTangents(RHICmdList, DispatchItem.SkinCacheEntry, DispatchItem.Section);
 		}
+
+		DispatchItem.SkinCacheEntry->UpdateVertexFactoryDeclaration(DispatchItem.Section);
 	}
 }
 
