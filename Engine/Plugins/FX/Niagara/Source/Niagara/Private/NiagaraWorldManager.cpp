@@ -914,7 +914,7 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	//Only apply hard instance count cull limit for precull + spawn only fx. We can apply instance count via significance cull for managed fx.
 	if (GEnableNiagaraInstanceCountCulling && bIsPreCull && EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
 	{
-		InstanceCountCull(EffectType, ScalabilitySettings, OutState);
+		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
 
 	OutState.bDirty = OutState.bCulled != bOldCulled;
@@ -951,7 +951,7 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	//Only apply hard instance count cull limit for precull + spawn only fx. We can apply instance count via significance cull for managed fx.
 	if (GEnableNiagaraInstanceCountCulling && bIsPreCull && EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
 	{
-		InstanceCountCull(EffectType, ScalabilitySettings, OutState);
+		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
 
 	OutState.bDirty = OutState.bCulled != bOldCulled;
@@ -965,17 +965,26 @@ bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)
 	return EffectType->CullReaction == ENiagaraCullReaction::Deactivate || EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediate;
 }
 
-void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32 Index, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32& EffectTypeInstCount, int32& SystemInstCount, FNiagaraScalabilityState& OutState)
 {
 	//Cull all but the N most significance FX.
 	bool bCull = false;
 	
 	if(GEnableNiagaraInstanceCountCulling)
 	{
-		bCull = ScalabilitySettings.bCullMaxInstanceCount && Index >= ScalabilitySettings.MaxInstances;
+		bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectTypeInstCount >= ScalabilitySettings.MaxInstances;
+		bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && SystemInstCount >= ScalabilitySettings.MaxSystemInstances;
 	}
 
 	OutState.bCulled |= bCull;
+
+	//Only increment the instance counts if this is not culled. Including other causes of culling.
+	if(OutState.bCulled == false)
+	{
+		++EffectTypeInstCount;
+		++SystemInstCount;
+	}
+
 #if DEBUG_SCALABILITY_STATE
 	OutState.bCulledByInstanceCount = bCull;
 #endif
@@ -1013,9 +1022,10 @@ void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const 
 #endif
 }
 
-void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState)
 {
-	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectType->NumInstances > ScalabilitySettings.MaxInstances;
+	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectType->NumInstances >= ScalabilitySettings.MaxInstances;
+	bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && System->GetActiveInstancesCount() >= ScalabilitySettings.MaxSystemInstances;
 	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 	OutState.bCulledByInstanceCount = bCull;

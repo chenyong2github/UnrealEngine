@@ -92,6 +92,10 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , WarmupTickCount(0)
 , WarmupTickDelta(1.0f / 15.0f)
 , bHasSystemScriptDIsWithPerInstanceData(false)
+, bHasAnyGPUEmitters(false)
+, bNeedsSortedSignificanceCull(false)
+, ActiveInstances(0)
+, ActiveInstancesTemp(0)
 {
 	ExposedParameters.SetOwner(this);
 #if WITH_EDITORONLY_DATA
@@ -381,9 +385,9 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 		}
 	}
 
-	ResolveScalabilitySettings();
 	UpdateDITickFlags();
 	UpdateHasGPUEmitters();
+	ResolveScalabilitySettings();
 
 	UpdateContext.CommitUpdate();
 	
@@ -1666,6 +1670,8 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		UpdateHasGPUEmitters();
 		UpdateDITickFlags();
 
+		ResolveScalabilitySettings();
+
 		UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (overall compilation time), %f sec (combined shader worker time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
 			CombinedCompileTime);
 
@@ -2272,6 +2278,12 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 				CurrentScalabilitySettings.bCullMaxInstanceCount = Override.bCullMaxInstanceCount;
 				CurrentScalabilitySettings.MaxInstances = Override.MaxInstances;
 			}
+			
+			if (Override.bOverridePerSystemInstanceCountSettings)
+			{
+				CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount = Override.bCullPerSystemMaxInstanceCount;
+				CurrentScalabilitySettings.MaxSystemInstances = Override.MaxSystemInstances;
+			}
 
 			if (Override.bOverrideTimeSinceRendererSettings)
 			{
@@ -2283,6 +2295,9 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 	}
 
 	CurrentScalabilitySettings.MaxDistance = FMath::Max(GNiagaraScalabiltiyMinumumMaxDistance, CurrentScalabilitySettings.MaxDistance);
+
+	//Work out if this system needs to have sorted significance culling done.
+	bNeedsSortedSignificanceCull = CurrentScalabilitySettings.bCullMaxInstanceCount || CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount;
 }
 
 void UNiagaraSystem::OnQualityLevelChanged()

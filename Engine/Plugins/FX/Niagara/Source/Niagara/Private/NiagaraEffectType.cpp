@@ -145,6 +145,7 @@ void UNiagaraEffectType::ProcessLastFrameCycleCounts()
 FNiagaraSystemScalabilityOverride::FNiagaraSystemScalabilityOverride()
 	: bOverrideDistanceSettings(false)
 	, bOverrideInstanceCountSettings(false)
+	, bOverridePerSystemInstanceCountSettings(false)
 	, bOverrideTimeSinceRendererSettings(false)
 {
 }
@@ -160,8 +161,10 @@ void FNiagaraSystemScalabilitySettings::Clear()
 	bCullByDistance = false;
 	bCullByMaxTimeWithoutRender = false;
 	bCullMaxInstanceCount = false;
+	bCullPerSystemMaxInstanceCount = false;
 	MaxDistance = 0.0f;
 	MaxInstances = 0;
+	MaxSystemInstances = 0;
 	MaxTimeWithoutRender = 0.0f;
 }
 

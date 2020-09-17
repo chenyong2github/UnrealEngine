@@ -1704,6 +1704,12 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 	PendingTickGroupPromotions.RemoveSingleSwap(Instance);
 
 	UNiagaraSystem* System = WeakSystem.Get();
+
+	if(System)
+	{
+		System->UnregisterActiveInstance();
+	}
+
 	if (Instance->IsPendingSpawn())
 	{
 		if (GbDumpSystemData || (System && System->bDumpDebugSystemInfo))
@@ -1841,6 +1847,11 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 		//MainDataSet.Dump(true, Instance->SystemInstanceIndex, 1);
 	}
 	
+	if(System)
+	{
+		System->RegisterActiveInstance();
+	}
+
 	if (EffectType)
 	{
 		++EffectType->NumInstances;
