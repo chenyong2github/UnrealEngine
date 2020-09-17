@@ -867,7 +867,7 @@ void USkeletalMesh::InitResources()
 void USkeletalMesh::ReleaseResources()
 {
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
-	if (SkelMeshRenderData)
+	if (SkelMeshRenderData && SkelMeshRenderData->IsInitialized())
 	{
 
 		if(GIsEditor && !GIsPlayInEditorWorld)
@@ -877,10 +877,10 @@ void USkeletalMesh::ReleaseResources()
 		}
 
 		SkelMeshRenderData->ReleaseResources();
-	}
 
-	// insert a fence to signal when these commands completed
-	ReleaseResourcesFence.BeginFence();
+		// insert a fence to signal when these commands completed
+		ReleaseResourcesFence.BeginFence();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1395,14 +1395,24 @@ void USkeletalMesh::BeginDestroy()
 #endif // #if WITH_APEX_CLOTHING
 #endif // WITH_EDITORONLY_DATA
 
-	// Release the mesh's render resources.
-	ReleaseResources();
+	// Release the mesh's render resources now if no pending streaming op.
+	if (!UpdateStreamingStatus())
+	{
+		ReleaseResources();
+	}
 }
 
 bool USkeletalMesh::IsReadyForFinishDestroy()
 {
-	// see if we have hit the resource flush fence or pending streaming udpate
-	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
+	if (UpdateStreamingStatus())
+	{
+		return false;
+	}
+
+	ReleaseResources();
+
+	// see if we have hit the resource flush fence
+	return ReleaseResourcesFence.IsFenceComplete();
 }
 
 void USkeletalMesh::Serialize( FArchive& Ar )
