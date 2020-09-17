@@ -397,7 +397,7 @@ static int32 AddGlobal(FOLDVulkanCodeHeader& OLDHeader,
 						const FVulkanBindingTable& BindingTable,
 						const CrossCompiler::FHlslccHeader& CCHeader,
 						const FString& ParameterName,
-						uint16 BaseIndex,
+						uint16 BindingIndex,
 						const FSpirv& Spirv,
 						FVulkanShaderHeader& OutHeader,
 						const TArray<FString>& GlobalNames,
@@ -423,7 +423,7 @@ static int32 AddGlobal(FOLDVulkanCodeHeader& OLDHeader,
 	}
 	else
 	{
-		Entry = CombinedAliasIndex == UINT16_MAX ? Spirv.GetEntryByBindingIndex(BaseIndex) : Spirv.GetEntry(GlobalNames[CombinedAliasIndex]);
+		Entry = CombinedAliasIndex == UINT16_MAX ? Spirv.GetEntryByBindingIndex(BindingIndex) : Spirv.GetEntry(GlobalNames[CombinedAliasIndex]);
 		check(Entry);
 		check(Entry->Binding != -1);
 		if (!Entry->Name.EndsWith(TEXT("_BUFFER")))
@@ -469,7 +469,7 @@ static int32 AddGlobalForUBEntry(FOLDVulkanCodeHeader& OLDHeader,
 									const FVulkanBindingTable& BindingTable,
 									const CrossCompiler::FHlslccHeader& CCHeader,
 									const FString& ParameterName,
-									uint16 BaseIndex,
+									uint16 BindingIndex,
 									const FSpirv& Spirv,
 									const TArray<FString>&
 									GlobalNames,
@@ -493,7 +493,7 @@ static int32 AddGlobalForUBEntry(FOLDVulkanCodeHeader& OLDHeader,
 		}
 	}
 
-	return AddGlobal(OLDHeader, BindingTable, CCHeader, ParameterName, BaseIndex, Spirv, OutHeader, GlobalNames, OutTypePatch, CombinedAliasIndex);
+	return AddGlobal(OLDHeader, BindingTable, CCHeader, ParameterName, BindingIndex, Spirv, OutHeader, GlobalNames, OutTypePatch, CombinedAliasIndex);
 }
 
 static void AddUBResources(FOLDVulkanCodeHeader& OLDHeader,
@@ -535,7 +535,7 @@ static void AddUBResources(FOLDVulkanCodeHeader& OLDHeader,
 				int32 HeaderUBResourceInfoIndex = OutUBInfo.ResourceEntries.AddZeroed();
 				FVulkanShaderHeader::FUBResourceInfo& UBResourceInfo = OutUBInfo.ResourceEntries[HeaderUBResourceInfoIndex];
 
-				int32 HeaderGlobalIndex = AddGlobalForUBEntry(OLDHeader, BindingTable, CCHeader, MemberName, ResourceIndex, Spirv, GlobalNames, (EUniformBufferBaseType)ResourceTableEntry.Type, OutTypePatch, OutHeader);
+				int32 HeaderGlobalIndex = AddGlobalForUBEntry(OLDHeader, BindingTable, CCHeader, MemberName, BindingIndex, Spirv, GlobalNames, (EUniformBufferBaseType)ResourceTableEntry.Type, OutTypePatch, OutHeader);
 				UBResourceInfo.SourceUBResourceIndex = ResourceIndex;
 				UBResourceInfo.OriginalBindingIndex = BindingIndex;
 				UBResourceInfo.GlobalIndex = HeaderGlobalIndex;
