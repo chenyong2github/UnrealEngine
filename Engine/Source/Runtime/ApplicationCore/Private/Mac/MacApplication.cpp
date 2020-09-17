@@ -775,16 +775,16 @@ void FMacApplication::ProcessEvent(const FDeferredMacEvent& Event)
 
 			// Decipher the pasteboard data
 			const bool bHaveText = [[Event.DraggingPasteboard types] containsObject:NSPasteboardTypeString];
-			const bool bHaveFiles = [[Event.DraggingPasteboard types] containsObject:NSFilenamesPboardType];
+			const bool bHaveFiles = [[Event.DraggingPasteboard types] containsObject:NSPasteboardTypeFileURL];
 
 			if (bHaveFiles && bHaveText)
 			{
 				TArray<FString> FileList;
 
-				NSArray *Files = [Event.DraggingPasteboard propertyListForType:NSFilenamesPboardType];
+				NSArray *Files = [Event.DraggingPasteboard readObjectsForClasses:@[[NSURL class]] options:nil];
 				for (int32 Index = 0; Index < [Files count]; Index++)
 				{
-					NSString* FilePath = [Files objectAtIndex: Index];
+					NSString* FilePath = [[Files objectAtIndex: Index] path];
 					const FString ListElement = UTF8_TO_TCHAR([FilePath fileSystemRepresentation]);
 					FileList.Add(ListElement);
 				}
@@ -797,10 +797,10 @@ void FMacApplication::ProcessEvent(const FDeferredMacEvent& Event)
 			{
 				TArray<FString> FileList;
 
-				NSArray *Files = [Event.DraggingPasteboard propertyListForType:NSFilenamesPboardType];
+				NSArray *Files = [Event.DraggingPasteboard readObjectsForClasses:@[[NSURL class]] options:nil];
 				for (int32 Index = 0; Index < [Files count]; Index++)
 				{
-					NSString* FilePath = [Files objectAtIndex: Index];
+					NSString* FilePath = [[Files objectAtIndex: Index] path];
 					const FString ListElement = UTF8_TO_TCHAR([FilePath fileSystemRepresentation]);
 					FileList.Add(ListElement);
 				}
