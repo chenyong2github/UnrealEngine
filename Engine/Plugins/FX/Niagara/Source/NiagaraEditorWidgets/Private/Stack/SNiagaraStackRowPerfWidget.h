@@ -41,6 +41,7 @@ private:
 	UNiagaraEmitter* GetEmitter() const;
 	ENiagaraScriptUsage GetUsage() const;
 	ENiagaraStatEvaluationType GetEvaluationType() const;
+	ENiagaraStatDisplayMode GetDisplayMode() const;
 	bool IsInterpolatedSpawnEnabled() const;
 	bool IsGpuEmitter() const;
 	
@@ -49,9 +50,10 @@ private:
 
 	mutable TOptional<FText> IconToolTipCache;
 	TWeakObjectPtr<UNiagaraStackEntry> StackEntry;
-	IConsoleVariable* StatEnabledVar = nullptr;
+	static IConsoleVariable* StatEnabledVar;
 
 	float GroupOverallTime = 0;
 	float StackEntryTime = 0;
 	float UpdateInSpawnTime = 0;
+	float EmitterTimeTotal = 0;
 };

@@ -27,6 +27,8 @@ void FNiagaraEditorCommands::RegisterCommands()
 	UI_COMMAND(ClearStatPerformance, "Clear Stats", "Clear all existing stat captures.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ToggleStatPerformanceTypeAvg, "Display Average", "Displays the average of captured stats.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleStatPerformanceTypeMax, "Display Maximum", "Displays the maximum of captured stats.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleStatPerformanceModePercent, "Display Relative Values", "Displays the captured module stats in percent of the parent script.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleStatPerformanceModeAbsolute, "Display Absolute Values", "Displays the captured module stats times directly.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleBounds, "Bounds", "Display Bounds", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleBounds_SetFixedBounds, "Set Fixed Bounds", "Set Fixed Bounds", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ToggleOrbit, "Orbit Mode", "Toggle Orbit Navigation", EUserInterfaceActionType::ToggleButton, FInputChord());

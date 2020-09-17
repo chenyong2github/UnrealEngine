@@ -773,22 +773,29 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FDispatchInstanceList& 
 	for (FDispatchInstance& DispatchInstance : DispatchInstances)
 	{
 #if STATS
-		FString StageName = "SpawnUpdate";
-		if (StageIndex > 0)
+		if (GPUProfiler.IsProfilingEnabled() && DispatchInstance.Tick->bIsFinalTick)
 		{
-			for (FSimulationStageMetaData& MetaData : DispatchInstance.InstanceData->Context->SimStageInfo)
+			FString StageName = "SpawnUpdate";
+			if (StageIndex > 0)
 			{
-				if ((int32)StageIndex >= MetaData.MinStage && (int32)StageIndex < MetaData.MaxStage)
+				for (FSimulationStageMetaData& MetaData : DispatchInstance.InstanceData->Context->SimStageInfo)
 				{
-					StageName = MetaData.SimulationStageName.ToString();
+					if ((int32)StageIndex >= MetaData.MinStage && (int32)StageIndex < MetaData.MaxStage)
+					{
+						StageName = MetaData.SimulationStageName.ToString();
+					}
 				}
 			}
-		}
-		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>("GPU_Stage_" + StageName);
+			TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>("GPU_Stage_" + StageName);
 
-		int32 TimerHandle = GPUProfiler.StartTimer((uint64)DispatchInstance.InstanceData->Context, StatId, RHICmdList);
-		DispatchStage(DispatchInstance, StageIndex, RHICmdList, ViewUniformBuffer);
-		GPUProfiler.EndTimer(TimerHandle, RHICmdList);
+			int32 TimerHandle = GPUProfiler.StartTimer((uint64)DispatchInstance.InstanceData->Context, StatId, RHICmdList);
+			DispatchStage(DispatchInstance, StageIndex, RHICmdList, ViewUniformBuffer);
+			GPUProfiler.EndTimer(TimerHandle, RHICmdList);
+		}
+		else
+		{
+			DispatchStage(DispatchInstance, StageIndex, RHICmdList, ViewUniformBuffer);	
+		}
 #else
 		DispatchStage(DispatchInstance, StageIndex, RHICmdList, ViewUniformBuffer);
 #endif
