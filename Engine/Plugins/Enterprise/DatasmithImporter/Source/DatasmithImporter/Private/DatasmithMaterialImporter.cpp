@@ -193,6 +193,11 @@ UMaterialInterface* FDatasmithMaterialImporter::CreateMaterial( FDatasmithImport
 		const TSharedRef< IDatasmithMasterMaterialElement >& MasterMaterialElement = StaticCastSharedRef< IDatasmithMasterMaterialElement >( BaseMaterialElement );
 		Material = ImportMasterMaterial( ImportContext, MasterMaterialElement, ExistingMaterial );
 	}
+	else if ( BaseMaterialElement->IsA( EDatasmithElementType::DecalMaterial ) )
+	{
+		const TSharedRef< IDatasmithDecalMaterialElement >& DecalMaterialElement = StaticCastSharedRef< IDatasmithDecalMaterialElement >( BaseMaterialElement );
+		Material = ImportDecalMaterial( ImportContext, DecalMaterialElement, ExistingMaterial );
+	}
 	else if ( BaseMaterialElement->IsA( EDatasmithElementType::UEPbrMaterial ) )
 	{
 		const TSharedRef< IDatasmithUEPbrMaterialElement > MaterialElement = StaticCastSharedRef< IDatasmithUEPbrMaterialElement >( BaseMaterialElement );
@@ -351,6 +356,79 @@ UMaterialInterface* FDatasmithMaterialImporter::ImportMasterMaterial( FDatasmith
 		{
 			MaterialSelector->FinalizeMaterialInstance(MaterialElement, MaterialInstance);
 		}
+
+		return MaterialInstance;
+	}
+
+	return nullptr;
+}
+
+UMaterialInterface* FDatasmithMaterialImporter::ImportDecalMaterial( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithDecalMaterialElement >& MaterialElement, UMaterialInterface* ExistingMaterial )
+{
+	FDatasmithAssetsImportContext& AssetsContext = ImportContext.AssetsContext;
+
+	// Verify existing material is of the right class for further processing
+	UMaterialInstanceConstant* FoundConstantMaterial = Cast<UMaterialInstanceConstant>(ExistingMaterial);
+
+	UMaterial* DecalMaterial = Cast< UMaterial >(FSoftObjectPath("/DatasmithContent/Materials/M_DatasmithDecal.M_DatasmithDecal").TryLoad());
+
+	if ( DecalMaterial )
+	{
+		const FString MaterialLabel = MaterialElement->GetLabel();
+		const FString MaterialName = MaterialLabel.Len() > 0 ? AssetsContext.MaterialNameProvider.GenerateUniqueName(MaterialLabel) : MaterialElement->GetName();
+
+		// Verify that the material could be created in final package
+		FText FailReason;
+		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInstanceConstant>( AssetsContext.MaterialsFinalPackage.Get(), MaterialName, FailReason ))
+		{
+			ImportContext.LogError(FailReason);
+			return nullptr;
+		}
+
+		UMaterialInstanceConstant* MaterialInstance = FoundConstantMaterial;
+
+		if (MaterialInstance == nullptr)
+		{
+			MaterialInstance = NewObject<UMaterialInstanceConstant>(AssetsContext.MaterialsImportPackage.Get(), *MaterialName, ImportContext.ObjectFlags);
+			MaterialInstance->Parent = DecalMaterial;
+
+			FAssetRegistryModule::AssetCreated(MaterialInstance);
+		}
+		else
+		{
+			MaterialInstance = DuplicateObject< UMaterialInstanceConstant >(MaterialInstance, AssetsContext.MaterialsImportPackage.Get(), *MaterialName);
+			IDatasmithImporterModule::Get().ResetOverrides(MaterialInstance); // Don't copy the existing overrides
+		}
+
+		UDatasmithMaterialInstanceTemplate* MaterialInstanceTemplate = NewObject< UDatasmithMaterialInstanceTemplate >( MaterialInstance );
+
+		MaterialInstanceTemplate->ParentMaterial = MaterialInstance->Parent;
+
+		TFunction<void(const TCHAR*, const TCHAR*)> ApplyTexture;
+		ApplyTexture = [&AssetsContext, &MaterialInstance, &MaterialInstanceTemplate](const TCHAR* PropertyName, const TCHAR* TexturePathName) -> void
+		{
+			if (UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >(AssetsContext, TexturePathName))
+			{
+				MaterialInstanceTemplate->TextureParameterValues.Add( FName(PropertyName), Texture );
+
+				//If we are adding a virtual texture to a non-virtual texture streamer then we will need to convert back that Virtual texture.
+				UTexture* DefaultTextureValue = nullptr;
+				UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
+				if (Texture2D && Texture2D->VirtualTextureStreaming &&
+					MaterialInstance->GetTextureParameterDefaultValue(FName(PropertyName), DefaultTextureValue) && DefaultTextureValue)
+				{
+					if (!DefaultTextureValue->VirtualTextureStreaming)
+					{
+						AssetsContext.VirtualTexturesToConvert.Add(Texture2D);
+					}
+				}
+			}
+		};
+
+		ApplyTexture(TEXT("DecalTexture"), MaterialElement->GetDiffuseTexturePathName());
+		ApplyTexture(TEXT("NormalTexture"), MaterialElement->GetNormalTexturePathName());
+
+		MaterialInstanceTemplate->Apply( MaterialInstance );
 
 		return MaterialInstance;
 	}
