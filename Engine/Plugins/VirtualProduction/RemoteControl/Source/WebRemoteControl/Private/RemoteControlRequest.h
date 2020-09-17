@@ -412,6 +412,23 @@ struct FSearchObjectRequest : public FRCRequest
 
 
 /**
+ * Holds a request to set a metadata field.
+ */
+USTRUCT()
+struct FSetPresetMetadataRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FSetPresetMetadataRequest() = default;
+
+	/**
+	 * The new value for the metadata field.
+	 */
+	UPROPERTY()
+	FString Value;
+};
+
+/**
  * Holds a request made for web socket.
  */
 USTRUCT()
@@ -466,3 +483,4 @@ struct FRCWebSocketPresetRegisterBody : public FRCRequest
 	UPROPERTY()
 	FString PresetName;
 };
+
