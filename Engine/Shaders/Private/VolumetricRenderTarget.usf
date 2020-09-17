@@ -138,15 +138,8 @@ void ReconstructVolumetricRenderTargetPS(
 	OutputRt1 = Depths;
 	return;
 #endif
-
-	#define SAMPLECOUNT 9
-	int2 offset[SAMPLECOUNT] = {
-		{-1,-1}, {0,-1}, {1,-1},
-		{-1, 0}, {0, 0}, {1, 0},
-		{-1, 1}, {0, 1}, {1, 1} };
   
 	{
-
 		float2 ScreenPosition = ViewportUVToScreenPos(ScreenUV); // NDC in [-1,1] not using View.ScreenPositionScaleBias here
 
 		// Sample participating media "front depth" for a better reprojection
@@ -200,18 +193,17 @@ void ReconstructVolumetricRenderTargetPS(
 			if (bUseNewSample)
 			{
 				// Load the new sample for this pixel we have just traced
-				RGBA = NewRGBA;// *float4(0, 10, 0, 1);
+				RGBA = NewRGBA;
 				Depths = NewDepths;
+				//RGBA += float4(0.1, 0, 0, 0);
 			}
 			else // bValidPreviousUVs==true always here
 			{
 				// Sample valid on screen history
-				float4 HistoryRGBA = SafeSamplePreviousFrameVolumetricTexture(PrevScreenUVs*1.0);
-				float2 HistoryDepths = SafeSamplePreviousFrameVolumetricDepthTexture(PrevScreenUVs*1.0);
+				float4 HistoryRGBA = SafeSamplePreviousFrameVolumetricTexture(PrevScreenUVs * 1.0);
+				float2 HistoryDepths = SafeSamplePreviousFrameVolumetricDepthTexture(PrevScreenUVs * 1.0);
 
 				// Get information about neightboors
-				float4 NewNeighboorsRGBA[8];
-				float2 NewNeighboorsDepths[8];
 				int2 NeightboorsOffset[8] = { int2(1,0), int2(1,1), int2(0,1), int2(-1,1), int2(-1,0), int2(-1,-1), int2(0,-1), int2(1,-1)};
 
 
@@ -224,25 +216,26 @@ void ReconstructVolumetricRenderTargetPS(
 
 				if (/*ReconstructDepthZ > 0.0001f &&*/ abs(PixelDistanceFromViewKm - HistoryDepths.y) > PixelDistanceFromViewKm * 0.1f)
 				{
-					// History has a tool large depth difference at detph discontinuities, use the data with closest depth within the neightboorhood
-					float ClosestDepth = 99999999;
+					// History has a too large depth difference at depth discontinuities, use the data with closest depth within the neightborhood
+					float ClosestDepth = 99999999.0f;
 					for (int i = 0; i < 8; ++i)
 					{
-						NewNeighboorsDepths[i] = SafeLoadTracingVolumetricDepthTexture(CenterSample + NeightboorsOffset[i]);
-						if (abs(PixelDistanceFromViewKm - NewNeighboorsDepths[i].y) < ClosestDepth)
+						float2 NeighboorsDepths = SafeLoadTracingVolumetricDepthTexture(CenterSample + NeightboorsOffset[i]);
+						const float NeighboorsClosestDepth = abs(PixelDistanceFromViewKm - NeighboorsDepths.y);
+						if (NeighboorsClosestDepth < ClosestDepth)
 						{
-							ClosestDepth = abs(PixelDistanceFromViewKm - NewNeighboorsDepths[i].y);
-							NewNeighboorsRGBA[i] = SafeLoadTracingVolumetricTexture(CenterSample + NeightboorsOffset[i]);
-							RGBA = NewNeighboorsRGBA[i];
-							Depths = NewNeighboorsDepths[i];
-						}
+							ClosestDepth = NeighboorsClosestDepth;
+							float4 NeighboorsRGBA = SafeLoadTracingVolumetricTexture(CenterSample + NeightboorsOffset[i]);
+							RGBA   = NeighboorsRGBA;
+							Depths = NeighboorsDepths;
+						} 
 					}
 					if (abs(PixelDistanceFromViewKm - NewDepths.y) < ClosestDepth)
 					{
 						RGBA = NewRGBA;
-						Depths = Depths;
+						Depths = NewDepths;
 					}
-					//RGBA += float4(0, 0.1, 0, 0);
+					//RGBA += float4(0, 0.1 0, 0);
 				}
 				else //if(ReconstructDepthZ < 0.000001f)
 				{
@@ -432,7 +425,7 @@ void ComposeVolumetricRTOverScenePS(
 
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, ClipPosition.z, 1.0)), 1.0).xyz;
 #else
-	float PixelDeviceZ = SampleDeviceZFromSceneTextures(ScreenUV);
+	float PixelDeviceZ = SceneDepthTexture.Load(uint3(SVPos.xy, 0)).r;
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, PixelDeviceZ, 1.0)), 1.0).xyz;
 #endif 
 
