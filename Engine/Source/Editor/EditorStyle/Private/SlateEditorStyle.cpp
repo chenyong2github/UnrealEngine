@@ -6721,7 +6721,7 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("SkyLight"),
 			TEXT("SkyLightComponent"),
 			TEXT("SkyAtmosphere"),
-			//TEXT("VolumetricCloud"), // Add later when icons are available. This is to prevent in editor warning.
+			TEXT("VolumetricCloud"),
 			TEXT("SkeletalMesh"),
 			TEXT("Skeleton"),
 			TEXT("SlateBrushAsset"),
