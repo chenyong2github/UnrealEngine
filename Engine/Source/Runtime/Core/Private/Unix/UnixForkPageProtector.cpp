@@ -541,6 +541,9 @@ void FForkPageProtector::ProtectMemoryRegions()
 		return;
 	}
 
+	UE_LOG(LogHAL, Warning, TEXT("Protect Page Finder has been enabled and is about to protect pages. Output location:"));
+	UE_LOG(LogHAL, Warning, TEXT("'%s'"), *FPaths::ConvertRelativePathToFull(GetOutputFileLocation()));
+
 	// Setup our new signal handler before we protect *any* pages
 	if (!bSetupSignalHandler)
 	{
@@ -607,10 +610,17 @@ bool FForkPageProtector::HandleNewCrashAddress(void* CrashAddress)
 	return DumpCallstackInfoToFile();
 }
 
-void FForkPageProtector::SetupOutputFile()
+const FString& FForkPageProtector::GetOutputFileLocation()
 {
 	// TODO maybe should try to keep at least N preserved before TRUNC'ing them
-	const FString DefaultOutputFullPath = FPaths::ProfilingDir() / TEXT("ProtectedPageHits.propg");
+	static const FString OutputFullPath = FPaths::ProfilingDir() / TEXT("ProtectedPageHits.propg");
+
+	return OutputFullPath;
+}
+
+void FForkPageProtector::SetupOutputFile()
+{
+	const FString& DefaultOutputFullPath = GetOutputFileLocation();
 
 	// Need to manually setup both the Saved and Profiling dir if they dont exists
 	// Need to avoid platform abstraction as checking if Dir Exists seems to hit protected memory

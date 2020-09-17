@@ -171,6 +171,8 @@ private:
 
 	void SetupSignalHandler();
 
+	const FString& GetOutputFileLocation();
+
 	// The lower bit of the address will be set to 1 if free'ed
 	struct ProtectedMemoryRange
 	{
