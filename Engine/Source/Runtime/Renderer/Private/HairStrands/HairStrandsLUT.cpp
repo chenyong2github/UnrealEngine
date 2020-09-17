@@ -10,8 +10,6 @@
 #include "SceneRendering.h"
 #include "SystemTextures.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 static int32 GHairLUTIncidentAngleCount = 64;
 static int32 GHairLUTRoughnessCount = 64;
 static int32 GHairLUTAbsorptionCount = 16;
