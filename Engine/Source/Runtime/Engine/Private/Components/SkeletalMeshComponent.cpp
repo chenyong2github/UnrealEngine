@@ -3270,7 +3270,16 @@ FTransform USkeletalMeshComponent::ConvertLocalRootMotionToWorld(const FTransfor
 
 FRootMotionMovementParams USkeletalMeshComponent::ConsumeRootMotion()
 {
-	float InterpAlpha = ShouldUseUpdateRateOptimizations() ? AnimUpdateRateParams->GetRootMotionInterp() : 1.f;
+	float InterpAlpha;
+	
+	if(bExternalTickRateControlled)
+	{
+		InterpAlpha = ExternalInterpolationAlpha;
+	}
+	else
+	{
+		InterpAlpha = ShouldUseUpdateRateOptimizations() ? AnimUpdateRateParams->GetRootMotionInterp() : 1.f;
+	}
 
 	return ConsumeRootMotion_Internal(InterpAlpha);
 }
