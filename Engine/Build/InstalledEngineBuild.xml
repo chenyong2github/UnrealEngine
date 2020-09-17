@@ -513,7 +513,7 @@
 			</Do>
 		</Node>
 		<!-- Compile the C# tools. Copies files to a temporary directory first, to strip out all confidential folders and avoid sharing violations with the running version of UAT. -->
-		<Node Name="Build Tools CS" Requires="Update Version Files" Produces="#Build Tools CS Binaries">
+		<Node Name="Build Tools CS" Requires="Update Version Files" Produces="#Build Tools CS Binaries;#SourceForDocumentation">
 			<Delete Files="$(CsToolsDir)/..."/>
 
 			<!-- Copy Source and referenced libraries to a new location with Confidential folders removed-->
@@ -554,6 +554,9 @@
 			<CsCompile Project="$(CsToolsDir)/Engine/Source/Programs/IOS/MobileDeviceInterface/MobileDeviceInterface.csproj" Configuration="Development" Platform="AnyCPU" Arguments="/verbosity:minimal /target:Rebuild" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
 			<CsCompile Project="$(CsToolsDir)/Engine/Source/Programs/IOS/DeploymentInterface/DeploymentInterface.csproj" Configuration="Development" Platform="AnyCPU" Arguments="/verbosity:minimal /target:Rebuild" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
 			<CsCompile Project="$(CsToolsDir)/Engine/Source/Programs/IOS/DeploymentServerLauncher/DeploymentServerLauncher.csproj" Configuration="Development" Platform="AnyCPU" Arguments="/verbosity:minimal /target:Rebuild" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
+
+			<!-- Create tag set for saved source needed for documentation -->
+			<Tag Files="$(CsToolsDir)/Engine/Source/..." With="#SourceForDocumentation" />
 
 			<!-- Sign the binaries -->
 			<Sign Files="#Sign Binaries" If="'$(SignExecutables)' == true"/>
