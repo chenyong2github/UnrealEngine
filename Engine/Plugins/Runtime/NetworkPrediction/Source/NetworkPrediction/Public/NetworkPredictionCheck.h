@@ -22,8 +22,8 @@
 #else
 	#define npCheck(...)
 	#define npCheckf(...)
-	#define npEnsure(Condition)
-	#define npEnsureMsgf(...)
+	#define npEnsure(Condition) (!!(Condition))
+	#define npEnsureMsgf(Condition, ...) (!!(Condition))
 #endif
 
 #define NP_CHECKS_AND_ENSURES_SLOW !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -40,6 +40,6 @@
 #else
 	#define npCheckSlow(Condition)
 	#define npCheckfSlow(...)
-	#define npEnsureSlow(...)
-	#define npEnsureMsgfSlow(...)
+	#define npEnsureSlow(Condition) (!!(Condition))
+	#define npEnsureMsgfSlow(Condition, ...) (!!(Condition))
 #endif
