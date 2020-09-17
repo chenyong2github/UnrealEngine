@@ -116,7 +116,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 				"Particle Simulation Stage iterating Particles: \"Particles\".\n"
 				"Particle Simulation Stage with Iteration Source: Writes to the iteration source directly."
 			))
-			.SetBackgroundColor(FLinearColor(FColor(108, 87, 131)))
+			.SetBackgroundColor(FLinearColor(FColor(87, 131, 121)))
 			.SetSortId(80)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
