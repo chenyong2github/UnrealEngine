@@ -123,6 +123,7 @@ public:
 
 	static FName ResolveEmitterAlias(const FName& InName, const FString& InAlias);
 
+	
 	/**
 	* Remove the Particles namespace if it exists.
 	*/
@@ -177,7 +178,7 @@ public:
 	static bool IsValidNamespaceForReading(ENiagaraScriptUsage InScriptUsage, int32 InUsageBitmask, FString Namespace);
 
 	/** Called to determine if a given variable should be output from a script. It is not static as it requires the overall context to include emitter namespaces visited for system scripts.*/
-	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, const UNiagaraScript* InScript, bool bAllowDataInterfaces = false) const;
+	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, const UNiagaraScript* InScript,   bool bAllowDataInterfaces = false) const;
 	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, bool bAllowDataInterfaces = false) const;
 	static bool IsWrittenToScriptUsage(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, bool bAllowDataInterfaces);
 
@@ -354,6 +355,9 @@ public:
 
 	void EndTranslation(const UNiagaraEmitter* Emitter);
 
+	void BeginUsage(ENiagaraScriptUsage InUsage, FName InStageName = FName());
+	void EndUsage();
+
 	/**
 	* Record that we have entered a new function scope.
 	*/
@@ -490,6 +494,7 @@ protected:
 	TArray<ENiagaraScriptUsage> RelevantScriptUsageContext;
 	/** Resolved alias map for the current context level. Rebuilt by BuildCurrentAliases.*/
 	TMap<FString, FString> AliasMap;
+	TArray<FName> ScriptUsageContextNameStack;
 
 	TArray<TArray<FString> > EncounteredFunctionNames;
 	TArray<FString> EncounteredEmitterNames;

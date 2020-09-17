@@ -167,6 +167,7 @@ struct NIAGARA_API FNiagaraConstants
 	static const FName ModuleNamespace;
 	static const FName OutputNamespace;
 	static const FName TransientNamespace;
+	static const FName StackContextNamespace;
 	static const FName DataInstanceNamespace;
 	static const FName StaticSwitchNamespace;
 	static const FName ArrayNamespace;
