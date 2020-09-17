@@ -25,6 +25,9 @@ private:
 	FLinearColor GetVisualizationBrushColor() const;
 	FLinearColor GetPlaceholderBrushColor() const;
 	bool HasPerformanceData() const;
+	bool IsSystemStack() const;
+	bool IsEmitterStack() const;
+	bool IsParticleStack() const;
 	EVisibility IsVisible() const;
 	FText GetPerformanceDisplayText() const;
 	FText GetEvalTypeDisplayText() const;
