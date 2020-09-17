@@ -116,6 +116,16 @@ public:
 		Serialize(V, Verbosity, Category);
 	}
 
+	virtual bool CanBeUsedOnAnyThread() const override
+	{
+		return true;
+	}
+
+	virtual bool CanBeUsedOnMultipleThreads() const override
+	{
+		return true;
+	}
+
 	/** Log a small events to help diagnose abnormal shutdown or bugs in CRC itself. The event text is expected to be short and concise. */
 	void LogEvent(const TCHAR* Event, bool bForwardToUELog = true)
 	{
