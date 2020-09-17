@@ -2487,10 +2487,14 @@ void FActiveGameplayEffectsContainer::SetActiveGameplayEffectLevel(FActiveGamepl
 	{
 		if (Effect.Handle == ActiveHandle)
 		{
-			Effect.Spec.SetLevel(NewLevel);
-			MarkItemDirty(Effect);
-			Effect.Spec.CalculateModifierMagnitudes();
-			UpdateAllAggregatorModMagnitudes(Effect);
+			if (Effect.Spec.GetLevel() != NewLevel)
+			{
+				Effect.Spec.SetLevel(NewLevel);
+				MarkItemDirty(Effect);
+			
+				Effect.Spec.CalculateModifierMagnitudes();
+				UpdateAllAggregatorModMagnitudes(Effect);
+			}
 			break;
 		}
 	}
