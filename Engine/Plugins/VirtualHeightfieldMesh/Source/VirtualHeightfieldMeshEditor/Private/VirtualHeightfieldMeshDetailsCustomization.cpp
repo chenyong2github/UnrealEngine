@@ -7,6 +7,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Editor.h"
 #include "HeightfieldMinMaxTexture.h"
 #include "HeightfieldMinMaxTextureBuild.h"
 #include "HeightfieldMinMaxTextureFactory.h"
@@ -130,6 +131,9 @@ FReply FVirtualHeightfieldMeshComponentDetailsCustomization::SetBounds()
 		Owner->SetActorTransform(VirtualTextureVolume->GetTransform());
 		Owner->PostEditMove(true);
 	
+		// Force update of editor view widget.
+		GEditor->NoteSelectionChange(false);
+
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();

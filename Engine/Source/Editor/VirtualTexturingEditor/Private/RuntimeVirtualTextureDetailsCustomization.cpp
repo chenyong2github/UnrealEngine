@@ -7,6 +7,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Editor.h"
 #include "Engine/Texture2D.h"
 #include "Factories/Texture2dFactoryNew.h"
 #include "RuntimeVirtualTextureBuildStreamingMips.h"
@@ -239,6 +240,8 @@ FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds()
 	{
 		const FScopedTransaction Transaction(LOCTEXT("Transaction_SetBounds", "Set RuntimeVirtualTextureComponent Bounds"));
 		RuntimeVirtualTexture::SetBounds(RuntimeVirtualTextureComponent);
+		// Force update of editor view widget.
+		GEditor->NoteSelectionChange(false);
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();
