@@ -270,6 +270,13 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	}
 
 	InitalizeResourceState(InInitialState, InResourceStateMode, InDefaultResourceState);
+
+#if NV_AFTERMATH
+	if (GDX12NVAfterMathTrackResources)
+	{
+		GFSDK_Aftermath_DX12_RegisterResource(InResource, &AftermathHandle);
+	}
+#endif
 }
 
 FD3D12Resource::~FD3D12Resource()
@@ -278,6 +285,13 @@ FD3D12Resource::~FD3D12Resource()
 	{
 		D3DX12Residency::EndTrackingObject(GetParentDevice()->GetResidencyManager(), ResidencyHandle);
 	}
+
+#if NV_AFTERMATH
+	if (GDX12NVAfterMathTrackResources)
+	{
+		GFSDK_Aftermath_DX12_UnregisterResource(AftermathHandle);
+	}
+#endif
 }
 
 void FD3D12Resource::StartTrackingForResidency()

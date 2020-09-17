@@ -12,9 +12,9 @@ public class NVAftermath : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
             String NVAftermathPath = Target.UEThirdPartySourceDirectory + "NVIDIA/NVaftermath/";
-            PublicSystemIncludePaths.Add(NVAftermathPath);
+            PublicSystemIncludePaths.Add(NVAftermathPath + "include");
             
-            String NVAftermathLibPath = NVAftermathPath + "amd64/";
+            String NVAftermathLibPath = NVAftermathPath + "lib/x64/";
             PublicAdditionalLibraries.Add(NVAftermathLibPath + "GFSDK_Aftermath_Lib.x64.lib");
 
             String AftermathDllName = "GFSDK_Aftermath_Lib.x64.dll";                  

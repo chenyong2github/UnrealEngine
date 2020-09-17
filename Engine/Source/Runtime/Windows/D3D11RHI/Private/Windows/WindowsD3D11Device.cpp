@@ -8,6 +8,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/WindowsPlatformCrashContext.h"
 	#include <delayimp.h>
 	#if !PLATFORM_HOLOLENS
 	#include "nvapi.h"
@@ -26,10 +27,12 @@ THIRD_PARTY_INCLUDES_START
 #include "dxgi1_6.h"
 THIRD_PARTY_INCLUDES_END
 #include "RHIValidation.h"
+#include "HAL/ExceptionHandling.h"
 
 #if NV_AFTERMATH
 bool GDX11NVAfterMathEnabled = false;
 bool GNVAftermathModuleLoaded = false;
+bool GDX11NVAfterMathMarkers = false;
 #endif
 
 #if INTEL_METRICSDISCOVERY
@@ -1166,9 +1169,26 @@ void FD3D11DynamicRHI::StartNVAftermath()
 
 	if (bShouldStart)
 	{
+		static IConsoleVariable* MarkersCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Markers"));
+		static IConsoleVariable* CallstackCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.Callstack"));
+		static IConsoleVariable* ResourcesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.ResourceTracking"));
+		static IConsoleVariable* TrackAllCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging.Aftermath.TrackAll"));
+		
+		const bool bEnableInEditor = GIsEditor && !FParse::Param(FCommandLine::Get(), TEXT("nogpucrashdebugging"));
+		const bool bEnableMarkers = FParse::Param(FCommandLine::Get(), TEXT("aftermathmarkers")) || (MarkersCVar && MarkersCVar->GetInt()) || bEnableInEditor;
+		const bool bEnableCallstack = FParse::Param(FCommandLine::Get(), TEXT("aftermathcallstack")) || (CallstackCVar && CallstackCVar->GetInt());
+		const bool bEnableResources = FParse::Param(FCommandLine::Get(), TEXT("aftermathresources")) || (ResourcesCVar && ResourcesCVar->GetInt());
+		const bool bEnableAll = FParse::Param(FCommandLine::Get(), TEXT("aftermathall")) || (TrackAllCVar && TrackAllCVar->GetInt());
+
+		uint32 Flags = GFSDK_Aftermath_FeatureFlags_Minimum;
+
+		Flags |= bEnableMarkers ? GFSDK_Aftermath_FeatureFlags_EnableMarkers : 0;
+		Flags |= bEnableCallstack ? GFSDK_Aftermath_FeatureFlags_CallStackCapturing : 0;
+		Flags |= bEnableResources ? GFSDK_Aftermath_FeatureFlags_EnableResourceTracking : 0;
+		Flags |= bEnableAll ? GFSDK_Aftermath_FeatureFlags_Maximum : 0;
+
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX11_Initialize(
-			GFSDK_Aftermath_Version_API, GFSDK_Aftermath_FeatureFlags_Maximum,
-			Direct3DDevice);
+			GFSDK_Aftermath_Version_API, (GFSDK_Aftermath_FeatureFlags)Flags, Direct3DDevice);
 
 		if (GFSDK_Aftermath_SUCCEED(Result)) //-V547 Expression is always true -- confirmed false positive, fix coming in future PVS version (v6.24)
 		{
@@ -1177,7 +1197,6 @@ void FD3D11DynamicRHI::StartNVAftermath()
 			if (GFSDK_Aftermath_SUCCEED(Result)) //-V547 Expression is always true -- confirmed false positive, fix coming in future PVS version (v6.24)
 			{
 				UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] Enabled and primed"));
-				SetEmitDrawEvents(true);
 			}
 			else
 			{
@@ -1189,6 +1208,12 @@ void FD3D11DynamicRHI::StartNVAftermath()
 		{
 			UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] Failed to initialize. Result=%08x"), Result);
 			GDX11NVAfterMathEnabled = false;
+		}
+
+		if (GDX11NVAfterMathEnabled && (bEnableMarkers || bEnableAll))
+		{
+			SetEmitDrawEvents(true);
+			GDX11NVAfterMathMarkers = true;
 		}
 	}
 }
@@ -1219,15 +1244,69 @@ void FD3D11DynamicRHI::StopNVAftermath()
 	}
 }
 
+static void D3D11AftermathCrashCallback(const void* InGPUCrashDump, const uint32_t InGPUCrashDumpSize, void* InUserData)
+{
+	// decode the GPU marker stack data
+	if (GDynamicRHI)
+	{
+		GDynamicRHI->CheckGpuHeartbeat();
+	}
+
+	// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
+	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName);
+
+	// Just use raw windows file routines for the GPU minidump (TODO: refactor to our own functions?)
+	HANDLE FileHandle = CreateFileW(*GPUMiniDumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (FileHandle != INVALID_HANDLE_VALUE)
+	{
+		WriteFile(FileHandle, InGPUCrashDump, InGPUCrashDumpSize, nullptr, nullptr);
+	}
+	CloseHandle(FileHandle);
+
+	// Report the GPU crash which will raise the exception
+	ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
+}
+
+void EnableNVAftermathCrashDumps()
+{
+	if (GNVAftermathModuleLoaded)
+	{
+		static IConsoleVariable* GPUCrashDump = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDump"));
+		if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
+		{
+
+			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(
+				GFSDK_Aftermath_Version_API,
+				GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,
+				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
+				D3D11AftermathCrashCallback,
+				nullptr, //Shader debug callback
+				nullptr, // description callback
+				nullptr); // user data
+
+			if (Result == GFSDK_Aftermath_Result_Success)
+			{
+				UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] Aftermath crash dumping enabled"));
+			}
+			else
+			{
+				UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] Aftermath crash dumping failed to initialize (%x)"), Result);
+			}
+		}
+	}
+}
+
 #define CACHE_NV_AFTERMATH_ENABLED() CacheNVAftermathEnabled()
 #define START_NV_AFTERMATH() StartNVAftermath()
 #define STOP_NV_AFTERMATH() StopNVAftermath()
+#define ENABLE_NV_AFTERMATH_CRASH_DUMPS() EnableNVAftermathCrashDumps()
 
 #else
 
 #define CACHE_NV_AFTERMATH_ENABLED()
 #define START_NV_AFTERMATH()
 #define STOP_NV_AFTERMATH()
+#define ENABLE_NV_AFTERMATH_CRASH_DUMPS()
 
 #endif
 
@@ -1794,6 +1873,11 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			CreateIntelMetricsDiscovery();
 		}
 #endif
+		if (IsRHIDeviceNVIDIA())
+		{
+			// crash dump hooks need to be attached before device creation
+			ENABLE_NV_AFTERMATH_CRASH_DUMPS();
+		}
 
 		if (!bDeviceCreated)
 		{
