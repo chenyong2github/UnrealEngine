@@ -107,7 +107,7 @@ TSharedPtr<IDatasmithMaterialIDElement> FDatasmithMeshElementImpl::GetMaterialSl
 	return InvalidMaterialID;
 }
 
-static TSharedPtr< IDatasmithKeyValueProperty > NullPropertyPtr;
+TSharedPtr< IDatasmithKeyValueProperty > FDatasmithKeyValuePropertyImpl::NullPropertyPtr;
 
 FDatasmithKeyValuePropertyImpl::FDatasmithKeyValuePropertyImpl(const TCHAR* InName)
 	: FDatasmithElementImpl(InName, EDatasmithElementType::KeyValueProperty)
@@ -324,43 +324,6 @@ void FDatasmithCameraActorElementImpl::SetPostProcess(const TSharedPtr< IDatasmi
 	PostProcess.Inner = InPostProcess;
 }
 
-FDatasmithCustomActorElementImpl::FDatasmithCustomActorElementImpl(const TCHAR* InName)
-	: FDatasmithActorElementImpl(InName, EDatasmithElementType::CustomActor)
-{
-	RegisterReferenceProxy(Properties, "Properties");
-	Store.RegisterParameter(ClassOrPathName, "ClassOrPathName");
-}
-
-const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithCustomActorElementImpl::GetProperty(int32 i) const
-{
-	return Properties.IsValidIndex(i) ? Properties[i] : NullPropertyPtr;
-}
-
-const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithCustomActorElementImpl::GetPropertyByName( const TCHAR* InName ) const
-{
-	int32 Index = Properties.View().IndexOfByPredicate([InName](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
-		return Property.IsValid() && FCString::Stricmp(Property->GetName(), InName) == 0;
-	});
-	return GetProperty(Index);
-}
-
-void FDatasmithCustomActorElementImpl::AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty )
-{
-	if (!InProperty.IsValid())
-	{
-		return;
-	}
-	const TCHAR* InName = InProperty->GetName();
-	int32 Index = Properties.View().IndexOfByPredicate([InName](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
-		return Property.IsValid() && FCString::Stricmp(Property->GetName(), InName) == 0;
-	});
-
-	if (Index == INDEX_NONE)
-	{
-		Properties.Add(InProperty);
-	}
-}
-
 FDatasmithMaterialElementImpl::FDatasmithMaterialElementImpl(const TCHAR* InName)
 	: FDatasmithBaseMaterialElementImpl(InName, EDatasmithElementType::Material)
 {
@@ -420,7 +383,7 @@ FDatasmithMasterMaterialElementImpl::FDatasmithMasterMaterialElementImpl(const T
 
 const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMasterMaterialElementImpl::GetProperty( int32 InIndex ) const
 {
-	return Properties.IsValidIndex( InIndex ) ? Properties[InIndex] : NullPropertyPtr;
+	return Properties.IsValidIndex( InIndex ) ? Properties[InIndex] : FDatasmithKeyValuePropertyImpl::NullPropertyPtr;
 }
 
 const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMasterMaterialElementImpl::GetPropertyByName( const TCHAR* InName ) const
@@ -934,7 +897,7 @@ FDatasmithMetaDataElementImpl::FDatasmithMetaDataElementImpl(const TCHAR* InName
 
 const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMetaDataElementImpl::GetProperty(int32 Index) const
 {
-	return Properties.IsValidIndex(Index) ? Properties[Index] : NullPropertyPtr;
+	return Properties.IsValidIndex(Index) ? Properties[Index] : FDatasmithKeyValuePropertyImpl::NullPropertyPtr;
 }
 
 const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMetaDataElementImpl::GetPropertyByName( const TCHAR* InName ) const
@@ -960,6 +923,60 @@ void FDatasmithMetaDataElementImpl::AddProperty( const TSharedPtr< IDatasmithKey
 	{
 		Properties.Add( InProperty );
 	}
+}
+
+FDatasmithDecalActorElementImpl::FDatasmithDecalActorElementImpl( const TCHAR* InName )
+	: FDatasmithCustomActorElementImpl( InName, EDatasmithElementType::Decal )
+{
+	SetClassOrPathName(TEXT("DecalActor"));
+
+	const TCHAR* SortOrderPropertyName = TEXT("DECAL_SORT_ORDER_PROP");
+	const TCHAR* DimensionsPropertyName = TEXT("DECAL_DIMENSIONS_PROP");
+	const TCHAR* MaterialPropertyName = TEXT("DECAL_MATERIAL_PROP");
+
+	SortOrderPropertyIndex = AddPropertyInternal( SortOrderPropertyName, EDatasmithKeyValuePropertyType::Integer, TEXT("0") );
+	DimensionsPropertyIndex = AddPropertyInternal( DimensionsPropertyName, EDatasmithKeyValuePropertyType::Vector, *FVector::ZeroVector.ToString() );
+	MaterialPropertyIndex = AddPropertyInternal( MaterialPropertyName, EDatasmithKeyValuePropertyType::String, TEXT("") );
+}
+
+FVector FDatasmithDecalActorElementImpl::GetDimensions() const
+{
+	ensure(GetProperty( DimensionsPropertyIndex).IsValid() );
+
+	FVector Dimensions;
+	Dimensions.InitFromString( GetProperty( DimensionsPropertyIndex )->GetValue() );
+
+	return Dimensions;
+}
+
+void FDatasmithDecalActorElementImpl::SetDimensions( const FVector& InDimensions )
+{
+	ensure( GetProperty( DimensionsPropertyIndex ).IsValid() );
+	GetProperty(DimensionsPropertyIndex)->SetValue( *InDimensions.ToString() );
+}
+
+int32 FDatasmithDecalActorElementImpl::GetSortOrder() const
+{
+	ensure( GetProperty( SortOrderPropertyIndex ).IsValid() );
+	return FCString::Atoi( GetProperty( SortOrderPropertyIndex )->GetValue() );
+}
+
+void FDatasmithDecalActorElementImpl::SetSortOrder( int32 InSortOrder )
+{
+	ensure( GetProperty( SortOrderPropertyIndex ).IsValid() );
+	GetProperty( SortOrderPropertyIndex )->SetValue( *FString::FromInt( InSortOrder ) );
+}
+
+const TCHAR* FDatasmithDecalActorElementImpl::GetDecalMaterialPathName() const
+{
+	ensure( GetProperty( MaterialPropertyIndex ).IsValid() );
+	return GetProperty( MaterialPropertyIndex )->GetValue();
+}
+
+void FDatasmithDecalActorElementImpl::SetDecalMaterialPathName( const TCHAR* InMaterialPathName )
+{
+	ensure( GetProperty( MaterialPropertyIndex ).IsValid() );
+	GetProperty( MaterialPropertyIndex )->SetValue( InMaterialPathName );
 }
 
 FDatasmithSceneImpl::FDatasmithSceneImpl(const TCHAR * InName)
@@ -1010,6 +1027,7 @@ void FDatasmithSceneImpl::Reset()
 	ProductVersion = TEXT("");
 	UserID = TEXT("");
 	UserOS = TEXT("");
+	ResourcePath = TEXT("");
 
 	ExportDuration = 0;
 

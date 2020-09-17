@@ -79,6 +79,8 @@ public:
 	const TCHAR* GetValue() const override { return *Value.Get(Store); }
 	void SetValue( const TCHAR* InValue ) override;
 
+	static TSharedPtr< IDatasmithKeyValueProperty > NullPropertyPtr;
+
 protected:
 	void FormatValue();
 
@@ -856,10 +858,18 @@ private:
 	TReflected<bool>    bLookAtAllowRoll;
 };
 
-class DATASMITHCORE_API FDatasmithCustomActorElementImpl : public FDatasmithActorElementImpl< IDatasmithCustomActorElement >
+template< typename InterfaceType = IDatasmithCustomActorElement >
+class DATASMITHCORE_API FDatasmithCustomActorElementImpl : public FDatasmithActorElementImpl< InterfaceType >
 {
 public:
-	explicit FDatasmithCustomActorElementImpl(const TCHAR* InName);
+	using FDatasmithElementImpl< InterfaceType >::Store;
+
+	explicit FDatasmithCustomActorElementImpl(const TCHAR* InName, EDatasmithElementType InChildType = EDatasmithElementType::None)
+		: FDatasmithActorElementImpl< InterfaceType >(InName, EDatasmithElementType::CustomActor | InChildType)
+	{
+		this->RegisterReferenceProxy(Properties, "Properties");
+		Store.RegisterParameter(ClassOrPathName, "ClassOrPathName");
+	}
 
 	/** The class name or path to the blueprint to instantiate. */
 	virtual const TCHAR* GetClassOrPathName() const override { return *(FString&)ClassOrPathName; }
@@ -869,18 +879,63 @@ public:
 	virtual int32 GetPropertiesCount() const override { return Properties.Num(); }
 
 	/** Get the property i-th of this actor */
-	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) const override;
+	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 Index) const override
+	{
+		return Properties.IsValidIndex(Index) ? Properties[Index] : FDatasmithKeyValuePropertyImpl::NullPropertyPtr;
+	}
 
 	/** Get a property by its name if it exists */
-	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) const override;
+	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* InName) const override
+	{
+		const int32 Index = Properties.View().IndexOfByPredicate([InName](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
+			return Property.IsValid() && FCString::Stricmp(Property->GetName(), InName) == 0;
+			});
+		return GetProperty(Index);
+	}
 
 	/** Add a property to this actor */
-	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) override;
+	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty ) override
+	{
+		if (!InProperty.IsValid())
+		{
+			return;
+		}
+
+		const TCHAR* InName = InProperty->GetName();
+		const int32 Index = Properties.View().IndexOfByPredicate([InName](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
+			return Property.IsValid() && FCString::Stricmp(Property->GetName(), InName) == 0;
+			});
+
+		if (Index == INDEX_NONE)
+		{
+			Properties.Add(InProperty);
+		}
+	}
 
 	/** Removes a property from this actor, doesn't preserve ordering */
 	virtual void RemoveProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) override { Properties.Edit().RemoveSingleSwap( Property ); }
 
 
+
+protected:
+	/** Add a property to this actor */
+	int32 AddPropertyInternal(const TCHAR* InKey, EDatasmithKeyValuePropertyType InType, const TCHAR* InValue)
+	{
+		const int32 Index = Properties.View().IndexOfByPredicate([InKey](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
+			return Property.IsValid() && FCString::Stricmp(Property->GetName(), InKey) == 0;
+			});
+
+		if (Index == INDEX_NONE)
+		{
+			TSharedPtr<IDatasmithKeyValueProperty> Property = MakeShared<FDatasmithKeyValuePropertyImpl>(InKey);
+			Property->SetPropertyType(InType);
+			Property->SetValue(InValue);
+
+			return Properties.Add( Property );
+		}
+
+		return INDEX_NONE;
+	}
 
 private:
 	TReflected<FString> ClassOrPathName;
@@ -1279,14 +1334,14 @@ class FDatasmithMasterMaterialElementImpl : public FDatasmithBaseMaterialElement
 public:
 	FDatasmithMasterMaterialElementImpl(const TCHAR* InName);
 
-	virtual EDatasmithMasterMaterialType GetMaterialType() const { return MaterialType; }
+	virtual EDatasmithMasterMaterialType GetMaterialType() const override { return MaterialType; }
 	virtual void SetMaterialType( EDatasmithMasterMaterialType InType ) override { MaterialType = InType; }
 
-	virtual EDatasmithMasterMaterialQuality GetQuality() const { return Quality; }
-	virtual void SetQuality( EDatasmithMasterMaterialQuality InQuality ) { Quality = InQuality; }
+	virtual EDatasmithMasterMaterialQuality GetQuality() const override { return Quality; }
+	virtual void SetQuality( EDatasmithMasterMaterialQuality InQuality ) override { Quality = InQuality; }
 
-	virtual const TCHAR* GetCustomMaterialPathName() const { return *(FString&)CustomMaterialPathName; }
-	virtual void SetCustomMaterialPathName( const TCHAR* InPathName ){ CustomMaterialPathName = InPathName; }
+	virtual const TCHAR* GetCustomMaterialPathName() const override { return *(FString&)CustomMaterialPathName; }
+	virtual void SetCustomMaterialPathName( const TCHAR* InPathName ) override { CustomMaterialPathName = InPathName; }
 
 	virtual int32 GetPropertiesCount() const override { return Properties.Num(); }
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty( int32 InIndex ) const override;
@@ -1300,6 +1355,27 @@ private:
 	TReflected<EDatasmithMasterMaterialQuality, uint8> Quality;
 
 	TReflected<FString> CustomMaterialPathName;
+};
+
+class FDatasmithDecalMaterialElementImpl : public FDatasmithBaseMaterialElementImpl< IDatasmithDecalMaterialElement >
+{
+public:
+	FDatasmithDecalMaterialElementImpl(const TCHAR* InName)
+		: FDatasmithBaseMaterialElementImpl(InName, EDatasmithElementType::DecalMaterial)
+	{
+		Store.RegisterParameter(DiffuseTexturePathName, "DiffuseTexturePathName");
+		Store.RegisterParameter(NormalTexturePathName,  "NormalTexturePathName");
+	}
+
+	virtual const TCHAR* GetDiffuseTexturePathName() const override { return *(FString&)DiffuseTexturePathName; }
+	virtual void SetDiffuseTexturePathName( const TCHAR* InPathName ) override { DiffuseTexturePathName = InPathName; }
+
+	virtual const TCHAR* GetNormalTexturePathName() const override { return *(FString&)NormalTexturePathName; }
+	virtual void SetNormalTexturePathName( const TCHAR* InPathName ) override { NormalTexturePathName = InPathName; }
+
+private:
+	TReflected<FString> DiffuseTexturePathName;
+	TReflected<FString> NormalTexturePathName;
 };
 
 class FDatasmithCompositeSurface
@@ -1425,6 +1501,25 @@ private:
 	TDatasmithReferenceArrayProxy<IDatasmithKeyValueProperty> Properties;
 };
 
+class DATASMITHCORE_API FDatasmithDecalActorElementImpl : public FDatasmithCustomActorElementImpl< IDatasmithDecalActorElement >
+{
+public:
+	explicit FDatasmithDecalActorElementImpl( const TCHAR* InName );
+
+	virtual FVector GetDimensions() const;
+	virtual void SetDimensions( const FVector& InDimensions );
+
+	virtual const TCHAR* GetDecalMaterialPathName() const;
+	virtual void SetDecalMaterialPathName( const TCHAR* InMaterialPathName );
+
+	virtual int32 GetSortOrder() const;
+	virtual void SetSortOrder( int32 InSortOrder );
+
+private:
+	int32 SortOrderPropertyIndex;
+	int32 DimensionsPropertyIndex;
+	int32 MaterialPropertyIndex;
+};
 
 class DATASMITHCORE_API FDatasmithSceneImpl : public FDatasmithElementImpl< IDatasmithScene >
 {

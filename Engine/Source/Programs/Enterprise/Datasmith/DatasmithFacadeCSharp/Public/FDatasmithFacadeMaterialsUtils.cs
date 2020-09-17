@@ -262,4 +262,16 @@ public class FDatasmithFacadeMaterialsUtils : global::System.IDisposable {
 	}
 }
 
+  public static FDatasmithFacadeTexture CreateSimpleTextureElement(string InTextureFilePath, FDatasmithFacadeTexture.ETextureMode InTextureMode) {
+    global::System.IntPtr cPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialsUtils_CreateSimpleTextureElement__SWIG_0(InTextureFilePath, (int)InTextureMode);
+    FDatasmithFacadeTexture ret = (cPtr == global::System.IntPtr.Zero) ? null : new FDatasmithFacadeTexture(cPtr, false);
+    return ret;
+  }
+
+  public static FDatasmithFacadeTexture CreateSimpleTextureElement(string InTextureFilePath) {
+    global::System.IntPtr cPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialsUtils_CreateSimpleTextureElement__SWIG_1(InTextureFilePath);
+    FDatasmithFacadeTexture ret = (cPtr == global::System.IntPtr.Zero) ? null : new FDatasmithFacadeTexture(cPtr, false);
+    return ret;
+  }
+
 }

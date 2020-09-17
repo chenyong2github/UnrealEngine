@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "DirectLinkMessages.h"
-
-#include "DirectLink/Network/DirectLinkISceneProvider.h"
-#include "DirectLink/Network/DirectLinkStream.h"
+#include "DirectLink/Network/DirectLinkStreamDescription.h"
+#include "DirectLink/Network/DirectLinkStreamDestination.h"
+#include "DirectLink/Network/DirectLinkStreamSource.h"
 
 #include "Async/Future.h"
-#include "MessageEndpoint.h"
 #include <atomic>
 
 struct FDirectLinkMsg_EndpointLifecycle;
@@ -19,7 +17,6 @@ struct FDirectLinkMsg_DeltaMessage;
 
 namespace DirectLink
 {
-class FLocalSceneIndex;
 class ISceneGraphNode;
 
 struct FRawInfo
@@ -27,19 +24,23 @@ struct FRawInfo
 	struct FEndpointInfo
 	{
 		FEndpointInfo() = default;
-		FEndpointInfo(const FMessageAddress& A, const FDirectLinkMsg_EndpointState& Msg);
+		FEndpointInfo(const FDirectLinkMsg_EndpointState& Msg);
 		FString Name;
-		FMessageAddress a;
-
-		// #ue_directlink_integration: suggested: unreal version, IP address, ...
-		FDirectLinkMsg_EndpointState x; // tmp
+		TArray<FNamedId> Destinations;
+		TArray<FNamedId> Sources;
+		FString UserName;
+		FString ExecutableName;
+		FString ComputerName;
+		uint32 ProcessId;
 	};
 
 	struct FDataPointInfo
 	{
 		FMessageAddress EndpointAddress;
-		bool bIsSource;
-		bool bIsLocal;
+		FString Name;
+		bool bIsSource; // as opposed to destination
+		bool bIsLocal;  // is hosted by this endpoint
+		bool bIsPublic; // if public, can be displayed as candidate for connection
 	};
 
 	struct FStreamInfo
@@ -48,6 +49,10 @@ struct FRawInfo
 		FGuid Source;
 		FGuid Destination;
 		bool bIsActive;
+		/**
+		 * #ue_directlink_integration Adding some sort of state reporting (ex: idle, exporting scene, Transmitting, Translating)
+		 * Add also some sort of progress report (a float).
+		 */
 	};
 	FMessageAddress ThisEndpointAddress;
 	TMap<FMessageAddress, FEndpointInfo> EndpointsInfo;
@@ -59,6 +64,8 @@ struct FRawInfo
 class IEndpointObserver
 {
 public:
+	virtual ~IEndpointObserver() = default;
+
 	virtual void OnStateChanged(const FRawInfo& RawInfo) {}
 };
 
@@ -80,6 +87,8 @@ public:
 		AlreadyOpened,
 		SourceAndDestinationNotFound,
 		RemoteEndpointNotFound,
+		Unsuppported,
+		CannotConnectToPrivate,
 	};
 
 public:
@@ -87,6 +96,13 @@ public:
 	void SetVerbose(bool bVerbose=true) { SharedState.bDebugLog = bVerbose; }
 	~FEndpoint();
 
+	/**
+	 * Add a Source that host content (a scene snapshot) and is able to stream
+	 * it to remote destinations.
+	 * @param Name            Public, user facing name for this source.
+	 * @param Visibility      Whether that Source is visible to remote endpoints
+	 * @return A Handle required by other Source related methods
+	 */
 	FSourceHandle AddSource(const FString& Name, EVisibility Visibility);
 	void RemoveSource(const FSourceHandle& Source);
 	void SetSourceRoot(const FSourceHandle& Source, ISceneGraphNode* InRoot, bool bSnapshot);
@@ -109,6 +125,7 @@ private:
 	struct FSharedState
 	{
 		FSharedState(const FString& NiceName) : NiceName(NiceName) {}
+
 		mutable FRWLock SourcesLock;
 		TArray<TSharedPtr<FStreamSource>> Sources;
 		std::atomic<bool> bDirtySources{false};
@@ -118,7 +135,7 @@ private:
 		std::atomic<bool> bDirtyDestinations{false};
 
 		mutable FRWLock StreamsLock;
-		FStreamPort StreamPortIdGenerator = 0;
+		FStreamPort StreamPortIdGenerator = InvalidStreamPort;
 		TArray<FStreamDescription> Streams; // map streamportId -> stream ? array of N ports ?
 
 		// cleared on inner thread loop start
@@ -146,12 +163,13 @@ private:
 		void Run(); // once, blocking, inner thread only
 
 	private:
+		void Handle_DeltaMessage(const FDirectLinkMsg_DeltaMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+		void Handle_HaveListMessage(const FDirectLinkMsg_HaveListMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 		void Handle_EndpointLifecycle(const FDirectLinkMsg_EndpointLifecycle& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 		void Handle_QueryEndpointState(const FDirectLinkMsg_QueryEndpointState& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 		void Handle_EndpointState(const FDirectLinkMsg_EndpointState& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 		void Handle_OpenStreamRequest(const FDirectLinkMsg_OpenStreamRequest& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 		void Handle_OpenStreamAnswer(const FDirectLinkMsg_OpenStreamAnswer& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-		void Handle_DeltaMessage(const FDirectLinkMsg_DeltaMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 		void Handle_CloseStreamRequest(const FDirectLinkMsg_CloseStreamRequest& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 		/** Check if a received message is sent by 'this' endpoint.
@@ -167,18 +185,23 @@ private:
 		 * This covers all failure case, and is lightweight as only the revision number is frequently broadcasted. */
 		void ReplicateState(const FMessageAddress& RemoteEndpointAddress) const;
 		void ReplicateState_Broadcast() const;
-		void Heartbeat_Broadcast() const;
 
 		FString ToString_dbg() const;
 
 		void UpdateSourceDescription();
 		void UpdateDestinationDescription();
 
+		TUniquePtr<FStreamReceiver> MakeReceiver(FGuid SourceGuid, FGuid DestinationGuid, FMessageAddress RemoteAddress, FStreamPort RemotePort);
+		TSharedPtr<FStreamSender> MakeSender(FGuid SourceGuid, FMessageAddress RemoteAddress, FStreamPort RemotePort);
+
+		void RemoveEndpoint(const FMessageAddress& RemoteEndpointAddress);
+		void MarkRemoteAsSeen(const FMessageAddress& RemoteEndpointAddress);
+		void CleanupTimedOutEndpoint();
+
 	private:
 		FEndpoint& Owner;
 		FSharedState& SharedState;
 
-		// #ue_directlink_integration
 		TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
 		TMap<FMessageAddress, FDirectLinkMsg_EndpointState> RemoteEndpointDescriptions;
 		FDirectLinkMsg_EndpointState ThisDescription;
@@ -186,13 +209,15 @@ private:
 		// state replication
 		double Now_s = 0;
 		double LastHeartbeatTime_s = 0;
-		mutable uint32 LastBroadcastedStateRevision = 0; // not shared (inner thread)
+		double LastEndpointCleanupTime_s = 0;
+		mutable uint32 LastBroadcastedStateRevision = 0;
+		TMap<FMessageAddress, double> RemoteLastSeenTime;
 	};
 
 	/** Inner thread allows async network communication, which avoids user thread to be locked on every sync. */
 	FInternalThreadState Internal;
 	FEvent* InnerThreadEvent;
-	TFuture<bool> InnerThreadResult; // allow to join() in the dtr
+	TFuture<void> InnerThreadResult; // allow to join() in the dtr
 	uint32 InnerThreadId = 0;
 };
 

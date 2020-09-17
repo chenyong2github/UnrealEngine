@@ -38,13 +38,31 @@ public class FDatasmithFacadeMasterMaterial : FDatasmithFacadeBaseMaterial {
   public FDatasmithFacadeMasterMaterial(string InElementName) : this(DatasmithFacadeCSharpPINVOKE.new_FDatasmithFacadeMasterMaterial(InElementName), true) {
   }
 
-  public override FDatasmithFacadeBaseMaterial.EFacadeMaterialType GetMaterialType() {
-    FDatasmithFacadeBaseMaterial.EFacadeMaterialType ret = (FDatasmithFacadeBaseMaterial.EFacadeMaterialType)DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_GetMaterialType(swigCPtr);
+  public FDatasmithFacadeMasterMaterial.EMasterMaterialType GetMaterialType() {
+    FDatasmithFacadeMasterMaterial.EMasterMaterialType ret = (FDatasmithFacadeMasterMaterial.EMasterMaterialType)DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_GetMaterialType(swigCPtr);
     return ret;
   }
 
-  public void SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType InMasterMaterialType) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_SetMasterMaterialType(swigCPtr, (int)InMasterMaterialType);
+  public void SetMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType InMasterMaterialType) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_SetMaterialType(swigCPtr, (int)InMasterMaterialType);
+  }
+
+  public FDatasmithFacadeMasterMaterial.EMasterMaterialQuality GetQuality() {
+    FDatasmithFacadeMasterMaterial.EMasterMaterialQuality ret = (FDatasmithFacadeMasterMaterial.EMasterMaterialQuality)DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_GetQuality(swigCPtr);
+    return ret;
+  }
+
+  public void SetQuality(FDatasmithFacadeMasterMaterial.EMasterMaterialQuality InQuality) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_SetQuality(swigCPtr, (int)InQuality);
+  }
+
+  public string GetCustomMaterialPathName() {
+    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_GetCustomMaterialPathName(swigCPtr));
+    return ret;
+  }
+
+  public void SetCustomMaterialPathName(string InPathName) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_SetCustomMaterialPathName(swigCPtr, InPathName);
   }
 
   public void AddColor(string InPropertyName, byte InR, byte InG, byte InB, byte InA) {
@@ -55,12 +73,8 @@ public class FDatasmithFacadeMasterMaterial : FDatasmithFacadeBaseMaterial {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_AddColor__SWIG_1(swigCPtr, InPropertyName, InR, InG, InB, InA);
   }
 
-  public void AddTexture(string InPropertyName, string InTextureFilePath, FDatasmithFacadeTexture.ETextureMode InTextureMode) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_AddTexture__SWIG_0(swigCPtr, InPropertyName, InTextureFilePath, (int)InTextureMode);
-  }
-
-  public void AddTexture(string InPropertyName, string InTextureFilePath) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_AddTexture__SWIG_1(swigCPtr, InPropertyName, InTextureFilePath);
+  public void AddTexture(string InPropertyName, FDatasmithFacadeTexture InTexture) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_AddTexture(swigCPtr, InPropertyName, FDatasmithFacadeTexture.getCPtr(InTexture));
   }
 
   public void AddString(string InPropertyName, string InPropertyValue) {
@@ -75,10 +89,49 @@ public class FDatasmithFacadeMasterMaterial : FDatasmithFacadeBaseMaterial {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_AddBoolean(swigCPtr, InPropertyName, bInPropertyValue);
   }
 
+  public int GetPropertiesCount() {
+    int ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_GetPropertiesCount(swigCPtr);
+    return ret;
+  }
+
+  public FDatasmithFacadeKeyValueProperty GetProperty(int PropertyIndex) {
+	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_GetProperty(swigCPtr, PropertyIndex);
+	if(objectPtr == global::System.IntPtr.Zero)
+	{
+		return null;
+	}
+	else
+	{
+		return new FDatasmithFacadeKeyValueProperty(objectPtr, true);
+	}
+}
+
+  public FDatasmithFacadeKeyValueProperty GetPropertyByName(string PropertyName) {
+	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMasterMaterial_GetPropertyByName(swigCPtr, PropertyName);
+	if(objectPtr == global::System.IntPtr.Zero)
+	{
+		return null;
+	}
+	else
+	{
+		return new FDatasmithFacadeKeyValueProperty(objectPtr, true);
+	}
+}
+
   public enum EMasterMaterialType {
+    Auto,
     Opaque,
     Transparent,
-    CutOut
+    ClearCoat,
+    Custom,
+    CutOut,
+    Count
+  }
+
+  public enum EMasterMaterialQuality {
+    High,
+    Low,
+    Count
   }
 
 }

@@ -3,6 +3,7 @@
 #pragma once
 
 // Datasmith facade.
+#include "DatasmithFacadeTexture.h"
 #include "DatasmithFacadeUEPbrMaterial.h"
 
 #include "CoreMinimal.h"
@@ -118,4 +119,12 @@ public:
 	 */
 	static FDatasmithFacadeMaterialExpression* CreateNewFacadeWeightedMaterialExpression( FDatasmithFacadeUEPbrMaterial& MaterialElement, const TCHAR* ParameterName, FWeightedMaterialExpressionParameters& WeightedExpressionParameter );
 
+	/**
+	 * Create a new FDatasmithFacadeTexture and automatically fill its properties from the given arguments.
+	 * The returned pointer can be null if the path in empty and must be deleted after use.
+	 *
+	 * @param InTextureFilePath	The file path of the texture, used to determine the texture name and label as well.
+	 * @param InTextureMode		The mode of the texture, used to determine the texture name and label as well.
+	 */
+	static FDatasmithFacadeTexture* CreateSimpleTextureElement( const TCHAR* InTextureFilePath, FDatasmithFacadeTexture::ETextureMode InTextureMode = FDatasmithFacadeTexture::ETextureMode::Diffuse );
 };

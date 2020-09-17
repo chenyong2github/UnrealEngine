@@ -53,6 +53,9 @@ namespace DatasmithRevitExporter
 		// List of extra search paths for Revit texture files.
 		private IList<string> ExtraTexturePaths = new List<string>();
 
+		// HashSet of exported texture names, used to make sure we only export each texture once.
+		private HashSet<string> UniqueTextureNameSet = new HashSet<string>();
+
 		// List of messages generated during the export process.
 		private List<string> MessageList = new List<string>();
 
@@ -180,12 +183,6 @@ namespace DatasmithRevitExporter
 			return RenderNodeAction.Proceed;
 		}
 
-		private void OptimizeScene()
-		{
-			// Optimize the Datasmith actor hierarchy by removing the intermediate single child actors.
-			//DatasmithScene.Optimize();
-		}
-
 		// OnViewEnd marks the end of a 3D view being exported.
 		// This method is invoked even for 3D views that were skipped.
 		public void OnViewEnd(
@@ -198,8 +195,6 @@ namespace DatasmithRevitExporter
 			// Check if this is regular file export.
 			if (DirectLink == null)
 			{
-				OptimizeScene();
-
 				// Build and export the Datasmith scene instance and its scene element assets.
 				DatasmithScene.ExportScene(CurrentDatasmithFilePath);
 
@@ -220,20 +215,20 @@ namespace DatasmithRevitExporter
 			ElementId InElementId // exported element ID
 		)
 		{
-			CurrentElementSkipped = false;
+			CurrentElementSkipped = true;
 
 			Element CurrentElement = GetElement(InElementId);
 
-			if (CurrentElement != null)
+			if (CurrentElement != null && !CurrentElement.IsTransient)
 			{
 				// Keep track of the element being processed.
 				if (!PushElement(CurrentElement, WorldTransformStack.Peek(), "Element Begin"))
 				{
-					CurrentElementSkipped = true;
 					return RenderNodeAction.Skip; // Cached element.
 				}
 
 				// We want to export the element.
+				CurrentElementSkipped = false;
 				return RenderNodeAction.Proceed;
 			}
 
@@ -615,11 +610,11 @@ namespace DatasmithRevitExporter
 
 			if (DocumentDataStack.Count == 0)
 			{
-				DocumentData.WrapupScene(DatasmithScene, DirectLink == null);
+				DocumentData.WrapupScene(DatasmithScene, DirectLink == null, UniqueTextureNameSet);
 			}
 			else
 			{
-				DocumentData.WrapupLink(DatasmithScene, DocumentDataStack.Peek().GetCurrentActor());
+				DocumentData.WrapupLink(DatasmithScene, DocumentDataStack.Peek().GetCurrentActor(), UniqueTextureNameSet);
 			}
 		}
 

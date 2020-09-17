@@ -62,8 +62,8 @@ public class FDatasmithFacadeMetaData : FDatasmithFacadeElement {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_AddPropertyVector(swigCPtr, InPropertyName, InPropertyValue);
   }
 
-  public void AddCustomProperty(string InPropertyName, string InPropertyValue, FDatasmithFacadeMetaData.EPropertyType InPropertyType) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_AddCustomProperty(swigCPtr, InPropertyName, InPropertyValue, (int)InPropertyType);
+  public void AddProperty(FDatasmithFacadeKeyValueProperty InProperty) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_AddProperty(swigCPtr, FDatasmithFacadeKeyValueProperty.getCPtr(InProperty));
   }
 
   public int GetPropertiesCount() {
@@ -71,34 +71,20 @@ public class FDatasmithFacadeMetaData : FDatasmithFacadeElement {
     return ret;
   }
 
-  public string GetPropertyName(int PropertyIndex) {
-    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_GetPropertyName(swigCPtr, PropertyIndex));
-    return ret;
-  }
-
-  public string GetPropertyValue(int PropertyIndex) {
-    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_GetPropertyValue(swigCPtr, PropertyIndex));
-    return ret;
-  }
-
-  public bool GetPropertyType(int PropertyIndex, out FDatasmithFacadeMetaData.EPropertyType OutPropertyType) {
-    bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_GetPropertyType(swigCPtr, PropertyIndex, out OutPropertyType);
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-    return ret;
-  }
+  public FDatasmithFacadeKeyValueProperty GetProperty(int PropertyIndex) {
+	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_GetProperty(swigCPtr, PropertyIndex);
+	if(objectPtr == global::System.IntPtr.Zero)
+	{
+		return null;
+	}
+	else
+	{
+		return new FDatasmithFacadeKeyValueProperty(objectPtr, true);
+	}
+}
 
   public void SetAssociatedElement(FDatasmithFacadeElement Element) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_SetAssociatedElement(swigCPtr, FDatasmithFacadeElement.getCPtr(Element));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-  }
-
-  public enum EPropertyType {
-    String,
-    Color,
-    Float,
-    Bool,
-    Texture,
-    Vector
   }
 
 }

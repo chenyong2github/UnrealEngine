@@ -35,14 +35,15 @@ public class FDatasmithFacadeBaseMaterial : FDatasmithFacadeElement {
     }
   }
 
-  public virtual FDatasmithFacadeBaseMaterial.EFacadeMaterialType GetMaterialType() {
-    FDatasmithFacadeBaseMaterial.EFacadeMaterialType ret = (FDatasmithFacadeBaseMaterial.EFacadeMaterialType)DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeBaseMaterial_GetMaterialType(swigCPtr);
+  public FDatasmithFacadeBaseMaterial.EDatasmithMaterialType GetDatasmithMaterialType() {
+    FDatasmithFacadeBaseMaterial.EDatasmithMaterialType ret = (FDatasmithFacadeBaseMaterial.EDatasmithMaterialType)DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeBaseMaterial_GetDatasmithMaterialType(swigCPtr);
     return ret;
   }
 
-  public enum EFacadeMaterialType {
+  public enum EDatasmithMaterialType {
     MasterMaterial,
-    UEPbrMaterial
+    UEPbrMaterial,
+    Unsupported
   }
 
 }

@@ -39,6 +39,8 @@ namespace DatasmithRuntime
 
 	void FSceneImporter::ProcessMeshData(FAssetData& MeshData)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMeshData);
+
 		if (MeshData.bProcessed)
 		{
 			return;
@@ -56,7 +58,9 @@ namespace DatasmithRuntime
 			UPackage* Package = CreatePackage(nullptr, *FPaths::Combine(TEXT("/Engine/Transient/LU"), MeshName));
 			StaticMesh = NewObject< UStaticMesh >(Package, *MeshName, RF_Public);
 #else
-			StaticMesh = NewObject< UStaticMesh >();
+			FString MeshName = TEXT("SM_") + FString(SceneElement->GetName()) + TEXT("_") + FString::FromInt(MeshData.ElementId);
+			MeshName = FDatasmithUtils::SanitizeObjectName(MeshName);
+			StaticMesh = NewObject< UStaticMesh >(GetTransientPackage(), *MeshName);
 #endif
 			check(StaticMesh);
 
@@ -92,9 +96,6 @@ namespace DatasmithRuntime
 			// Done to remove an assert from an 'ensure' in UStaticMesh::GetUVChannelData
 			StaticMaterial.UVChannelData = FMeshUVChannelInfo(1.f);
 
-			StaticMaterial.MaterialSlotName = NAME_None;
-			StaticMaterial.MaterialInterface = GetDefaultMaterial();
-
 			// #ue_liveupdate: Revisit assignment of materials as it works on ids
 			if (const IDatasmithMaterialIDElement* MaterialIDElement = MeshElement->GetMaterialSlotAt(Index).Get())
 			{
@@ -127,6 +128,8 @@ namespace DatasmithRuntime
 
 	bool FSceneImporter::ProcessMeshActorData(FActorData& ActorData, IDatasmithMeshActorElement* MeshActorElement)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMeshActorData);
+
 		if (ActorData.bProcessed)
 		{
 			return true;
@@ -325,6 +328,8 @@ namespace DatasmithRuntime
 
 	bool FSceneImporter::CreateStaticMesh(FSceneGraphId ElementId, float LightmapWeight)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateStaticMesh);
+
 		TSharedRef< IDatasmithMeshElement > MeshElement = StaticCastSharedPtr< IDatasmithMeshElement >(Elements[ElementId]).ToSharedRef();
 
 		TFunction<bool()> MaterialRequiresAdjacency;
@@ -350,6 +355,7 @@ namespace DatasmithRuntime
 
 		FAssetData& MeshData = AssetDataList[ElementId];
 
+		// #ueent_datasmithruntime: TODO - Stop processing if reset has set
 		UStaticMesh* StaticMesh = MeshData.GetObject<UStaticMesh>();
 		if (StaticMesh == nullptr)
 		{
@@ -549,14 +555,18 @@ namespace DatasmithRuntime
 		// #ue_liveupdate: Multi-threading issue with BodySetup::CreatePhysicsMeshes.
 		static bool bEnableCollision = false;
 
-		// Do not mark the package dirty since MarkPackageDirty is not thread safe
-		UStaticMesh::FBuildMeshDescriptionsParams Params;
-		Params.bUseHashAsGuid = true;
-		Params.bMarkPackageDirty = false;
-		Params.bBuildSimpleCollision = bEnableCollision;
-		// Do not commit since we only need the render data and commit is slow
-		Params.bCommitMeshDescription = false;
-		StaticMesh->BuildFromMeshDescriptions(MeshDescriptionPointers, Params);
+		{
+			FGCScopeGuard GCGuard;
+
+			// Do not mark the package dirty since MarkPackageDirty is not thread safe
+			UStaticMesh::FBuildMeshDescriptionsParams Params;
+			Params.bUseHashAsGuid = true;
+			Params.bMarkPackageDirty = false;
+			Params.bBuildSimpleCollision = bEnableCollision;
+			// Do not commit since we only need the render data and commit is slow
+			Params.bCommitMeshDescription = false;
+			StaticMesh->BuildFromMeshDescriptions(MeshDescriptionPointers, Params);
+		}
 
 		// Free up memory
 		MeshDescriptions.Empty();
@@ -572,6 +582,8 @@ namespace DatasmithRuntime
 
 	EActionResult::Type FSceneImporter::CreateMeshComponent(FSceneGraphId ActorId, UStaticMesh* StaticMesh)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateMeshComponent);
+
 		if (StaticMesh == nullptr)
 		{
 			return EActionResult::Succeeded;
@@ -616,6 +628,10 @@ namespace DatasmithRuntime
 			MeshComponent->MarkRenderStateDirty();
 		}
 
+		// #ueent_datasmithruntime: Enable collision after mesh component has been displayed. Can this be multi-threaded?
+		MeshComponent->bAlwaysCreatePhysicsState = false;
+		MeshComponent->BodyInstance.SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 		MeshComponent->SetStaticMesh(StaticMesh);
 #if WITH_EDITOR
 		StaticMesh->ClearFlags(RF_Public);
@@ -652,6 +668,8 @@ namespace DatasmithRuntime
 
 	EActionResult::Type FSceneImporter::AssignMaterial(const FReferencer& Referencer, UMaterialInstanceDynamic* Material)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::AssignMaterial);
+
 		if (Material == nullptr)
 		{
 			// #ue_dsruntime: Log message material not assigned

@@ -57,6 +57,10 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		return CreateCustomActor( InName );
 	case EDatasmithElementType::HierarchicalInstanceStaticMesh:
 		return CreateHierarchicalInstanceStaticMeshActor( InName );
+	case EDatasmithElementType::Decal:
+		return CreateDecalActor( InName );
+	case EDatasmithElementType::DecalMaterial:
+		return CreateDecalMaterial( InName );
 	default:
 		ensure( false );
 		break;
@@ -82,7 +86,7 @@ TSharedRef< IDatasmithCompositeTexture > FDatasmithSceneFactory::CreateComposite
 
 TSharedRef< IDatasmithCustomActorElement > FDatasmithSceneFactory::CreateCustomActor( const TCHAR* InName )
 {
-	return MakeShared< FDatasmithCustomActorElementImpl >( InName );
+	return MakeShared< FDatasmithCustomActorElementImpl<IDatasmithCustomActorElement> >( InName );
 }
 
 TSharedRef< IDatasmithLandscapeElement > FDatasmithSceneFactory::CreateLandscape( const TCHAR* InName )
@@ -233,6 +237,16 @@ TSharedRef< IDatasmithPropertyCaptureElement > FDatasmithSceneFactory::CreatePro
 TSharedRef< IDatasmithObjectPropertyCaptureElement > FDatasmithSceneFactory::CreateObjectPropertyCapture()
 {
 	return MakeShared< FDatasmithObjectPropertyCaptureElementImpl >();
+}
+
+TSharedRef<IDatasmithDecalActorElement> FDatasmithSceneFactory::CreateDecalActor(const TCHAR* InName)
+{
+	return MakeShared< FDatasmithDecalActorElementImpl >( InName );
+}
+
+TSharedRef<IDatasmithDecalMaterialElement> FDatasmithSceneFactory::CreateDecalMaterial(const TCHAR* InName)
+{
+	return MakeShared< FDatasmithDecalMaterialElementImpl >( InName );
 }
 
 TSharedRef< IDatasmithScene > FDatasmithSceneFactory::CreateScene( const TCHAR* InName )

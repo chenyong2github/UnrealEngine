@@ -2,6 +2,7 @@
 
 #include "DatasmithFacadeUEPbrMaterial.h"
 
+#include "DatasmithFacadeKeyValueProperty.h"
 #include "DatasmithFacadeScene.h"
 
 #include "DatasmithUtils.h"
@@ -283,47 +284,19 @@ int32 FDatasmithFacadeMaterialExpressionGeneric::GetPropertiesCount() const
 	return static_cast<IDatasmithMaterialExpressionGeneric*>( InternalMaterialExpression )->GetPropertiesCount();
 }
 
-void FDatasmithFacadeMaterialExpressionGeneric::AddProperty( const TCHAR* PropertyName, EDatasmithFacadeKeyValuePropertyType PropertyType, const TCHAR* PropertyValue )
+void FDatasmithFacadeMaterialExpressionGeneric::AddProperty( const FDatasmithFacadeKeyValueProperty* InPropertyPtr )
 {
-	TSharedPtr<IDatasmithKeyValueProperty> Property = FDatasmithSceneFactory::CreateKeyValueProperty( PropertyName );
-	Property->SetPropertyType( static_cast<EDatasmithKeyValuePropertyType>(PropertyType) );
-	Property->SetValue( PropertyValue );
-
-	static_cast<IDatasmithMaterialExpressionGeneric*>( InternalMaterialExpression )->AddProperty( Property );
-}
-
-bool FDatasmithFacadeMaterialExpressionGeneric::GetPropertyType( int32 Index, EDatasmithFacadeKeyValuePropertyType& OutPropertyType )
-{
-	TSharedPtr<IDatasmithKeyValueProperty> Property = static_cast<IDatasmithMaterialExpressionGeneric*>( InternalMaterialExpression )->GetProperty( Index );
-
-	if ( Property.IsValid() )
+	if ( InPropertyPtr )
 	{
-		OutPropertyType = static_cast<EDatasmithFacadeKeyValuePropertyType>(Property->GetPropertyType());
-		return true;
+		static_cast<IDatasmithMaterialExpressionGeneric*>( InternalMaterialExpression )->AddProperty( InPropertyPtr->GetDatasmithKeyValueProperty() );
 	}
-
-	return false;
 }
 
-const TCHAR* FDatasmithFacadeMaterialExpressionGeneric::GetPropertyValue( int32 Index )
+FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMaterialExpressionGeneric::GetNewProperty( int32 Index )
 {
-	TSharedPtr<IDatasmithKeyValueProperty> Property = static_cast<IDatasmithMaterialExpressionGeneric*>( InternalMaterialExpression )->GetProperty( Index );
-
-	if ( Property.IsValid() )
+	if ( const TSharedPtr<IDatasmithKeyValueProperty>& Property = static_cast<IDatasmithMaterialExpressionGeneric*>( InternalMaterialExpression )->GetProperty( Index ) )
 	{
-		return Property->GetValue();
-	}
-
-	return nullptr;
-}
-
-const TCHAR* FDatasmithFacadeMaterialExpressionGeneric::GetPropertyName( int32 Index )
-{
-	TSharedPtr<IDatasmithKeyValueProperty> Property = static_cast<IDatasmithMaterialExpressionGeneric*>( InternalMaterialExpression )->GetProperty( Index );
-
-	if ( Property.IsValid() )
-	{
-		return Property->GetName();
+		return new FDatasmithFacadeKeyValueProperty( Property.ToSharedRef() );
 	}
 
 	return nullptr;
@@ -341,6 +314,10 @@ const TCHAR* FDatasmithFacadeMaterialExpressionFunctionCall::GetFunctionPathName
 
 FDatasmithFacadeUEPbrMaterial::FDatasmithFacadeUEPbrMaterial( const TCHAR* InElementName )
 	: FDatasmithFacadeBaseMaterial( FDatasmithSceneFactory::CreateUEPbrMaterial( InElementName ) )
+{}
+
+FDatasmithFacadeUEPbrMaterial::FDatasmithFacadeUEPbrMaterial( const TSharedRef<IDatasmithUEPbrMaterialElement>& InMaterialRef )
+	: FDatasmithFacadeBaseMaterial( InMaterialRef )
 {}
 
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetBaseColor() const

@@ -122,7 +122,6 @@ ESerializationStatus FElementSnapshot::Serialize(FArchive& Ar)
 		}
 	}
 
-
 	return ESerializationStatus::Ok;
 }
 

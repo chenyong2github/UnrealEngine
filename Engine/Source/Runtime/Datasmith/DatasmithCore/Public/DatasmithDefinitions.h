@@ -43,6 +43,8 @@ enum class EDatasmithElementType : uint64
 	Animation                      = 1 << 26,
 	HierarchicalInstanceStaticMesh = 1 << 27,
 	Variant                        = 1 << 28,
+	Decal                          = 1 << 29,
+	DecalMaterial                  = 1 << 30,
 };
 
 ENUM_CLASS_FLAGS( EDatasmithElementType ); // Define bitwise operators for EDatasmithElementType
@@ -293,7 +295,8 @@ enum class EDatasmithKeyValuePropertyType : uint8
 	Float,
 	Bool,
 	Texture,
-	Vector
+	Vector,
+	Integer
 };
 
 /**
@@ -378,7 +381,7 @@ enum class EDatasmithPropertyCategory : uint8
 };
 ENUM_CLASS_FLAGS(EDatasmithPropertyCategory)
 
-static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Color"), TEXT("Float"), TEXT("Bool"), TEXT("Texture"), TEXT("Vector") };
+static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Color"), TEXT("Float"), TEXT("Bool"), TEXT("Texture"), TEXT("Vector"), TEXT("Integer") };
 
 // HOST NAME
 #define DATASMITH_HOSTNAME						TEXT("Host")
@@ -477,6 +480,9 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 //CUSTOM ACTOR
 #define DATASMITH_CUSTOMACTORNAME				TEXT("CustomActor")
 #define DATASMITH_CUSTOMACTORPATHNAME			TEXT("PathName")
+
+//DECAL ACTOR
+#define DATASMITH_DECALACTORNAME				TEXT("DecalActor")
 
 // LANDSCAPE
 #define DATASMITH_LANDSCAPENAME					TEXT("Landscape")
@@ -580,6 +586,8 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 #define DATASMITH_SHADINGMODEL					TEXT("ShadingModel")
 
 #define DATASMITH_ENVILLUMINATIONMAP			TEXT("Illuminate")
+
+#define DATASMITH_DECALMATERIALNAME				TEXT("DecalMaterial")
 
 //LODS
 #define DATASMITH_LODSCREENSIZE					TEXT("LodScreenSize")
