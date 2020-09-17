@@ -85,22 +85,25 @@ void UDMXPixelMappingOutputComponent::PostEditChangeChainProperty(FPropertyChang
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	// Round the values
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX))
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		PositionX = FMath::RoundHalfToZero(PositionX);
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY))
-	{
-		PositionY = FMath::RoundHalfToZero(PositionY);
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX))
-	{
-		SizeX = FMath::RoundHalfToZero(SizeX);
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
-	{
-		SizeY = FMath::RoundHalfToZero(SizeY);
+		// Round the values
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX))
+		{
+			PositionX = FMath::RoundHalfToZero(PositionX);
+		}
+		else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY))
+		{
+			PositionY = FMath::RoundHalfToZero(PositionY);
+		}
+		else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX))
+		{
+			SizeX = FMath::RoundHalfToZero(SizeX);
+		}
+		else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
+		{
+			SizeY = FMath::RoundHalfToZero(SizeY);
+		}
 	}
 }
 

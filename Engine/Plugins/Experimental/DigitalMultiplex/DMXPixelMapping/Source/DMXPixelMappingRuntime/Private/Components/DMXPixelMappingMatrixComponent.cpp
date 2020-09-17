@@ -68,20 +68,23 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, PositionX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, PositionY))
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		SetPositionWithChildren();
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, PositionX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, PositionY))
+		{
+			SetPositionWithChildren();
 
-		// Cache positions
-		PositionXCached = PositionX;
-		PositionYCached = PositionY;
-	}
+			// Cache positions
+			PositionXCached = PositionX;
+			PositionYCached = PositionY;
+		}
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, SizeX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, SizeY))
-	{
-		SetSizeInternal(FVector2D(SizeX, SizeY));
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, SizeX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, SizeY))
+		{
+			SetSizeInternal(FVector2D(SizeX, SizeY));
+		}
 	}
 
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, bVisibleInDesigner))
@@ -165,6 +168,7 @@ TSharedRef<SWidget> UDMXPixelMappingMatrixComponent::BuildSlot(TSharedRef<SConst
 		&InCanvas->AddSlot()
 		.AutoSize(true)
 		.Alignment(FVector2D::ZeroVector)
+		.ZOrder(ZOrder)
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
@@ -396,6 +400,22 @@ void UDMXPixelMappingMatrixComponent::SetPosition(const FVector2D& InPosition)
 
 	PositionXCached = PositionX;
 	PositionYCached = PositionY;
+}
+
+void UDMXPixelMappingMatrixComponent::SetZOrder(int32 NewZOrder)
+{
+	// Adjust ZOrder on childs relatively. Alike childs always remain ordered above their parent
+	int32 DeltaZOrder = NewZOrder - ZOrder;
+	for (UDMXPixelMappingBaseComponent* BaseComponent : GetChildren())
+	{
+		UDMXPixelMappingMatrixPixelComponent* PixelComponent = CastChecked<UDMXPixelMappingMatrixPixelComponent>(BaseComponent);
+
+		int32 NewChildZOrder = PixelComponent->GetZOrder() + DeltaZOrder;
+		PixelComponent->SetZOrder(NewChildZOrder);
+	}
+
+	// Adjust ZOrder on self
+	ZOrder = NewZOrder;
 }
 
 void UDMXPixelMappingMatrixComponent::SetSizeInternal(const FVector2D& InSize)
