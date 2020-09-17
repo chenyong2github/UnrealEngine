@@ -31,11 +31,15 @@ public:
 		FIntPoint OutputTextureSize;
 		FVector4 PixelFactor;
 		FIntVector4 InvertPixel;
-		float X = 0.f; float Y = 0.f;
-		float SizeX = 0.f; float SizeY = 0.f;
-		float U = 0.f; float V = 0.f;
-		float SizeU = 0.f; float SizeV = 0.f;
-		FIntPoint TargetSize; FIntPoint TextureSize;
+		FVector2D Position = FVector2D(0.f, 0.f);
+		FVector2D Size = FVector2D(0.f, 0.f);
+		FVector2D UV = FVector2D(0.f, 0.f);
+		FVector2D UVSize = FVector2D(0.f, 0.f);
+		FVector2D UVCellSize = FVector2D(0.f, 0.f);
+		FIntPoint TargetSize;
+		FIntPoint TextureSize;
+		EDMXPixelBlendingQuality PixelBlendingQuality;
+		bool bStaticCalculateUV;
 	};
 
 public:
@@ -44,16 +48,20 @@ public:
 
 	//~ Begin IDMXPixelMappingRenderer implementation
 	virtual void DownsampleRender_GameThread(
-		FTextureResource* TextureResource, 
-		FTextureResource* DstTexture, 
-		FTextureRenderTargetResource* DstTextureTargetResource, 
-		FVector4 PixelFactor,
-		FIntVector4 InvertPixel,
-		float X, float Y,
-		float SizeX, float SizeY,
-		float U, float V,
-		float SizeU, float SizeV,
-		FIntPoint TargetSize, FIntPoint TextureSize,
+		FTextureResource* InputTexture,
+		FTextureResource* DstTexture,
+		FTextureRenderTargetResource* DstTextureTargetResource,
+		const FVector4& PixelFactor,
+		const FIntVector4& InvertPixel,
+		const FVector2D& Position,
+		const FVector2D& Size,
+		const FVector2D& UV,
+		const FVector2D& UVSize,
+		const FVector2D& UVCellSize,
+		const FIntPoint& TargetSize,
+		const FIntPoint& TextureSize,
+		EDMXPixelBlendingQuality PixelBlendingQuality,
+		bool bStaticCalculateUV,
 		SurfaceReadCallback ReadCallback) override;
 	virtual void RenderMaterial(UTextureRenderTarget2D* InRenderTarget, UMaterialInterface* InMaterialInterface) const override;
 	virtual void RenderWidget(UTextureRenderTarget2D* InRenderTarget, UUserWidget* InUserWidget) const override;

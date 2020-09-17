@@ -5,6 +5,7 @@
 #include "DMXProtocolCommon.h"
 
 class IDMXProtocolUniverse
+	: public TSharedFromThis<IDMXProtocolUniverse, ESPMode::ThreadSafe>
 {
 public:
 	virtual ~IDMXProtocolUniverse() {}
@@ -20,6 +21,9 @@ public:
 	virtual TSharedPtr<FJsonObject> GetSettings() const = 0;
 	virtual void UpdateSettings(const FJsonObject& InSettings) = 0;
 	virtual bool IsSupportRDM() const = 0;
+
+	/** Handle and broadcasting incoming DMX packet */
+	virtual void HandleReplyPacket(const FArrayReaderPtr& Buffer) = 0;
 
 	/** Tick on the end of each frame */
 	virtual void Tick(float DeltaTime) {};

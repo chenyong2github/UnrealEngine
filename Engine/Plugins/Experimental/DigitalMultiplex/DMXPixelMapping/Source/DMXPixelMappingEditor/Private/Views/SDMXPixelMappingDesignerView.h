@@ -5,17 +5,21 @@
 #include "Widgets/SDMXPixelMappingSurface.h"
 
 class FDMXPixelMappingToolkit;
+class FDMXPixelMappingComponentReference;
+class SDMXPixelMappingRuler;
+class SDMXPixelMappingTransformHandle;
 class SDMXPixelMappingSourceTextureViewport;
+class UDMXPixelMappingBaseComponent;
+class UDMXPixelMappingOutputComponent;
+class UDMXPixelMappingRendererComponent;
+
+struct FOptionalSize;
+class FHittestGrid;
+class SCanvas;
+class SDMXPixelMappingDesignerCanvas;
 class SBox;
 class SOverlay;
-class FHittestGrid;
-class SDMXPixelMappingRuler;
-class UDMXPixelMappingBaseComponent;
-class SCanvas;
-class SDMXPixelMappingTransformHandle;
-class UDMXPixelMappingRendererComponent;
-class FDMXPixelMappingComponentReference;
-struct FOptionalSize;
+
 
 class SDMXPixelMappingDesignerView
 	: public SDMXPixelMappingSurface
@@ -86,7 +90,9 @@ public:
 	float GetPreviewScale() const;
 
 private:
-	bool FindComponentUnderCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSubclassOf<UDMXPixelMappingBaseComponent> FindType, FComponentHitResult& HitResult);
+	bool FindComponentUnderCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSubclassOf<UDMXPixelMappingOutputComponent> FindType, FComponentHitResult& HitResult);
+
+	FArrangedWidget GetArrangedWidgetFromComponent(UDMXPixelMappingOutputComponent* OutputComponent) const;
 
 	void PopulateWidgetGeometryCache(FArrangedWidget& Root);
 
@@ -94,7 +100,7 @@ private:
 
 	FGeometry GetDesignerGeometry() const;
 
-	bool GetArrangedWidget(TSharedRef<SWidget> Widget, FArrangedWidget& ArrangedWidget);
+	bool GetArrangedWidget(TSharedRef<SWidget> Widget, FArrangedWidget& ArrangedWidget) const;
 
 	void HandleChangeComponents(bool bIsSuccess);
 
@@ -145,6 +151,9 @@ private:
 	TSharedPtr<SCanvas> ExtensionWidgetCanvas;
 
 	TSharedPtr<SDMXPixelMappingSourceTextureViewport> SourceTextureViewport;
+
+	/** Canvas that holds the component widgets */
+	TSharedPtr<SDMXPixelMappingDesignerCanvas> DesignCanvas;
 
 	TSharedPtr<SBox> PreviewSizeConstraint;
 

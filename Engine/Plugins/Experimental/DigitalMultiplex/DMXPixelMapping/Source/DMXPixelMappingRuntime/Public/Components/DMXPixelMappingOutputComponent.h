@@ -5,13 +5,26 @@
 #include "Components/DMXPixelMappingBaseComponent.h"
 
 #if WITH_EDITOR
-#include "Widgets/SCanvas.h"
+#include "Widgets/Layout/SConstraintCanvas.h"
 #endif // WITH_EDITOR
 
 #include "DMXPixelMappingOutputComponent.generated.h"
 
 class UTextureRenderTarget2D;
 class SBox;
+
+UENUM()
+enum class EDMXPixelBlendingQuality : uint8
+{
+	/** 1 sample */
+	Low,
+
+    /** 5 samples ( 2 x 2 with center) */
+    Medium,
+
+	/** 9 samples ( 3 x 3 ) */
+	High
+};
 
 /**
  * Base class for all Designer and configurable components
@@ -54,10 +67,10 @@ public:
 	virtual bool IsVisibleInDesigner() const { return bVisibleInDesigner; }
 
 	/** Rebuild widget for designer view */
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SCanvas> InCanvas);
+	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas);
 
 	/** Change widget visuals whether it selected or not */
-	virtual void ToggleHighlightSelection(bool bIsSelected) {};
+	virtual void ToggleHighlightSelection(bool bIsSelected) { bHighlighted = bIsSelected; };
 
 	/** Rendering a texture for a preview view */
 	virtual void RenderEditorPreviewTexture() {};
@@ -97,10 +110,22 @@ public:
 #if WITH_EDITOR
 	/** Get designer UI cached widget */
 	TSharedPtr<SWidget> GetCachedWidget() const;
+
+	/** Sets the ZOrder in the UI */
+	void SetZOrder(int32 NewZOrder);
+
+	/** Returns the UI ZOrder */
+	int32 GetZOrder() const { return ZOrder; }
 #endif // WITH_EDITOR
 
 protected:
+#if WITH_EDITORONLY_DATA
+	/** ZOrder in the UI */
+	UPROPERTY()
+	int32 ZOrder = 1;
+#endif //WITH_EDITORONLY_DATA
 
+protected:
 	/**
 	 * Thread safe CPU color buffer set
 	 *
@@ -137,6 +162,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
 	float PositionY;
 
+    /** The quality level to use when averaging colors during downsampling. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
+	EDMXPixelBlendingQuality PixelBlendingQuality;
+
 public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Editor Settings")
@@ -151,7 +180,7 @@ public:
 protected:
 #if WITH_EDITORONLY_DATA
 	/** A raw pointer to the slot to allow us to adjust the size, padding...etc. */
-	SCanvas::FSlot* Slot;
+	SConstraintCanvas::FSlot* Slot;
 
 	/** Cached designer widget */
 	TSharedPtr<SBox> CachedWidget;
@@ -166,4 +195,21 @@ private:
 
 	/** Critical section for set, update and get color array */
 	FCriticalSection SurfaceCS;
+
+public:
+#if WITH_EDITOR
+	const FLinearColor& GetEditorColor(bool bHighlight) const;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	/** The color displayed in editor */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Editor Settings", Meta = (EditCondition = "bEditableEditorColor"))
+	FLinearColor EditorColor = FLinearColor::Blue;
+
+	/** If true, the editor color is editable */
+	bool bEditableEditorColor = false;
+
+	/** If true is highlighted */
+	bool bHighlighted = false;
+#endif // WITH_EDITORONLY_DATA
 };

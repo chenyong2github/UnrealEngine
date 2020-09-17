@@ -48,7 +48,18 @@ private:
 	 */
 	static void SendDMXCommandHandler(const TArray<FString>& Args);
 
+	/**
+	 * Reset DMX through console command
+	 * Command structure is DMX.SACN.ResetDMXSend [UniverseID]
+	 * Example:
+	 * DMX.SACN.ResetDMXSend 7
+	 */
+	static void ResetDMXSendUniverseHandler(const TArray<FString>& Args);
+
 private:
 	/** Command for sending DMX through the console */
 	static FAutoConsoleCommand SendDMXCommand;
+
+	/** Command for reset DMX universe through the console */
+	static FAutoConsoleCommand ResetDMXSendUniverseCommand;
 };

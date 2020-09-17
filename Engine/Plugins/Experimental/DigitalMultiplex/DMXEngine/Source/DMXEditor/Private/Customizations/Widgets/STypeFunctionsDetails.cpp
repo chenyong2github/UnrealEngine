@@ -206,10 +206,15 @@ EVisibility SDMXFunctionTableRow::CheckPixelFunctionsOverlap() const
 			return EVisibility::Collapsed;
 		}
 				
+		int32 FirstPixelChannel = PixelMatrixConfig->FirstPixelChannel;
 		int32 LastPixelChannel = PixelMatrixConfig->GetPixelFunctionsLastChannel();
+		int32 NumPixels = PixelMatrixConfig->XPixels * PixelMatrixConfig->YPixels;
+
 		int32 FunctionChannel = GetItem()->GetFunctionChannel();
 
-		if (FunctionChannel >= PixelMatrixConfig->FirstPixelChannel && FunctionChannel <= LastPixelChannel)
+		if (FunctionChannel >= FirstPixelChannel && 
+			FunctionChannel <= LastPixelChannel &&
+			NumPixels > 0)
 		{
 			return EVisibility::Visible;
 		}

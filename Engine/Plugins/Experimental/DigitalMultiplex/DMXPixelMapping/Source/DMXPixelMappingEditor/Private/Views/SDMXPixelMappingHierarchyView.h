@@ -82,11 +82,9 @@ private:
 	/**  Gets an array of strings used for filtering/searching the specified widget. */
 	void GetWidgetFilterStrings(FDMXPixelMappingHierarchyItemWidgetModelPtr InModelPtr, TArray<FString>& OutStrings);
 
+	void ConditionallyUpdateTree();
 	/** Completely regenerates the treeview */
 	void RebuildTreeView();
-
-	/** Recursively expands the models based on the expansion set. */
-	void RecursiveExpand(FDMXPixelMappingHierarchyItemWidgetModelPtr Model, EExpandBehavior ExpandBehavior);
 
 	void RestoreSelectedItems();
 
@@ -94,9 +92,6 @@ private:
 
 	/** Rebuilds the tree structure based on the current filter options */
 	void RefreshTree();
-
-	/** Sets the expansion state of hierarchy view items based on their model. */
-	void UpdateItemsExpansionFromModel();
 
 	void HandleAddComponent(bool bIsSuccess);
 
@@ -127,7 +122,9 @@ private:
 
 	void RecursivePaste(UDMXPixelMappingBaseComponent* InComponent);
 
-	bool MoveComponentToComponent(UDMXPixelMappingBaseComponent* Source, UDMXPixelMappingBaseComponent* Destination);
+	bool MoveComponentToComponent(UDMXPixelMappingBaseComponent* Source, UDMXPixelMappingBaseComponent* Destination, const bool bRename);
+
+	void SelectFirstAvailableRenderer();
 
 private:
 	TWeakPtr<FDMXPixelMappingToolkit> Toolkit;
@@ -166,4 +163,6 @@ private:
 	FDelegateHandle OnSelectedComponenetChangedHandle;
 
 	FDMXPixelMappingHierarchyItemWidgetModelArr CurrentSelectedItems;
+
+	bool bSelectFirstRenderer;
 };

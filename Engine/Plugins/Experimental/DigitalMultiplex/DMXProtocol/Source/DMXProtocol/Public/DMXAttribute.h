@@ -35,6 +35,9 @@ struct DMXPROTOCOL_API FDMXAttribute
 	FORCEINLINE bool operator!=(const FDMXAttribute& Other) const { return !(*this == Other); }
 
 	TArray<FString> GetKeywords() const;
+
+	// cleanup the list of keywords using commas and removing spaces/tabs
+	void CleanupKeywords();
 };
 
 /** Unique hash from a DMX Attribute */

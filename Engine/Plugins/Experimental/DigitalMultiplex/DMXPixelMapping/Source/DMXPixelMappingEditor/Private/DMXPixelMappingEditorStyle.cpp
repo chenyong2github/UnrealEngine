@@ -65,10 +65,10 @@ TSharedRef< FSlateStyleSet > FDMXPixelMappingEditorStyle::Create()
 	}
 
 	// Toolbar Icons
-	Style->Set("DMXPixelMappingEditor.AddRenderer", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_AddRenderer_40x", Icon40x40));
-	Style->Set("DMXPixelMappingEditor.AddRenderer.Small", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_AddRenderer_40x", Icon20x20));
-	Style->Set("DMXPixelMappingEditor.ClearRenderers", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_ClearRenderers_40x", Icon40x40));
-	Style->Set("DMXPixelMappingEditor.ClearRenderers.Small", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_ClearRenderers_40x", Icon20x20));
+	Style->Set("DMXPixelMappingEditor.AddMapping", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_AddMapping_40x", Icon40x40));
+	Style->Set("DMXPixelMappingEditor.AddMapping.Small", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_AddMapping_40x", Icon20x20));
+	Style->Set("DMXPixelMappingEditor.ClearMappings", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_ClearMappings_40x", Icon40x40));
+	Style->Set("DMXPixelMappingEditor.ClearMappings.Small", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_ClearMappings_40x", Icon20x20));
 
 	Style->Set("ClassThumbnail.DMXPixelMapping", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_Thumbnail_40x", Icon40x40));
 	Style->Set("ClassIcon.DMXPixelMapping", new IMAGE_BRUSH("Icons/icon_DMXPixelMappingEditor_Thumbnail_40x", Icon16x16));

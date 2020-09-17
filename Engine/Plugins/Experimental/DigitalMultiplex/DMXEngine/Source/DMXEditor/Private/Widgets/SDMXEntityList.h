@@ -450,6 +450,8 @@ public:
 	bool CanDuplicateNodes() const;
 	void OnDuplicateNodes();
 
+	void AutoAssignCopiedPatch(UDMXEntityFixturePatch* Patch) const;
+
 	/** Removes existing selected component nodes from the SCS */
 	void OnDeleteNodes();
 	bool CanDeleteNodes() const;
@@ -553,16 +555,12 @@ protected:
 
 	/** Delegate to invoke on selection update. */
 	FOnSelectionUpdated OnSelectionUpdated;
-
 	/** Delegate to invoke when a fixture patch changed the auto assign address property */
 	FOnAutoAssignAddressChanged OnAutoAssignAddressChanged;
-
 	/** Called when the entity list added an entity to the library */
 	FSimpleDelegate OnEntitiesAdded;
-
 	/** Called when the entity list changed order of the library's entity array */
 	FSimpleDelegate OnEntityOrderChanged;
-
 	/** Called when the entity list deleted an entity from the library */
 	FSimpleDelegate OnEntitiesRemoved;
 
@@ -574,9 +572,18 @@ protected:
 	TSharedPtr<FDMXTreeNodeBase> RootNode;
 
 private:
+	
 	/** Empty Nodes array and create a FDMXEntityListTreeNode for each relevant entity and category */
 	void InitializeNodes();
+	void InitializeNodesForControllers();
+	void InitializeNodesForFixtureTypes();
+	void InitializeNodesForPatches();
 
+	/** Returns error message or FText::GetEmpty() if no error found */
+	FText CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) const;
+
+
+	
 	TSharedPtr<FDMXEntityTreeNode> CreateEntityTreeNode(UDMXEntity* Entity);
 
 	FReply OnAddNewClicked();

@@ -31,7 +31,6 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	//~ End UObject implementation
 #endif // WITH_EDITOR
 
@@ -46,15 +45,14 @@ public:
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SCanvas> InCanvas) override;
+	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
-
-	virtual bool IsVisibleInDesigner() const override;
 
 	virtual void UpdateWidget() override;
 
-	virtual bool IsLockInDesigner() const override;
+	virtual FString GetWidgetName() const override;
 #endif // WITH_EDITOR	
+
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() override;
 	virtual FVector2D GetPosition() override;

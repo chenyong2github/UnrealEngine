@@ -16,12 +16,20 @@ OutputVS DMXPixelMappingVS(InputVS IN)
 	
 	// Used for calculating vertex positions and UVs when drawing with DrawRectangleForPixelMapping
 	DrawRectangleForPixelMapping(IN.Position, IN.UV, OUT.Position, OUT.UV.xy);
-		
+
 	return OUT;
 }
 
 /* Pixel shader
 =============================================================================*/
+
+#define PIXELBLENDING_QUALITY_LOW		0
+#define PIXELBLENDING_QUALITY_MEDIUM	1
+#define PIXELBLENDING_QUALITY_HIGH		2
+
+#ifndef PIXELBLENDING_QUALITY
+#error PIXELBLENDING_QUALITY is not defined.
+#endif
 
 OutputPS DMXPixelMappingPS(OutputVS IN)
 {
@@ -39,9 +47,45 @@ OutputPS DMXPixelMappingPS(OutputVS IN)
 	}
 	else
 	{
-		// Sample color from input texture
+		// Average the final color sample based on various samples taken from within this UV space.
 		OUT.Color = Texture2DSample(InputTexture, InputSampler, UV);
+
+#if PIXELBLENDING_QUALITY == PIXELBLENDING_QUALITY_MEDIUM
+		#define NUM_CELLS 4
+		float2 UVCells[NUM_CELLS];
 		
+		UVCells[0] = UV + float2(-UVCellSize.x, -UVCellSize.y);			// UL
+		UVCells[1] = UV + float2(UVCellSize.x, -UVCellSize.y);			// UR
+		UVCells[2] = UV + float2(UVCellSize.x, UVCellSize.y);			// BR
+		UVCells[3] = UV + float2(-UVCellSize.x, UVCellSize.y);			// BL
+
+#elif PIXELBLENDING_QUALITY == PIXELBLENDING_QUALITY_HIGH
+		#define NUM_CELLS 8
+		float2 UVCells[NUM_CELLS];
+		
+		UVCells[0] = UV + float2(-UVCellSize.x, -UVCellSize.y);			// UL
+		UVCells[1] = UV + float2(UVCellSize.x, -UVCellSize.y);			// UR
+		UVCells[2] = UV + float2(UVCellSize.x, UVCellSize.y);			// BR
+		UVCells[3] = UV + float2(-UVCellSize.x, UVCellSize.y);			// BL
+		UVCells[4] = UV + float2(-UVCellSize.x, 0);						// L
+		UVCells[5] = UV + float2(0, -UVCellSize.y);						// U
+		UVCells[6] = UV + float2(UVCellSize.x, 0);						// R
+		UVCells[7] = UV + float2(0, UVCellSize.y);						// D
+		
+#elif PIXELBLENDING_QUALITY > PIXELBLENDING_QUALITY_HIGH
+#error Invalid pixel blending quality level specified.
+#endif
+
+#if PIXELBLENDING_QUALITY > PIXELBLENDING_QUALITY_LOW
+		for(uint i = 0; i < NUM_CELLS; ++i)
+		{
+			OUT.Color += Texture2DSample(InputTexture, InputSampler, clamp(UVCells[i], 0, 1));
+		}
+		
+		OUT.Color /= (NUM_CELLS + 1);
+		
+#endif
+
 		// Invert color
 		for (int ColorIndex = 0; ColorIndex < 4; ColorIndex++)
 		{

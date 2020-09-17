@@ -21,6 +21,7 @@ int2 InputTextureSize;
 int2 OutputTextureSize;
 float4 PixelFactor;
 int4 InvertPixel;
+float2 UVCellSize;
 
 struct InputVS
 {
@@ -39,6 +40,11 @@ struct OutputPS
 	float4 Color : SV_Target0;
 };
 
+#ifndef VERTEX_UV_STATIC_CALCULATION
+#error VERTEX_UV_STATIC_CALCULATION is not defined.
+#endif
+
+
 /* -----------------------------------------------------------------
  * Used for calculating vertex positions and UVs when drawing with DrawRectangleForPixelMapping
  * -----------------------------------------------------------------
@@ -49,5 +55,10 @@ void DrawRectangleForPixelMapping(in float4 InPosition, in float2 InTexCoord, ou
 	
 	OutPosition.xy = -1.0f + 2.0f * (DrawRectanglePosScaleBias.zw + (InPosition.xy * DrawRectanglePosScaleBias.xy)) * DrawRectangleInvTargetSizeAndTextureSize.xy;
 	OutPosition.xy *= float2(1, -1);
+
+#if VERTEX_UV_STATIC_CALCULATION
+	OutTexCoord.xy = DrawRectangleUVScaleBias.zw + (DrawRectangleUVScaleBias.xy / 2.f);
+#else
 	OutTexCoord.xy = (DrawRectangleUVScaleBias.zw + (InTexCoord.xy * DrawRectangleUVScaleBias.xy)) * DrawRectangleInvTargetSizeAndTextureSize.zw;
+#endif
 }

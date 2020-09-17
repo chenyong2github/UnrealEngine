@@ -21,11 +21,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 // FDMXEntityDragDropOperation
 
-FDMXEntityDragDropOperation::FDMXEntityDragDropOperation(UDMXLibrary* InLibrary, TArray<TWeakObjectPtr<UDMXEntity>>&& InEntities)
+FDMXEntityDragDropOperation::FDMXEntityDragDropOperation(UDMXLibrary* InLibrary, const TArray<TWeakObjectPtr<UDMXEntity>>& InEntities)
 	: DraggedFromLibrary(InLibrary)
-	, DraggedEntities(MoveTemp(InEntities))
-	//, EntityList(InEntityList)
-	//, bValidDropTarget(false)
+	, DraggedEntities(InEntities)
 {
 	DraggedEntitiesName = DraggedEntities.Num() == 1
 		? FText::FromString(TEXT("'") + DraggedEntities[0]->GetDisplayName() + TEXT("'"))

@@ -15,6 +15,7 @@ class UDMXEntityFixturePatch;
 class ITableRow;
 class STableViewBase;
 struct FDMXPixelGroupAttribute;
+enum class EDMXColorMode : uint8;
 
 template <typename ItemType>
 class SListView;
@@ -67,8 +68,10 @@ protected:
 	/** Weak reference to the DMX editor */
 	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 
+	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
+
 private:
-	TWeakObjectPtr<UDMXPixelMappingMatrixComponent> MatrixComponent;
+	TArray<TWeakObjectPtr<UDMXPixelMappingMatrixComponent>> MatrixComponents;
 
 	IDetailLayoutBuilder* DetailLayout;
 

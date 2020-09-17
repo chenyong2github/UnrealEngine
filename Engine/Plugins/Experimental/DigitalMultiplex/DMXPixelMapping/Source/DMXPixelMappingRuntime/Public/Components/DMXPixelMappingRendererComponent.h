@@ -29,6 +29,7 @@ public:
 
 	//~ Begin UObject implementation
 	virtual void PostLoad() override;
+	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
@@ -107,6 +108,10 @@ public:
 	/** UMG to Downsampling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
 	TSubclassOf<UUserWidget> InputWidget;
+	
+	/** Master brightness of the renderer */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1"))
+	float Brightness;
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
@@ -131,6 +136,6 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Canvas for all UI downsamping component witgets */
-	TSharedPtr<SCanvas> ComponentsCanvas;
+	TSharedPtr<SConstraintCanvas> ComponentsCanvas;
 #endif
 };

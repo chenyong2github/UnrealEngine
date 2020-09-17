@@ -37,7 +37,7 @@ FDMXProtocolSenderArtNet::FDMXProtocolSenderArtNet(FSocket& InSocket, FDMXProtoc
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
 	});
 
-	Thread = FRunnableThread::Create(this, TEXT("FDMXProtocolSenderArtNet"), 128 * 1024, TPri_BelowNormal, FPlatformAffinity::GetPoolThreadMask());
+	Thread = FRunnableThread::Create(this, TEXT("FDMXProtocolSenderArtNet"), 128 * 1024, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
 	SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	if (SocketSubsystem != nullptr)
@@ -200,7 +200,7 @@ FDMXProtocolReceiverArtNet::FDMXProtocolReceiverArtNet(FSocket& InSocket, FDMXPr
 
 	SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 
-	Thread = FRunnableThread::Create(this, *ThreadName, 128 * 1024, TPri_Normal, FPlatformAffinity::GetPoolThreadMask());
+	Thread = FRunnableThread::Create(this, *ThreadName, 128 * 1024, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 }
 
 FDMXProtocolReceiverArtNet::~FDMXProtocolReceiverArtNet()

@@ -28,7 +28,6 @@ public:
 	virtual FText GetMenuCategory() const override;
 	virtual void PreloadRequiredAssets() override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
-	virtual void EarlyValidation(class FCompilerResultsLog& MessageLog) const override;
 	//~ End UK2Node Interface
 
 	/** 

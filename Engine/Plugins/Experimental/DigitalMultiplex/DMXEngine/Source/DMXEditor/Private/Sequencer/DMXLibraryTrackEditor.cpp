@@ -226,7 +226,8 @@ int32 GetValidPatchMode(UDMXEntityFixturePatch* InPatch)
 	for (int32 ModeIndex = 0; ModeIndex < FixtureType->Modes.Num(); ++ModeIndex)
 	{
 		const FDMXFixtureMode& Mode = FixtureType->Modes[ModeIndex];
-		if (Mode.Functions.Num() > 0)
+		if (Mode.Functions.Num() > 0 ||
+			Mode.PixelMatrixConfig.PixelFunctions.Num() > 0)
 		{
 			if (ModeIndex == InPatch->ActiveMode)
 			{
@@ -234,25 +235,12 @@ int32 GetValidPatchMode(UDMXEntityFixturePatch* InPatch)
 				ValidActiveMode = ModeIndex;
 				break;
 			}
-			else if (ModeIndex < InPatch->ActiveMode && ValidActiveMode == INDEX_NONE)
-			{
-				// We haven't tested the preferred one yet and neither have we
-				// found a valid mode. So keep this one as a backup
-				ValidActiveMode = ModeIndex;
-			}
-			else if (ModeIndex > InPatch->ActiveMode)
-			{
-				// We're not gonna get the preferred one anymore. The current one
-				// is valid, so stop searching.
-				
-				// Did we not find any valid Mode yet?
-				if (ValidActiveMode == INDEX_NONE)
-				{
-					ValidActiveMode = ModeIndex;
-				}
-				break;
-			}
 		}
+	}
+
+	if (ValidActiveMode == INDEX_NONE)
+	{
+		UE_LOG(DMXLibraryTrackEditorLog, Warning, TEXT("%S: No active mode set in %s"), __FUNCTION__, *InPatch->GetName());
 	}
 
 	return ValidActiveMode;

@@ -13,6 +13,7 @@ class FSocket;
 class ISocketSubsystem;
 class FDMXProtocolSACN;
 class FInternetAddr;
+class FDMXProtocolUniverseSACN;
 
 class DMXPROTOCOLSACN_API FDMXProtocolSenderSACN
 	: public IDMXProtocolSender
@@ -72,4 +73,60 @@ private:
 	TSharedPtr<FInternetAddr> InternetAddr;
 
 	FCriticalSection PacketCS;
+};
+
+class FDMXProtocolReceiverSACN
+	: public IDMXProtocolReceiver
+{
+public:
+	FDMXProtocolReceiverSACN(FDMXProtocolSACN* InProtocol, int32 InReceivingRefreshRate);
+	virtual ~FDMXProtocolReceiverSACN();
+
+public:
+	//~ Begin FRunnable implementation
+	virtual bool Init() override;
+	virtual uint32 Run() override;
+	virtual void Stop() override;
+	virtual void Exit() override;
+	//~ End FRunnable implementation
+
+	//~ Begin FSingleThreadRunnable implementation
+	virtual void Tick() override;
+	virtual class FSingleThreadRunnable* GetSingleThreadInterface() override;
+	//~ End FSingleThreadRunnable implementation
+
+	//~ Begin IDMXProtocolReceiver implementation
+	virtual FOnDMXDataReceived& OnDataReceived() override { return DMXDataReceiveDelegate; }
+	virtual FRunnableThread* GetThread() const override;
+	//~ End IDMXProtocolReceiver implementation
+
+	FCriticalSection& GetListeningUniversesLock() const { return ListeningUniversesLock; }
+
+protected:
+	void Update();
+
+private:
+	FDMXProtocolSACN* Protocol;
+
+	/** Flag indicating that the thread is stopping. */
+	bool Stopping;
+
+	/** The thread object. */
+	FRunnableThread* Thread;
+
+	/** The receiver thread's name. */
+	FString ThreadName;
+
+private:
+	mutable FCriticalSection ListeningUniversesLock;
+
+	/** Keep the universes in the separate copy in order to solve the Lock issue on a thread loop */
+	TMap<uint32, TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>> UniversesCopy;
+
+	int32 UniversesNumCached;
+
+	int32 ReceivingRefreshRate;
+
+	/** Holds the data received delegate. */
+	FOnDMXDataReceived DMXDataReceiveDelegate;
 };

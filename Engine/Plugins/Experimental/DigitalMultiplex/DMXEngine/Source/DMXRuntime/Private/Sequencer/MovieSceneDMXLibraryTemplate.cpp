@@ -1,14 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sequencer/MovieSceneDMXLibraryTemplate.h"
+
+#include "DMXRuntimeLog.h"
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolCommon.h"
+#include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityController.h"
+
 #include "MovieSceneExecutionToken.h"
+
 
 DECLARE_LOG_CATEGORY_CLASS(MovieSceneDMXLibraryTemplateLog, Log, All);
 
@@ -27,41 +32,42 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 		UDMXLibrary* DMXLibrary = CastChecked<UDMXLibrary>(&Object);
 
 		// Recover the Patch from its GUID
-		UDMXEntityFixturePatch* Patch = Cast<UDMXEntityFixturePatch>(DMXLibrary->FindEntity(EntityID));
-		if (Patch == nullptr)
+		UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DMXLibrary->FindEntity(EntityID));
+		if (FixturePatch == nullptr)
 		{
 			return;
 		}
 
 		// Get a valid parent Fixture Type
-		UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate;
+		UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate;
 		if (FixtureType == nullptr)
 		{
 			return;
 		}
 
 		// Check if the current active mode is accessible
-		if (FixtureType->Modes.Num() <= Patch->ActiveMode)
+		if (FixtureType->Modes.Num() <= FixturePatch->ActiveMode)
 		{
 			return;
 		}
 
 		// Get the Controllers affecting this Fixture Patch's universe
-		const TArray<UDMXEntityController*>&& Controllers = Patch->GetRelevantControllers();
+		const TArray<UDMXEntityController*>&& Controllers = FixturePatch->GetRelevantControllers();
 		if (Controllers.Num() == 0)
 		{
 			// No data will be sent from this Patch because it's unassigned
 			return;
 		}
 
-		const FDMXFixtureMode& Mode = FixtureType->Modes[Patch->ActiveMode];
+		const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
 		const TArray<FDMXFixtureFunction>& Functions = Mode.Functions;
 
 		// Cache the FragmentMap to send through the controllers
 		IDMXFragmentMap FragmentMap;
 		FragmentMap.Reserve(Functions.Num());
 
-		const int32 PatchChannelOffset = Patch->GetStartingChannel() - 1;
+		const int32 PatchChannelOffset = FixturePatch->GetStartingChannel() - 1;
+
 		for (const FDMXFixtureFunction& Function : Functions)
 		{
 			// Is this function in the Mode and Universe's ranges?
@@ -73,7 +79,7 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 			}
 
 			const int32 FunctionStartChannel = Function.Channel + PatchChannelOffset;
-			
+
 			// Get each individual channel value from the Function
 			uint8 FunctionValue[4] = { 0 };
 			UDMXEntityFixtureType::FunctionValueToBytes(Function, Function.DefaultValue, FunctionValue);
@@ -83,11 +89,62 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 
 			int32 ByteIndex = 0;
 			int32 ChannelIndex = FunctionStartChannel;
-			for ( ; ChannelIndex <= FunctionEndChannel && ByteIndex < 4; ++ByteIndex, ++ChannelIndex)
+			for (; ChannelIndex <= FunctionEndChannel && ByteIndex < 4; ++ByteIndex, ++ChannelIndex)
 			{
 				FragmentMap.Add(ChannelIndex, FunctionValue[ByteIndex]);
 			}
 		}
+
+		const FDMXPixelMatrix& PixelMatrix = Mode.PixelMatrixConfig;
+		if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(PixelMatrix, Mode, PatchChannelOffset))
+		{
+			UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
+			check(DMXSubsystem);
+
+			TArray<FDMXPixel> Pixels;
+			DMXSubsystem->GetAllMatrixPixels(FixturePatch, Pixels);
+
+			for (const FDMXPixel& Pixel : Pixels)
+			{
+				TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+				DMXSubsystem->GetMatrixPixelChannels(FixturePatch, Pixel.Coordinate, AttributeNameChannelMap);
+				
+				bool bLoggedMissingAttribute = false;
+				for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
+				{
+					const FDMXFixturePixelFunction* PixelFunctionPtr = PixelMatrix.PixelFunctions.FindByPredicate([&AttributeNameChannelKvp](const FDMXFixturePixelFunction& TestedPixelFunction){
+							return TestedPixelFunction.Attribute == AttributeNameChannelKvp.Key;
+						});
+
+					if (!PixelFunctionPtr)
+					{
+						if (!bLoggedMissingAttribute)
+						{
+							UE_LOG(LogDMXRuntime, Warning, TEXT("%S: Function with attribute %s from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, *AttributeNameChannelKvp.Key.GetName().ToString(), *FixturePatch->GetDisplayName());
+							UE_LOG(LogDMXRuntime, Warning, TEXT("%S: Further attributes may be missing. Warnings ommited to avoid overflowing the log."), __FUNCTION__);
+							bLoggedMissingAttribute = true;
+						}
+
+						continue;
+					}
+
+					const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
+					int32 FirstChannelAddress = AttributeNameChannelKvp.Value;
+					int32 LastChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+
+					int32 DefaultValue = PixelFunction.DefaultValue;
+
+					uint8 ValueBytes[4] = { 0 };
+					UDMXEntityFixtureType::IntToBytes(PixelFunction.DataType, PixelFunction.bUseLSBMode, DefaultValue, ValueBytes);
+
+					int32 ByteIndex = 0;
+					for (int32 ChannelIndex = FirstChannelAddress; ChannelIndex <= LastChannelAddress && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
+					{
+						FragmentMap.Add(ChannelIndex, ValueBytes[ByteIndex]);
+					}
+				}
+			}
+		}	
 
 		// Send the fragment map through each Controller that affects this Patch
 		for (const UDMXEntityController* Controller : Controllers)
@@ -95,7 +152,7 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 			if (Controller != nullptr && Controller->DeviceProtocol.IsValid())
 			{
 				IDMXProtocolPtr Protocol = Controller->DeviceProtocol;
-				Protocol->SendDMXFragment(Patch->UniverseID + Controller->RemoteOffset, FragmentMap);
+				Protocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
 			}
 		}
 	}
@@ -139,153 +196,203 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 		// Keeps record of the animated Patches GUIDs
 		static TMovieSceneAnimTypeIDContainer<FGuid> AnimTypeIDsByGUID;
 
-		// Keeps all values from Fixture Functions that will be sent using the controllers.
-		// A Protocol points to Universe IDs. Each Universe ID points to a FragmentMap.
-		TMap<IDMXProtocolPtr, TMap<uint16, IDMXFragmentMap>> DMXFragmentMaps;
-
 		// Store channels evaluated values
 		TArray<float> ChannelsValues;
 		const FFrameTime Time = Context.GetTime();
 
 		// Add the Patches' function channels values to the Fragment Maps so that we can send
 		// them later all at once for each affected universe on each protocol
-		for (const FDMXFixturePatchChannels& PatchChannels : Section->GetFixturePatchChannels())
+		for (const FDMXFixturePatchChannel& PatchChannel : Section->GetFixturePatchChannels())
 		{
-			UDMXEntityFixturePatch* Patch = PatchChannels.Reference.GetFixturePatch();
-			if (Patch == nullptr || !Patch->IsValidLowLevelFast())
+			UDMXEntityFixturePatch* FixturePatch = PatchChannel.Reference.GetFixturePatch();
+			if (FixturePatch == nullptr || !FixturePatch->IsValidLowLevelFast())
 			{
 				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: A Fixture Patch is null."), __FUNCTION__);
 				continue;
 			}
 
-			if (!PatchChannels.FunctionChannels.Num())
+			if (!PatchChannel.FunctionChannels.Num())
 			{
-				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch %s has no function channels."), __FUNCTION__, *Patch->GetDisplayName());
+				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch %s has no function channels."), __FUNCTION__, *FixturePatch->GetDisplayName());
 				continue;
 			}
 
 			// Verify the Patch still have a valid Parent Template
-			const UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate;
+			const UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate;
 			if (FixtureType == nullptr || !FixtureType->IsValidLowLevelFast())
 			{
-				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch %s has invalid Fixture Type template."), __FUNCTION__, *Patch->GetDisplayName());
+				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch %s has invalid Fixture Type template."), __FUNCTION__, *FixturePatch->GetDisplayName());
 				continue;
 			}
 
 			// Verify the active mode from the Patch Channels still exists in the Fixture Type template 
-			if (PatchChannels.ActiveMode >= FixtureType->Modes.Num())
+			if (PatchChannel.ActiveMode >= FixtureType->Modes.Num())
 			{
-				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch track %s ActiveMode is invalid."), __FUNCTION__, *Patch->GetDisplayName());
-				continue;
-			}
-			const TArray<FDMXFixtureFunction>& Functions = FixtureType->Modes[PatchChannels.ActiveMode].Functions;
-
-			// Controllers to send data from this Patch
-			TArray<UDMXEntityController*>&& Controllers = Patch->GetRelevantControllers();
-			if (!Controllers.Num())
-			{
-				UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Patch %s isn't affectected by any Controllers."), __FUNCTION__, *Patch->GetDisplayName());
+				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch track %s ActiveMode is invalid."), __FUNCTION__, *FixturePatch->GetDisplayName());
 				continue;
 			}
 
 			// By this point, we know data is gonna be sent. So register the Patch's PreAnimated state
-			if (UDMXLibrary* Library = Patch->GetParentLibrary())
+			if (UDMXLibrary* Library = FixturePatch->GetParentLibrary())
 			{
-				const FGuid& PatchID = Patch->GetID();
-				Player.SavePreAnimatedState(*Patch->GetParentLibrary(), AnimTypeIDsByGUID.GetAnimTypeID(PatchID), FPreAnimatedDMXLibraryTokenProducer(PatchID));
+				const FGuid& PatchID = FixturePatch->GetID();
+				Player.SavePreAnimatedState(*FixturePatch->GetParentLibrary(), AnimTypeIDsByGUID.GetAnimTypeID(PatchID), FPreAnimatedDMXLibraryTokenProducer(PatchID));
 			}
 			else // This should be impossible!!
 			{
-				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch %s parent DMX Library is invalid."), __FUNCTION__, *Patch->GetDisplayName());
+				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch %s parent DMX Library is invalid."), __FUNCTION__, *FixturePatch->GetDisplayName());
 				checkNoEntry();
 			}
 
-			// Cache evaluated values from the Function channels' curves
-			ChannelsValues.SetNum(PatchChannels.FunctionChannels.Num(), false);
-			int32 ChannelIndex = 0;
-			float ChannelValue = 0.0f;
-			for (const FDMXFixtureFunctionChannel& FunctionChannel : PatchChannels.FunctionChannels)
-			{
-				// Only cache values for enabled channels
-				if (FunctionChannel.bEnabled)
-				{
-					FunctionChannel.Channel.Evaluate(Time, ChannelValue);
-					ChannelsValues[ChannelIndex] = ChannelValue;
-				}
-				else
-				{
-					ChannelsValues[ChannelIndex] = 0.0f;
-				}
-				++ChannelIndex;
-			}
+			UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
+			check(DMXSubsystem);
+
+			const FDMXFixtureMode& Mode = FixtureType->Modes[PatchChannel.ActiveMode];
+			const FDMXPixelMatrix& MatrixConfig = Mode.PixelMatrixConfig;
+			const TArray<FDMXFixturePixelFunction>& PixelFunctions = MatrixConfig.PixelFunctions;
 
 			// Channel offset for the Patch
-			const int32 PatchChannelOffset = Patch->GetStartingChannel() - 1;
+			const int32 PatchChannelOffset = FixturePatch->GetStartingChannel() - 1;
 			uint8 FunctionChannelsValues[4] = { 0 };
 
-			// For each Function Channel, add its value to each relevant Controller's Universe
-			for (int32 FunctionIndex = 0; FunctionIndex < PatchChannels.FunctionChannels.Num(); ++FunctionIndex)
+			// For each Function Channel, add its value to the FragmentMap
+			bool bLoggedMissingFunction = false;
+			for (const FDMXFixtureFunctionChannel& FunctionChannel : PatchChannel.FunctionChannels)
 			{
-				// Only send values for enabled channels
-				if (!PatchChannels.FunctionChannels[FunctionIndex].bEnabled)
+				if (!FunctionChannel.bEnabled)
 				{
 					continue;
 				}
 
-				// Make sure a function at this index still exists
-				if (FunctionIndex >= Functions.Num())
+				if (FunctionChannel.IsCellFunction())
 				{
-					UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Function Channel %d from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, FunctionIndex, *Patch->GetDisplayName());
-					break;
-				}
+					TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+					DMXSubsystem->GetMatrixPixelChannels(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
 
-				const FDMXFixtureFunction& Function = Functions[FunctionIndex];
-				const int32 FunctionChannel = Function.Channel + PatchChannelOffset;
-				const int32 FunctionLastChannel = UDMXEntityFixtureType::GetFunctionLastChannel(Function) + PatchChannelOffset;
+					const FDMXFixturePixelFunction* PixelFunctionPtr = PixelFunctions.FindByPredicate([&FunctionChannel](const FDMXFixturePixelFunction& PixelFunction) {
+						return PixelFunction.Attribute == FunctionChannel.AttributeName;
+						});
 
-				const uint32 FunctionValue = FMath::RoundToInt(ChannelsValues[FunctionIndex]);
-				UDMXEntityFixtureType::FunctionValueToBytes(Function, FunctionValue, FunctionChannelsValues);
-
-				for (const UDMXEntityController* Controller : Controllers)
-				{
-					IDMXProtocolPtr ControllerProtocol = Controller->DeviceProtocol;
-					if (!ControllerProtocol.IsValid())
+					bool bMissingFunction = !AttributeNameChannelMap.Contains(FunctionChannel.AttributeName) || !PixelFunctionPtr;
+					if (!PixelFunctionPtr)
 					{
-						UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Protocol is invalid for %s."), __FUNCTION__, *Controller->GetDisplayName());
+						if (bMissingFunction && !bLoggedMissingFunction)
+						{
+							UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Function with attribute %s from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, *FunctionChannel.AttributeName.ToString(), *FixturePatch->GetDisplayName());
+							UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Further attributes may be missing. Warnings ommited to avoid overflowing the log."), __FUNCTION__);
+							bLoggedMissingFunction = true;
+						}
+
 						continue;
 					}
 
-					TMap<uint16, IDMXFragmentMap>* ProtocolPtr = DMXFragmentMaps.Find(ControllerProtocol);
-					if (ProtocolPtr == nullptr)
+					const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
+					int32 FirstChannelAddress = AttributeNameChannelMap[FunctionChannel.AttributeName];
+					int32 LastChannelAddress = AttributeNameChannelMap[FunctionChannel.AttributeName] + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+
+					float ChannelValue = 0.0f;
+					if (FunctionChannel.Channel.Evaluate(Time, ChannelValue))
 					{
-						ProtocolPtr = &DMXFragmentMaps.Add(ControllerProtocol);
+						// Round to int so if the user draws into the tracks, values are assigned to int accurately
+						const uint32 FunctionValue = FMath::RoundToInt(ChannelValue);
+
+						if (FirstChannelAddress < 20)
+						{
+							UE_LOG(LogTemp, Warning, TEXT("chan: %i val: %i"), FirstChannelAddress, (int32)FunctionValue);
+						}
+
+						UDMXEntityFixtureType::IntToBytes(PixelFunction.DataType, PixelFunction.bUseLSBMode, FunctionValue, FunctionChannelsValues);
+
+						WriteDMXFragment(FixturePatch, FirstChannelAddress, LastChannelAddress, TArray<uint8>({ FunctionChannelsValues[0], FunctionChannelsValues[1], FunctionChannelsValues[2], FunctionChannelsValues[3] }));
+					}					
+				}
+				else
+				{
+					const TArray<FDMXFixtureFunction>& Functions = FixtureType->Modes[PatchChannel.ActiveMode].Functions;
+
+					const FDMXFixtureFunction* FunctionPtr = Functions.FindByPredicate([&FunctionChannel](const FDMXFixtureFunction& TestedFunction) {
+						return TestedFunction.Attribute == FunctionChannel.AttributeName;
+						});
+
+					if (!FunctionPtr)
+					{
+						UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Function with attribute %s from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, *FunctionChannel.AttributeName.ToString(), *FixturePatch->GetDisplayName());
+						break;
 					}
 
-					const uint16 UniverseID = Patch->UniverseID + Controller->RemoteOffset;
-					IDMXFragmentMap* UniverseFragmentsPtr = ProtocolPtr->Find(UniverseID);
-					if (UniverseFragmentsPtr == nullptr)
-					{
-						UniverseFragmentsPtr = &ProtocolPtr->Add(UniverseID);
-					}
+					const FDMXFixtureFunction& Function = *FunctionPtr;
+					int32 FirstChannelAddress = Function.Channel + PatchChannelOffset;
+					int32 LastChannelAddress = UDMXEntityFixtureType::GetFunctionLastChannel(Function) + PatchChannelOffset;
 
-					uint8 ByteIndex = 0;
-					for (ChannelIndex = FunctionChannel; ChannelIndex <= FunctionLastChannel; ++ChannelIndex)
+					float ChannelValue = 0.0f;
+					if (FunctionChannel.Channel.Evaluate(Time, ChannelValue))
 					{
-						UniverseFragmentsPtr->Add(ChannelIndex, FunctionChannelsValues[ByteIndex++]);
+
+						// Round to int so if the user draws into the tracks, values are assigned to int accurately
+						const uint32 FunctionValue = FMath::RoundToInt(ChannelValue);
+
+						UDMXEntityFixtureType::FunctionValueToBytes(Function, FunctionValue, FunctionChannelsValues);
+
+						WriteDMXFragment(FixturePatch, FirstChannelAddress, LastChannelAddress, TArray<uint8>({ FunctionChannelsValues[0], FunctionChannelsValues[1], FunctionChannelsValues[2], FunctionChannelsValues[3] }));
 					}
 				}
 			}
-		} // Finished adding values to Fragment Maps
+		} 
 
 		// Send the Universes data from the accumulated DMXFragmentMaps
 		for (const TPair<IDMXProtocolPtr, TMap<uint16, IDMXFragmentMap>>& Protocol_Universes : DMXFragmentMaps)
 		{
 			for (const TPair<uint16, IDMXFragmentMap>& Universe_FragmentMaps : Protocol_Universes.Value)
 			{
-				Protocol_Universes.Key->SendDMXFragment(Universe_FragmentMaps.Key, Universe_FragmentMaps.Value);
+				Protocol_Universes.Key->InputDMXFragment(Universe_FragmentMaps.Key, Universe_FragmentMaps.Value);
 			}
 		}
 	}
+	
+	void WriteDMXFragment(UDMXEntityFixturePatch* Patch, int32 FirstChannelAddress, int32 LastChannelAddress, const TArray<uint8>& Bytes)
+	{
+		check(Bytes.Num() < 5);
+
+		// Controllers to send data from this Patch
+		TArray<UDMXEntityController*>&& Controllers = Patch->GetRelevantControllers();
+		if (!Controllers.Num())
+		{
+			UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Patch %s isn't affectected by any Controllers."), __FUNCTION__, *Patch->GetDisplayName());
+		}
+
+		for (const UDMXEntityController* Controller : Controllers)
+		{
+			IDMXProtocolPtr ControllerProtocol = Controller->DeviceProtocol;
+			if (!ControllerProtocol.IsValid())
+			{
+				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Protocol is invalid for %s."), __FUNCTION__, *Controller->GetDisplayName());
+				continue;
+			}
+
+			TMap<uint16, IDMXFragmentMap>* ProtocolPtr = DMXFragmentMaps.Find(ControllerProtocol);
+			if (ProtocolPtr == nullptr)
+			{
+				ProtocolPtr = &DMXFragmentMaps.Add(ControllerProtocol);
+			}
+
+			const uint16 UniverseID = Patch->UniverseID + Controller->RemoteOffset;
+			IDMXFragmentMap* UniverseFragmentsPtr = ProtocolPtr->Find(UniverseID);
+			if (UniverseFragmentsPtr == nullptr)
+			{
+				UniverseFragmentsPtr = &ProtocolPtr->Add(UniverseID);
+			}
+
+			uint8 ByteIndex = 0;
+			for (int32 ByteAddress = FirstChannelAddress; ByteAddress <= LastChannelAddress; ++ByteAddress)
+			{
+				UniverseFragmentsPtr->Add(ByteAddress, Bytes[ByteIndex++]);
+			}
+		}
+	}
+
+	// Keeps all values from Fixture Functions that will be sent using the controllers.
+	// A Protocol points to Universe IDs. Each Universe ID points to a FragmentMap.
+	TMap<IDMXProtocolPtr, TMap<uint16, IDMXFragmentMap>> DMXFragmentMaps;
 
 	const UMovieSceneDMXLibrarySection* Section;
 };

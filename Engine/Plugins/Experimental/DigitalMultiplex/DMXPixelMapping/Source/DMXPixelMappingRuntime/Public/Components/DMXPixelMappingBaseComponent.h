@@ -183,6 +183,9 @@ public:
 		return false;
 	}
 
+	/** Displayed on the hierarchy view */
+	virtual FString GetWidgetName() const;
+
 private:
 	/** Set array index of this componet. It should be called if component belong to some parent */
 	void SetChildIndex(int32 InIndex);

@@ -15,6 +15,7 @@
 
 class FSocket;
 class FDMXProtocolUniverseArtNet;
+class FDMXProtocolReceivingRunnable;
 
 class DMXPROTOCOLARTNET_API FDMXProtocolArtNet
 	: public IDMXProtocol
@@ -33,12 +34,16 @@ public:
 	virtual const FName& GetProtocolName() const override;
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
 	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const override;
+	virtual EDMXSendResult InputDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) override;
 	virtual EDMXSendResult SendDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) override;
 	virtual EDMXSendResult SendDMXFragmentCreate(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment) override;
+	virtual EDMXSendResult SendDMXZeroUniverse(uint16 UniverseID, bool bForceSendDMX /** = false */) override;
 	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const override;
 	virtual bool IsEnabled() const override;
+	virtual void SetReceiveDMXEnabled(bool bEnabled);
+	virtual bool IsReceiveDMXEnabled() const override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override;
-	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) override;
+	virtual void CollectUniverses(const TArray<FDMXCommunicationEndpoint>& Endpoints) override;
 	virtual void UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings) override;
 	virtual bool RemoveUniverseById(uint32 InUniverseId) override;
 	virtual void RemoveAllUniverses() override;
@@ -67,6 +72,17 @@ public:
 	virtual void ReleaseNetworkInterface() override;
 	//~ End IDMXNetworkInterface implementation
 
+private:
+	/**
+	* Creates a listener for DMX packets, uses current network interface
+	* @param OutErrorMessage				String error message
+	*/
+	bool CreateDMXListener(FString& OutErrorMessage);
+
+	/** Destroys the listener for DMX packets, does not affect the network interface */
+	void DestroyDMXListener();
+
+public:
 	//~ Begin IDMXProtocolRDM implementation
 	virtual void SendRDMCommand(const TSharedPtr<FJsonObject>& CMD) override;
 	virtual void RDMDiscovery(const TSharedPtr<FJsonObject>& CMD) override;
@@ -136,6 +152,12 @@ private:
 
 	uint32 GetUniverseAddr(FString UnicastAddress) const;
 
+	/** Handle the changes in the project settings */
+	void OnReceivingThreadChanged(int32 ReceivingRefreshRate, bool bInUseSeparateReceivingThread);
+
+	/** Release receiving thread and all resources */
+	void ReleaseArtNetReceiver();
+
 	friend class FDMXProtocolUniverseArtNet;
 
 private:
@@ -146,11 +168,17 @@ private:
 
 	TSharedPtr<IDMXProtocolSender> ArtNetSender;
 	TSharedPtr<IDMXProtocolReceiver> ArtNetReceiver;
+	TSharedPtr<FDMXProtocolReceivingRunnable> ReceivingRunnable;
+	
+	/** Defines if DMX should be received */
+	bool bShouldReceiveDMX;
 
 	/** Holds the network socket used to transport packages. */
 	FSocket* BroadcastSocket;
 
 	FSocket* ListeningSocket;
+
+	bool bUseSeparateReceivingThread;
 
 	TSharedPtr<FInternetAddr> BroadcastAddr;
 	FIPv4Endpoint BroadcastEndpoint;
@@ -176,6 +204,8 @@ private:
 	FString InterfaceIPAddress;
 
 	FDelegateHandle NetworkInterfaceChangedHandle;
+
+	FOnReceivingThreadChangedDelegate ReceivingThreadChangedDelegate;
 
 	const TCHAR* NetworkErrorMessagePrefix;
 };
