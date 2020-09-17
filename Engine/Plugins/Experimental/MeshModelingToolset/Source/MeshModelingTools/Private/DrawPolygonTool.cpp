@@ -347,9 +347,16 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 		if (SnapEngine.HaveActiveSnapLine())
 		{
-			FLine3d SnapLine = SnapEngine.GetActiveSnapLine();
-			PDI->DrawLine((FVector)SnapLine.PointAt(-9999), (FVector)SnapLine.PointAt(9999),
-				SnapLineColor, SDPG_Foreground, 0.5*PDIScale, 0.0f, true);
+			// clip this line to the view plane because if it goes through the view plane the pixel-line-thickness
+			// calculation appears to fail
+			FLine3d DrawSnapLine = SnapEngine.GetActiveSnapLine();
+			FVector3d P0(DrawSnapLine.PointAt(-9999)), P1(DrawSnapLine.PointAt(9999));		// should be smarter here...
+			if (RenderCameraState.bIsOrthographic == false)
+			{
+				FPlane3d CameraPlane(RenderCameraState.Forward(), RenderCameraState.Position + 1.0*RenderCameraState.Forward());
+				CameraPlane.ClipSegment(P0, P1);
+			}
+			PDI->DrawLine((FVector)P0, (FVector)P1, SnapLineColor, SDPG_Foreground, 0.5 * PDIScale, 0.0f, true);
 
 			if (SnapEngine.HaveActiveSnapDistance())
 			{
@@ -459,7 +466,7 @@ void UDrawPolygonTool::ResetPolygon()
 	PolygonVertices.Reset();
 	PolygonHolesVertices.Reset();
 	SnapEngine.Reset();
-	bHaveSurfaceHit = false;
+	bHaveSurfaceHit = false;
 	bInFixedPolygonMode = false;
 	bHaveSelfIntersection = false;
 	CurrentCurveTimestamp++;
