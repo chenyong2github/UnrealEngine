@@ -1270,6 +1270,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 	const uint32 GPUIndex = InFlags.GetGPUIndex();
 	TArray<uint8> OutDataRaw;
 
+	FD3D12CommandContext& CommandContext = GetRHIDevice(GPUIndex)->GetDefaultCommandContext();
 	FD3D12TextureBase* Texture = GetD3D12TextureFromRHITexture(InRHITexture);
 
 	// Wait for the command list if needed
@@ -1281,7 +1282,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 		CommandListState ListState = GetRHIDevice(GPUIndex)->GetCommandListManager().GetCommandListState(SyncPoint);
 		if (ListState == CommandListState::kOpen)
 		{
-			GetRHIDevice()->GetDefaultCommandContext().FlushCommands(true);
+			CommandContext.FlushCommands(true);
 		}
 		else
 		{
