@@ -105,6 +105,7 @@ void FGPULightmass::OnPrimitiveComponentRegistered(UPrimitiveComponent* InCompon
 {
 	if (InComponent->GetWorld() != World) return;
 
+	if (!InComponent->IsRegistered()) return;
 	if (!InComponent->IsVisible()) return;
 
 	check(InComponent->HasValidSettingsForStaticLighting(false));
