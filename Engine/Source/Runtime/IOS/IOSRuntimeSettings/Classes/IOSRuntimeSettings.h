@@ -306,17 +306,17 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bUseRSync", DisplayName = "Override existing SSH permissions file", ConfigHierarchyEditable))
 	FIOSBuildResourceFilePath SSHPrivateKeyOverridePath;
 
-	// If checked, the Siri Remote will act as a separate controller Id from any connected controllers. If unchecked, the remote and the first connected controller will share an ID (and control the same player)
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Treat AppleTV Remote as separate controller"))
-	bool bTreatRemoteAsSeparateController;
+	// If checked, the game will be able to handle multiple gamepads at the same time (the Siri Remote is a gamepad)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Can the Game have multiple gamepads connected at a single time"))
+	bool bGameSupportsMultipleActiveControllers;
 
 	// If checked, the Siri Remote can be rotated to landscape view
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Allow AppleTV Remote landscape mode"))
 	bool bAllowRemoteRotation;
 	
 	// If checked, the trackpad is a virtual joystick (acts like the left stick of a controller). If unchecked, the trackpad will send touch events
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Use AppleTV trackpad as virtual joystick"))
-	bool bUseRemoteAsVirtualJoystick;
+	UPROPERTY(config, meta = (Deprecated, DeprecationMessage = "Use AppleTV trackpad as virtual joystick. Deprecated. Siri Remote shouls always behave as a joystick"))
+	bool bUseRemoteAsVirtualJoystick_DEPRECATED;
 	
 	// If checked, the center of the trackpad is 0,0 (center) for the virtual joystick. If unchecked, the location the user taps becomes 0,0
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Use AppleTV Remote absolute trackpad values"))

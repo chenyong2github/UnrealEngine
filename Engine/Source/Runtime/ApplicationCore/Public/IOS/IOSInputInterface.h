@@ -30,6 +30,15 @@ enum TouchType
 	FirstMove,
 };
 
+enum ControllerType
+{
+    Unassigned,
+    SiriRemote,
+    ExtendedGamepad,
+    XboxGamepad,
+    DualShockGamepad
+};
+
 struct TouchInput
 {
 	int Handle;
@@ -37,6 +46,27 @@ struct TouchInput
 	FVector2D LastPosition;
 	FVector2D Position;
 	float Force;
+};
+
+enum class EIOSEventType : int32
+{
+    Invalid = 0,
+    LeftMouseDown = 1,
+    LeftMouseUp = 2,
+    RightMouseDown = 3,
+    RightMouseUp = 4,
+    KeyDown = 10,
+    KeyUp = 11,
+    MiddleMouseDown = 25,
+    MiddleMouseUp = 26,
+    ThumbDown = 50,
+    ThumbUp = 70,
+};
+
+struct FDeferredIOSEvent
+{
+    EIOSEventType type;
+    uint32 keycode;
 };
 
 /**
@@ -85,16 +115,39 @@ public:
 
 	void EnableMotionData(bool bEnable);
 	bool IsMotionDataEnabled() const;
-	
+    
+    static void SetKeyboardInhibited(bool bInhibited) { bKeyboardInhibited = bInhibited; }
+    static bool IsKeyboardInhibited() { return bKeyboardInhibited; }
+    
+    
+    NSData* GetGamepadGlyphRawData(const FGamepadKeyNames::Type& ButtonKey, uint32 ControllerIndex);
+    const ControllerType GetControllerType(uint32 ControllerIndex);
+    void SetControllerType(uint32 ControllerIndex);
+    
+    GCControllerButtonInput *GetGCControllerButton(const FGamepadKeyNames::Type& ButtonKey, uint32 ControllerIndex);
+    
+    void HandleInputInternal(const FGamepadKeyNames::Type& UEButton, uint32 ControllerIndex, bool bIsPressed, bool bWasPressed);
+    void HandleButtonGamepad(const FGamepadKeyNames::Type& UEButton, uint32 ControllerIndex);
+    void HandleAnalogGamepad(const FGamepadKeyNames::Type& UEAxis, uint32 ControllerIndex);
+    void HandleVirtualButtonGamepad(const FGamepadKeyNames::Type& UEButtonNegative, const FGamepadKeyNames::Type& UEButtonPositive, uint32 ControllerIndex);
+
 private:
 
 	FIOSInputInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
 
 	// handle disconnect and connect events
+#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
+    void HandleMouseConnection(GCMouse* Mouse);
+    void HandleMouseDisconnect(GCMouse* Mouse);
+    void HandleKeyboardConnection(GCKeyboard* Keyboard);
+    void HandleKeyboardDisconnect(GCKeyboard* Keyboard);
+#endif
 	void HandleConnection(GCController* Controller);
 	void HandleDisconnect(GCController* Controller);
 	
-	/**
+    void SetCurrentController(GCController* Controller);
+
+    /**
 	 * Get the current Movement data from the device
 	 *
 	 * @param Attitude The current Roll/Pitch/Yaw of the device
@@ -111,39 +164,40 @@ private:
 
 private:
 	void ProcessTouchesAndKeys(uint32 ControllerId, const TArray<TouchInput>& InTouchInputStack, const TArray<int32>& InKeyInputStack);
-	   
-	TSharedRef< FGenericApplicationMessageHandler > MessageHandler;
+    void ProcessDeferredEvents();
+    void ProcessEvent(const FDeferredIOSEvent& Event);
+	
+    TSharedRef< FGenericApplicationMessageHandler > MessageHandler;
 
 
 	/** Game controller objects (per user)*/
 	struct FUserController
 	{
         GCController* Controller;
-		GCExtendedGamepad* PreviousExtendedGamepad;
-#if PLATFORM_TVOS
-		GCMicroGamepad* PreviousMicroGamepad;
-#endif
+        
+        ControllerType ControllerType;
+
+        GCExtendedGamepad* PreviousExtendedGamepad;
+        GCMicroGamepad* PreviousMicroGamepad;
+
 		FQuat ReferenceAttitude;
 		bool bNeedsReferenceAttitude;
 		bool bHasReferenceAttitude;
-		bool bIsGamepadConnected;
-		bool bIsRemoteConnected;
-		bool bPauseWasPressed;
-        // Tracked outside the gamepads to allow us to support thumbsticks on more devices.
-        bool bRightThumbstickWasPressed;
-        bool bLeftThumbstickWasPressed;
+        
+        // Deprecated but buttonMenu in iOS 14 is not working in current Beta (August 2020).
+        bool bPauseWasPressed;
 	};
-	// there is a hardcoded limit of 4 controllers in the API
+    // there is a hardcoded limit of 4 controllers in the API
 	FUserController Controllers[4];
 
 	// can the remote be rotated to landscape
 	bool bAllowRemoteRotation;
 
-	// is the remote treated as a separate controller?
-	bool bTreatRemoteAsSeparateController;
+	// can the game handle multiple gamepads at the same time (siri remote is a gamepad) ?
+	bool bGameSupportsMultipleActiveControllers;
 
 	// should the remote be used as virtual joystick vs touch events
-	bool bUseRemoteAsVirtualJoystick;
+	bool bUseRemoteAsVirtualJoystick_DEPRECATED;
 
 	// should the tracking use the pad center as the virtual joystick center?
 	bool bUseRemoteAbsoluteDpadValues;
@@ -189,4 +243,12 @@ private:
 	int HapticFeedbackSupportLevel;
 	
 	TMap<FName, double> NextKeyRepeatTime;
+    
+    FCriticalSection EventsMutex;
+        TArray<FDeferredIOSEvent> DeferredEvents;
+        float MouseDeltaX;
+        float MouseDeltaY;
+        float ScrollDeltaY;
+        bool bHaveMouse;
+        static bool bKeyboardInhibited;
 };

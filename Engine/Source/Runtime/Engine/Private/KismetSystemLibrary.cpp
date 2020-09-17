@@ -38,6 +38,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "UObject/FieldPathProperty.h"
 #include "Commandlets/Commandlet.h"
+#include "PlatformFeatures.h"
 
 //////////////////////////////////////////////////////////////////////////
 // UKismetSystemLibrary
@@ -2545,6 +2546,11 @@ bool UKismetSystemLibrary::IsControllerAssignedToGamepad(int32 ControllerId)
 FString UKismetSystemLibrary::GetGamepadControllerName(int32 ControllerId)
 {
 	return FPlatformApplicationMisc::GetGamepadControllerName(ControllerId);
+}
+
+UTexture2D* UKismetSystemLibrary::GetGamepadButtonGlyph(const FString& ButtonKey, int32 ControllerIndex)
+{
+	return FPlatformApplicationMisc::GetGamepadButtonGlyph(FName(*ButtonKey), ControllerIndex);
 }
 
 void UKismetSystemLibrary::SetSuppressViewportTransitionMessage(const UObject* WorldContextObject, bool bState)
