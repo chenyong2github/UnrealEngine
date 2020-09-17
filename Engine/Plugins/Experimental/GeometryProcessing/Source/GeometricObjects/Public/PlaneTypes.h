@@ -71,6 +71,79 @@ struct TPlane3
 			return 0;
 		}
 	}
+
+
+
+
+	/**
+	 * Compute intersection of Line with Plane
+	 * @param LineOrigin origin of line
+	 * @param LineDirection direction of line
+	 * @param HitPointOut intersection point, or FVector3::MaxVector() if line is parallel to plane
+	 * @return true if Line intersects Plane and IntersectionPointOut is valid
+	 */
+	bool FindLineIntersection(const FVector3<RealType>& LineOrigin, const FVector3<RealType>& LineDirection, FVector3<RealType>& IntersectionPointOut) const
+	{
+		RealType NormalDot = LineDirection.Dot(Normal);
+		if ( TMathUtil<RealType>::Abs(NormalDot) < TMathUtil<RealType>::ZeroTolerance )
+		{
+			IntersectionPointOut = FVector3<RealType>::MaxVector();
+			return false;
+		}
+		RealType t = -(LineOrigin.Dot(Normal) - Constant) / NormalDot;
+		IntersectionPointOut = LineOrigin + t * LineDirection;
+		return true;
+	}
+
+
+
+	/**
+	 * Clip line segment defined by two points against plane. Region of Segment on positive side of Plane is kept.
+	 * Note that the line may be fully clipped, in that case 0 is returned
+	 * @param Point0 first point of segment
+	 * @param Point1 second point of segment
+	 * @return 0 if line is fully clipped, 1 if line is partially clipped, 2 if line is not clipped
+	 */
+	int ClipSegment(FVector3<RealType>& Point0, FVector3<RealType>& Point1)
+	{
+		RealType Dist0 = DistanceTo(Point0);
+		RealType Dist1 = DistanceTo(Point1);
+		if (Dist0 <= 0 && Dist1 <= 0)
+		{
+			return 0;
+		}
+		else if (Dist0 * Dist1 >= 0)
+		{
+			return 2;
+		}
+
+		FVector3<RealType> DirectionVec = Point1 - Point0;
+		FVector3<RealType> Direction = DirectionVec.Normalized();
+		RealType Length = DirectionVec.Dot(Direction);
+
+		// test if segment is parallel to plane, if so, no intersection
+		RealType NormalDot = Direction.Dot(Normal);
+		if ( TMathUtil<RealType>::Abs(NormalDot) < TMathUtil<RealType>::ZeroTolerance )
+		{
+			return 2;
+		}
+
+		RealType LineT = -Dist0 / NormalDot;  // calculate line parameter for line/plane intersection
+		if (LineT > 0 && LineT < Length)   // verify segment intersection  (should always be true...)
+		{
+			if (NormalDot < 0)
+			{
+				Point1 = Point0 + LineT * Direction;
+			}
+			else
+			{
+				Point0 += LineT * Direction;
+			}
+			return 1;
+		}
+		return 2;
+	}
+
 };
 
 typedef TPlane3<float> FPlane3f;
