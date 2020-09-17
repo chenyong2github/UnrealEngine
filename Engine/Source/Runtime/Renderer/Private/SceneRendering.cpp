@@ -2592,7 +2592,7 @@ void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask 
 				if (ViewInfo.bAllowCrossGPUTransfer && ViewInfo.GPUMask != RenderTargetGPUMask)
 				{
 					// Clamp the view rect by the rendertarget rect to prevent issues when resizing the viewport.
-					const FIntRect TransferRect(ViewInfo.ViewRect.Min.ComponentMin(Extent), ViewInfo.ViewRect.Max.ComponentMin(Extent));
+					const FIntRect TransferRect(ViewInfo.UnscaledViewRect.Min.ComponentMin(Extent), ViewInfo.UnscaledViewRect.Max.ComponentMin(Extent));
 					if (TransferRect.Width() > 0 && TransferRect.Height() > 0)
 					{
 						for (uint32 RenderTargetGPUIndex : RenderTargetGPUMask)
