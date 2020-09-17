@@ -1039,7 +1039,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		NumLODs = 1;
 	}
 
-	bool bImportMultipleLODs = NumLODs > 1;
+	bool bExportMultipleLODs = NumLODs > 1;
 
 	pxr::SdfPath ParentPrimPath = UsdPrim.GetPath();
 	std::string LowestLODAdded = "";
@@ -1093,7 +1093,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 
 		// Enable the variant edit context, if we are creating variant LODs
 		TUniquePtr< pxr::UsdEditContext > EditContext;
-		if ( bImportMultipleLODs )
+		if ( bExportMultipleLODs )
 		{
 			pxr::UsdVariantSet VariantSet = VariantSets.GetVariantSet( UnrealIdentifiers::LOD );
 
@@ -1106,14 +1106,25 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 			EditContext = MakeUnique< pxr::UsdEditContext>( VariantSet.GetVariantEditContext() );
 		}
 
-		pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( LODPrimPath, UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
-		pxr::UsdGeomMesh UsdLODPrimGeomMesh{ UsdLODPrim };
+		pxr::UsdGeomMesh TargetMesh;
+		if ( bExportMultipleLODs )
+		{
+			// Add the mesh data to a child prim with the Mesh schema
+			pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( LODPrimPath, UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
+			TargetMesh = pxr::UsdGeomMesh{ UsdLODPrim };
+		}
+		else
+		{
+			// Make sure the parent prim has the Mesh schema and add the mesh data directly to it
+			UsdPrim = Stage->DefinePrim( UsdPrim.GetPath(), UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
+			TargetMesh = pxr::UsdGeomMesh{ UsdPrim };
+		}
 
-		UnrealToUsdImpl::ConvertStaticMeshLOD( LODIndex, RenderMesh, UsdLODPrimGeomMesh, MaterialAssignments, TimeCode );
+		UnrealToUsdImpl::ConvertStaticMeshLOD( LODIndex, RenderMesh, TargetMesh, MaterialAssignments, TimeCode );
 	}
 
 	// Reset variant set to start with the lowest lod selected
-	if ( bImportMultipleLODs )
+	if ( bExportMultipleLODs )
 	{
 		VariantSets.GetVariantSet(UnrealIdentifiers::LOD).SetVariantSelection(LowestLODAdded);
 	}
