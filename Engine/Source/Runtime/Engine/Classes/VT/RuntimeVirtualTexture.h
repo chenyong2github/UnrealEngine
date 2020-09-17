@@ -118,8 +118,15 @@ public:
 	int32 GetEstimatedPhysicalTextureMemoryKb() const;
 #endif
 
+	/** Structure containing settings for initializing the producer. */
+	struct FInitSettings
+	{
+		/** Bias to apply to the virtual texture tile count. */
+		int32 TileCountBias = 0;
+	};
+
 	/** Get virtual texture description based on the properties of this object and the passed in volume transform. */
-	void GetProducerDescription(FVTProducerDescription& OutDesc, FTransform const& VolumeToWorld) const;
+	void GetProducerDescription(FVTProducerDescription& OutDesc, FInitSettings const& InitSettings, FTransform const& VolumeToWorld) const;
 
 	/** Returns number of texture layers in the virtual texture */
 	int32 GetLayerCount() const;
@@ -135,7 +142,7 @@ public:
 	bool GetClearTextures() const { return bClearTextures; }
 
 	/** (Re)Initialize this object. Call this whenever we modify the producer or transform. */
-	void Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld, FBox const& WorldBounds);
+	void Initialize(IVirtualTexture* InProducer, FInitSettings const& InitSettings, FTransform const& VolumeToWorld, FBox const& WorldBounds);
 
 	/** Release the resources for this object This will need to be called if our producer becomes stale and we aren't doing a full reinit with a new producer. */
 	void Release();
@@ -150,7 +157,7 @@ public:
 
 protected:
 	/** Initialize the render resources. This kicks off render thread work. */
-	void InitResource(IVirtualTexture* InProducer, FTransform const& VolumeToWorld);
+	void InitResource(IVirtualTexture* InProducer, FInitSettings const& InitSettings, FTransform const& VolumeToWorld);
 	/** Initialize the render resources with a null producer. This kicks off render thread work. */
 	void InitNullResource();
 
