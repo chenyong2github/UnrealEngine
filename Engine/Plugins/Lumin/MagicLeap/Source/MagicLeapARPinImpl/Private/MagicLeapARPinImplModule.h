@@ -25,6 +25,7 @@ public:
 	virtual EMagicLeapPassableWorldError GetNumAvailableARPins(int32& Count) override;
 	virtual EMagicLeapPassableWorldError GetAvailableARPins(int32 NumRequested, TArray<FGuid>& PinCoordinateFrames) override;
 	virtual EMagicLeapPassableWorldError GetClosestARPin(const FVector& SearchPoint, FGuid& PinID) override;
+	virtual EMagicLeapPassableWorldError QueryARPins(const FMagicLeapARPinQuery& Query, TArray<FGuid>& Pins) override;
 	virtual bool GetARPinPositionAndOrientation_TrackingSpace(const FGuid& PinID, FVector& Position, FRotator& Orientation, bool& PinFoundInEnvironment) override;
 	virtual bool GetARPinPositionAndOrientation(const FGuid& PinID, FVector& Position, FRotator& Orientation, bool& PinFoundInEnvironment) override;
 	virtual EMagicLeapPassableWorldError GetARPinState(const FGuid& PinID, FMagicLeapARPinState& State) override;
@@ -52,6 +53,8 @@ private:
 	TMap<FGuid, FMagicLeapARPinState> OldPinsAndStates;
 
 	double PreviousTime;
+
+	bool bHasCompletedPrisonTime;
 
 #if WITH_MLSDK
 	MLHandle Tracker;

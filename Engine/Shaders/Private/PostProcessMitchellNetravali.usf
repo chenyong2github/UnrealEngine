@@ -4,6 +4,8 @@
 	PostProcessDownsample.usf: PostProcessing down sample.
 =============================================================================*/
 
+#define EYE_ADAPTATION_LOOSE_PARAMETERS 1
+
 #include "Common.ush"
 #include "ScreenPass.ush"
 #include "EyeAdaptationCommon.ush"

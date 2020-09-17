@@ -76,6 +76,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
 	bool bUseUnreliablePose;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
+	EMagicLeapImageTargetOrientation AxisOrientation;
+
 //private:
 	/** Activated when the target image is successfully set. */
 	UPROPERTY(BlueprintAssignable, Category = "ImageTracking | MagicLeap", meta = (AllowPrivateAccess = true))
@@ -106,7 +109,9 @@ public:
 	FMagicLeapImageTargetUnreliableTrackingMulti OnImageTargetUnreliableTracking;
 
 private:
-	bool bIsTracking;
+	bool bTargetSet;
+	EMagicLeapImageTargetStatus LastStatus;
+
 #if WITH_EDITOR
 	UTexture2D* TextureBeforeEdit;
 public:

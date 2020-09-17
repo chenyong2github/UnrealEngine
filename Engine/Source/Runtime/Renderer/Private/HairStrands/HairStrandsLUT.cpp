@@ -57,13 +57,13 @@ static FRDGTextureRef AddHairLUTPass(
 	const FIntVector OutputResolution(GHairLUTIncidentAngleCount, GHairLUTRoughnessCount, GHairLUTAbsorptionCount);
 
 	FRDGTextureDesc OutputDesc;
+	OutputDesc.Dimension = ETextureDimension::Texture3D;
 	OutputDesc.Extent.X = OutputResolution.X;
 	OutputDesc.Extent.Y = OutputResolution.Y;
 	OutputDesc.Depth = OutputResolution.Z;
 	OutputDesc.Format = PF_FloatRGBA;
 	OutputDesc.NumMips = 1;
-	OutputDesc.Flags = TexCreate_ShaderResource;
-	OutputDesc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
+	OutputDesc.Flags = TexCreate_ShaderResource | TexCreate_UAV;
 	FRDGTextureRef HairLUTTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("HairLUT"));
 
 	FHairLUTCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairLUTCS::FParameters>();
@@ -255,7 +255,7 @@ class FHairCoverageLUTCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FUploadParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UPLOAD(StructuredBuffer<float>, UploadBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UPLOAD(UploadBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -300,8 +300,7 @@ static FRDGTextureRef AddHairCoverageLUTPass(FRDGBuilder& GraphBuilder, const FV
 	OutputDesc.Extent.Y = OutputResolution.Y;
 	OutputDesc.Format = PF_R32_FLOAT;
 	OutputDesc.NumMips = 1;
-	OutputDesc.Flags = 0;
-	OutputDesc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource;
+	OutputDesc.Flags = TexCreate_UAV | TexCreate_ShaderResource;
 	FRDGTextureRef HairLUTTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("HairCoverageLUT"));
 
 	FHairCoverageLUTCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairCoverageLUTCS::FParameters>();
@@ -320,31 +319,35 @@ static FRDGTextureRef AddHairCoverageLUTPass(FRDGBuilder& GraphBuilder, const FV
 	return HairLUTTexture;
 }
 
-FHairLUT GetHairLUT(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+FHairLUT GetHairLUT(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
 	// Lazy LUT generation
-	const bool bNeedGenerate = 
+	const bool bNeedGenerate =
 		GSystemTextures.HairLUT0.GetReference() == nullptr || GSystemTextures.HairLUT1.GetReference() == nullptr || GSystemTextures.HairLUT2.GetReference() == nullptr ||
 		GSystemTextures.HairLUT0.GetReference()->GetRenderTargetItem().ShaderResourceTexture->GetSizeXYZ() != FIntVector(GHairLUTIncidentAngleCount, GHairLUTRoughnessCount, GHairLUTAbsorptionCount);
 	if (bNeedGenerate)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-
 		FRDGTextureRef HairDualScatteringLUTTexture = AddHairLUTPass(GraphBuilder, View, HairLUTType_DualScattering);
-		GraphBuilder.QueueTextureExtraction(HairDualScatteringLUTTexture, &GSystemTextures.HairLUT0);
+		ConvertToExternalTexture(GraphBuilder, HairDualScatteringLUTTexture, GSystemTextures.HairLUT0);
 
-		FRDGTextureRef HairMeanEnergyLUTTexture		= AddHairLUTPass(GraphBuilder, View, HairLUTType_MeanEnergy);		
-		GraphBuilder.QueueTextureExtraction(HairMeanEnergyLUTTexture, &GSystemTextures.HairLUT1);
+		FRDGTextureRef HairMeanEnergyLUTTexture = AddHairLUTPass(GraphBuilder, View, HairLUTType_MeanEnergy);
+		ConvertToExternalTexture(GraphBuilder, HairMeanEnergyLUTTexture, GSystemTextures.HairLUT1);
 
 		FRDGTextureRef HairCoverageLUTTexture = AddHairCoverageLUTPass(GraphBuilder, View);
-		GraphBuilder.QueueTextureExtraction(HairCoverageLUTTexture, &GSystemTextures.HairLUT2);
-
-		GraphBuilder.Execute();
+		ConvertToExternalTexture(GraphBuilder, HairCoverageLUTTexture, GSystemTextures.HairLUT2);
 	}
 	FHairLUT HairLUTData;
 	HairLUTData.Textures[HairLUTType_DualScattering] = GSystemTextures.HairLUT0;
 	HairLUTData.Textures[HairLUTType_MeanEnergy] = GSystemTextures.HairLUT1;
 	HairLUTData.Textures[HairLUTType_Coverage] = GSystemTextures.HairLUT2;
 
+	return HairLUTData;
+}
+
+FHairLUT GetHairLUT(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	FRDGBuilder GraphBuilder(RHICmdList);
+	FHairLUT HairLUTData = GetHairLUT(GraphBuilder, View);
+	GraphBuilder.Execute();
 	return HairLUTData;
 }

@@ -7,6 +7,7 @@
 #include "Features/IModularFeatures.h"
 #include "CoreGlobals.h"
 #include "Misc/CoreDelegates.h"
+#include "Interfaces/IPluginManager.h"
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
@@ -51,6 +52,9 @@ void FAppleARKitModule::StartupModule()
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FAppleARKitModule::PostEngineInit);
 #endif
+	
+	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("AppleARKit"))->GetBaseDir(), TEXT("Shaders"));
+	AddShaderSourceDirectoryMapping(TEXT("/AppleARKit"), PluginShaderDir);
 }
 
 void FAppleARKitModule::PreExit()

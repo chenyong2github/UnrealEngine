@@ -6,10 +6,6 @@
 #include "MetalCommandQueue.h"
 #include "GPUProfiler.h"
 
-#if METAL_STATISTICS
-#include "../../../../../Restricted/NotForLicensees/Plugins/MetalStatistics/Source/MetalStatistics/Public/MetalStatistics.h"
-#endif
-
 // Stats
 DECLARE_CYCLE_STAT_EXTERN(TEXT("MakeDrawable time"),STAT_MetalMakeDrawableTime,STATGROUP_MetalRHI, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Draw call time"),STAT_MetalDrawCallTime,STATGROUP_MetalRHI, );
@@ -200,9 +196,6 @@ struct IMetalStatsScope
 	
 	virtual void Start(mtlpp::CommandBuffer const& Buffer) = 0;
 	virtual void End(mtlpp::CommandBuffer const& Buffer) = 0;
-#if METAL_STATISTICS
-	virtual void GetStats(FMetalPipelineStats& PipelineStats) = 0;
-#endif
 	
 	FString GetJSONRepresentation(uint32 PID);
 };
@@ -217,9 +210,6 @@ struct FMetalCPUStats : public IMetalStatsScope
 	
 	virtual void Start(mtlpp::CommandBuffer const& Buffer) final override;
 	virtual void End(mtlpp::CommandBuffer const& Buffer) final override;
-#if METAL_STATISTICS
-	virtual void GetStats(FMetalPipelineStats& PipelineStats) final override;
-#endif
 };
 
 struct FMetalDisplayStats : public IMetalStatsScope
@@ -229,9 +219,6 @@ struct FMetalDisplayStats : public IMetalStatsScope
 	
 	virtual void Start(mtlpp::CommandBuffer const& Buffer) final override;
 	virtual void End(mtlpp::CommandBuffer const& Buffer) final override;
-#if METAL_STATISTICS
-	virtual void GetStats(FMetalPipelineStats& PipelineStats) final override;
-#endif
 };
 
 enum EMTLFenceType
@@ -240,85 +227,6 @@ enum EMTLFenceType
 	EMTLFenceTypeUpdate,
 };
 
-#if METAL_STATISTICS
-struct FMetalEventStats : public IMetalStatsScope
-{
-	FMetalEventStats(const TCHAR* Name, FColor Color);
-	FMetalEventStats(const TCHAR* Name, uint64 InGPUIdx);
-	virtual ~FMetalEventStats();
-	
-	virtual void Start(mtlpp::CommandBuffer const& Buffer) final override;
-	virtual void End(mtlpp::CommandBuffer const& Buffer) final override;
-	virtual void GetStats(FMetalPipelineStats& PipelineStats) final override;
-	
-	id<IMetalStatisticsSamples> StartSample;
-	id<IMetalStatisticsSamples> EndSample;
-	
-	TMap<FString, float> DriverStats;
-};
-
-struct FMetalOperationStats : public IMetalStatsScope
-{
-	FMetalOperationStats(char const* DrawCall, uint64 GPUThreadIndex, uint32 StartPoint, uint32 EndPoint, uint32 RHIPrimitives, uint32 RHIVertices, uint32 RHIInstances);
-	FMetalOperationStats(char const* DrawCall, uint64 GPUThreadIndex, uint32 StartPoint, uint32 EndPoint);
-	FMetalOperationStats(FString DrawCall, uint64 GPUThreadIndex, uint32 StartPoint, uint32 EndPoint);
-	virtual ~FMetalOperationStats();
-	
-	virtual void Start(mtlpp::CommandBuffer const& Buffer) final override;
-	virtual void End(mtlpp::CommandBuffer const& Buffer) final override;
-	virtual void GetStats(FMetalPipelineStats& PipelineStats) final override;
-	
-	id<IMetalCommandBufferStats> CmdBufferStats;
-	uint32 StartPoint;
-	uint32 EndPoint;
-	IMetalDrawStats* DrawStats;
-	uint32 RHIPrimitives;
-	uint32 RHIVertices;
-	uint32 RHIInstances;
-};
-
-struct FMetalShaderPipelineStats : public IMetalStatsScope
-{
-	FMetalShaderPipelineStats(FMetalShaderPipeline* PipelineStat, uint64 GPUThreadIndex);
-	virtual ~FMetalShaderPipelineStats();
-	
-	virtual void Start(mtlpp::CommandBuffer const& Buffer) final override;
-	virtual void End(mtlpp::CommandBuffer const& Buffer) final override;
-	virtual void GetStats(FMetalPipelineStats& PipelineStats) final override;
-	
-	id<IMetalCommandBufferStats> CmdBufferStats;
-	id<IMetalStatisticsSamples> StartSample;
-	FMetalShaderPipeline* Pipeline;
-};
-
-struct FMetalEncoderStats : public IMetalStatsScope
-{
-	FMetalEncoderStats(mtlpp::RenderCommandEncoder const& Encoder, uint64 GPUThreadIndex);
-	FMetalEncoderStats(mtlpp::BlitCommandEncoder const& Encoder, uint64 GPUThreadIndex);
-	FMetalEncoderStats(mtlpp::ComputeCommandEncoder const& Encoder, uint64 GPUThreadIndex);
-	virtual ~FMetalEncoderStats();
-	
-	virtual void Start(mtlpp::CommandBuffer const& Buffer) final override;
-	virtual void End(mtlpp::CommandBuffer const& Buffer) final override;
-	virtual void GetStats(FMetalPipelineStats& PipelineStats) final override;
-	
-	void EncodeDraw(char const* DrawCall, uint32 RHIPrimitives, uint32 RHIVertices, uint32 RHIInstances);
-	void EncodeBlit(char const* DrawCall);
-	void EncodeBlit(FString DrawCall);
-	void EncodeDispatch(char const* DrawCall);
-	void EncodePipeline(FMetalShaderPipeline* PipelineStat);
-	void EncodeFence(FMetalEventStats* Stat, EMTLFenceType Type);
-	
-	id<IMetalCommandBufferStats> CmdBufferStats;
-	ns::AutoReleased<mtlpp::CommandBuffer> CmdBuffer;
-	uint32 StartPoint;
-	uint32 EndPoint;
-	id<IMetalStatisticsSamples> StartSample;
-	id<IMetalStatisticsSamples> EndSample;
-	TArray<FMetalEventStats*> FenceUpdates;
-};
-#endif
-
 struct FMetalCommandBufferStats : public IMetalStatsScope
 {
 	FMetalCommandBufferStats(mtlpp::CommandBuffer const& Buffer, uint64 GPUThreadIndex);
@@ -326,24 +234,8 @@ struct FMetalCommandBufferStats : public IMetalStatsScope
 	
 	virtual void Start(mtlpp::CommandBuffer const& Buffer) final override;
 	virtual void End(mtlpp::CommandBuffer const& Buffer) final override;
-#if METAL_STATISTICS
-	virtual void GetStats(FMetalPipelineStats& PipelineStats) final override;
-#endif
 
 	ns::AutoReleased<mtlpp::CommandBuffer> CmdBuffer;
-
-#if METAL_STATISTICS
-	void BeginEncoder(mtlpp::RenderCommandEncoder const& Encoder);
-	void BeginEncoder(mtlpp::BlitCommandEncoder const& Encoder);
-	void BeginEncoder(mtlpp::ComputeCommandEncoder const& Encoder);
-	
-	void EndEncoder(mtlpp::RenderCommandEncoder const& Encoder);
-	void EndEncoder(mtlpp::BlitCommandEncoder const& Encoder);
-	void EndEncoder(mtlpp::ComputeCommandEncoder const& Encoder);
-
-	id<IMetalCommandBufferStats> CmdBufferStats;
-	FMetalEncoderStats* ActiveEncoderStats;
-#endif
 };
 
 /**
@@ -417,9 +309,6 @@ public:
 	
 	static FMetalProfiler* CreateProfiler(FMetalContext* InContext);
 	static FMetalProfiler* GetProfiler();
-#if METAL_STATISTICS
-	static IMetalStatistics* GetStatistics();
-#endif
 	static void DestroyProfiler();
 	
 	void BeginCapture(int InNumFramesToCapture = -1);
@@ -436,34 +325,6 @@ public:
 	void EncodeBlit(FMetalCommandBufferStats* CmdBufStats, FString DrawCall);
 	void EncodeDispatch(FMetalCommandBufferStats* CmdBufStats, char const* DrawCall);
 	
-#if METAL_STATISTICS
-	void EncodePipeline(FMetalCommandBufferStats* CmdBufStats, FMetalShaderPipeline* PipelineStat);
-	
-	void BeginEncoder(FMetalCommandBufferStats* CmdBufStats, mtlpp::RenderCommandEncoder const& Encoder);
-	void BeginEncoder(FMetalCommandBufferStats* CmdBufStats, mtlpp::BlitCommandEncoder const& Encoder);
-	void BeginEncoder(FMetalCommandBufferStats* CmdBufStats, mtlpp::ComputeCommandEncoder const& Encoder);
-	
-	void EndEncoder(FMetalCommandBufferStats* CmdBufStats, mtlpp::RenderCommandEncoder const& Encoder);
-	void EndEncoder(FMetalCommandBufferStats* CmdBufStats, mtlpp::BlitCommandEncoder const& Encoder);
-	void EndEncoder(FMetalCommandBufferStats* CmdBufStats, mtlpp::ComputeCommandEncoder const& Encoder);
-	
-	enum EMTLCounterType
-	{
-		EMTLCounterTypeStartEnd,
-		EMTLCounterTypeLast,
-		EMTLCounterTypeDifference
-	};
-	
-	void AddCounter(NSString* Counter, EMTLCounterType Type);
-	void RemoveCounter(NSString* Counter);
-	void SetGranularity(EMetalSampleGranularity Sample);
-	TMap<FString, EMTLCounterType> const& GetCounterTypes() const { return CounterTypes; }
-	
-	void EncodeFence(FMetalCommandBufferStats* CmdBufStats, const TCHAR* Name, FMetalFence* Fence, EMTLFenceType Type);
-	
-	void DumpPipeline(FMetalShaderPipeline* PipelineStat);
-#endif
-	
 	FMetalCPUStats* AddCPUStat(FString const& Name);
 	FMetalCommandBufferStats* AllocateCommandBuffer(mtlpp::CommandBuffer const& Buffer, uint64 GPUThreadIndex);
 	void AddCommandBuffer(FMetalCommandBufferStats* CommandBuffer);
@@ -474,16 +335,6 @@ public:
 	
 private:
 	FCriticalSection Mutex;
-#if METAL_STATISTICS
-	EMetalSampleGranularity StatsGranularity;
-	NSMutableArray* NewCounters;
-	TMap<FString, EMTLCounterType> CounterTypes;
-	IMetalStatistics* StatisticsAPI;
-	TArray<FMetalEventStats*> FrameEvents;
-	TArray<FMetalEventStats*> ActiveEvents;
-	TSet<FMetalShaderPipeline*> Pipelines;
-	bool bChangeGranularity;
-#endif
 	
 	TArray<FMetalCommandBufferStats*> TracedBuffers;
 	TArray<FMetalDisplayStats*> DisplayStats;

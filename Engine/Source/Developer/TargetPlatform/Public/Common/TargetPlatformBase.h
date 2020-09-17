@@ -42,8 +42,6 @@ public:
 
 	TARGETPLATFORM_API virtual bool UsesBasePassVelocity() const override;
 
-	TARGETPLATFORM_API virtual bool UsesAnisotropicBRDF() const override;
-
 	TARGETPLATFORM_API virtual bool UsesSelectiveBasePassOutputs() const override;
 	
 	TARGETPLATFORM_API virtual bool UsesDistanceFields() const override;
@@ -60,6 +58,11 @@ public:
 	virtual void GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const override
 	{
 		OutFormats.Add(FName(TEXT("FullHDR")));
+	}
+
+	virtual FName FinalizeVirtualTextureLayerFormat(FName Format) const override
+	{
+		return Format;
 	}
 
 	virtual FName GetVirtualTextureLayerFormat(

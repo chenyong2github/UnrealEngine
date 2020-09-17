@@ -238,8 +238,7 @@ void FMaterialInstanceEditor::RegisterTabSpawners(const TSharedRef<class FTabMan
 		.SetGroup( WorkspaceMenuCategoryRef )
 		.SetIcon( FSlateIcon( FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details" ) );
 
-	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	if (MaterialEditorModule->MaterialLayersEnabled() && !bIsFunctionPreviewMaterial)
+	if (!bIsFunctionPreviewMaterial)
 	{
 		InTabManager->RegisterTabSpawner(LayerPropertiesTabId, FOnSpawnTab::CreateSP(this, &FMaterialInstanceEditor::SpawnTab_LayerProperties))
 			.SetDisplayName(LOCTEXT("LayerPropertiesTab", "Layer Parameters"))
@@ -263,8 +262,7 @@ void FMaterialInstanceEditor::UnregisterTabSpawners(const TSharedRef<class FTabM
 
 	InTabManager->UnregisterTabSpawner( PreviewTabId );		
 	InTabManager->UnregisterTabSpawner( PropertiesTabId );	
-	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	if (MaterialEditorModule->MaterialLayersEnabled() && !bIsFunctionPreviewMaterial)
+	if (!bIsFunctionPreviewMaterial)
 	{
 		InTabManager->UnregisterTabSpawner(LayerPropertiesTabId);
 	}
@@ -417,7 +415,7 @@ void FMaterialInstanceEditor::InitMaterialInstanceEditor( const EToolkitMode::Ty
 			)
 		);
 
-	if (MaterialEditorModule->MaterialLayersEnabled() && !bIsFunctionPreviewMaterial)
+	if (!bIsFunctionPreviewMaterial)
 	{
 		StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MaterialInstanceEditor_Layout_v7")
 			->AddArea
@@ -771,8 +769,7 @@ void FMaterialInstanceEditor::CreateInternalWidgets()
 	MaterialInstanceDetails->SetCustomFilterDelegate(FSimpleDelegate::CreateSP(this, &FMaterialInstanceEditor::FilterOverriddenProperties));
 	MaterialEditorInstance->DetailsView = MaterialInstanceDetails;
 
-	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	if (MaterialEditorModule->MaterialLayersEnabled() && !bIsFunctionPreviewMaterial)
+	if (!bIsFunctionPreviewMaterial)
 	{
 		MaterialLayersFunctionsInstance = SNew(SMaterialLayersFunctionsInstanceWrapper)
 			.InMaterialEditorInstance(MaterialEditorInstance)

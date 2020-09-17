@@ -398,6 +398,9 @@ public:
 
 	FORCEINLINE TConstArrayView<int32> GetRendererDrawOrder() const { return MakeArrayView(RendererDrawOrder); }
 
+	/** When an index inside the EmitterExecutionOrder array has this bit set, it means the corresponding emitter cannot execute in parallel with the previous emitters due to a data dependency. */
+	static constexpr int32 kStartNewOverlapGroupBit = (1 << 31);
+
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)
 	{
 		UNiagaraParameterCollectionInstance** Found = ParameterCollectionOverrides.FindByPredicate(
@@ -584,7 +587,9 @@ protected:
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;
 
-	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
+	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. Please note that some indices may have the top bit set (kStartNewOverlapGroupBit)
+	* to indicate synchronization points in parallel execution, so mask it out before using the values as indices in the emitters array.
+	*/
 	TArray<int32> EmitterExecutionOrder;
 
 	/** Precomputed emitter renderer draw order, since emitters & renderers are not dynamic we can do this. */

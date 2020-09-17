@@ -28,6 +28,7 @@
 #include "Materials/MaterialExpressionShadingPathSwitch.h"
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
+#include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -1111,7 +1112,7 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 
 	if (!FPlatformProperties::IsServerOnly())
 	{
-		const FMaterialResource* CurrentResource = FindMaterialResource(MaterialResources, FeatureLevel, QualityLevel, false);
+		const FMaterialResource* CurrentResource = FindMaterialResource(MaterialResources, FeatureLevel, QualityLevel, true);
 		if (CurrentResource)
 		{
 			TArrayView<const FMaterialTextureParameterInfo> ExpressionsByType[NumMaterialTextureParameterTypes];
@@ -2144,11 +2145,6 @@ bool UMaterial::GetScalarParameterValue_New(const FHashedMaterialParameterInfo& 
 #if WITH_EDITOR
 bool UMaterial::GetScalarParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly) const
 {
-	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
-	{
-		return false;
-	}
-
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
 	UMaterialExpressionScalarParameter* Parameter = nullptr;
@@ -2287,11 +2283,6 @@ bool UMaterial::GetVectorParameterValue_New(const FHashedMaterialParameterInfo& 
 #if WITH_EDITOR
 bool UMaterial::GetVectorParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly) const
 {
-	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
-	{
-		return false;
-	}
-
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
 	UMaterialExpressionVectorParameter* Parameter = nullptr;
@@ -2418,11 +2409,6 @@ bool UMaterial::GetTextureParameterValue_New(const FHashedMaterialParameterInfo&
 #if WITH_EDITOR
 bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bOveriddenOnly) const
 {
-	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
-	{
-		return false;
-	}
-
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
 	UMaterialExpressionTextureSampleParameter* Parameter = nullptr;
@@ -2521,11 +2507,6 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_New(const FHashedMaterial
 #if WITH_EDITOR
 bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
 {
-	if (bOveriddenOnly && !AreExperimentalMaterialLayersEnabled())
-	{
-		return false;
-	}
-
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
 	UMaterialExpressionRuntimeVirtualTextureSampleParameter* Parameter = nullptr;
@@ -4021,6 +4002,32 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 			|| (Refraction.UseConstant && FMath::Abs(Refraction.Constant - 1.0f) >= KINDA_SMALL_NUMBER))
 		{
 			bUsesDistortion = true;
+		}
+
+		// check the material attributes for refraction expressions as well
+		if (MaterialAttributes.Expression)
+		{
+			// handle make attribute expressions
+			UMaterialExpressionMakeMaterialAttributes * MakeAttributeExpression = Cast<UMaterialExpressionMakeMaterialAttributes>(MaterialAttributes.Expression);
+			if (MakeAttributeExpression && MakeAttributeExpression->Refraction.Expression)
+			{
+				bUsesDistortion = true;
+			}
+
+			// handle set attribute expressions
+			UMaterialExpressionSetMaterialAttributes * SetAttributeExpression = Cast<UMaterialExpressionSetMaterialAttributes>(MaterialAttributes.Expression);
+			if (SetAttributeExpression)
+			{
+				for (int32 Index = 0; Index < SetAttributeExpression->Inputs.Num(); Index++)
+				{
+					FExpressionInput & Input = SetAttributeExpression->Inputs[Index];
+					FName InputName = SetAttributeExpression->GetInputName(Index);
+					if (InputName == TEXT("Refraction"))
+					{
+						bUsesDistortion = true;
+					}
+				}
+			}
 		}
 	}
 
@@ -5650,9 +5657,6 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bHasRefraction,
 	bool bUsesShadingModelFromMaterialExpression)
 {
-	static const auto CVarAnisotropicBRDF = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AnisotropicBRDF"));
-	bool bAnisotropicBRDF = CVarAnisotropicBRDF && CVarAnisotropicBRDF->GetValueOnAnyThread();
-	
 	if (Domain == MD_PostProcess)
 	{
 		return InProperty == MP_EmissiveColor || (bBlendableOutputAlpha && InProperty == MP_Opacity);
@@ -5666,10 +5670,10 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	{
 		return InProperty == MP_BaseColor 
 			|| InProperty == MP_Roughness
-			|| (InProperty == MP_Anisotropy && bAnisotropicBRDF)
+			|| InProperty == MP_Anisotropy
 			|| InProperty == MP_Specular 
 			|| InProperty == MP_Normal
-			|| (InProperty == MP_Tangent && bAnisotropicBRDF)
+			|| InProperty == MP_Tangent
 			|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode) && BlendMode != BLEND_Modulate);
 	}
 	else if (Domain == MD_DeferredDecal)
@@ -5860,7 +5864,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_Anisotropy:
-		Active = bAnisotropicBRDF && ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
+		Active = ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_Metallic:
 		// Subsurface models store opacity in place of Metallic in the GBuffer
@@ -5870,7 +5874,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = (ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsNonDirectionalTranslucencyLightingMode)) || bHasRefraction;
 		break;
 	case MP_Tangent:
-		Active = bAnisotropicBRDF && ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
+		Active = ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }) && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_SubsurfaceColor:
 		Active = ShadingModels.HasAnyShadingModel({ MSM_Subsurface, MSM_PreintegratedSkin, MSM_TwoSidedFoliage, MSM_Cloth });

@@ -25,7 +25,6 @@ struct ENGINE_API FMaterialRelevance
 			uint8 bSeparateTranslucencyModulate : 1;
 			uint8 bNormalTranslucency : 1;
 			uint8 bUsesSceneColorCopy : 1;
-			uint8 bDisableOffscreenRendering : 1; // Blend Modulate
 			uint8 bOutputsTranslucentVelocity : 1;
 			uint8 bUsesGlobalDistanceField : 1;
 			uint8 bUsesWorldPositionOffset : 1;
@@ -38,6 +37,7 @@ struct ENGINE_API FMaterialRelevance
 			uint8 bUsesCustomDepthStencil : 1;
 			uint8 bUsesDistanceCullFade : 1;
 			uint8 bDisableDepthTest : 1;
+			uint8 bUsesAnisotropy : 1;
 		};
 		uint64 Raw;
 	};

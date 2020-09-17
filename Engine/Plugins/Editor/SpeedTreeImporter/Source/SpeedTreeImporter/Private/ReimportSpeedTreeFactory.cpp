@@ -19,6 +19,7 @@ UReimportSpeedTreeFactory::UReimportSpeedTreeFactory(const FObjectInitializer& O
 		SupportedClass = UStaticMesh::StaticClass();
 		Formats.Add(TEXT("srt;SpeedTree"));
 		Formats.Add(TEXT("st;SpeedTree v8"));
+		Formats.Add(TEXT("st9;SpeedTree v9"));
 	#endif
 
 	bCreateNew = false;
@@ -32,8 +33,9 @@ bool UReimportSpeedTreeFactory::CanReimport(UObject* Obj, TArray<FString>& OutFi
 	if (Mesh && Mesh->AssetImportData)
 	{
 		const FString FileExtension = FPaths::GetExtension(Mesh->AssetImportData->GetFirstFilename());
-		const bool bIsSpeedTree = (FCString::Stricmp(*FileExtension, TEXT("SRT")) == 0) ||
-									(FCString::Stricmp(*FileExtension, TEXT("ST")) == 0);
+			const bool bIsSpeedTree = (FCString::Stricmp(*FileExtension, TEXT("SRT")) == 0) ||
+										(FCString::Stricmp(*FileExtension, TEXT("ST")) == 0) ||
+										(FCString::Stricmp(*FileExtension, TEXT("ST9")) == 0);
 
 		if (bIsSpeedTree)
 		{
@@ -69,7 +71,8 @@ EReimportResult::Type UReimportSpeedTreeFactory::Reimport(UObject* Obj)
 	const FString Filename = Mesh->AssetImportData->GetFirstFilename();
 	const FString FileExtension = FPaths::GetExtension(Filename);
 	const bool bIsSpeedTree = (FCString::Stricmp(*FileExtension, TEXT("SRT")) == 0) ||
-								(FCString::Stricmp(*FileExtension, TEXT("ST")) == 0);
+								(FCString::Stricmp(*FileExtension, TEXT("ST")) == 0) ||
+								(FCString::Stricmp(*FileExtension, TEXT("ST9")) == 0);
 
 	if (!bIsSpeedTree)
 	{

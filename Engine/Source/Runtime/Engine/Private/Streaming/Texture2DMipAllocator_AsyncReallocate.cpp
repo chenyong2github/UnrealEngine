@@ -10,8 +10,8 @@ Texture2DStreamIn_AsyncReallocate.cpp: Load texture 2D mips using ITextureMipDat
 
 extern TAutoConsoleVariable<int32> CVarFlushRHIThreadOnSTreamingTextureLocks;
 
-FTexture2DMipAllocator_AsyncReallocate::FTexture2DMipAllocator_AsyncReallocate()
-	: FTextureMipAllocator(ETickState::AllocateMips, ETickThread::Render)
+FTexture2DMipAllocator_AsyncReallocate::FTexture2DMipAllocator_AsyncReallocate(UTexture* Texture)
+	: FTextureMipAllocator(Texture, ETickState::AllocateMips, ETickThread::Render)
 {
 }
 
@@ -29,11 +29,9 @@ bool FTexture2DMipAllocator_AsyncReallocate::AllocateMips(
 	FTextureMipInfoArray& OutMipInfos, 
 	const FTextureUpdateSyncOptions& SyncOptions)
 {
-	check(Context.PendingFirstMipIndex < Context.CurrentFirstMipIndex);
+	check(PendingFirstLODIdx < CurrentFirstLODIdx);
 
-	UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
-	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
-	FTexture2DRHIRef Texture2DRHI = Resource ? Resource->GetTexture2DRHI() : FTexture2DRHIRef();
+	FRHITexture2D* Texture2DRHI = Context.Resource ? Context.Resource->GetTexture2DRHI() : nullptr;
 	if (!Texture2DRHI)
 	{
 		return false;
@@ -42,15 +40,14 @@ bool FTexture2DMipAllocator_AsyncReallocate::AllocateMips(
 	// Step (1) : Create the texture on the renderthread using RHIAsyncReallocateTexture2D. Wait for the RHI to signal the operation is completed through the FThreadSafeCounter.
 	if (!IntermediateTextureRHI)
 	{
-		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Texture2D->GetPlatformMips();
-		const FTexture2DMipMap& OwnerMip = OwnerMips[Context.PendingFirstMipIndex];
+		const FTexture2DMipMap& OwnerMip = *Context.MipsView[PendingFirstLODIdx];
 		check(SyncOptions.Counter);
 
 		SyncOptions.Counter->Increment();
 
 		IntermediateTextureRHI = RHIAsyncReallocateTexture2D(
 			Texture2DRHI,
-			Context.NumRequestedMips,
+			ResourceState.NumRequestedLODs,
 			OwnerMip.SizeX,
 			OwnerMip.SizeY,
 			SyncOptions.Counter);
@@ -66,15 +63,14 @@ bool FTexture2DMipAllocator_AsyncReallocate::AllocateMips(
 
 		RHIFinalizeAsyncReallocateTexture2D(IntermediateTextureRHI, true);
 
-		OutMipInfos.AddDefaulted(Context.CurrentFirstMipIndex);
+		OutMipInfos.AddDefaulted(CurrentFirstLODIdx);
 
-		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Texture2D->GetPlatformMips();
-		for (int32 MipIndex = Context.PendingFirstMipIndex; MipIndex < Context.CurrentFirstMipIndex; ++MipIndex)
+		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
-			const FTexture2DMipMap& OwnerMip = OwnerMips[MipIndex];
+			const FTexture2DMipMap& OwnerMip = *Context.MipsView[MipIndex];
 			FTextureMipInfo& MipInfo = OutMipInfos[MipIndex];
 
-			MipInfo.Format = Texture2DRHI->GetFormat();
+			MipInfo.Format = Context.Resource->GetPixelFormat();
 			MipInfo.SizeX = OwnerMip.SizeX;
 			MipInfo.SizeY = OwnerMip.SizeY;
 #if WITH_EDITORONLY_DATA
@@ -82,10 +78,10 @@ bool FTexture2DMipAllocator_AsyncReallocate::AllocateMips(
 #else // Hasn't really been used on console. To investigate!
 			MipInfo.DataSize = 0;
 #endif
-			MipInfo.DestData = RHILockTexture2D(IntermediateTextureRHI, MipIndex - Context.PendingFirstMipIndex, RLM_WriteOnly, MipInfo.RowPitch, false, bFlushRHIThread);
+			MipInfo.DestData = RHILockTexture2D(IntermediateTextureRHI, MipIndex - PendingFirstLODIdx, RLM_WriteOnly, MipInfo.RowPitch, false, bFlushRHIThread);
 
 			// Add this mip in the locked list of mips so that it can safely be unlocked when needed.
-			LockedMipIndices.Add(MipIndex - Context.PendingFirstMipIndex);
+			LockedMipIndices.Add(MipIndex - PendingFirstLODIdx);
 		}
 
 		// New mips are ready to be unlocked by the FTextureMipDataProvider implementation.
@@ -96,14 +92,6 @@ bool FTexture2DMipAllocator_AsyncReallocate::AllocateMips(
 
 bool FTexture2DMipAllocator_AsyncReallocate::FinalizeMips(const FTextureUpdateContext& Context, const FTextureUpdateSyncOptions& SyncOptions)
 {
-	UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
-	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
-	FTexture2DRHIRef Texture2DRHI = Resource ? Resource->GetTexture2DRHI() : FTexture2DRHIRef();
-	if (!Texture2DRHI)
-	{
-		return false;
-	}
-
 	if (!IntermediateTextureRHI)
 	{
 		return false;
@@ -112,7 +100,7 @@ bool FTexture2DMipAllocator_AsyncReallocate::FinalizeMips(const FTextureUpdateCo
 	// Unlock the mips so that the texture can be updated.
 	UnlockNewMips();
 	// Use the new texture resource for the texture asset, must run on the renderthread.
-	Resource->UpdateTexture(IntermediateTextureRHI, Context.PendingFirstMipIndex);
+	Context.Resource->FinalizeStreaming(IntermediateTextureRHI);
 	// No need for the intermediate texture anymore.
 	IntermediateTextureRHI.SafeRelease();
 
@@ -141,13 +129,6 @@ FTextureMipAllocator::ETickThread FTexture2DMipAllocator_AsyncReallocate::GetCan
 	{
 		return ETickThread::None;
 	}
-}
-
-int32 FTexture2DMipAllocator_AsyncReallocate::GetCurrentFirstMip(UTexture* Texture) const
-{
-	UTexture2D* Texture2D = CastChecked<UTexture2D>(Texture, ECastCheckedType::NullChecked);
-	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
-	return Resource ? Resource->GetCurrentFirstMip() : INDEX_NONE;
 }
 
 // ****************************

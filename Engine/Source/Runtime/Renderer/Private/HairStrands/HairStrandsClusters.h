@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 #include "HairStrandsInterface.h"
+#include "Renderer/Private/SceneRendering.h"
 
 struct FHairCullingParams
 {
@@ -17,7 +18,7 @@ struct FHairCullingParams
 };
 
 void ComputeHairStrandsClustersCulling(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap& ShaderMap,
 	const TArray<FViewInfo>& Views,
 	const FHairCullingParams& CullingParameters,

@@ -9,7 +9,6 @@
 #include "MagicLeapMath.h"
 #include "MagicLeapUtils.h"
 #include "Lumin/CAPIShims/LuminAPIPerception.h"
-#include "MagicLeapPluginUtil.h"
 #include "Math/Vector4.h"
 
 class FMagicLeapHMD;

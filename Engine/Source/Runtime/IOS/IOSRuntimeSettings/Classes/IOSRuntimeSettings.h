@@ -247,9 +247,8 @@ public:
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Build project as a framework (Experimental)"))
     bool bBuildAsFramework;
 
-	// Remotely compile shaders offline
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
-	bool EnableRemoteShaderCompile;
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (EditCondition = "bUseLocalMetalToolchain", DisplayName = "Override location of Metal toolchain"))
+	FIOSBuildResourceDirectory WindowsMetalToolchainOverride;
 
 	// Enable generation of dSYM file
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Generate dSYM file for code debugging and profiling"))
@@ -267,30 +266,6 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Generate xcode archive package"))
 	bool bGenerateXCArchive;	
 	
-	// Enable ArmV7 support? (this will be used if all type are unchecked)
-	UPROPERTY(GlobalConfig)
-	bool bDevForArmV7;
-
-	// Enable Arm64 support?
-	UPROPERTY(GlobalConfig)
-	bool bDevForArm64;
-
-	// Enable ArmV7s support?
-	UPROPERTY(GlobalConfig)
-	bool bDevForArmV7S;
-
-	// Enable ArmV7 support? (this will be used if all type are unchecked)
-	UPROPERTY(GlobalConfig)
-	bool bShipForArmV7;
-
-	// Enable Arm64 support?
-	UPROPERTY(GlobalConfig)
-	bool bShipForArm64;
-
-	// Enable ArmV7s support?
-	UPROPERTY(GlobalConfig)
-	bool bShipForArmV7S;
-
 	// Enable bitcode compiling?
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Support bitcode in Shipping"))
 	bool bShipForBitcode;

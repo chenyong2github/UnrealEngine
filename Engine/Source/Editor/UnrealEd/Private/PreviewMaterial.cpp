@@ -209,6 +209,10 @@ public:
 			{
 				bShaderTypeMatches = true;
 			}
+			else if (FCString::Stristr(ShaderType->GetName(), TEXT("FAnisotropy")))
+			{
+				bShaderTypeMatches = true;
+			}
 			else if (FCString::Stristr(ShaderType->GetName(), TEXT("RayTracingDynamicGeometryConverter")))
 			{
 				bShaderTypeMatches = true;
@@ -306,27 +310,26 @@ void  UMaterialEditorPreviewParameters::AssignParameterToGroup(UMaterial* Parent
 		ParameterGroupName = TEXT("None");
 	}
 	IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-	if (MaterialEditorModule->MaterialLayersEnabled())
+	
+	// Material layers
+	UDEditorMaterialLayersParameterValue* MaterialLayerParam = Cast<UDEditorMaterialLayersParameterValue>(ParameterValue);
+	if (ParameterValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
 	{
-		UDEditorMaterialLayersParameterValue* MaterialLayerParam = Cast<UDEditorMaterialLayersParameterValue>(ParameterValue);
-		if (ParameterValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
+		if (MaterialLayerParam)
 		{
-			if (MaterialLayerParam)
+			ParameterGroupName = FMaterialPropertyHelpers::LayerParamName;
+		}
+		else
+		{
+			FString AppendedGroupName = GlobalGroupPrefix.ToString();
+			if (ParameterGroupName != TEXT("None"))
 			{
-				ParameterGroupName = FMaterialPropertyHelpers::LayerParamName;
+				ParameterGroupName.AppendString(AppendedGroupName);
+				ParameterGroupName = FName(*AppendedGroupName);
 			}
 			else
 			{
-				FString AppendedGroupName = GlobalGroupPrefix.ToString();
-				if (ParameterGroupName != TEXT("None"))
-				{
-					ParameterGroupName.AppendString(AppendedGroupName);
-					ParameterGroupName = FName(*AppendedGroupName);
-				}
-				else
-				{
-					ParameterGroupName = TEXT("Global");
-				}
+				ParameterGroupName = TEXT("Global");
 			}
 		}
 	}
@@ -936,20 +939,19 @@ void  UMaterialEditorInstanceConstant::AssignParameterToGroup(UMaterial* ParentM
 		}
 
 		IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
-		if (MaterialEditorModule->MaterialLayersEnabled())
+
+		// Material layers
+		if (ParameterValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
 		{
-			if (ParameterValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
+			FString AppendedGroupName = GlobalGroupPrefix.ToString();
+			if (ParameterGroupName != TEXT("None"))
 			{
-				FString AppendedGroupName = GlobalGroupPrefix.ToString();
-				if (ParameterGroupName != TEXT("None"))
-				{
-					ParameterGroupName.AppendString(AppendedGroupName);
-					ParameterGroupName = FName(*AppendedGroupName);
-				}
-				else
-				{
-					ParameterGroupName = TEXT("Global");
-				}
+				ParameterGroupName.AppendString(AppendedGroupName);
+				ParameterGroupName = FName(*AppendedGroupName);
+			}
+			else
+			{
+				ParameterGroupName = TEXT("Global");
 			}
 		}
 	}

@@ -2073,9 +2073,14 @@ public class MediaPlayer14
 				}
 			}
 
-			return VideoTracks;
+			// If we found any video tracks, return them
+			if (VideoTracks.length > 0)
+			{
+				return VideoTracks;
+			}
 		}
 
+		// if we have a non-zero width/height, create a fallback video track entry
 		if (Width > 0 && Height > 0)
 		{
 			VideoTrackInfo[] VideoTracks = new VideoTrackInfo[1];

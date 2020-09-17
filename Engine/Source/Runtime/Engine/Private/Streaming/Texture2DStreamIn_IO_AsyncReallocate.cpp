@@ -7,8 +7,8 @@ Texture2DStreamIn_IO_AsyncReallocate.cpp: Default path for streaming in texture 
 #include "Streaming/Texture2DStreamIn_IO_AsyncReallocate.h"
 #include "RenderUtils.h"
 
-FTexture2DStreamIn_IO_AsyncReallocate::FTexture2DStreamIn_IO_AsyncReallocate(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest) 
-	: FTexture2DStreamIn_IO(InTexture, InRequestedMips, InPrioritizedIORequest)
+FTexture2DStreamIn_IO_AsyncReallocate::FTexture2DStreamIn_IO_AsyncReallocate(UTexture2D* InTexture, bool InPrioritizedIORequest) 
+	: FTexture2DStreamIn_IO(InTexture, InPrioritizedIORequest)
 {
 	PushTask(FContext(InTexture, TT_None), TT_Render, SRA_UPDATE_CALLBACK(AsyncReallocate), TT_None, nullptr);
 }

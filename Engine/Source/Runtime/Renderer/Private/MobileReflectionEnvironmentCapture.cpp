@@ -179,7 +179,7 @@ namespace MobileReflectionEnvironmentCapture
 			const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProcessedTexture->TextureRHI);
+			RHICmdList.Transition(FRHITransitionInfo(ProcessedTexture->TextureRHI, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.Size = FIntVector(ProcessedTexture->GetSizeX(), ProcessedTexture->GetSizeY(), 1);
@@ -191,7 +191,7 @@ namespace MobileReflectionEnvironmentCapture
 				// For simple mobile bilin filtering the source for this copy is the dest from the filtering pass.
 				// In the HQ case, the full image is contained in GetEffectiveRenderTarget(.., false,0).
 				FSceneRenderTargetItem& EffectiveSource = GetEffectiveRenderTarget(SceneContext, false, bUseHQFiltering ? 0 : MipIndex);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EffectiveSource.ShaderResourceTexture);
+				RHICmdList.Transition(FRHITransitionInfo(EffectiveSource.ShaderResourceTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc));
 				RHICmdList.CopyTexture(EffectiveSource.ShaderResourceTexture, ProcessedTexture->TextureRHI, CopyInfo);
 
 				++CopyInfo.SourceMipIndex;
@@ -349,10 +349,31 @@ namespace MobileReflectionEnvironmentCapture
 				FSceneRenderTargetItem& SourceTarget = GetEffectiveRenderTarget(SceneContext, true, MipIndex);
 				FSceneRenderTargetItem& DestTarget = GetEffectiveSourceTexture(SceneContext, true, MipIndex);
 				check(DestTarget.TargetableTexture != SourceTarget.ShaderResourceTexture);
+
+				// Transition the textures once, so CopyToResolveTarget doesn't ping-pong uselessly between the copy and SRV states.
+				FRHITransitionInfo TransitionsBefore[] = {
+					FRHITransitionInfo(SourceTarget.ShaderResourceTexture, ERHIAccess::SRVGraphics, ERHIAccess::CopySrc),
+					FRHITransitionInfo(DestTarget.ShaderResourceTexture, ERHIAccess::SRVGraphics, ERHIAccess::CopyDest)
+				};
+				RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
+
+				// Tell CopyToResolveTarget to leave the textures in the copy state, because we'll transition them only once when we're done.
+				FResolveParams ResolveParams(FResolveRect(), CubeFace_PosX, MipIndex);
+				ResolveParams.SourceAccessFinal = ERHIAccess::CopySrc;
+				ResolveParams.DestAccessFinal = ERHIAccess::CopyDest;
+
 				for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 				{
-					RHICmdList.CopyToResolveTarget(SourceTarget.ShaderResourceTexture, DestTarget.ShaderResourceTexture, FResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex));
+					ResolveParams.CubeFace = (ECubeFace)CubeFace;
+					RHICmdList.CopyToResolveTarget(SourceTarget.ShaderResourceTexture, DestTarget.ShaderResourceTexture, ResolveParams);
 				}
+
+				// We're done copying, transition the textures back to SRV.
+				FRHITransitionInfo TransitionsAfter[] = {
+					FRHITransitionInfo(SourceTarget.ShaderResourceTexture, ERHIAccess::CopySrc, ERHIAccess::SRVGraphics),
+					FRHITransitionInfo(DestTarget.ShaderResourceTexture, ERHIAccess::CopyDest, ERHIAccess::SRVGraphics)
+				};
+				RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
 			}
 		}
 

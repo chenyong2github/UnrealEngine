@@ -394,6 +394,7 @@ FCriticalSection FMetalBlendState::Mutex;
 FMetalBlendState::FMetalBlendState(const FBlendStateInitializerRHI& Initializer)
 {
 	bUseIndependentRenderTargetBlendStates = Initializer.bUseIndependentRenderTargetBlendStates;
+	bUseAlphaToCoverage = Initializer.bUseAlphaToCoverage;
 	for(uint32 RenderTargetIndex = 0;RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
 	{
 		// which initializer to use
@@ -461,6 +462,7 @@ FMetalBlendState::~FMetalBlendState()
 bool FMetalBlendState::GetInitializer(FBlendStateInitializerRHI& Initializer)
 {
 	Initializer.bUseIndependentRenderTargetBlendStates = bUseIndependentRenderTargetBlendStates;
+	Initializer.bUseAlphaToCoverage = bUseAlphaToCoverage;
 	for(uint32 RenderTargetIndex = 0;RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
 	{
 		// which initializer to use

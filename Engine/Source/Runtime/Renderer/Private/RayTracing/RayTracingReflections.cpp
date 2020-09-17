@@ -282,14 +282,13 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightQuasiRandomData, SkyLightQuasiRandomData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightVisibilityRaysData, SkyLightVisibilityRaysData)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
-		SHADER_PARAMETER_STRUCT_REF(FFogUniformParameters, FogUniformParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFogUniformParameters, FogUniformParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, Forward)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
@@ -529,9 +528,9 @@ void FDeferredShadingSceneRenderer::SetupImaginaryReflectionTextureParameters(
 
 	if (SceneViewState != nullptr)
 	{
-		OutTextures->SceneDepthBuffer = GraphBuilder.RegisterExternalTexture(SceneViewState->ImaginaryReflectionDepthZ, TEXT("ImaginaryReflectionDepthZ"));
-		OutTextures->SceneVelocityBuffer = GraphBuilder.TryRegisterExternalTexture(SceneViewState->ImaginaryReflectionVelocity, TEXT("ImaginaryReflectionVelocity"));
-		OutTextures->SceneGBufferA = GraphBuilder.TryRegisterExternalTexture(SceneViewState->ImaginaryReflectionGBufferA, TEXT("ImaginaryReflectionGBufferA"));
+		OutTextures->SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneViewState->ImaginaryReflectionDepthZ, TEXT("ImaginaryReflectionDepthZ"));
+		OutTextures->GBufferVelocityTexture = TryRegisterExternalTexture(GraphBuilder, SceneViewState->ImaginaryReflectionVelocity);
+		OutTextures->GBufferATexture = TryRegisterExternalTexture(GraphBuilder, SceneViewState->ImaginaryReflectionGBufferA);
 	}
 }
 #else
@@ -574,16 +573,14 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	ensure(Options.ResolutionFraction == 1.0 / UpscaleFactor);
 	ensureMsgf(FComputeShaderUtils::kGolden2DGroupSize % UpscaleFactor == 0, TEXT("Reflection ray tracing will have uv misalignement."));
 	FIntPoint RayTracingResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
-	FIntPoint RayTracingBufferSize = SceneTextures.SceneDepthBuffer->Desc.Extent / UpscaleFactor;
+	FIntPoint RayTracingBufferSize = SceneTextures.SceneDepthTexture->Desc.Extent / UpscaleFactor;
 
 	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			RayTracingBufferSize,
 			PF_FloatRGBA,
 			FClearValueBinding::None,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
 
 		OutDenoiserInputs->Color = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflections"));
 		
@@ -655,7 +652,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
 
 	CommonParameters.SceneTextures = SceneTextures;
-	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	SetupSkyLightVisibilityRaysParameters(GraphBuilder, View, &CommonParameters.SkyLightVisibilityRaysData);
 
 	// Hybrid reflection path samples lit scene color texture instead of performing a ray trace.
@@ -665,7 +661,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.SSProfilesTexture = GraphBuilder.RegisterExternalTexture(View.RayTracingSubSurfaceProfileTexture);
 
 	CommonParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
-	CommonParameters.FogUniformParameters = CreateFogUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+	CommonParameters.FogUniformParameters = CreateFogUniformBuffer(GraphBuilder, View);
 	CommonParameters.ColorOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
 	CommonParameters.RayHitDistanceOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->RayHitDistance);
 	CommonParameters.RayImaginaryDepthOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->RayImaginaryDepth);
@@ -823,7 +819,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 		// Create a texture for the world-space normal imaginary reflection g-buffer.
 		FRDGTextureRef ImaginaryReflectionGBufferATexture;
 		{
-			FRDGTextureDesc Desc(FRDGTextureDesc::Create2DDesc(RayTracingBufferSize, SceneContext.GetGBufferAFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
+			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(RayTracingBufferSize, SceneContext.GetGBufferAFormat(), FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV));
 			ImaginaryReflectionGBufferATexture = GraphBuilder.CreateTexture(Desc, TEXT("ImaginaryReflectionGBufferA"));
 		}
 
@@ -831,14 +827,14 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 		FRDGTextureRef ImaginaryReflectionDepthZTexture;
 		{
 			// R32_FLOAT used instead of usual depth/stencil format to work as a normal SRV/UAV rather a depth target
-			FRDGTextureDesc Desc(FRDGTextureDesc::Create2DDesc(RayTracingBufferSize, PF_R32_FLOAT, SceneContext.GetDefaultDepthClear(), TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
+			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(RayTracingBufferSize, PF_R32_FLOAT, SceneContext.GetDefaultDepthClear(), TexCreate_ShaderResource | TexCreate_UAV));
 			ImaginaryReflectionDepthZTexture = GraphBuilder.CreateTexture(Desc, TEXT("ImaginaryReflectionDepthZ"));
 		}
 
 		// Create a texture for the velocity imaginary reflection g-buffer.
 		FRDGTextureRef ImaginaryReflectionGBufferVelocityTexture;
 		{
-			FRDGTextureDesc Desc(FRDGTextureDesc::Create2DDesc(RayTracingBufferSize, FVelocityRendering::GetFormat(View.GetShaderPlatform()), FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false));
+			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(RayTracingBufferSize, FVelocityRendering::GetFormat(View.GetShaderPlatform()), FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV));
 			ImaginaryReflectionGBufferVelocityTexture = GraphBuilder.CreateTexture(Desc, TEXT("ImaginaryReflectionGBufferVelocity"));
 		}
 

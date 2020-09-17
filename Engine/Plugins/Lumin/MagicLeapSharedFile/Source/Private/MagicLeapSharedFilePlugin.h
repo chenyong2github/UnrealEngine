@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "IMagicLeapSharedFilePlugin.h"
-#include "MagicLeapPluginUtil.h"
 #include "Containers/Ticker.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMagicLeapSharedFile, Verbose, All);
@@ -24,7 +23,6 @@ public:
 	void GetFileNamesFromSharedFileList(void* SharedFiles);
 
 private:
-	FMagicLeapAPISetup APISetup;
 	FTickerDelegate TickDelegate;
 	FDelegateHandle TickDelegateHandle;
 

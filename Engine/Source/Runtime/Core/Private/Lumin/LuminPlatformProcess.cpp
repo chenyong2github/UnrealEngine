@@ -72,6 +72,12 @@ const TCHAR* FLuminPlatformProcess::ApplicationSettingsDir()
 	return *CachedResultString;
 }
 
+const TCHAR* FLuminPlatformProcess::UserTempDir()
+{
+	static FString CachedResultString = FLuminPlatformMisc::GetApplicationTempDirectoryPath();
+	return *CachedResultString;
+}
+
 const TCHAR* FLuminPlatformProcess::ExecutableName(bool bRemoveExtension)
 {
 	static TCHAR * CachedResult = nullptr;

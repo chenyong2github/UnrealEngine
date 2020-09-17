@@ -182,7 +182,10 @@ namespace ShaderDrawDebug
 		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugPS, FGlobalShader);
 		
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER(float, ColorScale)
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
+			SHADER_PARAMETER(FIntPoint, DepthTextureResolution)
+			SHADER_PARAMETER(FVector2D, DepthTextureInvResolution)
+			SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 			RENDER_TARGET_BINDING_SLOTS()
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -204,7 +207,7 @@ namespace ShaderDrawDebug
 
 	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugPS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugPS", SF_Pixel);
 
-	BEGIN_SHADER_PARAMETER_STRUCT(ShaderDrawVSPSParameters, )
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderDrawVSPSParameters , )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FShaderDrawDebugVS::FParameters, ShaderDrawVSParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FShaderDrawDebugPS::FParameters, ShaderDrawPSParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -238,8 +241,8 @@ namespace ShaderDrawDebug
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, FIntVector(1,1,1));
 		});
 
-		GraphBuilder.QueueBufferExtraction(DataBuffer, &View.ShaderDrawData.Buffer, FRDGResourceState::EAccess::Write, FRDGResourceState::EPipeline::Compute);
-		GraphBuilder.QueueBufferExtraction(IndirectBuffer, &View.ShaderDrawData.IndirectBuffer, FRDGResourceState::EAccess::Write, FRDGResourceState::EPipeline::Compute);
+		GraphBuilder.QueueBufferExtraction(DataBuffer, &View.ShaderDrawData.Buffer, ERHIAccess::UAVCompute);
+		GraphBuilder.QueueBufferExtraction(IndirectBuffer, &View.ShaderDrawData.IndirectBuffer, ERHIAccess::UAVCompute);
 
 		GraphBuilder.Execute();
 
@@ -260,7 +263,6 @@ namespace ShaderDrawDebug
 		}
 
 		auto RunPass = [&](
-			bool bIsBehindDepth, 
 			bool bUseRdgInput,
 			FRDGBufferRef DataBuffer, 
 			FRDGBufferRef IndirectBuffer, 
@@ -272,10 +274,13 @@ namespace ShaderDrawDebug
 			TShaderMapRef<FShaderDrawDebugVS> VertexShader(View.ShaderMap, PermutationVector);
 			TShaderMapRef<FShaderDrawDebugPS> PixelShader(View.ShaderMap);
 
-			ShaderDrawVSPSParameters* PassParameters = GraphBuilder.AllocParameters<ShaderDrawVSPSParameters>();
+			FShaderDrawVSPSParameters * PassParameters = GraphBuilder.AllocParameters<FShaderDrawVSPSParameters >();
 			PassParameters->ShaderDrawPSParameters.RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
-			PassParameters->ShaderDrawPSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(DepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop, ERenderTargetMsaaPlane::Resolved);
-			PassParameters->ShaderDrawPSParameters.ColorScale = bIsBehindDepth ? 0.4f : 1.0f;	// When debug primitive are behind the depth buffer, make them look darker.
+			PassParameters->ShaderDrawPSParameters.RenderTargets.DepthStencil = FDepthStencilBinding(DepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+			PassParameters->ShaderDrawPSParameters.DepthTexture = DepthTexture;
+			PassParameters->ShaderDrawPSParameters.DepthTextureResolution    = FIntPoint(DepthTexture->Desc.Extent.X, DepthTexture->Desc.Extent.Y);
+			PassParameters->ShaderDrawPSParameters.DepthTextureInvResolution = FVector2D(1.f/DepthTexture->Desc.Extent.X, 1.f / DepthTexture->Desc.Extent.Y);
+			PassParameters->ShaderDrawPSParameters.LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			PassParameters->ShaderDrawVSParameters.View = View.ViewUniformBuffer;
 			if (bUseRdgInput)
 			{
@@ -296,7 +301,7 @@ namespace ShaderDrawDebug
 				RDG_EVENT_NAME("ShaderDrawDebug"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[VertexShader, PixelShader, PassParameters, IndirectBuffer, LockedIndirectBuffer, bIsBehindDepth, bUseRdgInput](FRHICommandListImmediate& RHICmdListImmediate)
+				[VertexShader, PixelShader, PassParameters, IndirectBuffer, LockedIndirectBuffer, bUseRdgInput](FRHICommandListImmediate& RHICmdListImmediate)
 			{
 				// Marks the indirect draw parameter as used by the pass, given it's not used directly by any of the shaders.
 				if (bUseRdgInput)
@@ -306,7 +311,7 @@ namespace ShaderDrawDebug
 
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdListImmediate.ApplyCachedRenderTargets(GraphicsPSOInit);
-				GraphicsPSOInit.DepthStencilState = bIsBehindDepth ? TStaticDepthStencilState<false, CF_DepthFarther>::GetRHI() : TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI(); // Premultiplied-alpha composition
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None, true>::GetRHI();
 				GraphicsPSOInit.PrimitiveType = PT_LineList;
@@ -333,19 +338,17 @@ namespace ShaderDrawDebug
 			});
 		};
 
-		FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ShaderDrawData.Buffer, TEXT("ShaderDrawDebugDataBuffer"));
-		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(View.ShaderDrawData.IndirectBuffer, TEXT("ShaderDrawDebugIndirectDataBuffer"));
+		FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ShaderDrawData.Buffer);
+		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(View.ShaderDrawData.IndirectBuffer);
 		{
-			RunPass(true,  true, DataBuffer, IndirectBuffer, nullptr, nullptr);	// Render what is behind the depth buffer
-			RunPass(false, true, DataBuffer, IndirectBuffer, nullptr, nullptr); // Render what is in front of the depth buffer
+			RunPass(true, DataBuffer, IndirectBuffer, nullptr, nullptr);
 		}
 
 		if (LockedData.bIsLocked)
 		{
 			FShaderResourceViewRHIRef LockedDataBuffer = LockedData.Buffer.SRV;
 			FRHIVertexBuffer* LockedIndirectBuffer = LockedData.IndirectBuffer.Buffer;
-			RunPass(false, false, nullptr, nullptr, LockedDataBuffer, LockedIndirectBuffer); // Render what is in front of the depth buffer
-			RunPass(true,  false, nullptr, nullptr, LockedDataBuffer, LockedIndirectBuffer); // Render what is behind the depth buffer
+			RunPass(false, nullptr, nullptr, LockedDataBuffer, LockedIndirectBuffer);
 		}
 
 		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
@@ -397,8 +400,8 @@ namespace ShaderDrawDebug
 
 	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderDrawDebugParameters& OutParameters)
 	{
-		FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(Data.Buffer, TEXT("ShaderDrawDebugDataBuffer"));
-		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(Data.IndirectBuffer, TEXT("ShaderDrawDebugIndirectDataBuffer"));
+		FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(Data.Buffer);
+		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(Data.IndirectBuffer);
 
 		OutParameters.ShaderDrawCursorPos = Data.CursorPosition;
 		OutParameters.ShaderDrawMaxElementCount = GetMaxShaderDrawElementCount();

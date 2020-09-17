@@ -12,7 +12,7 @@
 
 	Entities must register with the IMagicLeapPlugin using it's RegisterMagicLeapTrackerEntity() function.
 */
-class IMagicLeapTrackerEntity
+class MAGICLEAP_API IMagicLeapTrackerEntity
 {
 public:
 	virtual void CreateEntityTracker() {}
@@ -29,7 +29,7 @@ namespace MagicLeap
 	 *
 	 * { MagicLeap::EnableInput EnableInput; PostSomeInputToMessageHandlers(); }
 	 */
-	struct EnableInput
+	struct MAGICLEAP_API EnableInput
 	{
 	#if WITH_EDITOR
 		inline EnableInput()

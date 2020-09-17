@@ -1,12 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	WindowsD3D12Device.cpp: Windows D3D device RHI implementation.
-=============================================================================*/
-
 #include "D3D12RHIPrivate.h"
 
-// Borrow the Windows desktop version with unavailable APIs remapped
-#define CreateDXGIFactory CreateDXGIFactory1
+// Same as Windows desktop version
 #include "Windows/WindowsD3D12Device.cpp"
-#undef CreateDXGIFactory

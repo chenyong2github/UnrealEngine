@@ -10,7 +10,7 @@
  * Transforms that are tracked on the hand.
  * Matches the enums from Windows.Perception.People.h to make it a direct mapping
  */
-UENUM(BlueprintType)
+UENUM()
 enum class EWMRHandKeypoint : uint8
 {
 	Palm,

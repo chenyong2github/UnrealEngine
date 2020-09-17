@@ -19,7 +19,6 @@
 #include "Templates/UniquePtr.h"
 #include "StaticMeshResources.h"
 #include "PerPlatformProperties.h"
-#include "RenderAssetUpdate.h"
 #include "MeshTypes.h"
 
 #include "StaticMesh.generated.h"
@@ -783,8 +782,6 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = StaticMesh)
 	TArray<UAssetUserData*> AssetUserData;
 
-	TRefCountPtr<FRenderAssetUpdate> PendingUpdate;
-
 	friend struct FStaticMeshUpdateContext;
 	friend class FStaticMeshUpdate;
 
@@ -1020,30 +1017,18 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin UStreamableRenderAsset Interface
-	virtual int32 GetLODGroupForStreaming() const final override;
-	virtual int32 GetNumMipsForStreaming() const final override;
-	virtual int32 GetNumNonStreamingMips() const final override;
-	virtual int32 CalcNumOptionalMips() const final override;
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
 	virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
 	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
-	virtual bool IsReadyForStreaming() const final override;
-	virtual int32 GetNumResidentMips() const final override;
-	virtual int32 GetNumRequestedMips() const final override;
-	virtual bool CancelPendingMipChangeRequest() final override;
-	virtual bool HasPendingUpdate() const final override;
-	virtual bool IsPendingUpdateLocked() const final override;
+	virtual bool HasPendingRenderResourceInitialization() const final override;
 	virtual bool StreamOut(int32 NewMipCount) final override;
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr) final override;
+	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::StaticMesh; }
 	//~ End UStreamableRenderAsset Interface
 
 #if USE_BULKDATA_STREAMING_TOKEN
 	bool GetMipDataFilename(const int32 MipIndex, FString& BulkDataFilename) const;
 #endif
-
-	void LinkStreaming();
-	void UnlinkStreaming();
 
 	/**
 	* Cancels any pending static mesh streaming actions if possible.
@@ -1292,7 +1277,7 @@ public:
 	/**
 	 * Returns true if LODs of this static mesh may share texture lightmaps.
 	 */
-	bool CanLODsShareStaticLighting() const;
+	ENGINE_API bool CanLODsShareStaticLighting() const;
 
 	/**
 	 * Retrieves the names of all LOD groups.

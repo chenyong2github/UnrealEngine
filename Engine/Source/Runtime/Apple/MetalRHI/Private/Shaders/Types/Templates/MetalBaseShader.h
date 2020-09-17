@@ -17,15 +17,6 @@
 
 //------------------------------------------------------------------------------
 
-#pragma mark - Metal RHI Shader Code Library Types
-
-
-extern unsigned char ue4_stdlib_metal[];
-extern unsigned int ue4_stdlib_metal_len;
-
-
-//------------------------------------------------------------------------------
-
 #pragma mark - Metal RHI Base Shader Class Support Routines
 
 
@@ -322,10 +313,7 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 				ShaderString = [NSString stringWithFormat:@"// %@\n%@", Header.ShaderName.GetNSString(), ShaderString];
 			}
 
-			static NSString* UE4StdLibString = [[NSString alloc] initWithBytes:ue4_stdlib_metal length:ue4_stdlib_metal_len encoding:NSUTF8StringEncoding];
-
-			NSString* NewShaderString = [ShaderString stringByReplacingOccurrencesOfString:@"#include \"ue4_stdlib.metal\"" withString:UE4StdLibString];
-			NewShaderString = [NewShaderString stringByReplacingOccurrencesOfString:@"#pragma once" withString:@""];
+			NSString* NewShaderString = [ShaderString stringByReplacingOccurrencesOfString:@"#pragma once" withString:@""];
 
 			mtlpp::CompileOptions CompileOptions;
 

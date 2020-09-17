@@ -513,23 +513,6 @@ void InitDefaultGLContextState(void);
 
 extern bool GUseEmulatedUniformBuffers;
 
-inline bool OpenGLShaderPlatformNeedsBindLocation(const EShaderPlatform InShaderPlatform)
-{
-	switch (InShaderPlatform)
-	{
-		case SP_OPENGL_SM5:
-		case SP_OPENGL_ES31_EXT:
-		case SP_OPENGL_ES3_1_ANDROID:
-		case SP_OPENGL_PCES3_1:
-			return false;
-		default:
-			check(IsOpenGLPlatform(InShaderPlatform));
-			checkf(false, TEXT("invalid shader platform (%d)"), int(InShaderPlatform));
-			return true;
-			break;
-	}
-}
-
 inline bool OpenGLShaderPlatformSeparable(const EShaderPlatform InShaderPlatform)
 {
 	switch (InShaderPlatform)

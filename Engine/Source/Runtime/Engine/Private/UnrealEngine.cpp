@@ -10180,17 +10180,6 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 		MessageY += FontSizeY;
 	}
 
-	static const auto CVarAnisotropicBRDF			= IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
-	static const auto CVarBasePassOutputVelocity	= IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
-
-	if (CVarAnisotropicBRDF && CVarBasePassOutputVelocity && CVarAnisotropicBRDF->GetInt() && CVarBasePassOutputVelocity->GetInt())
-	{
-		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = LOCTEXT("AnisotropicBRDF_or_BasePassVelocity", "Anisotropic BRDF and 'output velocity during base pass' options are mutually exclusive.\nSee Project Settings (Rendering) or r.AnisotropicBRDF, r.BasePassOutputsVelocity");
-		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
-		MessageY += FontSizeY;
-	}
-
 	/* @todo ue4 temporarily disabled
 	AWorldSettings* WorldSettings = World->GetWorldSettings();
 	if( !WorldSettings->IsNavigationRebuilt() )

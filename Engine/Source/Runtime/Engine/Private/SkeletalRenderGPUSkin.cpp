@@ -506,7 +506,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 		if (IsValidRef(LOD.MorphVertexBuffer.GetUAV()))
 		{
 			RHICmdList.ClearUAVUint(LOD.MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LOD.MorphVertexBuffer.GetUAV());
+			RHICmdList.Transition(FRHITransitionInfo(LOD.MorphVertexBuffer.GetUAV(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 	}
 	LOD.MorphVertexBuffer.bNeedsInitialClear = false;
@@ -556,7 +556,8 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 		{
 			const FSkelMeshRenderSection& Section = Sections[SectionIdx];
 
-			bool bClothFactory = (FeatureLevel >= ERHIFeatureLevel::SM5) && (DynamicData->ClothingSimData.Num() > 0) && Section.HasClothingData();
+			bool bClothFactory = RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) && (FeatureLevel >= ERHIFeatureLevel::SM5) &&
+								 (DynamicData->ClothingSimData.Num() > 0) && Section.HasClothingData();
 
 			FGPUBaseSkinVertexFactory* VertexFactory;
 			{
@@ -818,16 +819,13 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 			TEXT("MorphUpdate LodVertices=%d Threads=%d"),
 			LodData.GetNumVertices(),
 			MorphTargetVertexInfoBuffers.GetNumWorkItems());
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, MorphVertexBuffer.GetUAV());
 
+		RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		RHICmdList.ClearUAVUint(MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
 		RHICmdList.ClearUAVUint(MorphVertexBuffer.GetNormalizationUAV(), FUintVector4(0, 0, 0, 0));
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MorphVertexBuffer.GetUAV());
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MorphVertexBuffer.GetNormalizationUAV());
 
 		{
-			RHICmdList.BeginUAVOverlap();
-
 			FVector4 MorphScale; 
 			FVector4 InvMorphScale; 
 			float WeightScale;
@@ -839,6 +837,11 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateScatter, TEXT("Scatter"));
+
+				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				RHICmdList.BeginUAVOverlap(MorphVertexBuffer.GetUAV());
+				RHICmdList.BeginUAVOverlap(MorphVertexBuffer.GetNormalizationUAV());
 
 				//the first pass scatters all morph targets into the vertexbuffer using atomics
 				//multiple morph targets can be batched by a single shader where the shader will rely on
@@ -869,18 +872,20 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 						GPUMorphUpdateCS->SetOffsetAndSize(RHICmdList, i, i + j, MorphTargetVertexInfoBuffers, MorphTargetWeights);
 						check(NumMorphDeltas <= FMorphTargetVertexInfoBuffers::GetMaximumThreadGroupSize());
 						GPUMorphUpdateCS->Dispatch(RHICmdList, NumMorphDeltas);
-						RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, MorphVertexBuffer.GetUAV());
 					}
 					i += j;
 				}
+
 				GPUMorphUpdateCS->EndAllDispatches(RHICmdList);
-				RHICmdList.EndUAVOverlap();
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MorphVertexBuffer.GetUAV());
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MorphVertexBuffer.GetNormalizationUAV());
+				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetUAV());
+				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetNormalizationUAV());
 			}
 
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateNormalize, TEXT("Normalize"));
+
+				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				RHICmdList.BeginUAVOverlap(MorphVertexBuffer.GetUAV());
 
 				//The second pass normalizes the scattered result and converts it back into floats.
 				//The dispatches are split by morph permutation (and their accumulated weight) .
@@ -892,7 +897,8 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 				GPUMorphNormalizeCS->SetParameters(RHICmdList, InvMorphScale, InvWeightScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer);
 				GPUMorphNormalizeCS->Dispatch(RHICmdList, MorphVertexBuffer.GetNumVerticies());
 				GPUMorphNormalizeCS->EndAllDispatches(RHICmdList);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, MorphVertexBuffer.GetUAV());
+				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetUAV());
+				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask));
 			}
 		}
 
@@ -1602,7 +1608,8 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitAPEXClothVertexFactorie
 	ClothVertexFactories.Empty(Sections.Num());
 	for( int32 FactoryIdx=0; FactoryIdx < Sections.Num(); FactoryIdx++ )
 	{
-		if (Sections[FactoryIdx].HasClothingData() && InFeatureLevel >= ERHIFeatureLevel::SM5)
+		if (Sections[FactoryIdx].HasClothingData() && InFeatureLevel >= ERHIFeatureLevel::SM5 &&
+									 RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
 			GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
 			if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
@@ -1662,9 +1669,10 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::InitResources(uint32 Ve
 	// vertex buffer for each lod has already been created when skelmesh was loaded
 	FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
 	
+	check(CompLODInfo);
+
 	// If we have a skin weight override buffer (and it's the right size) use it
-	if (CompLODInfo &&
-		CompLODInfo->OverrideSkinWeights &&
+	if (CompLODInfo->OverrideSkinWeights &&
 		CompLODInfo->OverrideSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
 	{
 		check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideSkinWeights->GetMaxBoneInfluences());
@@ -1682,8 +1690,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::InitResources(uint32 Ve
 	}
 
 	// If we have a vertex color override buffer (and it's the right size) use it
-	if (CompLODInfo &&
-		CompLODInfo->OverrideVertexColors &&
+	if (CompLODInfo->OverrideVertexColors &&
 		CompLODInfo->OverrideVertexColors->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
 	{
 		MeshObjectColorBuffer = CompLODInfo->OverrideVertexColors;

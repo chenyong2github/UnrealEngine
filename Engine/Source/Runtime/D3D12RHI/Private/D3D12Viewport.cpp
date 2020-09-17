@@ -253,7 +253,7 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 			1,
 			PixelFormat,
 			false,
-			false,
+			TexCreate_RenderTargetable,
 			FClearValueBinding());
 
 		const D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_COMMON;

@@ -1322,8 +1322,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 		|| EngineShowFlags.Bounds
 		|| bProxyIsSelected 
 		|| IsHovered()
-		|| bIsLightmapSettingError 
-		|| !IsStaticPathAvailable() );
+		|| bIsLightmapSettingError);
 
 	// Draw polygon mesh if we are either not in a collision view, or are drawing it as collision.
 	if (EngineShowFlags.StaticMeshes && bDrawMesh)
@@ -1812,8 +1811,7 @@ FPrimitiveViewRelevance FStaticMeshSceneProxy::GetViewRelevance(const FSceneView
 #endif
 		// Force down dynamic rendering path if invalid lightmap settings, so we can apply an error material in DrawRichMesh
 		(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting()) ||
-		HasViewDependentDPG() ||
-		 !IsStaticPathAvailable()
+		HasViewDependentDPG()
 		)
 	{
 		Result.bDynamicRelevance = true;
@@ -2268,18 +2266,18 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 
 			FCachedSystemScalabilityCVars CachedSystemScalabilityCVars = GetCachedScalabilityCVars();
 
-			float InvScreenSizeScale = (CachedSystemScalabilityCVars.StaticMeshLODDistanceScale != 0.f) ? (1.0f / CachedSystemScalabilityCVars.StaticMeshLODDistanceScale) : 1.0f;
+			const float LODScale = CachedSystemScalabilityCVars.StaticMeshLODDistanceScale;
 
 			if (bUseDithered)
 			{
 				for (int32 Sample = 0; Sample < 2; Sample++)
 				{
-					Result.SetLODSample(ComputeTemporalStaticMeshLOD(RenderData, ProxyBounds.Origin, ProxyBounds.SphereRadius, *View, ClampedMinLOD, InvScreenSizeScale, Sample), Sample);
+					Result.SetLODSample(ComputeTemporalStaticMeshLOD(RenderData, ProxyBounds.Origin, ProxyBounds.SphereRadius, *View, ClampedMinLOD, LODScale, Sample), Sample);
 				}
 			}
 			else
 			{
-				Result.SetLOD(ComputeStaticMeshLOD(RenderData, ProxyBounds.Origin, ProxyBounds.SphereRadius, *View, ClampedMinLOD, InvScreenSizeScale));
+				Result.SetLOD(ComputeStaticMeshLOD(RenderData, ProxyBounds.Origin, ProxyBounds.SphereRadius, *View, ClampedMinLOD, LODScale));
 			}
 		}
 	}

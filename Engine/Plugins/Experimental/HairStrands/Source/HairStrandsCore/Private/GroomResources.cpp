@@ -1456,6 +1456,6 @@ void CreateHairStrandsDebugResources(FRDGBuilder& GraphBuilder, const FHairStran
 		sizeof(FHairStrandsDebugDatas::FVoxel) * In->VoxelData.Num());
 
 	
-	GraphBuilder.QueueBufferExtraction(VoxelOffsetAndCount, &Out->VoxelOffsetAndCount, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
-	GraphBuilder.QueueBufferExtraction(VoxelData, &Out->VoxelData, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+	ConvertToExternalBuffer(GraphBuilder, VoxelOffsetAndCount, Out->VoxelOffsetAndCount);
+	ConvertToExternalBuffer(GraphBuilder, VoxelData, Out->VoxelData);
 }

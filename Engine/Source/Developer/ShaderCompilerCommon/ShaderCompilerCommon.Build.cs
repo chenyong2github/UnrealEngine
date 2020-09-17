@@ -13,6 +13,11 @@ public class ShaderCompilerCommon : ModuleRules
 			}
 			);
 
+		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "ShaderConductor");
+		}
+
 		// We only need a header containing definitions
 		PublicSystemIncludePaths.Add("ThirdParty/hlslcc/hlslcc/src/hlslcc_lib");
     }

@@ -5,207 +5,355 @@
 #include "ExternalTexture.h"
 #include "RenderingThread.h"
 #include "Containers/DynamicRHIResourceArray.h"
+#include "AppleARKitAvailability.h"
+#include "RenderGraph.h"
+#include "ExternalTextureGuid.h"
+#include "RHIResources.h"
+#include "AppleARKitFrame.h"
+#include "HAL/RunnableThread.h"
+#include "GlobalShader.h"
 
-#if PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_APPLE
 	#import <Metal/Metal.h>
+	#import <MetalPerformanceShaders/MetalPerformanceShaders.h>
 #endif
 
-/** Resource class to do all of the setup work on the render thread */
-class FARKitCameraImageResource :
-	public FTextureResource
+DECLARE_CYCLE_STAT(TEXT("Scale Image"), STAT_ScaleImage, STATGROUP_ARKIT);
+DECLARE_CYCLE_STAT(TEXT("Blur Image"), STAT_BlurImage, STATGROUP_ARKIT);
+
+static bool InRenderThread()
+{
+	if (GRenderingThread && !GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
+	{
+		return FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+	}
+	
+	return false;
+}
+
+#if PLATFORM_APPLE
+class FAppleImageFilter
 {
 public:
-	FARKitCameraImageResource(UAppleARKitTextureCameraImage* InOwner)
-		: LastFrameNumber(0)
-		, Owner(InOwner)
+	FAppleImageFilter(id<MTLDevice> MetalDevice)
 	{
-#if PLATFORM_MAC || PLATFORM_IOS
-		CameraImage = Owner->GetCameraImage();
-		if (CameraImage != nullptr)
-		{
-			CFRetain(CameraImage);
-		}
-#endif
-		bSRGB = false;
+		check(MetalDevice);
+		CommandQueue = [MetalDevice newCommandQueue];
 	}
-
-	virtual ~FARKitCameraImageResource()
+	
+	virtual ~FAppleImageFilter()
 	{
-#if PLATFORM_MAC || PLATFORM_IOS
+		if (CommandQueue)
+		{
+			[CommandQueue release];
+			CommandQueue = nullptr;
+		}
+		
+		if (GaussianBlur)
+		{
+			[GaussianBlur release];
+			GaussianBlur = nullptr;
+		}
+	}
+	
+	static CIImage* GetScaledImage(CIImage* InImage, float SizeScale)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ScaleImage);
+		
+		if (!InImage || SizeScale == 1.f)
+		{
+			return InImage;
+		}
+		
+		const auto AspectRatio = 1.f;
+		CIFilter* ScaleFilter = [CIFilter filterWithName: @"CILanczosScaleTransform"];
+		[ScaleFilter setValue: InImage forKey: kCIInputImageKey];
+		[ScaleFilter setValue: @(SizeScale) forKey: kCIInputScaleKey];
+		[ScaleFilter setValue: @(AspectRatio) forKey: kCIInputAspectRatioKey];
+		return ScaleFilter.outputImage;
+	}
+	
+	id<MTLTexture> ApplyGaussianBlur(id<MTLTexture> InTexture, float Sigma, bool bWaitUntilCompleted)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_BlurImage);
+		
+		if (!InTexture)
+		{
+			return nullptr;
+		}
+		
+		if (GaussianBlur && GaussianBlur.sigma != Sigma)
+		{
+			[GaussianBlur release];
+			GaussianBlur = nullptr;
+		}
+		
+		if (!GaussianBlur)
+		{
+			GaussianBlur = [[MPSImageGaussianBlur alloc] initWithDevice: CommandQueue.device sigma: Sigma];
+		}
+
+		if (!GaussianBlur)
+		{
+			return nullptr;
+		}
+		
+		auto ProcessedTexture = InTexture;
+		id<MTLCommandBuffer> CommandBuffer = [CommandQueue commandBuffer];
+		[GaussianBlur encodeToCommandBuffer: CommandBuffer inPlaceTexture: &ProcessedTexture fallbackCopyAllocator: nil];
+		[CommandBuffer commit];
+		if (bWaitUntilCompleted)
+		{
+			[CommandBuffer waitUntilCompleted];
+		}
+		return ProcessedTexture;
+	}
+	
+private:
+	id<MTLCommandQueue> CommandQueue = nullptr;
+	MPSImageGaussianBlur* GaussianBlur = nullptr;
+};
+#endif // PLATFORM_APPLE
+
+class FARKitTextureResource : public FTextureResource
+{
+public:
+	FARKitTextureResource(UTexture* InOwner)
+		: Owner(InOwner)
+	{
+		bSRGB = InOwner->SRGB;
+	}
+	
+	virtual ~FARKitTextureResource()
+	{
+#if PLATFORM_APPLE
 		if (ImageContext)
 		{
 			CFRelease(ImageContext);
 			ImageContext = nullptr;
 		}
+		
+		ImageFilter = nullptr;
 #endif
 	}
-
+	
+	/** Returns the width of the texture in pixels. */
+	virtual uint32 GetSizeX() const override { return Size.X; }
+	
+	/** Returns the height of the texture in pixels. */
+	virtual uint32 GetSizeY() const override { return Size.Y; }
+	
 	virtual void InitRHI() override
 	{
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
-
-#if PLATFORM_IOS
-		if (CameraImage != nullptr)
+		
+		// Default to an empty 1x1 texture if we don't have a camera image
+		FRHIResourceCreateInfo CreateInfo;
+		Size.X = Size.Y = 1;
+		TextureRHI = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		
+		OnTextureUpdated();
+	}
+	
+	virtual void ReleaseRHI() override
+	{
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
+		FTextureResource::ReleaseRHI();
+	}
+	
+#if PLATFORM_APPLE
+	void UpdateCameraImage(CVPixelBufferRef CameraImage, EPixelFormat PixelFormat, const CFStringRef ColorSpace, FImageBlurParams BlurParams)
+	{
+		if (!CameraImage)
 		{
-			SCOPED_AUTORELEASE_POOL;
-
-			CGColorSpaceRef ColorSpaceRef = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGBLinear);
-			CIImage* Image = [[CIImage alloc] initWithCVPixelBuffer: CameraImage];
-
-			// Textures always need to be rotated so to a sane orientation (and mirrored because of differing coord system)
-			CIImage* RotatedImage = [Image imageByApplyingOrientation: GetRotationFromDeviceOrientation()];
-			// Get the sizes from the rotated image
-			CGRect ImageExtent = RotatedImage.extent;
-
-			// Don't reallocate the texture if the sizes match
-			if (Size.X != ImageExtent.size.width || Size.Y != ImageExtent.size.height)
-			{
-				Size.X = ImageExtent.size.width;
-				Size.Y = ImageExtent.size.height;
-				
-				// Let go of the last texture
-				RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-				DecodedTextureRef.SafeRelease();
-				
-				// Create the target texture that we'll update into
-				FRHIResourceCreateInfo CreateInfo;
-				DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
-			}
-
-			// Get the underlying metal texture so we can render to it
-			id<MTLTexture> UnderlyingMetalTexture = (id<MTLTexture>)DecodedTextureRef->GetNativeResource();
-
-			// Do the conversion on the GPU
-			if (!ImageContext)
-			{
-				ImageContext = [CIContext context];
-				CFRetain(ImageContext);
-			}
-			[ImageContext render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: ImageExtent colorSpace: ColorSpaceRef];
-
-			// Now that the conversion is done, we can get rid of our refs
-			[Image release];
-			CGColorSpaceRelease(ColorSpaceRef);
+			return;
+		}
+		CFRetain(CameraImage);
+		ENQUEUE_RENDER_COMMAND(UpdateCameraImage)
+		([this, CameraImage, PixelFormat, ColorSpace, BlurParams](FRHICommandListImmediate&)
+		{
+			UpdateCameraImage_RenderThread(CameraImage, PixelFormat, ColorSpace, BlurParams);
 			CFRelease(CameraImage);
-			CameraImage = nullptr;
-		}
-		else
-#endif
+		});
+	}
+	
+	void UpdateMetalTexture(id<MTLTexture> MetalTexture, EPixelFormat PixelFormat, const CFStringRef ColorSpace)
+	{
+		if (!MetalTexture)
 		{
-			// Default to an empty 1x1 texture if we don't have a camera image
-			FRHIResourceCreateInfo CreateInfo;
-			Size.X = Size.Y = 1;
-			DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+			return;
 		}
+		
+		CFRetain(MetalTexture);
+		ENQUEUE_RENDER_COMMAND(UpdateMetalTextureResource)
+		([this, MetalTexture, PixelFormat, ColorSpace](FRHICommandListImmediate& RHICmdList)
+		{
+			UpdateMetalTexture_RenderThread(MetalTexture, PixelFormat, ColorSpace);
+			CFRelease(MetalTexture);
+		});
+	}
+	
+protected:
+	void ConditionalRecreateTexture(uint32 Width, uint32 Height, EPixelFormat PixelFormat)
+	{
+		if (Size.X != Width || Size.Y != Height)
+		{
+			Size.X = Width;
+			Size.Y = Height;
+			
+			// Let go of the last texture
+			RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
+			TextureRHI.SafeRelease();
+			
+			// Create the target texture that we'll update into
+			FRHIResourceCreateInfo CreateInfo;
+			TextureRHI = RHICreateTexture2D(Size.X, Size.Y, PixelFormat, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+		}
+	}
+	
+	void UpdateCameraImage_RenderThread(CVPixelBufferRef CameraImage, EPixelFormat PixelFormat, const CFStringRef ColorSpace, FImageBlurParams BlurParams)
+	{
+		SCOPED_AUTORELEASE_POOL;
+		CGColorSpaceRef ColorSpaceRef = CGColorSpaceCreateWithName(ColorSpace);
+		CIImage* Image = [[CIImage alloc] initWithCVPixelBuffer: CameraImage];
+		
+		// Textures always need to be rotated so to a sane orientation (and mirrored because of differing coord system)
+		static const TMap<EDeviceScreenOrientation, CGImagePropertyOrientation> OrientationMapping =
+		{
+			{ EDeviceScreenOrientation::Portrait, kCGImagePropertyOrientationRightMirrored },
+			{ EDeviceScreenOrientation::LandscapeLeft, kCGImagePropertyOrientationUpMirrored },
+			{ EDeviceScreenOrientation::PortraitUpsideDown, kCGImagePropertyOrientationLeftMirrored },
+			{ EDeviceScreenOrientation::LandscapeRight, kCGImagePropertyOrientationDownMirrored },
+		};
+		
+		auto ImageOrientation = kCGImagePropertyOrientationUp;
+		if (auto Record = OrientationMapping.Find(FPlatformMisc::GetDeviceOrientation()))
+		{
+			ImageOrientation = *Record;
+		}
+		
+		CIImage* RotatedImage = [Image imageByApplyingOrientation: ImageOrientation];
+		
+		if (BlurParams.GaussianBlurSigma > 0.f)
+		{
+			RotatedImage = FAppleImageFilter::GetScaledImage(RotatedImage, BlurParams.ImageSizeScale);
+		}
+		
+		// Get the sizes from the rotated image
+		CGRect ImageExtent = RotatedImage.extent;
+		
+		// Don't reallocate the texture if the sizes match
+		ConditionalRecreateTexture(ImageExtent.size.width, ImageExtent.size.height, PixelFormat);
+		
+		// Get the underlying metal texture so we can render to it
+		id<MTLTexture> UnderlyingMetalTexture = (id<MTLTexture>)TextureRHI->GetNativeResource();
+		
+		[GetImageContext() render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: ImageExtent colorSpace: ColorSpaceRef];
+		
+		// Now that the conversion is done, we can get rid of our refs
+		[Image release];
+		CGColorSpaceRelease(ColorSpaceRef);
+		
+		if (BlurParams.GaussianBlurSigma > 0.f)
+		{
+			if (!ImageFilter)
+			{
+				id<MTLDevice> MetalDevice = (id<MTLDevice>)GDynamicRHI->RHIGetNativeDevice();
+				ImageFilter = MakeShared<FAppleImageFilter, ESPMode::ThreadSafe>(MetalDevice);
+			}
+			
+			auto ProcessedTexture = ImageFilter->ApplyGaussianBlur(UnderlyingMetalTexture, BlurParams.GaussianBlurSigma, false /* bWaitUntilCompleted */);
+			ensure(ProcessedTexture == UnderlyingMetalTexture);
+		}
+		
+		OnTextureUpdated();
+	}
+	
+	void UpdateMetalTexture_RenderThread(id<MTLTexture> MetalTexture, EPixelFormat PixelFormat, const CFStringRef ColorSpace)
+	{
+		SCOPED_AUTORELEASE_POOL;
+		
+		CGColorSpaceRef ColorSpaceRef = CGColorSpaceCreateWithName(ColorSpace);
+		CIImage* Image = [[CIImage alloc] initWithMTLTexture: MetalTexture options: nil];
+		
+		// Textures always need to be rotated so to a sane orientation (and mirrored because of differing coord system)
+		static const TMap<EDeviceScreenOrientation, CGImagePropertyOrientation> OrientationMapping =
+		{
+			{ EDeviceScreenOrientation::Portrait, kCGImagePropertyOrientationLeft },
+			{ EDeviceScreenOrientation::LandscapeLeft, kCGImagePropertyOrientationDown },
+			{ EDeviceScreenOrientation::PortraitUpsideDown, kCGImagePropertyOrientationRight },
+			{ EDeviceScreenOrientation::LandscapeRight, kCGImagePropertyOrientationUp },
+		};
+		
+		auto ImageOrientation = kCGImagePropertyOrientationUp;
+		if (auto Record = OrientationMapping.Find(FPlatformMisc::GetDeviceOrientation()))
+		{
+			ImageOrientation = *Record;
+		}
+		
+		CIImage* RotatedImage = [Image imageByApplyingOrientation: ImageOrientation];
+		
+		// Get the sizes from the rotated image
+		CGRect ImageExtent = RotatedImage.extent;
+		
+		FIntPoint DesiredSize(ImageExtent.size.width, ImageExtent.size.height);
+		
+		if (!TextureRHI || DesiredSize != Size)
+		{
+			ConditionalRecreateTexture(DesiredSize.X, DesiredSize.Y, PixelFormat);
+		}
+		
+		if (TextureRHI)
+		{
+			// Get the underlying metal texture so we can render to it
+			id<MTLTexture> UnderlyingMetalTexture = (id<MTLTexture>)TextureRHI->GetNativeResource();
 
-		TextureRHI = DecodedTextureRef;
+			[GetImageContext() render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: ImageExtent colorSpace: ColorSpaceRef];
+		}
+		
+		// Now that the conversion is done, we can get rid of our refs
+		[Image release];
+		CGColorSpaceRelease(ColorSpaceRef);
+		
+		OnTextureUpdated();
+	}
+	
+	CIContext* GetImageContext()
+	{
+		if (!ImageContext)
+		{
+			ImageContext = [CIContext context];
+			CFRetain(ImageContext);
+		}
+		return ImageContext;
+	}
+#endif // PLATFORM_APPLE
+	
+protected:
+	void OnTextureUpdated()
+	{
 		TextureRHI->SetName(Owner->GetFName());
 		RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 	}
-
-	virtual void ReleaseRHI() override
-	{
-		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-#if PLATFORM_MAC || PLATFORM_IOS
-		if (CameraImage != nullptr)
-		{
-			CFRelease(CameraImage);
-		}
-		CameraImage = nullptr;
-#endif
-		DecodedTextureRef.SafeRelease();
-		FTextureResource::ReleaseRHI();
-	}
-
-	/** Returns the width of the texture in pixels. */
-	virtual uint32 GetSizeX() const override
-	{
-		return Size.X;
-	}
-
-	/** Returns the height of the texture in pixels. */
-	virtual uint32 GetSizeY() const override
-	{
-		return Size.Y;
-	}
-
-#if PLATFORM_MAC || PLATFORM_IOS
-	/** Render thread update of the texture so we don't get 2 updates per frame on the render thread */
-	void Init_RenderThread(CVPixelBufferRef InCameraImage)
-	{
-		check(IsInRenderingThread());
-		check(InCameraImage != nullptr);
-
-		if (LastFrameNumber != GFrameNumber)
-		{
-			LastFrameNumber = GFrameNumber;
-			CameraImage = InCameraImage;
-			CFRetain(CameraImage);
-			InitRHI();
-		}
-	}
-#endif
-
-private:
-#if PLATFORM_IOS
-	/** @return the rotation to use to rotate the texture to the proper direction */
-	int32 GetRotationFromDeviceOrientation()
-	{
-		// NOTE: The texture we are reading from is in device space and mirrored, because Apple hates us
-		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
-		switch (ScreenOrientation)
-		{
-			case EDeviceScreenOrientation::Portrait:
-			{
-				return kCGImagePropertyOrientationRightMirrored;
-			}
-
-			case EDeviceScreenOrientation::LandscapeLeft:
-			{
-				return kCGImagePropertyOrientationUpMirrored;
-			}
-
-			case EDeviceScreenOrientation::PortraitUpsideDown:
-			{
-				return kCGImagePropertyOrientationLeftMirrored;
-			}
-
-			case EDeviceScreenOrientation::LandscapeRight:
-			{
-				return kCGImagePropertyOrientationDownMirrored;
-			}
-		}
-		// Don't know so don't rotate
-		return kCGImagePropertyOrientationUp;
-	}
-#endif
+	
+protected:
+	UTexture* Owner = nullptr;
 	
 	/** The size we get from the incoming camera image */
-	FIntPoint Size;
-
-#if PLATFORM_MAC || PLATFORM_IOS
-	/** The raw camera image from ARKit which is to be converted into a RGBA image */
-	CVPixelBufferRef CameraImage;
+	FIntPoint Size = { 0, 0 };
 	
+#if PLATFORM_APPLE
 	/** The cached image context that's reused between frames */
 	CIContext* ImageContext = nullptr;
+	
+	TSharedPtr<FAppleImageFilter, ESPMode::ThreadSafe> ImageFilter = nullptr;
 #endif
-	/** The texture that we actually render with which is populated via the GPU conversion process */
-	FTexture2DRHIRef DecodedTextureRef;
-	/** The last frame we were updated on */
-	uint32 LastFrameNumber;
-
-	const UAppleARKitTextureCameraImage* Owner;
 };
 
 UAppleARKitTextureCameraImage::UAppleARKitTextureCameraImage(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if PLATFORM_MAC || PLATFORM_IOS
-	, CameraImage(nullptr)
-    , NewCameraImage(nullptr)
-#endif
 {
 	ExternalTextureGuid = FGuid::NewGuid();
 	SRGB = false;
@@ -213,99 +361,56 @@ UAppleARKitTextureCameraImage::UAppleARKitTextureCameraImage(const FObjectInitia
 
 FTextureResource* UAppleARKitTextureCameraImage::CreateResource()
 {
-#if PLATFORM_MAC || PLATFORM_IOS
-	return new FARKitCameraImageResource(this);
-#endif
-	return nullptr;
+	return new FARKitTextureResource(this);
 }
 
 void UAppleARKitTextureCameraImage::BeginDestroy()
 {
-#if PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_APPLE
 	if (CameraImage != nullptr)
 	{
 		CFRelease(CameraImage);
 		CameraImage = nullptr;
 	}
-    
-    {
-        FScopeLock ScopeLock(&PendingImageLock);
-        if (NewCameraImage != nullptr)
-        {
-            CFRelease(NewCameraImage);
-            NewCameraImage = nullptr;
-        }
-    }
 #endif
 	Super::BeginDestroy();
 }
 
-#if PLATFORM_MAC || PLATFORM_IOS
-
-void UAppleARKitTextureCameraImage::Init(float InTimestamp, CVPixelBufferRef InCameraImage)
+#if PLATFORM_APPLE
+void UAppleARKitTextureCameraImage::UpdateCameraImage(float InTimestamp, CVPixelBufferRef InCameraImage, EPixelFormat InPixelFormat, const CFStringRef ColorSpace, FImageBlurParams BlurParams)
 {
 	check(IsInGameThread());
-
-	// Handle the case where this UObject is being reused
-	if (CameraImage != nullptr)
+	
+	if (CameraImage)
 	{
 		CFRelease(CameraImage);
 		CameraImage = nullptr;
 	}
-
-	if (InCameraImage != nullptr)
+	
+	CameraImage = InCameraImage;
+	if (CameraImage)
 	{
-		Timestamp = InTimestamp;
-		CameraImage = InCameraImage;
 		CFRetain(CameraImage);
 		Size.X = CVPixelBufferGetWidth(CameraImage);
 		Size.Y = CVPixelBufferGetHeight(CameraImage);
 	}
-
-	if (Resource == nullptr)
+	
+	Timestamp = InTimestamp;
+	
+	if (!Resource)
 	{
-		// Initial update. All others will be queued on the render thread
 		UpdateResource();
 	}
-}
-
-void UAppleARKitTextureCameraImage::Init_RenderThread()
-{
-	if (Resource != nullptr)
+	
+	if (auto MyResource = static_cast<FARKitTextureResource*>(Resource))
 	{
-		FARKitCameraImageResource* ARKitResource = static_cast<FARKitCameraImageResource*>(Resource);
-		ENQUEUE_RENDER_COMMAND(Init_RenderThread)(
-			[ARKitResource, this](FRHICommandListImmediate&)
-		{
-			FScopeLock ScopeLock(&PendingImageLock);
-			if (NewCameraImage != nullptr)
-			{
-				ARKitResource->Init_RenderThread(NewCameraImage);
-				CFRelease(NewCameraImage);
-				NewCameraImage = nullptr;
-			}
-		});
+		MyResource->UpdateCameraImage(CameraImage, InPixelFormat, ColorSpace, BlurParams);
 	}
-}
-
-void UAppleARKitTextureCameraImage::EnqueueNewCameraImage(CVPixelBufferRef InCameraImage)
-{
-	FScopeLock ScopeLock(&PendingImageLock);
-	if (NewCameraImage != nullptr)
-	{
-		CFRelease(NewCameraImage);
-	}
-
-	NewCameraImage = InCameraImage;
-	CFRetain(NewCameraImage);
 }
 #endif
 
 UAppleARKitTextureCameraDepth::UAppleARKitTextureCameraDepth(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if PLATFORM_MAC || PLATFORM_IOS
-	, CameraDepth(nullptr)
-#endif
 {
 	ExternalTextureGuid = FGuid::NewGuid();
 }
@@ -318,7 +423,7 @@ FTextureResource* UAppleARKitTextureCameraDepth::CreateResource()
 
 void UAppleARKitTextureCameraDepth::BeginDestroy()
 {
-#if PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_APPLE
 	if (CameraDepth != nullptr)
 	{
 		CFRelease(CameraDepth);
@@ -340,15 +445,12 @@ void UAppleARKitTextureCameraDepth::Init(float InTimestamp, AVDepthData* InCamer
 
 UAppleARKitEnvironmentCaptureProbeTexture::UAppleARKitEnvironmentCaptureProbeTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if PLATFORM_MAC || PLATFORM_IOS
-	, MetalTexture(nullptr)
-#endif
 {
 	ExternalTextureGuid = FGuid::NewGuid();
 	SRGB = false;
 }
 
-#if PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_APPLE
 void UAppleARKitEnvironmentCaptureProbeTexture::Init(float InTimestamp, id<MTLTexture> InEnvironmentTexture)
 {
 	if (Resource == nullptr)
@@ -476,7 +578,7 @@ public:
 		{
 			Size.X = Size.Y = Owner->Size.X;
 
-			const uint32 CreateFlags = TexCreate_SRGB;
+			const ETextureCreateFlags CreateFlags = TexCreate_SRGB;
 			EnvCubemapTextureRHIRef = RHICreateTextureCube(Size.X, PF_B8G8R8A8, 1, CreateFlags, CreateInfo);
 
 			/**
@@ -499,7 +601,7 @@ public:
 		{
 			Size.X = Size.Y = 1;
 			// Start with a 1x1 texture
-			EnvCubemapTextureRHIRef = RHICreateTextureCube(Size.X, PF_B8G8R8A8, 1, 0, CreateInfo);
+			EnvCubemapTextureRHIRef = RHICreateTextureCube(Size.X, PF_B8G8R8A8, 1, TexCreate_None, CreateInfo);
 		}
 
 
@@ -575,11 +677,11 @@ private:
 	CIContext* ImageContext = nullptr;
 };
 
-#endif
+#endif // PLATFORM_APPLE
 
 FTextureResource* UAppleARKitEnvironmentCaptureProbeTexture::CreateResource()
 {
-#if PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_APPLE
 	return new FARMetalResource(this);
 #endif
 	return nullptr;
@@ -587,7 +689,7 @@ FTextureResource* UAppleARKitEnvironmentCaptureProbeTexture::CreateResource()
 
 void UAppleARKitEnvironmentCaptureProbeTexture::BeginDestroy()
 {
-#if PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_APPLE
 	if (MetalTexture != nullptr)
 	{
 		CFRelease(MetalTexture);
@@ -605,7 +707,7 @@ UAppleARKitOcclusionTexture::UAppleARKitOcclusionTexture(const FObjectInitialize
 
 void UAppleARKitOcclusionTexture::BeginDestroy()
 {
-#if PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_APPLE
 	if (MetalTexture)
 	{
 		CFRelease(MetalTexture);
@@ -616,177 +718,8 @@ void UAppleARKitOcclusionTexture::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-#if PLATFORM_MAC || PLATFORM_IOS
-class FOcclusionTextureResource : public FTextureResource
-{
-public:
-	FOcclusionTextureResource(UAppleARKitOcclusionTexture* InOwner)
-		: Owner(InOwner)
-	{
-		bGreyScaleFormat = false;
-		bSRGB = InOwner->SRGB;
-	}
-	
-	virtual ~FOcclusionTextureResource()
-	{
-		if (ImageContext)
-		{
-			CFRelease(ImageContext);
-			ImageContext = nullptr;
-		}
-	}
-	
-	virtual void InitRHI() override
-	{
-		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
-		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
-		
-#if PLATFORM_IOS
-		id<MTLTexture> MetalTexture = Owner->GetMetalTexture();
-		if (MetalTexture)
-		{
-			SCOPED_AUTORELEASE_POOL;
-			
-			CFRetain(MetalTexture);
-			
-			CGColorSpaceRef ColorSpaceRef = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGBLinear);
-			CIImage* Image = [[CIImage alloc] initWithMTLTexture: MetalTexture options: nil];
-
-			// Textures always need to be rotated so to a sane orientation (and mirrored because of differing coord system)
-			CIImage* RotatedImage = [Image imageByApplyingOrientation: GetRotationFromDeviceOrientation()];
-			
-			// Get the sizes from the rotated image
-			CGRect ImageExtent = RotatedImage.extent;
-			
-			FIntPoint DesiredSize(ImageExtent.size.width, ImageExtent.size.height);
-			
-			if (!TextureRHI || DesiredSize != Size)
-			{
-				// Let go of the last texture
-				RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-				TextureRHIRef.SafeRelease();
-				
-				Size = DesiredSize;
-				
-				MTLPixelFormat MetalPixelFormat = MetalTexture.pixelFormat;
-				EPixelFormat PixelFormat = EPixelFormat::PF_Unknown;
-				if (MetalPixelFormat == MTLPixelFormatR8Unorm)
-				{
-					PixelFormat = EPixelFormat::PF_G8;
-				}
-				else if (MetalPixelFormat == MTLPixelFormatR16Float)
-				{
-					PixelFormat = EPixelFormat::PF_R16F;
-				}
-				else
-				{
-					UE_LOG(LogTemp, Error, TEXT("FMetalTextureResource::InitRHI: Metal pixel format is not supported: %d"), (int32)MetalPixelFormat);
-				}
-				
-				if (PixelFormat != EPixelFormat::PF_Unknown)
-				{
-					FRHIResourceCreateInfo CreateInfo;
-					TextureRHIRef = RHICreateTexture2D(Size.X, Size.Y, PixelFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
-				}
-			}
-			
-			if (TextureRHIRef)
-			{
-				// Get the underlying metal texture so we can render to it
-				id<MTLTexture> UnderlyingMetalTexture = (id<MTLTexture>)TextureRHIRef->GetNativeResource();
-
-				// Do the conversion on the GPU
-				if (!ImageContext)
-				{
-					ImageContext = [CIContext context];
-					CFRetain(ImageContext);
-				}
-				[ImageContext render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: ImageExtent colorSpace: ColorSpaceRef];
-			}
-			
-			// Now that the conversion is done, we can get rid of our refs
-			[Image release];
-			CGColorSpaceRelease(ColorSpaceRef);
-			CFRelease(MetalTexture);
-			MetalTexture = nullptr;
-		}
-#endif
-		
-		if (!TextureRHIRef)
-		{
-			// Default to an empty 1x1 texture if we don't have a camera image
-			FRHIResourceCreateInfo CreateInfo;
-			Size.X = Size.Y = 1;
-			TextureRHIRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
-		}
-
-		TextureRHI = TextureRHIRef;
-		TextureRHI->SetName(Owner->GetFName());
-		RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
-		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
-	}
-	
-#if PLATFORM_IOS
-	/** @return the rotation to use to rotate the texture to the proper direction */
-	int32 GetRotationFromDeviceOrientation()
-	{
-		// NOTE: The texture we are reading from is in device space and mirrored, because Apple hates us
-		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
-		switch (ScreenOrientation)
-		{
-			case EDeviceScreenOrientation::Portrait:
-			{
-				return kCGImagePropertyOrientationLeft;
-			}
-
-			case EDeviceScreenOrientation::LandscapeLeft:
-			{
-				return kCGImagePropertyOrientationDown;
-			}
-
-			case EDeviceScreenOrientation::PortraitUpsideDown:
-			{
-				return kCGImagePropertyOrientationUp;
-			}
-
-			case EDeviceScreenOrientation::LandscapeRight:
-			{
-				return kCGImagePropertyOrientationUp;
-			}
-		}
-		
-		// Don't know so don't rotate
-		return kCGImagePropertyOrientationUp;
-	}
-#endif
-	
-	virtual void ReleaseRHI() override
-	{
-		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
-		TextureRHIRef.SafeRelease();
-		FTextureResource::ReleaseRHI();
-	}
-	
-	/** Returns the width of the texture in pixels. */
-	virtual uint32 GetSizeX() const override
-	{
-		return Size.X;
-	}
-	
-	/** Returns the height of the texture in pixels. */
-	virtual uint32 GetSizeY() const override
-	{
-		return Size.Y;
-	}
-	
-private:
-	FIntPoint Size;
-	FTexture2DRHIRef TextureRHIRef;
-	const UAppleARKitOcclusionTexture* Owner = nullptr;
-	CIContext* ImageContext = nullptr;
-};
-
-void UAppleARKitOcclusionTexture::SetMetalTexture(float InTimestamp, id<MTLTexture> InMetalTexture)
+#if PLATFORM_APPLE
+void UAppleARKitOcclusionTexture::SetMetalTexture(float InTimestamp, id<MTLTexture> InMetalTexture, EPixelFormat PixelFormat, const CFStringRef ColorSpace)
 {
 	{
 		FScopeLock ScopeLock(&MetalTextureLock);
@@ -815,13 +748,9 @@ void UAppleARKitOcclusionTexture::SetMetalTexture(float InTimestamp, id<MTLTextu
 		UpdateResource();
 	}
 	
-	if (Resource)
+	if (auto MyResource = static_cast<FARKitTextureResource*>(Resource))
 	{
-		ENQUEUE_RENDER_COMMAND(UpdateMetalTextureResource)
-		([InResource = Resource](FRHICommandListImmediate& RHICmdList)
-		{
-			InResource->InitRHI();
-		});
+		MyResource->UpdateMetalTexture(InMetalTexture, PixelFormat, ColorSpace);
 	}
 }
 
@@ -833,14 +762,369 @@ id<MTLTexture> UAppleARKitOcclusionTexture::GetMetalTexture() const
 
 FTextureResource* UAppleARKitOcclusionTexture::CreateResource()
 {
-	return new FOcclusionTextureResource(this);
+	return new FARKitTextureResource(this);
 }
 
-#else
+#else // PLATFORM_APPLE
 
 FTextureResource* UAppleARKitOcclusionTexture::CreateResource()
 {
 	return nullptr;
 }
 
+#endif // PLATFORM_APPLE
+
+
+#if SUPPORTS_ARKIT_1_0
+/**
+* Passes a CVMetalTextureRef through to the RHI to wrap in an RHI texture without traversing system memory.
+* @see FAvfTexture2DResourceWrapper & FMetalSurface::FMetalSurface
+*/
+class FAppleARKitCameraTextureResourceWrapper : public FResourceBulkDataInterface
+{
+public:
+	FAppleARKitCameraTextureResourceWrapper(CFTypeRef InImageBuffer)
+		: ImageBuffer(InImageBuffer)
+	{
+		check(ImageBuffer);
+		CFRetain(ImageBuffer);
+	}
+
+	/**
+	* @return ptr to the resource memory which has been preallocated
+	*/
+	virtual const void* GetResourceBulkData() const override
+	{
+		return ImageBuffer;
+	}
+
+	/**
+	* @return size of resource memory
+	*/
+	virtual uint32 GetResourceBulkDataSize() const override
+	{
+		return 0;
+	}
+
+	/**
+	* @return the type of bulk data for special handling
+	*/
+	virtual EBulkDataType GetResourceType() const override
+	{
+		return EBulkDataType::MediaTexture;
+	}
+
+	/**
+	* Free memory after it has been used to initialize RHI resource
+	*/
+	virtual void Discard() override
+	{
+		delete this;
+	}
+
+	virtual ~FAppleARKitCameraTextureResourceWrapper()
+	{
+		CFRelease(ImageBuffer);
+		ImageBuffer = nullptr;
+	}
+
+	CFTypeRef ImageBuffer;
+};
+#endif
+
+#define NUM_THREADS_PER_GROUP_DIMENSION 32
+
+class FComputeShaderYCbCrToRGB : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FComputeShaderYCbCrToRGB);
+	SHADER_USE_PARAMETER_STRUCT(FComputeShaderYCbCrToRGB, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_UAV(RWTexture2D<float4>, OutputTexture)
+		SHADER_PARAMETER(FVector2D, OutputTextureSize)
+		SHADER_PARAMETER(FVector2D, InputTextureYSize)
+		SHADER_PARAMETER(FVector2D, InputTextureCbCrSize)
+		SHADER_PARAMETER(int, DeviceOrientation)
+		SHADER_PARAMETER_TEXTURE(Texture2D, InputTextureY)
+		SHADER_PARAMETER_TEXTURE(Texture2D, InputTextureCbCr)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+
+	static inline void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), NUM_THREADS_PER_GROUP_DIMENSION);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), NUM_THREADS_PER_GROUP_DIMENSION);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Z"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FComputeShaderYCbCrToRGB, "/AppleARKit/Private/ColorSpaceConversion.usf", "YCbCrToLinearRGB", SF_Compute);
+
+class FARKitCameraVideoResource : public FTextureResource
+{
+public:
+	FARKitCameraVideoResource(UAppleARKitCameraVideoTexture* InOwner)
+		: Owner(InOwner)
+	{
+		bSRGB = InOwner->SRGB;
+	}
+
+	virtual ~FARKitCameraVideoResource()
+	{
+	}
+
+	virtual void InitRHI() override
+	{
+		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
+		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+		
+		// Default to an empty 1x1 texture if we don't have a camera image
+		FRHIResourceCreateInfo CreateInfo;
+		Size.X = Size.Y = 1;
+		{
+			FScopeLock ScopeLock(&DecodedTextureLock);
+			DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		}
+		
+		UpdateTextureRHI();
+	}
+	
+	virtual void ReleaseRHI() override
+	{
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
+		DecodedTextureRef.SafeRelease();
+		FTextureResource::ReleaseRHI();
+	}
+	
+	/** Returns the width of the texture in pixels. */
+	virtual uint32 GetSizeX() const override
+	{
+		return Size.X;
+	}
+
+	/** Returns the height of the texture in pixels. */
+	virtual uint32 GetSizeY() const override
+	{
+		return Size.Y;
+	}
+	
+	void UpdateTextureRHI()
+	{
+		TextureRHI = DecodedTextureRef;
+		TextureRHI->SetName(Owner->GetFName());
+		RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
+	}
+	
+#if SUPPORTS_ARKIT_1_0
+	void UpdateVideoTexture(FRHICommandListImmediate& RHICmdList, CVMetalTextureRef CapturedYImage, FIntPoint CapturedYImageSize, CVMetalTextureRef CapturedCbCrImage, FIntPoint CapturedCbCrImageSize, EDeviceScreenOrientation DeviceOrientation)
+	{
+		// When the device rotates, the rendering thread will be destroyed and in which case IsInRenderingThread returns true...
+		// We need to make sure that we're actually in a proper rendering thread before continue, otherwise we need to bail out to avoid weird crashes
+		if (!InRenderThread())
+		{
+			CFRelease(CapturedYImage);
+			CapturedYImage = nullptr;
+			CFRelease(CapturedCbCrImage);
+			CapturedCbCrImage = nullptr;
+			return;
+		}
+		
+		{
+			// Update the RHI texture wrapper for the Y and CbCr images
+			FRHIResourceCreateInfo CreateInfo;
+			const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
+			CreateInfo.BulkData = new FAppleARKitCameraTextureResourceWrapper(CapturedYImage);
+			CreateInfo.ResourceArray = nullptr;
+
+			// pull the Y and CbCr textures out of the captured image planes (format is fake here, it will get the format from the FAppleARKitCameraTextureResourceWrapper)
+			VideoTextureY = RHICreateTexture2D(CapturedYImageSize.X, CapturedYImageSize.Y, /*Format=*/PF_B8G8R8A8, /*NumMips=*/1, /*NumSamples=*/1, CreateFlags, CreateInfo);
+
+			CreateInfo.BulkData = new FAppleARKitCameraTextureResourceWrapper(CapturedCbCrImage);
+			VideoTextureCbCr = RHICreateTexture2D(CapturedCbCrImageSize.X, CapturedCbCrImageSize.Y, /*Format=*/PF_B8G8R8A8, /*NumMips=*/1, /*NumSamples=*/1, CreateFlags, CreateInfo);
+
+			// todo: Add an update call to the registry instead of this unregister/re-register
+			FExternalTextureRegistry::Get().UnregisterExternalTexture(ARKitPassthroughCameraExternalTextureYGuid);
+			FExternalTextureRegistry::Get().UnregisterExternalTexture(ARKitPassthroughCameraExternalTextureCbCrGuid);
+
+			FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap);
+			FSamplerStateRHIRef SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+
+			FExternalTextureRegistry::Get().RegisterExternalTexture(ARKitPassthroughCameraExternalTextureYGuid, VideoTextureY, SamplerStateRHI);
+			FExternalTextureRegistry::Get().RegisterExternalTexture(ARKitPassthroughCameraExternalTextureCbCrGuid, VideoTextureCbCr, SamplerStateRHI);
+			
+			//Make sure AR camera pass through materials are updated properly
+			FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+			
+			CFRelease(CapturedYImage);
+			CapturedYImage = nullptr;
+			CFRelease(CapturedCbCrImage);
+			CapturedCbCrImage = nullptr;
+		}
+		
+		auto OutputSize = CapturedYImageSize;
+		if (DeviceOrientation == EDeviceScreenOrientation::Portrait || DeviceOrientation == EDeviceScreenOrientation::PortraitUpsideDown)
+		{
+			// Swap the X/Y size in portrait mode as the image needs to be rotated
+			OutputSize = { CapturedYImageSize.Y, CapturedYImageSize.X };
+		}
+		
+		// Recreate the decoded texture and its UAV if needed
+		if (!DecodedTextureRef || Size != OutputSize)
+		{
+			Size = OutputSize;
+			FRHIResourceCreateInfo CreateInfo;
+			{
+				FScopeLock ScopeLock(&DecodedTextureLock);
+				DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			}
+			
+			DecodedTextureUAV = nullptr;
+		}
+		
+		if (!DecodedTextureUAV)
+		{
+			DecodedTextureUAV = RHICreateUnorderedAccessView(DecodedTextureRef);
+		}
+		
+		{
+			FMemMark Mark(FMemStack::Get());
+			// Use a compute shader to do the color space conversion
+			FRDGBuilder GraphBuilder(RHICmdList);
+			FComputeShaderYCbCrToRGB::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeShaderYCbCrToRGB::FParameters>();
+			PassParameters->OutputTexture = DecodedTextureUAV;
+			PassParameters->OutputTextureSize = FVector2D(Size);
+
+			PassParameters->InputTextureY = VideoTextureY;
+			PassParameters->InputTextureYSize = FVector2D(CapturedYImageSize);
+			
+			// This mapping must be the same as the comment above YCbCrToLinearRGB!
+			static const TMap<EDeviceScreenOrientation, int> DeviceOrientationIds =
+			{
+				{ EDeviceScreenOrientation::Portrait			, 0 },
+				{ EDeviceScreenOrientation::PortraitUpsideDown	, 1 },
+				{ EDeviceScreenOrientation::LandscapeLeft		, 2 },
+				{ EDeviceScreenOrientation::LandscapeRight		, 3 },
+			};
+			
+			if (auto Record = DeviceOrientationIds.Find(DeviceOrientation))
+			{
+				PassParameters->DeviceOrientation = *Record;
+			}
+			else
+			{
+				PassParameters->DeviceOrientation = 3;
+			}
+			
+			PassParameters->InputTextureCbCr = VideoTextureCbCr;
+			PassParameters->InputTextureCbCrSize = FVector2D(CapturedCbCrImageSize);
+
+			TShaderMapRef<FComputeShaderYCbCrToRGB> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("ARKit Video Texture Conversion"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(Size, NUM_THREADS_PER_GROUP_DIMENSION)
+			);
+			
+			GraphBuilder.Execute();
+		}
+		
+		UpdateTextureRHI();
+	}
+	
+	id<MTLTexture> GetMetalTexture()
+	{
+		FScopeLock ScopeLock(&DecodedTextureLock);
+		if (DecodedTextureRef)
+		{
+			return (id<MTLTexture>)DecodedTextureRef->GetNativeResource();
+		}
+		
+		return nullptr;
+	}
+#endif
+	
+private:
+	/** The size we get from the incoming camera image */
+	FIntPoint Size;
+
+	/** The texture that we actually render with which is populated via the GPU conversion process */
+	FTexture2DRHIRef DecodedTextureRef;
+	
+	FCriticalSection DecodedTextureLock;
+	
+	FUnorderedAccessViewRHIRef DecodedTextureUAV;
+	
+	FTextureRHIRef VideoTextureY;
+	FTextureRHIRef VideoTextureCbCr;
+
+	const UAppleARKitCameraVideoTexture* Owner = nullptr;
+};
+
+
+FTextureResource* UAppleARKitCameraVideoTexture::CreateResource()
+{
+	return new FARKitCameraVideoResource(this);
+}
+
+UAppleARKitCameraVideoTexture::UAppleARKitCameraVideoTexture(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SRGB = false;
+}
+
+void UAppleARKitCameraVideoTexture::Init()
+{
+	if (!Resource)
+	{
+		UpdateResource();
+	}
+}
+
+void UAppleARKitCameraVideoTexture::UpdateFrame(const FAppleARKitFrame& InFrame)
+{
+#if SUPPORTS_ARKIT_1_0
+	if (InFrame.CapturedYImage && InFrame.CapturedCbCrImage)
+	{
+		if (auto VideoResource = static_cast<FARKitCameraVideoResource*>(Resource))
+		{
+			auto CapturedYImageCopy = InFrame.CapturedYImage;
+			auto CapturedCbCrImageCopy = InFrame.CapturedCbCrImage;
+			CFRetain(CapturedYImageCopy);
+			CFRetain(CapturedCbCrImageCopy);
+			const auto CapturedYImageSize = InFrame.CapturedYImageSize;
+			const auto CapturedCbCrImageSize = InFrame.CapturedCbCrImageSize;
+			const auto DeviceOrientation = FPlatformMisc::GetDeviceOrientation();
+			ENQUEUE_RENDER_COMMAND(UpdateVideoTexture)(
+				[VideoResource, CapturedYImageCopy, CapturedCbCrImageCopy, CapturedYImageSize, CapturedCbCrImageSize, DeviceOrientation](FRHICommandListImmediate& RHICmdList)
+			{
+				VideoResource->UpdateVideoTexture(RHICmdList, CapturedYImageCopy, CapturedYImageSize, CapturedCbCrImageCopy, CapturedCbCrImageSize, DeviceOrientation);
+			});
+			
+			Size = CapturedYImageSize;
+		}
+	}
+#endif
+}
+
+#if SUPPORTS_ARKIT_1_0
+id<MTLTexture> UAppleARKitCameraVideoTexture::GetMetalTexture() const
+{
+	if (auto MyResource = (FARKitCameraVideoResource*)Resource)
+	{
+		return MyResource->GetMetalTexture();
+	}
+	return nullptr;
+}
 #endif

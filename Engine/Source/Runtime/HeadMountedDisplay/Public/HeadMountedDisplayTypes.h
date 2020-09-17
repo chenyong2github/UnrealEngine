@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "IMotionController.h"
 #include "RHI.h"
 #include "RHIResources.h"
 #include "HeadMountedDisplayTypes.generated.h"
@@ -62,7 +63,8 @@ namespace EHMDTrackingOrigin
 	{
 		Floor UMETA(DisplayName = "Floor Level"),
 		Eye UMETA(DisplayName = "Eye Level"),
-		Stage UMETA(DisplayName = "Stage (Centered Around Play Area)")
+		Stage UMETA(DisplayName = "Stage (Centered Around Play Area)"),
+		Unbounded UMETA(DisplayName = "Unbounded (Centered Around Viewer)")
 	};
 }
 
@@ -77,6 +79,39 @@ namespace EHMDWornState
 		Unknown UMETA(DisplayName = "Unknown"),
 		Worn UMETA(DisplayName = "Worn"),
 		NotWorn UMETA(DisplayName = "Not Worn"),
+	};
+}
+
+
+/**
+* Enumeration of results from Connecting to Remote XR device
+*/
+UENUM(BlueprintType)
+namespace EXRDeviceConnectionResult
+{
+	enum Type
+	{
+		NoTrackingSystem,
+		FeatureNotSupported,
+		NoValidViewport,
+		MiscFailure,
+		Success
+	};
+}
+
+/**
+* Flags to better inform the user about specifics of the underlying XR system
+*/
+UENUM(BlueprintType)
+namespace EXRSystemFlags
+{
+	enum Type
+	{
+		NoFlags       = 0x00 UMETA(Hidden),
+		IsAR          = 0x01,
+		IsTablet      = 0x02,
+		IsHeadMounted = 0x04,
+		SupportsHandTracking = 0x08,
 	};
 }
 /**
@@ -193,4 +228,110 @@ enum class EXRTrackedDeviceType : uint8
 	Invalid = (uint8)-2 UMETA(Hidden),
 	/** Pass to EnumerateTrackedDevices to get all devices regardless of type */
 	Any = (uint8)-1,
+};
+
+
+
+/**
+ * Transforms that are tracked on the hand.
+ * Matches the enums from WMR to make it a direct mapping
+ */
+UENUM(BlueprintType)
+enum class EHandKeypoint : uint8
+{
+	Palm,
+	Wrist,
+	ThumbMetacarpal,
+	ThumbProximal,
+	ThumbDistal,
+	ThumbTip,
+	IndexMetacarpal,
+	IndexProximal,
+	IndexIntermediate,
+	IndexDistal,
+	IndexTip,
+	MiddleMetacarpal,
+	MiddleProximal,
+	MiddleIntermediate,
+	MiddleDistal,
+	MiddleTip,
+	RingMetacarpal,
+	RingProximal,
+	RingIntermediate,
+	RingDistal,
+	RingTip,
+	LittleMetacarpal,
+	LittleProximal,
+	LittleIntermediate,
+	LittleDistal,
+	LittleTip
+};
+
+const int32 EHandKeypointCount = static_cast<int32>(EHandKeypoint::LittleTip) + 1;
+
+UENUM(BlueprintType)
+enum class EXRVisualType : uint8
+{
+	Controller,
+	Hand
+};
+
+USTRUCT(BlueprintType)
+struct HEADMOUNTEDDISPLAY_API FXRHMDData
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	bool bValid;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FName DeviceName;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FGuid ApplicationInstanceID;
+
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	ETrackingStatus TrackingStatus = ETrackingStatus::NotTracked;
+
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FVector Position;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FQuat Rotation;
+};
+
+USTRUCT(BlueprintType)
+struct HEADMOUNTEDDISPLAY_API FXRMotionControllerData
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	bool bValid = false;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FName DeviceName;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FGuid ApplicationInstanceID;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	EXRVisualType DeviceVisualType;
+
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	ETrackingStatus TrackingStatus = ETrackingStatus::NotTracked;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FVector GripPosition;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FQuat GripRotation;
+
+	//for hand controllers, provides a more steady vector based on the elbow
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FVector AimPosition;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FQuat AimRotation;
+
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	TArray<struct FVector> HandKeyPositions;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	TArray<struct FQuat> HandKeyRotations;
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	TArray<float> HandKeyRadii;
+
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	bool bIsGrasped = false;
 };

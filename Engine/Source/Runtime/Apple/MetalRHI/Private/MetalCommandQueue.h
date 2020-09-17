@@ -156,20 +156,10 @@ public:
 	/** @returns The level of runtime debugging features enabled. */
 	int32 GetRuntimeDebuggingLevel(void) const;
 
-#if METAL_STATISTICS
-#pragma mark - Public Statistics Extensions -
-
-	/** @returns An object that provides Metal statistics information or nullptr. */
-	class IMetalStatistics* GetStatistics(void);
-#endif
-	
 private:
 #pragma mark - Private Member Variables -
 	mtlpp::Device Device;
 	mtlpp::CommandQueue CommandQueue;
-#if METAL_STATISTICS
-	class IMetalStatistics* Statistics;
-#endif
 	TArray<TArray<mtlpp::CommandBuffer>> CommandBuffers;
 	TLockFreePointerListLIFO<mtlpp::CommandBufferFence> CommandBufferFences;
 	uint64 ParallelCommandLists;

@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "ARSessionConfig.h"
+#include "ARLifeCycleComponent.h"
 
 #include "IMagicLeapPlugin.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
@@ -25,7 +26,7 @@ FLuminARImplementation::FLuminARImplementation()
 	, LatestCameraTimestamp(0)
 	, LatestCameraTrackingState(ELuminARTrackingState::StoppedTracking)
 	, bStartSessionRequested(false)
-	, bUpdateTrackedImages(true)
+	, LastTrackedGeometry_DebugId(0)
 	, CurrentSessionStatus(EARSessionStatus::NotStarted)
 	, LightEstimateTracker(nullptr)
 {
@@ -33,10 +34,14 @@ FLuminARImplementation::FLuminARImplementation()
 	Trackers.Add(new FLuminARPointsTracker(*this));
 	ImageTracker = new FLuminARImageTracker(*this);
 	Trackers.Add(ImageTracker);
+
+	SpawnARActorDelegateHandle = UARLifeCycleComponent::OnSpawnARActorDelegate.AddRaw(this, &FLuminARImplementation::OnSpawnARActor);
 }
 
 FLuminARImplementation::~FLuminARImplementation()
 {
+	UARLifeCycleComponent::OnSpawnARActorDelegate.Remove(SpawnARActorDelegateHandle);
+
 	if (bIsLuminARSessionRunning)
 	{
 		OnStopARSession();
@@ -56,8 +61,6 @@ FLuminARImplementation::~FLuminARImplementation()
 	{
 		delete Tracker;
 	}
-
-	TargetImageTextures.Empty();
 }
 
 bool FLuminARImplementation::IsTrackableTypeSupported(UClass* ClassType) const
@@ -224,11 +227,6 @@ bool FLuminARImplementation::OnStartARGameFrame(FWorldContext& WorldContext)
 		}
 	}
 
-	if (bUpdateTrackedImages)
-	{
-		UpdateTrackedImages();
-	}
-
 	return true;
 }
 
@@ -276,7 +274,6 @@ void FLuminARImplementation::OnStartARSession(UARSessionConfig* SessionConfig)
 	}
 
 	bStartSessionRequested = true;
-	bUpdateTrackedImages = true;
 
 	// TODO : check if this code is needed.
 	// Try recreating the LuminARSession to fix the fatal error.
@@ -322,27 +319,9 @@ void FLuminARImplementation::OnPauseARSession()
 void FLuminARImplementation::OnStopARSession()
 {
 	OnPauseARSession();
-
-	for (UARPin* Anchor : AllAnchors)
-	{
-		Anchor->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
-	}
-
-	for (ILuminARTracker* Tracker : Trackers)
-	{
-		Tracker->DestroyEntityTracker();
-	}
-
-	// Delete the LightEstimateTracker on session end.  It will be recreated, if necessary, on session start.
-	Trackers.Remove(LightEstimateTracker);
-	delete LightEstimateTracker;
-	LightEstimateTracker = nullptr;
-
-	CurrentSessionStatus = EARSessionStatus::NotStarted;
-
-	TargetImageTextures.Empty();
-	TrackableHandleMap.Empty();
+	ClearTrackedGeometries();
 }
+
 
 FARSessionStatus FLuminARImplementation::OnGetARSessionStatus() const
 {
@@ -422,6 +401,19 @@ bool FLuminARImplementation::OnIsTrackingTypeSupported(EARSessionType SessionTyp
 UARLightEstimate* FLuminARImplementation::OnGetCurrentLightEstimate() const
 {
 	return LightEstimateTracker ? LightEstimateTracker->LightEstimate : nullptr;
+}
+
+UARPin* FLuminARImplementation::FindARPinByComponent(const USceneComponent* Component) const
+{
+	for (UARPin* Pin : AllAnchors)
+	{
+		if (Pin->GetPinnedComponent() == Component)
+		{
+			return Pin;
+		}
+	}
+
+	return nullptr;
 }
 
 UARPin* FLuminARImplementation::OnPinComponent(USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry /*= nullptr*/, const FName DebugName /*= NAME_None*/)
@@ -504,6 +496,15 @@ void FLuminARImplementation::SetARSystem(TSharedPtr<FARSupportInterface , ESPMod
 
 void FLuminARImplementation::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	for (auto GeoIt = TrackedGeometryGroups.CreateIterator(); GeoIt; ++GeoIt)
+	{
+		FTrackedGeometryGroup& TrackedGeometryGroup = GeoIt.Value();
+
+		Collector.AddReferencedObject(TrackedGeometryGroup.TrackedGeometry);
+		Collector.AddReferencedObject(TrackedGeometryGroup.ARActor);
+		Collector.AddReferencedObject(TrackedGeometryGroup.ARComponent);
+	}
+
 	if (LightEstimateTracker != nullptr)
 	{
 		Collector.AddReferencedObject(LightEstimateTracker->LightEstimate);
@@ -511,6 +512,55 @@ void FLuminARImplementation::AddReferencedObjects(FReferenceCollector& Collector
 
 	Collector.AddReferencedObjects(AllAnchors);
 }
+
+
+void FLuminARImplementation::ClearTrackedGeometries()
+{
+	for (UARPin* Anchor : AllAnchors)
+	{
+		Anchor->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
+	}
+
+	for (ILuminARTracker* Tracker : Trackers)
+	{
+		Tracker->DestroyEntityTracker();
+	}
+
+	// Delete the LightEstimateTracker on session end.  It will be recreated, if necessary, on session start.
+	Trackers.Remove(LightEstimateTracker);
+	delete LightEstimateTracker;
+	LightEstimateTracker = nullptr;
+
+	CurrentSessionStatus = EARSessionStatus::NotStarted;
+
+	TrackedGeometryGroups.Empty();
+}
+
+void FLuminARImplementation::OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID)
+{
+	FTrackedGeometryGroup* TrackedGeometryGroup = TrackedGeometryGroups.Find(NativeID);
+	if (TrackedGeometryGroup != nullptr)
+	{
+		//this should still be null
+		check(TrackedGeometryGroup->ARActor == nullptr);
+		check(TrackedGeometryGroup->ARComponent == nullptr);
+
+		check(NewARActor);
+		check(NewARComponent);
+
+		TrackedGeometryGroup->ARActor = NewARActor;
+		TrackedGeometryGroup->ARComponent = NewARComponent;
+
+		//NOW, we can make the callbacks
+		TrackedGeometryGroup->ARComponent->Update(TrackedGeometryGroup->TrackedGeometry);
+		TriggerOnTrackableAddedDelegates(TrackedGeometryGroup->TrackedGeometry);
+	}
+	else
+	{
+		UE_LOG(LogLuminAR, Warning, TEXT("AR NativeID not found.  Make sure to set this on the ARComponent!"));
+	}
+}
+
 
 TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> FLuminARImplementation::GetARSystem()
 {
@@ -520,16 +570,16 @@ TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> FLuminARImplementation::Ge
 void FLuminARImplementation::DumpTrackableHandleMap(const FGuid& SessionHandle) const
 {
 	UE_LOG(LogLuminAR, Log, TEXT("ULuminARUObjectManager::DumpTrackableHandleMap"));
-	for (const auto& KeyValuePair : TrackableHandleMap)
+	for (const auto& KeyValuePair : TrackedGeometryGroups)
 	{
-		const TWeakObjectPtr<UARTrackedGeometry> TrackedGeometry = KeyValuePair.Value;
+		const FTrackedGeometryGroup& TrackedGeometryGroup = KeyValuePair.Value;
+		UARTrackedGeometry* TrackedGeometry = TrackedGeometryGroup.TrackedGeometry;
 		UE_LOG(LogLuminAR, Log, TEXT("  Trackable Handle %s"), *KeyValuePair.Key.ToString());
-		if (TrackedGeometry.IsValid())
+		if (TrackedGeometry != nullptr)
 		{
-			UARTrackedGeometry* TrackedGeometryObj = TrackedGeometry.Get();
-			const FLuminARTrackableResource* NativeResource = static_cast<FLuminARTrackableResource*>(TrackedGeometryObj->GetNativeResource());
+			const FLuminARTrackableResource* NativeResource = static_cast<FLuminARTrackableResource*>(TrackedGeometry->GetNativeResource());
 			UE_LOG(LogLuminAR, Log, TEXT("  TrackedGeometry - NativeResource:%s, type: %s, tracking state: %d"),
-				*NativeResource->GetNativeHandle().ToString(), *TrackedGeometryObj->GetClass()->GetFName().ToString(), (int)TrackedGeometryObj->GetTrackingState());
+				*NativeResource->GetNativeHandle().ToString(), *TrackedGeometry->GetClass()->GetFName().ToString(), (int)TrackedGeometry->GetTrackingState());
 		}
 		else
 		{
@@ -667,89 +717,30 @@ void FLuminARImplementation::ARLineTrace(const FVector& Start, const FVector& En
 	OutHitResults.Sort(FARTraceResult::FARTraceResultComparer());
 }
 
-void FLuminARImplementation::UpdateTrackedImages()
+bool FLuminARImplementation::OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth)
 {
-	bUpdateTrackedImages = false;
+	float PhysicalHeight = PhysicalWidth / CandidateTexture->GetSizeX() * CandidateTexture->GetSizeY();
+	UARCandidateImage* NewCandidateImage = UARCandidateImage::CreateNewARCandidateImage(CandidateTexture, FriendlyName, PhysicalWidth, PhysicalHeight, EARCandidateImageOrientation::Landscape);
+	SessionConfig->AddCandidateImage(NewCandidateImage);
 
 	if (ImageTracker != nullptr)
 	{
-		const UARSessionConfig& ARSessionConfig = GetARSystem()->AccessSessionConfig();
-		const ULuminARSessionConfig* LuminARSessionConfig = Cast<ULuminARSessionConfig>(&ARSessionConfig);
-
-		const TArray<UARCandidateImage*> CandidateImages = ARSessionConfig.GetCandidateImageList();
-		for (int i = 0; i < CandidateImages.Num(); i++)
-		{
-			UTexture2D* ImageTarget = CandidateImages[i]->GetCandidateTexture();
-
-			if (ImageTarget == nullptr)
-			{
-				UE_LOG(LogLuminAR, Warning, TEXT("ImageTarget is NULL!."));
-				continue;
-			}
-
-			if (ImageTarget && !(ImageTarget->GetPixelFormat() == EPixelFormat::PF_R8G8B8A8 || ImageTarget->GetPixelFormat() == EPixelFormat::PF_B8G8R8A8))
-			{
-				UE_LOG(LogLuminAR, Error, TEXT("Cannot set texture %s as it uses an invalid pixel format!  Valid formats are R8B8G8A8 or B8G8R8A8"), *ImageTarget->GetName());
-				continue;
-			}
-
-			if (TargetImageTextures.Contains(ImageTarget))
-			{
-				UE_LOG(LogLuminAR, Warning, TEXT("Skipped setting %s as it is already being used as an image target"), *ImageTarget->GetName());
-				continue;
-			}
-
-			TargetImageTextures.Add(ImageTarget);
-
-			FMagicLeapImageTrackerTarget Target;
-			Target.Name = CandidateImages[i]->GetFriendlyName();
-			ULuminARCandidateImage* LuminCandidateImage = Cast<ULuminARCandidateImage>(CandidateImages[i]);
-#if WITH_MLSDK
-			float ImageWidth = CandidateImages[i]->GetPhysicalWidth();
-			float ImageHeight = CandidateImages[i]->GetPhysicalHeight();
-			Target.Settings.longer_dimension = (ImageWidth > ImageHeight ? ImageWidth : ImageHeight);
-			// If the candidate image isn't a ULuminARCandidateImage there is no data about whether the image is stationary so assume false, per the is_stationary documentation
-			Target.Settings.is_stationary = LuminCandidateImage ? LuminCandidateImage->GetImageIsStationary() : false;
-#endif // WITH_MLSDK
-
-			Target.Texture = ImageTarget;
-			// If the candidate image isn't a ULuminARCandidateImage there is no data about whether to report unreliable data, so use this component's setting
-			Target.bUseUnreliablePose = LuminCandidateImage ? LuminCandidateImage->GetUseUnreliablePose() : LuminARSessionConfig->bDefaultUseUnreliablePose;
-			Target.SetImageTargetSucceededDelegate.BindRaw(ImageTracker, &FLuminARImageTracker::OnSetImageTargetSucceeded);
-
-			IMagicLeapImageTrackerModule::Get().SetTargetAsync(Target);
-		}
+		ImageTracker->AddCandidateImageForTracking(NewCandidateImage);
 	}
+
+	return true;
 }
 
-UARCandidateImage* FLuminARImplementation::GetCandidateImage(const FString& Name)
+ULuminARCandidateImage* FLuminARImplementation::AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary, EMagicLeapImageTargetOrientation InAxisOrientation)
 {
-	const UARSessionConfig& ARSessionConfig = GetARSystem()->AccessSessionConfig();
-	const ULuminARSessionConfig* LuminARSessionConfig = Cast<ULuminARSessionConfig>(&ARSessionConfig);
+	float PhysicalHeight = PhysicalWidth / CandidateTexture->GetSizeX() * CandidateTexture->GetSizeY();
+	ULuminARCandidateImage* NewCandidateImage = ULuminARCandidateImage::CreateNewLuminARCandidateImage(CandidateTexture, FriendlyName, PhysicalWidth, PhysicalHeight, EARCandidateImageOrientation::Landscape, bUseUnreliablePose, bImageIsStationary, InAxisOrientation);
+	SessionConfig->AddCandidateImage(NewCandidateImage);
 
-	const TArray<UARCandidateImage*>& Images = ARSessionConfig.GetCandidateImageList();
-	for (int32 i = 0; i < Images.Num(); i++)
+	if (ImageTracker != nullptr)
 	{
-		if (Images[i]->GetFriendlyName() == Name)
-		{
-			return Images[i];
-		}
+		ImageTracker->AddCandidateImageForTracking(NewCandidateImage);
 	}
 
-	return nullptr;
-}
-
-ULuminARCandidateImage* FLuminARImplementation::AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary)
-{
-	if (OnAddRuntimeCandidateImage(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth))
-	{
-		float PhysicalHeight = PhysicalWidth / FMath::Max<int32>(1, CandidateTexture->GetSizeX()) * CandidateTexture->GetSizeY();
-		ULuminARCandidateImage* NewCandidateImage = ULuminARCandidateImage::CreateNewLuminARCandidateImage(CandidateTexture, FriendlyName, PhysicalWidth, PhysicalHeight, EARCandidateImageOrientation::Landscape, bUseUnreliablePose, bImageIsStationary);
-		SessionConfig->AddCandidateImage(NewCandidateImage);
-		return NewCandidateImage;
-	}
-	else
-	{
-		return nullptr;
-	}
+	return NewCandidateImage;
 }

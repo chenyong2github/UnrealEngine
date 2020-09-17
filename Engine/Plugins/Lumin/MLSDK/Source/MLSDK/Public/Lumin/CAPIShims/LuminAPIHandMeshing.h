@@ -9,19 +9,19 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_hand_meshing.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandMeshingCreateClient)
-#define MLHandMeshingCreateClient ::MLSDK_API::MLHandMeshingCreateClientShim
+#define MLHandMeshingCreateClient ::LUMIN_MLSDK_API::MLHandMeshingCreateClientShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandMeshingDestroyClient)
-#define MLHandMeshingDestroyClient ::MLSDK_API::MLHandMeshingDestroyClientShim
+#define MLHandMeshingDestroyClient ::LUMIN_MLSDK_API::MLHandMeshingDestroyClientShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandMeshingRequestMesh)
-#define MLHandMeshingRequestMesh ::MLSDK_API::MLHandMeshingRequestMeshShim
+#define MLHandMeshingRequestMesh ::LUMIN_MLSDK_API::MLHandMeshingRequestMeshShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandMeshingGetResult)
-#define MLHandMeshingGetResult ::MLSDK_API::MLHandMeshingGetResultShim
+#define MLHandMeshingGetResult ::LUMIN_MLSDK_API::MLHandMeshingGetResultShim
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLHandMeshingFreeResource)
-#define MLHandMeshingFreeResource ::MLSDK_API::MLHandMeshingFreeResourceShim
+#define MLHandMeshingFreeResource ::LUMIN_MLSDK_API::MLHandMeshingFreeResourceShim
 
 }
 

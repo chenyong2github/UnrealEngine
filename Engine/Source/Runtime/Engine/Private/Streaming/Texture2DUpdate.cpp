@@ -17,30 +17,28 @@ extern volatile int64 GPending2DUpdateCount;
 volatile int64 GPending2DUpdateCount = 0;
 #endif
 
-FTexture2DUpdateContext::FTexture2DUpdateContext(UTexture2D* InTexture, EThreadType InCurrentThread)
+FTexture2DUpdateContext::FTexture2DUpdateContext(const UTexture2D* InTexture, EThreadType InCurrentThread)
 	: Texture(InTexture)
 	, CurrentThread(InCurrentThread)
 {
 	check(InTexture);
 	checkSlow(InCurrentThread != FTexture2DUpdate::TT_Render || IsInRenderingThread());
-	Resource = static_cast<FTexture2DResource*>(Texture->Resource);
+	Resource = Texture && Texture->Resource ? Texture->Resource->GetTexture2DResource() : nullptr;
+	if (Resource)
+	{
+		MipsView = Resource->GetPlatformMipsView();
+	}
 }
 
-FTexture2DUpdateContext::FTexture2DUpdateContext(UStreamableRenderAsset* InTexture, EThreadType InCurrentThread)
-#if UE_BUILD_SHIPPING
-	: FTexture2DUpdateContext(static_cast<UTexture2D*>(InTexture), InCurrentThread)
-#else
-	: FTexture2DUpdateContext(Cast<UTexture2D>(InTexture), InCurrentThread)
-#endif
+FTexture2DUpdateContext::FTexture2DUpdateContext(const UStreamableRenderAsset* InTexture, EThreadType InCurrentThread)
+	: FTexture2DUpdateContext(CastChecked<UTexture2D>(InTexture), InCurrentThread)
 {}
 
-FTexture2DUpdate::FTexture2DUpdate(UTexture2D* InTexture, int32 InRequestedMips) 
-	: TRenderAssetUpdate<FTexture2DUpdateContext>(InTexture, InRequestedMips)
+FTexture2DUpdate::FTexture2DUpdate(UTexture2D* InTexture) 
+	: TRenderAssetUpdate<FTexture2DUpdateContext>(InTexture)
 {
 	if (!InTexture->Resource)
 	{
-		RequestedMips = INDEX_NONE;
-		PendingFirstMip = INDEX_NONE;
 		bIsCancelled = true;
 	}
 
@@ -65,7 +63,7 @@ void FTexture2DUpdate::DoAsyncReallocate(const FContext& Context)
 
 	if (!IsCancelled() && Context.Texture && Context.Resource)
 	{
-		const FTexture2DMipMap& RequestedMipMap = Context.Texture->GetPlatformMips()[PendingFirstMip];
+		const FTexture2DMipMap& RequestedMipMap = *Context.MipsView[PendingFirstLODIdx];
 
 		TaskSynchronization.Set(1);
 
@@ -73,7 +71,7 @@ void FTexture2DUpdate::DoAsyncReallocate(const FContext& Context)
 
 		IntermediateTextureRHI = RHIAsyncReallocateTexture2D(
 			Context.Resource->GetTexture2DRHI(),
-			RequestedMips,
+			ResourceState.NumRequestedLODs,
 			RequestedMipMap.SizeX,
 			RequestedMipMap.SizeY,
 			&TaskSynchronization);
@@ -86,30 +84,35 @@ void FTexture2DUpdate::DoConvertToVirtualWithNewMips(const FContext& Context)
 {
 	check(Context.CurrentThread == TT_Render);
 
-	if (!IsCancelled() && Context.Texture && Context.Resource)
+	if (!IsCancelled() && Context.Resource)
 	{
 		// If the texture is not virtual, then make it virtual immediately.
-		const FTexture2DRHIRef Texture2DRHI = Context.Resource->Texture2DRHI;
-		if ((Texture2DRHI->GetFlags() & TexCreate_Virtual) != TexCreate_Virtual)
+		if (!Context.Resource->IsTextureRHIPartiallyResident())
 		{
-			const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-			const uint32 TexCreateFlags = Texture2DRHI->GetFlags() | TexCreate_Virtual;
+			const FTexture2DMipMap& MipMap0 = *Context.MipsView[0];
 
 			ensure(!IntermediateTextureRHI);
 
 			// Create a copy of the texture that is a virtual texture.
 			FRHIResourceCreateInfo CreateInfo(Context.Resource->ResourceMem);
-			IntermediateTextureRHI = RHICreateTexture2D(OwnerMips[0].SizeX, OwnerMips[0].SizeY, Texture2DRHI->GetFormat(), OwnerMips.Num(), 1, TexCreateFlags, CreateInfo);
-			RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, Context.Resource->GetCurrentFirstMip());
-			RHIVirtualTextureSetFirstMipVisible(IntermediateTextureRHI, Context.Resource->GetCurrentFirstMip());
-			RHICopySharedMips(IntermediateTextureRHI, Texture2DRHI);
+			IntermediateTextureRHI = RHICreateTexture2D(
+				MipMap0.SizeX, 
+				MipMap0.SizeY, 
+				Context.Resource->GetPixelFormat(), 
+				ResourceState.MaxNumLODs, 
+				1, 
+				Context.Resource->GetCreationFlags() | TexCreate_Virtual, 
+				CreateInfo);
+			RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, CurrentFirstLODIdx);
+			RHIVirtualTextureSetFirstMipVisible(IntermediateTextureRHI, CurrentFirstLODIdx);
+			RHICopySharedMips(IntermediateTextureRHI, Context.Resource->GetTexture2DRHI());
 		}
 		else
 		{
 			// Otherwise the current texture is already virtual and we can update it directly.
 			IntermediateTextureRHI = Context.Resource->GetTexture2DRHI();
 		}
-		RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, PendingFirstMip);
+		RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, PendingFirstLODIdx);
 	}
 }
 
@@ -120,16 +123,21 @@ bool FTexture2DUpdate::DoConvertToNonVirtual(const FContext& Context)
 	// If the texture is virtual, then create a new copy of the texture.
 	if (!IsCancelled() && !IntermediateTextureRHI && Context.Texture && Context.Resource)
 	{
-		const FTexture2DRHIRef Texture2DRHI = Context.Resource->Texture2DRHI;
-		if ((Texture2DRHI->GetFlags() & TexCreate_Virtual) == TexCreate_Virtual)
+		if (Context.Resource->IsTextureRHIPartiallyResident())
 		{
-			const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-			const uint32 TexCreateFlags = Context.Resource->Texture2DRHI->GetFlags() & ~TexCreate_Virtual;
+			const FTexture2DMipMap& PendingFirstMipMap = *Context.MipsView[PendingFirstLODIdx];
 
 			ensure(!IntermediateTextureRHI);
 			FRHIResourceCreateInfo CreateInfo(Context.Resource->ResourceMem);
-			IntermediateTextureRHI = RHICreateTexture2D(OwnerMips[PendingFirstMip].SizeX, OwnerMips[PendingFirstMip].SizeY, Texture2DRHI->GetFormat(), OwnerMips.Num() - PendingFirstMip, 1, TexCreateFlags, CreateInfo);
-			RHICopySharedMips(IntermediateTextureRHI, Texture2DRHI);
+			IntermediateTextureRHI = RHICreateTexture2D(
+				PendingFirstMipMap.SizeX, 
+				PendingFirstMipMap.SizeY, 
+				Context.Resource->GetPixelFormat(), 
+				ResourceState.NumRequestedLODs,
+				1, 
+				Context.Resource->GetCreationFlags(), 
+				CreateInfo);
+			RHICopySharedMips(IntermediateTextureRHI, Context.Resource->GetTexture2DRHI());
 
 			return true;
 		}
@@ -145,7 +153,7 @@ void FTexture2DUpdate::DoFinishUpdate(const FContext& Context)
 	{
 		if (!IsCancelled())
 		{
-			Context.Resource->UpdateTexture(IntermediateTextureRHI, PendingFirstMip);
+			Context.Resource->FinalizeStreaming(IntermediateTextureRHI);
 		}
 		IntermediateTextureRHI.SafeRelease();
 

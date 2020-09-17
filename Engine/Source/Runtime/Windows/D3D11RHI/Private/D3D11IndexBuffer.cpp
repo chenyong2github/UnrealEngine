@@ -6,7 +6,7 @@
 
 #include "D3D11RHIPrivate.h"
 
-FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 Size,uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 Size,uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	if (CreateInfo.bWithoutNativeResource)
 	{
@@ -71,9 +71,10 @@ FIndexBufferRHIRef FD3D11DynamicRHI::CreateIndexBuffer_RenderThread(
 	uint32 Stride,
 	uint32 Size,
 	uint32 InUsage,
+	ERHIAccess InResourceState,
 	FRHIResourceCreateInfo& CreateInfo)
 {
-	return RHICreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
+	return RHICreateIndexBuffer(Stride, Size, InUsage, InResourceState, CreateInfo);
 }
 
 void* FD3D11DynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)

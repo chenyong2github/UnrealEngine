@@ -338,7 +338,7 @@ void FExrImageWrapper::CompressRaw(const sourcetype* SrcData, bool bIgnoreAlpha)
 		// To complete the file, EXR seeks back into the file and writes the scanline offsets when the file is closed, 
 		// which moves the tellp location. So file length is stored in advance for later use.
 
-		Imf::OutputFile ImfFile(MemFile, Header);
+		Imf::OutputFile ImfFile(MemFile, Header, FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 		ImfFile.setFrameBuffer(ImfFrameBuffer);
 	
 		MemFile.Data.AddUninitialized(int64(Width) * int64(Height) * int64(NumWriteComponents) * int64(OutputFormat == 2 ? 4 : 2));

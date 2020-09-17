@@ -112,7 +112,7 @@
   <buildGradleAdditions>
       <insert>
         dependencies {
-          implementation('com.google.ar:core:1.9.0')
+          implementation('com.google.ar:core:1.18.0')
         }
       </insert>
   </buildGradleAdditions>

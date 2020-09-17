@@ -8,6 +8,7 @@
 #include "Modules/ModuleInterface.h"
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
+#include "Layout/Visibility.h"
 
 class FToolBarBuilder;
 class FMenuBuilder;
@@ -68,5 +69,6 @@ public:
 	FReply PluginClickPlatFn(bool text);
 
 	void OnEnableBuildTelemetry(ECheckBoxState NewState);
-	ECheckBoxState IsBuildTelemetryEnabled() const;
+	ECheckBoxState GetBuildTelemetryCheckBoxState() const;
+	EVisibility GetOculusHMDAvailableWarningVisibility() const;
 };

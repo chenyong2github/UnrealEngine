@@ -42,7 +42,6 @@ struct FOpenGL3 : public FOpenGLBase
 	static FORCEINLINE bool SupportsGenerateMipmap()				{ return true; }
 	static FORCEINLINE bool AmdWorkaround()							{ return bAmdWorkaround; }
 	static FORCEINLINE bool SupportsTessellation()					{ return bSupportsTessellation; }
-	static FORCEINLINE bool SupportsTextureSwizzle()				{ return true; }
 	static FORCEINLINE bool SupportsSeparateShaderObjects()			{ return bSupportsSeparateShaderObjects; }
 
 	// Optional

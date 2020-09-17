@@ -25,16 +25,9 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bSupportsIPhone = true;
 	MinimumiOSVersion = EIOSVersion::IOS_11;
     bBuildAsFramework = true;
-	EnableRemoteShaderCompile = false;
 	bGeneratedSYMFile = false;
 	bGeneratedSYMBundle = false;
 	bGenerateXCArchive = false;
-	bDevForArmV7 = false;
-	bDevForArm64 = true;
-	bDevForArmV7S = false;
-	bShipForArmV7 = false;
-	bShipForArm64 = true;
-	bShipForArmV7S = false;
 	bShipForBitcode = true;
 	bUseRSync = true;
 	bCustomLaunchscreenStoryboard = false;
@@ -83,37 +76,6 @@ void UIOSRuntimeSettings::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bSupportsMetal)), GetDefaultConfigFilename());
 	}
 
-	// Ensure that at least arm64 is selected for shipping and dev
-	if (!bDevForArm64)
-	{
-		bDevForArm64 = true;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bDevForArm64)), GetDefaultConfigFilename());
-	}
-	if (bDevForArmV7)
-	{
-		bDevForArmV7 = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bDevForArmV7)), GetDefaultConfigFilename());
-	}
-	if (bDevForArmV7S)
-	{
-		bDevForArmV7S = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bDevForArmV7S)), GetDefaultConfigFilename());
-	}
-	if (!bShipForArm64)
-	{
-		bShipForArm64 = true;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bShipForArm64)), GetDefaultConfigFilename());
-	}
-	if (bShipForArmV7)
-	{
-		bShipForArmV7 = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bShipForArmV7)), GetDefaultConfigFilename());
-	}
-	if (bShipForArmV7S)
-	{
-		bShipForArmV7S = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bShipForArmV7S)), GetDefaultConfigFilename());
-	}
 }
 
 
@@ -158,40 +120,10 @@ void UIOSRuntimeSettings::PostInitProperties()
 		MinimumiOSVersion = EIOSVersion::IOS_11;
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MinimumiOSVersion)), GetDefaultConfigFilename());
 	}
-	if (bDevForArmV7)
-	{
-		bDevForArmV7 = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bDevForArmV7)), GetDefaultConfigFilename());
-	}
-	if (bDevForArmV7S)
-	{
-		bDevForArmV7S = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bDevForArmV7S)), GetDefaultConfigFilename());
-	}
-	if (bShipForArmV7)
-	{
-		bShipForArmV7 = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bShipForArmV7)), GetDefaultConfigFilename());
-	}
-	if (bShipForArmV7S)
-	{
-		bShipForArmV7S = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bShipForArmV7S)), GetDefaultConfigFilename());
-	}
 	if (!bSupportsMetal && !bSupportsMetalMRT)
 	{
 		bSupportsMetal = true;
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bSupportsMetal)), GetDefaultConfigFilename());
-	}
-	if (!bDevForArm64)
-	{
-		bDevForArm64 = true;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bDevForArm64)), GetDefaultConfigFilename());
-	}
-	if (!bShipForArm64)
-	{
-		bShipForArm64 = true;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bShipForArm64)), GetDefaultConfigFilename());
 	}
 }
 #endif

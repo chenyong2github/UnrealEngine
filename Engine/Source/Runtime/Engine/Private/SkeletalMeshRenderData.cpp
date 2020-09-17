@@ -381,7 +381,7 @@ void FSkeletalMeshRenderData::SyncUVChannelData(const TArray<FSkeletalMaterial>&
 FSkeletalMeshRenderData::FSkeletalMeshRenderData()
 	: bReadyForStreaming(false)
 	, NumInlinedLODs(0)
-	, NumOptionalLODs(0)
+	, NumNonOptionalLODs(0)
 	, CurrentFirstLODIdx(0)
 	, PendingFirstLODIdx(0)
 	, bInitialized(false)
@@ -400,6 +400,57 @@ FSkeletalMeshRenderData::~FSkeletalMeshRenderData()
 	LODRenderData.Empty();
 }
 
+int32 FSkeletalMeshRenderData::GetNumNonStreamingLODs() const
+{
+	int LODCount = 0;
+	for (int32 Idx = LODRenderData.Num() - 1; Idx >= 0; --Idx)
+	{
+		if (LODRenderData[Idx].bStreamedDataInlined)
+		{
+			++LODCount;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	if (LODCount == 0 && LODRenderData.Num())
+	{
+		return 1;
+	}
+	else
+	{
+		return LODCount;
+	}
+}
+
+int32 FSkeletalMeshRenderData::GetNumNonOptionalLODs() const
+{
+	int LODCount = 0;
+	for (int32 Idx = LODRenderData.Num() - 1; Idx >= 0; --Idx)
+	{
+		// Make sure GetNumNonOptionalLODs() is bigger than GetNumNonStreamingLODs().
+		if (LODRenderData[Idx].bStreamedDataInlined || !LODRenderData[Idx].bIsLODOptional)
+		{
+			++LODCount;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	if (LODCount == 0 && LODRenderData.Num())
+	{
+		return 1;
+	}
+	else
+	{
+		return LODCount;
+	}
+}
+
 void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshRenderData::Serialize"), STAT_SkeletalMeshRenderData_Serialize, STATGROUP_LoadTime);
@@ -409,26 +460,22 @@ void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 #if WITH_EDITOR
 	if (Ar.IsSaving())
 	{
-		NumInlinedLODs = 0;
-		NumOptionalLODs = 0;
-		for (int32 Idx = LODRenderData.Num() - 1; Idx >= 0; --Idx)
-		{
-			if (LODRenderData[Idx].bStreamedDataInlined)
-			{
-				++NumInlinedLODs;
-			}
-			if (LODRenderData[Idx].bIsLODOptional)
-			{
-				++NumOptionalLODs;
-			}
-		}
+		NumInlinedLODs = GetNumNonStreamingLODs();
+		NumNonOptionalLODs = GetNumNonOptionalLODs();
 	}
 #endif
-	Ar << NumInlinedLODs << NumOptionalLODs;
+	Ar << NumInlinedLODs << NumNonOptionalLODs;
+#if WITH_EDITOR
+	//Recompute on load because previously we were storing NumOptionalLODs, which is less convenient because it includes first LODs (and can be stripped by MinMip).
+	if (Ar.IsLoading())
+	{
+		NumInlinedLODs = GetNumNonStreamingLODs();
+		NumNonOptionalLODs = GetNumNonOptionalLODs();
+	}
+#endif
 	
 	CurrentFirstLODIdx = LODRenderData.Num() - NumInlinedLODs;
 	PendingFirstLODIdx = CurrentFirstLODIdx;
-	Owner->SetCachedNumResidentLODs(NumInlinedLODs);
 }
 
 void FSkeletalMeshRenderData::InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner)
@@ -450,7 +497,6 @@ void FSkeletalMeshRenderData::InitResources(bool bNeedsVertexColors, TArray<UMor
 			[this, Owner](FRHICommandListImmediate&)
 		{
 			bReadyForStreaming = true;
-			Owner->SetCachedReadyForStreaming(true);
 		});
 
 		bInitialized = true;
@@ -470,10 +516,10 @@ void FSkeletalMeshRenderData::ReleaseResources()
 	}
 }
 
-uint32 FSkeletalMeshRenderData::GetNumBoneInfluences() const
+uint32 FSkeletalMeshRenderData::GetNumBoneInfluences(int32 MinLODIndex) const
 {
 	uint32 NumBoneInfluences = 0;
-	for (int32 LODIndex = 0; LODIndex < LODRenderData.Num(); ++LODIndex)
+	for (int32 LODIndex = MinLODIndex; LODIndex < LODRenderData.Num(); ++LODIndex)
 	{
 		const FSkeletalMeshLODRenderData& Data = LODRenderData[LODIndex];
 		NumBoneInfluences = FMath::Max(NumBoneInfluences, Data.GetVertexBufferMaxBoneInfluences());
@@ -482,12 +528,22 @@ uint32 FSkeletalMeshRenderData::GetNumBoneInfluences() const
 	return NumBoneInfluences;
 }
 
-bool FSkeletalMeshRenderData::RequiresCPUSkinning(ERHIFeatureLevel::Type FeatureLevel) const
+uint32 FSkeletalMeshRenderData::GetNumBoneInfluences() const
+{
+	return GetNumBoneInfluences(0);
+}
+
+bool FSkeletalMeshRenderData::RequiresCPUSkinning(ERHIFeatureLevel::Type FeatureLevel, int32 MinLODIndex) const
 {
 	const int32 MaxGPUSkinBones = FMath::Min(GetFeatureLevelMaxNumberOfBones(FeatureLevel), FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones());
-	const int32 MaxBonesPerChunk = GetMaxBonesPerSection();
+	const int32 MaxBonesPerChunk = GetMaxBonesPerSection(MinLODIndex);
 	// Do CPU skinning if we need too many bones per chunk, or if we have too many influences per vertex on lower end
-	return (MaxBonesPerChunk > MaxGPUSkinBones) || (GetNumBoneInfluences() > MAX_INFLUENCES_PER_STREAM && FeatureLevel < ERHIFeatureLevel::ES3_1);
+	return (MaxBonesPerChunk > MaxGPUSkinBones) || (GetNumBoneInfluences(MinLODIndex) > MAX_INFLUENCES_PER_STREAM && FeatureLevel < ERHIFeatureLevel::ES3_1);
+}
+
+bool FSkeletalMeshRenderData::RequiresCPUSkinning(ERHIFeatureLevel::Type FeatureLevel) const
+{
+	return RequiresCPUSkinning(FeatureLevel, 0);
 }
 
 void FSkeletalMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
@@ -499,10 +555,10 @@ void FSkeletalMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResou
 	}
 }
 
-int32 FSkeletalMeshRenderData::GetMaxBonesPerSection() const
+int32 FSkeletalMeshRenderData::GetMaxBonesPerSection(int32 MinLODIdx) const
 {
 	int32 MaxBonesPerSection = 0;
-	for (int32 LODIndex = 0; LODIndex < LODRenderData.Num(); ++LODIndex)
+	for (int32 LODIndex = MinLODIdx; LODIndex < LODRenderData.Num(); ++LODIndex)
 	{
 		const FSkeletalMeshLODRenderData& RenderData = LODRenderData[LODIndex];
 		for (int32 SectionIndex = 0; SectionIndex < RenderData.RenderSections.Num(); ++SectionIndex)
@@ -511,6 +567,11 @@ int32 FSkeletalMeshRenderData::GetMaxBonesPerSection() const
 		}
 	}
 	return MaxBonesPerSection;
+}
+
+int32 FSkeletalMeshRenderData::GetMaxBonesPerSection() const
+{
+	return GetMaxBonesPerSection(0);
 }
 
 int32 FSkeletalMeshRenderData::GetFirstValidLODIdx(int32 MinIdx) const

@@ -35,6 +35,7 @@ private:
 	FLinearColor Color;
 	float Size;
 	bool bIsVisible;
+	UTexture* SpriteTexture = nullptr;
 	FMaterialRelevance MaterialRelevance;
 };
 

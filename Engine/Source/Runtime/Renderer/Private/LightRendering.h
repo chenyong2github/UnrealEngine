@@ -34,6 +34,8 @@ extern uint32 GetShadowQuality();
 
 extern float GetLightFadeFactor(const FSceneView& View, const FLightSceneProxy* Proxy);
 
+extern FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, const FLightSceneInfo& LightSceneInfo);
+
 template<typename ShaderRHIParamRef>
 void SetDeferredLightParameters(
 	FRHICommandList& RHICmdList, 
@@ -42,67 +44,7 @@ void SetDeferredLightParameters(
 	const FLightSceneInfo* LightSceneInfo,
 	const FSceneView& View)
 {
-	FDeferredLightUniformStruct DeferredLightUniformsValue;
-	LightSceneInfo->Proxy->GetLightShaderParameters(DeferredLightUniformsValue.LightParameters);
-	
-	const FVector2D FadeParams = LightSceneInfo->Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), LightSceneInfo->IsPrecomputedLightingValid(), View.MaxShadowCascades);
-
-	// use MAD for efficiency in the shader
-	DeferredLightUniformsValue.DistanceFadeMAD = FVector2D(FadeParams.Y, -FadeParams.X * FadeParams.Y);
-
-	int32 ShadowMapChannel = LightSceneInfo->Proxy->GetShadowMapChannel();
-
-	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
-
-	if (!bAllowStaticLighting)
-	{
-		ShadowMapChannel = INDEX_NONE;
-	}
-
-	DeferredLightUniformsValue.ShadowMapChannelMask = FVector4(
-		ShadowMapChannel == 0 ? 1 : 0,
-		ShadowMapChannel == 1 ? 1 : 0,
-		ShadowMapChannel == 2 ? 1 : 0,
-		ShadowMapChannel == 3 ? 1 : 0);
-
-	const bool bDynamicShadows = View.Family->EngineShowFlags.DynamicShadows && GetShadowQuality() > 0;
-	const bool bHasLightFunction = LightSceneInfo->Proxy->GetLightFunctionMaterial() != NULL;
-	DeferredLightUniformsValue.ShadowedBits  = LightSceneInfo->Proxy->CastsStaticShadow() || bHasLightFunction ? 1 : 0;
-	DeferredLightUniformsValue.ShadowedBits |= LightSceneInfo->Proxy->CastsDynamicShadow() && View.Family->EngineShowFlags.DynamicShadows ? 3 : 0;
-
-	DeferredLightUniformsValue.VolumetricScatteringIntensity = LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
-
-	static auto* ContactShadowsCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ContactShadows"));
-	DeferredLightUniformsValue.ContactShadowLength = 0;
-	DeferredLightUniformsValue.ContactShadowNonShadowCastingIntensity = 0.0f;
-
-	if (ContactShadowsCVar && ContactShadowsCVar->GetValueOnRenderThread() != 0 && View.Family->EngineShowFlags.ContactShadows)
-	{
-		DeferredLightUniformsValue.ContactShadowLength = LightSceneInfo->Proxy->GetContactShadowLength();
-		// Sign indicates if contact shadow length is in world space or screen space.
-		// Multiply by 2 for screen space in order to preserve old values after introducing multiply by View.ClipToView[1][1] in shader.
-		DeferredLightUniformsValue.ContactShadowLength *= LightSceneInfo->Proxy->IsContactShadowLengthInWS() ? -1.0f : 2.0f;
-
-		static auto* IntensityCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ContactShadows.NonShadowCastingIntensity"));
-		DeferredLightUniformsValue.ContactShadowNonShadowCastingIntensity = IntensityCVar ? IntensityCVar->GetValueOnRenderThread() : 0.0f;
-	}
-
-	// When rendering reflection captures, the direct lighting of the light is actually the indirect specular from the main view
-	if (View.bIsReflectionCapture)
-	{
-		DeferredLightUniformsValue.LightParameters.Color *= LightSceneInfo->Proxy->GetIndirectLightingScale();
-	}
-
-	const ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
-	if ((LightType == LightType_Point || LightType == LightType_Spot || LightType == LightType_Rect) && View.IsPerspectiveProjection())
-	{
-		DeferredLightUniformsValue.LightParameters.Color *= GetLightFadeFactor(View, LightSceneInfo->Proxy);
-	}
-
-	DeferredLightUniformsValue.LightingChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
-
-	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI,DeferredLightUniformBufferParameter,DeferredLightUniformsValue);
+	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, DeferredLightUniformBufferParameter, GetDeferredLightParameters(View, *LightSceneInfo));
 }
 
 template<typename ShaderRHIParamRef>
@@ -512,7 +454,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return bRadialLight ? IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) : true;
+		return bRadialLight ? (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || IsMobileDeferredShading()) : true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

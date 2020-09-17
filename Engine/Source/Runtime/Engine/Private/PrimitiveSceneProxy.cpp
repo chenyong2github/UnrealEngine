@@ -108,7 +108,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bIsComponentLevelVisible(false)
 ,	bCollisionEnabled(InComponent->IsCollisionEnabled())
 ,	bTreatAsBackgroundForOcclusion(InComponent->bTreatAsBackgroundForOcclusion)
-,	bHasMobileMovablePointLightInteraction(false)
 ,	bGoodCandidateForCachedShadowmap(true)
 ,	bNeedsUnbuiltPreviewLighting(!InComponent->IsPrecomputedLightingValid())
 ,	bHasValidSettingsForStaticLighting(InComponent->HasValidSettingsForStaticLighting(false))

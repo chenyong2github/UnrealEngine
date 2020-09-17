@@ -7,6 +7,7 @@
 #include "CanvasTypes.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Rendering/Texture2DResource.h"
 #include "EngineModule.h"
 #include "HAL/PlatformFilemanager.h"
 #include "ImageUtils.h"

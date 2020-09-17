@@ -8,7 +8,6 @@
 #include "Engine/Engine.h"
 #include "Misc/CoreDelegates.h"
 #include "RenderingThread.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
 
 #include "Lumin/CAPIShims/LuminAPISnapshot.h"
 
@@ -170,7 +169,7 @@ void FAppFramework::OnDeviceHeadposeLost()
 
 void FAppFramework::PauseRendering(bool bPause)
 {
-	FMagicLeapHMD * const HMD = GEngine ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr;
+	FMagicLeapHMD * const HMD = GEngine ? (GEngine->XRSystem ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr) : nullptr;
 	if (HMD)
 	{
 		HMD->PauseRendering(bPause);
@@ -179,13 +178,13 @@ void FAppFramework::PauseRendering(bool bPause)
 
 const FTrackingFrame* FAppFramework::GetCurrentFrame() const
 {
-	FMagicLeapHMD* hmd = GEngine ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr;
+	FMagicLeapHMD * const hmd = GEngine ? (GEngine->XRSystem ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr) : nullptr;
 	return hmd ? &(hmd->GetCurrentFrame()) : nullptr;
 }
 
 const FTrackingFrame* FAppFramework::GetOldFrame() const
 {
-	FMagicLeapHMD* hmd = GEngine ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr;
+	FMagicLeapHMD * const hmd = GEngine ? (GEngine->XRSystem ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr) : nullptr;
 	return hmd ? &(hmd->GetOldFrame()) : nullptr;
 }
 

@@ -231,6 +231,7 @@ void FHoloLensDeviceDetector::StopDeviceDetection()
 
 void FHoloLensDeviceDetector::OnDeviceWatcherDeviceAdded(IDeviceInformation* Info)
 {
+	SslCertDisabler disabler;
 	FHoloLensDeviceInfo NewDevice;
 	uint32 WdpPort;
 	FString DeviceIp;
@@ -432,6 +433,8 @@ bool GetJsonField(int64& OutVal, const TSharedPtr<FJsonObject>& JsonObject, cons
 
 void FHoloLensDeviceDetector::TryAddDevice(const FString& DeviceId, const FString& DeviceUserFriendlyName, const FString& Username, const FString& Password)
 {
+	SslCertDisabler disabler;
+	
 	auto DeviceInfo = MakeShared<FHoloLensDeviceInfo, ESPMode::ThreadSafe>();
 
 	DeviceInfo->HostName = DeviceUserFriendlyName;
@@ -567,6 +570,16 @@ void FHoloLensDeviceDetector::AddDevice(const FHoloLensDeviceInfo& Info)
 
 	KnownDevices.Add(Info);
 	DeviceDetected.Broadcast(Info);
+}
+
+SslCertDisabler::SslCertDisabler()
+{
+	prevValue = FWindowsPlatformHttp::VerifyPeerSslCertificate(false);
+}
+
+SslCertDisabler::~SslCertDisabler()
+{
+	FWindowsPlatformHttp::VerifyPeerSslCertificate(prevValue);
 }
 
 #include "Windows/HideWindowsPlatformAtomics.h"

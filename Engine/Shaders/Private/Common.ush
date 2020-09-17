@@ -69,10 +69,6 @@
 
 #define METAL_TESSELLATION_PROFILE ((METAL_PROFILE || METAL_SM5_PROFILE) && USING_TESSELLATION)
 
-#ifndef MOBILE_FORCE_DEPTH_TEXTURE_READS
-#define MOBILE_FORCE_DEPTH_TEXTURE_READS 0
-#endif
-
 // Using SV_ClipDistance has overhead (15% slower base pass in triangle bound test scene on PS4) so projects have to opt-in
 #define USE_GLOBAL_CLIP_PLANE (PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE && PROJECT_ALLOW_GLOBAL_CLIP_PLANE && !MATERIAL_DOMAIN_POSTPROCESS && !MATERIAL_DOMAIN_UI)
 
@@ -404,8 +400,8 @@ float4 PseudoVolumeTexture(Texture2D Tex, SamplerState TexSampler, float3 inPos,
 
 #else
 
-	#define TANGENTTOWORLD0					TEXCOORD10
-	#define TANGENTTOWORLD2					TEXCOORD11
+	#define TANGENTTOWORLD0					TEXCOORD10_centroid
+	#define TANGENTTOWORLD2					TEXCOORD11_centroid
 
 	// TangentToWorld0 is float4 only to match D3D11
 #if METAL_PROFILE || COMPILER_GLSL_ES3_1 || VULKAN_PROFILE
@@ -1777,3 +1773,18 @@ struct FPixelShaderOut
 
 #endif // SUPPORTS_INDEPENDENT_SAMPLERS
 
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+
+float4 GatherDepth(Texture2D Texture, float2 UV)
+{
+	// using Gather: xyzw in counter clockwise order starting with the sample to the lower left of the queried location
+	float4 DeviceZ = Texture.GatherRed(GlobalBilinearClampedSampler, UV);
+
+	return float4(
+		ConvertFromDeviceZ(DeviceZ.x),
+		ConvertFromDeviceZ(DeviceZ.y),
+		ConvertFromDeviceZ(DeviceZ.z),
+		ConvertFromDeviceZ(DeviceZ.w));
+}
+
+#endif

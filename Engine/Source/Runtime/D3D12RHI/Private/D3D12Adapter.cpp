@@ -74,7 +74,7 @@ static bool CheckD3DStoredMessages()
 	TRefCountPtr<ID3D12Debug> d3dDebug;
 	if (SUCCEEDED(D3D12GetDebugInterface(__uuidof(ID3D12Debug), (void**)d3dDebug.GetInitReference())))
 	{
-		FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+		FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
 		TRefCountPtr<ID3D12InfoQueue> d3dInfoQueue;
 		if (SUCCEEDED(D3D12RHI->GetAdapter().GetD3DDevice()->QueryInterface(__uuidof(ID3D12InfoQueue), (void**)d3dInfoQueue.GetInitReference())))
 		{
@@ -440,12 +440,17 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif
 
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if PLATFORM_WINDOWS
 	if (bWithDebug)
 	{
 		// add vectored exception handler to write the debug device warning & error messages to the log
 		ExceptionHandlerHandle = AddVectoredExceptionHandler(1, D3DVectoredExceptionHandler);
+	}
+#endif // PLATFORM_WINDOWS
 
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+	if (bWithDebug)
+	{
 		// Manually load dxgi debug if available
 		HMODULE DxgiDebugDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgidebug.dll"));
 		if (DxgiDebugDLL)
@@ -958,20 +963,25 @@ void FD3D12Adapter::Cleanup()
 
 		CheckD3DStoredMessages();
 	}
+#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
+#if PLATFORM_WINDOWS
 	if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
 	{
 		RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
 	}
-#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#endif //  PLATFORM_WINDOWS
 }
 
 void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
 {
-	typedef HRESULT(WINAPI *FCreateDXGIFactory2)(UINT, REFIID, void **);
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
+
+#if PLATFORM_WINDOWS
+	typedef HRESULT(WINAPI* FCreateDXGIFactory2)(UINT, REFIID, void**);
 	FCreateDXGIFactory2 CreateDXGIFactory2FnPtr = nullptr;
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	// Dynamically load this otherwise Win7 fails to boot as it's missing on that DLL
 	HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
 	check(DxgiDLL);
@@ -982,10 +992,13 @@ void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
 #pragma warning(pop)
 	FPlatformProcess::FreeDllHandle(DxgiDLL);
 
-	uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
 	VERIFYD3D12RESULT(CreateDXGIFactory2FnPtr(Flags, IID_PPV_ARGS(DxgiFactory.GetInitReference())));
-	VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
+#elif PLATFORM_HOLOLENS
+	VERIFYD3D12RESULT(::CreateDXGIFactory2(Flags, IID_PPV_ARGS(DxgiFactory.GetInitReference())));
 #endif
+
+	VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
+#endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 }
 
 #if D3D12_SUBMISSION_GAP_RECORDER

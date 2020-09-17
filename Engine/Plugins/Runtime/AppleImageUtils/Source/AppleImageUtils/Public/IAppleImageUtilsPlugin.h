@@ -34,6 +34,8 @@ public:
 	virtual float GetElapsedTime() const = 0;
 	/** @return the data once the task has completed or empty array if still in progress. NOTE: this should use MoveTemp() to avoid duplication so call once :) */
 	virtual TArray<uint8> GetData() = 0;
+	/** @return the size of the converted image */
+	virtual FIntPoint GetConvertedImageSize() const = 0;
 };
 
 /**
@@ -51,6 +53,7 @@ public:
 	virtual bool HadError() const override { return bHadError; }
 	virtual FString GetErrorReason() const override { return Error; }
 	virtual float GetElapsedTime() const override { return (EndTime - StartTime) * 1000.f; }
+	virtual FIntPoint GetConvertedImageSize() const override { return FIntPoint::ZeroValue; };
 
 protected:
 	FThreadSafeBool bIsDone;
@@ -172,8 +175,9 @@ public:
 	 * @param bUseGpu whether to use the GPU (true) or the CPU (false) to compress
 	 * @param Scale whether to scale the image before converting, defaults to no scale operation
 	 * @param Rotate a direction to rotate the image in during conversion, defaults to none
+	 * @param ConvertedImageSize if set, returns the size of the converted image
 	 */
-	virtual void ConvertToJPEG(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality = 85, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) = 0;
+	virtual void ConvertToJPEG(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality = 85, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None, FIntPoint* ConvertedImageSize = nullptr) = 0;
 
 #if SUPPORTS_IMAGE_UTILS_2_1
 	/**
@@ -186,8 +190,9 @@ public:
 	 * @param bUseGpu whether to use the GPU (true) or the CPU (false) to compress
 	 * @param Scale whether to scale the image before converting, defaults to no scale operation
 	 * @param Rotate a direction to rotate the image in during conversion, defaults to none
+	 * @param ConvertedImageSize if set, returns the size of the converted image
 	 */
-	virtual void ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality = 85,  bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) = 0;
+	virtual void ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality = 85,  bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None, FIntPoint* ConvertedImageSize = nullptr) = 0;
 
 	/**
 	 * Converts a image to an array of PNG data synchronously
@@ -199,8 +204,9 @@ public:
 	 * @param bUseGpu whether to use the GPU (true) or the CPU (false) to compress
 	 * @param Scale whether to scale the image before converting, defaults to no scale operation
 	 * @param Rotate a direction to rotate the image in during conversion, defaults to none
+	 * @param ConvertedImageSize if set, returns the size of the converted image
 	 */
-	virtual void ConvertToPNG(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) = 0;
+	virtual void ConvertToPNG(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None, FIntPoint* ConvertedImageSize = nullptr) = 0;
 
 	/**
 	 * Converts a image to an array of TIFF data synchronously
@@ -211,8 +217,9 @@ public:
 	 * @param bUseGpu whether to use the GPU (true) or the CPU (false) to compress
 	 * @param Scale whether to scale the image before converting, defaults to no scale operation
 	 * @param Rotate a direction to rotate the image in during conversion, defaults to none
+	 * @param ConvertedImageSize if set, returns the size of the converted image
 	 */
-	virtual void ConvertToTIFF(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) = 0;
+	virtual void ConvertToTIFF(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None, FIntPoint* ConvertedImageSize = nullptr) = 0;
 #endif
 #endif
 };

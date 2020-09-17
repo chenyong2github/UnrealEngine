@@ -114,6 +114,11 @@ IStaticLightingSystemImpl* FStaticLightingSystemInterface::GetPreferredImplement
 	{
 		return *Implementations.Find(FName(TEXT("GPULightmass")));
 	}
+	
+	if (Implementations.Num() > 0)
+	{
+		return Implementations.CreateIterator().Value();
+	}
 
 	return nullptr;
 }
@@ -126,7 +131,7 @@ bool FStaticLightingSystemInterface::ShouldOperateOnWorld(UWorld* InWorld)
 	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);
 
 	// IsEditorWorld() is true also for PIE and EditorPreview, which is not what we want
-	return bAllowStaticLighting && InWorld->WorldType == EWorldType::Editor;
+	return bAllowStaticLighting;
 }
 
 ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld)

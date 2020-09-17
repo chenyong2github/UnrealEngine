@@ -3,6 +3,7 @@
 #include "MagicLeapImageTrackerModule.h"
 #include "MagicLeapImageTrackerRunnable.h"
 #include "Stats/Stats.h"
+#include "MagicLeapHandle.h"
 
 FMagicLeapImageTrackerModule::FMagicLeapImageTrackerModule()
 : Runnable(nullptr)
@@ -50,38 +51,48 @@ void FMagicLeapImageTrackerModule::DestroyEntityTracker()
 bool FMagicLeapImageTrackerModule::Tick(float DeltaTime)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapImageTrackerModule_Tick);
+	if (!Runnable->IsRunning())
+	{
+		return true;
+	}
 
-	if (!Runnable->IsRunning()) return true;
 
 	FMagicLeapImageTrackerTask CompletedTask;
 	if (Runnable->TryGetCompletedTask(CompletedTask))
 	{
-		FMagicLeapImageTrackerTarget& ImageTrackerTarget = CompletedTask.Target;
 		switch (CompletedTask.Type)
 		{
 		case FMagicLeapImageTrackerTask::EType::TargetCreateFailed:
 		{
-			ImageTrackerTarget.OnSetImageTargetFailed.Broadcast();
+			CompletedTask.FailureDynamicDelegate.Broadcast();
+			CompletedTask.FailureStaticDelegate.ExecuteIfBound(CompletedTask.TargetName);
 		}
 		break;
 
 		case FMagicLeapImageTrackerTask::EType::TargetCreateSucceeded:
 		{
-			ImageTrackerTarget.OnSetImageTargetSucceeded.Broadcast();
-			ImageTrackerTarget.SetImageTargetSucceededDelegate.ExecuteIfBound(ImageTrackerTarget);
+			CompletedTask.SuccessDynamicDelegate.Broadcast();
+			CompletedTask.SuccessStaticDelegate.ExecuteIfBound(CompletedTask.TargetName);
 		}
 		break;
 		}
 	}
 
-	Runnable->UpdateTargetsMainThread();
-
 	return true;
 }
 
-void FMagicLeapImageTrackerModule::SetTargetAsync(const FMagicLeapImageTrackerTarget& ImageTarget)
+void FMagicLeapImageTrackerModule::SetTargetAsync(const FMagicLeapImageTargetSettings& ImageTarget, const FMagicLeapSetImageTargetCompletedStaticDelegate& SucceededDelegate, const FMagicLeapSetImageTargetCompletedStaticDelegate& FailedDelegate)
 {
-	Runnable->SetTargetAsync(ImageTarget);
+	Runnable->SetTargetAsync(ImageTarget, SucceededDelegate, FailedDelegate);
+	if (!TickDelegateHandle.IsValid())
+	{
+		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	}
+}
+
+void FMagicLeapImageTrackerModule::SetTargetAsync(const FMagicLeapImageTargetSettings& ImageTarget, const FMagicLeapSetImageTargetSucceededMulti& SucceededDelegate, const FMagicLeapSetImageTargetFailedMulti& FailedDelegate)
+{
+	Runnable->SetTargetAsync(ImageTarget, SucceededDelegate, FailedDelegate);
 	if (!TickDelegateHandle.IsValid())
 	{
 		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
@@ -91,6 +102,23 @@ void FMagicLeapImageTrackerModule::SetTargetAsync(const FMagicLeapImageTrackerTa
 bool FMagicLeapImageTrackerModule::RemoveTargetAsync(const FString& TargetName)
 {
 	return Runnable->IsRunning() ? Runnable->RemoveTargetAsync(TargetName) : true;
+}
+
+void FMagicLeapImageTrackerModule::GetTargetState(const FString& TargetName, bool bProvideTransformInTrackingSpace, FMagicLeapImageTargetState& TargetState) const
+{
+	if (Runnable->IsRunning())
+	{
+		Runnable->GetTargetState(TargetName, bProvideTransformInTrackingSpace, TargetState);
+	}
+	else
+	{
+		TargetState.TrackingStatus = EMagicLeapImageTargetStatus::NotTracked;
+	}
+}
+
+FGuid FMagicLeapImageTrackerModule::GetTargetHandle(const FString& TargetName) const
+{
+	return (Runnable->IsRunning()) ? Runnable->GetTargetHandle(TargetName) : MagicLeap::INVALID_FGUID;
 }
 
 uint32 FMagicLeapImageTrackerModule::GetMaxSimultaneousTargets() const
@@ -111,16 +139,6 @@ bool FMagicLeapImageTrackerModule::GetImageTrackerEnabled() const
 void FMagicLeapImageTrackerModule::SetImageTrackerEnabled(bool bEnabled)
 {
 	Runnable->SetImageTrackerEnabled(bEnabled);
-}
-
-bool FMagicLeapImageTrackerModule::IsTracked(const FString& TargetName) const
-{
-	return Runnable->IsTracked(TargetName);
-}
-
-bool FMagicLeapImageTrackerModule::TryGetRelativeTransform(const FString& TargetName, FVector& OutLocation, FRotator& OutRotation)
-{
-	return Runnable->TryGetRelativeTransformMainThread(TargetName, OutLocation, OutRotation);
 }
 
 IMPLEMENT_MODULE(FMagicLeapImageTrackerModule, MagicLeapImageTracker);

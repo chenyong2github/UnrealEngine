@@ -4,9 +4,9 @@
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
 #include "Engine/Engine.h"
-#include "ARSystem.h"
 #include "ARPin.h"
-#include "ARTrackable.h"
+#include "ARGeoTrackingSupport.h"
+
 
 TWeakPtr<FARSupportInterface , ESPMode::ThreadSafe> UARBlueprintLibrary::RegisteredARSystem = nullptr;
 
@@ -25,23 +25,25 @@ EARTrackingQuality UARBlueprintLibrary::GetTrackingQuality()
 
 EARTrackingQualityReason UARBlueprintLibrary::GetTrackingQualityReason()
 {
-	// @todo merge-check
-// 	auto ARSystem = GetARSystem();
-// 	if (ARSystem.IsValid())
-// 	{
-// 		return ARSystem->GetTrackingQualityReason();
-// 	}
-// 	else
+	auto ARSystem = GetARSystem();
+ 	if (ARSystem.IsValid())
+ 	{
+ 		return ARSystem.Pin()->GetTrackingQualityReason();
+ 	}
+ 	else
 	{
-		return EARTrackingQualityReason::None;
+		return EARTrackingQualityReason::InsufficientFeatures;
 	}
 }
 
 bool UARBlueprintLibrary::IsARSupported(void)
 {
-	// @todo merge-check
-//	return GetARSystem().IsValid() && GetARSystem()->IsARAvailable();
-	return true;
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->IsARAvailable();
+	}
+	return false;
 }
 
 void UARBlueprintLibrary::StartARSession(UARSessionConfig* SessionConfig)
@@ -114,6 +116,36 @@ UARSessionConfig* UARBlueprintLibrary::GetSessionConfig()
 }
 
 
+bool UARBlueprintLibrary::ToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType)
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->ToggleARCapture(bOnOff, CaptureType);
+	}
+	return false;
+}
+
+void UARBlueprintLibrary::SetEnabledXRCamera(bool bOnOff)
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->SetEnabledXRCamera(bOnOff);
+	}
+}
+
+FIntPoint UARBlueprintLibrary::ResizeXRCamera(const FIntPoint & InSize)
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->ResizeXRCamera(InSize);
+	}
+	return FIntPoint(0, 0);
+}
+
+
 void UARBlueprintLibrary::SetAlignmentTransform( const FTransform& InAlignmentTransform )
 {
 	auto ARSystem = GetARSystem();
@@ -172,6 +204,24 @@ TArray<UARTrackedGeometry*> UARBlueprintLibrary::GetAllGeometries()
 		Geometries = ARSystem.Pin()->GetAllTrackedGeometries();
 	}
 	return Geometries;
+}
+
+TArray<UARTrackedGeometry*> UARBlueprintLibrary::GetAllGeometriesByClass(TSubclassOf<UARTrackedGeometry> GeometryClass)
+{
+	if (!GeometryClass)
+	{
+		return {};
+	}
+	
+	TArray<UARTrackedGeometry*> Geometries;
+	for (auto Geometry : GetAllGeometries())
+	{
+		if (Geometry && Geometry->GetClass()->IsChildOf(GeometryClass))
+		{
+			Geometries.Add(Geometry);
+		}
+	}
+	return MoveTemp(Geometries);
 }
 
 TArray<UARPin*> UARBlueprintLibrary::GetAllPins()
@@ -246,6 +296,16 @@ UARPin* UARBlueprintLibrary::PinComponentToTraceResult( USceneComponent* Compone
 	return nullptr;
 }
 
+bool UARBlueprintLibrary::PinComponentToARPin(USceneComponent* ComponentToPin, UARPin* Pin)
+{
+	auto ARSystem = GetARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return false;
+	}
+	return ARSystem.Pin()->PinComponent(ComponentToPin, Pin);
+}
+
 void UARBlueprintLibrary::UnpinComponent( USceneComponent* ComponentToUnpin )
 {
 	auto ARSystem = GetARSystem();
@@ -270,10 +330,79 @@ void UARBlueprintLibrary::RemovePin( UARPin* PinToRemove )
 	auto ARSystem = GetARSystem();
 	if (ARSystem.IsValid())
 	{
-		return ARSystem.Pin()->RemovePin( PinToRemove );
+		ARSystem.Pin()->RemovePin( PinToRemove );
 	}
 }
 
+bool UARBlueprintLibrary::IsARPinLocalStoreSupported()
+{
+	bool bSuccess = false;
+
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		bSuccess = ARSystem.Pin()->IsLocalPinSaveSupported();
+	}
+
+	return bSuccess;
+}
+
+bool UARBlueprintLibrary::IsARPinLocalStoreReady()
+{
+	bool bSuccess = false;
+
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		bSuccess = ARSystem.Pin()->ArePinsReadyToLoad();
+	}
+
+	return bSuccess;
+}
+
+TMap<FName, UARPin*> UARBlueprintLibrary::LoadARPinsFromLocalStore()
+{
+	TMap<FName, UARPin*> LoadedPins;
+
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		ARSystem.Pin()->LoadARPins(LoadedPins);
+	}
+
+	return LoadedPins;
+}
+
+bool UARBlueprintLibrary::SaveARPinToLocalStore(FName InSaveName, UARPin* InPin)
+{
+	bool bSuccess = false;
+
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		bSuccess = ARSystem.Pin()->SaveARPin(InSaveName, InPin);
+	}
+
+	return bSuccess;
+}
+
+void UARBlueprintLibrary::RemoveARPinFromLocalStore(FName InSaveName)
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		ARSystem.Pin()->RemoveSavedARPin(InSaveName);
+	}
+}
+
+void UARBlueprintLibrary::RemoveAllARPinsFromLocalStore()
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		ARSystem.Pin()->RemoveAllSavedARPins();
+	}
+}
 
 
 void UARBlueprintLibrary::RegisterAsARSystem(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& NewARSystem)
@@ -304,6 +433,11 @@ FTransform UARTraceResultLibrary::GetLocalToWorldTransform( const FARTraceResult
 	return TraceResult.GetLocalToWorldTransform();
 }
 
+FTransform UARTraceResultLibrary::GetLocalTransform( const FARTraceResult& TraceResult )
+{
+	return TraceResult.GetLocalTransform();
+}
+
 UARTrackedGeometry* UARTraceResultLibrary::GetTrackedGeometry( const FARTraceResult& TraceResult )
 {
 	return TraceResult.GetTrackedGeometry();
@@ -316,26 +450,12 @@ EARLineTraceChannels UARTraceResultLibrary::GetTraceChannel( const FARTraceResul
 
 UARTextureCameraImage* UARBlueprintLibrary::GetCameraImage()
 {
-	UARTextureCameraImage* Image = nullptr;
-
-	auto ARSystem = GetARSystem();
-	if (ARSystem.IsValid())
-	{
-		Image = ARSystem.Pin()->GetCameraImage();
-	}
-	return Image;
+	return Cast<UARTextureCameraImage>(GetARTexture(EARTextureType::CameraImage));
 }
 
 UARTextureCameraDepth* UARBlueprintLibrary::GetCameraDepth()
 {
-	UARTextureCameraDepth* Depth = nullptr;
-
-	auto ARSystem = GetARSystem();
-	if (ARSystem.IsValid())
-	{
-		Depth = ARSystem.Pin()->GetCameraDepth();
-	}
-	return Depth;
+	return Cast<UARTextureCameraDepth>(GetARTexture(EARTextureType::CameraDepth));
 }
 
 TArray<UARPlaneGeometry*> UARBlueprintLibrary::GetAllTrackedPlanes()
@@ -534,28 +654,325 @@ TArray<UARTrackedPose*> UARBlueprintLibrary::GetAllTrackedPoses()
 	return TrackedPoses;
 }
 
-UARTextureCameraImage* UARBlueprintLibrary::GetPersonSegmentationImage()
+UARTexture* UARBlueprintLibrary::GetPersonSegmentationImage()
+{
+	return GetARTexture(EARTextureType::PersonSegmentationImage);
+}
+
+UARTexture* UARBlueprintLibrary::GetPersonSegmentationDepthImage()
+{
+	return GetARTexture(EARTextureType::PersonSegmentationDepth);
+}
+
+bool UARBlueprintLibrary::IsSceneReconstructionSupported(EARSessionType SessionType, EARSceneReconstruction SceneReconstructionMethod)
 {
 	auto ARSystem = GetARSystem();
 	if (ARSystem.IsValid())
 	{
-		return ARSystem.Pin()->GetPersonSegmentationImage();
+		return ARSystem.Pin()->IsSceneReconstructionSupported(SessionType, SceneReconstructionMethod);
 	}
 	else
 	{
-		return nullptr;
+		return false;
 	}
 }
 
-UARTextureCameraImage* UARBlueprintLibrary::GetPersonSegmentationDepthImage()
+bool UARBlueprintLibrary::GetObjectClassificationAtLocation(const FVector& InWorldLocation, EARObjectClassification& OutClassification, FVector& OutClassificationLocation, float MaxLocationDiff)
+{
+	auto AllGeometries = GetAllGeometries();
+	for (auto Geometry : AllGeometries)
+	{
+		if (auto MeshGeometry = Cast<UARMeshGeometry>(Geometry))
+		{
+			if (MeshGeometry->GetObjectClassificationAtLocation(InWorldLocation, OutClassification, OutClassificationLocation, MaxLocationDiff))
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
+
+struct FSquareMatrix3
+{
+	float M[3][3];
+
+	FSquareMatrix3() = default;
+
+	FORCEINLINE void SetColumn(int32 Index, FVector Axis)
+	{
+		M[Index][0] = Axis.X;
+		M[Index][1] = Axis.Y;
+		M[Index][2] = Axis.Z;
+	};
+
+	FORCEINLINE FVector GetColumn(int32 Index) const
+	{
+		return FVector(M[Index][0], M[Index][1], M[Index][2]);
+	};
+
+	FORCEINLINE FSquareMatrix3 operator*(float Scale) const
+	{
+		FSquareMatrix3 ResultMat;
+
+		for (int32 X = 0; X < 3; X++)
+		{
+			for (int32 Y = 0; Y < 3; Y++)
+			{
+				ResultMat.M[X][Y] = M[X][Y] * Scale;
+			}
+		}
+
+		return ResultMat;
+	}
+};
+
+
+FSquareMatrix3 Invert(const FSquareMatrix3& InMatrix)
+{
+	FSquareMatrix3 inverse;
+	bool invertible;
+	auto& M = InMatrix.M;
+	float c00 = M[1][1] * M[2][2] - M[1][2] * M[2][1];
+	float c10 = M[1][2] * M[2][0] - M[1][0] * M[2][2];
+	float c20 = M[1][0] * M[2][1] - M[1][1] * M[2][0];
+	float det = M[0][0] * c00 + M[0][1] * c10 + M[0][2] * c20;
+	if (FMath::Abs(det) > 0.000001f)
+	{
+		float invDet = 1.0f / det;
+		inverse.SetColumn(0, { c00*invDet, (M[0][2] * M[2][1] - M[0][1] * M[2][2])*invDet, (M[0][1] * M[1][2] - M[0][2] * M[1][1])*invDet });
+		inverse.SetColumn(1, { c10*invDet, (M[0][0] * M[2][2] - M[0][2] * M[2][0])*invDet, (M[0][2] * M[1][0] - M[0][0] * M[1][2])*invDet });
+		inverse.SetColumn(2, { c20*invDet, (M[0][1] * M[2][0] - M[0][0] * M[2][1])*invDet, (M[0][0] * M[1][1] - M[0][1] * M[1][0])*invDet });
+		invertible = true;
+	}
+	else
+	{
+		inverse.SetColumn(0, { 1,0,0 });
+		inverse.SetColumn(1, { 0,1,0 });
+		inverse.SetColumn(2, { 0,0,1 });
+		invertible = false;
+	}
+	return inverse;
+}
+
+FVector operator* (const FSquareMatrix3& InMatrix, const FVector& InVector)
+{
+	auto& M = InMatrix.M;
+	return {
+		M[0][0] * InVector.X + M[1][0] * InVector.Y + M[2][0] * InVector.Z,
+		M[0][1] * InVector.X + M[1][1] * InVector.Y + M[2][1] * InVector.Z,
+		M[0][2] * InVector.X + M[1][2] * InVector.Y + M[2][2] * InVector.Z
+	};
+}
+
+void UARBlueprintLibrary::CalculateClosestIntersection(const TArray<FVector>& StartPoints, const TArray<FVector>& EndPoints, FVector& ClosestIntersection)
+{
+	checkf(StartPoints.Num() == EndPoints.Num(), TEXT("The StartPoints and Endpoints arrays must have the same size."));
+
+	float SXX = 0.0f;
+	float SYY = 0.0f;
+	float SZZ = 0.0f;
+	float SXY = 0.0f;
+	float SXZ = 0.0f;
+	float SYZ = 0.0f;
+
+	float CX = 0.0f;
+	float CY = 0.0f;
+	float CZ = 0.0f;
+
+	for (int PointIdx = 0; PointIdx < StartPoints.Num(); ++PointIdx)
+	{
+		FVector NormView = (EndPoints[PointIdx] - StartPoints[PointIdx]).GetSafeNormal();
+
+		float XX = (NormView.X * NormView.X) - 1.0;
+		float YY = (NormView.Y * NormView.Y) - 1.0;
+		float ZZ = (NormView.Z * NormView.Z) - 1.0;
+		float XY = (NormView.X * NormView.Y);
+		float XZ = (NormView.X * NormView.Z);
+		float YZ = (NormView.Y * NormView.Z);
+
+		SXX += XX;
+		SYY += YY;
+		SZZ += ZZ;
+		SXY += XY;
+		SXZ += XZ;
+		SYZ += YZ;
+
+		CX += (StartPoints[PointIdx].X * XX) +
+			(StartPoints[PointIdx].Y * XY) +
+			(StartPoints[PointIdx].Z * XZ);
+
+		CY += (StartPoints[PointIdx].X * XY) +
+			(StartPoints[PointIdx].Y * YY) +
+			(StartPoints[PointIdx].Z * YZ);
+
+		CZ += (StartPoints[PointIdx].X * XZ) +
+			(StartPoints[PointIdx].Y * YZ) +
+			(StartPoints[PointIdx].Z * ZZ);
+	}
+	FSquareMatrix3 S;
+	S.SetColumn(0, { SXX, SXY, SXZ });
+	S.SetColumn(1, { SXY, SYY, SYZ });
+	S.SetColumn(2, { SXZ, SYZ, SZZ });
+
+	FVector C(CX, CY, CZ);
+
+	ClosestIntersection = Invert(S) * C;
+}
+
+void UARBlueprintLibrary::CalculateAlignmentTransform(const FTransform& TransformInFirstCoordinateSystem, const FTransform& TransformInSecondCoordinateSystem, FTransform& AlignmentTransform)
+{
+	AlignmentTransform = TransformInSecondCoordinateSystem * TransformInFirstCoordinateSystem.Inverse();
+}
+
+void UARBlueprintLibrary::SetARWorldOriginLocationAndRotation(FVector OriginLocation, FRotator OriginRotation, bool bIsTransformInWorldSpace, bool bMaintainUpDirection)
+{
+	// Zero out the pitch and roll if needed
+	if (bMaintainUpDirection)
+	{
+		OriginRotation.Pitch = 0;
+		OriginRotation.Roll = 0;
+	}
+	
+	// For P in local space we have T (local) * T (Alignment) * T (tracking to world) = T (World)
+	// The goal is to compute a new alignment transform so that T (local) * T (New Alignment) * T (tracking to world) = T (Identity)
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		if (auto TrackingSystem = ARSystem.Pin()->GetXRTrackingSystem())
+		{
+			const auto TrackingToWorldTransform = TrackingSystem->GetTrackingToWorldTransform();
+			const auto TrackingToWorldTransformInverse = TrackingToWorldTransform.Inverse();
+			const auto AlignmentTransform = GetAlignmentTransform();
+			FTransform LocalTransform;
+			if (bIsTransformInWorldSpace)
+			{
+				const FTransform WorldTransform(OriginRotation, OriginLocation);
+				LocalTransform = WorldTransform * TrackingToWorldTransformInverse * AlignmentTransform.Inverse();
+			}
+			else
+			{
+				// Note that the local transform has the inverse scale of the alignment transform
+				// this makes sure the scale of the alignment transform is unchanged from the calculation below
+				LocalTransform = FTransform(OriginRotation, OriginLocation, FVector::OneVector / AlignmentTransform.GetScale3D());
+			}
+			// now we have the local transform, from T (local) * T (New Alignment) * T (tracking to world) = T (Identity), we have
+			// T (New Alignment) = T (inverse local) * T (Identity) * T (inverse tracking to world)
+			auto NewAlignmentTransform = LocalTransform.Inverse() * TrackingToWorldTransformInverse;
+			if (bMaintainUpDirection)
+			{
+				auto Rotator = NewAlignmentTransform.Rotator();
+				Rotator.Pitch = 0;
+				Rotator.Roll = 0;
+				NewAlignmentTransform.SetRotation(Rotator.Quaternion());
+			}
+			auto Rotator = NewAlignmentTransform.Rotator();
+			SetAlignmentTransform(NewAlignmentTransform);
+		}
+	}
+}
+
+void UARBlueprintLibrary::SetARWorldScale(float InWorldScale)
+{
+	if (ensure(InWorldScale > 0.f))
+	{
+		auto ARSystem = GetARSystem();
+		if (ARSystem.IsValid())
+		{
+			if (auto TrackingSystem = ARSystem.Pin()->GetXRTrackingSystem())
+			{
+				const auto AlignmentTransform = GetAlignmentTransform();
+				FTransform NewAlignmentTransform(AlignmentTransform.GetRotation(), AlignmentTransform.GetLocation(), FVector(1.f / InWorldScale));
+				SetAlignmentTransform(NewAlignmentTransform);
+				
+				const auto TrackingToWorldTransform = TrackingSystem->GetTrackingToWorldTransform();
+				const auto TrackingToWorldTransformInverse = TrackingToWorldTransform.Inverse();
+				
+				// For P in local space whose world space transform is at the origin
+				// We have T (local) * T (Alignment) * T (tracking to world) = T (Identity)
+				// yields T (local) = T (inverse tracking to world) * T (inverse alignment)
+				const auto LocalTransform = TrackingToWorldTransform.Inverse() * AlignmentTransform.Inverse();
+				
+				// We want to make sure the new alignment transform still puts P at the origin after the world scale change
+				// So we calculate where P is after the alignment transform change and move the world origin to it
+				// const auto WorldTransform = InverseAlignmentTransform * NewAlignmentTransform;
+				SetARWorldOriginLocationAndRotation(LocalTransform.GetLocation(), LocalTransform.Rotator(), false, false);
+			}
+		}
+	}
+}
+
+float UARBlueprintLibrary::GetARWorldScale()
+{
+	const auto AlignmentTransform = GetAlignmentTransform();
+	// Assuming the scale is uniform
+	return 1.f / AlignmentTransform.GetScale3D().X;
+}
+
+FTransform UARBlueprintLibrary::GetAlignmentTransform()
 {
 	auto ARSystem = GetARSystem();
 	if (ARSystem.IsValid())
 	{
-		return ARSystem.Pin()->GetPersonSegmentationDepthImage();
+		return ARSystem.Pin()->GetAlignmentTransform();
 	}
-	else
+	return FTransform::Identity;
+}
+
+bool UARBlueprintLibrary::AddTrackedPointWithName(const FTransform& WorldTransform, const FString& PointName, bool bDeletePointsWithSameName)
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid() && PointName.Len())
 	{
-		return nullptr;
+		return ARSystem.Pin()->AddTrackedPointWithName(WorldTransform, PointName, bDeletePointsWithSameName);
 	}
+	
+	return false;
+}
+
+TArray<UARTrackedPoint*> UARBlueprintLibrary::FindTrackedPointsByName(const FString& PointName)
+{
+	TArray<UARTrackedPoint*> Points;
+	
+	for (auto Point : GetAllGeometriesByClass<UARTrackedPoint>())
+	{
+		if (Point && Point->GetName() == PointName)
+		{
+			Points.Add(Point);
+		}
+	}
+	
+	return MoveTemp(Points);
+}
+
+int32 UARBlueprintLibrary::GetNumberOfTrackedFacesSupported()
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->GetNumberOfTrackedFacesSupported();
+	}
+	return 0;
+}
+
+UARTexture* UARBlueprintLibrary::GetARTexture(EARTextureType TextureType)
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->GetARTexture(TextureType);
+	}
+	return nullptr;
+}
+
+bool UARBlueprintLibrary::GetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics)
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->GetCameraIntrinsics(OutCameraIntrinsics);		
+	}
+	return false;
 }

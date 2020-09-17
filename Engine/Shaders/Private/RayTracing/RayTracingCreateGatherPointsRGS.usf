@@ -158,7 +158,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsTraceRGS)
 	float3 SampleCenterNormal = SampleCenterGBufferData.WorldNormal;
 
 	// Construct position, normal, and view direction
-	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
@@ -268,7 +268,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 	}
 
 	// Construct position, normal, and view direction
-	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);

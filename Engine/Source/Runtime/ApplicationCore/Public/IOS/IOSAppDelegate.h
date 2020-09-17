@@ -164,12 +164,7 @@ APPLICATIONCORE_API
 
 #if !UE_BUILD_SHIPPING && !PLATFORM_TVOS
 	/** Properties for managing the console */
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0
-	@property (nonatomic, retain) UIAlertView*		ConsoleAlert;
-#endif
-#ifdef __IPHONE_8_0
 	@property (nonatomic, retain) UIAlertController* ConsoleAlertController;
-#endif
 	@property (nonatomic, retain) NSMutableArray*	ConsoleHistoryValues;
 	@property (nonatomic, assign) int				ConsoleHistoryValuesIndex;
 #endif

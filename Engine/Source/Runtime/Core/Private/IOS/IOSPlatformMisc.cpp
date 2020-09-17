@@ -1219,19 +1219,8 @@ void FIOSPlatformMisc::RegisterForRemoteNotifications()
 	UIApplication* application = [UIApplication sharedApplication];
 	if ([application respondsToSelector : @selector(registerUserNotificationSettings:)])
 	{
-#ifdef __IPHONE_8_0
 		UIUserNotificationSettings * settings = [UIUserNotificationSettings settingsForTypes : (UIUserNotificationTypeBadge | UIUserNotificationTypeSound | UIUserNotificationTypeAlert) categories:nil];
 		[application registerUserNotificationSettings : settings];
-#endif
-	}
-	else
-	{
-        
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-		UIRemoteNotificationType myTypes = UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeSound;
-		[application registerForRemoteNotificationTypes : myTypes];
-#endif
-	}
 #endif
 #endif
     });

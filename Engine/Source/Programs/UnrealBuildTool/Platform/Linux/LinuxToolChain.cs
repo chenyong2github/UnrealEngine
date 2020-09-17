@@ -1483,7 +1483,7 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		bool UsingLld(string Architecture)
+		protected virtual bool UsingLld(string Architecture)
 		{
 			return bUseLld && (Architecture.StartsWith("x86_64") || (CompilerVersionMajor >= 9));
 		}

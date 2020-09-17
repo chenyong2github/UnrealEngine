@@ -22,42 +22,33 @@ template class TRenderAssetUpdate<FSkelMeshUpdateContext>;
 static constexpr uint32 GSkelMeshMaxNumResourceUpdatesPerLOD = 16;
 static constexpr uint32 GSkelMeshMaxNumResourceUpdatesPerBatch = (MAX_MESH_LOD_COUNT - 1) * GSkelMeshMaxNumResourceUpdatesPerLOD;
 
-FSkelMeshUpdateContext::FSkelMeshUpdateContext(USkeletalMesh* InMesh, EThreadType InCurrentThread)
+FSkelMeshUpdateContext::FSkelMeshUpdateContext(const USkeletalMesh* InMesh, EThreadType InCurrentThread)
 	: Mesh(InMesh)
 	, CurrentThread(InCurrentThread)
 {
 	check(InMesh);
 	checkSlow(InCurrentThread != FSkeletalMeshUpdate::TT_Render || IsInRenderingThread());
 	RenderData = Mesh->GetResourceForRendering();
+	if (RenderData)
+	{
+		LODResourcesView = TArrayView<FSkeletalMeshLODRenderData*>(RenderData->LODRenderData.GetData() + InMesh->GetStreamableResourceState().AssetLODBias, InMesh->GetStreamableResourceState().MaxNumLODs);
+	}
 }
 
-FSkelMeshUpdateContext::FSkelMeshUpdateContext(UStreamableRenderAsset* InMesh, EThreadType InCurrentThread)
+FSkelMeshUpdateContext::FSkelMeshUpdateContext(const UStreamableRenderAsset* InMesh, EThreadType InCurrentThread)
 #if UE_BUILD_SHIPPING
-	: FSkelMeshUpdateContext(static_cast<USkeletalMesh*>(InMesh), InCurrentThread)
+	: FSkelMeshUpdateContext(static_cast<const USkeletalMesh*>(InMesh), InCurrentThread)
 #else
 	: FSkelMeshUpdateContext(Cast<USkeletalMesh>(InMesh), InCurrentThread)
 #endif
 {}
 
-FSkeletalMeshUpdate::FSkeletalMeshUpdate(USkeletalMesh* InMesh, int32 InRequestedMips)
-	: TRenderAssetUpdate<FSkelMeshUpdateContext>(InMesh, InRequestedMips)
+FSkeletalMeshUpdate::FSkeletalMeshUpdate(const USkeletalMesh* InMesh)
+	: TRenderAssetUpdate<FSkelMeshUpdateContext>(InMesh)
 {
-	FSkeletalMeshRenderData* RenderData = InMesh->GetResourceForRendering();
-	if (RenderData)
-	{
-		CurrentFirstLODIdx = RenderData->CurrentFirstLODIdx;
-		check(CurrentFirstLODIdx >= 0 && CurrentFirstLODIdx < MAX_MESH_LOD_COUNT);
-	}
-	else
-	{
-		RequestedMips = INDEX_NONE;
-		PendingFirstMip = INDEX_NONE;
-		bIsCancelled = true;
-		CurrentFirstLODIdx = INDEX_NONE;
-	}
 }
 
-void FSkeletalMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread(USkeletalMesh* Mesh, FSkeletalMeshLODRenderData& LODResource)
+void FSkeletalMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread(FSkeletalMeshLODRenderData& LODResource)
 {
 	FStaticMeshVertexBuffers& VBs = LODResource.StaticVertexBuffers;
 	TangentsVertexBuffer = VBs.StaticMeshVertexBuffer.CreateTangentsRHIBuffer_RenderThread();
@@ -71,7 +62,7 @@ void FSkeletalMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread
 	AdjacencyIndexBuffer = LODResource.AdjacencyMultiSizeIndexContainer.CreateRHIBuffer_RenderThread();
 }
 
-void FSkeletalMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_Async(USkeletalMesh* Mesh, FSkeletalMeshLODRenderData& LODResource)
+void FSkeletalMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_Async(FSkeletalMeshLODRenderData& LODResource)
 {
 	FStaticMeshVertexBuffers& VBs = LODResource.StaticVertexBuffers;
 	TangentsVertexBuffer = VBs.StaticMeshVertexBuffer.CreateTangentsRHIBuffer_Async();
@@ -128,9 +119,14 @@ void FSkeletalMeshStreamIn::FIntermediateBuffers::CheckIsNull() const
 		&& !AltSkinWeightVertexBuffers.Num());
 }
 
-FSkeletalMeshStreamIn::FSkeletalMeshStreamIn(USkeletalMesh* InMesh, int32 InRequestedMips)
-	: FSkeletalMeshUpdate(InMesh, InRequestedMips)
-{}
+FSkeletalMeshStreamIn::FSkeletalMeshStreamIn(const USkeletalMesh* InMesh)
+	: FSkeletalMeshUpdate(InMesh)
+{
+	if (!ensure(PendingFirstLODIdx < CurrentFirstLODIdx))
+	{
+		bIsCancelled = true;
+	}
+}
 
 FSkeletalMeshStreamIn::~FSkeletalMeshStreamIn()
 {
@@ -147,22 +143,20 @@ void FSkeletalMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
-	USkeletalMesh* Mesh = Context.Mesh;
+	const USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
-		check(CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx && PendingFirstMip < CurrentFirstLODIdx);
-
-		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+		for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 		{
-			FSkeletalMeshLODRenderData& LODResource = RenderData->LODRenderData[LODIdx];
+			FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
 			if (bRenderThread)
 			{
-				IntermediateBuffersArray[LODIdx].CreateFromCPUData_RenderThread(Mesh, LODResource);
+				IntermediateBuffersArray[LODIndex].CreateFromCPUData_RenderThread(LODResource);
 			}
 			else
 			{
-				IntermediateBuffersArray[LODIdx].CreateFromCPUData_Async(Mesh, LODResource);
+				IntermediateBuffersArray[LODIndex].CreateFromCPUData_Async(LODResource);
 			}
 		}
 	}
@@ -185,11 +179,9 @@ void FSkeletalMeshStreamIn::DiscardNewLODs(const FContext& Context)
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (RenderData)
 	{
-		check(CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx && PendingFirstMip < CurrentFirstLODIdx);
-
-		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+		for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 		{
-			FSkeletalMeshLODRenderData& LODResource = RenderData->LODRenderData[LODIdx];
+			FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
 			LODResource.ReleaseCPUResources(true);
 		}
 	}
@@ -197,33 +189,29 @@ void FSkeletalMeshStreamIn::DiscardNewLODs(const FContext& Context)
 
 void FSkeletalMeshStreamIn::DoFinishUpdate(const FContext& Context)
 {
-	USkeletalMesh* Mesh = Context.Mesh;
+	const USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
-		check(Context.CurrentThread == TT_Render
-			&& CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx
-			&& PendingFirstMip < CurrentFirstLODIdx);
+		check(Context.CurrentThread == TT_Render);
 		// Use a scope to flush the batcher before updating CurrentFirstLODIdx
 		{
 			TRHIResourceUpdateBatcher<GSkelMeshMaxNumResourceUpdatesPerBatch> Batcher;
 
-			for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+			for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 			{
-				FSkeletalMeshLODRenderData& LODResource = RenderData->LODRenderData[LODIdx];
+				FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
 				LODResource.IncrementMemoryStats(Mesh->bHasVertexColors);
-				IntermediateBuffersArray[LODIdx].TransferBuffers(LODResource, Batcher);
+				IntermediateBuffersArray[LODIndex].TransferBuffers(LODResource, Batcher);
 			}
 		}
-		check(Mesh->GetCachedNumResidentLODs() == RenderData->LODRenderData.Num() - RenderData->CurrentFirstLODIdx);
-		RenderData->CurrentFirstLODIdx = RenderData->PendingFirstLODIdx = PendingFirstMip;
-		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODRenderData.Num() - PendingFirstMip));
+		RenderData->PendingFirstLODIdx = RenderData->CurrentFirstLODIdx = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumRequestedLODs);
 	}
 	else
 	{
-		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+		for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 		{
-			IntermediateBuffersArray[LODIdx].SafeRelease();
+			IntermediateBuffersArray[LODIndex].SafeRelease();
 		}
 	}
 }
@@ -238,8 +226,8 @@ void FSkeletalMeshStreamIn::DoCancel(const FContext& Context)
 	DoFinishUpdate(Context);
 }
 
-FSkeletalMeshStreamOut::FSkeletalMeshStreamOut(USkeletalMesh* InMesh, int32 InRequestedMips)
-	: FSkeletalMeshUpdate(InMesh, InRequestedMips)
+FSkeletalMeshStreamOut::FSkeletalMeshStreamOut(const USkeletalMesh* InMesh)
+	: FSkeletalMeshUpdate(InMesh)
 {
 	PushTask(FContext(InMesh, TT_None), TT_GameThread, SRA_UPDATE_CALLBACK(ConditionalMarkComponentsDirty), TT_None, nullptr);
 }
@@ -250,11 +238,11 @@ void FSkeletalMeshStreamOut::ConditionalMarkComponentsDirty(const FContext& Cont
 	CSV_SCOPED_TIMING_STAT_GLOBAL(SkStreamingMarkDirtyTime);
 	check(Context.CurrentThread == TT_GameThread);
 
-	USkeletalMesh* Mesh = Context.Mesh;
+	const USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
-		RenderData->PendingFirstLODIdx = PendingFirstMip;
+		RenderData->PendingFirstLODIdx = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumRequestedLODs);
 
 		TArray<const UPrimitiveComponent*> Comps;
 		IStreamingManager::Get().GetTextureStreamingManager().GetAssetComponents(Mesh, Comps, [](const UPrimitiveComponent* Comp)
@@ -265,9 +253,9 @@ void FSkeletalMeshStreamOut::ConditionalMarkComponentsDirty(const FContext& Cont
 		{
 			check(Comps[Idx]->IsA<USkinnedMeshComponent>());
 			USkinnedMeshComponent* Comp = (USkinnedMeshComponent*)Comps[Idx];
-			if (Comp->PredictedLODLevel < PendingFirstMip)
+			if (Comp->PredictedLODLevel < RenderData->PendingFirstLODIdx)
 			{
-				Comp->PredictedLODLevel = PendingFirstMip;
+				Comp->PredictedLODLevel = RenderData->PendingFirstLODIdx;
 				Comp->bForceMeshObjectUpdate = true;
 				Comp->MarkRenderDynamicDataDirty();
 			}
@@ -285,16 +273,16 @@ void FSkeletalMeshStreamOut::WaitForReferences(const FContext& Context)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshStreamOut::WaitForReferences"), STAT_SkeletalMeshStreamOut_WaitForReferences, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Async);
 
-	USkeletalMesh* Mesh = Context.Mesh;
+	const USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	uint32 NumExternalReferences = 0;
 
 	if (Mesh && RenderData)
 	{
-		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
+		for (int32 LODIndex = CurrentFirstLODIdx; LODIndex < PendingFirstLODIdx; ++LODIndex)
 		{
 			// Minus 1 since the LODResources reference is not considered external
-			NumExternalReferences += RenderData->LODRenderData[LODIdx].GetRefCount() - 1;
+			NumExternalReferences += Context.LODResourcesView[LODIndex]->GetRefCount() - 1;
 		}
 
 		if (NumExternalReferences > PreviousNumberOfExternalReferences && NumReferenceChecks > 0)
@@ -307,6 +295,12 @@ void FSkeletalMeshStreamOut::WaitForReferences(const FContext& Context)
 	if (!NumExternalReferences || NumReferenceChecks >= GStreamingMaxReferenceChecks)
 	{
 		PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(ReleaseBuffers), (EThreadType)Context.CurrentThread, SRA_UPDATE_CALLBACK(Cancel));
+		
+		// This is required to allow the engine to generate the bone buffers for the PendingFirstLODIdx. See logic in FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable().
+		if (NumReferenceChecks == 0)
+		{
+			bDeferExecution = true;
+		}
 	}
 	else
 	{
@@ -325,20 +319,17 @@ void FSkeletalMeshStreamOut::ReleaseBuffers(const FContext& Context)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshStreamOut::ReleaseBuffers"), STAT_SkeletalMeshStreamOut_ReleaseBuffers, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Render);
-	USkeletalMesh* Mesh = Context.Mesh;
+	const USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
-		check(CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx && PendingFirstMip > CurrentFirstLODIdx);
-		check(Mesh->GetCachedNumResidentLODs() == RenderData->LODRenderData.Num() - CurrentFirstLODIdx);
-		RenderData->CurrentFirstLODIdx = PendingFirstMip;
-		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODRenderData.Num() - PendingFirstMip));
+		RenderData->CurrentFirstLODIdx = Context.RenderData->PendingFirstLODIdx;
 
 		TRHIResourceUpdateBatcher<GSkelMeshMaxNumResourceUpdatesPerBatch> Batcher;
 
-		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
+		for (int32 LODIndex = CurrentFirstLODIdx; LODIndex < PendingFirstLODIdx; ++LODIndex)
 		{
-			FSkeletalMeshLODRenderData& LODResource = RenderData->LODRenderData[LODIdx];
+			FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
 			FStaticMeshVertexBuffers& VBs = LODResource.StaticVertexBuffers;
 			LODResource.DecrementMemoryStats();
 			VBs.StaticMeshVertexBuffer.ReleaseRHIForStreaming(Batcher);
@@ -361,10 +352,10 @@ void FSkeletalMeshStreamOut::ReleaseBuffers(const FContext& Context)
 void FSkeletalMeshStreamOut::Cancel(const FContext& Context)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshStreamOut::Cancel"), STAT_SkeletalMeshStreamOut_Cancel, STATGROUP_StreamingDetails);
-	FSkeletalMeshRenderData* RenderData = Context.RenderData;
-	if (RenderData)
+
+	if (Context.RenderData)
 	{
-		RenderData->PendingFirstLODIdx = CurrentFirstLODIdx;
+		Context.RenderData->PendingFirstLODIdx = Context.RenderData->CurrentFirstLODIdx;
 	}
 }
 
@@ -378,8 +369,8 @@ void FSkeletalMeshStreamIn_IO::FCancelIORequestsTask::DoWork()
 	PendingUpdate->DoUnlock(OldState);
 }
 
-FSkeletalMeshStreamIn_IO::FSkeletalMeshStreamIn_IO(USkeletalMesh* InMesh, int32 InRequestedMips, bool bHighPrio)
-	: FSkeletalMeshStreamIn(InMesh, InRequestedMips)
+FSkeletalMeshStreamIn_IO::FSkeletalMeshStreamIn_IO(const USkeletalMesh* InMesh, bool bHighPrio)
+	: FSkeletalMeshStreamIn(InMesh)
 	, IORequest(nullptr)
 	, bHighPrioIORequest(bHighPrio)
 {}
@@ -436,23 +427,23 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 	{
 		return;
 	}
-	check(!IORequest && PendingFirstMip < CurrentFirstLODIdx);
+	check(!IORequest && PendingFirstLODIdx < CurrentFirstLODIdx);
 
-	USkeletalMesh* Mesh = Context.Mesh;
+	const USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (Mesh && RenderData)
 	{
 #if USE_BULKDATA_STREAMING_TOKEN
 		FString Filename;
-		verify(Mesh->GetMipDataFilename(PendingFirstMip, Filename));
+		verify(Mesh->GetMipDataFilename(PendingFirstLODIdx, Filename));
 #endif	
 
 		SetAsyncFileCallback(Context);
 
 		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
-		for (int32 Index = PendingFirstMip; Index < CurrentFirstLODIdx; ++Index)
+		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
 		{
-			BulkDataArray.Push(&RenderData->LODRenderData[Index].StreamingBulkData);
+			BulkDataArray.Push(&Context.LODResourcesView[Index]->StreamingBulkData);
 		}
 
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
@@ -491,13 +482,13 @@ void FSkeletalMeshStreamIn_IO::ReportIOError(const FContext& Context)
 	// Invalidate the cache state of all initial mips (note that when using FIoChunkId each mip has a different value).
 	if (bFailedOnIOError && Context.Mesh)
 	{
-		IRenderAssetStreamingManager& StreamingManager = IStreamingManager::Get().GetTextureStreamingManager();
+		IRenderAssetStreamingManager& StreamingManager = IStreamingManager::Get().GetRenderAssetStreamingManager();
 		for (int32 MipIndex = 0; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
 			StreamingManager.MarkMountedStateDirty(Context.Mesh->GetMipIoFilenameHash(MipIndex));
 		}
 
-		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Stream in request failed due to IO error."), *Context.Mesh->GetName());
+		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] SkeletalMesh stream in request failed due to IO error (LOD %d-%d)."), *Context.Mesh->GetName(), PendingFirstLODIdx, CurrentFirstLODIdx - 1);
 	}
 }
 
@@ -506,22 +497,21 @@ void FSkeletalMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
 	check(!TaskSynchronization.GetValue());
-	USkeletalMesh* Mesh = Context.Mesh;
+	const USkeletalMesh* Mesh = Context.Mesh;
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
-		check(PendingFirstMip < CurrentFirstLODIdx && CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx);
 		check(IORequest->GetSize() >= 0 && IORequest->GetSize() <= TNumericLimits<uint32>::Max());
 
 		TArrayView<uint8> Data(IORequest->GetReadResults(), IORequest->GetSize());
 		FMemoryReaderView Ar(Data, true);
-		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+		for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 		{
-			FSkeletalMeshLODRenderData& LODResource = RenderData->LODRenderData[LODIdx];
+			FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
 			const bool bForceKeepCPUResources = FSkeletalMeshLODRenderData::ShouldForceKeepCPUResources();
-			const bool bNeedsCPUAccess = FSkeletalMeshLODRenderData::ShouldKeepCPUResources(Mesh, LODIdx, bForceKeepCPUResources);
+			const bool bNeedsCPUAccess = FSkeletalMeshLODRenderData::ShouldKeepCPUResources(Mesh, LODIndex, bForceKeepCPUResources);
 			constexpr uint8 DummyStripFlags = 0;
-			LODResource.SerializeStreamedData(Ar, Mesh, LODIdx, DummyStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
+			LODResource.SerializeStreamedData(Ar, const_cast<USkeletalMesh*>(Mesh), LODIndex, DummyStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
 		}
 
 		FMemory::Free(Data.GetData()); // Free the memory we took ownership of via IORequest->GetReadResults()
@@ -544,8 +534,8 @@ void FSkeletalMeshStreamIn_IO::CancelIORequest()
 }
 
 template <bool bRenderThread>
-TSkeletalMeshStreamIn_IO<bRenderThread>::TSkeletalMeshStreamIn_IO(USkeletalMesh* InMesh, int32 InRequestedMips, bool bHighPrio)
-	: FSkeletalMeshStreamIn_IO(InMesh, InRequestedMips, bHighPrio)
+TSkeletalMeshStreamIn_IO<bRenderThread>::TSkeletalMeshStreamIn_IO(const USkeletalMesh* InMesh, bool bHighPrio)
+	: FSkeletalMeshStreamIn_IO(InMesh, bHighPrio)
 {
 	PushTask(FContext(InMesh, TT_None), TT_Async, SRA_UPDATE_CALLBACK(DoInitiateIO), TT_None, nullptr);
 }
@@ -597,9 +587,8 @@ template class TSkeletalMeshStreamIn_IO<true>;
 template class TSkeletalMeshStreamIn_IO<false>;
 
 #if WITH_EDITOR
-FSkeletalMeshStreamIn_DDC::FSkeletalMeshStreamIn_DDC(USkeletalMesh* InMesh, int32 InRequestedMips)
-	: FSkeletalMeshStreamIn(InMesh, InRequestedMips)
-	, bDerivedDataInvalid(false)
+FSkeletalMeshStreamIn_DDC::FSkeletalMeshStreamIn_DDC(const USkeletalMesh* InMesh)
+	: FSkeletalMeshStreamIn(InMesh)
 {}
 
 void FSkeletalMeshStreamIn_DDC::LoadNewLODsFromDDC(const FContext& Context)
@@ -609,8 +598,8 @@ void FSkeletalMeshStreamIn_DDC::LoadNewLODsFromDDC(const FContext& Context)
 }
 
 template <bool bRenderThread>
-TSkeletalMeshStreamIn_DDC<bRenderThread>::TSkeletalMeshStreamIn_DDC(USkeletalMesh* InMesh, int32 InRequestedMips)
-	: FSkeletalMeshStreamIn_DDC(InMesh, InRequestedMips)
+TSkeletalMeshStreamIn_DDC<bRenderThread>::TSkeletalMeshStreamIn_DDC(const USkeletalMesh* InMesh)
+	: FSkeletalMeshStreamIn_DDC(InMesh)
 {
 	PushTask(FContext(InMesh, TT_None), TT_Async, SRA_UPDATE_CALLBACK(DoLoadNewLODsFromDDC), TT_None, nullptr);
 }

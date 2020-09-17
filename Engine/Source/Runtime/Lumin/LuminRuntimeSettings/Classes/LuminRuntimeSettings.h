@@ -25,8 +25,6 @@ enum class ELuminComponentType : uint8
 	Fullscreen,
 	SearchProvider,
 	MusicService,
-	Screens,
-	ScreensImmersive,
 	Console,
 	SystemUI,
 };
@@ -119,6 +117,11 @@ enum class ELuminPrivilege : uint8
 	HandMesh,
 	WifiStatusRead,
 	SocialConnectionsInvitesAccess,
+	SocialConnectionsSelectAccess,
+	SecureBrowserWindow,
+	BluetoothAdapterExternalApp,
+	BluetoothAdapterUser,
+	BluetoothGattWrite,
 };
 
 USTRUCT(BlueprintType)

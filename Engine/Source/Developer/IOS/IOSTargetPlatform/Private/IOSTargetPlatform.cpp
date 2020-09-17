@@ -18,6 +18,7 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 #if WITH_ENGINE
+#include "Engine/TextureCube.h"
 #include "TextureResource.h"
 #include "AudioCompressionSettings.h"
 #endif
@@ -693,6 +694,23 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 		}
 		OutFormats.AddUnique(TextureFormatNamesPVRTC);
 	}
+
+	for (FName& TextureFormatName : OutFormats.Last())
+	{
+		if (Texture->IsA(UTextureCube::StaticClass()))
+		{
+			const UTextureCube* Cube = CastChecked<UTextureCube>(Texture);
+			if (Cube != nullptr)
+			{
+				FTextureFormatSettings FormatSettings;
+				Cube->GetDefaultFormatSettings(FormatSettings);
+				if (FormatSettings.CompressionSettings == TC_ReflectionCapture && !FormatSettings.CompressionNone)
+				{
+					TextureFormatName = FName(TEXT("ETC2_RGBA"));
+				}
+			}
+		}
+	}
 }
 
 void FIOSTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const 
@@ -725,6 +743,37 @@ void FIOSTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 	}
 }
 
+FName FIOSTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) const
+{
+#if WITH_EDITOR
+	const static FName NameETC2_RGB(TEXT("ETC2_RGB"));
+	const static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
+	const static FName NameAutoETC2(TEXT("AutoETC2"));
+
+	// Remap non-ETC variants to ETC
+	const static FName ETCRemap[][2] =
+	{
+		{ { FName(TEXT("ASTC_RGB")) },			{ NameETC2_RGB } },
+		{ { FName(TEXT("ASTC_RGBA")) },			{ NameETC2_RGBA } },
+		{ { FName(TEXT("ASTC_RGBAuto")) },		{ NameAutoETC2 } },
+		{ { FName(TEXT("ASTC_NormalAG")) },		{ NameETC2_RGB } },
+		{ { FName(TEXT("ASTC_NormalRG")) },		{ NameETC2_RGB } },
+		{ { FName(TEXT("PVRTC2")) },			{ NameETC2_RGB } },
+		{ { FName(TEXT("PVRTC4")) },			{ NameETC2_RGBA } },
+		{ { FName(TEXT("PVRTCN")) },			{ NameETC2_RGB } },
+		{ { FName(TEXT("AutoPVRTC")) },			{ NameAutoETC2 } }
+	};
+
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(ETCRemap); RemapIndex++)
+	{
+		if (ETCRemap[RemapIndex][0] == Format)
+		{
+			return ETCRemap[RemapIndex][1];
+		}
+	}
+#endif
+	return Format;
+}
 
 const UTextureLODSettings& FIOSTargetPlatform::GetTextureLODSettings() const
 {

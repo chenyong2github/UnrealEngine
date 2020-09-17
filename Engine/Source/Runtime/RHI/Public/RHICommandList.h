@@ -469,7 +469,7 @@ public:
 		return AllocCommand(sizeof(TCmd), alignof(TCmd));
 	}
 
-	FORCEINLINE uint32 GetUID()
+	FORCEINLINE uint32 GetUID()  const
 	{
 		return UID;
 	}
@@ -481,17 +481,32 @@ public:
 	{
 		return bExecuting;
 	}
-	FORCEINLINE bool IsBottomOfPipe()
+	FORCEINLINE bool IsBottomOfPipe() const
 	{
 		return Bypass() || IsExecuting();
 	}
 
-	FORCEINLINE bool IsTopOfPipe()
+	FORCEINLINE bool IsTopOfPipe() const
 	{
 		return !IsBottomOfPipe();
 	}
 
-	bool Bypass();
+	FORCEINLINE bool IsGraphics() const
+	{
+		return Context != nullptr;
+	}
+
+	FORCEINLINE bool IsAsyncCompute() const
+	{
+		return Context == nullptr && ComputeContext != nullptr;
+	}
+
+	FORCEINLINE ERHIPipeline GetPipeline() const
+	{
+		return IsAsyncCompute() ? ERHIPipeline::AsyncCompute : ERHIPipeline::Graphics;
+	}
+
+	bool Bypass() const;
 
 	FORCEINLINE void ExchangeCmdList(FRHICommandListBase& Other)
 	{
@@ -524,6 +539,7 @@ public:
 
 	void SetComputeContext(IRHIComputeContext* InComputeContext)
 	{
+		check(InComputeContext);
 		check(Context == nullptr);
 		ComputeContext = InComputeContext;
 	}
@@ -1203,26 +1219,6 @@ FRHICOMMAND_MACRO(FRHICommandEndRenderSubPass)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandBindClearMRTValues)
-{
-	bool bClearColor;
-	bool bClearDepth;
-	bool bClearStencil;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandBindClearMRTValues(
-		bool InbClearColor,
-		bool InbClearDepth,
-		bool InbClearStencil
-		) 
-		: bClearColor(InbClearColor)
-		, bClearDepth(InbClearDepth)
-		, bClearStencil(InbClearStencil)
-	{
-	}	
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 struct FRHICommandSetComputeShaderString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandSetComputeShader"); }
@@ -1301,43 +1297,28 @@ struct FRHICommandDispatchIndirectComputeShader final : public FRHICommand<FRHIC
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBeginUAVOverlapString
+FRHICOMMAND_MACRO(FRHICommandBeginUAVOverlap)
 {
-	static const TCHAR* TStr() { return TEXT("FRHICommandBeginUAVOverlap"); }
+	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
-struct FRHICommandBeginUAVOverlap final : public FRHICommand<FRHICommandBeginUAVOverlap, FRHICommandBeginUAVOverlapString>
-{
-	FORCEINLINE_DEBUGGABLE FRHICommandBeginUAVOverlap()
-	{}
 
+FRHICOMMAND_MACRO(FRHICommandEndUAVOverlap)
+{
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndUAVOverlapString
+FRHICOMMAND_MACRO(FRHICommandBeginSpecificUAVOverlap)
 {
-	static const TCHAR* TStr() { return TEXT("FRHICommandEndUAVOverlap"); }
-};
-struct FRHICommandEndUAVOverlap final : public FRHICommand<FRHICommandEndUAVOverlap, FRHICommandEndUAVOverlapString>
-{
-	FORCEINLINE_DEBUGGABLE FRHICommandEndUAVOverlap()
-	{}
-
+	TArrayView<FRHIUnorderedAccessView*> UAVs;
+	FORCEINLINE_DEBUGGABLE FRHICommandBeginSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView*> InUAVs) : UAVs(InUAVs) {}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandAutomaticCacheFlushAfterComputeShader)
+FRHICOMMAND_MACRO(FRHICommandEndSpecificUAVOverlap)
 {
-	bool bEnable;
-	FORCEINLINE_DEBUGGABLE FRHICommandAutomaticCacheFlushAfterComputeShader(bool InbEnable)
-		: bEnable(InbEnable)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO(FRHICommandFlushComputeShaderCache)
-{
-	RHI_API void Execute(FRHICommandListBase& CmdList);
+	TArrayView<FRHIUnorderedAccessView*> UAVs;
+	FORCEINLINE_DEBUGGABLE FRHICommandEndSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView*> InUAVs) : UAVs(InUAVs) {}
+	RHI_API void Execute(FRHICommandListBase & CmdList);
 };
 
 FRHICOMMAND_MACRO(FRHICommandDrawPrimitiveIndirect)
@@ -1498,96 +1479,39 @@ FRHICOMMAND_MACRO(FRHICommandResummarizeHTile)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandTransitionTexturesDepth)
+FRHICOMMAND_MACRO(FRHICommandBeginTransitions)
 {
-	FExclusiveDepthStencil DepthStencilMode;
-	FRHITexture* DepthTexture;
+	TArrayView<const FRHITransition*> Transitions;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandTransitionTexturesDepth(FExclusiveDepthStencil InDepthStencilMode, FRHITexture* InDepthTexture)
-		: DepthStencilMode(InDepthStencilMode)
-		, DepthTexture(InDepthTexture)
+	FRHICommandBeginTransitions(TArrayView<const FRHITransition*> InTransitions)
+		: Transitions(InTransitions)
 	{
 	}
+
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandTransitionTextures)
+FRHICOMMAND_MACRO(FRHICommandEndTransitions)
 {
-	int32 NumTextures;
-	FRHITexture** Textures; // Pointer to an array of textures, allocated inline with the command list
-	EResourceTransitionAccess TransitionType;
-	FORCEINLINE_DEBUGGABLE FRHICommandTransitionTextures(EResourceTransitionAccess InTransitionType, FRHITexture** InTextures, int32 InNumTextures)
-		: NumTextures(InNumTextures)
-		, Textures(InTextures)
-		, TransitionType(InTransitionType)
+	TArrayView<const FRHITransition*> Transitions;
+
+	FRHICommandEndTransitions(TArrayView<const FRHITransition*> InTransitions)
+		: Transitions(InTransitions)
 	{
 	}
+
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandTransitionTexturesArray)
-{	
-	TArray<FRHITexture*>& Textures;
-	EResourceTransitionAccess TransitionType;
-	FORCEINLINE_DEBUGGABLE FRHICommandTransitionTexturesArray(EResourceTransitionAccess InTransitionType, TArray<FRHITexture*>& InTextures)
-		: Textures(InTextures)
-		, TransitionType(InTransitionType)
-	{		
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-
-FRHICOMMAND_MACRO(FRHICommandTransitionTexturesPipeline)
+FRHICOMMAND_MACRO(FRHICommandResourceTransition)
 {
-	int32 NumTextures;
-	FRHITexture** Textures; // Pointer to an array of textures, allocated inline with the command list
-	EResourceTransitionAccess TransitionType;
-	EResourceTransitionPipeline TransitionPipeline;
-	FORCEINLINE_DEBUGGABLE FRHICommandTransitionTexturesPipeline(EResourceTransitionAccess InTransitionType, EResourceTransitionPipeline InTransitionPipeline, FRHITexture** InTextures, int32 InNumTextures)
-		: NumTextures(InNumTextures)
-		, Textures(InTextures)
-		, TransitionType(InTransitionType)
-		, TransitionPipeline(InTransitionPipeline)
+	FRHITransition* Transition;
+
+	FRHICommandResourceTransition(FRHITransition* InTransition)
+		: Transition(InTransition)
 	{
 	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
 
-FRHICOMMAND_MACRO(FRHICommandTransitionTexturesArrayPipeline)
-{
-	TArray<FRHITexture*>& Textures;
-	EResourceTransitionAccess TransitionType;
-	EResourceTransitionPipeline TransitionPipeline;
-	FORCEINLINE_DEBUGGABLE FRHICommandTransitionTexturesArrayPipeline(EResourceTransitionAccess InTransitionType, EResourceTransitionPipeline InTransitionPipeline, TArray<FRHITexture*>& InTextures)
-		: Textures(InTextures)
-		, TransitionType(InTransitionType)
-		, TransitionPipeline(InTransitionPipeline)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-struct FRHICommandTransitionUAVsString
-{
-	static const TCHAR* TStr() { return TEXT("FRHICommandTransitionUAVs"); }
-};
-struct FRHICommandTransitionUAVs final : public FRHICommand<FRHICommandTransitionUAVs, FRHICommandTransitionUAVsString>
-{
-	int32 NumUAVs;
-	FRHIUnorderedAccessView** UAVs; // Pointer to an array of UAVs, allocated inline with the command list
-	EResourceTransitionAccess TransitionType;
-	EResourceTransitionPipeline TransitionPipeline;
-	FRHIComputeFence* WriteFence;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandTransitionUAVs(EResourceTransitionAccess InTransitionType, EResourceTransitionPipeline InTransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 InNumUAVs, FRHIComputeFence* InWriteFence)
-		: NumUAVs(InNumUAVs)
-		, UAVs(InUAVs)
-		, TransitionType(InTransitionType)
-		, TransitionPipeline(InTransitionPipeline)
-		, WriteFence(InWriteFence)
-	{
-	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
@@ -1603,21 +1527,6 @@ struct FRHICommandSetAsyncComputeBudget final : public FRHICommand<FRHICommandSe
 	FORCEINLINE_DEBUGGABLE FRHICommandSetAsyncComputeBudget(EAsyncComputeBudget InBudget)
 		: Budget(InBudget)
 	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-struct FRHICommandWaitComputeFenceString
-{
-	static const TCHAR* TStr() { return TEXT("FRHICommandWaitComputeFence"); }
-};
-struct FRHICommandWaitComputeFence final : public FRHICommand<FRHICommandWaitComputeFence, FRHICommandWaitComputeFenceString>
-{
-	FRHIComputeFence* WaitFence;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandWaitComputeFence(FRHIComputeFence* InWaitFence)
-		: WaitFence(InWaitFence)
-	{		
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
@@ -2362,7 +2271,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetShaderUniformBuffer<FRHIComputeShader>)(Shader, BaseIndex, UniformBuffer);
 	}
 
-	FORCEINLINE void SetShaderUniformBuffer(FComputeShaderRHIRef& Shader, uint32 BaseIndex, FRHIUniformBuffer* UniformBuffer)
+	FORCEINLINE void SetShaderUniformBuffer(const FComputeShaderRHIRef& Shader, uint32 BaseIndex, FRHIUniformBuffer* UniformBuffer)
 	{
 		SetShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
 	}
@@ -2521,60 +2430,176 @@ public:
 		ALLOC_COMMAND(FRHICommandClearUAVUint)(UnorderedAccessViewRHI, Values);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV, FRHIComputeFence* WriteFence)
+	FORCEINLINE_DEBUGGABLE void BeginTransitions(TArrayView<const FRHITransition*> Transitions)
 	{
-		check(InUAV == nullptr || InUAV->IsCommitted());
-		FRHIUnorderedAccessView* UAV = InUAV;
 		if (Bypass())
 		{
-			GetComputeContext().RHITransitionResources(TransitionType, TransitionPipeline, &UAV, 1, WriteFence);
-			return;
-		}
+			GetComputeContext().RHIBeginTransitions(Transitions);
 
-		// Allocate space to hold the single UAV pointer inline in the command list itself.
-		FRHIUnorderedAccessView** UAVArray = (FRHIUnorderedAccessView**)Alloc(sizeof(FRHIUnorderedAccessView*), alignof(FRHIUnorderedAccessView*));
-		UAVArray[0] = UAV;
-		ALLOC_COMMAND(FRHICommandTransitionUAVs)(TransitionType, TransitionPipeline, UAVArray, 1, WriteFence);
+			for (const FRHITransition* Transition : Transitions)
+			{
+				Transition->MarkBegin(GetPipeline());
+			}
+		}
+		else
+		{
+			// Copy the transition array into the command list
+			FRHITransition** DstTransitionArray = (FRHITransition**)Alloc(sizeof(FRHITransition*) * Transitions.Num(), alignof(FRHITransition*));
+			FMemory::Memcpy(DstTransitionArray, Transitions.GetData(), sizeof(FRHITransition*) * Transitions.Num());
+
+			ALLOC_COMMAND(FRHICommandBeginTransitions)(MakeArrayView((const FRHITransition**)DstTransitionArray, Transitions.Num()));
+		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV)
+	FORCEINLINE_DEBUGGABLE void EndTransitions(TArrayView<const FRHITransition*> Transitions)
+	{
+		if (Bypass())
+		{
+			GetComputeContext().RHIEndTransitions(Transitions);
+
+			for (const FRHITransition* Transition : Transitions)
+			{
+				Transition->MarkEnd(GetPipeline());
+			}
+		}
+		else
+		{
+			// Copy the transition array into the command list
+			FRHITransition** DstTransitionArray = (FRHITransition**)Alloc(sizeof(FRHITransition*) * Transitions.Num(), alignof(FRHITransition*));
+			FMemory::Memcpy(DstTransitionArray, Transitions.GetData(), sizeof(FRHITransition*) * Transitions.Num());
+
+			ALLOC_COMMAND(FRHICommandEndTransitions)(MakeArrayView((const FRHITransition**)DstTransitionArray, Transitions.Num()));
+		}
+	}
+
+	inline void Transition(TArrayView<const FRHITransitionInfo> Infos)
+	{
+		ERHIPipeline Pipeline = GetPipeline();
+
+		if (Bypass())
+		{
+			// Stack allocate the transition
+			FMemStack& MemStack = FMemStack::Get();
+			FMemMark Mark(MemStack);
+			FRHITransition* Transition = new (MemStack.Alloc(FRHITransition::GetTotalAllocationSize(), FRHITransition::GetAlignment())) FRHITransition(Pipeline, Pipeline);
+			GDynamicRHI->RHICreateTransition(Transition, Pipeline, Pipeline, ERHICreateTransitionFlags::NoSplit, Infos);
+
+			GetComputeContext().RHIBeginTransitions(MakeArrayView((const FRHITransition**)&Transition, 1));
+			GetComputeContext().RHIEndTransitions(MakeArrayView((const FRHITransition**)&Transition, 1));
+
+			// Manual release
+			GDynamicRHI->RHIReleaseTransition(Transition);
+			Transition->~FRHITransition();
+		}
+		else
+		{
+			// Allocate the transition in the command list
+			FRHITransition* Transition = new (Alloc(FRHITransition::GetTotalAllocationSize(), FRHITransition::GetAlignment())) FRHITransition(Pipeline, Pipeline);
+			GDynamicRHI->RHICreateTransition(Transition, Pipeline, Pipeline, ERHICreateTransitionFlags::NoSplit, Infos);
+
+			ALLOC_COMMAND(FRHICommandResourceTransition)(Transition);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void BeginTransition(const FRHITransition* Transition)
+	{
+		BeginTransitions(MakeArrayView(&Transition, 1));
+	}
+
+	FORCEINLINE_DEBUGGABLE void EndTransition(const FRHITransition* Transition)
+	{
+		EndTransitions(MakeArrayView(&Transition, 1));
+	}
+
+	FORCEINLINE_DEBUGGABLE void Transition(const FRHITransitionInfo& Info)
+	{
+		Transition(MakeArrayView(&Info, 1));
+	}
+
+	/* LEGACY API */
+
+	FORCEINLINE_DEBUGGABLE void TransitionResource(ERHIAccess TransitionType, const FTextureRHIRef& InTexture)
+	{
+		Transition(FRHITransitionInfo(InTexture.GetReference(), ERHIAccess::Unknown, TransitionType));
+	}
+
+	FORCEINLINE_DEBUGGABLE void TransitionResource(ERHIAccess TransitionType, FRHITexture* InTexture)
+	{
+		Transition(FRHITransitionInfo(InTexture, ERHIAccess::Unknown, TransitionType));
+	}
+
+	inline void TransitionResources(ERHIAccess TransitionType, FRHITexture* const* InTextures, int32 NumTextures)
+	{
+		// Stack allocate the transition descriptors. These will get memcpy()ed onto the RHI command list if required.
+		FMemMark Mark(FMemStack::Get());
+		TArray<FRHITransitionInfo, TMemStackAllocator<>> Infos;
+		Infos.Reserve(NumTextures);
+
+		for (int32 Index = 0; Index < NumTextures; ++Index)
+		{
+			Infos.Add(FRHITransitionInfo(InTextures[Index], ERHIAccess::Unknown, TransitionType));
+		}
+
+		Transition(Infos);
+	}
+
+	FORCEINLINE_DEBUGGABLE void TransitionResourceArrayNoCopy(ERHIAccess TransitionType, TArray<FRHITexture*>& InTextures)
+	{
+		TransitionResources(TransitionType, &InTextures[0], InTextures.Num());
+	}
+
+	inline void TransitionResources(ERHIAccess TransitionType, EResourceTransitionPipeline /* ignored TransitionPipeline */, FRHIUnorderedAccessView* const* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteFence)
+	{
+		// Stack allocate the transition descriptors. These will get memcpy()ed onto the RHI command list if required.
+		FMemMark Mark(FMemStack::Get());
+		TArray<FRHITransitionInfo, TMemStackAllocator<>> Infos;
+		Infos.Reserve(NumUAVs);
+
+		for (int32 Index = 0; Index < NumUAVs; ++Index)
+		{
+			Infos.Add(FRHITransitionInfo(InUAVs[Index], ERHIAccess::Unknown, TransitionType));
+		}
+
+		if (WriteFence)
+		{
+			ERHIPipeline SrcPipeline = IsAsyncCompute() ? ERHIPipeline::AsyncCompute : ERHIPipeline::Graphics;
+			ERHIPipeline DstPipeline = IsAsyncCompute() ? ERHIPipeline::Graphics : ERHIPipeline::AsyncCompute;
+
+			// Cross-pipeline transition. Begin on the current context and store the
+			// transition in the "compute fence" so we can end it later on the other context.
+			WriteFence->Transition = RHICreateTransition(SrcPipeline, DstPipeline, ERHICreateTransitionFlags::None, Infos);
+			BeginTransitions(MakeArrayView(&WriteFence->Transition, 1));
+		}
+		else
+		{
+			// No compute fence, so this transition is happening entirely on the current pipe.
+			Transition(Infos);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void TransitionResource(ERHIAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV, FRHIComputeFence* WriteFence)
+	{
+		TransitionResources(TransitionType, TransitionPipeline, &InUAV, 1, WriteFence);
+	}
+
+	FORCEINLINE_DEBUGGABLE void TransitionResource(ERHIAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV)
 	{
 		TransitionResource(TransitionType, TransitionPipeline, InUAV, nullptr);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteFence)
-	{
-		if (Bypass())
-		{
-			GetComputeContext().RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, WriteFence);
-			return;
-		}
-
-		// Allocate space to hold the list UAV pointers inline in the command list itself.
-		FRHIUnorderedAccessView** UAVArray = (FRHIUnorderedAccessView**)Alloc(sizeof(FRHIUnorderedAccessView*) * NumUAVs, alignof(FRHIUnorderedAccessView*));
-		for (int32 Index = 0; Index < NumUAVs; ++Index)
-		{
-			UAVArray[Index] = InUAVs[Index];
-		}
-
-		ALLOC_COMMAND(FRHICommandTransitionUAVs)(TransitionType, TransitionPipeline, UAVArray, NumUAVs, WriteFence);
-	}
-
-	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs)
+	FORCEINLINE_DEBUGGABLE void TransitionResources(ERHIAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* const* InUAVs, int32 NumUAVs)
 	{
 		TransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr);
 	}
 
 	FORCEINLINE_DEBUGGABLE void WaitComputeFence(FRHIComputeFence* WaitFence)
 	{
-		if (Bypass())
-		{
-			GetComputeContext().RHIWaitComputeFence(WaitFence);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandWaitComputeFence)(WaitFence);
+		check(WaitFence->Transition);
+		EndTransitions(MakeArrayView(&WaitFence->Transition, 1));
+		WaitFence->Transition = nullptr;
 	}
 
+	UE_DEPRECATED(4.26, "BeginUAVOverlap() with no arguments is deprecated. Use the overload which takes a UAV or array of UAVs to explicitly mark as safe for overlapped access.")
 	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap()
 	{
 		if (Bypass())
@@ -2585,7 +2610,8 @@ public:
 		ALLOC_COMMAND(FRHICommandBeginUAVOverlap)();
 	}
 
-	FORCEINLINE_DEBUGGABLE void EndUAVOverlap()
+	UE_DEPRECATED(4.26, "EndUAVOverlap() with no arguments is deprecated. Use the overload which takes a UAV or array of UAVs to explicitly mark as safe for overlapped access.")
+		FORCEINLINE_DEBUGGABLE void EndUAVOverlap()
 	{
 		if (Bypass())
 		{
@@ -2593,6 +2619,46 @@ public:
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandEndUAVOverlap)();
+	}
+
+	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap(FRHIUnorderedAccessView* UAV)
+	{
+		FRHIUnorderedAccessView* UAVs[1] = { UAV };
+		BeginUAVOverlap(MakeArrayView(UAVs, 1));
+	}
+
+	FORCEINLINE_DEBUGGABLE void EndUAVOverlap(FRHIUnorderedAccessView* UAV)
+	{
+		FRHIUnorderedAccessView* UAVs[1] = { UAV };
+		EndUAVOverlap(MakeArrayView(UAVs, 1));
+	}
+
+	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIBeginUAVOverlap(UAVs);
+			return;
+		}
+
+		const uint32 AllocSize = UAVs.Num() * sizeof(FRHIUnorderedAccessView*);
+		FRHIUnorderedAccessView** InlineUAVs = (FRHIUnorderedAccessView**)Alloc(AllocSize, alignof(FRHIUnorderedAccessView*));
+		FMemory::Memcpy(InlineUAVs, UAVs.GetData(), AllocSize);
+		ALLOC_COMMAND(FRHICommandBeginSpecificUAVOverlap)(MakeArrayView(InlineUAVs, UAVs.Num()));
+	}
+
+	FORCEINLINE_DEBUGGABLE void EndUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIEndUAVOverlap(UAVs);
+			return;
+		}
+
+		const uint32 AllocSize = UAVs.Num() * sizeof(FRHIUnorderedAccessView*);
+		FRHIUnorderedAccessView** InlineUAVs = (FRHIUnorderedAccessView**)Alloc(AllocSize, alignof(FRHIUnorderedAccessView*));
+		FMemory::Memcpy(InlineUAVs, UAVs.GetData(), AllocSize);
+		ALLOC_COMMAND(FRHICommandEndSpecificUAVOverlap)(MakeArrayView(InlineUAVs, UAVs.Num()));
 	}
 
 	FORCEINLINE_DEBUGGABLE void PushEvent(const TCHAR* Name, FColor Color)
@@ -3129,17 +3195,6 @@ public:
 		GraphicsPSOInit.bHasFragmentDensityAttachment = PSOContext.HasFragmentDensityAttachment;
 	}
 
-	FORCEINLINE_DEBUGGABLE void BindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBindClearMRTValues(bClearColor, bClearDepth, bClearStencil);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandBindClearMRTValues)(bClearColor, bClearDepth, bClearStencil);
-	}	
-
 	FORCEINLINE_DEBUGGABLE void SetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState, const FBoundShaderStateInput& ShaderInput, bool bApplyAdditionalState)
 	{
 		//check(IsOutsideRenderPass());
@@ -3152,48 +3207,6 @@ public:
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandSetGraphicsPipelineState)(GraphicsPipelineState, bApplyAdditionalState);
-	}
-
-	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap()
-	{
-		if (Bypass())
-		{
-			GetContext().RHIBeginUAVOverlap();
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandBeginUAVOverlap)();
-	}
-
-	FORCEINLINE_DEBUGGABLE void EndUAVOverlap()
-	{
-		if (Bypass())
-		{
-			GetContext().RHIEndUAVOverlap();
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandEndUAVOverlap)();
-	}
-
-	UE_DEPRECATED(4.25, "AutomaticCacheFlushAfterComputeShader is deprecated. Use RHICmdList.BeginUAVOverlap() and RHICmdList.EndUAVOverlap() to mark up sections of RHI commands where multiple draws/dispatches using UAVs are allowed to overlap without interleaved resource transitions. Call BeginUAVOverlap() where previously AutomaticCacheFlushAfterComputeShader(false) was called, and EndUAVOverlap() where previously AutomaticCacheFlushAfterComputeShader(true) was called.")
-	FORCEINLINE_DEBUGGABLE void AutomaticCacheFlushAfterComputeShader(bool bEnable)
-	{
-		if (Bypass())
-		{
-			GetContext().RHIAutomaticCacheFlushAfterComputeShader(bEnable);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandAutomaticCacheFlushAfterComputeShader)(bEnable);
-	}
-
-	UE_DEPRECATED(4.25, "FlushComputeShaderCache is deprecated. Use RHICmdList.BeginUAVOverlap() and RHICmdList.EndUAVOverlap() to mark up sections of RHI commands where multiple draws/dispatches using UAVs are allowed to overlap without interleaved resource transitions. Use of FlushComputeShaderCache() should be replaced with an appropriate call to RHICmdList.TransitionResources(), if one is not already being made.")
-	FORCEINLINE_DEBUGGABLE void FlushComputeShaderCache()
-	{
-		if (Bypass())
-		{
-			GetContext().RHIFlushComputeShaderCache();
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandFlushComputeShaderCache)();
 	}
 
 	FORCEINLINE_DEBUGGABLE void DrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset)
@@ -3365,96 +3378,31 @@ public:
 		ALLOC_COMMAND(FRHICommandPollOcclusionQueries)();
 	}
 
+	/* LEGACY API */
+
 	using FRHIComputeCommandList::TransitionResource;
 	using FRHIComputeCommandList::TransitionResources;
 
 	FORCEINLINE_DEBUGGABLE void TransitionResource(FExclusiveDepthStencil DepthStencilMode, FRHITexture* DepthTexture)
 	{
-		if (Bypass())
+		check(DepthStencilMode.IsUsingDepth() || DepthStencilMode.IsUsingStencil());
+
+		TArray<FRHITransitionInfo, TInlineAllocator<2>> Infos;
+
+		DepthStencilMode.EnumerateSubresources([&](ERHIAccess NewAccess, uint32 PlaneSlice)
 		{
-			GetContext().RHITransitionResources(DepthStencilMode, DepthTexture);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandTransitionTexturesDepth)(DepthStencilMode, DepthTexture);
+			FRHITransitionInfo Info;
+			Info.Type = FRHITransitionInfo::EType::Texture;
+			Info.Texture = DepthTexture;
+			Info.AccessAfter = NewAccess;
+			Info.PlaneSlice = PlaneSlice;
+			Infos.Emplace(Info);
+		});
+
+		FRHIComputeCommandList::Transition(MakeArrayView(Infos));
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, FRHITexture* InTexture)
-	{
-		FRHITexture* Texture = InTexture;
-		check(Texture == nullptr || Texture->IsCommitted());
-		if (Bypass())
-		{
-			GetContext().RHITransitionResources(TransitionType, &Texture, 1);
-			return;
-		}
-
-		// Allocate space to hold the single texture pointer inline in the command list itself.
-		FRHITexture** TextureArray = (FRHITexture**)Alloc(sizeof(FRHITexture*), alignof(FRHITexture*));
-		TextureArray[0] = Texture;
-		ALLOC_COMMAND(FRHICommandTransitionTextures)(TransitionType, TextureArray, 1);
-	}
-
-	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures)
-	{
-		if (Bypass())
-		{
-			GetContext().RHITransitionResources(TransitionType, InTextures, NumTextures);
-			return;
-		}
-
-		// Allocate space to hold the list of textures inline in the command list itself.
-		FRHITexture** InlineTextureArray = (FRHITexture**)Alloc(sizeof(FRHITexture*) * NumTextures, alignof(FRHITexture*));
-		for (int32 Index = 0; Index < NumTextures; ++Index)
-		{
-			InlineTextureArray[Index] = InTextures[Index];
-		}
-
-		ALLOC_COMMAND(FRHICommandTransitionTextures)(TransitionType, InlineTextureArray, NumTextures);
-	}
-
-	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture* InTexture)
-	{
-		FRHITexture* Texture = InTexture;
-		check(Texture == nullptr || Texture->IsCommitted());
-		if (Bypass())
-		{
-			GetContext().RHITransitionResources(TransitionType, TransitionPipeline, &Texture, 1);
-			return;
-		}
-
-		// Allocate space to hold the single texture pointer inline in the command list itself.
-		FRHITexture** TextureArray = (FRHITexture**)Alloc(sizeof(FRHITexture*), alignof(FRHITexture*));
-		TextureArray[0] = Texture;
-		ALLOC_COMMAND(FRHICommandTransitionTexturesPipeline)(TransitionType, TransitionPipeline, TextureArray, 1);
-	}
-
-	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture** InTextures, int32 NumTextures)
-	{
-		if (Bypass())
-		{
-			GetContext().RHITransitionResources(TransitionType, TransitionPipeline, InTextures, NumTextures);
-			return;
-		}
-
-		// Allocate space to hold the list of textures inline in the command list itself.
-		FRHITexture** InlineTextureArray = (FRHITexture**)Alloc(sizeof(FRHITexture*) * NumTextures, alignof(FRHITexture*));
-		for (int32 Index = 0; Index < NumTextures; ++Index)
-		{
-			InlineTextureArray[Index] = InTextures[Index];
-		}
-
-		ALLOC_COMMAND(FRHICommandTransitionTexturesPipeline)(TransitionType, TransitionPipeline,  InlineTextureArray, NumTextures);
-	}	
-
-	FORCEINLINE_DEBUGGABLE void TransitionResourceArrayNoCopy(EResourceTransitionAccess TransitionType, TArray<FRHITexture*>& InTextures)
-	{
-		if (Bypass())
-		{
-			GetContext().RHITransitionResources(TransitionType, &InTextures[0], InTextures.Num());
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandTransitionTexturesArray)(TransitionType, InTextures);
-	}
+	/* LEGACY API */
 
 	FORCEINLINE_DEBUGGABLE void BeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* Name)
 	{
@@ -3821,6 +3769,22 @@ public:
 	~FScopedRHIThreadStaller();
 };
 
+
+// Forward declare RHI creation function so they can still be called from the deprecated immediate command list resource creation functions
+FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
+FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
+FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
+FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo);
+FTexture2DRHIRef RHICreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo);
+FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, void** InitialMipData, uint32 NumInitialMips);
+FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo);
+FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo);
+FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo);
+FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo);
+
+extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData);
+extern RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bInHasInitialData);
+
 class RHI_API FRHICommandListImmediate : public FRHICommandList
 {
 	template <typename LAMBDA>
@@ -3990,14 +3954,21 @@ public:
 		return RHICreateUniformBuffer(Contents, Layout, Usage);
 	}
 	
+	FORCEINLINE FIndexBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
+	{
+		return GDynamicRHI->CreateAndLockIndexBuffer_RenderThread(*this, Stride, Size, InUsage, InResourceState, CreateInfo, OutDataBuffer);
+	}
+
 	FORCEINLINE FIndexBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
-		return GDynamicRHI->CreateAndLockIndexBuffer_RenderThread(*this, Stride, Size, InUsage, CreateInfo, OutDataBuffer);
+		ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags) InUsage | BUF_IndexBuffer, true);
+		return CreateAndLockIndexBuffer(Stride, Size, (EBufferUsageFlags) InUsage, ResourceState, CreateInfo, OutDataBuffer);
 	}
 	
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
 	FORCEINLINE FIndexBufferRHIRef CreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 	{
-		return GDynamicRHI->CreateIndexBuffer_RenderThread(*this, Stride, Size, InUsage, CreateInfo);
+		return RHICreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
 	}
 	
 	FORCEINLINE void* LockIndexBuffer(FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -4020,14 +3991,21 @@ public:
 		GDynamicRHI->UnlockStagingBuffer_RenderThread(*this, StagingBuffer);
 	}
 	
-	FORCEINLINE FVertexBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
+	FORCEINLINE FVertexBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
-		return GDynamicRHI->CreateAndLockVertexBuffer_RenderThread(*this, Size, InUsage, CreateInfo, OutDataBuffer);
+		return GDynamicRHI->CreateAndLockVertexBuffer_RenderThread(*this, Size, InUsage, InResourceState, CreateInfo, OutDataBuffer);
 	}
 
+	FORCEINLINE FVertexBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
+	{
+		ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags) InUsage | BUF_VertexBuffer, true);
+		return CreateAndLockVertexBuffer(Size, (EBufferUsageFlags) InUsage, ResourceState, CreateInfo, OutDataBuffer);
+	}
+
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
 	FORCEINLINE FVertexBufferRHIRef CreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 	{
-		return GDynamicRHI->CreateVertexBuffer_RenderThread(*this, Size, InUsage, CreateInfo);
+		return RHICreateVertexBuffer(Size, InUsage, CreateInfo);
 	}
 	
 	FORCEINLINE void* LockVertexBuffer(FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -4047,9 +4025,10 @@ public:
 		GDynamicRHI->RHICopyVertexBuffer(SourceBuffer,DestBuffer);
 	}
 
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
 	FORCEINLINE FStructuredBufferRHIRef CreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 	{
-		return GDynamicRHI->CreateStructuredBuffer_RenderThread(*this, Stride, Size, InUsage, CreateInfo);
+		return RHICreateStructuredBuffer(Stride, Size, InUsage, CreateInfo);
 	}
 	
 	FORCEINLINE void* LockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -4124,17 +4103,17 @@ public:
 		return GDynamicRHI->CreateShaderResourceView_RenderThread(*this, Buffer);
 	}
 	
-	FORCEINLINE uint64 CalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+	FORCEINLINE uint64 CalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 	{
 		return RHICalcTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo, OutAlign);
 	}
 	
-	FORCEINLINE uint64 CalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+	FORCEINLINE uint64 CalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 	{
 		return RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo, OutAlign);
 	}
 	
-	FORCEINLINE uint64 CalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+	FORCEINLINE uint64 CalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 	{
 		return RHICalcTextureCubePlatformSize(Size, Format, NumMips, Flags, CreateInfo, OutAlign);
 	}
@@ -4157,21 +4136,22 @@ public:
 		return GDynamicRHI->RHICreateTextureReference_RenderThread(*this, LastRenderTime);
 	}
 	
-	FORCEINLINE FTexture2DRHIRef CreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
+	FORCEINLINE FTexture2DRHIRef CreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
-		LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
-		return GDynamicRHI->RHICreateTexture2D_RenderThread(*this, SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
+		return RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
 	}
 
-	FORCEINLINE FTexture2DRHIRef CreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
+	FORCEINLINE FTexture2DRHIRef CreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
-		return GDynamicRHI->RHICreateTextureExternal2D_RenderThread(*this, SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
+		return RHICreateTextureExternal2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
 	}
 
-	FORCEINLINE FTexture2DRHIRef AsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, void** InitialMipData, uint32 NumInitialMips)
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
+	FORCEINLINE FTexture2DRHIRef AsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, void** InitialMipData, uint32 NumInitialMips)
 	{
-		LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
-		return GDynamicRHI->RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, InitialMipData, NumInitialMips);
+		return RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, InitialMipData, NumInitialMips);
 	}
 	
 	FORCEINLINE void CopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D)
@@ -4204,16 +4184,16 @@ public:
 		return GDynamicRHI->RHITransferTextures(Params);
 	}
 
-	FORCEINLINE FTexture2DArrayRHIRef CreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
+	FORCEINLINE FTexture2DArrayRHIRef CreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
-		LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
-		return GDynamicRHI->RHICreateTexture2DArray_RenderThread(*this, SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, CreateInfo);
+		return RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, CreateInfo);
 	}
 
-	FORCEINLINE FTexture3DRHIRef CreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
+	FORCEINLINE FTexture3DRHIRef CreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
-		LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
-		return GDynamicRHI->RHICreateTexture3D_RenderThread(*this, SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo);
+		return RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo);
 	}
 	
 	FORCEINLINE void GetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
@@ -4301,17 +4281,13 @@ public:
 	FORCEINLINE void* LockTexture2DArray(FRHITexture2DArray* Texture, uint32 TextureIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)
 	{
 		LLM_SCOPE(ELLMTag::Textures);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockTexture2DArray_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);  
-		return GDynamicRHI->RHILockTexture2DArray(Texture, TextureIndex, MipIndex, LockMode, DestStride, bLockWithinMiptail);
+		return GDynamicRHI->LockTexture2DArray_RenderThread(*this, Texture, TextureIndex, MipIndex, LockMode, DestStride, bLockWithinMiptail);
 	}
 	
 	FORCEINLINE void UnlockTexture2DArray(FRHITexture2DArray* Texture, uint32 TextureIndex, uint32 MipIndex, bool bLockWithinMiptail)
 	{
 		LLM_SCOPE(ELLMTag::Textures);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockTexture2DArray_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);   
-		GDynamicRHI->RHIUnlockTexture2DArray(Texture, TextureIndex, MipIndex, bLockWithinMiptail);
+		GDynamicRHI->UnlockTexture2DArray_RenderThread(*this, Texture, TextureIndex, MipIndex, bLockWithinMiptail);
 	}
 	
 	FORCEINLINE void UpdateTexture2D(FRHITexture2D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
@@ -4360,16 +4336,16 @@ public:
 		GDynamicRHI->UpdateTexture3D_RenderThread(*this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
 	}
 	
-	FORCEINLINE FTextureCubeRHIRef CreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
+	FORCEINLINE FTextureCubeRHIRef CreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
-		LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
-		return GDynamicRHI->RHICreateTextureCube_RenderThread(*this, Size, Format, NumMips, Flags, CreateInfo);
+		return RHICreateTextureCube(Size, Format, NumMips, Flags, CreateInfo);
 	}
 	
-	FORCEINLINE FTextureCubeRHIRef CreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
+	FORCEINLINE FTextureCubeRHIRef CreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
-		LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
-		return GDynamicRHI->RHICreateTextureCubeArray_RenderThread(*this, Size, ArraySize, Format, NumMips, Flags, CreateInfo);
+		return RHICreateTextureCubeArray(Size, ArraySize, Format, NumMips, Flags, CreateInfo);
 	}
 	
 	FORCEINLINE void* LockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)
@@ -4816,7 +4792,10 @@ public:
 	FRHICommandList_RecursiveHazardous(IRHICommandContext *Context, FRHIGPUMask InGPUMask = FRHIGPUMask::All())
 		: FRHICommandList(InGPUMask)
 	{
-		SetContext(Context);
+		// Always grab the validation RHI context if active, so that the
+		// validation RHI can see any RHI commands enqueued within the RHI itself.
+		SetContext(static_cast<IRHICommandContext*>(&Context->GetHighestLevelContext()));
+
 		bAsyncPSOCompileAllowed = false;
 	}
 };
@@ -4826,11 +4805,6 @@ public:
 template <typename ContextType>
 class TRHICommandList_RecursiveHazardous : public FRHICommandList_RecursiveHazardous
 {
-// There are two possible implementation. The first enqueues tasks as lambda commands, so the command list only needs to be flushed once.
-// The second flushes previous command every time access to the context is required.
-// Enable the first one for now...
-#if 1
-
 	template <typename LAMBDA>
 	struct TRHILambdaCommand final : public FRHICommandBase
 	{
@@ -4842,7 +4816,8 @@ class TRHICommandList_RecursiveHazardous : public FRHICommandList_RecursiveHazar
 
 		void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
 		{
-			Lambda(static_cast<ContextType&>(CmdList.GetContext()));
+			// RunOnContext always requires the lowest level (platform) context, not the validation RHI context.
+			Lambda(static_cast<ContextType&>(CmdList.GetContext().GetLowestLevelContext()));
 			Lambda.~LAMBDA();
 		}
 	};
@@ -4857,33 +4832,69 @@ public:
 	{
 		if (Bypass())
 		{
-			Lambda(static_cast<ContextType&>(GetContext()));
+			// RunOnContext always requires the lowest level (platform) context, not the validation RHI context.
+			Lambda(static_cast<ContextType&>(GetContext().GetLowestLevelContext()));
 		}
 		else
 		{
 			ALLOC_COMMAND(TRHILambdaCommand<LAMBDA>)(Forward<LAMBDA>(Lambda));
 		}
 	}
+};
 
-#else
+class RHI_API FRHIComputeCommandList_RecursiveHazardous : public FRHIComputeCommandList
+{
+public:
+	FRHIComputeCommandList_RecursiveHazardous(IRHIComputeContext *Context, FRHIGPUMask InGPUMask = FRHIGPUMask::All())
+		: FRHIComputeCommandList(InGPUMask)
+	{
+		// Always grab the validation RHI context if active, so that the
+		// validation RHI can see any RHI commands enqueued within the RHI itself.
+		SetComputeContext(&Context->GetHighestLevelContext());
+
+		bAsyncPSOCompileAllowed = false;
+	}
+};
+
+template <typename ContextType>
+class TRHIComputeCommandList_RecursiveHazardous : public FRHIComputeCommandList_RecursiveHazardous
+{
+	template <typename LAMBDA>
+	struct TRHILambdaCommand final : public FRHICommandBase
+	{
+		LAMBDA Lambda;
+
+		TRHILambdaCommand(LAMBDA&& InLambda)
+			: Lambda(Forward<LAMBDA>(InLambda))
+		{}
+
+		void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
+		{
+			// RunOnContext always requires the lowest level (platform) context, not the validation RHI context.
+			Lambda(static_cast<ContextType&>(CmdList.GetComputeContext().GetLowestLevelContext()));
+			Lambda.~LAMBDA();
+		}
+	};
 
 public:
-	TRHICommandList_RecursiveHazardous(ContextType *Context, FRHIGPUMask GPUMask = FRHIGPUMask::All())
-		: FRHICommandList_RecursiveHazardous(Context, GPUMask)
+	TRHIComputeCommandList_RecursiveHazardous(ContextType *Context, FRHIGPUMask GPUMask = FRHIGPUMask::All())
+		: FRHIComputeCommandList_RecursiveHazardous(Context, GPUMask)
 	{}
 
 	template <typename LAMBDA>
 	FORCEINLINE_DEBUGGABLE void RunOnContext(LAMBDA&& Lambda)
 	{
-		// Ensure any recorded commands are flushed before allowing access to the context.
-		Flush();
-
-		Lambda(static_cast<ContextType&>(GetContext()));
+		if (Bypass())
+		{
+			// RunOnContext always requires the lowest level (platform) context, not the validation RHI context.
+			Lambda(static_cast<ContextType&>(GetComputeContext().GetLowestLevelContext()));
+		}
+		else
+		{
+			ALLOC_COMMAND(TRHILambdaCommand<LAMBDA>)(Forward<LAMBDA>(Lambda));
+		}
 	}
-
-#endif
 };
-
 
 // This controls if the cmd list bypass can be toggled at runtime. It is quite expensive to have these branches in there.
 #define CAN_TOGGLE_COMMAND_LIST_BYPASS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
@@ -5032,14 +5043,28 @@ FORCEINLINE FIndexBufferRHIRef RHICreateAndLockIndexBuffer(uint32 Stride, uint32
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateAndLockIndexBuffer(Stride, Size, InUsage, CreateInfo, OutDataBuffer);
 }
 
+FORCEINLINE FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->CreateIndexBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Stride, Size, InUsage, InResourceState, CreateInfo);
+}
+
+FORCEINLINE FIndexBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->RHICreateIndexBuffer(Stride, Size, InUsage, InResourceState, CreateInfo);
+}
+
 FORCEINLINE FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_IndexBuffer, bHasInitialData);
+	return RHICreateIndexBuffer(Stride, Size, InUsage, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FIndexBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
-	return GDynamicRHI->RHICreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_IndexBuffer, bHasInitialData);
+	return RHIAsyncCreateIndexBuffer(Stride, Size, InUsage, ResourceState, CreateInfo);
 }
 
 FORCEINLINE void* RHILockIndexBuffer(FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
@@ -5057,14 +5082,28 @@ FORCEINLINE FVertexBufferRHIRef RHICreateAndLockVertexBuffer(uint32 Size, uint32
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateAndLockVertexBuffer(Size, InUsage, CreateInfo, OutDataBuffer);
 }
 
+FORCEINLINE FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->CreateVertexBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, InUsage, InResourceState, CreateInfo);
+}
+
+FORCEINLINE FVertexBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->RHICreateVertexBuffer(Size, InUsage, InResourceState, CreateInfo);
+}
+
 FORCEINLINE FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateVertexBuffer(Size, InUsage, CreateInfo);
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_VertexBuffer, bHasInitialData);
+	return RHICreateVertexBuffer(Size, InUsage, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FVertexBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
-	return GDynamicRHI->RHICreateVertexBuffer(Size, InUsage, CreateInfo);
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_VertexBuffer, bHasInitialData);
+	return RHIAsyncCreateVertexBuffer(Size, InUsage, ResourceState, CreateInfo);
 }
 
 FORCEINLINE void* RHILockVertexBuffer(FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -5077,9 +5116,16 @@ FORCEINLINE void RHIUnlockVertexBuffer(FRHIVertexBuffer* VertexBuffer)
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockVertexBuffer(VertexBuffer);
 }
 
+FORCEINLINE FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->CreateStructuredBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Stride, Size, InUsage, InResourceState, CreateInfo);
+}
+
 FORCEINLINE FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateStructuredBuffer(Stride, Size, InUsage, CreateInfo);
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_StructuredBuffer, bHasInitialData);
+	return RHICreateStructuredBuffer(Stride, Size, InUsage, ResourceState, CreateInfo);
 }
 
 FORCEINLINE void* RHILockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -5152,14 +5198,43 @@ FORCEINLINE void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRH
 	 FRHICommandListExecutor::GetImmediateCommandList().UpdateTextureReference(TextureRef, NewTexture);
 }
 
-FORCEINLINE FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+FORCEINLINE FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
+	LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
+	return GDynamicRHI->RHICreateTexture2D_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), SizeX, SizeY, Format, NumMips, NumSamples, Flags, InResourceState, CreateInfo);
 }
 
-FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, void** InitialMipData, uint32 NumInitialMips)
+FORCEINLINE FTexture2DRHIRef RHICreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().AsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, InitialMipData, NumInitialMips);
+	LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
+	return GDynamicRHI->RHICreateTextureExternal2D_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), SizeX, SizeY, Format, NumMips, NumSamples, Flags, InResourceState, CreateInfo);
+}
+
+FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips)
+{
+	LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
+	return GDynamicRHI->RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, InResourceState, InitialMipData, NumInitialMips);
+}
+
+FORCEINLINE FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
+{
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
+	return RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, ResourceState, CreateInfo);
+}
+
+FORCEINLINE FTexture2DRHIRef RHICreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
+{
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
+	return RHICreateTextureExternal2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, ResourceState, CreateInfo);
+}
+
+FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, void** InitialMipData, uint32 NumInitialMips)
+{
+	bool bHasInitialData = InitialMipData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
+	return RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, ResourceState, InitialMipData, NumInitialMips);
 }
 
 FORCEINLINE void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D)
@@ -5177,14 +5252,30 @@ FORCEINLINE void RHITransferTextures(const TArrayView<const FTransferTexturePara
 	return FRHICommandListExecutor::GetImmediateCommandList().TransferTextures(Params);
 }
 
-FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, CreateInfo);
+	LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
+	return GDynamicRHI->RHICreateTexture2DArray_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, InResourceState, CreateInfo);
 }
 
-FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo);
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
+	return RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, ResourceState, CreateInfo);
+}
+
+FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
+	return GDynamicRHI->RHICreateTexture3D_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), SizeX, SizeY, SizeZ, Format, NumMips, Flags, ResourceState, CreateInfo);
+}
+
+FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
+{
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
+	return RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel)
@@ -5272,14 +5363,30 @@ FORCEINLINE void RHIUpdateTexture3D(FRHITexture3D* Texture, uint32 MipIndex, con
 	 FRHICommandListExecutor::GetImmediateCommandList().UpdateTexture3D(Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
 }
 
-FORCEINLINE FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+FORCEINLINE FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateTextureCube(Size, Format, NumMips, Flags, CreateInfo);
+	LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
+	return GDynamicRHI->RHICreateTextureCube_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, Format, NumMips, Flags, InResourceState, CreateInfo);
 }
 
-FORCEINLINE FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+FORCEINLINE FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateTextureCubeArray(Size, ArraySize, Format, NumMips, Flags, CreateInfo);
+	LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
+	return GDynamicRHI->RHICreateTextureCubeArray_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, ArraySize, Format, NumMips, Flags, InResourceState, CreateInfo);
+}
+
+FORCEINLINE FTextureCubeRHIRef RHICreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
+{
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
+	return RHICreateTextureCube(Size, Format, NumMips, Flags, ResourceState, CreateInfo);
+}
+
+FORCEINLINE FTextureCubeRHIRef RHICreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
+{
+	bool bHasInitialData = CreateInfo.BulkData != nullptr;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState((ETextureCreateFlags)Flags, bHasInitialData);
+	return RHICreateTextureCubeArray(Size, ArraySize, Format, NumMips, Flags, ResourceState, CreateInfo);
 }
 
 FORCEINLINE void* RHILockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)

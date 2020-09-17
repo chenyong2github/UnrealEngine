@@ -173,7 +173,7 @@ public:
 		FTextureResource::InitRHI();
 
 		FRHIResourceCreateInfo CreateInfo;
-		uint32 Flags = 0;
+		ETextureCreateFlags Flags = TexCreate_None;
 
 		if (CreateUAV)
 		{
@@ -241,7 +241,7 @@ public:
 		FTextureResource::InitRHI();
 
 		FRHIResourceCreateInfo CreateInfo;
-		uint32 Flags = TexCreate_NoTiling | TexCreate_OfflineProcessed;
+		ETextureCreateFlags Flags = TexCreate_NoTiling | TexCreate_OfflineProcessed;
 
 		if (CreateUAV)
 		{
@@ -1252,7 +1252,7 @@ public:
 		InRHICmdList.DrawPrimitive(0, PrimitiveCount, 1);
 
 		InRHICmdList.EndRenderPass();
-		InRHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ViewFamily.RenderTarget->GetRenderTargetTexture());
+		InRHICmdList.Transition(FRHITransitionInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 
 		VertexDeclaration.ReleaseResource();
 		VertexBufferResource.ReleaseResource();

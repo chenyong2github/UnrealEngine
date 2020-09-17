@@ -462,14 +462,6 @@ namespace UnrealBuildTool
 				OculusMobileDevices = new List<string>();
 			}
 
-			// Handle bPackageForGearVR for backwards compatibility
-			bool bPackageForGearVR = false;
-			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bPackageForGearVR", out bPackageForGearVR);
-			if (bPackageForGearVR && !OculusMobileDevices.Contains("GearGo"))
-			{
-				OculusMobileDevices.Add("GearGo");
-			}
-
 			return OculusMobileDevices;
 		}
 
@@ -2909,10 +2901,8 @@ namespace UnrealBuildTool
 			NDKLevelInt = ToolChain.GetNdkApiLevelInt();
 			if (NDKLevelInt < 21)
 			{
-				if (Arch == "-arm64" || Arch == "-x64")
-				{
-					NDKLevelInt = 21;
-				}
+				// 21 is requred for GL ES3.1
+				NDKLevelInt = 21;
 			}
 
 			// fix up the MinSdkVersion
@@ -3024,10 +3014,10 @@ namespace UnrealBuildTool
 			{
 				bool bDisableV2Signing = false;
 
-				if (GetTargetOculusMobileDevices().Contains("GearGo"))
+				if (GetTargetOculusMobileDevices().Contains("Go"))
 				{
 					bDisableV2Signing = true;
-					Log.TraceInformation("Disabling v2Signing for Oculus Go / Gear VR APK");
+					Log.TraceInformation("Disabling v2Signing for Oculus Go");
 				}
 
 				string KeyAlias, KeyStore, KeyStorePassword, KeyPassword;

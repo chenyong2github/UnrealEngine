@@ -159,7 +159,7 @@ struct FSpirv
 };
 
 // Updates all reflection entries in the specified SPIR-V module.
-extern bool PathSpirvReflectionEntriesAndEntryPoint(FSpirv& OutSpirv);
+extern bool PatchSpirvReflectionEntriesAndEntryPoint(FSpirv& OutSpirv);
 
 // Generates SPIR-V out of the specified GLSL source code.
 extern bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString& OutErrors, const FString& DumpDebugInfoPath, FSpirv& OutSpirv);

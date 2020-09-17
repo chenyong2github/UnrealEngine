@@ -1659,7 +1659,7 @@ FName FStatsThreadState::GetStatThreadName( const FStatPacket& Packet ) const
 		FName& NewThreadName = MutableThreads.FindOrAdd( Packet.ThreadId );
 		if( NewThreadName == NAME_None )
 		{
-			UE_LOG( LogStats, Warning, TEXT( "There is no thread with id: %u. Please add thread metadata for this thread." ), Packet.ThreadId );
+			UE_LOG( LogStats, Display, TEXT( "There is no thread with id: %u. Please add thread metadata for this thread." ), Packet.ThreadId );
 
 			static const FName NAME_UnknownThread = TEXT( "UnknownThread" );
 			NewThreadName = FName( *FStatsUtils::BuildUniqueThreadName( Packet.ThreadId ) );

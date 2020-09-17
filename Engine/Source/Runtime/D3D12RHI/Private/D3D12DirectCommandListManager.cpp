@@ -26,14 +26,6 @@ static TAutoConsoleVariable<int32> CVarD3D12ExecuteCommandListTask(
 
 extern bool D3D12RHI_ShouldCreateWithD3DDebug();
 
-FComputeFenceRHIRef FD3D12DynamicRHI::RHICreateComputeFence(const FName& Name)
-{
-	FD3D12Fence* Fence = new FD3D12Fence(&GetAdapter(), FRHIGPUMask::All(), Name);
-	Fence->CreateFence();
-
-	return Fence;
-}
-
 void FD3D12GPUFence::WriteInternal(ED3D12CommandQueueType QueueType)
 {
 	if (Fence)
@@ -111,12 +103,12 @@ FD3D12FenceCore::~FD3D12FenceCore()
 }
 
 FD3D12Fence::FD3D12Fence(FD3D12Adapter* InParent, FRHIGPUMask InGPUMask, const FName& InName)
-	: FRHIComputeFence(InName)
-	, FD3D12AdapterChild(InParent)
+	: FD3D12AdapterChild(InParent)
 	, FD3D12MultiNodeGPUObject(InGPUMask, InGPUMask)
 	, CurrentFence(0)
 	, LastSignaledFence(0)
 	, LastCompletedFence(0)
+	, Name(InName)
 {
 	FMemory::Memzero(FenceCores);
 	FMemory::Memzero(LastCompletedFences);
@@ -137,7 +129,7 @@ void FD3D12Fence::Destroy()
 			// If not fence was signaled since CreateFence() was called, then the last completed value is the last signaled value for this GPU.
 			GetParentAdapter()->GetFenceCorePool().ReleaseFenceCore(FenceCores[GPUIndex], LastSignaledFence > 0 ? LastSignaledFence : LastCompletedFences[GPUIndex]);
 #if DEBUG_FENCES
-			UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU FENCE DESTROY Fence: %016llX (%s) Gpu (%d), Last Completed: %u ***"), FenceCores[GPUIndex]->GetFence(), *GetName().ToString(), GPUIndex, LastSignaledFence > 0 ? LastSignaledFence : LastCompletedFences[GPUIndex]);
+			UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU FENCE DESTROY Fence: %016llX (%s) Gpu (%d), Last Completed: %u ***"), FenceCores[GPUIndex]->GetFence(), *Name.ToString(), GPUIndex, LastSignaledFence > 0 ? LastSignaledFence : LastCompletedFences[GPUIndex]);
 #endif
 			FenceCores[GPUIndex] = nullptr;
 		}
@@ -161,7 +153,7 @@ void FD3D12Fence::CreateFence()
 
 		LastCompletedFences[GPUIndex] = FenceCore->FenceValueAvailableAt;
 
-		SetName(FenceCore->GetFence(), *GetName().ToString());
+		SetName(FenceCore->GetFence(), *Name.ToString());
 
 		LastCompletedFence = LastCompletedFences[GPUIndex];
 		CurrentFence = LastCompletedFences[GPUIndex] + 1;
@@ -182,10 +174,10 @@ void FD3D12Fence::CreateFence()
 
 			LastCompletedFences[GPUIndex] = FenceCore->FenceValueAvailableAt;
 #if DEBUG_FENCES
-			UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU FENCE CREATE Fence: %016llX (%s) Gpu (%d), Last Completed: %u ***"), FenceCores[GPUIndex]->GetFence(), *GetName().ToString(), GPUIndex, LastCompletedFences[GPUIndex]);
+			UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU FENCE CREATE Fence: %016llX (%s) Gpu (%d), Last Completed: %u ***"), FenceCores[GPUIndex]->GetFence(), *Name.ToString(), GPUIndex, LastCompletedFences[GPUIndex]);
 #endif
 			// Append the GPU index to the fence.
-			SetName(FenceCore->GetFence(), *FString::Printf(TEXT("%s%u"), *GetName().ToString(), GPUIndex));
+			SetName(FenceCore->GetFence(), *FString::Printf(TEXT("%s%u"), *Name.ToString(), GPUIndex));
 
 			LastCompletedFence = FMath::Min(LastCompletedFence, LastCompletedFences[GPUIndex]);
 			CurrentFence = FMath::Max(CurrentFence, LastCompletedFences[GPUIndex]);
@@ -217,7 +209,7 @@ void FD3D12Fence::GpuWait(uint32 DeviceGPUIndex, ED3D12CommandQueueType InQueueT
 	check(FenceCore);
 
 #if DEBUG_FENCES
-	UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU WAIT (CmdQueueType: %d) Fence: %016llX (%s), Gpu (%d <- %d) Value: %llu ***"), (uint32)InQueueType, FenceCore->GetFence(), *GetName().ToString(), Device->GetGPUIndex(), FenceGPUIndex, FenceValue);
+	UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU WAIT (CmdQueueType: %d) Fence: %016llX (%s), Gpu (%d <- %d) Value: %llu ***"), (uint32)InQueueType, FenceCore->GetFence(), *Name.ToString(), Device->GetGPUIndex(), FenceGPUIndex, FenceValue);
 #endif
 	VERIFYD3D12RESULT(CommandQueue->Wait(FenceCore->GetFence(), FenceValue));}
 

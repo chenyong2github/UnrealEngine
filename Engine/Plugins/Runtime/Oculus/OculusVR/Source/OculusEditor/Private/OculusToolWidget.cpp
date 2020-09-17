@@ -2,6 +2,7 @@
 
 #include "OculusToolWidget.h"
 #include "OculusEditorSettings.h"
+#include "OculusHMDRuntimeSettings.h"
 #include "OculusHMD.h"
 #include "DetailLayoutBuilder.h"
 #include "Engine/RendererSettings.h"
@@ -221,9 +222,11 @@ void SOculusToolWidget::RebuildLayout()
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AllowStaticLighting")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MultiView")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileMultiView")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileMSAA")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobilePostProcessing")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidManifest")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidPackaging")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidQuestArch")));
 
 	box = NewCategory(scroller, LOCTEXT("PostProcessHeader", "<RichTextBlock.Bold>Post-Processing Settings:</>\nThe below settings all refer to your project's post-processing settings. Post-processing can be very expensive in VR, so we recommend disabling many expensive post-processing effects. You can fine-tune your post-processing settings with a Post Process Volume. <a href=\"https://docs.unrealengine.com/en-us/Platforms/VR/VRPerformance\" id=\"HyperlinkDecorator\">Read more.</>."));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("LensFlare")));
@@ -231,15 +234,16 @@ void SOculusToolWidget::RebuildLayout()
 
 	DynamicLights.Empty();
 
-	for (TObjectIterator<ULightComponent> LightItr; LightItr; ++LightItr)
+	for (TObjectIterator<ULightComponentBase> LightItr; LightItr; ++LightItr)
 	{
 		AActor* owner = LightItr->GetOwner();
-		if (owner != NULL && (owner->IsRootComponentStationary() || owner->IsRootComponentMovable()) && !owner->IsHiddenEd() && owner->IsEditable() && owner->IsSelectable() && LightItr->GetWorld() == GEditor->GetEditorWorldContext().World())
+		if (owner != NULL && (owner->IsRootComponentStationary() || owner->IsRootComponentMovable()) && !owner->IsHiddenEd() && LightItr->IsVisible() && owner->IsEditable() && owner->IsSelectable() && LightItr->GetWorld() == GEditor->GetEditorWorldContext().World())
 		{
-			FString lightIgnoreKey = "IgnoreLight_" + LightItr->GetName();
+			// GetFullGroupName() must be used as the key as GetName() is not unique
+			FString lightIgnoreKey = "IgnoreLight_" + LightItr->GetFullGroupName(false);
 			if (!SettingIgnored(FName(lightIgnoreKey.GetCharArray().GetData())))
 			{
-				DynamicLights.Add(LightItr->GetName(), TWeakObjectPtr<ULightComponent>(*LightItr));
+				DynamicLights.Add(LightItr->GetFullGroupName(false), TWeakObjectPtr<ULightComponentBase>(*LightItr));
 			}
 		}
 	}
@@ -275,6 +279,13 @@ void SOculusToolWidget::RebuildLayout()
 			];
 		}
 	}
+
+	box = NewCategory(scroller, LOCTEXT("ShaderPermutationHeader", "<RichTextBlock.Bold>Shader Permutation Reduction:</>\nThe below settings all refer to your project's shader permutation settings."));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileShaderStaticAndCSMShadowReceivers")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileShaderAllowDistanceFieldShadows")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileShaderAllowMovableDirectionalLights")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileNumDynamicPointLights")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileMovableSpotlights")));
 
 	box = NewCategory(scroller, FText::GetEmpty());
 	box.Get().AddSlot()
@@ -387,6 +398,18 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 		&SOculusToolWidget::MobileMultiViewEnable }
 	);
 
+	SimpleSettings.Add(FName("MobileMSAA"), {
+		FName("MobileMSAA"),
+		LOCTEXT("MobileMSAADescription", "Enable Mobile MSAA 4x to get higher quality antialiasing at a reasonable cost on mobile codepaths."),
+		&SOculusToolWidget::MobileMSAAVisibility,
+		TArray<SimpleSettingAction>(),
+		(int)SupportFlags::SupportMobile
+	});
+	SimpleSettings.Find(FName("MobileMSAA"))->actions.Add(
+		{ LOCTEXT("MobileMSAAButton", "Enable MSAA 4x"),
+		&SOculusToolWidget::MobileMSAAEnable }
+	);
+
 	SimpleSettings.Add(FName("MobilePostProcessing"), {
 		FName("MobilePostProcessing"),
 		LOCTEXT("MobileHDRDescription", "Mobile HDR has performance and stability issues in VR. We strongly recommend disabling it."),
@@ -407,10 +430,6 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 		(int)SupportFlags::SupportMobile
 	});
 	SimpleSettings.Find(FName("AndroidManifest"))->actions.Add(
-		{ LOCTEXT("AndroidManifestButtonGearGo", "Select Oculus Go / Gear VR"),
-		&SOculusToolWidget::AndroidManifestGearGo }
-	);
-	SimpleSettings.Find(FName("AndroidManifest"))->actions.Add(
 		{ LOCTEXT("AndroidManifestButtonQuest", "Select Oculus Quest"),
 		&SOculusToolWidget::AndroidManifestQuest }
 	);
@@ -425,6 +444,18 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 	SimpleSettings.Find(FName("AndroidPackaging"))->actions.Add(
 		{ LOCTEXT("AndroidPackagingButton", "Configure Android Packaging"),
 		&SOculusToolWidget::AndroidPackagingFix }
+	);
+
+	SimpleSettings.Add(FName("AndroidQuestArch"), {
+		FName("AndroidQuestArch"),
+		LOCTEXT("AndroidQuestArchDescription", "Oculus Quest store requires 64-bit applications. <a href=\"https://developer.oculus.com/blog/quest-submission-policy-update-64-bit-by-default/\" id=\"HyperlinkDecorator\">Read more.</>"),
+		&SOculusToolWidget::AndroidQuestArchVisibility,
+		TArray<SimpleSettingAction>(),
+		(int)SupportFlags::SupportMobile
+	});
+	SimpleSettings.Find(FName("AndroidQuestArch"))->actions.Add(
+		{ LOCTEXT("AndroidQuestArchButton", "Enable Android Arm64 CPU architecture support"),
+		&SOculusToolWidget::AndroidQuestArchFix }
 	);
 
 	// Post-Processing Settings
@@ -463,6 +494,67 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 	SimpleSettings.Find(FName("AllowStaticLighting"))->actions.Add(
 		{ LOCTEXT("AllowStaticLightingButton", "Allow Static Lighting"),
 		&SOculusToolWidget::AllowStaticLightingEnable }
+	);
+
+	// Mobile Shader Permutation Reduction
+	SimpleSettings.Add(FName("MobileShaderStaticAndCSMShadowReceivers"), {
+		FName("MobileShaderStaticAndCSMShadowReceivers"),
+		LOCTEXT("MobileShaderStaticAndCSMShadowReceiversDescription", "Your project does not contain any stationary lights. Support Combined Static and CSM Shadowing can be disabled to reduce shader permutations."),
+		&SOculusToolWidget::MobileShaderStaticAndCSMShadowReceiversVisibility,
+		TArray<SimpleSettingAction>(),
+		(int)SupportFlags::SupportMobile
+		});
+	SimpleSettings.Find(FName("MobileShaderStaticAndCSMShadowReceivers"))->actions.Add(
+		{ LOCTEXT("MobileShaderStaticAndCSMShadowReceiversButton", "Disable Support Combined Static and CSM Shadowing"),
+		&SOculusToolWidget::MobileShaderStaticAndCSMShadowReceiversDisable }
+	);
+
+	SimpleSettings.Add(FName("MobileShaderAllowDistanceFieldShadows"), {
+		FName("MobileShaderAllowDistanceFieldShadows"),
+		LOCTEXT("MobileShaderAllowDistanceFieldShadowsDescription", "Your project does not contain any stationary lights. Support Support Distance Field Shadows can be disabled to reduce shader permutations."),
+		&SOculusToolWidget::MobileShaderAllowDistanceFieldShadowsVisibility,
+		TArray<SimpleSettingAction>(),
+		(int)SupportFlags::SupportMobile
+		});
+	SimpleSettings.Find(FName("MobileShaderAllowDistanceFieldShadows"))->actions.Add(
+		{ LOCTEXT("MobileShaderAllowDistanceFieldShadowsButton", "Disable Support Support Distance Field Shadows"),
+		&SOculusToolWidget::MobileShaderAllowDistanceFieldShadowsDisable }
+	);
+
+	SimpleSettings.Add(FName("MobileShaderAllowMovableDirectionalLights"), {
+		FName("MobileShaderAllowMovableDirectionalLights"),
+		LOCTEXT("MobileShaderAllowMovableDirectionalLightsDescription", "Your project does not contain any movable lights. Support Movable Directional Lights can be disabled to reduce shader permutations."),
+		& SOculusToolWidget::MobileShaderAllowMovableDirectionalLightsVisibility,
+		TArray<SimpleSettingAction>(),
+		(int)SupportFlags::SupportMobile
+		});
+	SimpleSettings.Find(FName("MobileShaderAllowMovableDirectionalLights"))->actions.Add(
+		{ LOCTEXT("MobileShaderAllowMovableDirectionalLightsButton", "Disable Support Movable Directional Lights"),
+		&SOculusToolWidget::MobileShaderAllowMovableDirectionalLightsDisable }
+	);
+
+	SimpleSettings.Add(FName("MobileNumDynamicPointLights"), {
+		FName("MobileNumDynamicPointLights"),
+		LOCTEXT("MobileNumDynamicPointLightsDescription", "Your project does not contain any movable lights. Max Movable Spotlights / Point Lights can be set to 0 to reduce shader permutations."),
+		&SOculusToolWidget::MobileNumDynamicPointLightsVisibility,
+		TArray<SimpleSettingAction>(),
+		(int)SupportFlags::SupportMobile
+		});
+	SimpleSettings.Find(FName("MobileNumDynamicPointLights"))->actions.Add(
+		{ LOCTEXT("MobileNumDynamicPointLightsButton", "Set Max Movable Spotlights / Point Lights to 0"),
+		&SOculusToolWidget::MobileNumDynamicPointLightsFix }
+	);
+
+	SimpleSettings.Add(FName("MobileMovableSpotlights"), {
+		FName("MobileMovableSpotlights"),
+		LOCTEXT("MobileMovableSpotlightsDescription", "Your project does not contain any movable lights. Support Movable Spotlights can be disabled to reduce shader permutations."),
+		&SOculusToolWidget::MobileMovableSpotlightsDisableVisibility,
+		TArray<SimpleSettingAction>(),
+		(int)SupportFlags::SupportMobile
+		});
+	SimpleSettings.Find(FName("MobileMovableSpotlights"))->actions.Add(
+		{ LOCTEXT("MobileMovableSpotlightsButton", "Disable Support Movable Spotlights"),
+		&SOculusToolWidget::MobileMovableSpotlightsDisable }
 	);
 
 	auto scroller = SNew(SScrollBox);
@@ -610,6 +702,22 @@ EVisibility SOculusToolWidget::MobileMultiViewVisibility(FName tag) const
 	return bMMV ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
+FReply SOculusToolWidget::MobileMSAAEnable(bool text)
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	Settings->MobileMSAASampleCount = EMobileMSAASampleCount::Four;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MobileMSAASampleCount)), Settings->GetDefaultConfigFilename());
+	return FReply::Handled();
+}
+
+EVisibility SOculusToolWidget::MobileMSAAVisibility(FName tag) const
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	const bool bMobileMSAAValid = Settings->MobileMSAASampleCount == EMobileMSAASampleCount::Four;
+
+	return bMobileMSAAValid ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
 FReply SOculusToolWidget::MobilePostProcessingDisable(bool text)
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
@@ -630,19 +738,11 @@ FString SOculusToolWidget::GetConfigPath() const
 	return FString::Printf(TEXT("%sDefaultEngine.ini"), *FPaths::SourceConfigDir());
 }
 
-FReply SOculusToolWidget::AndroidManifestGearGo(bool text)
-{
-	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
-	Settings->PackageForOculusMobile.Add(EOculusMobileDevice::GearGo);
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, PackageForOculusMobile)), Settings->GetDefaultConfigFilename());
-	return FReply::Handled();
-}
-
 FReply SOculusToolWidget::AndroidManifestQuest(bool text)
 {
 	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
 	Settings->PackageForOculusMobile.Add(EOculusMobileDevice::Quest);
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, PackageForOculusMobile)), Settings->GetDefaultConfigFilename());
+	Settings->SaveConfig(CPF_Config, *Settings->GetDefaultConfigFilename()); // UpdateSinglePropertyInConfigFile does not support arrays
 	return FReply::Handled();
 }
 
@@ -656,29 +756,44 @@ EVisibility SOculusToolWidget::AndroidManifestVisibility(FName tag) const
 
 FReply SOculusToolWidget::AndroidPackagingFix(bool text)
 {
-	const TCHAR* AndroidSettings = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
-	GConfig->SetInt(AndroidSettings, TEXT("MinSDKVersion"), MIN_SDK_VERSION, GetConfigPath());
-	GConfig->SetInt(AndroidSettings, TEXT("TargetSDKVersion"), MIN_SDK_VERSION, GetConfigPath());
-	GConfig->SetBool(AndroidSettings, TEXT("bFullScreen"), true, GetConfigPath());
-	GConfig->Flush(0);
+	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
+	Settings->bFullScreen = true;
+	Settings->MinSDKVersion = MIN_SDK_VERSION;
+	Settings->TargetSDKVersion = MIN_SDK_VERSION;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bFullScreen)), Settings->GetDefaultConfigFilename());
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, MinSDKVersion)), Settings->GetDefaultConfigFilename());
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, TargetSDKVersion)), Settings->GetDefaultConfigFilename());
 	return FReply::Handled();
 }
 
 EVisibility SOculusToolWidget::AndroidPackagingVisibility(FName tag) const
 {
-	const TCHAR* AndroidSettings = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
-	bool fullscreen = false;
-	int minSDK = 0;
-	int targetSDK = 0;
-	if (!GConfig->GetBool(AndroidSettings, TEXT("bFullScreen"), fullscreen, GetConfigPath()) ||
-		!GConfig->GetInt(AndroidSettings, TEXT("MinSDKVersion"), minSDK, GetConfigPath()) ||
-		!GConfig->GetInt(AndroidSettings, TEXT("TargetSDKVersion"), targetSDK, GetConfigPath()))
-	{
-		return EVisibility::Visible;
-	}
-	return (minSDK < MIN_SDK_VERSION || targetSDK < MIN_SDK_VERSION || !fullscreen) ? EVisibility::Visible : EVisibility::Collapsed;
+	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
+	return (
+		Settings->MinSDKVersion < MIN_SDK_VERSION || 
+		Settings->TargetSDKVersion < MIN_SDK_VERSION ||
+		!Settings->bFullScreen
+	) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+FReply SOculusToolWidget::AndroidQuestArchFix(bool text)
+{
+	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
+	Settings->bBuildForArmV7 = false;
+	Settings->bBuildForArm64 = true;
+	Settings->bBuildForX8664 = false;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForArmV7)), Settings->GetDefaultConfigFilename());
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForArm64)), Settings->GetDefaultConfigFilename());
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForX8664)), Settings->GetDefaultConfigFilename());
+	return FReply::Handled();
+}
+
+EVisibility SOculusToolWidget::AndroidQuestArchVisibility(FName tag) const
+{
+	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
+	return Settings->PackageForOculusMobile.Contains(EOculusMobileDevice::Quest) && !Settings->bBuildForArm64 ?
+		EVisibility::Visible : EVisibility::Collapsed;
+}
 
 FReply SOculusToolWidget::AntiAliasingEnable(bool text)
 {
@@ -714,6 +829,153 @@ EVisibility SOculusToolWidget::AllowStaticLightingVisibility(FName tag) const
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
 	return Settings->bAllowStaticLighting ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+FReply SOculusToolWidget::MobileShaderStaticAndCSMShadowReceiversDisable(bool text)
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	Settings->bMobileEnableStaticAndCSMShadowReceivers = false;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileEnableStaticAndCSMShadowReceivers)), Settings->GetDefaultConfigFilename());
+	SuggestRestart();
+	return FReply::Handled();
+}
+
+EVisibility SOculusToolWidget::MobileShaderStaticAndCSMShadowReceiversVisibility(FName tag) const
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	if (!Settings->bMobileEnableStaticAndCSMShadowReceivers)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	for (const auto& kvp : DynamicLights)
+	{
+		AActor* owner = kvp.Value->GetOwner();
+		if (owner != NULL && owner->IsRootComponentStationary())
+		{
+			return EVisibility::Collapsed;
+		}
+	}
+
+	return EVisibility::Visible;
+}
+
+FReply SOculusToolWidget::MobileShaderAllowDistanceFieldShadowsDisable(bool text)
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	Settings->bMobileAllowDistanceFieldShadows = false;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileAllowDistanceFieldShadows)), Settings->GetDefaultConfigFilename());
+	SuggestRestart();
+	return FReply::Handled();
+}
+
+EVisibility SOculusToolWidget::MobileShaderAllowDistanceFieldShadowsVisibility(FName tag) const
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	if (!Settings->bMobileAllowDistanceFieldShadows)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	for (const auto& kvp : DynamicLights)
+	{
+		AActor* owner = kvp.Value->GetOwner();
+		if (owner != NULL && owner->IsRootComponentStationary())
+		{
+			return EVisibility::Collapsed;
+		}
+	}
+
+	return EVisibility::Visible;
+}
+
+FReply SOculusToolWidget::MobileShaderAllowMovableDirectionalLightsDisable(bool text)
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	Settings->bMobileAllowMovableDirectionalLights = false;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileAllowMovableDirectionalLights)), Settings->GetDefaultConfigFilename());
+	SuggestRestart();
+	return FReply::Handled();
+}
+
+EVisibility SOculusToolWidget::MobileShaderAllowMovableDirectionalLightsVisibility(FName tag) const
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	if (!Settings->bMobileAllowMovableDirectionalLights)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	for (const auto& kvp : DynamicLights)
+	{
+		AActor* owner = kvp.Value->GetOwner();
+		if (owner != NULL && owner->IsRootComponentMovable())
+		{
+			return EVisibility::Collapsed;
+		}
+	}
+
+	return EVisibility::Visible;
+}
+
+FReply SOculusToolWidget::MobileNumDynamicPointLightsFix(bool text)
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	Settings->MobileNumDynamicPointLights = 0;
+	Settings->bMobileDynamicPointLightsUseStaticBranch = true;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MobileNumDynamicPointLights)), Settings->GetDefaultConfigFilename());
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileDynamicPointLightsUseStaticBranch)), Settings->GetDefaultConfigFilename());
+	SuggestRestart();
+	return FReply::Handled();
+}
+
+EVisibility SOculusToolWidget::MobileNumDynamicPointLightsVisibility(FName tag) const
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	if (Settings->MobileNumDynamicPointLights == 0 && Settings->bMobileDynamicPointLightsUseStaticBranch)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	for (const auto& kvp : DynamicLights)
+	{
+		AActor* owner = kvp.Value->GetOwner();
+		if (owner != NULL && owner->IsRootComponentMovable())
+		{
+			return EVisibility::Collapsed;
+		}
+	}
+
+	return EVisibility::Visible;
+}
+
+FReply SOculusToolWidget::MobileMovableSpotlightsDisable(bool text)
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	Settings->bMobileAllowMovableSpotlights = false;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileAllowMovableSpotlights)), Settings->GetDefaultConfigFilename());
+	SuggestRestart();
+	return FReply::Handled();
+}
+
+EVisibility SOculusToolWidget::MobileMovableSpotlightsDisableVisibility(FName tag) const
+{
+	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
+	if (!Settings->bMobileAllowMovableSpotlights)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	for (const auto& kvp : DynamicLights)
+	{
+		AActor* owner = kvp.Value->GetOwner();
+		if (owner != NULL && owner->IsRootComponentMovable())
+		{
+			return EVisibility::Collapsed;
+		}
+	}
+
+	return EVisibility::Visible;
 }
 
 void SOculusToolWidget::OnShowButtonChanged(ECheckBoxState NewState)
@@ -762,16 +1024,13 @@ EVisibility SOculusToolWidget::LensFlareVisibility(FName tag) const
 
 FReply SOculusToolWidget::SelectLight(FString lightName)
 {
-	for (TObjectIterator<ULightComponent> LightItr; LightItr; ++LightItr)
+	const TWeakObjectPtr< ULightComponentBase>* weakPtr = DynamicLights.Find(lightName);
+	if (weakPtr)
 	{
-		if (LightItr->GetName().Compare(lightName) == 0 && LightItr->GetOwner() != NULL && LightItr->GetWorld() == GEditor->GetEditorWorldContext().World())
-		{
-			GEditor->SelectNone(true, true);
-			GEditor->SelectActor(LightItr->GetAttachmentRootActor(), true, true);
-			GEditor->SelectActor(LightItr->GetOwner(), true, true);
-			GEditor->SelectComponent(*LightItr, true, true, true);
-			break;
-		}
+		ULightComponentBase* light = weakPtr->Get();
+		GEditor->SelectNone(true, true);
+		GEditor->SelectActor(light->GetOwner(), true, true);
+		GEditor->SelectComponent(light, true, true, true);
 	}
 	return FReply::Handled();
 }
@@ -803,16 +1062,16 @@ EVisibility SOculusToolWidget::StartInVRVisibility(FName tag) const
 
 FReply SOculusToolWidget::SupportDashEnable(bool text)
 {
-	const TCHAR* OculusSettings = TEXT("Oculus.Settings");
-	GConfig->SetBool(OculusSettings, TEXT("bSupportsDash"), true, GEngineIni);
+	UOculusHMDRuntimeSettings* Settings = GetMutableDefault<UOculusHMDRuntimeSettings>();
+	Settings->bSupportsDash = true;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UOculusHMDRuntimeSettings, bSupportsDash)), Settings->GetDefaultConfigFilename());
 	return FReply::Handled();
 }
 
 EVisibility SOculusToolWidget::SupportDashVisibility(FName tag) const
 {
-	bool v = false;
-	const TCHAR* OculusSettings = TEXT("Oculus.Settings");
-	return (GConfig->GetBool(OculusSettings, TEXT("bSupportsDash"), v, GEngineIni) && v) ? EVisibility::Collapsed : EVisibility::Visible;
+	const UOculusHMDRuntimeSettings* Settings = GetDefault<UOculusHMDRuntimeSettings>();
+	return Settings->bSupportsDash ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 #undef LOCTEXT_NAMESPACE

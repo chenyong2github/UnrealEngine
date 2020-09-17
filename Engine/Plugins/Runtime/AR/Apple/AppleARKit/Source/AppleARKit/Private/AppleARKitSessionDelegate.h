@@ -16,6 +16,8 @@
 
 - (id)initWithAppleARKitSystem:(class FAppleARKitSystem*)InAppleARKitSystem;
 
+- (void)setMetalTextureCache:(CVMetalTextureCacheRef)InMetalTextureCache;
+
 @end
 
 #endif

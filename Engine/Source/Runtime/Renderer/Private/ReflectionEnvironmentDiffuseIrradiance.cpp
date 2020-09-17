@@ -210,7 +210,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 			const int32 MipSize = GDiffuseIrradianceCubemapSize;
 			FSceneRenderTargetItem& EffectiveRT = GetEffectiveDiffuseIrradianceRenderTarget(SceneContext, MipIndex);			
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EffectiveRT.TargetableTexture);
+			RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 			for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 			{
@@ -246,7 +246,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 				RHICmdList.EndRenderPass();
 			}
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EffectiveRT.TargetableTexture);
+			RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 		}
 
 		const int32 NumMips = FMath::CeilLogTwo(GDiffuseIrradianceCubemapSize) + 1;
@@ -262,7 +262,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 				FSceneRenderTargetItem& EffectiveSource = GetEffectiveDiffuseIrradianceSourceTexture(SceneContext, MipIndex);
 				check(EffectiveRT.TargetableTexture != EffectiveSource.ShaderResourceTexture);
 
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EffectiveRT.TargetableTexture);
+				RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 				for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 				{
@@ -298,7 +298,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 					RHICmdList.EndRenderPass();
 				}				
 
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EffectiveRT.TargetableTexture);
+				RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 			}
 		}
 
@@ -307,7 +307,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 			FSceneRenderTargetItem& EffectiveRT = FSceneRenderTargets::Get(RHICmdList).SkySHIrradianceMap->GetRenderTargetItem();
 
 			//load/store actions so we don't lose results as we render one pixel at a time on tile renderers.
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EffectiveRT.TargetableTexture);
+			RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 			FRHIRenderPassInfo RPInfo(EffectiveRT.TargetableTexture, ERenderTargetActions::Load_Store, nullptr);
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("GatherCoeffRP"));
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -341,7 +341,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 				VertexShader);
 
 			RHICmdList.EndRenderPass();
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EffectiveRT.TargetableTexture);
+			RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 		}
 	}
 

@@ -2,7 +2,9 @@
 #define OPENXR_REFLECTION_H_ 1
 
 /*
-** Copyright (c) 2017-2019 The Khronos Group Inc.
+** Copyright (c) 2017-2020 The Khronos Group Inc.
+**
+** SPDX-License-Identifier: Apache-2.0
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -54,6 +56,7 @@ XR_ENUM_STR(XrResult);
     _(XR_ERROR_API_VERSION_UNSUPPORTED, -4) \
     _(XR_ERROR_INITIALIZATION_FAILED, -6) \
     _(XR_ERROR_FUNCTION_UNSUPPORTED, -7) \
+    _(XR_ERROR_FEATURE_UNSUPPORTED, -8) \
     _(XR_ERROR_EXTENSION_NOT_PRESENT, -9) \
     _(XR_ERROR_LIMIT_REACHED, -10) \
     _(XR_ERROR_SIZE_INSUFFICIENT, -11) \
@@ -95,10 +98,8 @@ XR_ENUM_STR(XrResult);
     _(XR_ERROR_LOCALIZED_NAME_INVALID, -49) \
     _(XR_ERROR_ANDROID_THREAD_SETTINGS_ID_INVALID_KHR, -1000003000) \
     _(XR_ERROR_ANDROID_THREAD_SETTINGS_FAILURE_KHR, -1000003001) \
-    _(XR_ERROR_VIEW_CONFIGURATION_TYPE_NOT_ENABLED_MSFT, -1000999000) \
-    _(XR_ERROR_CONTROLLER_RENDER_MODEL_UNAVAILABLE_MSFT, -1001006000) \
-    _(XR_ERROR_CREATE_SPATIAL_ANCHOR_FAILED_MSFT, -1001008001) \
-    _(XR_ERROR_STORE_SPATIAL_ANCHOR_FAILED_MSFT, -1001013001) \
+    _(XR_ERROR_CREATE_SPATIAL_ANCHOR_FAILED_MSFT, -1000039001) \
+    _(XR_ERROR_SECONDARY_VIEW_CONFIGURATION_TYPE_NOT_ENABLED_MSFT, -1000053000) \
     _(XR_RESULT_MAX_ENUM, 0x7FFFFFFF)
 
 #define XR_LIST_ENUM_XrStructureType(_) \
@@ -181,16 +182,34 @@ XR_ENUM_STR(XrResult);
     _(XR_TYPE_GRAPHICS_BINDING_D3D12_KHR, 1000028000) \
     _(XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR, 1000028001) \
     _(XR_TYPE_GRAPHICS_REQUIREMENTS_D3D12_KHR, 1000028002) \
+    _(XR_TYPE_SYSTEM_EYE_GAZE_INTERACTION_PROPERTIES_EXT, 1000030000) \
+    _(XR_TYPE_EYE_GAZE_SAMPLE_TIME_EXT, 1000030001) \
     _(XR_TYPE_VISIBILITY_MASK_KHR, 1000031000) \
     _(XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR, 1000031001) \
-    _(XR_TYPE_COMPOSITION_LAYER_COLOR_MODULATION_INFO_KHR, 1000034000) \
-    _(XR_TYPE_SESSION_BEGIN_VIEW_CONFIGURATION_INFO_MSFT, 1000999000) \
-    _(XR_TYPE_FRAME_VIEW_CONFIGURATION_STATE_MSFT, 1000999001) \
-    _(XR_TYPE_FRAME_END_SECONDARY_VIEW_CONFIGURATION_INFO_MSFT, 1000999002) \
-    _(XR_TYPE_SECONDARY_VIEW_CONFIGURATION_LAYER_INFO_MSFT, 1000999003) \
-    _(XR_TYPE_SPATIAL_COORDINATE_SYSTEM_SPACE_CREATE_INFO_MSFT, 1001005000) \
-    _(XR_TYPE_ACTION_STATE_POSE_CONTROLLER_RENDER_MODEL_MSFT, 1001006000) \
-    _(XR_TYPE_SPATIAL_ANCHOR_CREATE_INFO_MSFT, 1001008000) \
+    _(XR_TYPE_SESSION_CREATE_INFO_OVERLAY_EXTX, 1000033000) \
+    _(XR_TYPE_EVENT_DATA_MAIN_SESSION_VISIBILITY_CHANGED_EXTX, 1000033003) \
+    _(XR_TYPE_SPATIAL_ANCHOR_CREATE_INFO_MSFT, 1000039000) \
+    _(XR_TYPE_SPATIAL_ANCHOR_SPACE_CREATE_INFO_MSFT, 1000039001) \
+    _(XR_TYPE_VIEW_CONFIGURATION_DEPTH_RANGE_EXT, 1000046000) \
+    _(XR_TYPE_GRAPHICS_BINDING_EGL_MNDX, 1000048004) \
+    _(XR_TYPE_SPATIAL_GRAPH_NODE_SPACE_CREATE_INFO_MSFT, 1000049000) \
+    _(XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT, 1000051000) \
+    _(XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT, 1000051001) \
+    _(XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT, 1000051002) \
+    _(XR_TYPE_HAND_JOINT_LOCATIONS_EXT, 1000051003) \
+    _(XR_TYPE_HAND_JOINT_VELOCITIES_EXT, 1000051004) \
+    _(XR_TYPE_SYSTEM_HAND_TRACKING_MESH_PROPERTIES_MSFT, 1000052000) \
+    _(XR_TYPE_HAND_MESH_SPACE_CREATE_INFO_MSFT, 1000052001) \
+    _(XR_TYPE_HAND_MESH_UPDATE_INFO_MSFT, 1000052002) \
+    _(XR_TYPE_HAND_MESH_MSFT, 1000052003) \
+    _(XR_TYPE_HAND_POSE_TYPE_INFO_MSFT, 1000052004) \
+    _(XR_TYPE_SECONDARY_VIEW_CONFIGURATION_SESSION_BEGIN_INFO_MSFT, 1000053000) \
+    _(XR_TYPE_SECONDARY_VIEW_CONFIGURATION_STATE_MSFT, 1000053001) \
+    _(XR_TYPE_SECONDARY_VIEW_CONFIGURATION_FRAME_STATE_MSFT, 1000053002) \
+    _(XR_TYPE_SECONDARY_VIEW_CONFIGURATION_FRAME_END_INFO_MSFT, 1000053003) \
+    _(XR_TYPE_SECONDARY_VIEW_CONFIGURATION_LAYER_INFO_MSFT, 1000053004) \
+    _(XR_TYPE_SECONDARY_VIEW_CONFIGURATION_SWAPCHAIN_CREATE_INFO_MSFT, 1000053005) \
+    _(XR_TYPE_VIEW_CONFIGURATION_VIEW_FOV_EPIC, 1000059000) \
     _(XR_STRUCTURE_TYPE_MAX_ENUM, 0x7FFFFFFF)
 
 #define XR_LIST_ENUM_XrFormFactor(_) \
@@ -202,7 +221,7 @@ XR_ENUM_STR(XrResult);
     _(XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO, 1) \
     _(XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 2) \
     _(XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO, 1000037000) \
-    _(XR_VIEW_CONFIGURATION_TYPE_SECONDARY_MIXED_REALITY_CAPTURE_MSFT, 1001000000) \
+    _(XR_VIEW_CONFIGURATION_TYPE_SECONDARY_MONO_FIRST_PERSON_OBSERVER_MSFT, 1000054000) \
     _(XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM, 0x7FFFFFFF)
 
 #define XR_LIST_ENUM_XrEnvironmentBlendMode(_) \
@@ -215,7 +234,7 @@ XR_ENUM_STR(XrResult);
     _(XR_REFERENCE_SPACE_TYPE_VIEW, 1) \
     _(XR_REFERENCE_SPACE_TYPE_LOCAL, 2) \
     _(XR_REFERENCE_SPACE_TYPE_STAGE, 3) \
-    _(XR_REFERENCE_SPACE_TYPE_UNBOUNDED_MSFT, 1001007000) \
+    _(XR_REFERENCE_SPACE_TYPE_UNBOUNDED_MSFT, 1000038000) \
     _(XR_REFERENCE_SPACE_TYPE_MAX_ENUM, 0x7FFFFFFF)
 
 #define XR_LIST_ENUM_XrActionType(_) \
@@ -253,7 +272,8 @@ XR_ENUM_STR(XrResult);
     _(XR_OBJECT_TYPE_ACTION_SET, 5) \
     _(XR_OBJECT_TYPE_ACTION, 6) \
     _(XR_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT, 1000019000) \
-    _(XR_OBJECT_TYPE_SPATIAL_ANCHOR_MSFT, 1001008000) \
+    _(XR_OBJECT_TYPE_SPATIAL_ANCHOR_MSFT, 1000039000) \
+    _(XR_OBJECT_TYPE_HAND_TRACKER_EXT, 1000051000) \
     _(XR_OBJECT_TYPE_MAX_ENUM, 0x7FFFFFFF)
 
 #define XR_LIST_ENUM_XrAndroidThreadTypeKHR(_) \
@@ -292,6 +312,54 @@ XR_ENUM_STR(XrResult);
     _(XR_PERF_SETTINGS_NOTIF_LEVEL_WARNING_EXT, 25) \
     _(XR_PERF_SETTINGS_NOTIF_LEVEL_IMPAIRED_EXT, 75) \
     _(XR_PERF_SETTINGS_NOTIFICATION_LEVEL_MAX_ENUM_EXT, 0x7FFFFFFF)
+
+#define XR_LIST_ENUM_XrSpatialGraphNodeTypeMSFT(_) \
+    _(XR_SPATIAL_GRAPH_NODE_TYPE_STATIC_MSFT, 1) \
+    _(XR_SPATIAL_GRAPH_NODE_TYPE_DYNAMIC_MSFT, 2) \
+    _(XR_SPATIAL_GRAPH_NODE_TYPE_MAX_ENUM_MSFT, 0x7FFFFFFF)
+
+#define XR_LIST_ENUM_XrHandEXT(_) \
+    _(XR_HAND_LEFT_EXT, 1) \
+    _(XR_HAND_RIGHT_EXT, 2) \
+    _(XR_HAND_MAX_ENUM_EXT, 0x7FFFFFFF)
+
+#define XR_LIST_ENUM_XrHandJointEXT(_) \
+    _(XR_HAND_JOINT_PALM_EXT, 0) \
+    _(XR_HAND_JOINT_WRIST_EXT, 1) \
+    _(XR_HAND_JOINT_THUMB_METACARPAL_EXT, 2) \
+    _(XR_HAND_JOINT_THUMB_PROXIMAL_EXT, 3) \
+    _(XR_HAND_JOINT_THUMB_DISTAL_EXT, 4) \
+    _(XR_HAND_JOINT_THUMB_TIP_EXT, 5) \
+    _(XR_HAND_JOINT_INDEX_METACARPAL_EXT, 6) \
+    _(XR_HAND_JOINT_INDEX_PROXIMAL_EXT, 7) \
+    _(XR_HAND_JOINT_INDEX_INTERMEDIATE_EXT, 8) \
+    _(XR_HAND_JOINT_INDEX_DISTAL_EXT, 9) \
+    _(XR_HAND_JOINT_INDEX_TIP_EXT, 10) \
+    _(XR_HAND_JOINT_MIDDLE_METACARPAL_EXT, 11) \
+    _(XR_HAND_JOINT_MIDDLE_PROXIMAL_EXT, 12) \
+    _(XR_HAND_JOINT_MIDDLE_INTERMEDIATE_EXT, 13) \
+    _(XR_HAND_JOINT_MIDDLE_DISTAL_EXT, 14) \
+    _(XR_HAND_JOINT_MIDDLE_TIP_EXT, 15) \
+    _(XR_HAND_JOINT_RING_METACARPAL_EXT, 16) \
+    _(XR_HAND_JOINT_RING_PROXIMAL_EXT, 17) \
+    _(XR_HAND_JOINT_RING_INTERMEDIATE_EXT, 18) \
+    _(XR_HAND_JOINT_RING_DISTAL_EXT, 19) \
+    _(XR_HAND_JOINT_RING_TIP_EXT, 20) \
+    _(XR_HAND_JOINT_LITTLE_METACARPAL_EXT, 21) \
+    _(XR_HAND_JOINT_LITTLE_PROXIMAL_EXT, 22) \
+    _(XR_HAND_JOINT_LITTLE_INTERMEDIATE_EXT, 23) \
+    _(XR_HAND_JOINT_LITTLE_DISTAL_EXT, 24) \
+    _(XR_HAND_JOINT_LITTLE_TIP_EXT, 25) \
+    _(XR_HAND_JOINT_MAX_ENUM_EXT, 0x7FFFFFFF)
+
+#define XR_LIST_ENUM_XrHandJointSetEXT(_) \
+    _(XR_HAND_JOINT_SET_DEFAULT_EXT, 0) \
+    _(XR_HAND_JOINT_SET_MAX_ENUM_EXT, 0x7FFFFFFF)
+
+#define XR_LIST_ENUM_XrHandPoseTypeMSFT(_) \
+    _(XR_HAND_POSE_TYPE_TRACKED_MSFT, 0) \
+    _(XR_HAND_POSE_TYPE_REFERENCE_OPEN_PALM_MSFT, 1) \
+    _(XR_HAND_POSE_TYPE_MAX_ENUM_MSFT, 0x7FFFFFFF)
 
 #define XR_LIST_BITS_XrInstanceCreateFlags(_)
 
@@ -347,6 +415,12 @@ XR_ENUM_STR(XrResult);
     _(XR_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT, 0x00000002) \
     _(XR_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT, 0x00000004) \
     _(XR_DEBUG_UTILS_MESSAGE_TYPE_CONFORMANCE_BIT_EXT, 0x00000008)
+
+#define XR_LIST_BITS_XrOverlaySessionCreateFlagsEXTX(_) \
+    _(XR_OVERLAY_SESSION_CREATE_RELAXED_DISPLAY_TIME_BIT_EXTX, 0x00000001)
+
+#define XR_LIST_BITS_XrOverlayMainSessionFlagsEXTX(_) \
+    _(XR_OVERLAY_MAIN_SESSION_ENABLED_COMPOSITION_LAYER_INFO_DEPTH_BIT_EXTX, 0x00000001)
 
 #define XR_LIST_STRUCT_XrApiLayerProperties(_) \
     _(type) \
@@ -972,12 +1046,6 @@ XR_ENUM_STR(XrResult);
     _(viewConfigurationType) \
     _(viewIndex)
 
-#define XR_LIST_STRUCT_XrCompositionLayerColorModulationInfoKHR(_) \
-    _(type) \
-    _(next) \
-    _(colorScale) \
-    _(colorOffset)
-
 #define XR_LIST_STRUCT_XrEventDataPerfSettingsEXT(_) \
     _(type) \
     _(next) \
@@ -1017,17 +1085,170 @@ XR_ENUM_STR(XrResult);
     _(userCallback) \
     _(userData)
 
-#define XR_LIST_STRUCT_XrSessionBeginViewConfigurationInfoMSFT(_) \
+#define XR_LIST_STRUCT_XrSystemEyeGazeInteractionPropertiesEXT(_) \
     _(type) \
     _(next) \
-    _(enabledViewConfigurationCount) \
-    _(enabledViewConfigurationTypes)
+    _(supportsEyeGazeInteraction)
 
-#define XR_LIST_STRUCT_XrFrameViewConfigurationStateMSFT(_) \
+#define XR_LIST_STRUCT_XrEyeGazeSampleTimeEXT(_) \
+    _(type) \
+    _(next) \
+    _(time)
+
+#define XR_LIST_STRUCT_XrSessionCreateInfoOverlayEXTX(_) \
+    _(type) \
+    _(next) \
+    _(createFlags) \
+    _(sessionLayersPlacement)
+
+#define XR_LIST_STRUCT_XrEventDataMainSessionVisibilityChangedEXTX(_) \
+    _(type) \
+    _(next) \
+    _(visible) \
+    _(flags)
+
+#define XR_LIST_STRUCT_XrSpatialAnchorCreateInfoMSFT(_) \
+    _(type) \
+    _(next) \
+    _(space) \
+    _(pose) \
+    _(time)
+
+#define XR_LIST_STRUCT_XrSpatialAnchorSpaceCreateInfoMSFT(_) \
+    _(type) \
+    _(next) \
+    _(anchor) \
+    _(poseInAnchorSpace)
+
+#define XR_LIST_STRUCT_XrViewConfigurationDepthRangeEXT(_) \
+    _(type) \
+    _(next) \
+    _(recommendedNearZ) \
+    _(minNearZ) \
+    _(recommendedFarZ) \
+    _(maxFarZ)
+
+#define XR_LIST_STRUCT_XrGraphicsBindingEGLMNDX(_) \
+    _(type) \
+    _(next) \
+    _(getProcAddress) \
+    _(display) \
+    _(config) \
+    _(context)
+
+#define XR_LIST_STRUCT_XrSpatialGraphNodeSpaceCreateInfoMSFT(_) \
+    _(type) \
+    _(next) \
+    _(nodeType) \
+    _(nodeId) \
+    _(pose)
+
+#define XR_LIST_STRUCT_XrSystemHandTrackingPropertiesEXT(_) \
+    _(type) \
+    _(next) \
+    _(supportsHandTracking)
+
+#define XR_LIST_STRUCT_XrHandTrackerCreateInfoEXT(_) \
+    _(type) \
+    _(next) \
+    _(hand) \
+    _(handJointSet)
+
+#define XR_LIST_STRUCT_XrHandJointsLocateInfoEXT(_) \
+    _(type) \
+    _(next) \
+    _(baseSpace) \
+    _(time)
+
+#define XR_LIST_STRUCT_XrHandJointLocationEXT(_) \
+    _(locationFlags) \
+    _(pose) \
+    _(radius)
+
+#define XR_LIST_STRUCT_XrHandJointVelocityEXT(_) \
+    _(velocityFlags) \
+    _(linearVelocity) \
+    _(angularVelocity)
+
+#define XR_LIST_STRUCT_XrHandJointLocationsEXT(_) \
+    _(type) \
+    _(next) \
+    _(isActive) \
+    _(jointCount) \
+    _(jointLocations)
+
+#define XR_LIST_STRUCT_XrHandJointVelocitiesEXT(_) \
+    _(type) \
+    _(next) \
+    _(jointCount) \
+    _(jointVelocities)
+
+#define XR_LIST_STRUCT_XrSystemHandTrackingMeshPropertiesMSFT(_) \
+    _(type) \
+    _(next) \
+    _(supportsHandTrackingMesh) \
+    _(maxHandMeshIndexCount) \
+    _(maxHandMeshVertexCount)
+
+#define XR_LIST_STRUCT_XrHandMeshSpaceCreateInfoMSFT(_) \
+    _(type) \
+    _(next) \
+    _(handPoseType) \
+    _(poseInHandMeshSpace)
+
+#define XR_LIST_STRUCT_XrHandMeshUpdateInfoMSFT(_) \
+    _(type) \
+    _(next) \
+    _(time) \
+    _(handPoseType)
+
+#define XR_LIST_STRUCT_XrHandMeshIndexBufferMSFT(_) \
+    _(indexBufferKey) \
+    _(indexCapacityInput) \
+    _(indexCountOutput) \
+    _(indices)
+
+#define XR_LIST_STRUCT_XrHandMeshVertexMSFT(_) \
+    _(position) \
+    _(normal)
+
+#define XR_LIST_STRUCT_XrHandMeshVertexBufferMSFT(_) \
+    _(vertexUpdateTime) \
+    _(vertexCapacityInput) \
+    _(vertexCountOutput) \
+    _(vertices)
+
+#define XR_LIST_STRUCT_XrHandMeshMSFT(_) \
+    _(type) \
+    _(next) \
+    _(isActive) \
+    _(indexBufferChanged) \
+    _(vertexBufferChanged) \
+    _(indexBuffer) \
+    _(vertexBuffer)
+
+#define XR_LIST_STRUCT_XrHandPoseTypeInfoMSFT(_) \
+    _(type) \
+    _(next) \
+    _(handPoseType)
+
+#define XR_LIST_STRUCT_XrSecondaryViewConfigurationSessionBeginInfoMSFT(_) \
     _(type) \
     _(next) \
     _(viewConfigurationCount) \
-    _(viewConfigurationsActive)
+    _(enabledViewConfigurationTypes)
+
+#define XR_LIST_STRUCT_XrSecondaryViewConfigurationStateMSFT(_) \
+    _(type) \
+    _(next) \
+    _(viewConfigurationType) \
+    _(active)
+
+#define XR_LIST_STRUCT_XrSecondaryViewConfigurationFrameStateMSFT(_) \
+    _(type) \
+    _(next) \
+    _(viewConfigurationCount) \
+    _(viewConfigurationStates)
 
 #define XR_LIST_STRUCT_XrSecondaryViewConfigurationLayerInfoMSFT(_) \
     _(type) \
@@ -1037,30 +1258,22 @@ XR_ENUM_STR(XrResult);
     _(layerCount) \
     _(layers)
 
-#define XR_LIST_STRUCT_XrFrameEndSecondaryViewConfigurationInfoMSFT(_) \
+#define XR_LIST_STRUCT_XrSecondaryViewConfigurationFrameEndInfoMSFT(_) \
     _(type) \
     _(next) \
     _(viewConfigurationCount) \
-    _(viewConfigurationLayerInfo)
+    _(viewConfigurationLayersInfo)
 
-#define XR_LIST_STRUCT_XrSpatialCoordinateSystemSpaceCreateInfoMSFT(_) \
+#define XR_LIST_STRUCT_XrSecondaryViewConfigurationSwapchainCreateInfoMSFT(_) \
     _(type) \
     _(next) \
-    _(pose) \
-    _(spatialCoordinateSystem)
+    _(viewConfigurationType)
 
-#define XR_LIST_STRUCT_XrActionStatePoseControllerRenderModelMSFT(_) \
+#define XR_LIST_STRUCT_XrViewConfigurationViewFovEPIC(_) \
     _(type) \
     _(next) \
-    _(modelKey) \
-    _(modelValid)
-
-#define XR_LIST_STRUCT_XrSpatialAnchorCreateInfoMSFT(_) \
-    _(type) \
-    _(next) \
-    _(space) \
-    _(pose) \
-    _(time)
+    _(recommendedMutableFov) \
+    _(maxMutableFov)
 
 
 

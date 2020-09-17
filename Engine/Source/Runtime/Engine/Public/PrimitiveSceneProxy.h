@@ -553,7 +553,6 @@ public:
 	inline bool TreatAsBackgroundForOcclusion() const { return bTreatAsBackgroundForOcclusion; }
 	inline bool NeedsLevelAddedToWorldNotification() const { return bNeedsLevelAddedToWorldNotification; }
 	inline bool IsComponentLevelVisible() const { return bIsComponentLevelVisible; }
-	inline bool IsStaticPathAvailable() const { return !bHasMobileMovablePointLightInteraction; }
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
 
 	/** Returns whether draws velocity in base pass. */
@@ -816,9 +815,6 @@ private:
 	uint8 bTreatAsBackgroundForOcclusion : 1;
 
 	friend class FLightPrimitiveInteraction;
-	
-	/** Whether this primitive is affected by dynamic point lights (mobile only)*/
-	uint8 bHasMobileMovablePointLightInteraction : 1;
 
 protected:
 

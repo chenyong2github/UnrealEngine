@@ -77,7 +77,7 @@ public:
 	FLandscapePhysicalMaterial(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
 	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -253,7 +253,7 @@ namespace
 		// Allocate temporary render target
 		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget;
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TargetSize, PF_G8, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget, TEXT("LandscapePhysicalMaterialTarget"), true, ERenderTargetTransience::Transient);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget, TEXT("LandscapePhysicalMaterialTarget"), ERenderTargetTransience::Transient);
 		FTextureRHIRef RenderTargetTexture = PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
 
 		// Create the view
@@ -309,8 +309,8 @@ namespace
 			RHICmdList.EndRenderPass();
 
 			// Copy to the read back texture
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTargetTexture);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ReadbackTexture);
+			RHICmdList.Transition(FRHITransitionInfo(RenderTargetTexture, ERHIAccess::RTV, ERHIAccess::CopySrc));
+			RHICmdList.Transition(FRHITransitionInfo(ReadbackTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 			RHICmdList.CopyToResolveTarget(RenderTargetTexture, ReadbackTexture, FResolveParams());
 			RHICmdList.WriteGPUFence(ReadbackFence);
 		}

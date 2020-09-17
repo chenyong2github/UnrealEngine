@@ -201,7 +201,7 @@ FD3D11Texture2D* FD3D11Viewport::GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, E
 		1,
 		PixelFormat,
 		false,
-		false,
+		TexCreate_RenderTargetable,
 		false,
 		FClearValueBinding()
 		);
@@ -704,7 +704,7 @@ void FD3D11DynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHITe
 	if( RenderTarget == NULL )
 	{
 		RenderTarget = Viewport->GetBackBuffer();
-		RHITransitionResources(EResourceTransitionAccess::EWritable, &RenderTarget, 1);
+		// @todo - fix this RHITransitionResources(EResourceTransitionAccess::EWritable, &RenderTarget, 1);
 	}
 	FRHIRenderTargetView View(RenderTarget, ERenderTargetLoadAction::ELoad);
 	SetRenderTargets(1,&View,nullptr);
@@ -794,12 +794,6 @@ void FD3D11DynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPre
 			GInputLatencyTimer.RenderThreadTrigger = false;
 		}
 	}
-
-#if CHECK_SRV_TRANSITIONS
-	check(UnresolvedTargetsConcurrencyGuard.Increment() == 1);
-	UnresolvedTargets.Reset();
-	check(UnresolvedTargetsConcurrencyGuard.Decrement() == 0);
-#endif
 }
 
 void FD3D11DynamicRHI::RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)

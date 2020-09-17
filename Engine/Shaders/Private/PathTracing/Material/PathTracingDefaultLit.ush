@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "PathTracingFresnel.ush"
+
 float CalcLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
 {
 	// dxr_todo: Reinstate weighted lobe selection criteria (eg: roughness)
@@ -18,7 +20,8 @@ float CalcLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
 float DefaultLit_PdfMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FMaterialClosestHitPayload Payload,
+	float Ior1
 )
 {
 	float3 V_World = -IncomingDirection;
@@ -52,6 +55,7 @@ void DefaultLit_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
+	float Ior1,
 	out float3 OutThroughput,
 	out float OutPdf
 );
@@ -59,6 +63,7 @@ void DefaultLit_EvalMaterial(
 void DefaultLit_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
+	float Ior1,
 	float4 RandSample,
 	out float3 OutDirection,
 	out float3 OutThroughput,
@@ -80,7 +85,7 @@ void DefaultLit_SampleMaterial(
 		float4 Result = CosineSampleHemisphere(RandSample.xy);
 		OutDirection = TangentToWorld(Result.xyz, N);
 		float NoL = saturate(dot(N, OutDirection));
-		OutThroughput = GetDiffuseColor(Payload) / PI * NoL;
+		OutThroughput = GetDiffuseColor(Payload) / PI;
 		OutPdf = LobeSelectionPdf * Result.w;
 	}
 	else
@@ -99,7 +104,10 @@ void DefaultLit_SampleMaterial(
 		float NoH = saturate(dot(N, H));
 		float NoL = saturate(dot(N, L));
 		float VoH = saturate(dot(V, H));
-		float3 F = F_Schlick(GetSpecularColor(Payload), VoH);
+
+		float3 F_Metallic = F_Schlick(GetSpecularColor(Payload), VoH);
+		float3 F_Dielectric = FresnelReflectance(VoH, Ior1, GetIor(Payload));
+		float3 F = lerp(F_Dielectric, F_Metallic, GetMetallic(Payload));
 		float D = D_GGX(a2, NoH);
 		// Note: Pedantic application of normalized weights is on purpose
 		float G = Vis_SmithJointApprox(a2, NoV, NoL) * (4.0 * NoV * NoL);
@@ -113,7 +121,7 @@ void DefaultLit_SampleMaterial(
 		OutThroughput = 0.0;
 		if (NoV * NoL > 0.0)
 		{
-			OutThroughput = F * ((D * G) / (4.0 * NoV * NoL)) * NoL;
+			OutThroughput = F * ((D * G) / (4.0 * NoV * NoL));
 		}
 		OutPdf = (1.0 - LobeSelectionPdf) * MicrofacetPdf;
 	}
@@ -123,6 +131,7 @@ void DefaultLit_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
+	float Ior1,
 	out float3 OutThroughput,
 	out float OutPdf
 )
@@ -148,7 +157,9 @@ void DefaultLit_EvalMaterial(
 	float D = D_GGX(a2, NoH);
 	// Note: Pedantic application of normalized weights is on purpose
 	float G = Vis_SmithJointApprox(a2, NoV, NoL) * (4.0 * NoV * NoL);
-	float3 F = F_Schlick(GetSpecularColor(Payload), VoH);
+	float3 F_Metallic = F_Schlick(GetSpecularColor(Payload), VoH);
+	float3 F_Dielectric = FresnelReflectance(VoH, Ior1, GetIor(Payload));
+	float3 F = lerp(F_Dielectric, F_Metallic, GetMetallic(Payload));
 
 	float3 LambertThroughput = GetDiffuseColor(Payload) / PI;
 	float3 GlossyThroughput = 0.0;
@@ -156,7 +167,7 @@ void DefaultLit_EvalMaterial(
 	{
 		 GlossyThroughput = F * ((D * G) / (4.0 * NoV * NoL));
 	}
-	OutThroughput = (LambertThroughput + GlossyThroughput) * NoL;
+	OutThroughput = (LambertThroughput + GlossyThroughput);
 #else
 	// Create faux GBuffer to use with EvaluateBxDF
 	FGBufferData GBufferData = (FGBufferData)0;
@@ -179,5 +190,5 @@ void DefaultLit_EvalMaterial(
 	OutThroughput = LightingSample.Diffuse + LightingSample.Specular;
 #endif
 
-	OutPdf = DefaultLit_PdfMaterial(IncomingDirection, OutgoingDirection, Payload);
+	OutPdf = DefaultLit_PdfMaterial(IncomingDirection, OutgoingDirection, Payload, Ior1);
 }

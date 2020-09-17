@@ -161,6 +161,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			Out_WorldNormal = float3(0.0, 0.0, 1.0);\n\
 			Out_IsInsideView = true;\n\
 			Out_CameraPosWorld.xyz = View.WorldCameraOrigin.xyz;\n\
+			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5\n\
 			float4 SamplePosition = float4(In_SamplePos + View.PreViewTranslation, 1);\n\
 			float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);\n\
 			float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;\n\
@@ -174,12 +175,14 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 				// Reconstruct world position.\n\
 				Out_WorldPos = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);\n\
 				// Sample the normal buffer\n\
-				Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct.GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;\n\
+				Out_WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;\n\
 			}\n\
 			else\n\
 			{\n\
 				Out_IsInsideView = false;\n\
-			}\n}\n\n");
+			}\n\
+			#endif\n\
+			}\n\n");
 		return true;
 	}
 	else if (FunctionInfo.DefinitionName == TEXT("QueryMeshDistanceFieldGPU"))
@@ -531,7 +534,7 @@ struct FNiagaraDataInterfaceParametersCS_CollisionQuery : public FNiagaraDataInt
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		PassUniformBuffer.Bind(ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		PassUniformBuffer.Bind(ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		GlobalDistanceFieldParameters.Bind(ParameterMap);
 	}
 
@@ -541,7 +544,7 @@ public:
 
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		
-		TUniformBufferRef<FSceneTexturesUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
+		TUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
 		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, PassUniformBuffer/*Shader->GetUniformBufferParameter(SceneTexturesUniformBufferStruct)*/, SceneTextureUniformParams);
 		if (GlobalDistanceFieldParameters.IsBound() && Context.Batcher)
 		{

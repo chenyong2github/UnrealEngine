@@ -302,7 +302,7 @@ static void DoUpdateExternalCameraSampleExecute(TWeakPtr<FJavaAndroidCameraPlaye
 	if (VideoTexture == nullptr)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		VideoTexture = GDynamicRHI->RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
+		VideoTexture = GDynamicRHI->RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, ERHIAccess::Unknown, CreateInfo);
 		PinnedJavaCameraPlayer->SetVideoTexture(VideoTexture);
 
 		if (VideoTexture == nullptr)

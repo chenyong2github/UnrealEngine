@@ -38,11 +38,25 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(bool bFaceMirrored, ARAn
 			LookAtTarget = FAppleARKitConversion::ToFVector(FaceAnchor.lookAtPoint);
 		}
 #endif
+		const auto NumVertices = FaceAnchor.geometry.vertexCount;
+		// https://developer.apple.com/documentation/arkit/arfacegeometry/2931118-texturecoordinates
+		// The UV of the face mesh never changes so it can be cached here
+		static TArray<FVector2D> FaceUVData;
+		if (FaceUVData.Num() != NumVertices && FaceAnchor.geometry.textureCoordinates)
+		{
+			FaceUVData.Reset(NumVertices);
+			for (auto Index = 0; Index < NumVertices; ++Index)
+			{
+				const auto& UV = FaceAnchor.geometry.textureCoordinates[Index];
+				FaceUVData.Add({ UV.x, UV.y });
+			}
+		}
 		NewAnchor = MakeShared<FAppleARKitAnchorData>(
 			FAppleARKitConversion::ToFGuid(FaceAnchor.identifier),
 			FAppleARKitConversion::ToFTransform(FaceAnchor.transform, AdjustBy),
 			ToBlendShapeMap(bFaceMirrored, FaceAnchor.blendShapes, FAppleARKitConversion::ToFTransform(FaceAnchor.transform, AdjustBy), LeftEyeTransform, RightEyeTransform),
-			UpdateSetting == EARFaceTrackingUpdate::CurvesAndGeo ? ToVertexBuffer(FaceAnchor.geometry.vertices, FaceAnchor.geometry.vertexCount) : TArray<FVector>(),
+			UpdateSetting == EARFaceTrackingUpdate::CurvesAndGeo ? ToVertexBuffer(FaceAnchor.geometry.vertices, NumVertices) : TArray<FVector>(),
+			UpdateSetting == EARFaceTrackingUpdate::CurvesAndGeo ? FaceUVData : TArray<FVector2D>(), // Note that this will generate a copy of the UV data
 			LeftEyeTransform,
 			RightEyeTransform,
 			LookAtTarget,
@@ -154,13 +168,27 @@ ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* Ses
 #if SUPPORTS_ARKIT_1_5
 	if (FAppleARKitAvailability::SupportsARKit15())
 	{
-		ARVideoFormat* Format = FAppleARKitConversion::ToARVideoFormat(SessionConfig->GetDesiredVideoFormat(), ARFaceTrackingConfiguration.supportedVideoFormats);
+		ARVideoFormat* Format = FAppleARKitConversion::ToARVideoFormat(SessionConfig->GetDesiredVideoFormat(), ARFaceTrackingConfiguration.supportedVideoFormats, SessionConfig->ShouldUseOptimalVideoFormat());
 		if (Format != nullptr)
 		{
 			SessionConfiguration.videoFormat = Format;
 		}
 	}
 #endif
+	
+#if SUPPORTS_ARKIT_3_0
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		const auto RequestedFaces = SessionConfig->GetMaxNumberOfTrackedFaces();
+		const int32 SupportedFaces = [ARFaceTrackingConfiguration supportedNumberOfTrackedFaces];
+		if (RequestedFaces > SupportedFaces)
+		{
+			UE_LOG(LogAppleARKitFace, Warning, TEXT("Request to support %d tracked faces but the device only supports %d!"), RequestedFaces, SupportedFaces);
+		}
+		SessionConfiguration.maximumNumberOfTrackedFaces = FMath::Min(RequestedFaces, SupportedFaces);
+	}
+#endif
+	
 	// Do we want to capture face performance or look at the face as if in a mirror (Apple is mirrored so we mirror the mirror)
 	bFaceMirrored = SessionConfig->GetFaceTrackingDirection() == EARFaceTrackingDirection::FaceMirrored;
 
@@ -201,29 +229,59 @@ TArray<TSharedPtr<FAppleARKitAnchorData>> FAppleARKitFaceSupport::MakeAnchorData
 	return AnchorList;
 }
 
+FName FAppleARKitFaceSupport::GetLiveLinkSubjectName(const FGuid& AnchorId)
+{
+	// This function is called from both the game and the delegate thread
+	FScopeLock Lock(&AnchorIdLock);
+	if (auto Record = AnchorIdToSubjectName.Find(AnchorId))
+	{
+		return *Record;
+	}
+	
+	const auto DefaultName = GetMutableDefault<UAppleARKitSettings>()->GetFaceTrackingLiveLinkSubjectName();
+	if (AnchorIdToSubjectName.Num())
+	{
+		auto NewName = FString::Printf(TEXT("%s-%d"), *DefaultName.ToString(), AnchorIdToSubjectName.Num());
+		AnchorIdToSubjectName.Add(AnchorId, *NewName);
+	}
+	else
+	{
+		AnchorIdToSubjectName.Add(AnchorId, DefaultName);
+	}
+	return AnchorIdToSubjectName[AnchorId];
+}
+
 void FAppleARKitFaceSupport::ProcessRealTimePublishers(TSharedPtr<FAppleARKitAnchorData> AnchorData)
 {
 	// Copy the data from the passed in anchor
     TSharedPtr<FAppleARKitAnchorData> AsyncAnchorCopy = MakeShared<FAppleARKitAnchorData>(*AnchorData);
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, AsyncAnchorCopy]()
+	const auto SubjectName = GetLiveLinkSubjectName(AnchorData->AnchorGUID);
+	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, AsyncAnchorCopy, SubjectName]()
 	{
 		const FQualifiedFrameTime FrameTime(AsyncAnchorCopy->Timecode, FFrameRate(AsyncAnchorCopy->FrameRate, 1));
 		const FARBlendShapeMap& BlendShapes = AsyncAnchorCopy->BlendShapes;
 
 		if (RemoteLiveLinkPublisher.IsValid())
 		{
-			RemoteLiveLinkPublisher->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, FrameTime, BlendShapes, LocalDeviceId);
+			RemoteLiveLinkPublisher->PublishBlendShapes(SubjectName, FrameTime, BlendShapes, LocalDeviceId);
 		}
 
 		if (LiveLinkFileWriter.IsValid())
 		{
-			LiveLinkFileWriter->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, FrameTime, BlendShapes, LocalDeviceId);
+			LiveLinkFileWriter->PublishBlendShapes(SubjectName, FrameTime, BlendShapes, LocalDeviceId);
 		}
 	});
 }
 
-void FAppleARKitFaceSupport::PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorData> Anchor)
+void FAppleARKitFaceSupport::PublishLiveLinkData(const FGuid& SessionGuid, TSharedPtr<FAppleARKitAnchorData> Anchor)
 {
+	if (LastSessionId != SessionGuid)
+	{
+		// Clear the mapping if we're in a new session
+		LastSessionId = SessionGuid;
+		AnchorIdToSubjectName = {};
+	}
+	
 	static bool bNeedsInit = true;
 	if (bNeedsInit)
 	{
@@ -239,13 +297,11 @@ void FAppleARKitFaceSupport::PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorDat
 #endif
 		}
 	}
-
+	
 	if (LiveLinkSource.IsValid())
 	{
 		const FQualifiedFrameTime FrameTime(Anchor->Timecode, FFrameRate(Anchor->FrameRate, 1));
-
-		FaceTrackingLiveLinkSubjectName = GetMutableDefault<UAppleARKitSettings>()->GetLiveLinkSubjectName();
-        LiveLinkSource->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, FrameTime, Anchor->BlendShapes, LocalDeviceId);
+		LiveLinkSource->PublishBlendShapes(GetLiveLinkSubjectName(Anchor->AnchorGUID), FrameTime, Anchor->BlendShapes, LocalDeviceId);
 	}
 }
 
@@ -255,15 +311,35 @@ bool FAppleARKitFaceSupport::DoesSupportFaceAR()
 }
 #endif
 #if SUPPORTS_ARKIT_1_5
-TArray<FARVideoFormat> FAppleARKitFaceSupport::ToARConfiguration()
+NSArray<ARVideoFormat*>* FAppleARKitFaceSupport::GetSupportedVideoFormats() const
 {
-	return FAppleARKitConversion::FromARVideoFormatArray(ARFaceTrackingConfiguration.supportedVideoFormats);
+	if (FAppleARKitAvailability::SupportsARKit15())
+	{
+		return ARFaceTrackingConfiguration.supportedVideoFormats;
+	}
+	
+	return nullptr;
 }
 #endif
 
 #if SUPPORTS_ARKIT_3_0
 bool FAppleARKitFaceSupport::IsARFrameSemanticsSupported(ARFrameSemantics InSemantics) const
 {
-	return [ARFaceTrackingConfiguration supportsFrameSemantics: InSemantics];
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		return [ARFaceTrackingConfiguration supportsFrameSemantics: InSemantics];
+	}
+	return false;
 }
 #endif
+
+int32 FAppleARKitFaceSupport::GetNumberOfTrackedFacesSupported() const
+{
+#if SUPPORTS_ARKIT_3_0
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		return [ARFaceTrackingConfiguration supportedNumberOfTrackedFaces];
+	}
+#endif
+	return 1;
+}

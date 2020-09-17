@@ -32,13 +32,30 @@ struct FCameraTask : public FMagicLeapTask
 		, Texture(nullptr)
 	{
 	}
+
+	static const TCHAR* TaskTypeToString(EType InTaskType)
+	{
+		const TCHAR* TaskTypeString = TEXT("Invalid");
+		switch (InTaskType)
+		{
+			case EType::None: TaskTypeString = TEXT("None"); break;
+			case EType::Connect: TaskTypeString = TEXT("Connect"); break;
+			case EType::Disconnect: TaskTypeString = TEXT("Disconnect"); break;
+			case EType::ImageToFile: TaskTypeString = TEXT("ImageToFile"); break;
+			case EType::ImageToTexture: TaskTypeString = TEXT("ImageToTexture"); break;
+			case EType::StartVideoToFile: TaskTypeString = TEXT("StartVideoToFile"); break;
+			case EType::StopVideoToFile: TaskTypeString = TEXT("StopVideoToFile"); break;
+			case EType::Log: TaskTypeString = TEXT("Log"); break;
+		}
+
+		return TaskTypeString;
+	}
 };
 
 class FCameraRunnable : public FMagicLeapRunnable<FCameraTask>
 {
 public:
 	FCameraRunnable();
-	void Exit() override;
 	void PushNewCaptureTask(FCameraTask::EType InTaskType);
 	bool IsConnected() const;
 
@@ -54,6 +71,7 @@ private:
 	static void OnPreviewBufferAvailable(MLHandle Output, void *Data);
 	bool TryConnect();
 	bool TryDisconnect();
+	bool TryPrepareCapture(MLCameraCaptureType InCaptureType, MLHandle& OutHandle);
 	bool CaptureImageToFile();
 	bool CaptureImageToTexture();
 	bool StartRecordingVideo();
@@ -78,4 +96,5 @@ private:
 
 	void SetConnectionStatus(EConnectionStatus ConnectionStatus);
 	EConnectionStatus GetConnectionStatus() const;
+	const TCHAR* ConnectionStatusToString(EConnectionStatus InConnectionStatus);
 };

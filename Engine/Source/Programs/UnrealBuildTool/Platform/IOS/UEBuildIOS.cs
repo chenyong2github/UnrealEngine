@@ -231,42 +231,6 @@ namespace UnrealBuildTool
 		private readonly bool bSupportsIPad = true;
 
 		/// <summary>
-		/// Whether to target ArmV7
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bDevForArmV7")]
-		private readonly bool bDevForArmV7 = false;
-
-		/// <summary>
-		/// Whether to target Arm64
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bDevForArm64")]
-		private readonly bool bDevForArm64 = false;
-
-		/// <summary>
-		/// Whether to target ArmV7S
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bDevForArmV7S")]
-		private readonly bool bDevForArmV7S = false;
-
-		/// <summary>
-		/// Whether to target ArmV7 for shipping configurations
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bShipForArmV7")]
-		private readonly bool bShipForArmV7 = false;
-
-		/// <summary>
-		/// Whether to target Arm64 for shipping configurations
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bShipForArm64")]
-		private readonly bool bShipForArm64 = false;
-
-		/// <summary>
-		/// Whether to target ArmV7S for shipping configurations
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bShipForArmV7S")]
-		private readonly bool bShipForArmV7S = false;
-
-		/// <summary>
 		/// additional linker flags for shipping
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "AdditionalShippingLinkerFlags")]
@@ -358,18 +322,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(bDevForArmV7)
-				{
-					yield return "armv7";
-				}
-				if(bDevForArm64 || (!bDevForArmV7 && !bDevForArmV7S))
-				{
-					yield return "arm64";
-				}
-				if(bDevForArmV7S)
-				{
-					yield return "armv7s";
-				}
+				yield return "arm64";
 			}
 		}
 
@@ -380,18 +333,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(bShipForArmV7)
-				{
-					yield return "armv7";
-				}
-				if(bShipForArm64 || (!bShipForArmV7 && !bShipForArmV7S))
-				{
-					yield return "arm64";
-				}
-				if(bShipForArmV7S)
-				{
-					yield return "armv7s";
-				}
+				yield return "arm64";
 			}
 		}
 
@@ -965,8 +907,7 @@ namespace UnrealBuildTool
 		public override bool HasDefaultBuildConfig(UnrealTargetPlatform Platform, DirectoryReference ProjectDirectoryName)
 		{
 			string[] BoolKeys = new string[] {
-				"bDevForArmV7", "bDevForArm64", "bDevForArmV7S", "bShipForArmV7", 
-				"bShipForArm64", "bShipForArmV7S", "bShipForBitcode", "bGeneratedSYMFile",
+				"bShipForBitcode", "bGeneratedSYMFile",
 				"bGeneratedSYMBundle", "bEnableRemoteNotificationsSupport", "bEnableCloudKitSupport",
                 "bGenerateCrashReportSymbols", "bEnableBackgroundFetch"
             };
@@ -1036,6 +977,7 @@ namespace UnrealBuildTool
 						bBuildShaderFormats = true;
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatPVR");
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
+						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatETC2");
 						if (Target.bBuildDeveloperTools && Target.bCompileAgainstEngine)
 						{
 							Rules.DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");

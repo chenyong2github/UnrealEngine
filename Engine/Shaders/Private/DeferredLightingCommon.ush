@@ -108,7 +108,7 @@ float ShadowRayCast(
 	for( int i = 0; i < NumSteps; i++ )
 	{
 		float3 SampleUVz = RayStartUVz + RayStepUVz * SampleTime;
-		float SampleDepth = SceneTexturesStruct.SceneDepthTexture.SampleLevel( SceneTexturesStruct.SceneDepthTextureSampler, SampleUVz.xy, 0 ).r;
+		float SampleDepth = SceneTexturesStruct.SceneDepthTexture.SampleLevel( SceneTexturesStruct_SceneDepthTextureSampler, SampleUVz.xy, 0 ).r;
 
 		float DepthDiff = SampleUVz.z - SampleDepth;
 		bool Hit = abs( DepthDiff + CompareTolerance ) < CompareTolerance;

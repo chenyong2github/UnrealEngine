@@ -1254,7 +1254,7 @@ void ComputeHairStrandsInterpolation(
 			//	TransitBufferToReadable(RHICmdList, TransitionQueue);
 			//
 			//FRHIUnorderedAccessView* UAV = Input.RaytracingPositionBuffer->UAV;
-			//RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, &UAV, 1);
+			//RHICmdList.Transition(FRHITransitionInfo(Input.RaytracingPositionBuffer->UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 			//
 			//const bool bNeedFullBuild = !Input.bIsRTGeometryInitialized;
 			//if (bNeedFullBuild)

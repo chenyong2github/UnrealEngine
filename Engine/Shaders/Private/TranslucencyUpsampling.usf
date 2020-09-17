@@ -8,7 +8,7 @@
 #include "SeparateTranslucency.ush"
 
 Texture2D LowResColorTexture;
-float4 LowResColorTexelSize;
+float2 LowResExtentInverse;
 
 void SimpleUpsamplingPS(FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
@@ -17,5 +17,5 @@ void SimpleUpsamplingPS(FScreenVertexOutput Input, out float4 OutColor : SV_Targ
 
 void NearestDepthNeighborUpsamplingPS(FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
-	OutColor = NearestDepthNeighborUpsampling(Input.Position.xy, Input.UV, LowResColorTexture, LowResColorTexelSize.zw);
+	OutColor = NearestDepthNeighborUpsampling(Input.Position.xy, Input.UV, LowResColorTexture, LowResExtentInverse);
 }

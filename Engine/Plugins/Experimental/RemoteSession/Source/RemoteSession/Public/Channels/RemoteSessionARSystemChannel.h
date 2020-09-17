@@ -41,8 +41,8 @@ public:
 	// Not supported methods
 	// @todo JoeG -- Look at supporting this
 	virtual UARLightEstimate* OnGetCurrentLightEstimate() const override { return nullptr; }
-	virtual UARTextureCameraImage* OnGetCameraImage() override { return nullptr; }
-	virtual UARTextureCameraDepth* OnGetCameraDepth() override { return nullptr; }
+	virtual UARTextureCameraImage* OnGetCameraImage() { return nullptr; }
+	virtual UARTextureCameraDepth* OnGetCameraDepth() { return nullptr; }
 	// End todo block
 	virtual void OnStartARSession(UARSessionConfig* Config) override {}
 	virtual void OnPauseARSession() override {}
@@ -62,6 +62,8 @@ public:
 	virtual TArray<UARPin*> OnGetAllPins() const override { return TArray<UARPin*>(); }
 	virtual UARPin* OnPinComponent(USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry = nullptr, const FName DebugName = NAME_None) { return nullptr; }
 	virtual void OnRemovePin(UARPin* PinToRemove) override {}
+	virtual UARPin* FindARPinByComponent(const USceneComponent* Component) const override { return nullptr; }
+	virtual bool OnPinComponentToARPin(USceneComponent* ComponentToPin, UARPin* Pin) override { return true; }
 	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects( const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels ) override { return TArray<FARTraceResult>(); }
 	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects( const FVector Start, const FVector End, EARLineTraceChannels TraceChannels ) override { return TArray<FARTraceResult>(); }
 	virtual void* GetARSessionRawPointer() override { return nullptr; }

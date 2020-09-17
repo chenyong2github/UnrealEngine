@@ -307,7 +307,7 @@ void FGoogleVRHMD::RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 	}
 }
 
-bool FGoogleVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
+bool FGoogleVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags InFlags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
 	check(Index == 0);
 	check(SizeX != 0 && SizeY != 0);
@@ -347,7 +347,7 @@ FGoogleVRHMDTexture2DSet::FGoogleVRHMDTexture2DSet(
 	EPixelFormat InFormat,
 	bool bInCubemap,
 	bool bInAllocatedStorage,
-	uint32 InFlags,
+	ETextureCreateFlags InFlags,
 	uint8* InTextureRange
 )
 	: FOpenGLTexture2D(
@@ -366,7 +366,6 @@ FGoogleVRHMDTexture2DSet::FGoogleVRHMDTexture2DSet(
 	bInCubemap,
 	bInAllocatedStorage,
 	InFlags,
-	InTextureRange,
 	FClearValueBinding::Black
 	)
 {
@@ -382,7 +381,7 @@ FGoogleVRHMDTexture2DSet* FGoogleVRHMDTexture2DSet::CreateTexture2DSet(
 	uint32 DesiredSizeX, uint32 DesiredSizeY,
 	uint32 InNumLayers, uint32 InNumSamples, uint32 InNumSamplesTileMem,
 	EPixelFormat InFormat,
-	uint32 InFlags)
+	ETextureCreateFlags InFlags)
 {
 	GLenum Target = (InNumLayers > 1) ? GL_TEXTURE_2D_ARRAY : ((InNumSamples > 1) ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D);
 	GLenum Attachment = GL_NONE;//GL_COLOR_ATTACHMENT0;
@@ -445,7 +444,7 @@ namespace {
 	}
 }
 
-bool FGoogleVRHMDCustomPresent::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumLayers, uint32 NumMips, uint32 InFlags, uint32 TargetableTextureFlags)
+bool FGoogleVRHMDCustomPresent::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumLayers, uint32 NumMips, ETextureCreateFlags InFlags, ETextureCreateFlags TargetableTextureFlags)
 {
 	FOpenGLDynamicRHI* GLRHI = static_cast<FOpenGLDynamicRHI*>(GDynamicRHI);
 

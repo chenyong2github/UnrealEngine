@@ -19,22 +19,20 @@ class FShader;
 class FViewInfo;
 class UAtmosphericFogComponent;
 
-namespace EAtmosphereRenderFlag
+enum class EAtmosphereRenderFlag
 {
-	enum Type
-	{
-		E_EnableAll = 0,
-		E_DisableSunDisk = 1,
-		E_DisableGroundScattering = 2,
-		E_DisableLightShaft = 4, // Light Shaft shadow
-		E_DisableSunAndGround = E_DisableSunDisk | E_DisableGroundScattering,
-		E_DisableSunAndLightShaft = E_DisableSunDisk | E_DisableLightShaft,
-		E_DisableGroundAndLightShaft = E_DisableGroundScattering | E_DisableLightShaft,
-		E_DisableAll = E_DisableSunDisk | E_DisableGroundScattering | E_DisableLightShaft,
-		E_RenderFlagMax = E_DisableAll + 1,
-		E_LightShaftMask = (~E_DisableLightShaft),
-	};
-}
+	E_EnableAll = 0,
+	E_DisableSunDisk = 1,
+	E_DisableGroundScattering = 2,
+	E_DisableLightShaft = 4, // Light Shaft shadow
+	E_DisableSunAndGround = E_DisableSunDisk | E_DisableGroundScattering,
+	E_DisableSunAndLightShaft = E_DisableSunDisk | E_DisableLightShaft,
+	E_DisableGroundAndLightShaft = E_DisableGroundScattering | E_DisableLightShaft,
+	E_DisableAll = E_DisableSunDisk | E_DisableGroundScattering | E_DisableLightShaft,
+	E_RenderFlagMax = E_DisableAll + 1,
+	E_LightShaftMask = (~E_DisableLightShaft),
+};
+ENUM_CLASS_FLAGS(EAtmosphereRenderFlag);
 
 /** The properties of a atmospheric fog layer which are used for rendering. (Render side of the application) */
 class FAtmosphericFogSceneInfo : public FRenderResource
@@ -55,7 +53,7 @@ public:
 	float SunDiscScale;
 	FLinearColor DefaultSunColor;
 	FVector DefaultSunDirection;
-	uint32 RenderFlag;
+	EAtmosphereRenderFlag RenderFlag;
 	uint32 InscatterAltitudeSampleNum;
 	bool bAtmosphereAffectsSunIlluminance;
 	class FAtmosphereTextureResource* TransmittanceResource;
@@ -87,7 +85,7 @@ public:
 	void PrepareSunLightProxy(FLightSceneInfo& SunLight) const;
 
 #if WITH_EDITOR
-	void PrecomputeTextures(FRHICommandListImmediate& RHICmdList, const FViewInfo* View, FSceneViewFamily* ViewFamily);
+	void PrecomputeTextures(FRDGBuilder& GraphBuilder, const FViewInfo* View, FSceneViewFamily* ViewFamily);
 	void StartPrecompute();
 
 private:

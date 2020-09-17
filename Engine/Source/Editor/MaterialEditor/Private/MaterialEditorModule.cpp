@@ -119,12 +119,6 @@ public:
 		FMaterialEditorUtilities::GetVisibleMaterialParameters(Material, MaterialInstance, VisibleExpressions);
 	}
 
-	virtual bool MaterialLayersEnabled()
-	{
-		static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportMaterialLayers"));
-		return CVar && CVar->GetValueOnAnyThread() == 1;
-	};
-
 	/** Gets the extensibility managers for outside entities to extend material editor's menus and toolbars */
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }

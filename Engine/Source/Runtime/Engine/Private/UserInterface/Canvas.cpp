@@ -856,9 +856,10 @@ void FCanvas::Flush_GameThread(bool bForce)
 		}
 
 		RenderThreadScope.EnqueueRenderCommand(
-			[](FRHICommandListImmediate& RHICmdList)
+			[FlushParameters](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.EndRenderPass();
+			RHICmdList.Transition(FRHITransitionInfo(FlushParameters.CanvasRenderTarget->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 		});
 	}
 	

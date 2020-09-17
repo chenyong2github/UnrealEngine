@@ -184,6 +184,7 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 	Info.clearValueCount = Layout.GetNumUsedClearValues();
 	Info.pClearValues = AttachmentClearValues;
 
+#if VULKAN_SUPPORTS_QCOM_RENDERPASS_TRANSFORM
 	VkRenderPassTransformBeginInfoQCOM RPTransformBeginInfoQCOM;
 	VkSurfaceTransformFlagBitsKHR QCOMTransform = Layout.GetQCOMRenderPassTransform();
 
@@ -194,7 +195,7 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 		RPTransformBeginInfoQCOM.transform = QCOMTransform;
 		Info.pNext = &RPTransformBeginInfoQCOM;
 	}
-
+#endif
 	VulkanRHI::vkCmdBeginRenderPass(CommandBufferHandle, &Info, VK_SUBPASS_CONTENTS_INLINE);
 
 	State = EState::IsInsideRenderPass;
@@ -548,12 +549,21 @@ void FVulkanCommandBufferManager::SubmitUploadCmdBuffer(uint32 NumSignalSemaphor
 	UploadCmdBuffer = nullptr;
 }
 
-void FVulkanCommandBufferManager::SubmitActiveCmdBuffer(VulkanRHI::FSemaphore* SignalSemaphore)
+void FVulkanCommandBufferManager::SubmitActiveCmdBuffer(TArrayView<VulkanRHI::FSemaphore*> SignalSemaphores)
 {
 	FScopeLock ScopeLock(&Pool.CS);
 	FlushResetQueryPools();
 	check(!UploadCmdBuffer);
 	check(ActiveCmdBuffer);
+
+	FMemMark Mark(FMemStack::Get());
+	TArray<VkSemaphore, TMemStackAllocator<>> SemaphoreHandles;
+	SemaphoreHandles.Reserve(SignalSemaphores.Num() + 1);
+	for (VulkanRHI::FSemaphore* Semaphore : SignalSemaphores)
+	{
+		SemaphoreHandles.Add(Semaphore->GetHandle());
+	}
+
 	if (!ActiveCmdBuffer->IsSubmitted() && ActiveCmdBuffer->HasBegun())
 	{
 		if (!ActiveCmdBuffer->IsOutsideRenderPass())
@@ -577,21 +587,8 @@ void FVulkanCommandBufferManager::SubmitActiveCmdBuffer(VulkanRHI::FSemaphore* S
 				ActiveCmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, UploadCompleteSema);
 			}
 
-			if (SignalSemaphore)
-			{
-				VkSemaphore SignalThis[2] = 
-				{
-					SignalSemaphore->GetHandle(),
-					ActiveCmdBufferSemaphore->GetHandle()
-				};
-
-				Queue->Submit(ActiveCmdBuffer, UE_ARRAY_COUNT(SignalThis), SignalThis);
-			}
-			else
-			{
-				VkSemaphore SignalThis = ActiveCmdBufferSemaphore->GetHandle();
-				Queue->Submit(ActiveCmdBuffer, 1, &SignalThis);
-			}
+			SemaphoreHandles.Add(ActiveCmdBufferSemaphore->GetHandle());
+			Queue->Submit(ActiveCmdBuffer, SemaphoreHandles.Num(), SemaphoreHandles.GetData());
 
 			RenderingCompletedSemaphores.Add(ActiveCmdBufferSemaphore);
 			ActiveCmdBufferSemaphore = nullptr;
@@ -601,14 +598,7 @@ void FVulkanCommandBufferManager::SubmitActiveCmdBuffer(VulkanRHI::FSemaphore* S
 		}
 		else
 		{
-			if (SignalSemaphore)
-			{
-				Queue->Submit(ActiveCmdBuffer, SignalSemaphore->GetHandle());
-			}
-			else
-			{
-				Queue->Submit(ActiveCmdBuffer);
-			}
+			Queue->Submit(ActiveCmdBuffer, SemaphoreHandles.Num(), SemaphoreHandles.GetData());
 		}
 		ActiveCmdBuffer->SubmittedTime = FPlatformTime::Seconds();
 	}

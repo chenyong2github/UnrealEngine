@@ -21,7 +21,7 @@
  * In this scenario, the smaller buffers are temporary and only the final (biggest) buffer
  * becomes persistent, this is why it has apparently unused space at the beginning but
  * it will be used the next frame to hold all of the data.
- * Note that required calls to RHICmdList.TransitionResource need to be handled before and after this function.
+ * Note that required calls to RHICmdList.Transition need to be handled before and after this function.
  *
  * @param RHICmdList - The command list used to issue the dispatch.
  * @param FeatureLevel - The current feature level, used to access the global shadermap.

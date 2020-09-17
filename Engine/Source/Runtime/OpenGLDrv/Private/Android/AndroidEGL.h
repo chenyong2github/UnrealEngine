@@ -13,7 +13,7 @@
 #include "Logging/LogMacros.h"
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES2/gl2.h>
+#include <GLES3/gl31.h>
 
 struct AndroidESPImpl;
 struct ANativeWindow;
@@ -68,9 +68,13 @@ public:
 	void Init( APIVariant API, uint32 MajorVersion, uint32 MinorVersion, bool bDebug);
 	void ReInit();
 	void UnBind();
+	void UnBindRender();
+	void UnBindShared();
 	bool SwapBuffers();
 	void Terminate();
 	void InitSurface(bool bUseSmallSurface, bool bCreateWndSurface);
+	void InitRenderSurface(bool bUseSmallSurface, bool bCreateWndSurface);
+	void InitSharedSurface(bool bUseSmallSurface);
 
 	void GetDimensions(uint32& OutWidth, uint32& OutHeight);
 	
@@ -111,8 +115,10 @@ private:
 	void InitEGL(APIVariant API);
 	void TerminateEGL();
 
-	void CreateEGLSurface(ANativeWindow* InWindow, bool bCreateWndSurface);
-	void DestroySurface();
+	void CreateEGLRenderSurface(ANativeWindow* InWindow, bool bCreateWndSurface);
+	void CreateEGLSharedSurface();
+	void DestroyRenderSurface();
+	void DestroySharedSurface();
 
 	bool InitContexts();
 	void DestroyContext(EGLContext InContext);
@@ -126,6 +132,7 @@ private:
 
 	// Actual Update to the egl surface to match the GT's requested size.
 	void ResizeRenderContextSurface();
+	void ResizeSharedContextSurface();
 
 	bool bSupportsKHRCreateContext;
 	bool bSupportsKHRSurfacelessContext;

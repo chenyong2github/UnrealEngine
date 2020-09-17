@@ -45,30 +45,34 @@ namespace UnrealBuildTool.Rules
                     "HeadMountedDisplay",
                     "Slate",
                     "SlateCore",
-                    "OpenXR"
-                }
+					"AugmentedReality",
+				}
 				);
 
-            if (Target.bBuildEditor == true)
+			if (Target.bBuildEditor == true)
             {
                 PrivateDependencyModuleNames.Add("UnrealEd");
-            }
-
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenXR");
+			}
 
             if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
             {
-                PrivateDependencyModuleNames.Add("D3D11RHI");
+                PrivateDependencyModuleNames.AddRange(new string[] {
+					"D3D11RHI",
+					"D3D12RHI"
+				});
 
                 // Required for some private headers needed for the rendering support.
                 PrivateIncludePaths.AddRange(
                     new string[] {
                             Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private"),
-                            Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private\Windows")
-                                });
+                            Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private\Windows"),
+							Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private"),
+							Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private\Windows")
+								});
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
@@ -79,21 +83,22 @@ namespace UnrealBuildTool.Rules
             {
                 PrivateDependencyModuleNames.AddRange(new string[] {
                     "OpenGLDrv",
-                    "VulkanRHI",
-                    "D3D12RHI"
                 });
 
-                // Required for some private headers needed for the rendering support.
-                PrivateIncludePaths.AddRange(
-                    new string[] {
-                            Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private"),
-                            Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private\Windows")
-                                });
+                AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
+			}
+
+            if (Target.Platform != UnrealTargetPlatform.HoloLens)
+            {
+                PrivateDependencyModuleNames.AddRange(new string[] {
+                    "VulkanRHI"
+                });
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
             }
-        }
+
+            PublicDependencyModuleNames.Add("HeadMountedDisplay");
+			PublicIncludePathModuleNames.Add("OpenXR");
+		}
 	}
 }

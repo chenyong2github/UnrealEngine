@@ -888,7 +888,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				// set viewport to RT size
 				RHICmdList.SetViewport(0, 0, 0.0f, InMediaCapture->DesiredOutputSize.X, InMediaCapture->DesiredOutputSize.Y, 1.0f);
 				RHICmdList.DrawPrimitive(0, 2, 1);
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DestRenderTarget.TargetableTexture);
+				RHICmdList.Transition(FRHITransitionInfo(DestRenderTarget.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 
 				RHICmdList.EndRenderPass();
 			}

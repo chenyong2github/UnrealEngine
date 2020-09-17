@@ -68,7 +68,6 @@ public:
 	virtual TMap<FString, FTexturePlatformData*> *GetCookedPlatformData() override { return &CookedPlatformData; }
 	//~ End UTexture Interface
 
-#if WITH_EDITORONLY_DATA
 	/** The addressing mode to use for the X axis.*/
 	UPROPERTY(EditAnywhere, Category = Source2D, meta = (DisplayName = "Address X"))
 	TEnumAsByte<enum TextureAddress> AddressX;
@@ -80,11 +79,11 @@ public:
 	/** The addressing mode to use for the Z axis.*/
 	UPROPERTY(EditAnywhere, Category = Source2D, meta = (DisplayName = "Address Z"))
 	TEnumAsByte<enum TextureAddress> AddressZ;
-	
+
+#if WITH_EDITORONLY_DATA
 	/** Add Textures*/
 	UPROPERTY(EditAnywhere, Category = Source2D, meta = (DisplayName = "Source Textures"))
 	TArray<UTexture2D*> SourceTextures;
-
 #endif
 
 	/**

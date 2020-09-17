@@ -4850,10 +4850,16 @@ static SpvReflectResult ChangeEntryPointName(
       p_spirv_src += p_node->word_count;
     }
 
+    // Determine previous reflection flags as we need to re-create the shader module
+    SpvReflectReturnFlags reflect_flags = 0;
+    if (p_module->_internal->binding_association_count > 0) {
+      reflect_flags |= SPV_REFLECT_RETURN_FLAG_SAMPLER_IMAGE_USAGE;
+    }
+
     // Replace old module
     DestroyParser(&parser);
     spvReflectDestroyShaderModule(p_module);
-    result = spvReflectCreateShaderModule(new_spirv_size, new_spirv, p_module, 0);
+    result = spvReflectCreateShaderModule(new_spirv_size, new_spirv, p_module, reflect_flags);
 
     // Release temporary buffer
     SafeFree(new_spirv);

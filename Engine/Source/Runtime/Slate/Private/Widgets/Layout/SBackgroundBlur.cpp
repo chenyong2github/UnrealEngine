@@ -13,7 +13,7 @@ static int32 bDownsampleForBlur = 1;
 static FAutoConsoleVariableRef CVarDownsampleForBlur(TEXT("Slate.BackgroundBlurDownsample"), bDownsampleForBlur, TEXT(""), ECVF_Cheat);
 
 #if PLATFORM_ANDROID
-// This feature has not been tested on es2 and will likely not work so we force low quality fallback mode
+// This feature has not been tested on mobile and will likely not work so we force low quality fallback mode
 static int32 bForceLowQualityBrushFallback = 1;
 #else
 static int32 bForceLowQualityBrushFallback = 0;

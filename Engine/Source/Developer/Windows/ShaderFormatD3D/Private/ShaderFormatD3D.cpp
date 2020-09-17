@@ -5,6 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
+#include "DxcWrapper.h"
 
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
@@ -71,16 +72,17 @@ public:
  * Module for D3D shaders
  */
 
-static IShaderFormat* Singleton = NULL;
+static IShaderFormat* Singleton = nullptr;
 
-class FShaderFormatD3DModule : public IShaderFormatModule
+class FShaderFormatD3DModule : public IShaderFormatModule, public FDxcModuleWrapper
 {
 public:
 	virtual ~FShaderFormatD3DModule()
 	{
 		delete Singleton;
-		Singleton = NULL;
+		Singleton = nullptr;
 	}
+
 	virtual IShaderFormat* GetShaderFormat()
 	{
 		if (!Singleton)

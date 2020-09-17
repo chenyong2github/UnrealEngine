@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessDeferredDecals.cpp: Deferred Decals implementation.
-=============================================================================*/
-
 #include "CompositionLighting/PostProcessDeferredDecals.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
@@ -13,7 +9,6 @@
 #include "VisualizeTexture.h"
 #include "RendererUtils.h"
 
-
 static TAutoConsoleVariable<float> CVarStencilSizeThreshold(
 	TEXT("r.Decal.StencilSizeThreshold"),
 	0.1f,
@@ -22,6 +17,112 @@ static TAutoConsoleVariable<float> CVarStencilSizeThreshold(
 	TEXT("   0: optimization is enabled no matter how small (screen space) the decal is\n")
 	TEXT("0..1: optimization is enabled, value defines the minimum size (screen space) to trigger the optimization (default 0.1)")
 );
+
+FDeferredDecalPassTextures GetDeferredDecalPassTextures(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer)
+{
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+
+	FDeferredDecalPassTextures PassTextures;
+	PassTextures.SceneTexturesUniformBuffer = SceneTexturesUniformBuffer;
+	PassTextures.Depth = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
+	PassTextures.Color = TryRegisterExternalTexture(GraphBuilder, SceneContext.GetSceneColor(), ERenderTargetTexture::Targetable);
+	PassTextures.GBufferA = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
+	PassTextures.GBufferB = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferB);
+	PassTextures.GBufferC = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferC);
+	PassTextures.GBufferE = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferE);
+	return PassTextures;
+}
+
+void GetDeferredDecalPassParameters(
+	const FViewInfo& View,
+	const FDeferredDecalPassTextures& Textures,
+	ERenderTargetLoadAction DBufferLoadAction,
+	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode,
+	FDeferredDecalPassParameters& PassParameters)
+{
+	const bool bWritingToGBufferA = IsWritingToGBufferA(RenderTargetMode);
+	const bool bWritingToDepth = IsWritingToDepth(RenderTargetMode);
+
+	PassParameters.SceneTextures = Textures.SceneTexturesUniformBuffer;
+
+	FRDGTextureRef DepthTexture = Textures.Depth.Target;
+
+	FRenderTargetBindingSlots& RenderTargets = PassParameters.RenderTargets;
+
+	uint32 ColorTargetIndex = 0;
+
+	const auto AddColorTarget = [&](FRDGTextureRef Texture, ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ELoad)
+	{
+		checkf(Texture, TEXT("Attempting to bind decal render targets, but the texture is null."));
+		RenderTargets[ColorTargetIndex++] = FRenderTargetBinding(Texture, LoadAction);
+	};
+
+	switch (RenderTargetMode)
+	{
+	case FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal:
+	case FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal:
+		AddColorTarget(Textures.Color);
+		if (bWritingToGBufferA)
+		{
+			AddColorTarget(Textures.GBufferA);
+		}
+		AddColorTarget(Textures.GBufferB);
+		AddColorTarget(Textures.GBufferC);
+		break;
+
+	case FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal:
+	case FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteNoNormal:
+		AddColorTarget(Textures.Color);
+		if (bWritingToGBufferA)
+		{
+			AddColorTarget(Textures.GBufferA);
+		}
+		AddColorTarget(Textures.GBufferB);
+		AddColorTarget(Textures.GBufferC);
+		AddColorTarget(Textures.GBufferE);
+		break;
+
+	case FDecalRenderingCommon::RTM_GBufferNormal:
+		AddColorTarget(Textures.GBufferA);
+		break;
+
+	case FDecalRenderingCommon::RTM_SceneColor:
+		AddColorTarget(Textures.Color);
+		break;
+
+	case FDecalRenderingCommon::RTM_DBuffer:
+	{
+		AddColorTarget(Textures.DBufferA, DBufferLoadAction);
+		AddColorTarget(Textures.DBufferB, DBufferLoadAction);
+		AddColorTarget(Textures.DBufferC, DBufferLoadAction);
+		if (Textures.DBufferMask)
+		{
+			AddColorTarget(Textures.DBufferMask, DBufferLoadAction);
+		}
+
+		// D-Buffer always uses the resolved depth; no MSAA.
+		DepthTexture = Textures.Depth.Resolve;
+		break;
+	}
+	case FDecalRenderingCommon::RTM_AmbientOcclusion:
+	{
+		AddColorTarget(Textures.ScreenSpaceAO);
+		break;
+	}
+
+	default:
+		checkNoEntry();
+	}
+
+	RenderTargets.DepthStencil = FDepthStencilBinding(
+		DepthTexture,
+		ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ELoad,
+		bWritingToDepth ? FExclusiveDepthStencil::DepthWrite_StencilWrite : FExclusiveDepthStencil::DepthRead_StencilWrite);
+}
 
 enum EDecalDepthInputState
 {
@@ -34,6 +135,18 @@ enum EDecalDepthInputState
 	DDS_DepthTest_StencilEqual1,
 	DDS_DepthTest_StencilEqual1_IgnoreMask,
 	DDS_DepthTest_StencilEqual0,
+};
+
+enum class EDecalDBufferMaskTechnique
+{
+	// DBufferMask is not enabled.
+	Disabled,
+
+	// DBufferMask is written explicitly by the shader during the DBuffer pass.
+	PerPixel,
+
+	// DBufferMask is constructed after the DBuffer pass by compositing DBuffer write mask planes together in a compute shader.
+	WriteMask,
 };
 
 struct FDecalDepthState
@@ -53,10 +166,8 @@ struct FDecalDepthState
 	}
 };
 
-bool RenderPreStencil(FRenderingCompositePassContext& Context, const FMatrix& ComponentToWorldMatrix, const FMatrix& FrustumComponentToClip)
+static bool RenderPreStencil(FRHICommandList& RHICmdList, const FViewInfo& View, const FMatrix& ComponentToWorldMatrix, const FMatrix& FrustumComponentToClip)
 {
-	const FViewInfo& View = Context.View;
-
 	float Distance = (View.ViewMatrices.GetViewOrigin() - ComponentToWorldMatrix.GetOrigin()).Size();
 	float Radius = ComponentToWorldMatrix.GetMaximumAxisScale();
 
@@ -75,7 +186,7 @@ bool RenderPreStencil(FRenderingCompositePassContext& Context, const FMatrix& Co
 	}
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 	// Set states, the state cache helps us avoiding redundant sets
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
@@ -96,14 +207,14 @@ bool RenderPreStencil(FRenderingCompositePassContext& Context, const FMatrix& Co
 		STENCIL_SANDBOX_MASK, STENCIL_SANDBOX_MASK
 	>::GetRHI();
 
-	FDecalRendering::SetVertexShaderOnly(Context.RHICmdList, GraphicsPSOInit, View, FrustumComponentToClip);
-	Context.RHICmdList.SetStencilRef(0);
+	FDecalRendering::SetVertexShaderOnly(RHICmdList, GraphicsPSOInit, View, FrustumComponentToClip);
+	RHICmdList.SetStencilRef(0);
 
 	// Set stream source after updating cached strides
-	Context.RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
+	RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
 
 	// Render decal mask
-	Context.RHICmdList.DrawIndexedPrimitive(GetUnitCubeIndexBuffer(), 0, 0, 8, 0, UE_ARRAY_COUNT(GCubeIndices) / 3, 1);
+	RHICmdList.DrawIndexedPrimitive(GetUnitCubeIndexBuffer(), 0, 0, 8, 0, UE_ARRAY_COUNT(GCubeIndices) / 3, 1);
 
 	return true;
 }
@@ -122,11 +233,6 @@ static EDecalRasterizerState ComputeDecalRasterizerState(bool bInsideDecal, bool
 		bClockwise = !bClockwise;
 	}
 	return bClockwise ? DRS_CW : DRS_CCW;
-}
-
-FRCPassPostProcessDeferredDecals::FRCPassPostProcessDeferredDecals(EDecalRenderStage InDecalRenderStage)
-	: CurrentStage(InDecalRenderStage)
-{
 }
 
 static FDecalDepthState ComputeDecalDepthState(EDecalRenderStage LocalDecalStage, bool bInsideDecal, bool bThisDecalUsesStencil)
@@ -264,12 +370,29 @@ FRHIRasterizerState* GetDecalRasterizerState(EDecalRasterizerState DecalRasteriz
 	}
 }
 
-static inline bool IsStencilOptimizationAvailable(EDecalRenderStage RenderStage)
+static bool IsStencilOptimizationAvailable(EDecalRenderStage RenderStage)
 {
 	return RenderStage == DRS_BeforeLighting || RenderStage == DRS_BeforeBasePass || RenderStage == DRS_Emissive;
 }
 
-const TCHAR* GetStageName(EDecalRenderStage Stage)
+static EDecalDBufferMaskTechnique GetDBufferMaskTechnique(EShaderPlatform ShaderPlatform)
+{
+	const bool bWriteMaskDBufferMask = RHISupportsRenderTargetWriteMask(ShaderPlatform);
+	const bool bPerPixelDBufferMask = IsUsingPerPixelDBufferMask(ShaderPlatform);
+	checkf(!bWriteMaskDBufferMask || !bPerPixelDBufferMask, TEXT("The WriteMask and PerPixel DBufferMask approaches cannot be enabled at the same time. They are mutually exclusive."));
+
+	if (bWriteMaskDBufferMask)
+	{
+		return EDecalDBufferMaskTechnique::WriteMask;
+	}
+	else if (bPerPixelDBufferMask)
+	{
+		return EDecalDBufferMaskTechnique::PerPixel;
+	}
+	return EDecalDBufferMaskTechnique::Disabled;
+}
+
+static const TCHAR* GetStageName(EDecalRenderStage Stage)
 {
 	// could be implemented with enum reflections as well
 
@@ -285,613 +408,216 @@ const TCHAR* GetStageName(EDecalRenderStage Stage)
 	return TEXT("<UNKNOWN>");
 }
 
-
-void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& Context)
+void AddDeferredDecalPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FDeferredDecalPassTextures& PassTextures,
+	EDecalRenderStage DecalRenderStage)
 {
-	FRHICommandListImmediate& RHICmdList = Context.RHICmdList;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	check(PassTextures.Depth.IsValid());
 
-	const bool bShaderComplexity = Context.View.Family->EngineShowFlags.ShaderComplexity;
-	const bool bDBuffer = IsUsingDBuffers(Context.View.GetShaderPlatform());
-	const bool bPerPixelDBufferMask = IsUsingPerPixelDBufferMask(Context.View.GetShaderPlatform());
+	const FSceneViewFamily& ViewFamily = *(View.Family);
+
+	// Debug view framework does not yet support decals.
+	if (!ViewFamily.EngineShowFlags.Decals || ViewFamily.UseDebugViewPS())
+	{
+		return;
+	}
+
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+
+	const FScene& Scene = *(FScene*)ViewFamily.Scene;
+	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
+	const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
+	const uint32 MeshDecalCount = View.MeshDecalBatches.Num();
+	const uint32 DecalCount = Scene.Decals.Num();
+	uint32 SortedDecalCount = 0;
+	FTransientDecalRenderDataList* SortedDecals = nullptr;
+
+	checkf(DecalRenderStage != DRS_AmbientOcclusion || PassTextures.ScreenSpaceAO, TEXT("Attepting to render AO decals without SSAO having emitted a valid render target."));
+	checkf(DecalRenderStage != DRS_BeforeBasePass || IsUsingDBuffers(ShaderPlatform), TEXT("Only DBuffer decals are supported before the base pass."));
+
+	if (DecalCount)
+	{
+		SortedDecals = GraphBuilder.AllocObject<FTransientDecalRenderDataList>();
+		FDecalRendering::BuildVisibleDecalList(Scene, View, DecalRenderStage, SortedDecals);
+		SortedDecalCount = SortedDecals->Num();
+
+		INC_DWORD_STAT_BY(STAT_Decals, SortedDecalCount);
+	}
+
+	const bool bVisibleDecalsInView = MeshDecalCount > 0 || SortedDecalCount > 0;
+	const bool bShaderComplexity = View.Family->EngineShowFlags.ShaderComplexity;
 	const bool bStencilSizeThreshold = CVarStencilSizeThreshold.GetValueOnRenderThread() >= 0;
 
-	SCOPED_DRAW_EVENTF(RHICmdList, DeferredDecals, TEXT("DeferredDecals %s"), GetStageName(CurrentStage));
+	// Attempt to clear the D-Buffer if it's appropriate for this view.
+	ERenderTargetLoadAction DBufferLoadAction = View.DecayLoadAction(ERenderTargetLoadAction::EClear);
+	const EDecalDBufferMaskTechnique DBufferMaskTechnique = GetDBufferMaskTechnique(ShaderPlatform);
 
-	RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthNop_StencilWrite, SceneContext.GetSceneDepthSurface());
-
-	// this cast is safe as only the dedicated server implements this differently and this pass should not be executed on the dedicated server
-	const FViewInfo& View = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
-	bool bNeedsDBufferTargets = false;
-	bool bDidClearDBuffer = false;
-	// Debug view framework does not yet support decals.
-	bool bRenderDecals = ViewFamily.EngineShowFlags.Decals && !ViewFamily.UseDebugViewPS();
-
-	if (CurrentStage == DRS_BeforeBasePass)
+	const auto CreateOrImportTexture = [&](TRefCountPtr<IPooledRenderTarget>& Target, const FRDGTextureDesc& Desc, const TCHAR* Name)
 	{
-		// before BasePass, only if DBuffer is enabled
-		check(bDBuffer);
-
-		// If we're rendering dbuffer decals but there are no decals in the scene, we avoid the 
-		// clears/decompresses and set the targets to NULL		
-		// The DBufferA-C will be replaced with dummy textures in FSceneTexturesUniformParameters
-		if (bRenderDecals)
+		if (Target)
 		{
-			FScene& Scene = *(FScene*)ViewFamily.Scene;
-			if (Scene.Decals.Num() > 0 || Context.View.MeshDecalBatches.Num() > 0)
-			{
-				bNeedsDBufferTargets = true;
-			}
+			return GraphBuilder.RegisterExternalTexture(Target);
 		}
-
-		// If we need dbuffer targets, initialize them
-		if (bNeedsDBufferTargets)
+		else
 		{
-			uint32 BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
+			FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, Name);
+			ConvertToExternalTexture(GraphBuilder, Texture, Target);
+			return Texture;
+		}
+	};
 
-			// DBuffer: Decal buffer
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(
-				SceneContext.GetBufferSizeXY(),
-				PF_B8G8R8A8,
-				FClearValueBinding::None,
-				BaseFlags | GFastVRamConfig.DBufferA,
-				TexCreate_ShaderResource | TexCreate_RenderTargetable,
-				false,
-				1,
-				true,
-				true));
-			
-			if (!SceneContext.DBufferA)
+	const auto RenderDecals = [&](uint32 DecalIndexBegin, uint32 DecalIndexEnd, FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
+	{
+		auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
+		GetDeferredDecalPassParameters(View, PassTextures, DBufferLoadAction, RenderTargetMode, *PassParameters);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("Batch [%d, %d]", DecalIndexBegin, DecalIndexEnd - 1),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[&View, FeatureLevel, ShaderPlatform, DecalIndexBegin, DecalIndexEnd, SortedDecals, DecalRenderStage, bStencilSizeThreshold, bShaderComplexity](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+			for (uint32 DecalIndex = DecalIndexBegin; DecalIndex < DecalIndexEnd; ++DecalIndex)
 			{
+				const FTransientDecalRenderData& DecalData = (*SortedDecals)[DecalIndex];
+				const FDeferredDecalProxy& DecalProxy = *DecalData.DecalProxy;
+				const FMatrix ComponentToWorldMatrix = DecalProxy.ComponentTrans.ToMatrixWithScale();
+				const FMatrix FrustumComponentToClip = FDecalRendering::ComputeComponentToClipMatrix(View, ComponentToWorldMatrix);
+				const EDecalBlendMode DecalBlendMode = bShaderComplexity ? DBM_Emissive : FDecalRenderingCommon::ComputeDecalBlendModeForRenderStage(DecalData.FinalDecalBlendMode, DecalRenderStage);
+				const EDecalRenderStage LocalDecalStage = FDecalRenderingCommon::ComputeRenderStage(ShaderPlatform, DecalBlendMode);
+				const bool bStencilThisDecal = IsStencilOptimizationAvailable(LocalDecalStage);
+
+				bool bThisDecalUsesStencil = false;
+
+				if (bStencilThisDecal && bStencilSizeThreshold)
+				{
+					bThisDecalUsesStencil = RenderPreStencil(RHICmdList, View, ComponentToWorldMatrix, FrustumComponentToClip);
+				}
+
+				const bool bInsideDecal = ((FVector)View.ViewMatrices.GetViewOrigin() - ComponentToWorldMatrix.GetOrigin()).SizeSquared() < FMath::Square(DecalData.ConservativeRadius * 1.05f + View.NearClippingDistance * 2.0f);
+
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+				{
+					// Account for the reversal of handedness caused by negative scale on the decal
+					const FVector Scale = DecalProxy.ComponentTrans.GetScale3D();
+					const bool bReverseHanded = Scale.X * Scale.Y * Scale.Z < 0.0f;
+					const EDecalRasterizerState DecalRasterizerState = FDecalRenderingCommon::ComputeDecalRasterizerState(bInsideDecal, bReverseHanded, View.bReverseCulling);
+					GraphicsPSOInit.RasterizerState = GetDecalRasterizerState(DecalRasterizerState);
+				}
+
+				uint32 StencilRef = 0;
+
+				{
+					const FDecalDepthState DecalDepthState = ComputeDecalDepthState(LocalDecalStage, bInsideDecal, bThisDecalUsesStencil);
+					GraphicsPSOInit.DepthStencilState = GetDecalDepthState(StencilRef, DecalDepthState);
+				}
+
+				GraphicsPSOInit.BlendState = FDecalRendering::GetDecalBlendState(FeatureLevel, DecalRenderStage, DecalBlendMode, DecalData.bHasNormal);
+				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+				FDecalRendering::SetShader(RHICmdList, GraphicsPSOInit, View, DecalData, DecalRenderStage, FrustumComponentToClip);
+				RHICmdList.SetStencilRef(StencilRef);
+				RHICmdList.DrawIndexedPrimitive(GetUnitCubeIndexBuffer(), 0, 0, 8, 0, UE_ARRAY_COUNT(GCubeIndices) / 3, 1);
+			}
+		});
+		DBufferLoadAction = ERenderTargetLoadAction::ELoad;
+	};
+
+	const auto GetRenderTargetMode = [&](const FTransientDecalRenderData& DecalData)
+	{
+		const EDecalBlendMode DecalBlendMode = FDecalRenderingCommon::ComputeDecalBlendModeForRenderStage(DecalData.FinalDecalBlendMode, DecalRenderStage);
+		return bShaderComplexity ? FDecalRenderingCommon::RTM_SceneColor : FDecalRenderingCommon::ComputeRenderTargetMode(ShaderPlatform, DecalBlendMode, DecalData.bHasNormal);
+	};
+
+	if (bVisibleDecalsInView)
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "DeferredDecals %s", GetStageName(DecalRenderStage));
+
+		if (DecalRenderStage == DRS_BeforeBasePass)
+		{
+			const ETextureCreateFlags WriteMaskFlags = DBufferMaskTechnique == EDecalDBufferMaskTechnique::WriteMask ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
+			const ETextureCreateFlags BaseFlags = WriteMaskFlags | TexCreate_ShaderResource | TexCreate_RenderTargetable;
+
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(PassTextures.Depth.Target->Desc.Extent, PF_B8G8R8A8, FClearValueBinding::None, BaseFlags);
+
+			{
+				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferA;
 				Desc.ClearValue = FClearValueBinding::Black;
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.DBufferA, TEXT("DBufferA"));
+				PassTextures.DBufferA = CreateOrImportTexture(SceneContext.DBufferA, Desc, TEXT("DBufferA"));
 			}
 
-			if (!SceneContext.DBufferB)
 			{
 				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferB;
 				Desc.ClearValue = FClearValueBinding(FLinearColor(128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1));
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.DBufferB, TEXT("DBufferB"));
+				PassTextures.DBufferB = CreateOrImportTexture(SceneContext.DBufferB, Desc, TEXT("DBufferB"));
 			}
 
-			if (!SceneContext.DBufferC)
 			{
 				Desc.Flags = BaseFlags | GFastVRamConfig.DBufferC;
 				Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 1));
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.DBufferC, TEXT("DBufferC"));
+				PassTextures.DBufferC = CreateOrImportTexture(SceneContext.DBufferC, Desc, TEXT("DBufferC"));
 			}
 
-			if (bPerPixelDBufferMask)
+			if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::PerPixel)
 			{
 				// Note: 32bpp format is used here to utilize color compression hardware (same as other DBuffer targets).
 				// This significantly reduces bandwidth for clearing, writing and reading on some GPUs.
 				// While a smaller format, such as R8_UINT, will use less video memory, it will result in slower clears and higher bandwidth requirements.
 				check(Desc.Format == PF_B8G8R8A8);
-				Desc.Flags = TexCreate_None;
-#if SUPPORTS_VISUALIZE_TEXTURE
-				Desc.TargetableFlags |= TexCreate_ShaderResource;
-#endif
+				Desc.Flags = TexCreate_ShaderResource;
 				Desc.ClearValue = FClearValueBinding::Transparent;
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.DBufferMask, TEXT("DBufferMask"));
-			}
-
-			// we assume views are non overlapping, then we need to clear only once in the beginning, otherwise we would need to set scissor rects
-			// and don't get FastClear any more.
-			bool bFirstView = Context.View.Family->Views[0] == &Context.View || ViewFamily.bMultiGPUForkAndJoin;
-
-			if (bFirstView)
-			{
-				SCOPED_DRAW_EVENT(RHICmdList, DBufferClear);
-
-				FRHITexture* RenderTargets[4];
-
-				RenderTargets[0] = SceneContext.DBufferA->GetRenderTargetItem().TargetableTexture;
-				RenderTargets[1] = SceneContext.DBufferB->GetRenderTargetItem().TargetableTexture;
-				RenderTargets[2] = SceneContext.DBufferC->GetRenderTargetItem().TargetableTexture;
-				int32 RTCount = 3;
-
-				if (bPerPixelDBufferMask)
-				{
-					RenderTargets[3] = SceneContext.DBufferMask->GetRenderTargetItem().TargetableTexture;
-					RTCount = 4;
-				}
-
-				FRHIRenderPassInfo RPInfo(RTCount, RenderTargets, ERenderTargetActions::Clear_Store);
-				RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthTexture();
-				RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
-				RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
-				RHICmdList.BeginRenderPass(RPInfo, TEXT("InitialDeferredDecals"));
-				bDidClearDBuffer = true;
-			}
-		} // if ( bNeedsDBufferTargets )
-	}
-
-	bool bHasValidDBufferMask = false;
-
-	if (bRenderDecals)
-	{
-		bool bShouldResolveTargets = false;
-
-		if (CurrentStage == DRS_BeforeBasePass || CurrentStage == DRS_BeforeLighting || CurrentStage == DRS_Emissive)
-		{
-			if (Context.View.MeshDecalBatches.Num() > 0)
-			{
-				check(bNeedsDBufferTargets || CurrentStage != DRS_BeforeBasePass);
-				RenderMeshDecals(Context, CurrentStage);
-
-				// Note: There will be an open renderpass at this point.
-				// We are not ending it here in case the next decal uses the same rendertarget.
-				// There is a catch-all to end an active renderpass after the scene decal rendering.
-				
-				bShouldResolveTargets = true;
+				PassTextures.DBufferMask = CreateOrImportTexture(SceneContext.DBufferMask, Desc, TEXT("DBufferMask"));
 			}
 		}
 
-		FScene& Scene = *(FScene*)ViewFamily.Scene;
-		FDecalRenderTargetManager RenderTargetManager(RHICmdList, Context.GetShaderPlatform(), Context.GetFeatureLevel(), CurrentStage);
-
-		//don't early return. Resolves must be run for fast clears to work.
-		if (Scene.Decals.Num() || Context.View.MeshDecalBatches.Num() > 0)
+		if (MeshDecalCount > 0 && (DecalRenderStage == DRS_BeforeBasePass || DecalRenderStage == DRS_BeforeLighting || DecalRenderStage == DRS_Emissive))
 		{
-			check(bNeedsDBufferTargets || CurrentStage != DRS_BeforeBasePass)
+			RenderMeshDecals(GraphBuilder, View, PassTextures, DBufferLoadAction, DecalRenderStage);
+			DBufferLoadAction = ERenderTargetLoadAction::ELoad;
+		}
 
-			// Build a list of decals that need to be rendered for this view
-			FTransientDecalRenderDataList SortedDecals;
+		if (SortedDecalCount > 0)
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "Decals (Visible %d, Total: %d)", SortedDecalCount, DecalCount);
 
-			if (Scene.Decals.Num())
+			uint32 SortedDecalIndex = 1;
+			uint32 LastSortedDecalIndex = 0;
+			FDecalRenderingCommon::ERenderTargetMode LastRenderTargetMode = GetRenderTargetMode((*SortedDecals)[0]);
+
+			for (; SortedDecalIndex < SortedDecalCount; ++SortedDecalIndex)
 			{
-				FDecalRendering::BuildVisibleDecalList(Scene, View, CurrentStage, &SortedDecals);
-			}
+				const FDecalRenderingCommon::ERenderTargetMode RenderTargetMode = GetRenderTargetMode((*SortedDecals)[SortedDecalIndex]);
 
-			if (SortedDecals.Num() > 0)
-			{
-				SCOPED_DRAW_EVENTF(RHICmdList, DeferredDecalsInner, TEXT("DeferredDecalsInner %d/%d"), SortedDecals.Num(), Scene.Decals.Num());
-
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				if (bDidClearDBuffer)
+				if (LastRenderTargetMode != RenderTargetMode)
 				{
-					// If we cleared the Dbuffer above we'll be inside a renderpass here.
-					check(RHICmdList.IsInsideRenderPass());
-					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-				}
-				
-				// Disable UAV cache flushing so we have optimal VT feedback performance.
-				RHICmdList.BeginUAVOverlap();
-
-				// optimization to have less state changes
-				EDecalRasterizerState LastDecalRasterizerState = DRS_Undefined;
-				FDecalDepthState LastDecalDepthState;
-				int32 LastDecalBlendMode = -1;
-				int32 LastDecalHasNormal = -1; // Decal state can change based on its normal property.(SM5)
-				uint32 StencilRef = 0;
-
-				FDecalRenderingCommon::ERenderTargetMode LastRenderTargetMode = FDecalRenderingCommon::RTM_Unknown;
-				const ERHIFeatureLevel::Type SMFeatureLevel = Context.GetFeatureLevel();
-
-				SCOPED_DRAW_EVENT(RHICmdList, Decals);
-				INC_DWORD_STAT_BY(STAT_Decals, SortedDecals.Num());
-
-				for (int32 DecalIndex = 0, DecalCount = SortedDecals.Num(); DecalIndex < DecalCount; DecalIndex++)
-				{
-					const FTransientDecalRenderData& DecalData = SortedDecals[DecalIndex];
-					const FDeferredDecalProxy& DecalProxy = *DecalData.DecalProxy;
-					const FMatrix ComponentToWorldMatrix = DecalProxy.ComponentTrans.ToMatrixWithScale();
-					const FMatrix FrustumComponentToClip = FDecalRendering::ComputeComponentToClipMatrix(View, ComponentToWorldMatrix);
-
-					EDecalBlendMode DecalBlendMode = FDecalRenderingCommon::ComputeDecalBlendModeForRenderStage(DecalData.FinalDecalBlendMode, CurrentStage);
-
-					EDecalRenderStage LocalDecalStage = FDecalRenderingCommon::ComputeRenderStage(View.GetShaderPlatform(), DecalBlendMode);
-					bool bStencilThisDecal = IsStencilOptimizationAvailable(LocalDecalStage);
-
-					FDecalRenderingCommon::ERenderTargetMode CurrentRenderTargetMode = FDecalRenderingCommon::ComputeRenderTargetMode(View.GetShaderPlatform(), DecalBlendMode, DecalData.bHasNormal);
-
-					if (bShaderComplexity)
-					{
-						CurrentRenderTargetMode = FDecalRenderingCommon::RTM_SceneColor;
-						// we want additive blending for the ShaderComplexity mode
-						DecalBlendMode = DBM_Emissive;
-					}
-
-					// Here we assume that GBuffer can only be WorldNormal since it is the only GBufferTarget handled correctly.
-					if (RenderTargetManager.bGufferADirty && DecalData.MaterialResource->NeedsGBuffer())
-					{
-						RHICmdList.CopyToResolveTarget(SceneContext.GBufferA->GetRenderTargetItem().TargetableTexture, SceneContext.GBufferA->GetRenderTargetItem().TargetableTexture, FResolveParams());
-						RenderTargetManager.TargetsToResolve[FDecalRenderTargetManager::GBufferAIndex] = nullptr;
-						RenderTargetManager.bGufferADirty = false;
-					}
-
-					// fewer rendertarget switches if possible
-					if (CurrentRenderTargetMode != LastRenderTargetMode)
-					{
-						LastRenderTargetMode = CurrentRenderTargetMode;
-
-						RenderTargetManager.SetRenderTargetMode(CurrentRenderTargetMode, DecalData.bHasNormal, bPerPixelDBufferMask);
-						Context.SetViewportAndCallRHI(Context.View.ViewRect);
-						RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-					}
-
-					check(RHICmdList.IsInsideRenderPass());
-
-					bool bThisDecalUsesStencil = false;
-
-					if (bStencilThisDecal && bStencilSizeThreshold)
-					{
-						// note this is after a SetStreamSource (in if CurrentRenderTargetMode != LastRenderTargetMode) call as it needs to get the VB input
-						bThisDecalUsesStencil = RenderPreStencil(Context, ComponentToWorldMatrix, FrustumComponentToClip);
-
-						LastDecalRasterizerState = DRS_Undefined;
-						LastDecalDepthState = FDecalDepthState();
-						LastDecalBlendMode = -1;
-					}
-
-					const bool bBlendStateChange = DecalBlendMode != LastDecalBlendMode;// Has decal mode changed.
-					const bool bDecalNormalChanged = GSupportsSeparateRenderTargetBlendState && // has normal changed for SM5 stain/translucent decals?
-						(DecalBlendMode == DBM_Translucent || DecalBlendMode == DBM_Stain) &&
-						(int32)DecalData.bHasNormal != LastDecalHasNormal;
-
-					// fewer blend state changes if possible
-					if (bBlendStateChange || bDecalNormalChanged)
-					{
-						LastDecalBlendMode = DecalBlendMode;
-						LastDecalHasNormal = (int32)DecalData.bHasNormal;
-
-						GraphicsPSOInit.BlendState = FDecalRendering::GetDecalBlendState(SMFeatureLevel, CurrentStage, (EDecalBlendMode)LastDecalBlendMode, DecalData.bHasNormal);
-					}
-
-					// todo
-					const float ConservativeRadius = DecalData.ConservativeRadius;
-					//			const int32 IsInsideDecal = ((FVector)View.ViewMatrices.ViewOrigin - ComponentToWorldMatrix.GetOrigin()).SizeSquared() < FMath::Square(ConservativeRadius * 1.05f + View.NearClippingDistance * 2.0f) + ( bThisDecalUsesStencil ) ? 2 : 0;
-					const bool bInsideDecal = ((FVector)View.ViewMatrices.GetViewOrigin() - ComponentToWorldMatrix.GetOrigin()).SizeSquared() < FMath::Square(ConservativeRadius * 1.05f + View.NearClippingDistance * 2.0f);
-					//			const bool bInsideDecal =  !(IsInsideDecal & 1);
-
-					// update rasterizer state if needed
-					{
-						bool bReverseHanded = false;
-						{
-							// Account for the reversal of handedness caused by negative scale on the decal
-							const auto& Scale3d = DecalProxy.ComponentTrans.GetScale3D();
-							bReverseHanded = Scale3d[0] * Scale3d[1] * Scale3d[2] < 0.f;
-						}
-						EDecalRasterizerState DecalRasterizerState = FDecalRenderingCommon::ComputeDecalRasterizerState(bInsideDecal, bReverseHanded, View.bReverseCulling);
-
-						if (LastDecalRasterizerState != DecalRasterizerState)
-						{
-							LastDecalRasterizerState = DecalRasterizerState;
-							GraphicsPSOInit.RasterizerState = GetDecalRasterizerState(DecalRasterizerState);
-						}
-					}
-
-					// update DepthStencil state if needed
-					{
-						FDecalDepthState DecalDepthState = ComputeDecalDepthState(LocalDecalStage, bInsideDecal, bThisDecalUsesStencil);
-
-						if (LastDecalDepthState != DecalDepthState)
-						{
-							LastDecalDepthState = DecalDepthState;
-							GraphicsPSOInit.DepthStencilState = GetDecalDepthState(StencilRef, DecalDepthState);
-						}
-					}
-
-					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-					FDecalRendering::SetShader(RHICmdList, GraphicsPSOInit, View, DecalData, CurrentStage, FrustumComponentToClip);
-					RHICmdList.SetStencilRef(StencilRef);
-
-					RHICmdList.DrawIndexedPrimitive(GetUnitCubeIndexBuffer(), 0, 0, 8, 0, UE_ARRAY_COUNT(GCubeIndices) / 3, 1);
-					RenderTargetManager.bGufferADirty |= (RenderTargetManager.TargetsToResolve[FDecalRenderTargetManager::GBufferAIndex] != nullptr);
-				}
-
-				check(RHICmdList.IsInsideRenderPass());
-				// Finished rendering sorted decals, so end the renderpass.
-				RHICmdList.EndRenderPass();
-				
-				RHICmdList.EndUAVOverlap();
-			}
-
-			if (RHICmdList.IsInsideRenderPass())
-			{
-				// If the SortedDecals list is empty we may have started a renderpass to clear the dbuffer.
-				// If we only draw mesh decals we'll have an active renderpass here as well.
-				RHICmdList.EndRenderPass();
-			}
-
-			// This stops the targets from being resolved and decoded until the last view is rendered.
-			// This is done so as to not run eliminate fast clear on the views before the end.
-			bool bLastView = Context.View.Family->Views.Last() == &Context.View;
-			if ((Scene.Decals.Num() > 0) && bLastView && CurrentStage == DRS_AmbientOcclusion)
-			{
-				// we don't modify stencil but if out input was having stencil for us (after base pass - we need to clear)
-				// Clear stencil to 0, which is the assumed default by other passes
-
-				FRHIRenderPassInfo RPInfo;
-				RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::DontLoad_DontStore, ERenderTargetActions::Clear_Store);
-				RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
-				RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilWrite;
-				RPInfo.DepthStencilRenderTarget.ResolveTarget = nullptr;
-
-				RHICmdList.TransitionResource(
-					RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil,
-					RPInfo.DepthStencilRenderTarget.DepthStencilTarget);
-
-				RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearStencil"));
-				RHICmdList.EndRenderPass();
-			}
-
-			if (CurrentStage == DRS_BeforeBasePass)
-			{
-				if (bLastView)
-				{
-					if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
-					{
-						SCOPED_DRAW_EVENTF(RHICmdList, DeferredDecals, TEXT("Combine DBuffer WriteMasks"));
-
-						// combine DBuffer RTWriteMasks; will end up in one texture we can load from in the base pass PS and decide whether to do the actual work or not
-						IPooledRenderTarget* Textures[3] =
-						{
-							SceneContext.DBufferA,
-							SceneContext.DBufferB,
-							SceneContext.DBufferC
-						};
-						FRenderTargetWriteMask::Decode<3>(Context.RHICmdList, Context.GetShaderMap(), Textures, SceneContext.DBufferMask, GFastVRamConfig.DBufferMask, TEXT("DBufferMask"));
-					}
-
-					if (SceneContext.DBufferMask)
-					{
-						GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.DBufferMask);
-						bHasValidDBufferMask = true;
-					}
+					RenderDecals(LastSortedDecalIndex, SortedDecalIndex, LastRenderTargetMode);
+					LastRenderTargetMode = RenderTargetMode;
+					LastSortedDecalIndex = SortedDecalIndex;
 				}
 			}
 
-			if (bLastView || !RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
+			if (LastSortedDecalIndex != SortedDecalIndex)
 			{
-				bShouldResolveTargets = true;
+				RenderDecals(LastSortedDecalIndex, SortedDecalIndex, LastRenderTargetMode);
 			}
 		}
-
-		if (bShouldResolveTargets)
-		{
-			RenderTargetManager.ResolveTargets();
-		}
-
-		if (CurrentStage == DRS_BeforeBasePass && bNeedsDBufferTargets)
-		{
-			// before BasePass
-			GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.DBufferA);
-			GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.DBufferB);
-			GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.DBufferC);
-		}
 	}
 
-	if (CurrentStage == DRS_BeforeBasePass && !bHasValidDBufferMask)
+	// Last D-Buffer pass in the frame decodes the write mask (if supported and decals were rendered).
+	if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::WriteMask &&
+		DecalRenderStage == DRS_BeforeBasePass &&
+		PassTextures.DBufferA != nullptr &&
+		View.IsLastInFamily())
 	{
-		// Return the DBufferMask to the render target pool.
-		// FSceneTexturesUniformParameters will fall back to setting a white dummy mask texture.
-		// This allows us to ignore the DBufferMask on frames without decals, without having to explicitly clear the texture.
-		SceneContext.DBufferMask = nullptr;
+		// Combine DBuffer RTWriteMasks; will end up in one texture we can load from in the base pass PS and decide whether to do the actual work or not.
+		FRDGTextureRef Textures[] = { PassTextures.DBufferA, PassTextures.DBufferB, PassTextures.DBufferC };
+		FRDGTextureRef OutputTexture = nullptr;
+		FRenderTargetWriteMask::Decode(GraphBuilder, View.ShaderMap, MakeArrayView(Textures), OutputTexture, GFastVRamConfig.DBufferMask, TEXT("DBufferMaskCombine"));
+		ConvertToExternalTexture(GraphBuilder, OutputTexture, SceneContext.DBufferMask);
 	}
-
-	check(RHICmdList.IsOutsideRenderPass());
-}
-
-FPooledRenderTargetDesc FRCPassPostProcessDeferredDecals::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	// This pass creates it's own output so the compositing graph output isn't needed.
-	FPooledRenderTargetDesc Ret;
-
-	Ret.DebugName = TEXT("DeferredDecals");
-
-	return Ret;
-}
-
-//
-// FDecalRenderTargetManager class
-//
-void FDecalRenderTargetManager::ResolveTargets()
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	// If GBuffer A is dirty, mark it as needing resolve since the content of TargetsToResolve[GBufferAIndex] could have been nullified by modes like RTM_SceneColorAndGBufferNoNormal
-	if (bGufferADirty)
-	{
-		TargetsToResolve[FDecalRenderTargetManager::GBufferAIndex] = SceneContext.GBufferA->GetRenderTargetItem().TargetableTexture;
-	}
-	if (bGufferBCDirty)
-	{
-		TargetsToResolve[FDecalRenderTargetManager::GBufferBIndex] = SceneContext.GBufferB->GetRenderTargetItem().TargetableTexture;
-		TargetsToResolve[FDecalRenderTargetManager::GBufferCIndex] = SceneContext.GBufferC->GetRenderTargetItem().TargetableTexture;
-	}
-
-	//those have been cleared or rendered to and need to be resolved
-	TargetsToResolve[FDecalRenderTargetManager::DBufferAIndex] = SceneContext.DBufferA ? SceneContext.DBufferA->GetRenderTargetItem().TargetableTexture : nullptr;
-	TargetsToResolve[FDecalRenderTargetManager::DBufferBIndex] = SceneContext.DBufferB ? SceneContext.DBufferB->GetRenderTargetItem().TargetableTexture : nullptr;
-	TargetsToResolve[FDecalRenderTargetManager::DBufferCIndex] = SceneContext.DBufferC ? SceneContext.DBufferC->GetRenderTargetItem().TargetableTexture : nullptr;
-
-	// resolve the targets we wrote to.
-	FResolveParams ResolveParams;
-	for (int32 i = 0; i < ResolveBufferMax; ++i)
-	{
-		if (TargetsToResolve[i])
-		{
-			RHICmdList.CopyToResolveTarget(TargetsToResolve[i], TargetsToResolve[i], ResolveParams);
-		}
-	}
-}
-
-
-FDecalRenderTargetManager::FDecalRenderTargetManager(FRHICommandList& InRHICmdList, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EDecalRenderStage CurrentStage)
-	: RHICmdList(InRHICmdList)
-	, bGufferADirty(false)
-	, bGufferBCDirty(false)
-	, FeatureLevel(InFeatureLevel)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	for (uint32 i = 0; i < ResolveBufferMax; ++i)
-	{
-		TargetsToTransitionWritable[i] = true;
-		TargetsToResolve[i] = nullptr;
-	}
-
-	if (SceneContext.DBufferA)
-	{
-		TargetsToResolve[DBufferAIndex] = SceneContext.DBufferA->GetRenderTargetItem().TargetableTexture;
-	}
-	if (SceneContext.DBufferB)
-	{
-		TargetsToResolve[DBufferBIndex] = SceneContext.DBufferB->GetRenderTargetItem().TargetableTexture;
-	}
-
-	if (SceneContext.DBufferC)
-	{
-		TargetsToResolve[DBufferCIndex] = SceneContext.DBufferC->GetRenderTargetItem().TargetableTexture;
-	}
-
-	if (!IsAnyForwardShadingEnabled(ShaderPlatform))
-	{
-		// Normal buffer is already dirty at this point and needs resolve before being read from (irrelevant for DBuffer).
-		bGufferADirty = (CurrentStage == DRS_AfterBasePass) || (CurrentStage == DRS_BeforeLighting);
-		bGufferBCDirty = (CurrentStage == DRS_BeforeLighting);
-	}
-}
-
-void FDecalRenderTargetManager::SetRenderTargetMode(FDecalRenderingCommon::ERenderTargetMode CurrentRenderTargetMode, bool bHasNormal, bool bPerPixelDBufferMask)
-{
-	// There are several situations where we do not have a renderpass active when we get here.
-	// The first decal or mesh to draw, etc.
-	if (RHICmdList.IsInsideRenderPass())
-	{
-		RHICmdList.EndRenderPass();
-	}
-
-	check(!RHICmdList.IsInsideRenderPass());
-
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	// If GBufferA was resolved for read, and we want to write to it again.
-	if (!bGufferADirty && IsWritingToGBufferA(CurrentRenderTargetMode))
-	{
-		// This is required to be compliant with RHISetRenderTargets resource transition code : const bool bAccessValid = !bReadable || LastFrameWritten != CurrentFrame;
-		// If the normal buffer was resolved as a texture before, then bReadable && LastFrameWritten == CurrentFrame, and an error msg will be triggered. 
-		// Which is not needed here since no more read will be done at this point (at least not before any other CopyToResolvedTarget).
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GBufferA->GetRenderTargetItem().TargetableTexture);
-	}
-
-	// Color
-	ERenderTargetActions ColorTargetActions = ERenderTargetActions::Load_Store;
-
-	// Depth
-	FExclusiveDepthStencil DepthStencilAccess = FExclusiveDepthStencil::DepthRead_StencilWrite;
-	ERenderTargetActions DepthTargetActions = ERenderTargetActions::Load_DontStore;
-	uint32 NumColorTargets = 1;
-	FRHITexture** TargetsToBind = &TargetsToResolve[0];
-	FRHITexture* DepthTarget = SceneContext.GetSceneDepthSurface();
-
-	// The SceneColorAndGBuffer modes do not actually need GBufferA bound when there's no normal.
-	// The apis based on renderpasses fill fail to actually bind anything past a null entry in their RT list so we have to bind it anyway.
-	// DX11 will drop writes to an unbound RT so it worked there.
-	switch (CurrentRenderTargetMode)
-	{
-	case FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal:
-	case FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal:
-		TargetsToResolve[SceneColorIndex] = SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture;
-		TargetsToResolve[GBufferAIndex] = bHasNormal ? SceneContext.GBufferA->GetRenderTargetItem().TargetableTexture : nullptr;
-		TargetsToResolve[GBufferBIndex] = SceneContext.GBufferB->GetRenderTargetItem().TargetableTexture;
-		TargetsToResolve[GBufferCIndex] = SceneContext.GBufferC->GetRenderTargetItem().TargetableTexture;
-
-		NumColorTargets = 3 + (bHasNormal ? 1 : 0);
-		break;
-
-	case FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal:
-	case FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteNoNormal:
-		TargetsToResolve[SceneColorIndex] = SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture;
-		TargetsToResolve[GBufferAIndex] = bHasNormal ? SceneContext.GBufferA->GetRenderTargetItem().TargetableTexture : nullptr;
-		TargetsToResolve[GBufferBIndex] = SceneContext.GBufferB->GetRenderTargetItem().TargetableTexture;
-		TargetsToResolve[GBufferCIndex] = SceneContext.GBufferC->GetRenderTargetItem().TargetableTexture;
-		TargetsToResolve[GBufferEIndex] = SceneContext.GBufferE->GetRenderTargetItem().TargetableTexture;
-
-		NumColorTargets = 4 + (bHasNormal ? 1 : 0);
-		DepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-		DepthTargetActions = ERenderTargetActions::Load_Store;
-		break;
-
-	case FDecalRenderingCommon::RTM_GBufferNormal:
-		TargetsToResolve[GBufferAIndex] = SceneContext.GBufferA->GetRenderTargetItem().TargetableTexture;
-
-		TargetsToBind = &TargetsToResolve[GBufferAIndex];
-		break;
-
-	case FDecalRenderingCommon::RTM_SceneColor:
-		TargetsToResolve[SceneColorIndex] = SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture;
-
-		TargetsToBind = &TargetsToResolve[SceneColorIndex];
-		break;
-
-	case FDecalRenderingCommon::RTM_DBuffer:
-	{
-		TargetsToResolve[DBufferAIndex] = SceneContext.DBufferA->GetRenderTargetItem().TargetableTexture;
-		TargetsToResolve[DBufferBIndex] = SceneContext.DBufferB->GetRenderTargetItem().TargetableTexture;
-		TargetsToResolve[DBufferCIndex] = SceneContext.DBufferC->GetRenderTargetItem().TargetableTexture;
-		NumColorTargets = 3;
-
-		if (bPerPixelDBufferMask)
-		{
-			TargetsToResolve[DBufferMaskIndex] = SceneContext.DBufferMask->GetRenderTargetItem().TargetableTexture;
-			NumColorTargets = 4;
-		}
-
-		DepthTarget = SceneContext.GetSceneDepthTexture();
-
-		TargetsToBind = &TargetsToResolve[DBufferAIndex];
-		break;
-	}
-
-	case FDecalRenderingCommon::RTM_AmbientOcclusion:
-	{
-		TargetsToResolve[SceneColorIndex] = SceneContext.ScreenSpaceAO->GetRenderTargetItem().TargetableTexture;
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, TargetsToResolve[SceneColorIndex]);
-
-		TargetsToBind = &TargetsToResolve[SceneColorIndex];
-
-		if (!SceneContext.bScreenSpaceAOIsValid)
-		{
-			ColorTargetActions = ERenderTargetActions::Clear_Store;
-		}
-
-		SceneContext.bScreenSpaceAOIsValid = true;
-		break;
-	}
-
-	default:
-		check(0);
-		break;
-	}
-
-	uint32 WriteIdx = 0;
-	FRHITexture* ValidTargetsToBind[MaxSimultaneousRenderTargets] = { nullptr };
-
-	for (uint32 i = 0; WriteIdx < NumColorTargets; ++i)
-	{
-		if (!TargetsToBind[i])
-		{
-			continue;
-		}
-
-		ValidTargetsToBind[WriteIdx] = TargetsToBind[i];
-		++WriteIdx;
-	}
-
-	FRHIRenderPassInfo RPInfo(NumColorTargets, ValidTargetsToBind, ColorTargetActions);
-	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget;
-	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(DepthTargetActions, ERenderTargetActions::Load_Store);
-	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencilAccess;
-
-	if (TargetsToTransitionWritable[CurrentRenderTargetMode])
-	{
-		TransitionRenderPassTargets(RHICmdList, RPInfo);
-	}
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("DecalPass"));
-
-	TargetsToTransitionWritable[CurrentRenderTargetMode] = false;
 }

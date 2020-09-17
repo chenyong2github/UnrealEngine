@@ -11,6 +11,9 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
+// Whether HitProxy IDs are provided per instance or not
+#define PER_INSTANCE_HITPROXY_ID	(USE_INSTANCING || USE_PER_VERTEX_HITPROXY_ID || USE_VERTEXFACTORY_HITPROXY_ID)
+
 #if USE_PER_VERTEX_HITPROXY_ID
 Buffer<float4> VertexFetch_HitProxyIdBuffer;
 #endif
@@ -18,7 +21,7 @@ Buffer<float4> VertexFetch_HitProxyIdBuffer;
 struct FHitProxyVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
-#if USE_INSTANCING || USE_PER_VERTEX_HITPROXY_ID
+#if PER_INSTANCE_HITPROXY_ID
 	float4 InstanceHitProxyId : HIT_PROXY_ID;
 #endif
 	float4 PixelPosition : TEXCOORD6;
@@ -32,7 +35,7 @@ struct FHitProxyVSToPS
 	struct FHitProxyVSToDS
 	{
 		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-	    #if USE_INSTANCING	
+	    #if PER_INSTANCE_HITPROXY_ID
 		    float4 InstanceHitProxyId : HIT_PROXY_ID;
 	    #endif
 		float4 Position : VS_To_DS_Position;
@@ -57,7 +60,7 @@ struct FHitProxyVSToPS
 
 		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
 
-		#if USE_INSTANCING	
+		#if PER_INSTANCE_HITPROXY_ID
 			TESSELLATION_INTERPOLATE_MEMBER(InstanceHitProxyId);
 		#endif
 
@@ -74,7 +77,7 @@ struct FHitProxyVSToPS
 		
 		O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
 		
-		#if USE_INSTANCING	
+		#if PER_INSTANCE_HITPROXY_ID
 			O.InstanceHitProxyId = Interpolants.InstanceHitProxyId;
 		#endif
 
@@ -122,7 +125,7 @@ void Main(
 	#else
 		Output.InstanceHitProxyId = float4(0,0,0,0);
 	#endif
-#elif USE_INSTANCING
+#elif USE_INSTANCING || USE_VERTEXFACTORY_HITPROXY_ID
 	Output.InstanceHitProxyId = VertexFactoryGetInstanceHitProxyId(Input, VFIntermediates);
 #endif
 

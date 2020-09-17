@@ -151,17 +151,17 @@ public:
 	static const TCHAR* GetFunctionName() { return TEXT("ClearCS"); }
 
 	UE_DEPRECATED(4.25, "TClearReplacementCS::SetResource is deprecated. Call GetClearResourceParam() and bind the UAV manually instead. Be sure to handle any necessary resource transitions.")
-	inline void SetResource(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV)
+	inline void SetResource(FRHIComputeCommandList& RHICmdList, FRHIUnorderedAccessView* UAV)
 	{
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, UAV);
+		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ClearResourceParam, UAV);
 	}
 
 	UE_DEPRECATED(4.25, "TClearReplacementCS::FinalizeResource is deprecated. Call GetClearResourceParam() and bind the UAV manually instead. Be sure to handle any necessary resource transitions.")
-	inline void FinalizeResource(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV)
+	inline void FinalizeResource(FRHIComputeCommandList& RHICmdList, FRHIUnorderedAccessView* UAV)
 	{
 		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ClearResourceParam, nullptr);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAV);
+		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 	}
 
 	inline const FShaderResourceParameter& GetClearResourceParam() const { return ClearResourceParam; }
@@ -308,7 +308,7 @@ typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, FClea
  * how the UAV resource is bound to the underlying platform context..
  */
 template <EClearReplacementResourceType ResourceType, EClearReplacementValueType ValueType, uint32 NumChannels, bool bBarriers>
-inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const typename TClearReplacementTypeSelector<ValueType>::Type(&ClearValues)[NumChannels], TFunctionRef<void(FRHIComputeShader*, const FShaderResourceParameter&, bool)> ResourceBindCallback)
+inline void ClearUAVShader_T(FRHIComputeCommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const typename TClearReplacementTypeSelector<ValueType>::Type(&ClearValues)[NumChannels], TFunctionRef<void(FRHIComputeShader*, const FShaderResourceParameter&, bool)> ResourceBindCallback)
 {
 	typedef TClearReplacementCS<ResourceType, TClearReplacementBase<ValueType, NumChannels, false, true>> FClearShader;
 
@@ -322,7 +322,7 @@ inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessVie
 
 	if (bBarriers)
 	{
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToGfx, UAV);
+		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	}
 
 	ResourceBindCallback(ShaderRHI, ComputeShader->GetClearResourceParam(), true);
@@ -337,13 +337,13 @@ inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessVie
 
 	if (bBarriers)
 	{
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToCompute, UAV);
+		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 	}
 }
 
 // Default implementation of ClearUAVShader_T which simply binds the UAV to the compute shader via RHICmdList.SetUAVParameter
 template <EClearReplacementResourceType ResourceType, EClearReplacementValueType ValueType, uint32 NumChannels, bool bBarriers>
-inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const typename TClearReplacementTypeSelector<ValueType>::Type(&ClearValues)[NumChannels])
+inline void ClearUAVShader_T(FRHIComputeCommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const typename TClearReplacementTypeSelector<ValueType>::Type(&ClearValues)[NumChannels])
 {
 	ClearUAVShader_T<ResourceType, ValueType, NumChannels, bBarriers>(RHICmdList, UAV, SizeX, SizeY, SizeZ, ClearValues, 
 		[&RHICmdList, UAV](FRHIComputeShader* ShaderRHI, const FShaderResourceParameter& Param, bool bSet)
@@ -355,7 +355,7 @@ inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessVie
 
 // Helper version of ClearUAVShader_T for determining float vs uint32 at runtime. Uses the above default implementation.
 template <EClearReplacementResourceType ResourceType, uint32 NumChannels, bool bBarriers>
-inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const void* ClearValues, EClearReplacementValueType ValueType)
+inline void ClearUAVShader_T(FRHIComputeCommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const void* ClearValues, EClearReplacementValueType ValueType)
 {
 	switch (ValueType)
 	{

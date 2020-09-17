@@ -110,6 +110,8 @@ public:
 		return PlanarReflectionId;
 	}
 
+	bool ShouldComponentAddToScene() const;
+
 protected:
 #if WITH_EDITORONLY_DATA
 	/** The material to use on ProxyMeshComponent */

@@ -355,12 +355,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.Ior = Refraction.x;
 	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	
-	// Override custom data if sub-surface material
-	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE)
-	{
-		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
-	}
-
 	#if CLEAR_COAT_BOTTOM_NORMAL
 	{
 		float2 oct2 = UnitVectorToOctahedron(Payload.WorldNormal);
@@ -383,22 +377,25 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	}
 	#endif
 
-#if GBUFFER_HAS_TANGENT
-	#if MATERIAL_TANGENTSPACENORMAL
-		half3 MaterialTangent = normalize(GetMaterialTangent(PixelMaterialInputs));
+	// Override custom data if sub-surface material
+	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
+		Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
+		Payload.ShadingModelID == SHADINGMODELID_CLOTH)
+	{
+		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+	}
 
-		float3 WorldTangent = TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, MaterialTangent);
+	if (Payload.ShadingModelID == SHADINGMODELID_CLOTH)
+	{
+		Payload.CustomData.a = saturate(GetMaterialCustomData0(MaterialParameters));
+	}
 
-		// flip the tangent for backfaces being rendered with a two-sided material
-		WorldTangent *= MaterialParameters.TwoSidedSign;
-	#else 
-		float3 WorldTangent = normalize(GetMaterialTangent(PixelMaterialInputs));
-	#endif 
-		Payload.WorldTangent = WorldTangent;
-		Payload.Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
+#if MATERIAL_USES_ANISOTROPY
+	Payload.WorldTangent = CalculateAnisotropyTangent(MaterialParameters, PixelMaterialInputs);
+	Payload.Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
 #else
-	Payload.WorldTangent = float3(1, 0, 0);
-	Payload.Anisotropy = 1.0;
+	Payload.WorldTangent = 0;
+	Payload.Anisotropy = 0.0f;
 #endif	
 
 	float3 DiffuseIndirectLighting = 0;

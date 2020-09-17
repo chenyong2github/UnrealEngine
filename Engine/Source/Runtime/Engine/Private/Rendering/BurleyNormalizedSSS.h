@@ -22,8 +22,8 @@ void ComputeTransmissionProfileBurley(FLinearColor* TargetBuffer, uint32 TargetB
 									float WorldUnitScale,FLinearColor TransmissionTintColor);
 
 // Compute the Separable Kernel using Burley profile
-void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSize, FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePath,
-	float WorldUnitScale, float ScatterRadius);
+void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSize, FLinearColor SurfaceAlbedo,
+	FLinearColor DiffuseMeanFreePath, float ScatterRadius);
 
 //@param FalloffColor from Separable SSS
 //@param SurfaceAlbedo mapped from FallofColor 

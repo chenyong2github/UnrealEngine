@@ -11,13 +11,13 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_media_data_source.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaDataSourceCreate)
-#define MLMediaDataSourceCreate ::MLSDK_API::MLMediaDataSourceCreateShim
+#define MLMediaDataSourceCreate ::LUMIN_MLSDK_API::MLMediaDataSourceCreateShim
 CREATE_FUNCTION_SHIM(ml_mediaplayer, MLResult, MLMediaDataSourceDestroy)
-#define MLMediaDataSourceDestroy ::MLSDK_API::MLMediaDataSourceDestroyShim
+#define MLMediaDataSourceDestroy ::LUMIN_MLSDK_API::MLMediaDataSourceDestroyShim
 
 }
 

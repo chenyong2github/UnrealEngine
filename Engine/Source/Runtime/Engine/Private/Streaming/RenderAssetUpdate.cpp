@@ -31,24 +31,23 @@ bool IsAssetStreamingSuspended()
 	return GRenderAssetStreamingSuspension > 0;
 }
 
-
 void SuspendRenderAssetStreaming()
 {
 	ensure(IsInGameThread());
 
 	if (FPlatformAtomics::InterlockedIncrement(&GRenderAssetStreamingSuspension) == 1)
 	{
-		bool bHasPendingUpdate = false;
+		bool bHasPendingStreamingRequest = false;
 
 		// Wait for all assets to have their update lock unlocked. 
 		TArray<UStreamableRenderAsset*> LockedAssets;
 		for (TObjectIterator<UStreamableRenderAsset> It; It; ++It)
 		{
 			UStreamableRenderAsset* CurrentAsset = *It;
-			if (CurrentAsset && CurrentAsset->HasPendingUpdate())
+			if (CurrentAsset && CurrentAsset->IsStreamable() && CurrentAsset->HasPendingInitOrStreaming())
 			{
-				bHasPendingUpdate = true;
-				if (CurrentAsset->IsPendingUpdateLocked())
+				bHasPendingStreamingRequest = true;
+				if (CurrentAsset->IsPendingStreamingRequestLocked())
 				{
 					LockedAssets.Add(CurrentAsset);
 				}
@@ -58,20 +57,19 @@ void SuspendRenderAssetStreaming()
 		// If an asset stays locked for  GStreamingFlushTimeOut, 
 		// we conclude there is a deadlock or that the object is never going to recover.
 
-		const float TimeIncrement = 0.010f;
 		float TimeLimit = GStreamingFlushTimeOut;
 
 		while (LockedAssets.Num() && (TimeLimit > 0 || GStreamingFlushTimeOut <= 0))
 		{
-			FPlatformProcess::Sleep(TimeIncrement);
+			FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
 			FlushRenderingCommands();
 			
-			TimeLimit -= TimeIncrement;
+			TimeLimit -= RENDER_ASSET_STREAMING_SLEEP_DT;
 
 			for (int32 LockedIndex = 0; LockedIndex < LockedAssets.Num(); ++LockedIndex)
 			{
 				UStreamableRenderAsset* CurrentAsset = LockedAssets[LockedIndex];
-				if (!CurrentAsset || !CurrentAsset->IsPendingUpdateLocked())
+				if (!CurrentAsset || !CurrentAsset->IsPendingStreamingRequestLocked())
 				{
 					LockedAssets.RemoveAtSwap(LockedIndex);
 					--LockedIndex;
@@ -101,7 +99,7 @@ void SuspendRenderAssetStreaming()
 
 		// At this point, no more rendercommands or IO requests can be generated before a call to ResumeRenderAssetStreamingRenderTasksInternal().
 
-		if (bHasPendingUpdate)
+		if (bHasPendingStreamingRequest)
 		{
 			// Ensure any pending render command executes.
 			FlushRenderingCommands();
@@ -115,9 +113,10 @@ void ResumeRenderAssetStreaming()
 	ensure(GRenderAssetStreamingSuspension >= 0);
 }
 
-FRenderAssetUpdate::FRenderAssetUpdate(UStreamableRenderAsset* InAsset, int32 InRequestedMips)
-	: PendingFirstMip(INDEX_NONE)
-	, RequestedMips(INDEX_NONE)
+FRenderAssetUpdate::FRenderAssetUpdate(const UStreamableRenderAsset* InAsset)
+	: ResourceState(InAsset->GetStreamableResourceState())
+	, CurrentFirstLODIdx(InAsset->GetStreamableResourceState().ResidentFirstLODIdx())
+	, PendingFirstLODIdx(InAsset->GetStreamableResourceState().RequestedFirstLODIdx())
 	, ScheduledGTTasks(0)
 	, ScheduledRenderTasks(0)
 	, ScheduledAsyncTasks(0)
@@ -127,17 +126,7 @@ FRenderAssetUpdate::FRenderAssetUpdate(UStreamableRenderAsset* InAsset, int32 In
 	, TaskState(TS_Init)
 {
 	check(InAsset);
-
-	const int32 NonStreamingMipCount = InAsset->GetNumNonStreamingMips();
-	const int32 MaxMipCount = InAsset->GetNumMipsForStreaming();
-	InRequestedMips = FMath::Clamp<int32>(InRequestedMips, NonStreamingMipCount, MaxMipCount);
-
-	if (InRequestedMips > 0 && InRequestedMips != InAsset->GetNumResidentMips() && InAsset->bIsStreamable)
-	{
-		RequestedMips = InRequestedMips;
-		PendingFirstMip = MaxMipCount - RequestedMips;
-	}
-	else // This shouldn't happen but if it does, then the update is canceled
+	if (!ensure(ResourceState.IsValidForStreamingRequest()))
 	{
 		bIsCancelled = true;
 	}
@@ -161,7 +150,7 @@ uint32 FRenderAssetUpdate::Release() const
 		else
 		{
 			// Can't delete this object if some other system has some token to decrement.
-			UE_LOG(LogContentStreaming, Error, TEXT("RenderAssetUpdate is leaking (%s, State=%d)"), *StreamableAsset->GetFullName(), (int32)TaskState);
+			UE_LOG(LogContentStreaming, Error, TEXT("RenderAssetUpdate is leaking (State=%d)"), (int32)TaskState);
 		}
 	}
 	return NewValue;

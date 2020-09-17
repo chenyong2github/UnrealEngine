@@ -78,6 +78,9 @@ public:
 	 * @return A \c ULuminARCandidateImage Object pointer if the underlying ARPlatform added the candidate image at runtime successfully.
 	 *		  Return nullptr otherwise.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "LuminAR|Image Tracking", meta = (Keywords = "lumin ar augmentedreality augmented reality candidate image"))
+	UFUNCTION(BlueprintCallable, Category = "LuminAR|Image Tracking", meta = (DeprecatedFunction, DeprecatedMessage="Deprecated & will be removed in 0.26.0. Use AddLuminRuntimeCandidateImageEx() instead.", Keywords = "lumin ar augmentedreality augmented reality candidate image"))
 	static ULuminARCandidateImage* AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary);
+
+	UFUNCTION(BlueprintCallable, Category = "LuminAR|Image Tracking", meta = (Keywords = "lumin ar augmentedreality augmented reality candidate image"))
+	static ULuminARCandidateImage* AddLuminRuntimeCandidateImageEx(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary, EMagicLeapImageTargetOrientation InAxisOrientation);
 };

@@ -116,7 +116,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			uint64 NumTexels = (uint64)Image.SizeX * Image.SizeY * Image.NumSlices;
 			OutCompressedImage.RawData.Empty(NumTexels * 2);
 			OutCompressedImage.RawData.AddUninitialized(NumTexels * 2);
-			const FColor* FirstColor = Image.AsBGRA8();
+			const FColor* FirstColor = (&Image.AsBGRA8()[0]);
 			const FColor* LastColor = FirstColor + NumTexels;
 			int8* Dest = (int8*)OutCompressedImage.RawData.GetData();
 
@@ -155,7 +155,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			uint64 NumTexels = (uint64)Image.SizeX * Image.SizeY * Image.NumSlices;
 			OutCompressedImage.RawData.Empty(NumTexels * 4);
 			OutCompressedImage.RawData.AddUninitialized(NumTexels * 4);
-			const FColor* FirstColor = Image.AsBGRA8();
+			const FColor* FirstColor = (&Image.AsBGRA8()[0]);
 			const FColor* LastColor = FirstColor + NumTexels;
 			int8* Dest = (int8*)OutCompressedImage.RawData.GetData();
 
@@ -183,7 +183,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			uint64 NumTexels = (uint64)Image.SizeX * Image.SizeY * Image.NumSlices;
 			OutCompressedImage.RawData.Empty(NumTexels * 4);
 			OutCompressedImage.RawData.AddUninitialized(NumTexels * 4);
-			const FColor* FirstColor = Image.AsBGRA8();
+			const FColor* FirstColor = (&Image.AsBGRA8()[0]);
 			const FColor* LastColor = FirstColor + NumTexels;
 			int8* Dest = (int8*)OutCompressedImage.RawData.GetData();
 

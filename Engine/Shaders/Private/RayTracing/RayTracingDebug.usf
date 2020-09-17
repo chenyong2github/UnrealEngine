@@ -24,7 +24,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
     FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
-	const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+	const uint RayFlags = 0;
 	const uint InstanceInclusionMask = OpaqueOnly ? RAY_TRACING_MASK_OPAQUE : RAY_TRACING_MASK_ALL;
 	const bool bEnableSkyLightContribution = true;
 	const bool bIgnoreTranslucentMaterials = false;

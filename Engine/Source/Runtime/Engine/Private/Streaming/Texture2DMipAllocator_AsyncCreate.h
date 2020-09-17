@@ -9,6 +9,7 @@ Texture2DStreamIn_AsyncCreate.h: Implementation of FTextureMipAllocator using RH
 #include "CoreMinimal.h"
 #include "TextureMipAllocator.h"
 #include "Engine/Texture2D.h"
+#include "Rendering/Texture2DResource.h"
 
 class UTexture2D;
 
@@ -22,7 +23,7 @@ class FTexture2DMipAllocator_AsyncCreate : public FTextureMipAllocator
 {
 public:
 
-	FTexture2DMipAllocator_AsyncCreate();
+	FTexture2DMipAllocator_AsyncCreate(UTexture* Texture);
 	~FTexture2DMipAllocator_AsyncCreate();
 
 	// ********************************************************
@@ -33,7 +34,6 @@ public:
 	bool FinalizeMips(const FTextureUpdateContext& Context, const FTextureUpdateSyncOptions& SyncOptions) final override;
 	void Cancel(const FTextureUpdateSyncOptions& SyncOptions) final override;
 	ETickThread GetCancelThread() const final override;
-	int32 GetCurrentFirstMip(UTexture* Texture) const final override;
 
 protected:
 

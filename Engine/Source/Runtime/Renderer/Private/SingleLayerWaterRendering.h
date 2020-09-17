@@ -1,58 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	SingleLayerWaterRendering.h: Water pass rendering implementation.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "MeshPassProcessor.h"
-#include "Containers/Array.h"
+#include "RenderGraph.h"
 
 class FViewInfo;
 
-struct FSingleLayerWaterPassData
+struct FSceneWithoutWaterTextures
 {
-	TRefCountPtr<IPooledRenderTarget> SceneColorWithoutSingleLayerWater;
-	TRefCountPtr<IPooledRenderTarget> SceneDepthWithoutSingleLayerWater;
-	float RefractionDownsampleFactor;
-
-	struct FSingleLayerWaterPassViewData
+	struct FView
 	{
-		FIntRect SceneWithoutSingleLayerWaterViewRect;
-		FVector4 SceneWithoutSingleLayerWaterMinMaxUV;
+		FIntRect ViewRect;
+		FVector4 MinMaxUV;
 	};
 
-	TArray<FSingleLayerWaterPassViewData> ViewData;
+	FRDGTextureRef ColorTexture = nullptr;
+	FRDGTextureRef DepthTexture = nullptr;
+	TArray<FView> Views;
+	float RefractionDownsampleFactor = 1.0f;
 };
 
-class FSingleLayerWaterPassMeshProcessor : public FMeshPassProcessor
-{
-public:
-
-	FSingleLayerWaterPassMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
-
-	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
-
-	FMeshPassProcessorRenderState PassDrawRenderState;
-
-private:
-	void Process(
-		const FMeshBatch& MeshBatch,
-		uint64 BatchElementMask,
-		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
-		int32 StaticMeshId,
-		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
-		const FMaterial& RESTRICT MaterialResource,
-		ERasterizerFillMode MeshFillMode,
-		ERasterizerCullMode MeshCullMode);
-};
-
-
-
-bool ShouldRenderSingleLayerWater(const TArray<FViewInfo>& Views, const FEngineShowFlags& EngineShowFlags);
-bool ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(const TArray<FViewInfo>& Views);
-
-
+bool ShouldRenderSingleLayerWater(TArrayView<const FViewInfo> Views);
+bool ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(TArrayView<const FViewInfo> Views);

@@ -26,6 +26,7 @@ class FOculusBuildAnalytics
 public:
 	static FOculusBuildAnalytics* GetInstance();
 	static void Shutdown();
+	static bool IsOculusHMDAvailable();
 
 	void RegisterLauncherCallback();
 	void OnTelemetryToggled(bool Enabled);

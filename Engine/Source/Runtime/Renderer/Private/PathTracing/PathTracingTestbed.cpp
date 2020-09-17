@@ -63,16 +63,14 @@ public:
 
 	void UnsetParameters(
 		FRHICommandList& RHICmdList,
-		EResourceTransitionAccess TransitionAccess,
-		EResourceTransitionPipeline TransitionPipeline,
+		ERHIAccess TransitionAccess,
 		FRWBuffer& ResultsBuffer,
-		FRWBuffer& FloatResultsBuffer,
-		FRHIComputeFence* Fence)
+		FRWBuffer& FloatResultsBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, ResultsBuffer.UAV, Fence);
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, FloatResultsBuffer.UAV, Fence);
+		FRHITransitionInfo Transitions[2];
+		Transitions[0] = FRHITransitionInfo(ResultsBuffer.UAV, ERHIAccess::Unknown, TransitionAccess);
+		Transitions[1] = FRHITransitionInfo(FloatResultsBuffer.UAV, ERHIAccess::Unknown, TransitionAccess);
+		RHICmdList.Transition(MakeArrayView(Transitions, 2));
 	}
 
 private:
@@ -139,14 +137,10 @@ public:
 
 	void UnsetParameters(
 		FRHICommandList& RHICmdList,
-		EResourceTransitionAccess TransitionAccess,
-		EResourceTransitionPipeline TransitionPipeline,
-		FRWBuffer& PdfsResultsBuffer,
-		FRHIComputeFence* Fence)
+		ERHIAccess TransitionAccess,
+		FRWBuffer& PdfsResultsBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, PdfsResultsBuffer.UAV, Fence);
+		RHICmdList.Transition(FRHITransitionInfo(PdfsResultsBuffer.UAV, ERHIAccess::Unknown, TransitionAccess));
 	}
 
 private:
@@ -217,14 +211,10 @@ public:
 
 	void UnsetParameters(
 		FRHICommandList& RHICmdList,
-		EResourceTransitionAccess TransitionAccess,
-		EResourceTransitionPipeline TransitionPipeline,
-		FRWBuffer& PdfsResultsBuffer,
-		FRHIComputeFence* Fence)
+		ERHIAccess TransitionAccess,
+		FRWBuffer& PdfsResultsBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, PdfsResultsBuffer.UAV, Fence);
+		RHICmdList.Transition(FRHITransitionInfo(PdfsResultsBuffer.UAV, ERHIAccess::Unknown, TransitionAccess));
 	}
 
 private:
@@ -293,14 +283,10 @@ public:
 
 	void UnsetParameters(
 		FRHICommandList& RHICmdList,
-		EResourceTransitionAccess TransitionAccess,
-		EResourceTransitionPipeline TransitionPipeline,
-		FRWBuffer& PdfsResultsBuffer,
-		FRHIComputeFence* Fence)
+		ERHIAccess TransitionAccess,
+		FRWBuffer& PdfsResultsBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, PdfsResultsBuffer.UAV, Fence);
+		RHICmdList.Transition(FRHITransitionInfo(PdfsResultsBuffer.UAV, ERHIAccess::Unknown, TransitionAccess));
 	}
 
 private:

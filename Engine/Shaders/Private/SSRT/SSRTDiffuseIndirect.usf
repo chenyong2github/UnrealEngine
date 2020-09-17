@@ -345,7 +345,7 @@ void MainCS(
 	
 				FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 				float3 N = mul(float4(GBuffer.WorldNormal, 0), View.TranslatedWorldToView).xyz;
-				float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
+				float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 
 				bool bTraceRay = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT;// && GBuffer.ShadingModelID != SHADINGMODELID_SUBSURFACE_PROFILE;
 				

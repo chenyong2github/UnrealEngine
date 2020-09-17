@@ -373,7 +373,7 @@ FOcclusionResult ComputeOcclusion(
 			/* out */ Ray.TMax);
 			
 
-		uint Stencil = SceneStencilBuffer.Load(int3(PixelCoord, 0)) STENCIL_COMPONENT_SWIZZLE;
+		uint Stencil = SceneStencilTexture.Load(int3(PixelCoord, 0)) STENCIL_COMPONENT_SWIZZLE;
 		bool bDitheredLODFadingOut = Stencil & 1;
 		
 #if	ENABLE_TRANSMISSION
@@ -570,12 +570,12 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		// Mask out depth values that are infinitely far away
 
 #if 0
-		float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
+		float DeviceZ = SceneDepthTexture.SampleLevel(SceneDepthTextureSampler, BufferUV, 0).r;
 #else
 		//#dxr-todo: workaround for flickering. UE-87281
-		float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+		float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 #endif
-		const bool bIsDepthValid = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r > 0.0;
+		const bool bIsDepthValid = SceneDepthTexture.Load(int3(PixelCoord, 0)).r > 0.0;
 		const bool bIsValidPixel = ShadingModelID != SHADINGMODELID_UNLIT && bIsDepthValid;
 		const uint LightChannel = GetSceneLightingChannel(PixelCoord);
 		const bool bTraceRay = bIsValidPixel && (LightChannel & LightingChannelMask) != 0;

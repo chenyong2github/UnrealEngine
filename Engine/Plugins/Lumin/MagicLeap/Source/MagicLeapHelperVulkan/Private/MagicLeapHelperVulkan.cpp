@@ -31,9 +31,7 @@ void FMagicLeapHelperVulkan::BlitImage(uint64 SrcName, int32 SrcX, int32 SrcY, i
 	VkImage Src = (VkImage)SrcName;
 	VkImage Dst = (VkImage)DstName;
 
-	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-
-	FVulkanCommandBufferManager* CmdBufferMgr = RHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
+	FVulkanCommandBufferManager* CmdBufferMgr = GVulkanRHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
 	FVulkanCmdBuffer* CmdBuffer = CmdBufferMgr->GetUploadCmdBuffer();
 
 	/*{
@@ -80,9 +78,7 @@ void FMagicLeapHelperVulkan::ClearImage(uint64 DstName, const FLinearColor& Clea
 #if PLATFORM_SUPPORTS_VULKAN
 	VkImage Dst = (VkImage)DstName;
 
-	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-
-	FVulkanCommandBufferManager* CmdBufferMgr = RHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
+	FVulkanCommandBufferManager* CmdBufferMgr = GVulkanRHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
 	FVulkanCmdBuffer* CmdBuffer = CmdBufferMgr->GetUploadCmdBuffer();
 
 	VkImageSubresourceRange Range;
@@ -115,13 +111,11 @@ void FMagicLeapHelperVulkan::ClearImage(uint64 DstName, const FLinearColor& Clea
 void FMagicLeapHelperVulkan::SignalObjects(uint64 SignalObject0, uint64 SignalObject1, uint64 WaitObject)
 {
 #if PLATFORM_SUPPORTS_VULKAN
-	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-
-	FVulkanCommandBufferManager* CmdBufferMgr = RHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
+	FVulkanCommandBufferManager* CmdBufferMgr = GVulkanRHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
 	FVulkanCmdBuffer* CmdBuffer = CmdBufferMgr->GetUploadCmdBuffer();
 
 	// VulkanRHI::FSemaphore is self recycling.
-	VulkanRHI::FSemaphore* WaitSemaphore = new VulkanRHI::FSemaphore(*(RHI->GetDevice()), (VkSemaphore)WaitObject);
+	VulkanRHI::FSemaphore* WaitSemaphore = new VulkanRHI::FSemaphore(*(GVulkanRHI->GetDevice()), (VkSemaphore)WaitObject);
 	CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, WaitSemaphore);
 
 	VkSemaphore Semaphores[2] =
@@ -161,8 +155,7 @@ uint64 FMagicLeapHelperVulkan::AliasImageSRGB(const uint64 Allocation, const uin
 	ImageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	ImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 
-	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-	FVulkanDevice* Device = RHI->GetDevice();
+	FVulkanDevice* Device = GVulkanRHI->GetDevice();
 	VkImage Result = VK_NULL_HANDLE;
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(Device->GetInstanceHandle(), &ImageCreateInfo, nullptr, &Result));
 
@@ -170,7 +163,7 @@ uint64 FMagicLeapHelperVulkan::AliasImageSRGB(const uint64 Allocation, const uin
 
 	check(Result != VK_NULL_HANDLE);
 
-	FVulkanCommandBufferManager* CmdBufferMgr = RHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
+	FVulkanCommandBufferManager* CmdBufferMgr = GVulkanRHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
 	FVulkanCmdBuffer* CmdBuffer = CmdBufferMgr->GetUploadCmdBuffer();
 
 	VkImageSubresourceRange Range;
@@ -180,7 +173,7 @@ uint64 FMagicLeapHelperVulkan::AliasImageSRGB(const uint64 Allocation, const uin
 	Range.baseArrayLayer = 0;
 	Range.layerCount = 1;
 
-	RHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), Result, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Range);
+	GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), Result, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Range);
 
 	return (uint64)Result;
 #else
@@ -193,8 +186,7 @@ void FMagicLeapHelperVulkan::DestroyImageSRGB(void* Image)
 #if PLATFORM_SUPPORTS_VULKAN
 	if (Image != VK_NULL_HANDLE)
 	{
-		FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-		FVulkanDevice* Device = RHI->GetDevice();
+		FVulkanDevice* Device = GVulkanRHI->GetDevice();
 		VulkanRHI::vkDestroyImage(Device->GetInstanceHandle(), reinterpret_cast<VkImage>(Image), nullptr);
 	}
 #endif
@@ -267,8 +259,7 @@ bool FMagicLeapHelperVulkan::GetVulkanDeviceExtensionsRequired(VkPhysicalDevice_
 bool FMagicLeapHelperVulkan::GetMediaTexture(FTextureRHIRef& ResultTexture, FSamplerStateRHIRef& SamplerResult, const uint64 MediaTextureHandle)
 {
 #if PLATFORM_LUMIN
-	FVulkanDynamicRHI* const RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-	FVulkanDevice* const Device = RHI->GetDevice();
+	FVulkanDevice* const Device = GVulkanRHI->GetDevice();
 	MLGraphicsImportedMediaSurface MediaSurface; 
 
 
@@ -328,13 +319,13 @@ bool FMagicLeapHelperVulkan::GetMediaTexture(FTextureRHIRef& ResultTexture, FSam
 	ConversionInitializer.XOffset = MediaSurface.suggested_x_chroma_offset;
 	ConversionInitializer.YOffset = MediaSurface.suggested_y_chroma_offset;
 
-	ResultTexture = RHI->RHICreateTexture2DFromResource(PF_B8G8R8A8, 1, 1, 1, 1, MediaSurface.imported_image, ConversionInitializer, 0);
+	ResultTexture = GVulkanRHI->RHICreateTexture2DFromResource(PF_B8G8R8A8, 1, 1, 1, 1, MediaSurface.imported_image, ConversionInitializer, TexCreate_None);
 
 	// Create a single sampler for the associated media player
 	if (SamplerResult == nullptr)
 	{
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
-		SamplerResult = RHI->RHICreateSamplerState(SamplerStateInitializer, ConversionInitializer);
+		SamplerResult = GVulkanRHI->RHICreateSamplerState(SamplerStateInitializer, ConversionInitializer);
 	}
 
 	// Insert the RHI thread lock fence. This stops any parallel translate tasks running until the command above has completed on the RHI thread.

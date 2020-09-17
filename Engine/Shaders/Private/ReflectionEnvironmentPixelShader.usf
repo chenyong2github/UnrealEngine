@@ -230,9 +230,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 	float3 N = GBuffer.WorldNormal;
 	float3 V = -CameraToPixel;
 
-#if GBUFFER_HAS_TANGENT
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, N, V);
-#endif
 
 	float3 R = 2 * dot( V, N ) * N - V;
 	float NoV = saturate( dot( N, V ) );

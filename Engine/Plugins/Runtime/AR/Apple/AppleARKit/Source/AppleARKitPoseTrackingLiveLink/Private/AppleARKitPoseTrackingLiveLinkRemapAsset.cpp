@@ -7,7 +7,7 @@
 
 #include "BonePose.h"
 
-UAppleARKitPoseTrackingLiveLinkRemapAsset::UAppleARKitPoseTrackingLiveLinkRemapAsset(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_AppleARKitPoseTrackingLiveLinkRemapAsset::UDEPRECATED_AppleARKitPoseTrackingLiveLinkRemapAsset(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
 	// default to unreal tutorial mesh rigging
@@ -68,61 +68,11 @@ UAppleARKitPoseTrackingLiveLinkRemapAsset::UAppleARKitPoseTrackingLiveLinkRemapA
 	};
 }
 
-static FTransform GetAppleBoneToComponentTransform(const TArray<int>& ParentIndices, const TArray<FTransform>& Transforms, int BoneIndex)
-{
-	FTransform BoneToComponent = FTransform::Identity;
-	
-	int Index = BoneIndex;
-	while (Index >= 0)
-	{
-		BoneToComponent *= Transforms[Index];
-		Index = ParentIndices[Index];
-	}
-	
-	return BoneToComponent;
-}
+extern FTransform GetRefMeshBoneToComponent(const FCompactPose& OutPose, int BoneIndex);
+extern FTransform GetAppleBoneToComponentTransformFromRefSkeleton(const FLiveLinkSkeletonStaticData* InSkeletonData, int BoneIndex);
+extern FTransform GetAppleBoneToComponentTransformFromFrameData(const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, int BoneIndex);
 
-static FTransform GetAppleBoneToComponentTransformFromFrameData(const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, int BoneIndex)
-{
-	return GetAppleBoneToComponentTransform(InSkeletonData->GetBoneParents(), InFrameData->Transforms, BoneIndex);
-}
-
-static FTransform GetAppleBoneToComponentTransformFromRefSkeleton(const FLiveLinkSkeletonStaticData* InSkeletonData, int BoneIndex)
-{
-	IModularFeatures& ModularFeatures = IModularFeatures::Get();
-	if (ModularFeatures.IsModularFeatureAvailable(IAppleARKitPoseTrackingLiveLink::GetModularFeatureName()))
-	{
-		IAppleARKitPoseTrackingLiveLink* BodyTrackLiveLink = &IModularFeatures::Get().GetModularFeature<IAppleARKitPoseTrackingLiveLink>(IAppleARKitPoseTrackingLiveLink::GetModularFeatureName());
-		if (auto RefTransforms = BodyTrackLiveLink->GetRefPoseTransforms())
-		{
-			return GetAppleBoneToComponentTransform(InSkeletonData->GetBoneParents(), *RefTransforms, BoneIndex);
-		}
-	}
-
-	return FTransform::Identity;
-}
-
-static FTransform GetRefMeshBoneToComponent(const FCompactPose& OutPose, int BoneIndex)
-{
-	FTransform Transform = FTransform::Identity;
-	while (BoneIndex >= 0)
-	{
-		FCompactPoseBoneIndex CPIndex = OutPose.GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneIndex));
-		if (CPIndex != INDEX_NONE)
-		{
-			Transform *= OutPose.GetRefPose(CPIndex);
-			BoneIndex = OutPose.GetBoneContainer().GetParentBoneIndex(BoneIndex);
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	return Transform;
-}
-
-void UAppleARKitPoseTrackingLiveLinkRemapAsset::BuildPoseFromAnimationData(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose)
+void UDEPRECATED_AppleARKitPoseTrackingLiveLinkRemapAsset::BuildPoseFromAnimationData(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose)
 {
 	check(InSkeletonData);
 	check(InFrameData);
@@ -199,7 +149,7 @@ void UAppleARKitPoseTrackingLiveLinkRemapAsset::BuildPoseFromAnimationData(float
 	}
 }
 
-FName UAppleARKitPoseTrackingLiveLinkRemapAsset::GetRemappedBoneName(FName BoneName) const
+FName UDEPRECATED_AppleARKitPoseTrackingLiveLinkRemapAsset::GetRemappedBoneName(FName BoneName) const
 {
 	if (auto Found = AppleARKitBoneNamesToMeshBoneNames.Find(BoneName))
 	{
@@ -207,4 +157,3 @@ FName UAppleARKitPoseTrackingLiveLinkRemapAsset::GetRemappedBoneName(FName BoneN
 	}
 	return NAME_None;
 }
-

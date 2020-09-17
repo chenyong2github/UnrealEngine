@@ -719,7 +719,7 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
 	bAffectDistanceFieldLighting = LandscapeProxy->bAffectDistanceFieldLighting;
 	bRenderCustomDepth = LandscapeProxy->bRenderCustomDepth;
-	LDMaxDrawDistance = LandscapeProxy->LDMaxDrawDistance;
+	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
 	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
 	LightingChannels = LandscapeProxy->LightingChannels;
 }
@@ -1428,6 +1428,10 @@ void ULandscapeComponent::BeginDestroy()
 
 FPrimitiveSceneProxy* ULandscapeComponent::CreateSceneProxy()
 {
+	check(LODStreamingProxy);
+	LODStreamingProxy->ClearStreamingResourceState();
+	LODStreamingProxy->UnlinkStreaming();
+
 	const auto FeatureLevel = GetWorld()->FeatureLevel;
 	FPrimitiveSceneProxy* Proxy = nullptr;
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
@@ -1438,7 +1442,7 @@ FPrimitiveSceneProxy* ULandscapeComponent::CreateSceneProxy()
 	{
 		if (PlatformData.HasValidRuntimeData())
 		{
-			LODStreamingProxy->UnlinkStreaming();
+			LODStreamingProxy->InitResourceStateForMobileStreaming();
 			LODStreamingProxy->LinkStreaming();
 			Proxy = new FLandscapeComponentSceneProxyMobile(this);
 		}
@@ -3906,33 +3910,6 @@ ULandscapeLODStreamingProxy::ULandscapeLODStreamingProxy(const FObjectInitialize
 	: Super(ObjectInitializer)
 {
 	LandscapeComponent = Cast<ULandscapeComponent>(GetOuter());
-	CachedNumResidentLODs = 1;
-}
-
-bool ULandscapeLODStreamingProxy::IsReadyForFinishDestroy()
-{
-	return !UpdateStreamingStatus();
-}
-
-int32 ULandscapeLODStreamingProxy::GetLODGroupForStreaming() const
-{
-	return 0;
-}
-
-int32 ULandscapeLODStreamingProxy::GetNumMipsForStreaming() const
-{
-	check(LandscapeComponent);
-	return LandscapeComponent->PlatformData.StreamingLODDataArray.Num() + 1;
-}
-
-int32 ULandscapeLODStreamingProxy::GetNumNonStreamingMips() const
-{
-	return 1;
-}
-
-int32 ULandscapeLODStreamingProxy::CalcNumOptionalMips() const
-{
-	return 0;
 }
 
 int32 ULandscapeLODStreamingProxy::CalcCumulativeLODSize(int32 NumLODs) const
@@ -3980,54 +3957,13 @@ FIoFilenameHash ULandscapeLODStreamingProxy::GetMipIoFilenameHash(const int32 Mi
 	}
 }
 
-bool ULandscapeLODStreamingProxy::IsReadyForStreaming() const
-{
-	check(LandscapeComponent);
-	return LandscapeComponent->PlatformData.CachedRenderData.IsValid();
-}
-
-int32 ULandscapeLODStreamingProxy::GetNumRequestedMips() const
-{
-	if (PendingUpdate && !PendingUpdate->IsCancelled())
-	{
-		return PendingUpdate->GetNumRequestedMips();
-	}
-	else
-	{
-		return GetCachedNumResidentLODs();
-	}
-}
-
-bool ULandscapeLODStreamingProxy::CancelPendingMipChangeRequest()
-{
-	if (PendingUpdate)
-	{
-		if (!PendingUpdate->IsCancelled())
-		{
-			PendingUpdate->Abort();
-		}
-		return true;
-	}
-	return false;
-}
-
-bool ULandscapeLODStreamingProxy::HasPendingUpdate() const
-{
-	return !!PendingUpdate;
-}
-
-bool ULandscapeLODStreamingProxy::IsPendingUpdateLocked() const
-{
-	return PendingUpdate && PendingUpdate->IsLocked();
-}
-
 bool ULandscapeLODStreamingProxy::StreamOut(int32 NewMipCount)
 {
 	check(IsInGameThread());
 
-	if (bIsStreamable && !PendingUpdate && IsReadyForStreaming() && NewMipCount < GetNumResidentMips())
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamOut(NewMipCount))
 	{
-		PendingUpdate = new FLandscapeMeshMobileStreamOut(this, NewMipCount);
+		PendingUpdate = new FLandscapeMeshMobileStreamOut(this);
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
@@ -4037,78 +3973,21 @@ bool ULandscapeLODStreamingProxy::StreamIn(int32 NewMipCount, bool bHighPrio)
 {
 	check(IsInGameThread());
 
-	if (bIsStreamable && !PendingUpdate && IsReadyForStreaming() && NewMipCount > GetNumResidentMips())
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamIn(NewMipCount))
 	{
 #if WITH_EDITOR
 		if (FPlatformProperties::HasEditorOnlyData())
 		{
-			PendingUpdate = new FLandscapeMeshMobileStreamIn_GPUDataOnly(this, NewMipCount);
+			PendingUpdate = new FLandscapeMeshMobileStreamIn_GPUDataOnly(this);
 		}
 		else
 #endif
 		{
-			PendingUpdate = new FLandscapeMeshMobileStreamIn_IO_AsyncReallocate(this, NewMipCount, bHighPrio);
+			PendingUpdate = new FLandscapeMeshMobileStreamIn_IO_AsyncReallocate(this, bHighPrio);
 		}
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
-}
-
-bool ULandscapeLODStreamingProxy::UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
-{
-	bool bUpdatePending = false;
-
-	if (PendingUpdate)
-	{
-		if (IsEngineExitRequested() || !IsReadyForStreaming())
-		{
-			PendingUpdate->Abort();
-		}
-
-		FRenderAssetUpdate::EThreadType TickThread = GIsThreadedRendering ? FRenderAssetUpdate::TT_None : FRenderAssetUpdate::TT_Render;
-		if (HasAnyFlags(RF_BeginDestroyed) && PendingUpdate->GetRelevantThread() == FRenderAssetUpdate::TT_Async)
-		{
-			TickThread = FRenderAssetUpdate::TT_GameRunningAsync;
-		}
-		PendingUpdate->Tick(TickThread);
-
-		if (!PendingUpdate->IsCompleted())
-		{
-			bUpdatePending = true;
-		}
-		else
-		{
-			PendingUpdate.SafeRelease();
-		}
-	}
-
-	TickMipLevelChangeCallbacks(DeferredTickCBAssets);
-
-	return bUpdatePending;
-}
-
-void ULandscapeLODStreamingProxy::LinkStreaming()
-{
-	check(LandscapeComponent);
-	bIsStreamable = !NeverStream && LandscapeComponent->PlatformData.StreamingLODDataArray.Num() > 0;
-
-	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled() && IsStreamingRenderAsset(this))
-	{
-		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingRenderAsset(this);
-	}
-	else
-	{
-		StreamingIndex = INDEX_NONE;
-	}
-}
-
-void ULandscapeLODStreamingProxy::UnlinkStreaming()
-{
-	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
-	{
-		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
-		RemoveAllMipLevelChangeCallbacks();
-	}
 }
 
 TArray<float> ULandscapeLODStreamingProxy::GetLODScreenSizeArray() const
@@ -4118,7 +3997,7 @@ TArray<float> ULandscapeLODStreamingProxy::GetLODScreenSizeArray() const
 	static IConsoleVariable* CVarLSLOD0DistributionScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LandscapeLOD0DistributionScale"));
 	float CurrentScreenSize = LandscapeComponent->GetLandscapeProxy()->LOD0ScreenSize / CVarSMLODDistanceScale->GetValueOnGameThread();
 	const float ScreenSizeMult = 1.f / FMath::Max(LandscapeComponent->GetLandscapeProxy()->LOD0DistributionSetting * CVarLSLOD0DistributionScale->GetFloat(), 1.01f);
-	const int32 NumLODs = GetNumMipsForStreaming();
+	const int32 NumLODs = CachedSRRState.MaxNumLODs;
 	TArray<float> Result;
 	Result.Empty(NumLODs);
 	for (int32 Idx = 0; Idx < NumLODs; ++Idx)
@@ -4135,7 +4014,7 @@ TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> ULandscapeLODStreami
 	return LandscapeComponent->PlatformData.CachedRenderData;
 }
 
-typename ULandscapeLODStreamingProxy::BulkDataType& ULandscapeLODStreamingProxy::GetStreamingLODBulkData(int32 LODIdx)
+typename ULandscapeLODStreamingProxy::BulkDataType& ULandscapeLODStreamingProxy::GetStreamingLODBulkData(int32 LODIdx) const
 {
 	check(LandscapeComponent);
 	return LandscapeComponent->PlatformData.StreamingLODDataArray[LODIdx];
@@ -4148,16 +4027,39 @@ void ULandscapeLODStreamingProxy::CancelAllPendingStreamingActions()
 	for (TObjectIterator<ULandscapeLODStreamingProxy> It; It; ++It)
 	{
 		ULandscapeLODStreamingProxy* StaticMesh = *It;
-		StaticMesh->CancelPendingMipChangeRequest();
+		StaticMesh->CancelPendingStreamingRequest();
 	}
 
 	FlushRenderingCommands();
 }
 
-void ULandscapeComponent::SetReadyForLODStreaming(bool bReady)
+bool ULandscapeLODStreamingProxy::HasPendingRenderResourceInitialization() const
 {
-	check(LODStreamingProxy);
-	LODStreamingProxy->SetCachedReadyForStreaming(bReady);
+	return LandscapeComponent && LandscapeComponent->PlatformData.CachedRenderData && !LandscapeComponent->PlatformData.CachedRenderData->bReadyForStreaming;
+}
+
+void ULandscapeLODStreamingProxy::ClearStreamingResourceState()
+{
+	CachedSRRState.Clear();
+}
+
+void ULandscapeLODStreamingProxy::InitResourceStateForMobileStreaming()
+{
+	check(LandscapeComponent);
+
+	const int32 NumLODs = LandscapeComponent->PlatformData.StreamingLODDataArray.Num() + 1;
+	const bool bHasValidRenderData = LandscapeComponent->PlatformData.CachedRenderData.IsValid();
+
+	CachedSRRState.Clear();
+	CachedSRRState.bSupportsStreaming = !NeverStream && NumLODs > 1 && bHasValidRenderData;
+	CachedSRRState.NumNonStreamingLODs = 1;
+	CachedSRRState.NumNonOptionalLODs = NumLODs;
+	CachedSRRState.MaxNumLODs = NumLODs;
+	CachedSRRState.NumResidentLODs = bHasValidRenderData ? (NumLODs - LandscapeComponent->PlatformData.CachedRenderData->CurrentFirstLODIdx) : NumLODs;
+	CachedSRRState.NumRequestedLODs = CachedSRRState.NumResidentLODs;
+
+	// Set bHasPendingInitHint so that HasPendingRenderResourceInitialization() gets called.
+	CachedSRRState.bHasPendingInitHint = true;
 }
 
 #undef LOCTEXT_NAMESPACE

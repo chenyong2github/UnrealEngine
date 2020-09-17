@@ -182,6 +182,13 @@ void FHoloLensProcess::FreeDllHandle(void* DllHandle)
 	::FreeLibrary((HMODULE)DllHandle);
 }
 
+void* FHoloLensProcess::GetDllExport(void* DllHandle, const TCHAR* ProcName)
+{
+	check(DllHandle);
+	check(ProcName);
+	return (void*)::GetProcAddress((HMODULE)DllHandle, TCHAR_TO_ANSI(ProcName));
+}
+
 void FHoloLensProcess::PushDllDirectory(const TCHAR* Directory)
 {
 	DllDirectoryStack.Push(Directory);

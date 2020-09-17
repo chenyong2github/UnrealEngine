@@ -2,6 +2,7 @@
 
 #pragma once
 
+#define EYE_ADAPTATION_LOOSE_PARAMETERS 1
 
 //------------------------------------------------------- CONFIG DISABLED DEFAULTS
 

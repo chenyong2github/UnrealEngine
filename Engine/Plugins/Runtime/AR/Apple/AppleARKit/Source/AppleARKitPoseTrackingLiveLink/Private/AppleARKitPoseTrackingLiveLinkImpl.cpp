@@ -43,7 +43,7 @@ void FAppleARKitPoseTrackingLiveLink::PublishLiveLinkData(TSharedPtr<FAppleARKit
 
 	if (LiveLinkSource.IsValid())
 	{
-		PoseTrackingLiveLinkSubjectName = GetMutableDefault<UAppleARKitSettings>()->GetLiveLinkSubjectName();
+		PoseTrackingLiveLinkSubjectName = GetMutableDefault<UAppleARKitSettings>()->GetPoseTrackingLiveLinkSubjectName();
         LiveLinkSource->UpdateLiveLink(PoseTrackingLiveLinkSubjectName, Anchor->Timecode, Anchor->FrameRate, Anchor->TrackedPose, *FAppleARKitAnchorData::BodyRefPose, LocalDeviceId);
 	}
 }

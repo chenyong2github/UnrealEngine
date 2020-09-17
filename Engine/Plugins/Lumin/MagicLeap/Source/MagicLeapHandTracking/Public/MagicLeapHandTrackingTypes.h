@@ -109,7 +109,7 @@ enum class EMagicLeapGestureTransformSpace : uint8
 };
 
 /** List of input key names for all left and right hand gestures. */
-struct FMagicLeapGestureKeyNames
+struct MAGICLEAPHANDTRACKING_API FMagicLeapGestureKeyNames
 {
 	static const FName Left_Finger_Name;
 	static const FName Left_Fist_Name;

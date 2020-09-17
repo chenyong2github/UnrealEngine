@@ -104,7 +104,7 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 			}
 
 			FRHIResourceCreateInfo CreateInfo;
-			StagingTexture.RHITexture = RHICmdList.CreateTexture2D(TileSize * WidthInTiles, TileSize * HeightInTiles, PoolEntry.Format, 1, 1, bIsCpuWritable ? TexCreate_CPUWritable : TexCreate_None, CreateInfo);
+			StagingTexture.RHITexture = RHICreateTexture2D(TileSize * WidthInTiles, TileSize * HeightInTiles, PoolEntry.Format, 1, 1, bIsCpuWritable ? TexCreate_CPUWritable : TexCreate_None, CreateInfo);
 			StagingTexture.WidthInTiles = WidthInTiles;
 			StagingTexture.BatchCapacity = WidthInTiles * HeightInTiles;
 			StagingTexture.bIsCPUWritable = bIsCpuWritable;
@@ -137,6 +137,7 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 		}
 
 		RHICmdList.UnlockTexture2D(StagingTexture.RHITexture, 0u, false, false);
+		RHICmdList.Transition(FRHITransitionInfo(StagingTexture.RHITexture, ERHIAccess::SRVMask, ERHIAccess::CopySrc));
 
 		// upload each tile from staging texture to physical texture
 		Index = Tiles[SubmitListHead].NextIndex;
@@ -152,7 +153,7 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 			const FIntVector SourceBoxStart(SrcTileX * TileSize + SkipBorderSize, SrcTileY * TileSize + SkipBorderSize, 0);
 			const FIntVector DestinationBoxStart(Entry.SubmitDestX * SubmitTileSize, Entry.SubmitDestY * SubmitTileSize, 0);
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, Entry.RHISubmitTexture);
+			RHICmdList.Transition(FRHITransitionInfo(Entry.RHISubmitTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.Size = FIntVector(SubmitTileSize, SubmitTileSize, 1);
@@ -160,7 +161,7 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 			CopyInfo.DestPosition = DestinationBoxStart;
 			RHICmdList.CopyTexture(StagingTexture.RHITexture, Entry.RHISubmitTexture, CopyInfo);
 
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, Entry.RHISubmitTexture);
+			RHICmdList.Transition(FRHITransitionInfo(Entry.RHISubmitTexture, ERHIAccess::CopyDest, ERHIAccess::SRVMask));
 
 			Entry.RHISubmitTexture = nullptr;
 			Entry.SubmitBatchIndex = 0u;
@@ -172,6 +173,8 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 			AddToList(PoolEntry.FreeTileListHead, Index);
 			Index = NextIndex;
 		}
+
+		RHICmdList.Transition(FRHITransitionInfo(StagingTexture.RHITexture, ERHIAccess::CopySrc, ERHIAccess::SRVMask));
 
 		PoolEntry.BatchCount = 0u;
 	}

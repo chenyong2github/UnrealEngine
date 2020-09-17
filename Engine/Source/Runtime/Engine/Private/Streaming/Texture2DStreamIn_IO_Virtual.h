@@ -13,7 +13,7 @@ class FTexture2DStreamIn_IO_Virtual : public FTexture2DStreamIn_IO
 {
 public:
 
-	FTexture2DStreamIn_IO_Virtual(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest);
+	FTexture2DStreamIn_IO_Virtual(UTexture2D* InTexture, bool InPrioritizedIORequest);
 
 protected:
 

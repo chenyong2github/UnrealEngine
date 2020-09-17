@@ -638,9 +638,16 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
 	uint32 InstanceIndex = 0;
 
+	bool bStartNewOverlapGroup = false;
+
 	const TConstArrayView<int32> EmitterExecutionOrder = InSystemInstance->GetEmitterExecutionOrder();
-	for (const int32& EmitterIdx : EmitterExecutionOrder)
+	for (int32 EmitterIdx : EmitterExecutionOrder)
 	{
+		// The dependency resolution code does not consider CPU and GPU emitters separately, so the flag which marks the start of a new overlap group can be set on either
+		// a CPU or GPU emitter. We must turn on bStartNewOverlapGroup when we encounter the flag, and reset it when we've actually marked a GPU emitter as starting a new group.
+		bStartNewOverlapGroup |= (EmitterIdx & UNiagaraSystem::kStartNewOverlapGroupBit) != 0;
+		EmitterIdx = EmitterIdx & (~UNiagaraSystem::kStartNewOverlapGroupBit);
+
 		if (FNiagaraEmitterInstance* EmitterInstance = &InSystemInstance->GetEmitters()[EmitterIdx].Get())
 		{
 			if (EmitterInstance->IsComplete() )
@@ -691,6 +698,9 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			}
 
 			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
+
+			InstanceData->bStartNewOverlapGroup = bStartNewOverlapGroup;
+			bStartNewOverlapGroup = false;
 
 			InstanceData->bUsesSimStages = Emitter->bSimulationStagesEnabled/* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/;
 			InstanceData->bUsesOldShaderStages = Emitter->bDeprecatedShaderStagesEnabled;

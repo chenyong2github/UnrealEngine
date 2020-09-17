@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-TextureMipAllocator.h: Base class for implementating a mip allocation strategy used by FTextureStreamIn.
+TextureMipAllocator.h: Base class for implementing a mip allocation strategy used by FTextureStreamIn.
 =============================================================================*/
 
 #pragma once
@@ -33,7 +33,8 @@ public:
 	};
 
 	// Constructor, defining the first tick step and thread.
-	FTextureMipAllocator(ETickState InTickState, ETickThread InTickThread) : NextTickState(InTickState), NextTickThread(InTickThread) {}
+	FTextureMipAllocator(UTexture* Texture, ETickState InTickState, ETickThread InTickThread);
+
 	virtual ~FTextureMipAllocator() {}
 
 	// Get the next tick state and thread for the mip allocator. Used by FTextureStreamIn to schedule correctly the update between FTextureMipAllocator and FTextureMipDataProvider.
@@ -74,9 +75,6 @@ public:
 	// Returns on which thread Cancel() must be called in the texture update (from FTextureStreamIn) to release ressources safely and correctly. ETickThread::None when ready to delete this.
 	virtual ETickThread GetCancelThread() const = 0;
 
-	// A little helper to help FTextureStreamIn figure out the current first mip of the UTexture resource (must access derived classes).
-	virtual int32 GetCurrentFirstMip(UTexture* Texture) const = 0;
-
 protected:
 
 	// Helper to set the next tick state and thread. Validates that the progression is coherent.
@@ -91,6 +89,13 @@ protected:
 		NextTickThread = InThread;
 	}
 
+	/** The streamable state requested. */
+	const FStreamableRenderResourceState ResourceState;
+	// The resident first LOD resource index. With domain = [0, ResourceState.NumLODs[. NOT THE ASSET LOD INDEX!
+	const int32 CurrentFirstLODIdx = INDEX_NONE;
+	// The requested first LOD resource index. With domain = [0, ResourceState.NumLODs[. NOT THE ASSET LOD INDEX!
+	const int32 PendingFirstLODIdx = INDEX_NONE;
+	
 private:
 
 	// The next tick function that should be called.

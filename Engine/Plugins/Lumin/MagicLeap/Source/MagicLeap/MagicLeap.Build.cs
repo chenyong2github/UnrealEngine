@@ -49,7 +49,6 @@ namespace UnrealBuildTool.Rules
                     "MagicLeapHelperOpenGL",
 					// Public headers of MagicLeapHelperVulkan are protected against Mac so this is fine here.
 					"MagicLeapHelperVulkan",
-					"MagicLeapSecureStorage",
 				}
 			);
 

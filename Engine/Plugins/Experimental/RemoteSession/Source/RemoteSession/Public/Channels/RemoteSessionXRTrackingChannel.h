@@ -26,6 +26,7 @@ public:
 	virtual bool EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type) override;
 	virtual bool GetCurrentPose(int32 DeviceId, FQuat& OutOrientation, FVector& OutPosition) override;
 	virtual FName GetSystemName() const override;
+	virtual int32 GetXRSystemFlags() const override { return 0; }
 };
 
 class REMOTESESSION_API FRemoteSessionXRTrackingChannel :

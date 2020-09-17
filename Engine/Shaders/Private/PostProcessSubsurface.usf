@@ -37,8 +37,9 @@ SamplerState SubsurfaceSampler2;
 
 SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput0)
 SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput1)
-SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput2)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+
+RWTexture2D<uint> ProfileIdTexture;
 
 #define SUBSURFACE_PASS_ONE 0
 #define SUBSURFACE_PASS_TWO 1
@@ -556,6 +557,10 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	}
 #endif // SUBSURFACE_HALF_RES
 
+#if !SUBSURFACE_FORCE_SEPARABLE && ENABLE_PROFILE_ID_CACHE
+	uint ProfileId = GetSubsurfaceProfileId(BufferUV);
+#endif
+
 	// setup the Subsurface type
 	uint SelectedProfile = 0;
 	if (bHasSubsurface)
@@ -600,6 +605,10 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	if (all(Pos < Output_ViewportMax))
 	{
 		SetupTexture[Pos] = OutColor;
+
+#if !SUBSURFACE_FORCE_SEPARABLE && ENABLE_PROFILE_ID_CACHE
+		ProfileIdTexture[Pos] = ProfileId;
+#endif
 	}
 
 	AddSubsurfaceComputeGroup(GI, Type, G_ID.xy);

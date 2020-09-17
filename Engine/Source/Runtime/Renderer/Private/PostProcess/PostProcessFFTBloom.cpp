@@ -242,7 +242,7 @@ void ResizeAndCenterTexture(
 	ClampedImageCenterUV.Y = FMath::Clamp(SrcImageCenterUV.Y, 0.f, 1.f);
 
 	check(DstUAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstUAV);
+	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 	{
 		TShaderMapRef<FResizeAndCenterTextureCS> ComputeShader(View.ShaderMap);
@@ -293,7 +293,7 @@ void CaptureKernelWeight(
 	FSceneRenderTargetItem& DstTargetItem = CenterWeightRT->GetRenderTargetItem();
 
 	check(DstTargetItem.UAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstTargetItem.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(DstTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 	{
 		TShaderMapRef<FCaptureKernelWeightsCS> ComputeShader(View.ShaderMap);
@@ -309,7 +309,7 @@ void CaptureKernelWeight(
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(1, 1, 1));
 	}
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, DstTargetItem.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(DstTargetItem.UAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
 
 	ensureMsgf(DstTargetItem.TargetableTexture == DstTargetItem.ShaderResourceTexture, TEXT("%s should be resolved to a separate SRV"), *DstTargetItem.TargetableTexture->GetName().ToString());
 }
@@ -346,7 +346,7 @@ void BlendLowRes(
 
 	// set destination
 	check(DstUAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DstUAV);
+	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 	{
 		TShaderMapRef<FBlendLowResCS> ComputeShader(View.ShaderMap);
@@ -370,7 +370,7 @@ void BlendLowRes(
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, TargetExtent.Y, 1));
 	}
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DstUAV);
+	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
 }
 
 /**
@@ -393,7 +393,7 @@ void CopyImageRect(
 
 	// set destination
 	check(DstUAV);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstUAV);
+	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 	{
 		TShaderMapRef<FPassThroughCS> ComputeShader(View.ShaderMap);
@@ -446,7 +446,7 @@ bool TransformKernelFFT(
 	bool SuccessValue = GPUFFT::FFTImage2D(FFTContext, FrequencySize, bDoHorizontalFirst, SrcRect, SrcImage, ResultBuffer, TmpRT->GetRenderTargetItem());
 
 	// Transition resource
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ResultBuffer.UAV);
+	RHICmdList.Transition(FRHITransitionInfo(ResultBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 	return SuccessValue;
 }
@@ -619,7 +619,7 @@ void ConvolveWithKernel(
 		TmpTargets[1]->GetRenderTargetItem(),
 		Intermediates.PreFilter);
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, ResultUAV);
+	RHICmdList.Transition(FRHITransitionInfo(ResultUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 }
 
 FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, const FViewInfo& View, const FFFTBloomIntermediates& Intermediates)
@@ -673,8 +673,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 		const bool bSameKernelSize = FMath::IsNearlyEqual(CachedKernelScale, BloomConvolutionSize, float(1.e-6) /*tol*/);
 		const bool bSameImageSize = (ImageSize == CachedImageSize);
 		const bool bSameKernelCenterUV = CachedKernelCenterUV.Equals(CenterUV, float(1.e-6) /*tol*/);
-		const bool bSameMipLevel = bSameTexture && (
-			FFTKernel.PhysicalMipLevel == static_cast<FTexture2DResource*>(BloomConvolutionTexture->Resource)->GetCurrentFirstMip());
+		const bool bSameMipLevel = bSameTexture && FFTKernel.PhysicalMipLevel == BloomConvolutionTexture->Resource->GetCurrentMipCount();
 
 		if (bSameTexture && bSameSpectralBuffer && bSameKernelSize && bSameImageSize && bSameKernelCenterUV && bSameMipLevel)
 		{
@@ -701,7 +700,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 		ResizeAndCenterTexture(RHICmdList, View, PhysicalSpaceKernelTextureRef, ImageSize, CenterUV, Intermediates.KernelSupportScale,
 			Intermediates.FrequencySize, SpectralKernelRTItem.UAV, PaddedFrequencySize, Intermediates.bHalfResolutionFFT);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, SpectralKernelRTItem.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(SpectralKernelRTItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 		// Two Dimensional FFT of the physical space kernel.  
 		// Input: SpectralRTItem holds the physical space kernel, on return it will be the spectral space 
@@ -732,7 +731,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 		ViewState->BloomFFTKernel.ImageSize = ImageSize;
 		ViewState->BloomFFTKernel.Physical = BloomConvolutionTexture;
 		ViewState->BloomFFTKernel.CenterUV = CenterUV;
-		ViewState->BloomFFTKernel.PhysicalMipLevel = static_cast<FTexture2DResource*>(BloomConvolutionTexture->Resource)->GetCurrentFirstMip();
+		ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTexture->Resource->GetCurrentMipCount();
 	}
 
 	// Return pointer to the transformed kernel.
@@ -752,12 +751,11 @@ FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 	check(Inputs.HalfResolutionTexture);
 	check(!Inputs.HalfResolutionViewRect.IsEmpty());
 
-	const FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2DDesc(
+	const FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
 		Inputs.FullResolutionTexture->Desc.Extent,
 		Inputs.FullResolutionTexture->Desc.Format,
 		FClearValueBinding::None,
-		TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-		false);
+		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
 
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FFTBloom"));
 	FRDGTextureUAVRef OutputUAV = GraphBuilder.CreateUAV(OutputTexture);

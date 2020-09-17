@@ -11,6 +11,7 @@
 #include "HairStrandsInterface.h"
 #include "RenderGraphResources.h"
 #include "SceneTypes.h"
+#include "Renderer/Private/SceneRendering.h"
 
 /// Hold deep shadow information for a given light.
 struct FHairStrandsDeepShadowData
@@ -47,7 +48,7 @@ struct FDeepShadowResources
 	TRefCountPtr<IPooledRenderTarget> DepthAtlasTexture;
 	TRefCountPtr<IPooledRenderTarget> LayersAtlasTexture;
 
-	TRefCountPtr<FPooledRDGBuffer> DeepShadowWorldToLightTransforms;
+	TRefCountPtr<FRDGPooledBuffer> DeepShadowWorldToLightTransforms;
 	TRefCountPtr<FRHIShaderResourceView> DeepShadowWorldToLightTransformsSRV;
 };
 
@@ -58,7 +59,7 @@ struct FHairStrandsDeepShadowDatas
 };
 
 void RenderHairStrandsDeepShadows(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const class FScene* Scene,
 	const TArray<FViewInfo>& Views,
 	struct FHairStrandsMacroGroupViews& MacroGroupsViews);

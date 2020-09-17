@@ -56,7 +56,7 @@ bool FTextureShareD3D11::CreateRHITexture(ID3D11Texture2D* OpenedSharedResource,
 	FD3D11DynamicRHI* DynamicRHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
 
 	// Create RHI texture from D3D11 resource
-	uint32 TexCreateFlags = TexCreate_Shared;
+	ETextureCreateFlags TexCreateFlags = TexCreate_Shared;
 	DstTexture = DynamicRHI->RHICreateTexture2DFromResource(Format, TexCreateFlags, FClearValueBinding::None, OpenedSharedResource).GetReference();
 	return DstTexture.IsValid();
 }

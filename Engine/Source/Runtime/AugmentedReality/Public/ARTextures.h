@@ -11,9 +11,14 @@
 UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))
 enum class EARTextureType : uint8
 {
+	Unknown,
 	CameraImage,
 	CameraDepth,
-	EnvironmentCapture
+	EnvironmentCapture,
+	PersonSegmentationImage,
+	PersonSegmentationDepth,
+	SceneDepthMap,
+	SceneDepthConfidenceMap,
 };
 
 /**
@@ -26,9 +31,27 @@ class AUGMENTEDREALITY_API UARTexture : public UTexture
 	GENERATED_UCLASS_BODY()
 
 public:
+	/**
+	 * Factory function for creating a new AR  texture of a particular type
+	 */
+	template<class T>
+	static T* CreateARTexture(EARTextureType InTextureType)
+	{
+		auto NewTexture = NewObject<T>();
+		NewTexture->TextureType = InTextureType;
+		check(NewTexture->TextureType != EARTextureType::Unknown);
+		return NewTexture;
+	}
+	
+	// UTexture interface implementation
+	virtual float GetSurfaceWidth() const override { return Size.X; }
+	virtual float GetSurfaceHeight() const override { return Size.Y; }
+	virtual FGuid GetExternalTextureGuid() const override { return ExternalTextureGuid; }
+	// End UTexture interface
+	
 	/** The type of texture this is */
 	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality", meta=(Experimental))
-	EARTextureType TextureType;
+	EARTextureType TextureType = EARTextureType::Unknown;
 
 	/** The timestamp this texture was captured at */
 	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality", meta=(Experimental))
@@ -50,8 +73,6 @@ UCLASS(Abstract, BlueprintType)
 class AUGMENTEDREALITY_API UARTextureCameraImage : public UARTexture
 {
 	GENERATED_UCLASS_BODY()
-
-public:
 };
 
 UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))
@@ -105,6 +126,12 @@ class AUGMENTEDREALITY_API UAREnvironmentCaptureProbeTexture : public UTextureCu
 	GENERATED_UCLASS_BODY()
 	
 public:
+	// UTexture interface implementation
+	virtual float GetSurfaceWidth() const override { return Size.X; }
+	virtual float GetSurfaceHeight() const override { return Size.Y; }
+	virtual FGuid GetExternalTextureGuid() const override { return ExternalTextureGuid; }
+	// End UTexture interface
+	
 	/** The type of texture this is */
 	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality", meta=(Experimental))
 	EARTextureType TextureType;

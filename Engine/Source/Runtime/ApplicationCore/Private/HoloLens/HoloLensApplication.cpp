@@ -13,26 +13,19 @@
 
 DEFINE_LOG_CATEGORY(LogHoloLens);
 
-// Flip this on to make license checks operate against the retail Windows Store environment.
-// We default to simulator which is only permitted when the OS is in developer mode.  Titles
-// will need to manually flip this switch to use retail before ship.  Note that retail license
-// checks will not function until the title has been ingested into the retail store catalog.
-//#define USING_RETAIL_WINDOWS_STORE 1
-#ifndef USING_RETAIL_WINDOWS_STORE
-#define USING_RETAIL_WINDOWS_STORE 0
-#endif
-#if USING_RETAIL_WINDOWS_STORE
-using CurrentStoreApp = Windows::ApplicationModel::Store::CurrentApp;
-#else
-using CurrentStoreApp = Windows::ApplicationModel::Store::CurrentAppSimulator;
-#endif
-
-
 static FHoloLensApplication* HoloLensApplication = NULL;
 FVector2D FHoloLensApplication::DesktopSize;
 
+#if PLATFORM_HOLOLENS
+Windows::Graphics::Holographic::HolographicSpace^ FHoloLensApplication::HoloSpace;
+#endif
+
+bool FHoloLensApplication::buildForRetailWindowsStore = false;
+
 FHoloLensApplication* FHoloLensApplication::CreateHoloLensApplication()
 {
+	GConfig->GetBool(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("bBuildForRetailWindowsStore"), buildForRetailWindowsStore, GEngineIni);
+	
 	check( HoloLensApplication == NULL );
 	HoloLensApplication = new FHoloLensApplication();
 
@@ -255,7 +248,14 @@ bool FHoloLensApplication::ApplicationLicenseValid(FPlatformUserId PlatformUser)
 {
 	try
 	{
-		return CurrentStoreApp::LicenseInformation->IsActive;
+		if (buildForRetailWindowsStore)
+		{
+			return Windows::ApplicationModel::Store::CurrentApp::LicenseInformation->IsActive;
+		}
+		else
+		{
+			return Windows::ApplicationModel::Store::CurrentAppSimulator::LicenseInformation->IsActive;
+		}
 	}
 	catch (...)
 	{
@@ -268,7 +268,14 @@ void FHoloLensApplication::InitLicensing()
 {
 	try
 	{
-		CurrentStoreApp::LicenseInformation->LicenseChanged += ref new Windows::ApplicationModel::Store::LicenseChangedEventHandler(LicenseChangedHandler);
+		if (buildForRetailWindowsStore)
+		{
+			Windows::ApplicationModel::Store::CurrentApp::LicenseInformation->LicenseChanged += ref new Windows::ApplicationModel::Store::LicenseChangedEventHandler(LicenseChangedHandler);
+		}
+		else
+		{
+			Windows::ApplicationModel::Store::CurrentAppSimulator::LicenseInformation->LicenseChanged += ref new Windows::ApplicationModel::Store::LicenseChangedEventHandler(LicenseChangedHandler);
+		}
 	}
 	catch (...)
 	{

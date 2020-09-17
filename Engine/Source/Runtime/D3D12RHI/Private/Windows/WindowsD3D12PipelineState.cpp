@@ -8,7 +8,9 @@
 #include "D3D12RHIPrivate.h"
 #include "Misc/ScopeRWLock.h"
 #include "Stats/StatsMisc.h"
+#if PLATFORM_WINDOWS
 #include "nvapi.h"
+#endif
 
 #include "d3dcompiler.h"
 
@@ -998,16 +1000,17 @@ static void CreateComputePipelineState(ID3D12PipelineState** PSO, FD3D12Adapter*
 		CreatePipelineStateWrapper(PSO, Adapter, CreationArgs, true /* use stream */);
 	}
 }
+
 #else
 
 static FORCEINLINE void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const GraphicsPipelineCreationArgs_POD* CreationArgs)
 {
-	CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+	CreatePipelineStateWrapper(PSO, Adapter, CreationArgs, false /* use stream */);
 }
 
 static FORCEINLINE void CreateComputePipelineState(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const ComputePipelineCreationArgs_POD* CreationArgs)
 {
-	CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+	CreatePipelineStateWrapper(PSO, Adapter, CreationArgs, false /* use stream */);
 }
 
 #endif

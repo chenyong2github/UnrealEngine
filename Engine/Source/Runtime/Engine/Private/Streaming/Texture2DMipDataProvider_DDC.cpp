@@ -12,8 +12,8 @@ Texture2DMipDataProvider_DDC.cpp : Implementation of FTextureMipDataProvider usi
 
 #if WITH_EDITORONLY_DATA
 
-FTexture2DMipDataProvider_DDC::FTexture2DMipDataProvider_DDC()
-	: FTextureMipDataProvider(ETickState::Init, ETickThread::Async)
+FTexture2DMipDataProvider_DDC::FTexture2DMipDataProvider_DDC(const UTexture* Texture)
+	: FTextureMipDataProvider(Texture, ETickState::Init, ETickThread::Async)
 {
 }
 
@@ -26,16 +26,14 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 {
 	if (!DDCHandles.Num())
 	{
-		UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
-		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Texture2D->GetPlatformMips();
-		DDCHandles.AddZeroed(Context.CurrentFirstMipIndex);
+		DDCHandles.AddZeroed(CurrentFirstLODIdx);
 
-		for (int32 MipIndex = Context.PendingFirstMipIndex; MipIndex < Context.CurrentFirstMipIndex; ++MipIndex)
+		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
-			const FTexture2DMipMap& OwnerMip = OwnerMips[MipIndex];
+			const FTexture2DMipMap& OwnerMip = *Context.MipsView[MipIndex];
 			if (!OwnerMip.DerivedDataKey.IsEmpty())
 			{
-				DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*OwnerMip.DerivedDataKey, Texture2D->GetPathName());
+				DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*OwnerMip.DerivedDataKey, Context.Texture->GetPathName());
 			}
 		}
 		*SyncOptions.bSnooze = true;
@@ -60,7 +58,7 @@ int32 FTexture2DMipDataProvider_DDC::GetMips(
 	const FTextureMipInfoArray& MipInfos, 
 	const FTextureUpdateSyncOptions& SyncOptions)
 {
-	for (int32 MipIndex = StartingMipIndex; MipIndex < Context.CurrentFirstMipIndex; ++MipIndex)
+	for (int32 MipIndex = StartingMipIndex; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 	{
 		const uint32 Handle = DDCHandles[MipIndex];
 		bool bSuccess = false;
@@ -93,7 +91,7 @@ int32 FTexture2DMipDataProvider_DDC::GetMips(
 	}
 
 	AdvanceTo(ETickState::CleanUp, ETickThread::Async);
-	return Context.CurrentFirstMipIndex;
+	return CurrentFirstLODIdx;
 }
 
 bool FTexture2DMipDataProvider_DDC::PollMips(const FTextureUpdateSyncOptions& SyncOptions)

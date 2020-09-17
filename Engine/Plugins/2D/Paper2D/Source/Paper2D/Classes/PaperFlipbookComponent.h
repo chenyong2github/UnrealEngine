@@ -172,6 +172,13 @@ protected:
 	void TickFlipbook(float DeltaTime);
 	void FlipbookChangedPhysicsState();
 
+private:
+		//disable parallel add to scene for paper2d
+		void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override
+		{
+			Super::CreateRenderState_Concurrent(nullptr);
+		}
+
 public:
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;

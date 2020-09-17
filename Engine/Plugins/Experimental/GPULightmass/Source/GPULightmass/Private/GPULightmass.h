@@ -31,6 +31,8 @@ public:
 	
 	double StartTime = 0;
 
+	bool bOnlyBakeWhatYouSee = false;
+
 	void EditorTick();
 
 private:

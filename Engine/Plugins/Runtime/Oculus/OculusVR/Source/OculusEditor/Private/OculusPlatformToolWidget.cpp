@@ -650,9 +650,6 @@ bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 		case (uint8)EOculusPlatformTarget::Quest:
 			args = "upload-quest-build";
 			break;
-		case (uint8)EOculusPlatformTarget::Mobile:
-			args = "upload-mobile-build";
-			break;
 		default:
 			UpdateLogText(LogText + "ERROR: Invalid target platform selected");
 			success = false;

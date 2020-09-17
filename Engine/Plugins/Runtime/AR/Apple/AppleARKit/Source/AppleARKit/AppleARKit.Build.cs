@@ -7,57 +7,59 @@ public class AppleARKit : ModuleRules
 {
 	public AppleARKit(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"../../../../../../Source/Runtime/Renderer/Private",
-				// ... add other private include paths required here ...
-			}
-			);
+		PrivateIncludePaths.AddRange(new string[]
+		{
+			"../../../../../../Source/Runtime/Renderer/Private",
+		});
 			
 		
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-				"Engine",
-				// ... add other public dependencies that you statically link with here ...
-			}
-			);
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"Engine",
+			"MRMesh",
+			"EyeTracker",
+		});
 			
 		
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"CoreUObject",
-				"Slate",
-				"SlateCore",
-				"RHI",
-                "Renderer",
-                "RenderCore",
-                "HeadMountedDisplay",
-                "AugmentedReality",
-                "AppleImageUtils",
-                "MRMesh"
-				// ... add private dependencies that you statically link with here ...
-			}
-			);
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"CoreUObject",
+			"Slate",
+			"SlateCore",
+			"RHI",
+			"Renderer",
+			"RenderCore",
+			"HeadMountedDisplay",
+			"AugmentedReality",
+			"AppleImageUtils",
+			"Projects",
+			"ARUtilities",
+		});
 		
 		
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
-			}
-			);
-
+		DynamicallyLoadedModuleNames.AddRange(new string[]
+		{
+		});
+		
+		
 		if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
     		PrivateDependencyModuleNames.Add("IOSRuntimeSettings");
-
-			PublicFrameworks.Add( "ARKit" );
-
-            string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+			
+			PublicFrameworks.AddRange(new string[]
+			{
+				"ARKit",
+				"MetalPerformanceShaders",
+				"CoreLocation",
+			});
+			
+			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
             AdditionalPropertiesForReceipt.Add("IOSPlugin", Path.Combine(PluginPath, "AppleARKit_IOS_UPL.xml"));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			PublicFrameworks.Add("MetalPerformanceShaders");
 		}
 	}
 }

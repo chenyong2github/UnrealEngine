@@ -588,6 +588,8 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 	D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor = CurrentViewHeap->GetCPUSlotHandle(FirstSlotIndex);
 	D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptors[MAX_SRVS];
 
+	const D3D12_RESOURCE_STATES ValidResourceStates = CmdContext->ValidResourceStates;
+
 	for (uint32 SlotIndex = 0; SlotIndex < SlotsNeeded; SlotIndex++)
 	{
 		if (SRVs[SlotIndex] != nullptr)
@@ -596,15 +598,15 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 
 			if (SRVs[SlotIndex]->IsDepthStencilResource())
 			{
-				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_DEPTH_READ);
+				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_DEPTH_READ) & ValidResourceStates);
 			}
 			else if (SRVs[SlotIndex]->GetSkipFastClearFinalize())
 			{
-				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], CmdContext->SkipFastClearEliminateState);
+				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], CmdContext->SkipFastClearEliminateState & ValidResourceStates);
 			}
 			else
 			{
-				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) & ValidResourceStates);
 			}
 
 			CommandList.UpdateResidency(Cache.ResidencyHandles[ShaderStage][SlotIndex]);

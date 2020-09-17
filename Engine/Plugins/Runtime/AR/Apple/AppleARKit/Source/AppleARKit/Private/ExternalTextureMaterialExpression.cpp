@@ -24,6 +24,6 @@ int32 UDEPRECATED_MaterialExpressionARKitPassthroughCamera::CompilePreview(class
 
 void UDEPRECATED_MaterialExpressionARKitPassthroughCamera::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("DEPRECATED USE ARSystem->GetCameraImage() - ARKit Passthrough Camera"));
+	OutCaptions.Add(TEXT("DEPRECATED, USE UARBlueprintLibrary::GetARTexture - ARKit Passthrough Camera"));
 }
 #endif

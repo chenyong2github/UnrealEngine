@@ -39,18 +39,17 @@ namespace
 		//~ Begin FRenderResource Interface.
 		virtual void InitRHI() override
 		{
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
 			RenderTargets.Init(nullptr, NumLayers);
 			StagingTextures.Init(nullptr, NumLayers);
 
 			for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 			{
 				FRHIResourceCreateInfo CreateInfo;
-				RenderTargets[Layer] = RHICmdList.CreateTexture2D(TileSize, TileSize, LayerFormats[Layer], 1, 1, TexCreate_RenderTargetable, CreateInfo);
-				StagingTextures[Layer] = RHICmdList.CreateTexture2D(TileSize, TileSize, LayerFormats[Layer], 1, 1, TexCreate_CPUReadback, CreateInfo);
+				RenderTargets[Layer] = RHICreateTexture2D(TileSize, TileSize, LayerFormats[Layer], 1, 1, TexCreate_RenderTargetable, CreateInfo);
+				StagingTextures[Layer] = RHICreateTexture2D(TileSize, TileSize, LayerFormats[Layer], 1, 1, TexCreate_CPUReadback, CreateInfo);
 			}
 
+			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 			Fence = RHICmdList.CreateGPUFence(TEXT("Runtime Virtual Texture Build"));
 		}
 
@@ -222,7 +221,7 @@ namespace RuntimeVirtualTexture
 					// Transition render targets for writing
 					for (int32 Layer = 0; Layer < NumLayers; Layer++)
 					{
-						RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RenderTileResources.GetRenderTarget(Layer));
+						RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetRenderTarget(Layer), ERHIAccess::Unknown, ERHIAccess::RTV));
 					}
 
 					RuntimeVirtualTexture::FRenderPageBatchDesc Desc;
@@ -250,7 +249,7 @@ namespace RuntimeVirtualTexture
 					// Transition render targets for copying
 					for (int32 Layer = 0; Layer < NumLayers; Layer++)
 					{
-						RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTileResources.GetRenderTarget(Layer));
+						RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetRenderTarget(Layer), ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 					}
 
 					// Copy to staging

@@ -71,7 +71,7 @@ static void OnDefaultProfileCVarsChanged(IConsoleVariable* Variable)
 		if (bClearBuffer || bSetBuffer)
 		{
 			// Make sure no pending skeletal mesh LOD updates
-			if (IStreamingManager::Get_Concurrent() && IStreamingManager::Get().IsRenderAssetStreamingEnabled())
+			if (IStreamingManager::Get_Concurrent() && IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::SkeletalMesh))
 			{
 				IStreamingManager::Get().GetRenderAssetStreamingManager().BlockTillAllRequestsFinished();
 			}

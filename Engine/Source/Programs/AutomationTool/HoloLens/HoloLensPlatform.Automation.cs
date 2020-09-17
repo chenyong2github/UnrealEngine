@@ -852,6 +852,70 @@ namespace HoloLens.Automation
 				SignPackage(Params, SC, OutputAppX);
 			}
 		}
+		
+		void MakeAppInstaller(ProjectParams Params, DeploymentContext SC, string OutputNameBase, string autoUpdateURL, int hoursBetweenUpdates)
+		{
+			// Validate url
+			string url = autoUpdateURL.Trim();
+			{
+				if (!url.EndsWith("/"))
+				{
+					url += "/";
+				}
+
+				if (!url.ToLower().StartsWith("http:") && !url.ToLower().StartsWith("https:") && !url.ToLower().StartsWith("www."))
+				{
+					if (!url.StartsWith("file:"))
+					{
+						url = "file:" + url;
+					}
+				}
+
+				url = url.Replace('\\', '/');
+			}
+
+			string version;
+			string packageName; 
+			string appxBundleName = OutputNameBase + ".appxbundle";
+			string publisherName;
+
+			ConfigHierarchy PlatformGameConfig = null;
+			Params.GameConfigs.TryGetValue(PlatformType, out PlatformGameConfig);
+			PlatformGameConfig.GetString("/Script/EngineSettings.GeneralProjectSettings", "ProjectName", out packageName);
+			PlatformGameConfig.GetString("/Script/EngineSettings.GeneralProjectSettings", "CompanyDistinguishedName", out publisherName);
+			PlatformGameConfig.GetString("/Script/EngineSettings.GeneralProjectSettings", "ProjectVersion", out version);
+
+			// Package name from project settings may be unique words, but installer and manifest need to strip whitespace to validate.
+			packageName = packageName.Replace(" ", String.Empty);
+
+			string VCLibsName = "Microsoft.VCLibs.140.00";
+			string VCLibsPackage = "Microsoft.VCLibs.arm64.14.00.appx";
+			string VCLibsInfo = "Publisher=\"CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US\" Version=\"14.0.0.0\" ProcessorArchitecture=\"arm64\"";
+			TargetRules Rules = Params.ProjectTargets.Find(x => x.Rules.Type == TargetType.Game).Rules;
+			bool UseDebugCrt = Params.ClientConfigsToBuild.Contains(UnrealTargetConfiguration.Debug) && Rules.bDebugBuildsActuallyUseDebugCRT;
+			if (UseDebugCrt)
+			{
+				VCLibsName += ".Debug";
+				VCLibsPackage = "Microsoft.VCLibs.arm64.Debug.14.00.appx";
+			}
+
+			// Ideally we would use an XmlWriter, but the installer uses an xmlns attribute which the XmlWriter fails to validate.
+			var builder = new StringBuilder();
+
+			string AppInstallerFilename = Path.Combine(SC.StageDirectory.FullName, OutputNameBase + ".appinstaller");
+			builder.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+			builder.AppendLine("<AppInstaller Uri=" + "\"" + url + OutputNameBase + ".appinstaller" + "\"" + " Version=" + "\"" + version + "\"" + " xmlns=\"http://schemas.microsoft.com/appx/appinstaller/2017/2\">");
+			builder.AppendLine("  <MainBundle Name=" + "\"" + packageName + "\"" + " Version=" + "\"" + version + "\"" + " Publisher=" + "\"" + publisherName + "\"" + " Uri=" + "\"" + url + appxBundleName + "\"" + " />");
+			builder.AppendLine("  <Dependencies>");
+			builder.AppendLine("    <Package Name=" + "\"" + VCLibsName + "\" " + VCLibsInfo + " Uri=" + "\"" + url + VCLibsPackage + "\"" + " />");
+			builder.AppendLine("  </Dependencies>");
+			builder.AppendLine("  <UpdateSettings>");
+			builder.AppendLine("    <OnLaunch HoursBetweenUpdateChecks=" + "\"" + hoursBetweenUpdates + "\"" + " />");
+			builder.AppendLine("  </UpdateSettings>");
+			builder.AppendLine("</AppInstaller>");
+
+			File.WriteAllText(AppInstallerFilename, builder.ToString(), Encoding.UTF8);
+		}
 
 		void MakeBundle(ProjectParams Params, DeploymentContext SC, string OutputNameBase, bool SeparateAssetPackaging)
 		{
@@ -885,7 +949,14 @@ namespace HoloLens.Automation
 
 			File.WriteAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
 
-			string MakeAppXCommandLine = string.Format(@"bundle /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
+			ConfigHierarchy PlatformGameConfig = null;
+			string projectVersion = "0.0.0.0";
+			if (Params.GameConfigs.TryGetValue(PlatformType, out PlatformGameConfig))
+			{
+				PlatformGameConfig.GetString("/Script/EngineSettings.GeneralProjectSettings", "ProjectVersion", out projectVersion);
+			}
+
+			string MakeAppXCommandLine = string.Format(@"bundle /o /f ""{0}"" /p ""{1}"" /bv {2}", MapFilename, OutputAppX, projectVersion);
 			RunAndLog(CmdEnv, MakeAppXPath.FullName, MakeAppXCommandLine, null, 0, null, ERunOptions.None);
 			SignPackage(Params, SC, OutputName + Extension + "bundle", true);
 		}
@@ -952,11 +1023,52 @@ namespace HoloLens.Automation
 			{
 				OutputAppX += "bundle";
 				bool SeparateAssetPackaging = false;
+				bool bStartInVR = false;
 
+				//auto update
+				bool bShouldCreateAppInstaller = false;
+				string autoUpdateURL = string.Empty;
+				int hoursBetweenUpdates = 0;
+				
 				ConfigHierarchy PlatformEngineConfig = null;
 				if (Params.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
 				{
 					PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bUseAssetPackage", out SeparateAssetPackaging);
+					
+					// Get auto update vars
+					PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bShouldCreateAppInstaller", out bShouldCreateAppInstaller);
+					PlatformEngineConfig.GetString("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "AppInstallerInstallationURL", out autoUpdateURL);
+					PlatformEngineConfig.GetInt32("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "HoursBetweenUpdateChecks", out hoursBetweenUpdates);
+				}
+
+				ConfigHierarchy PlatformGameConfig = null;
+				if (Params.GameConfigs.TryGetValue(PlatformType, out PlatformGameConfig))
+				{
+					PlatformGameConfig.GetBool("/Script/EngineSettings.GeneralProjectSettings", "bStartInVR", out bStartInVR);
+					Log.TraceInformation("bStartInVR = {0}", bStartInVR.ToString());
+				}
+
+				if (bStartInVR)
+				{
+					bool updateCommandLine = false;
+					if (string.IsNullOrEmpty(Params.StageCommandline))
+					{
+						Params.StageCommandline = "-vr";
+						updateCommandLine = true;
+					}
+					else if (!Params.StageCommandline.Contains("-vr"))
+					{
+						Params.StageCommandline += " -vr";
+						updateCommandLine = true;
+					}
+
+					if (updateCommandLine)
+					{
+						// Update the ue4commandline.txt
+						FileReference IntermediateCmdLineFile = FileReference.Combine(SC.StageDirectory, "UE4CommandLine.txt");
+						Log.TraceInformation("Writing cmd line to: " + IntermediateCmdLineFile.FullName);
+						Project.WriteStageCommandline(IntermediateCmdLineFile, Params, SC);
+					}
 				}
 
 				if (SeparateAssetPackaging)
@@ -969,6 +1081,11 @@ namespace HoloLens.Automation
 				}
 
 				MakeBundle(Params, SC, OutputNameBase, SeparateAssetPackaging);
+				
+				if (bShouldCreateAppInstaller)
+				{
+					MakeAppInstaller(Params, SC, OutputNameBase, autoUpdateURL, hoursBetweenUpdates);
+				}
 			}
 
 
@@ -1546,6 +1663,7 @@ namespace HoloLens.Automation
 			SC.ArchiveFiles(PackagePath, OutputNameBase + Extension + "upload");
 
 			SC.ArchiveFiles(PackagePath, "*VCLibs*.appx");
+			SC.ArchiveFiles(PackagePath, OutputNameBase + ".appinstaller");
 		}
 
 		private bool ShouldAcceptCertificate(System.Security.Cryptography.X509Certificates.X509Certificate2 Certificate, bool Unattended)

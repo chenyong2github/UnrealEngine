@@ -398,7 +398,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsDebugDatas
 	{
 		FDesc VoxelDescription;
 
-		TRefCountPtr<FPooledRDGBuffer> VoxelOffsetAndCount;
-		TRefCountPtr<FPooledRDGBuffer> VoxelData;
+		TRefCountPtr<FRDGPooledBuffer> VoxelOffsetAndCount;
+		TRefCountPtr<FRDGPooledBuffer> VoxelData;
 	};
 };

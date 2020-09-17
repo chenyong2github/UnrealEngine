@@ -266,11 +266,13 @@ void FD3D12Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 		}
 		else
 		{
+#if !PLATFORM_HOLOLENS
 			// Check if the viewport's window is focused before resetting the swap chain's fullscreen state.
 			HWND FocusWindow = ::GetFocus();
 			const bool bIsFocused = FocusWindow == WindowHandle;
 			const bool bIsIconic = !!::IsIconic(WindowHandle);
 			if (bIgnoreFocus || (bIsFocused && !bIsIconic))
+#endif
 			{
 				FlushRenderingCommands();
 

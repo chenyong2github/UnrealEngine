@@ -33,11 +33,9 @@
 #endif
 
 #ifndef MRMESH_INDEX_TYPE
-	#if PLATFORM_WINDOWS
+	#if PLATFORM_HOLOLENS
+		#define MRMESH_INDEX_TYPE uint16
+	#else
 		#define MRMESH_INDEX_TYPE uint32
-	#elif PLATFORM_HOLOLENS
-		#define MRMESH_INDEX_TYPE uint16
-	#elif PLATFORM_IOS
-		#define MRMESH_INDEX_TYPE uint16
 	#endif
 #endif

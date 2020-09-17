@@ -154,7 +154,7 @@ static void LoadValidationCache(VkDevice Device, VkValidationCacheEXT& OutValida
 
 FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	: Device(VK_NULL_HANDLE)
-	, ResourceHeapManager(this)
+	, MemoryManager(this)
 	, DeferredDeletionQueue(this)
 	, DefaultSampler(nullptr)
 	, DefaultImage(nullptr)
@@ -313,6 +313,28 @@ void FVulkanDevice::CreateDevice()
 	DeviceInfo.pEnabledFeatures = &PhysicalFeatures;
 
 	FVulkanPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo);
+
+#if VULKAN_SUPPORTS_NV_DEVICE_DIAGNOSTIC_CONFIG
+	VkDeviceDiagnosticsConfigCreateInfoNV DeviceDiagnosticsConfigCreateInfoNV;
+	if (OptionalDeviceExtensions.HasNVDeviceDiagnosticConfig)
+	{
+		ZeroVulkanStruct(DeviceDiagnosticsConfigCreateInfoNV, VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV);
+		DeviceDiagnosticsConfigCreateInfoNV.flags = VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV;
+		DeviceDiagnosticsConfigCreateInfoNV.pNext = const_cast<void*>(DeviceInfo.pNext);
+		DeviceInfo.pNext = &DeviceDiagnosticsConfigCreateInfoNV;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS
+	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR SeparateDepthStencilLayoutsFeatures;
+	if (bHasSeparateDepthStencilLayouts)
+	{
+		ZeroVulkanStruct(SeparateDepthStencilLayoutsFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR);
+		SeparateDepthStencilLayoutsFeatures.separateDepthStencilLayouts = VK_TRUE;
+		SeparateDepthStencilLayoutsFeatures.pNext = const_cast<void*>(DeviceInfo.pNext);
+		DeviceInfo.pNext = &SeparateDepthStencilLayoutsFeatures;
+	}
+#endif
 
 	// Create the device
 	VkResult Result = VulkanRHI::vkCreateDevice(Gpu, &DeviceInfo, VULKAN_CPU_ALLOCATOR, &Device);
@@ -810,6 +832,18 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 #endif
 
 		VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &GpuProps2);
+
+#if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS
+		// Disabled but kept for reference. The barriers code doesn't currently use separate transitions for depth and stencil.
+		//VkPhysicalDeviceFeatures2KHR PhysicalFeatures2;
+		//ZeroVulkanStruct(PhysicalFeatures2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR);
+		//VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR SeparateDepthStencilLayoutsFeatures;
+		//ZeroVulkanStruct(SeparateDepthStencilLayoutsFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR);
+		//PhysicalFeatures2.pNext = &SeparateDepthStencilLayoutsFeatures;
+		//VulkanDynamicAPI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &PhysicalFeatures2);
+		//bHasSeparateDepthStencilLayouts = SeparateDepthStencilLayoutsFeatures.separateDepthStencilLayouts ? true : false;
+#endif
+
 	}
 #endif
 
@@ -889,9 +923,9 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 
 	SetupFormats();
 
-	MemoryManager.Init(this);
+	DeviceMemoryManager.Init(this);
 
-	ResourceHeapManager.Init();
+	MemoryManager.Init();
 
 	FenceManager.Init(this);
 
@@ -912,7 +946,7 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 			FMemory::Memzero(MemReq);
 			VulkanRHI::vkGetBufferMemoryRequirements(Device, CrashMarker.Buffer, &MemReq);
 
-			CrashMarker.Allocation = MemoryManager.Alloc(false, CreateInfo.size, MemReq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			CrashMarker.Allocation = DeviceMemoryManager.Alloc(false, CreateInfo.size, MemReq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, nullptr, VULKAN_MEMORY_MEDIUM_PRIORITY, __FILE__, __LINE__);
 
 			uint32* Entry = (uint32*)CrashMarker.Allocation->Map(VK_WHOLE_SIZE, 0);
@@ -923,7 +957,7 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		}
 		else if (OptionalDeviceExtensions.HasNVDiagnosticCheckpoints)
 		{
-			CrashMarker.Allocation = MemoryManager.Alloc(false, GMaxCrashBufferEntries * sizeof(uint32_t), UINT32_MAX, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			CrashMarker.Allocation = DeviceMemoryManager.Alloc(false, GMaxCrashBufferEntries * sizeof(uint32_t), UINT32_MAX, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, nullptr, VULKAN_MEMORY_MEDIUM_PRIORITY, __FILE__, __LINE__);
 			uint32* Entry = (uint32*)CrashMarker.Allocation->Map(VK_WHOLE_SIZE, 0);
 			check(Entry);
@@ -988,7 +1022,7 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		DefaultSampler = ResourceCast(RHICreateSamplerState(Default).GetReference());
 
 		FRHIResourceCreateInfo CreateInfo;
-		DefaultImage = new FVulkanSurface(*this, VK_IMAGE_VIEW_TYPE_2D, PF_B8G8R8A8, 1, 1, 1, 1, 1, 1, TexCreate_RenderTargetable | TexCreate_ShaderResource, CreateInfo);
+		DefaultImage = new FVulkanSurface(*this, 0, VK_IMAGE_VIEW_TYPE_2D, PF_B8G8R8A8, 1, 1, 1, 1, 1, 1, TexCreate_RenderTargetable | TexCreate_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
 		DefaultTextureView.Create(*this, DefaultImage->Image, VK_IMAGE_VIEW_TYPE_2D, DefaultImage->GetFullAspectMask(), PF_B8G8R8A8, VK_FORMAT_B8G8R8A8_UNORM, 0, 1, 0, 1);
 	}
 }
@@ -1010,6 +1044,9 @@ void FVulkanDevice::Destroy()
 		}
 	}
 #endif
+
+	// Flush all pending deletes before destroying the device and any Vulkan context objects.
+	FRHIResource::FlushPendingDeletes();
 
 	VulkanRHI::vkDestroyImageView(GetInstanceHandle(), DefaultTextureView.View, VULKAN_CPU_ALLOCATOR);
 	DefaultTextureView = {};
@@ -1060,8 +1097,6 @@ void FVulkanDevice::Destroy()
 	}
 	FreeOcclusionQueryPools.SetNum(0, false);
 
-	FRHIResource::FlushPendingDeletes();
-
 	delete PipelineStateCache;
 	PipelineStateCache = nullptr;
 	StagingManager.Deinit();
@@ -1075,14 +1110,14 @@ void FVulkanDevice::Destroy()
 			VulkanRHI::vkDestroyBuffer(Device, CrashMarker.Buffer, VULKAN_CPU_ALLOCATOR);
 			CrashMarker.Buffer = VK_NULL_HANDLE;
 
-			MemoryManager.Free(CrashMarker.Allocation);
+			DeviceMemoryManager.Free(CrashMarker.Allocation);
 		}
 #endif
 #if VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT
 		if (OptionalDeviceExtensions.HasNVDiagnosticCheckpoints)
 		{
 			CrashMarker.Allocation->Unmap();
-			MemoryManager.Free(CrashMarker.Allocation);
+			DeviceMemoryManager.Free(CrashMarker.Allocation);
 		}
 #endif
 	}
@@ -1090,14 +1125,14 @@ void FVulkanDevice::Destroy()
 	
 	DeferredDeletionQueue.Clear();
 
-	ResourceHeapManager.Deinit();
+	MemoryManager.Deinit();
 
 	delete TransferQueue;
 	delete ComputeQueue;
 	delete GfxQueue;
 
 	FenceManager.Deinit();
-	MemoryManager.Deinit();
+	DeviceMemoryManager.Deinit();
 
 	VulkanRHI::vkDestroyDevice(Device, VULKAN_CPU_ALLOCATOR);
 	Device = VK_NULL_HANDLE;
@@ -1204,12 +1239,6 @@ void FVulkanDevice::SubmitCommands(FVulkanCommandListContext* Context)
 	}
 	if (CmdMgr->HasPendingActiveCmdBuffer())
 	{
-		//#todo-rco: If we get real render passes then this is not needed
-		if (Context->TransitionAndLayoutManager.CurrentRenderPass)
-		{
-			Context->TransitionAndLayoutManager.EndEmulatedRenderPass(CmdMgr->GetActiveCmdBuffer());
-		}
-
 		CmdMgr->SubmitActiveCmdBuffer();
 	}
 	CmdMgr->PrepareForNewActiveCommandBuffer();

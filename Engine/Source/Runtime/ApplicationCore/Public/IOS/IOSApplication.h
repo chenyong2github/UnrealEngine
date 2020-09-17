@@ -32,6 +32,8 @@ public:
 
 #if !PLATFORM_TVOS
 	static void OrientationChanged(UIInterfaceOrientation orientation);
+
+	static UIInterfaceOrientation CachedOrientation;
 #endif
 
 	virtual IInputInterface* GetInputInterface() override { return (IInputInterface*)InputInterface.Get(); }

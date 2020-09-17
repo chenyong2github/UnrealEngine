@@ -5,6 +5,11 @@
 #include "HAL/PlatformMisc.h"
 #include "AppleARKitFaceSupport.h"
 
+#if PLATFORM_IOS
+#include "IOS/IOSAppDelegate.h"
+#include "IOS/IOSView.h"
+#endif
+
 template<typename TEnum>
 static FString GetEnumValueAsString(const FString& Name, TEnum Value)
 {
@@ -14,6 +19,12 @@ static FString GetEnumValueAsString(const FString& Name, TEnum Value)
 	}
 
 	return FString("Invalid");
+}
+
+static IAppleARKitFaceSupport* GetFaceARSupport()
+{
+	auto Implementation = static_cast<IAppleARKitFaceSupport*>(IModularFeatures::Get().GetModularFeatureImplementation(IAppleARKitFaceSupport::GetModularFeatureName(), 0));
+	return Implementation;
 }
 
 #if SUPPORTS_ARKIT_1_0
@@ -36,8 +47,19 @@ ARWorldAlignment FAppleARKitConversion::ToARWorldAlignment( const EARWorldAlignm
 #pragma clang diagnostic ignored "-Wpartial-availability"
 
 #if SUPPORTS_ARKIT_1_5
+static float GetAspectRatio(float Width, float Height)
+{
+	if (Width > Height)
+	{
+		return Width / Height;
+	}
+	else
+	{
+		return Height / Width;
+	}
+}
 
-ARVideoFormat* FAppleARKitConversion::ToARVideoFormat(const FARVideoFormat& DesiredFormat, NSArray<ARVideoFormat*>* Formats)
+ARVideoFormat* FAppleARKitConversion::ToARVideoFormat(const FARVideoFormat& DesiredFormat, NSArray<ARVideoFormat*>* Formats, bool bUseOptimalFormat)
 {
 	if (Formats != nullptr)
 	{
@@ -49,6 +71,40 @@ ARVideoFormat* FAppleARKitConversion::ToARVideoFormat(const FARVideoFormat& Desi
 				DesiredFormat.Height == Format.imageResolution.height)
 			{
 				return Format;
+			}
+		}
+		
+		if (bUseOptimalFormat)
+		{
+			auto View = [IOSAppDelegate GetDelegate].IOSView;
+			auto Frame = [View frame];
+			const auto FrameAspectRatio = GetAspectRatio(Frame.size.width, Frame.size.height);
+			ARVideoFormat* BestFormat = nullptr;
+			float BestAspectRatioDiff = FLT_MAX;
+			float BestImageWidth = -1.f;
+			for (ARVideoFormat* Format in Formats)
+			{
+				if (!Format)
+				{
+					continue;
+				}
+				
+				// This is the diff between the format aspect ratio and the desired aspect ratio
+				const auto AspectRatioDiff = FMath::Abs(GetAspectRatio(Format.imageResolution.width, Format.imageResolution.height) - FrameAspectRatio);
+				if ((AspectRatioDiff < BestAspectRatioDiff) || // Pick the format if it matches the desired one better
+					(AspectRatioDiff == BestAspectRatioDiff && Format.imageResolution.width > BestImageWidth)) // Or if it provides better image quality
+				{
+					BestAspectRatioDiff = AspectRatioDiff;
+					BestFormat = Format;
+					BestImageWidth = Format.imageResolution.width;
+				}
+			}
+			
+			if (BestFormat)
+			{
+				UE_LOG(LogAppleARKit, Log, TEXT("Selected optimal video format (%.0f x %.0f) to match screen size (%.0f x %.0f)"),
+					   BestFormat.imageResolution.width, BestFormat.imageResolution.height, Frame.size.width, Frame.size.height);
+				return BestFormat;
 			}
 		}
 	}
@@ -131,20 +187,6 @@ NSSet* FAppleARKitConversion::InitImageDetection(UARSessionConfig* SessionConfig
 	}
 	return ConvertedImageSet;
 }
-
-void FAppleARKitConversion::InitImageDetection(UARSessionConfig* SessionConfig, ARWorldTrackingConfiguration* WorldConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages)
-{
-	if (FAppleARKitAvailability::SupportsARKit15())
-	{
-		WorldConfig.detectionImages = InitImageDetection(SessionConfig, CandidateImages, ConvertedCandidateImages);
-	}
-#if SUPPORTS_ARKIT_2_0
-	if (FAppleARKitAvailability::SupportsARKit20())
-	{
-		WorldConfig.maximumNumberOfTrackedImages = SessionConfig->GetMaxNumSimultaneousImagesTracked();
-	}
-#endif
-}
 #endif
 
 #if SUPPORTS_ARKIT_2_0
@@ -152,7 +194,6 @@ void FAppleARKitConversion::InitImageDetection(UARSessionConfig* SessionConfig, 
 {
 	ImageConfig.trackingImages = InitImageDetection(SessionConfig, CandidateImages, ConvertedCandidateImages);
 	ImageConfig.maximumNumberOfTrackedImages = SessionConfig->GetMaxNumSimultaneousImagesTracked();
-	ImageConfig.autoFocusEnabled = SessionConfig->ShouldEnableAutoFocus();
 }
 
 AREnvironmentTexturing FAppleARKitConversion::ToAREnvironmentTexturing(EAREnvironmentCaptureProbeType CaptureType)
@@ -171,20 +212,34 @@ AREnvironmentTexturing FAppleARKitConversion::ToAREnvironmentTexturing(EAREnviro
 	return AREnvironmentTexturingNone;
 }
 
-ARWorldMap* FAppleARKitConversion::ToARWorldMap(const TArray<uint8>& WorldMapData)
+ARWorldMap* FAppleARKitConversion::ToARWorldMap(const TArray<uint8>& WorldMapData, TOptional<FTransform>& InAlignmentTransform)
 {
 	uint8* Buffer = (uint8*)WorldMapData.GetData();
 	FARWorldSaveHeader InHeader(Buffer);
+	
 	// Check for our format and reject if invalid
-	if (InHeader.Magic != AR_SAVE_WORLD_KEY || InHeader.Version != AR_SAVE_WORLD_VER)
+	if (InHeader.Magic != AR_SAVE_WORLD_KEY || InHeader.Version > (uint8)EARSaveWorldVersions::Latest)
 	{
 		UE_LOG(LogAppleARKit, Log, TEXT("Failed to load the world map data from the session object due to incompatible versions: magic (0x%x), ver(%d)"), InHeader.Magic, (uint32)InHeader.Version);
 		return nullptr;
 	}
-
-	// Decompress the data
-	uint8* CompressedData = Buffer + AR_SAVE_WORLD_HEADER_SIZE;
-	uint32 CompressedSize = WorldMapData.Num() - AR_SAVE_WORLD_HEADER_SIZE;
+	
+	uint32 HeaderAndAlignmentSize = 0;
+	auto AlignmentTransform = FTransform::Identity;
+	// Copy out the alignment transform if the data contains it
+	if (InHeader.Version >= (uint8)EARSaveWorldVersions::Latest)
+	{
+		AlignmentTransform = *(FTransform*)(Buffer + AR_SAVE_WORLD_HEADER_SIZE);
+		HeaderAndAlignmentSize = AR_SAVE_WORLD_HEADER_SIZE + sizeof(FTransform);
+	}
+	else
+	{
+		HeaderAndAlignmentSize = AR_SAVE_WORLD_HEADER_SIZE;
+	}
+	
+	// Decompress the data, see FAppleARKitSaveWorldAsyncTask::OnWorldMapAcquired for how it's encoded
+	uint8* CompressedData = Buffer + HeaderAndAlignmentSize;
+	uint32 CompressedSize = WorldMapData.Num() - HeaderAndAlignmentSize;
 	uint32 UncompressedSize = InHeader.UncompressedSize;
 	TArray<uint8> UncompressedData;
 	UncompressedData.AddUninitialized(UncompressedSize);
@@ -203,6 +258,7 @@ ARWorldMap* FAppleARKitConversion::ToARWorldMap(const TArray<uint8>& WorldMapDat
 		FString Error = [ErrorObj localizedDescription];
 		UE_LOG(LogAppleARKit, Log, TEXT("Failed to load the world map data from the session object with error string (%s)"), *Error);
 	}
+	InAlignmentTransform = AlignmentTransform;
 	return WorldMap;
 }
 
@@ -245,7 +301,164 @@ NSSet* FAppleARKitConversion::ToARReferenceObjectSet(const TArray<UARCandidateOb
 }
 #endif
 
-ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* SessionConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages, TMap< FString, UARCandidateObject* >& CandidateObjects )
+#if SUPPORTS_ARKIT_1_5
+NSArray<ARVideoFormat*>* FAppleARKitConversion::GetSupportedVideoFormats(EARSessionType SessionType)
+{
+	if (FAppleARKitAvailability::SupportsARKit15())
+	{
+		switch (SessionType)
+		{
+			case EARSessionType::Orientation:
+				return AROrientationTrackingConfiguration.supportedVideoFormats;
+				break;
+				
+			case EARSessionType::World:
+				return ARWorldTrackingConfiguration.supportedVideoFormats;
+				break;
+				
+			case EARSessionType::Face:
+				if (auto Implementation = GetFaceARSupport())
+				{
+					return Implementation->GetSupportedVideoFormats();
+				}
+				break;
+				
+#if SUPPORTS_ARKIT_2_0
+			case EARSessionType::Image:
+				if (FAppleARKitAvailability::SupportsARKit20())
+				{
+					return ARImageTrackingConfiguration.supportedVideoFormats;
+				}
+				break;
+				
+			case EARSessionType::ObjectScanning:
+				if (FAppleARKitAvailability::SupportsARKit20())
+				{
+					return ARObjectScanningConfiguration.supportedVideoFormats;
+				}
+				break;
+#endif
+				
+#if SUPPORTS_ARKIT_3_0
+			case EARSessionType::PoseTracking:
+				if (FAppleARKitAvailability::SupportsARKit30())
+				{
+					return ARBodyTrackingConfiguration.supportedVideoFormats;
+				}
+				break;
+#endif
+		}
+	}
+	return nullptr;
+}
+#endif
+
+template<class T>
+static void ConfigureAutoFocus(UARSessionConfig* SessionConfig, T* ARConfig)
+{
+#if SUPPORTS_ARKIT_1_5
+	if (FAppleARKitAvailability::SupportsARKit15())
+	{
+		ARConfig.autoFocusEnabled = SessionConfig->ShouldEnableAutoFocus();
+	}
+#endif
+}
+
+template<class T>
+static void ConfigurePlaneDetection(UARSessionConfig* SessionConfig, T* ARConfig)
+{
+	ARConfig.planeDetection = ARPlaneDetectionNone;
+	if (EnumHasAnyFlags(EARPlaneDetectionMode::HorizontalPlaneDetection, SessionConfig->GetPlaneDetectionMode()))
+	{
+		ARConfig.planeDetection |= ARPlaneDetectionHorizontal;
+	}
+#if SUPPORTS_ARKIT_1_5
+	if (FAppleARKitAvailability::SupportsARKit15())
+	{
+		if (EnumHasAnyFlags(EARPlaneDetectionMode::VerticalPlaneDetection, SessionConfig->GetPlaneDetectionMode()))
+		{
+			ARConfig.planeDetection |= ARPlaneDetectionVertical;
+		}
+	}
+#endif
+}
+
+template<class T>
+static void ConfigureEnvironmentTexturing(UARSessionConfig* SessionConfig, T* ARConfig)
+{
+#if SUPPORTS_ARKIT_2_0
+	if (FAppleARKitAvailability::SupportsARKit20())
+	{
+		ARConfig.environmentTexturing = FAppleARKitConversion::ToAREnvironmentTexturing(SessionConfig->GetEnvironmentCaptureProbeType());
+	}
+#endif
+	
+#if SUPPORTS_ARKIT_3_0
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		// Disable HDR environment texturing as the engine doesn't support it yet
+		// See FARMetalResource in AppleARKitTextures.cpp
+		// TODO: Add HDR support later
+		ARConfig.wantsHDREnvironmentTextures = NO;
+	}
+#endif
+}
+
+template<class T>
+static void ConfigureInitialWorldMap(UARSessionConfig* SessionConfig, T* ARConfig, TOptional<FTransform>& InitialAlignmentTransform)
+{
+#if SUPPORTS_ARKIT_2_0
+	if (FAppleARKitAvailability::SupportsARKit20())
+	{
+		// Load the world if requested
+		if (SessionConfig->GetWorldMapData().Num() > 0)
+		{
+			ARWorldMap* WorldMap = FAppleARKitConversion::ToARWorldMap(SessionConfig->GetWorldMapData(), InitialAlignmentTransform);
+			ARConfig.initialWorldMap = WorldMap;
+			[WorldMap release];
+		}
+	}
+#endif
+}
+
+template<class T>
+static void ConfigureObjectDetection(UARSessionConfig* SessionConfig, T* ARConfig, TMap<FString, UARCandidateObject*>& CandidateObjects)
+{
+#if SUPPORTS_ARKIT_2_0
+	if (FAppleARKitAvailability::SupportsARKit20())
+	{
+		// Convert any candidate objects that are to be detected
+		ARConfig.detectionObjects = FAppleARKitConversion::ToARReferenceObjectSet(SessionConfig->GetCandidateObjectList(), CandidateObjects);
+	}
+#endif
+}
+
+template<class T>
+static void ConfigureImageDetection(UARSessionConfig* SessionConfig, T* ARConfig, TMap<FString, UARCandidateImage*>& CandidateImages, TMap<FString, CGImageRef>& ConvertedCandidateImages)
+{
+#if SUPPORTS_ARKIT_1_5
+	if (FAppleARKitAvailability::SupportsARKit15())
+	{
+		ARConfig.detectionImages = FAppleARKitConversion::InitImageDetection(SessionConfig, CandidateImages, ConvertedCandidateImages);
+	}
+#endif
+		
+#if SUPPORTS_ARKIT_2_0
+	if (FAppleARKitAvailability::SupportsARKit20())
+	{
+		ARConfig.maximumNumberOfTrackedImages = SessionConfig->GetMaxNumSimultaneousImagesTracked();
+	}
+#endif
+	
+#if SUPPORTS_ARKIT_3_0
+	if (FAppleARKitAvailability::SupportsARKit30())
+	{
+		ARConfig.automaticImageScaleEstimationEnabled = SessionConfig->bUseAutomaticImageScaleEstimation;
+	}
+#endif
+}
+
+ARConfiguration* FAppleARKitConversion::ToARConfiguration(UARSessionConfig* SessionConfig, TMap<FString, UARCandidateImage*>& CandidateImages, TMap<FString, CGImageRef>& ConvertedCandidateImages, TMap<FString, UARCandidateObject*>& CandidateObjects, TOptional<FTransform>& InitialAlignmentTransform)
 {
 	EARSessionType SessionType = SessionConfig->GetSessionType();
 	ARConfiguration* SessionConfiguration = nullptr;
@@ -258,15 +471,11 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 				return nullptr;
 			}
 			AROrientationTrackingConfiguration* OrientationTrackingConfiguration = [AROrientationTrackingConfiguration new];
-#if SUPPORTS_ARKIT_1_5
-			if (FAppleARKitAvailability::SupportsARKit15())
-			{
-				OrientationTrackingConfiguration.autoFocusEnabled = SessionConfig->ShouldEnableAutoFocus();
-			}
-#endif
+			ConfigureAutoFocus(SessionConfig, OrientationTrackingConfiguration);
 			SessionConfiguration = OrientationTrackingConfiguration;
 			break;
 		}
+
 		case EARSessionType::World:
 		{
 			if (ARWorldTrackingConfiguration.isSupported == FALSE)
@@ -274,61 +483,40 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 				return nullptr;
 			}
 			ARWorldTrackingConfiguration* WorldTrackingConfiguration = [ARWorldTrackingConfiguration new];
-			WorldTrackingConfiguration.planeDetection = ARPlaneDetectionNone;
-			if ( EnumHasAnyFlags(EARPlaneDetectionMode::HorizontalPlaneDetection, SessionConfig->GetPlaneDetectionMode()))
+			ConfigureAutoFocus(SessionConfig, WorldTrackingConfiguration);
+			ConfigurePlaneDetection(SessionConfig, WorldTrackingConfiguration);
+			ConfigureImageDetection(SessionConfig, WorldTrackingConfiguration, CandidateImages, ConvertedCandidateImages);
+			ConfigureEnvironmentTexturing(SessionConfig, WorldTrackingConfiguration);
+			ConfigureInitialWorldMap(SessionConfig, WorldTrackingConfiguration, InitialAlignmentTransform);
+			ConfigureObjectDetection(SessionConfig, WorldTrackingConfiguration, CandidateObjects);
+
+#if SUPPORTS_ARKIT_3_5
+			if (FAppleARKitAvailability::SupportsARKit35())
 			{
-				WorldTrackingConfiguration.planeDetection |= ARPlaneDetectionHorizontal;
-			}
-#if SUPPORTS_ARKIT_1_5
-			if (FAppleARKitAvailability::SupportsARKit15())
-			{
-				if (EnumHasAnyFlags(EARPlaneDetectionMode::VerticalPlaneDetection, SessionConfig->GetPlaneDetectionMode()) )
+				// Configure the scene reconstruction method
+				const auto SceneReconstructionMethod = SessionConfig->GetSceneReconstructionMethod();
+				if (SceneReconstructionMethod != EARSceneReconstruction::None)
 				{
-					WorldTrackingConfiguration.planeDetection |= ARPlaneDetectionVertical;
-				}
-				WorldTrackingConfiguration.autoFocusEnabled = SessionConfig->ShouldEnableAutoFocus();
-				// Add any images that wish to be detected
-				FAppleARKitConversion::InitImageDetection(SessionConfig, WorldTrackingConfiguration, CandidateImages, ConvertedCandidateImages);
-				ARVideoFormat* Format = FAppleARKitConversion::ToARVideoFormat(SessionConfig->GetDesiredVideoFormat(), ARWorldTrackingConfiguration.supportedVideoFormats);
-				if (Format != nullptr)
-				{
-					WorldTrackingConfiguration.videoFormat = Format;
+					if (IsSceneReconstructionSupported(EARSessionType::World, SceneReconstructionMethod))
+					{
+						static const TMap<EARSceneReconstruction, ARSceneReconstruction> Mapping =
+						{
+							{ EARSceneReconstruction::MeshOnly, ARSceneReconstructionMesh },
+							{ EARSceneReconstruction::MeshWithClassification, ARSceneReconstructionMeshWithClassification }
+						};
+						
+						WorldTrackingConfiguration.sceneReconstruction = Mapping[SceneReconstructionMethod];
+					}
 				}
 			}
 #endif
-#if SUPPORTS_ARKIT_2_0
-			if (FAppleARKitAvailability::SupportsARKit20())
-			{
-				// Check for environment capture probe types
-				WorldTrackingConfiguration.environmentTexturing = ToAREnvironmentTexturing(SessionConfig->GetEnvironmentCaptureProbeType());
-				// Load the world if requested
-				if (SessionConfig->GetWorldMapData().Num() > 0)
-				{
-					ARWorldMap* WorldMap = ToARWorldMap(SessionConfig->GetWorldMapData());
-					WorldTrackingConfiguration.initialWorldMap = WorldMap;
-					[WorldMap release];
-				}
-				// Convert any candidate objects that are to be detected
-				WorldTrackingConfiguration.detectionObjects = ToARReferenceObjectSet(SessionConfig->GetCandidateObjectList(), CandidateObjects);
-			}
-#endif
-			
-#if SUPPORTS_ARKIT_3_0
-			if (FAppleARKitAvailability::SupportsARKit30())
-			{
-				// Disable HDR environment texturing as the engine doesn't support it yet
-				// See FARMetalResource in AppleARKitTextures.cpp
-				// TODO: Add HDR support later
-				WorldTrackingConfiguration.wantsHDREnvironmentTextures = NO;
-			}
-#endif
-			
 			SessionConfiguration = WorldTrackingConfiguration;
 			break;
 		}
+	
+#if SUPPORTS_ARKIT_2_0
 		case EARSessionType::Image:
 		{
-#if SUPPORTS_ARKIT_2_0
 			if (FAppleARKitAvailability::SupportsARKit20())
 			{
 				if (ARImageTrackingConfiguration.isSupported == FALSE)
@@ -336,16 +524,17 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 					return nullptr;
 				}
 				ARImageTrackingConfiguration* ImageTrackingConfiguration = [ARImageTrackingConfiguration new];
+				ConfigureAutoFocus(SessionConfig, ImageTrackingConfiguration);
+				
 				// Add any images that wish to be detected
 				InitImageDetection(SessionConfig, ImageTrackingConfiguration, CandidateImages, ConvertedCandidateImages);
 				SessionConfiguration = ImageTrackingConfiguration;
 			}
-#endif
 			break;
 		}
+
 		case EARSessionType::ObjectScanning:
 		{
-#if SUPPORTS_ARKIT_2_0
 			if (FAppleARKitAvailability::SupportsARKit20())
 			{
 				if (ARObjectScanningConfiguration.isSupported == FALSE)
@@ -353,23 +542,17 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 					return nullptr;
 				}
 				ARObjectScanningConfiguration* ObjectScanningConfiguration = [ARObjectScanningConfiguration new];
-				if (EnumHasAnyFlags(EARPlaneDetectionMode::HorizontalPlaneDetection, SessionConfig->GetPlaneDetectionMode()))
-				{
-					ObjectScanningConfiguration.planeDetection |= ARPlaneDetectionHorizontal;
-				}
-				if (EnumHasAnyFlags(EARPlaneDetectionMode::VerticalPlaneDetection, SessionConfig->GetPlaneDetectionMode()))
-				{
-					ObjectScanningConfiguration.planeDetection |= ARPlaneDetectionVertical;
-				}
-				ObjectScanningConfiguration.autoFocusEnabled = SessionConfig->ShouldEnableAutoFocus();
+				ConfigureAutoFocus(SessionConfig, ObjectScanningConfiguration);
+				ConfigurePlaneDetection(SessionConfig, ObjectScanningConfiguration);
 				SessionConfiguration = ObjectScanningConfiguration;
 			}
-#endif
 			break;
 		}
+#endif // SUPPORTS_ARKIT_2_0
+
+#if SUPPORTS_ARKIT_3_0
 		case EARSessionType::PoseTracking:
 		{
-#if SUPPORTS_ARKIT_3_0
 			if (FAppleARKitAvailability::SupportsARKit30())
 			{
 				if (ARBodyTrackingConfiguration.isSupported == FALSE)
@@ -378,44 +561,36 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 				}
 				
 				ARBodyTrackingConfiguration* BodyTrackingConfiguration = [ARBodyTrackingConfiguration new];
-				BodyTrackingConfiguration.planeDetection = ARPlaneDetectionNone;
-				if (EnumHasAnyFlags(EARPlaneDetectionMode::HorizontalPlaneDetection, SessionConfig->GetPlaneDetectionMode()))
-				{
-					BodyTrackingConfiguration.planeDetection |= ARPlaneDetectionHorizontal;
-				}
-				
-				if (EnumHasAnyFlags(EARPlaneDetectionMode::VerticalPlaneDetection, SessionConfig->GetPlaneDetectionMode()) )
-				{
-					BodyTrackingConfiguration.planeDetection |= ARPlaneDetectionVertical;
-				}
-				BodyTrackingConfiguration.autoFocusEnabled = SessionConfig->ShouldEnableAutoFocus();
-				
-				// Add any images that wish to be detected
-				FAppleARKitConversion::InitImageDetection(SessionConfig, BodyTrackingConfiguration, CandidateImages, ConvertedCandidateImages);
-				
-				ARVideoFormat* Format = FAppleARKitConversion::ToARVideoFormat(SessionConfig->GetDesiredVideoFormat(), ARBodyTrackingConfiguration.supportedVideoFormats);
-				if (Format != nullptr)
-				{
-					BodyTrackingConfiguration.videoFormat = Format;
-				}
-				
-				// Check for environment capture probe types
-				BodyTrackingConfiguration.environmentTexturing = ToAREnvironmentTexturing(SessionConfig->GetEnvironmentCaptureProbeType());
-				// Load the world if requested
-				if (SessionConfig->GetWorldMapData().Num() > 0)
-				{
-					ARWorldMap* WorldMap = ToARWorldMap(SessionConfig->GetWorldMapData());
-					BodyTrackingConfiguration.initialWorldMap = WorldMap;
-					[WorldMap release];
-				}
-				
+				ConfigureAutoFocus(SessionConfig, BodyTrackingConfiguration);
+				ConfigurePlaneDetection(SessionConfig, BodyTrackingConfiguration);
+				ConfigureImageDetection(SessionConfig, BodyTrackingConfiguration, CandidateImages, ConvertedCandidateImages);
+				ConfigureEnvironmentTexturing(SessionConfig, BodyTrackingConfiguration);
+				ConfigureInitialWorldMap(SessionConfig, BodyTrackingConfiguration, InitialAlignmentTransform);
 				SessionConfiguration = BodyTrackingConfiguration;
 			}
-#endif
 			break;
 		}
-		default:
-			return nullptr;
+#endif // SUPPORTS_ARKIT_3_0
+
+#if SUPPORTS_ARKIT_4_0
+		case EARSessionType::GeoTracking:
+		{
+			if (FAppleARKitAvailability::SupportsARKit40())
+			{
+				if (ARGeoTrackingConfiguration.isSupported == FALSE)
+				{
+					return nullptr;
+				}
+				
+				ARGeoTrackingConfiguration* GeoTrackingConfiguration = [ARGeoTrackingConfiguration new];
+				ConfigurePlaneDetection(SessionConfig, GeoTrackingConfiguration);
+				ConfigureImageDetection(SessionConfig, GeoTrackingConfiguration, CandidateImages, ConvertedCandidateImages);
+				ConfigureEnvironmentTexturing(SessionConfig, GeoTrackingConfiguration);
+				SessionConfiguration = GeoTrackingConfiguration;
+			}
+			break;
+		}
+#endif // SUPPORTS_ARKIT_4_0
 	}
 	
 	if (SessionConfiguration != nullptr)
@@ -424,6 +599,14 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 		SessionConfiguration.lightEstimationEnabled = SessionConfig->GetLightEstimationMode() != EARLightEstimationMode::None;
 		SessionConfiguration.providesAudioData = NO;
 		SessionConfiguration.worldAlignment = FAppleARKitConversion::ToARWorldAlignment(SessionConfig->GetWorldAlignment());
+		
+		if (auto SupportedFormats = FAppleARKitConversion::GetSupportedVideoFormats(SessionType))
+		{
+			if (auto VideoFormat = FAppleARKitConversion::ToARVideoFormat(SessionConfig->GetDesiredVideoFormat(), SupportedFormats, SessionConfig->ShouldUseOptimalVideoFormat()))
+			{
+				SessionConfiguration.videoFormat = VideoFormat;
+			}
+		}
 	}
 	
 	return SessionConfiguration;
@@ -478,10 +661,12 @@ bool FAppleARKitConversion::IsSessionTrackingFeatureSupported(EARSessionType Ses
 						{
 							SupportFlags.Add(SessionTrackingFeature, false);
 							
-							TArray<IAppleARKitFaceSupport*> Impls = IModularFeatures::Get().GetModularFeatureImplementations<IAppleARKitFaceSupport>("AppleARKitFaceSupport");
-							if (Impls.Num() && Impls[0]->IsARFrameSemanticsSupported(Semantics))
+							if (auto Implementation = GetFaceARSupport())
 							{
-								SupportFlags[SessionTrackingFeature] = true;
+								if (Implementation->IsARFrameSemanticsSupported(Semantics))
+								{
+									SupportFlags[SessionTrackingFeature] = true;
+								}
 							}
 						}
 						
@@ -504,20 +689,31 @@ bool FAppleARKitConversion::IsSessionTrackingFeatureSupported(EARSessionType Ses
 	return false;
 }
 
-#if SUPPORTS_ARKIT_3_0
-void FAppleARKitConversion::InitImageDetection(UARSessionConfig* SessionConfig, ARBodyTrackingConfiguration* BodyTrackingConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages)
+bool FAppleARKitConversion::IsSceneReconstructionSupported(EARSessionType SessionType, EARSceneReconstruction SceneReconstructionMethod)
 {
-	if (FAppleARKitAvailability::SupportsARKit15())
+#if SUPPORTS_ARKIT_3_5
+	if (FAppleARKitAvailability::SupportsARKit35())
 	{
-		BodyTrackingConfig.detectionImages = InitImageDetection(SessionConfig, CandidateImages, ConvertedCandidateImages);
+		if (SessionType == EARSessionType::World)
+		{
+			switch (SceneReconstructionMethod)
+			{
+				case EARSceneReconstruction::None:
+					return true;
+					
+				case EARSceneReconstruction::MeshOnly:
+					return [ARWorldTrackingConfiguration supportsSceneReconstruction: ARSceneReconstructionMesh];
+					
+				case EARSceneReconstruction::MeshWithClassification:
+					return [ARWorldTrackingConfiguration supportsSceneReconstruction: ARSceneReconstructionMeshWithClassification];
+			}
+		}
 	}
-	
-	if (FAppleARKitAvailability::SupportsARKit20())
-	{
-		BodyTrackingConfig.maximumNumberOfTrackedImages = SessionConfig->GetMaxNumSimultaneousImagesTracked();
-	}
+#endif
+	return false;
 }
 
+#if SUPPORTS_ARKIT_3_0
 ARFrameSemantics FAppleARKitConversion::ToARFrameSemantics(EARSessionTrackingFeature SessionTrackingFeature)
 {
 	static const TMap<EARSessionTrackingFeature, ARFrameSemantics> SessionTrackingFeatureToFrameSemantics =
@@ -526,13 +722,15 @@ ARFrameSemantics FAppleARKitConversion::ToARFrameSemantics(EARSessionTrackingFea
 		{ EARSessionTrackingFeature::PoseDetection2D, ARFrameSemanticBodyDetection },
 		{ EARSessionTrackingFeature::PersonSegmentation, ARFrameSemanticPersonSegmentation },
 		{ EARSessionTrackingFeature::PersonSegmentationWithDepth, ARFrameSemanticPersonSegmentationWithDepth },
+#if SUPPORTS_ARKIT_4_0
+		{ EARSessionTrackingFeature::SceneDepth, ARFrameSemanticSceneDepth },
+#endif
 	};
 	
-	if (SessionTrackingFeatureToFrameSemantics.Contains(SessionTrackingFeature))
+	if (auto Record = SessionTrackingFeatureToFrameSemantics.Find(SessionTrackingFeature))
 	{
-		return SessionTrackingFeatureToFrameSemantics[SessionTrackingFeature];
+		return *Record;
 	}
-	
 	return ARFrameSemanticNone;
 }
 

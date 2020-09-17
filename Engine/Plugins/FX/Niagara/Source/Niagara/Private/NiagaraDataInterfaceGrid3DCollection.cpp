@@ -82,7 +82,6 @@ public:
 			FRHIShaderResourceView* InputGridBuffer;
 			if (ProxyData->CurrentData != nullptr)
 			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->CurrentData->GridBuffer.UAV);
 				InputGridBuffer = ProxyData->CurrentData->GridBuffer.SRV;
 			}
 			else
@@ -98,7 +97,6 @@ public:
 			if (Context.IsOutputStage && ProxyData->DestinationData != nullptr)
 			{
 				OutputGridUAV = ProxyData->DestinationData->GridBuffer.UAV;
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, OutputGridUAV);
 			}
 			else
 			{
@@ -833,7 +831,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetCellSize(FVectorVMContext& Contex
 	}
 }
 
-void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate()
+void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate(FRHICommandList& RHICmdList)
 {
 	for (TUniquePtr<FGrid3DBuffer>& Buffer : Buffers)
 	{
@@ -848,11 +846,12 @@ void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate()
 	if (DestinationData == nullptr)
 	{
 		DestinationData = new FGrid3DBuffer(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z, PixelFormat);
+		RHICmdList.Transition(FRHITransitionInfo(DestinationData->GridBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		Buffers.Emplace(DestinationData);
 	}
 }
 
-void FGrid3DCollectionRWInstanceData_RenderThread::EndSimulate()
+void FGrid3DCollectionRWInstanceData_RenderThread::EndSimulate(FRHICommandList& RHICmdList)
 {
 	CurrentData = DestinationData;
 	DestinationData = nullptr;
@@ -865,22 +864,23 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 	{
 		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
-		ProxyData->BeginSimulate();
+		ProxyData->BeginSimulate(RHICmdList);
 
 		// If we don't have an iteration stage, then we should manually clear the buffer to make sure there is no residual data.  If we are doing something like rasterizing particles into a grid, we want it to be clear before
 		// we start.  If a user wants to access data from the previous stage, then they can read from the current data.
 
 		// #todo(dmp): we might want to expose an option where we have buffers that are write only and need a clear (ie: no buffering like the neighbor grid).  They would be considered transient perhaps?  It'd be more
-		// memory efficient since it would theoretically not require any double buffering.		
+		// memory efficient since it would theoretically not require any double buffering.
+		RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
 		if (!Context.IsIterationStage)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);
 			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 		}
 		else if (ProxyData->CurrentData != NULL && ProxyData->DestinationData != NULL)
 		{
 			// in iteration stages we copy the source to destination
+			// FIXME: is this really needed? The Grid2D DI doesn't do it.
 			FRHICopyTextureInfo CopyInfo;
 			RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->DestinationData->GridBuffer.Buffer, CopyInfo);
 		}
@@ -889,11 +889,11 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 
 void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
-	
 	if (Context.IsOutputStage)
 	{
 		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-		ProxyData->EndSimulate();
+		RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		ProxyData->EndSimulate(RHICmdList);
 	}
 }
 
@@ -903,13 +903,20 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(FRHICommandLi
 
 	if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->GridBuffer.Buffer != nullptr)
 	{
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->CurrentData->GridBuffer.Buffer);
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProxyData->RenderTargetToCopyTo);
+		FRHITexture* Source = ProxyData->CurrentData->GridBuffer.Buffer;
+		FRHITexture* Destination = ProxyData->RenderTargetToCopyTo;
+		FRHITransitionInfo TransitionsBefore[] = {
+			FRHITransitionInfo(Source, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
+			FRHITransitionInfo(Destination, ERHIAccess::SRVMask, ERHIAccess::CopyDest)
+		};
 
 		FRHICopyTextureInfo CopyInfo;
 		RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->RenderTargetToCopyTo, CopyInfo);
+		FRHITransitionInfo TransitionsAfter[] = {
+			FRHITransitionInfo(Source, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
+			FRHITransitionInfo(Destination, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
+		};
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->RenderTargetToCopyTo);
 	}
 }
 
@@ -925,9 +932,23 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(FRHICommandList&
 	{
 		if (Buffer.IsValid())
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Buffer->GridBuffer.UAV);
+			ERHIAccess AccessAfter;
+			const bool bIsDestination = (ProxyData->DestinationData == Buffer.Get());
+			if (bIsDestination)
+			{
+				// The destination buffer is already in UAVCompute because PreStage() runs first. It must stay in UAVCompute after the clear
+				// because the shader is going to use it.
+				AccessAfter = ERHIAccess::UAVCompute;
+			}
+			else
+			{
+				// The other buffers are in SRVMask and must be returned to that state after the clear.
+				RHICmdList.Transition(FRHITransitionInfo(Buffer->GridBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
+				AccessAfter = ERHIAccess::SRVMask;
+			}
+
 			RHICmdList.ClearUAVFloat(Buffer->GridBuffer.UAV, FVector4(ForceInitToZero));
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Buffer->GridBuffer.UAV);
+			RHICmdList.Transition(FRHITransitionInfo(Buffer->GridBuffer.UAV, ERHIAccess::UAVCompute, AccessAfter));
 		}		
 	}	
 }

@@ -182,6 +182,31 @@ public:
 		check(UAVs.Num() > 0);
 	}
 
+	void GetReadableTransitions(FTileIntersectionResources& TileIntersectionResources, TArray<FRHITransitionInfo>& TransitionInfos)
+	{
+		if (NumCulledTilesArray.IsUAVBound())
+		{
+			TransitionInfos.Add(FRHITransitionInfo(TileIntersectionResources.NumCulledTilesArray.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
+
+		if (CulledTilesStartOffsetArray.IsUAVBound())
+		{
+			TransitionInfos.Add(FRHITransitionInfo(TileIntersectionResources.CulledTilesStartOffsetArray.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
+
+		if (CulledTileDataArray.IsUAVBound())
+		{
+			TransitionInfos.Add(FRHITransitionInfo(TileIntersectionResources.CulledTileDataArray.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
+
+		if (ObjectTilesIndirectArguments.IsUAVBound())
+		{
+			TransitionInfos.Add(FRHITransitionInfo(TileIntersectionResources.ObjectTilesIndirectArguments.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask | ERHIAccess::IndirectArgs));
+		}
+
+		check(TransitionInfos.Num() > 0);
+	}
+
 	template<typename TParamRef>
 	void UnsetParameters(FRHICommandList& RHICmdList, const TParamRef& ShaderRHI)
 	{
@@ -468,6 +493,6 @@ extern void TrackGPUProgress(FRHICommandListImmediate& RHICmdList, uint32 DebugI
 
 extern bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 
-extern void CullObjectsToView(FRHICommandListImmediate& RHICmdList, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, FDistanceFieldObjectBufferResource& CulledObjectBuffers);
-extern void BuildTileObjectLists(FRHICommandListImmediate& RHICmdList, FScene* Scene, TArray<FViewInfo>& Views, FSceneRenderTargetItem& DistanceFieldNormal, const FDistanceFieldAOParameters& Parameters);
+extern void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, FDistanceFieldObjectBufferResource& CulledObjectBuffers);
+extern void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FViewInfo>& Views, FRDGTextureRef DistanceFieldNormal, const FDistanceFieldAOParameters& Parameters);
 extern FIntPoint GetTileListGroupSizeForView(const FViewInfo& View);

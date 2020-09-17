@@ -365,10 +365,12 @@ public:
 		OutInitializer.FaceDirection = FVector(1,0,0);
 		OutInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector,SubjectBounds.BoxExtent,SubjectBounds.SphereRadius);
 		OutInitializer.WAxis = FVector4(0,0,0,1);
-		OutInitializer.MinLightW = -HALF_WORLD_MAX;
-		// Reduce casting distance on a directional light
-		// This is necessary to improve floating point precision in several places, especially when deriving frustum verts from InvReceiverMatrix
-		OutInitializer.MaxDistanceToCastInLightW = HALF_WORLD_MAX / 32.0f;
+		// Use the minimum of half the world, things further away do not cast shadows,
+		// However, if the cascade bounds are larger, then extend the casting distance far enough to encompass the cascade.
+		OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -SubjectBounds.SphereRadius);
+		// Range must extend to end of cascade bounds
+		const float MaxLightW = SubjectBounds.SphereRadius;
+		OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
 		OutInitializer.bRayTracedDistanceField = bRayTracedCascade;
 		OutInitializer.CascadeSettings.bFarShadowCascade = !bRayTracedCascade && OutInitializer.CascadeSettings.ShadowSplitIndex >= (int32)NumNearCascades;
 		return true;
@@ -388,10 +390,12 @@ public:
 		OutInitializer.FaceDirection = FVector(1,0,0);
 		OutInitializer.SubjectBounds = FBoxSphereBounds( FVector::ZeroVector, LightPropagationVolumeBounds.GetExtent(), FMath::Sqrt( LpvExtent * LpvExtent * 3.0f ) );
 		OutInitializer.WAxis = FVector4(0,0,0,1);
-		OutInitializer.MinLightW = -HALF_WORLD_MAX;
-		// Reduce casting distance on a directional light
-		// This is necessary to improve floating point precision in several places, especially when deriving frustum verts from InvReceiverMatrix
-		OutInitializer.MaxDistanceToCastInLightW = HALF_WORLD_MAX / 32.0f;
+		// Use the minimum of half the world, things further away do not cast shadows,
+		// However, if the cascade bounds are larger, then extend the casting distance far enough to encompass the cascade.
+		OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -OutInitializer.SubjectBounds.SphereRadius);
+		// Range must extend to end of cascade bounds
+		const float MaxLightW = OutInitializer.SubjectBounds.SphereRadius;
+		OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
 
 		// Compute the RSM bounds
 		{
@@ -912,7 +916,19 @@ private:
 			OutCascadeSettings->ShadowSplitIndex = (int32)ShadowSplitIndex;
 		}
 
-		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), SplitNear, SplitFar, OutCascadeSettings);
+
+		// TODO: Move this into a flag in some shadow-system cofiguration struct and set based on this cvar outside setup.
+		static const auto CVarSkyAtmosphereSampleLightShadowmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SkyAtmosphere.SampleLightShadowmap"));
+
+		// If enabled & this is the last cascade, then override the near plane used to construct the bounds using the
+		// near plane of the first cacade (AKA the near plane of the view), to ensure the last cascade is inclusive.
+		// We don't set any of the near/far planes etc as that would conflict with the fading.
+		bool bUseNearOverride = (bCastShadowsOnClouds || bCastShadowsOnAtmosphere) 
+			&& (ShadowSplitIndex + 1U) == NumNearAndFarCascades 
+			&& CVarSkyAtmosphereSampleLightShadowmap && CVarSkyAtmosphereSampleLightShadowmap->GetValueOnAnyThread() != 0;
+		
+		const float BoundsCalcNear = bUseNearOverride ? GetSplitDistance(View, 0, bPrecomputedLightingIsValid, bIsRayTracedCascade) : SplitNear;
+		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), BoundsCalcNear, SplitFar, OutCascadeSettings);
 
 		return CascadeSphere;
 	}

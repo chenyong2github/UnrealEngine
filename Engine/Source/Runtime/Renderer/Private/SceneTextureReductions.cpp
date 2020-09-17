@@ -96,7 +96,6 @@ static bool RequireClosestDepthHZB(const FViewInfo& View)
 	return ShouldRenderScreenSpaceDiffuseIndirect(View);
 }
 
-
 void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, FViewInfo& View)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BuildHZB);
@@ -116,12 +115,10 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 	bool bReduceClosestDepth = RequireClosestDepthHZB(View);
 	bool bUseCompute = bReduceClosestDepth || CVarHZBBuildUseCompute.GetValueOnRenderThread();
 
-	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2DDesc(
+	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2D(
 		HZBSize, PF_R16F,
 		FClearValueBinding::None,
-		TexCreate_None,
 		TexCreate_ShaderResource | (bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable),
-		/* bInForceSeparateTargetAndShaderResource = */ false,
 		NumMips);
 	HZBDesc.Flags |= GFastVRamConfig.HZB;
 
@@ -176,20 +173,16 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 
 			TShaderMapRef<FHZBBuildCS> ComputeShader(View.ShaderMap, PermutationVector);
 
-			// TODO(RDG): remove ERDGPassFlags::GenerateMips to use FComputeShaderUtils::AddPass().
-			ClearUnusedGraphResources(ComputeShader, PassParameters);
-			GraphBuilder.AddPass(
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
 				RDG_EVENT_NAME("ReduceHZB(mips=[%d;%d]%s%s) %dx%d",
 					StartDestMip, EndDestMip - 1,
 					bOutputClosest ? TEXT(" Closest") : TEXT(""),
 					bOutputFurthest ? TEXT(" Furthest") : TEXT(""),
 					DstSize.X, DstSize.Y),
+				ComputeShader,
 				PassParameters,
-				StartDestMip ? (ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips) : ERDGPassFlags::Compute,
-				[PassParameters, ComputeShader, DstSize](FRHICommandList& RHICmdList)
-			{
-				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(DstSize, 8));
-			});
+				FComputeShaderUtils::GetGroupCount(DstSize, 8));
 		}
 		else
 		{
@@ -202,24 +195,21 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 
 			TShaderMapRef<FHZBBuildPS> PixelShader(View.ShaderMap);
 
-			// TODO(RDG): remove ERDGPassFlags::GenerateMips to use FPixelShaderUtils::AddFullscreenPass().
-			ClearUnusedGraphResources(PixelShader, PassParameters);
-			GraphBuilder.AddPass(
+			FPixelShaderUtils::AddFullscreenPass(
+				GraphBuilder,
+				View.ShaderMap,
 				RDG_EVENT_NAME("DownsampleHZB(mip=%d) %dx%d", StartDestMip, DstSize.X, DstSize.Y),
+				PixelShader,
 				PassParameters,
-				StartDestMip ? (ERDGPassFlags::Raster | ERDGPassFlags::GenerateMips) : ERDGPassFlags::Raster,
-				[PassParameters, &View, PixelShader, DstSize](FRHICommandList& RHICmdList)
-			{
-				FPixelShaderUtils::DrawFullscreenPixelShader(RHICmdList, View.ShaderMap, PixelShader, *PassParameters, FIntRect(0, 0, DstSize.X, DstSize.Y));
-			});
+				FIntRect(0, 0, DstSize.X, DstSize.Y));
 		}
 	};
 
 	// Reduce first mips Closesy and furtherest are done at same time.
 	{
-		FIntPoint SrcSize = SceneTextures.SceneDepthBuffer->Desc.Extent;
+		FIntPoint SrcSize = SceneTextures.SceneDepthTexture->Desc.Extent;
 
-		FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneTextures.SceneDepthBuffer));
+		FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneTextures.SceneDepthTexture));
 
 		FVector4 DispatchThreadIdToBufferUV;
 		DispatchThreadIdToBufferUV.X = 2.0f / float(SrcSize.X);
@@ -270,8 +260,10 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 	// Update the view.
 	View.HZBMipmap0Size = HZBSize;
 
-	GraphBuilder.QueueTextureExtraction(FurthestHZBTexture, &View.HZB);
+	ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, View.HZB);
 
 	if (ClosestHZBTexture)
-		GraphBuilder.QueueTextureExtraction(ClosestHZBTexture, &View.ClosestHZB);
-} // BuildHZB()
+	{
+		ConvertToExternalTexture(GraphBuilder, ClosestHZBTexture, View.ClosestHZB);
+	}
+}

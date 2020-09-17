@@ -224,7 +224,8 @@
 #include "StudioAnalytics.h"
 #include "Engine/LevelScriptActor.h"
 #include "UObject/UnrealType.h"
-
+#include "Factories/TextureFactory.h"
+#include "Engine/TextureCube.h"
 #if WITH_CHAOS
 #include "ChaosSolversModule.h"
 #endif
@@ -4045,7 +4046,7 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 
 		// Passing in flag to verify all recaptures, no uploads
 		UReflectionCaptureComponent::UpdateReflectionCaptureContents(World, *UpdateReason, true);
-
+		bool bIsReflectionCaptureCompressionProjectSetting = (bool)IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ReflectionCaptureCompression"))->GetValueOnAnyThread();
 		for (int32 CaptureIndex = 0; CaptureIndex < ReflectionCapturesToBuild.Num(); CaptureIndex++)
 		{ 
 			UReflectionCaptureComponent* CaptureComponent = ReflectionCapturesToBuild[CaptureIndex];
@@ -4060,6 +4061,13 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 				UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 				FReflectionCaptureMapBuildData& CaptureBuildData = Registry->AllocateReflectionCaptureBuildData(CaptureComponent->MapBuildDataId, true);
 				(FReflectionCaptureData&)CaptureBuildData = ReadbackCaptureData;
+
+				CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(CaptureBuildData.FullHDRCapturedData, CaptureBuildData.CubemapSize, CaptureBuildData.Brightness, CaptureComponent->MaxValueRGBM);
+
+				FString TextureName = CaptureComponent->GetName() + TEXT("Texture");
+				TextureName += LexToString(CaptureComponent->MapBuildDataId);
+
+				GenerateEncodedHDRTextureCube(Registry, CaptureBuildData, TextureName, CaptureComponent->MaxValueRGBM, CaptureComponent, bIsReflectionCaptureCompressionProjectSetting);
 
 				CaptureBuildData.FinalizeLoad();
 

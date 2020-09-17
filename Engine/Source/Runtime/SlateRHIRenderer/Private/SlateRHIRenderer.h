@@ -205,6 +205,7 @@ public:
 	virtual int32 RegisterCurrentScene(FSceneInterface* Scene) override;
 	virtual int32 GetCurrentSceneIndex() const override;
 	virtual void ClearScenes() override;
+	EPixelFormat GetSlateRecommendedColorFormat() override;
 	virtual void DestroyCachedFastPathRenderingData(struct FSlateCachedFastPathRenderingData* InRenderingData) override;
 	virtual void DestroyCachedFastPathElementData(FSlateCachedElementData* InCachedElementData) override;
 	virtual void BeginFrame() const override;

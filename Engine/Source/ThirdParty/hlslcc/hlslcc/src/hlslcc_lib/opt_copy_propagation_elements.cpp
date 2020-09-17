@@ -632,7 +632,9 @@ void ir_copy_propagation_elements_visitor::kill(kill_entry *k)
             }
             if (entry->rhs == k->var)
             {
-                exec_list* ilist = acp->find_acpe_hash_entry_list(entry->lhs);
+				e->remove();
+			
+				exec_list* ilist = acp->find_acpe_hash_entry_list(entry->lhs);
                 if(ilist)
                 {
                     foreach_list_safe(iter2, ilist)
@@ -645,7 +647,6 @@ void ir_copy_propagation_elements_visitor::kill(kill_entry *k)
                     }
                 }
                 
-                e->remove();
                 if (entry->next && entry->prev)
                 {
                     entry->remove();

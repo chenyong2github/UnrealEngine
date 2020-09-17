@@ -17,27 +17,40 @@
 	"SupportedTargetPlatforms": [
 		"Win32",
 		"Win64",
+		"Android",
 		"HoloLens"
 	],
-	"Modules" :
-	[
+	"Modules": [
 		{
-			"Name" : "OpenXRHMD",
-			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
+			"Name": "OpenXRHMD",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win32",
 				"Win64",
+				"Android",
 				"HoloLens"
 			]
 		},
 		{
-			"Name" : "OpenXRInput",
-			"Type" : "Runtime",
-			"LoadingPhase" : "PostEngineInit",
+			"Name": "OpenXRInput",
+			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win32",
 				"Win64",
+				"Android",
+				"HoloLens"
+			]
+		},	
+		{
+			"Name": "OpenXRAR",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win32",
+				"Win64",
+				"Android",
 				"HoloLens"
 			]
 		}

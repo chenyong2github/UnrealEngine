@@ -4,8 +4,9 @@
 
 #include "WindowsMixedRealityAvailability.h"
 #include "IXRTrackingSystem.h"
-#include "ARSystem.h"
+#include "ARSystemSupportBase.h"
 #include "ARPin.h"
+#include "ARActor.h"
 #include <functional>
 
 #pragma warning(disable:4668)  
@@ -39,23 +40,25 @@ class HOLOLENSAR_API UWMRARPin : public UARPin
 	GENERATED_BODY()
 
 public:
-	void SetAnchorId(const FString& InAnchorId) { AnchorId = InAnchorId; }
-	void SetIsInAnchorStore(bool b) { IsInAnchorStore = b; }
+	void SetAnchorId(const FName& InAnchorId) { AnchorId = InAnchorId; }
+	void SetIsInAnchorStore(bool b) { IsInAnchorStore = b; } // Note this is deprecated functionality.
 
-	UFUNCTION(BlueprintPure, Category = "HoloLensAR|ARPin", meta = (Keywords = "hololensar wmr pin ar all"))
-	const FString& GetAnchorId() const { return AnchorId; }
+	UFUNCTION(BlueprintPure, Category = "HoloLensAR|ARPin", meta = (Keywords = "hololensar wmr pin ar all", DeprecatedFunction, DeprecationMessage = "Please use ARPin references instead of UWMRARPin AnchorIds for cross platform compatibility."))
+	const FString GetAnchorId() const { return AnchorId.ToString(); }
 
-	UFUNCTION(BlueprintPure, Category = "HoloLensAR|ARPin", meta = (Keywords = "hololensar wmr pin ar all"))
+	const FName& GetAnchorIdName() const { return AnchorId;  }
+
+	UFUNCTION(BlueprintPure, Category = "HoloLensAR|ARPin", meta = (Keywords = "hololensar wmr pin ar all", DeprecatedFunction, DeprecationMessage = "Please update to the new cross platform Pin Local Store api defined in ARBlueprintLibrary.  In that retaining information about which pins have been saved under what names is a project responsbility."))
 	const bool GetIsInAnchorStore() const { return IsInAnchorStore; }
 
 private:
-	FString AnchorId;
-	bool IsInAnchorStore = false;
+	FName AnchorId;
+	bool IsInAnchorStore = false; // Note this is deprecated functionality.
 };
 
 
 class FHoloLensARSystem :
-	public IARSystemSupport,
+	public FARSystemSupportBase,
 	public FGCObject,
 	public TSharedFromThis<FHoloLensARSystem, ESPMode::ThreadSafe>
 {
@@ -86,6 +89,7 @@ private:
 	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const override;
 	virtual void OnStartARSession(UARSessionConfig* InSessionConfig) override;
 	virtual void OnPauseARSession() override;
+	virtual void OnResumeARSession();
 	virtual void OnStopARSession() override;
 	virtual FARSessionStatus OnGetARSessionStatus() const override;
 	virtual void OnSetAlignmentTransform(const FTransform& InAlignmentTransform) override;
@@ -94,11 +98,14 @@ private:
 	virtual TArray<UARTrackedGeometry*> OnGetAllTrackedGeometries() const override;
 	virtual TArray<UARPin*> OnGetAllPins() const override;
 	virtual bool OnIsTrackingTypeSupported(EARSessionType SessionType) const override;
+	virtual bool OnToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType) override;
+	virtual void OnSetEnabledXRCamera(bool bOnOff) override;
+	virtual FIntPoint OnResizeXRCamera(const FIntPoint& InSize) override;
 	virtual UARLightEstimate* OnGetCurrentLightEstimate() const override;
+	virtual UARPin* FindARPinByComponent(const USceneComponent* Component) const override;
 	virtual UARPin* OnPinComponent(USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry = nullptr, const FName DebugName = NAME_None) override;
 	virtual void OnRemovePin(UARPin* PinToRemove) override;
-	virtual UARTextureCameraImage* OnGetCameraImage() override;
-	virtual UARTextureCameraDepth* OnGetCameraDepth() override;
+	virtual UARTexture* OnGetARTexture(EARTextureType TextureType) const override;
 	virtual bool OnAddManualEnvironmentCaptureProbe(FVector Location, FVector Extent) override;
 	virtual TSharedPtr<FARGetCandidateObjectAsyncTask, ESPMode::ThreadSafe> OnGetCandidateObject(FVector Location, FVector Extent) const override;
 	virtual TSharedPtr<FARSaveWorldAsyncTask, ESPMode::ThreadSafe> OnSaveWorld() const override;
@@ -110,6 +117,15 @@ private:
 	// @todo JoeG - Figure out why we have these and if we really need them
 	virtual void* GetARSessionRawPointer() override { return nullptr; }
 	virtual void* GetGameThreadARFrameRawPointer() override { return nullptr; }
+
+	/** Pin Interface */
+	virtual bool IsLocalPinSaveSupported() const override;
+	virtual bool ArePinsReadyToLoad() override;
+	virtual void LoadARPins(TMap<FName, UARPin*>& LoadedPins) override;
+	virtual bool SaveARPin(FName InName, UARPin* InPin) override;
+	virtual void RemoveSavedARPin(FName InName) override;
+	virtual void RemoveAllSavedARPins() override;
+
 	//~IARSystemSupport
 
 	// Tracking notification callback
@@ -158,9 +174,12 @@ public:
 	TSet<FGuid> LastKnownMeshes;
 	//~ Mesh observer callback support
 
+public:
 	/** Starts the interop layer QR code observer that will notify us of QR codes tracked by the system */
 	void SetupQRCodeTracking();
+	void StopQRCodeTracking();
 
+private:
 	// QR Code observer callback support
 	static void QRCodeAdded_Raw(QRCodeData* InCode);
 	static void QRCodeUpdated_Raw(QRCodeData* InCode);
@@ -185,18 +204,15 @@ public:
 
 	// WMR Anchor Implementation
 public:
-	UWMRARPin* CreateNamedARPin(FName Name, const FTransform& PinToWorldTransform);
-	UWMRARPin* CreateNamedARPinAroundAnchor(FName Name, FString AnchorId);
-	bool PinComponentToARPin(USceneComponent* ComponentToPin, UWMRARPin* Pin);
+	UWMRARPin* WMRCreateNamedARPinAroundAnchor(FName Name, FString AnchorId);
 
-	bool IsWMRAnchorStoreReady() const;
-	TArray<UWMRARPin*> LoadWMRAnchorStoreARPins();
-	bool SaveARPinToAnchorStore(UARPin* InPin);
-	void RemoveARPinFromAnchorStore(UARPin* InPin);
-	void RemoveAllARPinsFromAnchorStore();
+	// Deprecated WMRAnchorStore support functions.
+	virtual UWMRARPin* WMRCreateNamedARPin(FName Name, const FTransform& WorldTransform);
+	TArray<UWMRARPin*> WMRLoadWMRAnchorStoreARPins();
+	bool WMRSaveARPinToAnchorStore(UARPin* InPin);
+	void WMRRemoveARPinFromAnchorStore(UARPin* InPin);
+
 private:
-	UWMRARPin* FindPinByComponent(const USceneComponent* Component);
-	
 	// These functions operate in WMR Tracking Space but UE4 units (so they deal with worldscale).	
 	void UpdateWMRAnchors();
 	bool WMRIsSpatialAnchorStoreLoaded() const;
@@ -204,10 +220,16 @@ private:
 	void WMRRemoveAnchor(const wchar_t* AnchorId);
 	bool WMRDoesAnchorExist(const wchar_t* AnchorId) const;
 	bool WMRGetAnchorTransform(const wchar_t* AnchorId, FTransform& Transform) const;
-	bool WMRSaveAnchor(const wchar_t* anchorId);
+	bool WMRSaveAnchor(const wchar_t* saveId, const wchar_t* anchorId);
 	void WMRRemoveSavedAnchor(const wchar_t* anchorId);
-	bool WMRLoadAnchors(std::function<void(const wchar_t* text)> anchorIdWritingFunctionPointer);
+	bool WMRLoadAnchors(std::function<void(const wchar_t* saveId, const wchar_t* anchorId)> anchorIdWritingFunctionPointer);
 	void WMRClearSavedAnchors();
+
+	void OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID);
+
+	/** Removes all tracked geometries, marking them as not tracked and sending the delegate event */
+	void ClearTrackedGeometries();
+
 	int32 RuntimeWMRAnchorCount = 0;
 
 	/** The HMD this AR system is associated with */
@@ -220,20 +242,24 @@ private:
 	uint32 HandlerId = 0;
 
 	/** The current tracking quality for the system */
-	EARTrackingQuality TrackingQuality;
+	EARTrackingQuality TrackingQuality = EARTrackingQuality::NotTracking;
 
 	//
 	// PROPERTIES REPORTED TO FGCObject
 	// ...
 	UHoloLensCameraImageTexture* CameraImage;
 	UARSessionConfig* SessionConfig;
-	TMap< FString, UWMRARPin* > AnchorIdToPinMap;
-	TArray<UWMRARPin*> Pins;
-	TMap<FGuid, UARTrackedGeometry*> TrackedGeometries;
+	TMap< FName, UARPin* > AnchorIdToPinMap;
+	TArray<UARPin*> Pins;
+	//TMap<FGuid, UARTrackedGeometry*> TrackedGeometries;
+	TMap<FGuid, FTrackedGeometryGroup> TrackedGeometryGroups;
 	// ...
 	// PROPERTIES REPORTED TO FGCObject
 	//
 
 	FCriticalSection PVCamToWorldLock;
 	FTransform PVCameraToWorldMatrix;
+
+	//for networked callbacks
+	FDelegateHandle SpawnARActorDelegateHandle;
 };

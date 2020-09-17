@@ -212,14 +212,14 @@ private:
 
 /**
  * The RHI's feature level indicates what level of support can be relied upon.
- * Note: these are named after graphics API's like ES2 but a feature level can be used with a different API (eg ERHIFeatureLevel::ES2 on D3D11)
- * As long as the graphics API supports all the features of the feature level (eg no ERHIFeatureLevel::SM5 on OpenGL ES2)
+ * Note: these are named after graphics API's like ES3 but a feature level can be used with a different API (eg ERHIFeatureLevel::ES3.1 on D3D11)
+ * As long as the graphics API supports all the features of the feature level (eg no ERHIFeatureLevel::SM5 on OpenGL ES3.1)
  */
 namespace ERHIFeatureLevel
 {
 	enum Type
 	{
-		/** Feature level defined by the core capabilities of OpenGL ES2. */
+		/** Feature level defined by the core capabilities of OpenGL ES2. Deprecated */
 		ES2_REMOVED,
 
 		/** Feature level defined by the core capabilities of OpenGL ES3.1 & Metal/Vulkan. */
@@ -877,13 +877,14 @@ enum EUniformBufferBaseType : uint8
 
 	// Resources tracked by render graph.
 	UBMT_RDG_TEXTURE,
+	UBMT_RDG_TEXTURE_ACCESS,
 	UBMT_RDG_TEXTURE_SRV,
 	UBMT_RDG_TEXTURE_UAV,
-	UBMT_RDG_TEXTURE_COPY_DEST,
 	UBMT_RDG_BUFFER,
+	UBMT_RDG_BUFFER_ACCESS,
 	UBMT_RDG_BUFFER_SRV,
 	UBMT_RDG_BUFFER_UAV,
-	UBMT_RDG_BUFFER_COPY_DEST,
+	UBMT_RDG_UNIFORM_BUFFER,
 
 	// Nested structure.
 	UBMT_NESTED_STRUCT,
@@ -1161,9 +1162,14 @@ enum EBufferUsageFlags
 	*/
 	BUF_AccelerationStructure	= 0x8000,
 
+	BUF_VertexBuffer			= 0x10000,
+	BUF_IndexBuffer				= 0x20000,
+	BUF_StructuredBuffer		= 0x40000,
+
 	// Helper bit-masks
 	BUF_AnyDynamic = (BUF_Dynamic | BUF_Volatile),
 };
+ENUM_CLASS_FLAGS(EBufferUsageFlags);
 
 enum class EGpuVendorId
 {
@@ -1213,6 +1219,16 @@ enum ERHIResourceType
 	RRT_Num
 };
 
+/** Describes the dimension of a texture. */
+enum class ETextureDimension
+{
+	Texture2D,
+	Texture2DArray,
+	Texture3D,
+	TextureCube,
+	TextureCubeArray
+};
+
 /** Flags used for texture creation */
 enum ETextureCreateFlags
 {
@@ -1238,8 +1254,10 @@ enum ETextureCreateFlags
 	TexCreate_Dynamic				= 1<<8,
 	// Texture will be used as a render pass attachment that will be read from
 	TexCreate_InputAttachmentRead	= 1<<9,
+	/** Texture represents a foveation attachment */
+	TexCreate_Foveation				= 1 << 10,
 	// Disable automatic defragmentation if the initial texture memory allocation fails.
-	TexCreate_DisableAutoDefrag		= 1<<10,
+	TexCreate_DisableAutoDefrag		 UE_DEPRECATED(4.26, "TexCreate_DisableAutoDefrag is deprecated and getting removed; please don't use.") = 1 << 10,
 	// This texture has no GPU or CPU backing. It only exists in tile memory on TBDR GPUs (i.e., mobile).
 	TexCreate_Memoryless			= 1<<11,
 	// Create the texture with the flag that allows mip generation later, only applicable to D3D11
@@ -1288,12 +1306,14 @@ enum ETextureCreateFlags
 	/** Texture should be allocated from transient memory. */
 	TexCreate_Transient = 1 << 31
 };
+ENUM_CLASS_FLAGS(ETextureCreateFlags);
 
 enum EAsyncComputePriority
 {
 	AsyncComputePriority_Default = 0,
 	AsyncComputePriority_High,
 };
+
 /**
  * Async texture reallocation status, returned by RHIGetReallocateTexture2DStatus().
  */
@@ -1305,12 +1325,17 @@ enum ETextureReallocationStatus
 };
 
 /**
- * Action to take when a rendertarget is set.
+ * Action to take when a render target is set.
  */
 enum class ERenderTargetLoadAction : uint8
 {
+	// Untouched contents of the render target are undefined. Any existing content is not preserved.
 	ENoAction,
+
+	// Existing contents are preserved.
 	ELoad,
+
+	// The render target is cleared to the fast clear value specified on the resource.
 	EClear,
 
 	Num,
@@ -1318,14 +1343,18 @@ enum class ERenderTargetLoadAction : uint8
 };
 static_assert((uint32)ERenderTargetLoadAction::Num <= (1 << (uint32)ERenderTargetLoadAction::NumBits), "ERenderTargetLoadAction::Num will not fit on ERenderTargetLoadAction::NumBits");
 
-
 /**
- * Action to take when a rendertarget is unset or at the end of a pass. 
+ * Action to take when a render target is unset or at the end of a pass. 
  */
 enum class ERenderTargetStoreAction : uint8
 {
+	// Contents of the render target emitted during the pass are not stored back to memory.
 	ENoAction,
+
+	// Contents of the render target emitted during the pass are stored back to memory.
 	EStore,
+
+	// Contents of the render target emitted during the pass are resolved using a box filter and stored back to memory.
 	EMultisampleResolve,
 
 	Num,
@@ -1380,7 +1409,7 @@ inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 		|| FDataDrivenShaderPlatformInfo::GetIsPC(Platform);
 }
 
-/** Whether the shader platform corresponds to the ES2/ES3.1 feature level. */
+/** Whether the shader platform corresponds to the ES3.1/Metal/Vulkan feature level. */
 inline bool IsMobilePlatform(const EShaderPlatform Platform)
 {
 	return 
@@ -1674,18 +1703,29 @@ inline int32 GetFeatureLevelMaxNumberOfBones(const FStaticFeatureLevel FeatureLe
 	return 0;
 }
 
-/** Returns whether the shader parameter type is a reference onto a RDG resource. */
-inline bool IsRDGResourceReferenceShaderParameterType(EUniformBufferBaseType BaseType)
+/** Returns whether the shader parameter type references an RDG texture. */
+inline bool IsRDGTextureReferenceShaderParameterType(EUniformBufferBaseType BaseType)
 {
 	return
 		BaseType == UBMT_RDG_TEXTURE ||
 		BaseType == UBMT_RDG_TEXTURE_SRV ||
 		BaseType == UBMT_RDG_TEXTURE_UAV ||
-		BaseType == UBMT_RDG_TEXTURE_COPY_DEST ||
+		BaseType == UBMT_RDG_TEXTURE_ACCESS;
+}
+/** Returns whether the shader parameter type references an RDG buffer. */
+inline bool IsRDGBufferReferenceShaderParameterType(EUniformBufferBaseType BaseType)
+{
+	return
 		BaseType == UBMT_RDG_BUFFER ||
 		BaseType == UBMT_RDG_BUFFER_SRV ||
 		BaseType == UBMT_RDG_BUFFER_UAV ||
-		BaseType == UBMT_RDG_BUFFER_COPY_DEST;
+		BaseType == UBMT_RDG_BUFFER_ACCESS;
+}
+
+/** Returns whether the shader parameter type is a reference onto a RDG resource. */
+inline bool IsRDGResourceReferenceShaderParameterType(EUniformBufferBaseType BaseType)
+{
+	return IsRDGTextureReferenceShaderParameterType(BaseType) || IsRDGBufferReferenceShaderParameterType(BaseType) || BaseType == UBMT_RDG_UNIFORM_BUFFER;
 }
 
 /** Returns whether the shader parameter type needs to be passdown to RHI through FRHIUniformBufferLayout when creating an uniform buffer. */
@@ -1713,12 +1753,13 @@ inline bool IsShaderParameterTypeIgnoredByRHI(EUniformBufferBaseType BaseType)
 		// Render targets bindings slots needs to be in FRHIUniformBufferLayout for render graph, but the RHI does not actually need to know about it.
 		BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS ||
 
-		// Copy destination states are used by the render graph.
-		BaseType == UBMT_RDG_TEXTURE_COPY_DEST ||
-		BaseType == UBMT_RDG_BUFFER_COPY_DEST ||
+		// Custom access states are used by the render graph.
+		BaseType == UBMT_RDG_TEXTURE_ACCESS ||
+		BaseType == UBMT_RDG_BUFFER_ACCESS ||
 
 		// #yuriy_todo: RHI is able to dereference uniform buffer in root shader parameter structures
-		BaseType == UBMT_REFERENCED_STRUCT;
+		BaseType == UBMT_REFERENCED_STRUCT ||
+		BaseType == UBMT_RDG_UNIFORM_BUFFER;
 }
 
 inline EGpuVendorId RHIConvertToGpuVendorId(uint32 VendorId)

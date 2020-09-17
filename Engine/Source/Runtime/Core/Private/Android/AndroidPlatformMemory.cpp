@@ -277,7 +277,7 @@ const FPlatformMemoryConstants& FAndroidPlatformMemory::GetConstants()
 
 EPlatformMemorySizeBucket FAndroidPlatformMemory::GetMemorySizeBucket()
 {
-	// @todo android - if running in ES2 mode, or at least without the extensions for texture streaming, we will load all of the textures
+	// @todo android - if running without the extensions for texture streaming, we will load all of the textures
 	// so we better look like a low memory device
 	return FGenericPlatformMemory::GetMemorySizeBucket();
 }

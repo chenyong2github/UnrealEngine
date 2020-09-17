@@ -152,6 +152,7 @@ public:
 	virtual bool IsCrackFreeDisplacementEnabled() const override;
 	virtual bool IsAdaptiveTessellationEnabled() const override;
 	virtual float GetMaxDisplacement() const override;
+	virtual void GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const override;
 
 	// Cached material usage.
 	virtual bool IsUsedWithSkeletalMesh() const override { return bIsUsedWithSkeletalMesh; }
@@ -169,6 +170,10 @@ public:
 	virtual bool IsUsedWithAPEXCloth() const override { return bIsUsedWithAPEXCloth; }
 	virtual bool IsUsedWithWater() const override { return bIsUsedWithWater; }
 	virtual bool IsUsedWithVirtualHeightfieldMesh() const override { return bIsUsedWithVirtualHeightfieldMesh; }
+	virtual bool IsUsedWithGeometryCache() const override { return bIsUsedWithGeometryCache; }
+	virtual bool IsUsedWithHairStrands() const override { return bIsUsedWithHairStrands; }
+	virtual bool IsUsedWithLidarPointCloud() const override { return bIsUsedWithLidarPointCloud; }
+	virtual bool IsUsedWithGeometryCollections() const override { return bIsUsedWithGeometryCollections; }
 
 	virtual EMaterialShaderMapUsage::Type GetMaterialShaderMapUsage() const { return Usage; }
 
@@ -204,6 +209,10 @@ private:
 			uint32 bIsUsedWithAPEXCloth : 1;
 			uint32 bIsUsedWithWater : 1;
 			uint32 bIsUsedWithVirtualHeightfieldMesh : 1;
+			uint32 bIsUsedWithGeometryCache : 1;
+			uint32 bIsUsedWithHairStrands : 1;
+			uint32 bIsUsedWithLidarPointCloud : 1;
+			uint32 bIsUsedWithGeometryCollections : 1;
 		};
 	};
 

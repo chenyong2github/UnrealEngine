@@ -57,9 +57,7 @@ protected:
 
 	TDepthOnlyVS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) :
 		FMeshMaterialShader(Initializer)
-	{
-		BindSceneTextureUniformBufferDependentOnShadingPath(Initializer, PassUniformBuffer);
-	}
+	{}
 
 public:
 
@@ -166,7 +164,6 @@ public:
 		FMeshMaterialShader(Initializer)
 	{
 		MobileColorValue.Bind(Initializer.ParameterMap, TEXT("MobileColorValue"));
-		BindSceneTextureUniformBufferDependentOnShadingPath(Initializer, PassUniformBuffer);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -176,15 +173,13 @@ public:
 		OutEnvironment.SetDefine(TEXT("ALLOW_DEBUG_VIEW_MODES"), AllowDebugViewmodes(Parameters.Platform));
 		if (IsMobilePlatform(Parameters.Platform))
 		{
-			// No access to scene textures during depth rendering on mobile
-			OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1u);
-
 			OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_COLOR_VALUE"), bUsesMobileColorValue ? 1u : 0u);
 		}
 		else
 		{
 			OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_COLOR_VALUE"), 0u);
 		}
+		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1u);
 	}
 
 	FDepthOnlyPS() {}

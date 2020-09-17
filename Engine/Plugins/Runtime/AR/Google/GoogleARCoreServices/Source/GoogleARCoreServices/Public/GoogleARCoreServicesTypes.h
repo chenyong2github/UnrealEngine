@@ -124,12 +124,6 @@ enum class ECloudARPinCloudState : uint8
 	// provided cloud anchor ID.
 	ErrorResolvingCloudIDNotFound,
 
-	// The server could not match the visual features provided by ARCore against
-	// the localization dataset of the requested CloudARPin ID. This means
-	// that the CloudARPin pose being requested was likely not created in the user's
-	// surroundings.
-	ErrorResolvingLocalizationNoMatch,
-
 	// The CloudARPin could not be resolved because the SDK used to host the CloudARPin
 	// was newer than the version being used to acquire it. These versions must
 	// be an exact match.

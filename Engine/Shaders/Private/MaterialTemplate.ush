@@ -5,6 +5,7 @@
  */
 
 #include "/Engine/Private/SceneTexturesCommon.ush"
+#include "/Engine/Private/EyeAdaptationCommon.ush"
 #include "/Engine/Private/Random.ush"
 #include "/Engine/Private/SobolRandom.ush"
 #include "/Engine/Private/MonteCarlo.ush"
@@ -77,7 +78,11 @@
 #endif
 
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
-#include "/Engine/Private/SkyAtmosphereCommon.ush"
+	#include "/Engine/Private/SkyAtmosphereCommon.ush"
+#endif
+
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	#include "/Engine/Private/SingleLayerWaterCommon.ush"
 #endif
 
 #include "/Engine/Private/PaniniProjection.ush"
@@ -1208,14 +1213,13 @@ float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters 
 #endif
 }
 
-float3 MaterialExpressionSkyAtmosphereLightDirection(FMaterialPixelParameters Parameters, uint LightIndex)
-{
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
-	return ResolvedView.AtmosphereLightDirection[LightIndex].xyz;
+	#define DEFINE_SKYATMLIGHTDIRECTION(MaterialParamType) float3 MaterialExpressionSkyAtmosphereLightDirection(MaterialParamType Parameters, uint LightIndex) {return ResolvedView.AtmosphereLightDirection[LightIndex].xyz;}
 #else
-	return float3(0.0f, 0.0f, 0.0f);
+	#define DEFINE_SKYATMLIGHTDIRECTION(MaterialParamType) float3 MaterialExpressionSkyAtmosphereLightDirection(MaterialParamType Parameters, uint LightIndex) {return float3(0.0f, 0.0f, 0.0f);}
 #endif
-}
+DEFINE_SKYATMLIGHTDIRECTION(FMaterialPixelParameters)
+DEFINE_SKYATMLIGHTDIRECTION(FMaterialVertexParameters)
 
 float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameters Parameters, uint LightIndex)
 {
@@ -1406,6 +1410,16 @@ MaterialFloat2 GetParticleMacroUV(FMaterialPixelParameters Parameters)
 
 MaterialFloat4 ProcessMaterialColorTextureLookup(MaterialFloat4 TextureValue)
 {
+	return TextureValue;
+}
+
+MaterialFloat4 ProcessMaterialVirtualColorTextureLookup(MaterialFloat4 TextureValue)
+{
+	TextureValue = ProcessMaterialColorTextureLookup(TextureValue);
+#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
+	// on mobile all VT physical spaces use linear color formats, do sRGB to Linear conversion in the shader
+	TextureValue = MaterialFloat4(TextureValue.rgb*TextureValue.rgb, TextureValue.a);
+#endif
 	return TextureValue;
 }
 
@@ -1734,30 +1748,6 @@ MaterialFloat2 GetLightmapUVs(FMaterialPixelParameters Parameters)
 #endif
 }
 
-#if USES_EYE_ADAPTATION
-
-// Allow passes to reroute which uniform buffer struct EyeAdaptation comes from
-#ifndef EyeAdaptationStruct
-	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-		#define EyeAdaptationStruct SceneTexturesStruct
-	#else
-		#define EyeAdaptationStruct MobileSceneTextures
-	#endif
-#endif
-
-//Provides access to the EyeAdaptation RT. 
-float EyeAdaptationLookup()
-{
-#if EYE_ADAPTATION_DISABLED || SCENE_TEXTURES_DISABLED
-	return 0.0;
-#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-	return EyeAdaptationStruct.EyeAdaptation.Load(int3(0, 0, 0)).x;
-#else
-	return EyeAdaptationStruct.EyeAdaptationBuffer[0].x;
-#endif
-}
-#endif
-
 //The post-process material needs to decode the scene color since it's encoded at PreTonemapMSAA if MSAA enabled on MetalMobilePlatorm 
 //The POST_PROCESS_MATERIAL_BEFORE_TONEMAP is 1 for both BL_BeforeTranslucency and BL_BeforeTonemapping post-process materials
 #if FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1 && POST_PROCESS_MATERIAL && POST_PROCESS_MATERIAL_BEFORE_TONEMAP && METAL_PROFILE
@@ -1774,7 +1764,11 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 
 	if (SceneTextureId == PPI_SceneDepth)
 	{
-		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, UV).a);
+		#if MOBILE_DEFERRED_SHADING
+			MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, UV).r);
+		#else
+			MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, UV).a);
+		#endif
 		return MaterialFloat4(Depth.rrr, 0.f);
 	}
 	else if (SceneTextureId == PPI_CustomDepth)
@@ -1824,7 +1818,7 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 float2 PostProcessVelocityLookup(float Depth, float2 UV)
 {
 #if GBUFFER_HAS_VELOCITY
-	float4 EncodedVelocity = Texture2DSampleLevel(SceneTexturesStruct.GBufferVelocityTexture, SceneTexturesStruct.GBufferVelocityTextureSampler, UV, 0);
+	float4 EncodedVelocity = Texture2DSampleLevel(SceneTexturesStruct.GBufferVelocityTexture, SceneTexturesStruct_GBufferVelocityTextureSampler, UV, 0);
 #else
 	float4 EncodedVelocity = Texture2DSample(PostProcessInput_4_Texture, PostProcessInput_4_SharedSampler, UV);
 #endif
@@ -1914,7 +1908,7 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 			return float4(ScreenSpaceData.GBuffer.StoredSpecular.rrr, 0);
 #if POST_PROCESS_MATERIAL
 		case PPI_Velocity:
-			return float4(PostProcessVelocityLookup(ScreenSpaceData.GBuffer.Depth, UV), 0, 0);
+			return float4(PostProcessVelocityLookup(ConvertToDeviceZ(ScreenSpaceData.GBuffer.Depth), UV), 0, 0);
 #endif
 		case PPI_WorldTangent:
 			return float4(ScreenSpaceData.GBuffer.WorldTangent, 0);
@@ -1933,11 +1927,11 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 /** Applies an offset to the scene texture lookup and decodes the HDR linear space color. */
 float3 DecodeSceneColorForMaterialNode(float2 ScreenUV)
 {
-#if SCENE_TEXTURES_DISABLED
+#if !defined(SceneColorCopyTexture)
 	// Hit proxies rendering pass doesn't have access to valid render buffers
 	return float3(0.0f, 0.0f, 0.0f);
 #else
-	float4 EncodedSceneColor = Texture2DSample(SceneTexturesStruct.SceneColorCopyTexture, SceneTexturesStruct.SceneColorCopyTextureSampler, ScreenUV);
+	float4 EncodedSceneColor = Texture2DSample(SceneColorCopyTexture, SceneColorCopySampler, ScreenUV);
 
 	// Undo the function in EncodeSceneColorForMaterialNode
 	float3 SampledColor = pow(EncodedSceneColor.rgb, 4) * 10;
@@ -2282,6 +2276,33 @@ float3 TransformTangentNormalToWorld(MaterialFloat3x3 TangentToWorld, float3 Tan
 
 #endif //DECAL_PRIMITIVE
 
+float3 CalculateAnisotropyTangent(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs)
+{
+	float3 Normal = Parameters.WorldNormal;
+
+#if CLEAR_COAT_BOTTOM_NORMAL && (NUM_MATERIAL_OUTPUTS_CLEARCOATBOTTOMNORMAL > 0)
+	Normal =  ClearCoatBottomNormal0(Parameters);
+	#if MATERIAL_TANGENTSPACENORMAL
+		Normal = TransformTangentVectorToWorld(Parameters.TangentToWorld, Normal));
+	#endif
+#endif
+
+	float3 Tangent = GetMaterialTangent(PixelMaterialInputs);
+
+#if MATERIAL_TANGENTSPACENORMAL
+	#if SIMPLE_FORWARD_SHADING
+		Tangent = float3(1, 0, 0);
+	#endif
+
+	Tangent = TransformTangentNormalToWorld(Parameters.TangentToWorld, Tangent);
+#endif
+
+	float3 BiTangent = cross(Normal, Tangent);
+	Tangent = normalize(cross(BiTangent, Normal));
+
+	return Tangent;
+}
+
 void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out FPixelMaterialInputs PixelMaterialInputs)
 {
 	// Initial calculations (required for Normal)
@@ -2298,7 +2319,7 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 #endif
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-	// ES2 will rely on only the final normalize for performance
+	// Mobile will rely on only the final normalize for performance
 	MaterialNormal = normalize(MaterialNormal);
 #endif
 
@@ -2326,27 +2347,8 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 	// Now the rest of the inputs
 %s
 
-#if GBUFFER_HAS_TANGENT
-	#if MATERIAL_TANGENTSPACENORMAL
-		
-		#if SIMPLE_FORWARD_SHADING
-			Parameters.WorldTangent = float3(1, 0, 0);
-		#endif
-
-			float3 MaterialTangent = GetMaterialTangent(PixelMaterialInputs);
-
-		#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-			MaterialTangent = normalize(MaterialTangent);
-		#endif
-
-		Parameters.WorldTangent = TransformTangentNormalToWorld(Parameters.TangentToWorld, MaterialTangent);
-
-		// flip the tangent for backfaces being rendered with a two-sided material
-		Parameters.WorldTangent *= Parameters.TwoSidedSign;
-	
-	#else //MATERIAL_TANGENTSPACENORMAL
-		Parameters.WorldTangent = normalize(GetMaterialTangent(PixelMaterialInputs));
-	#endif //MATERIAL_TANGENTSPACENORMAL
+#if MATERIAL_USES_ANISOTROPY
+	Parameters.WorldTangent = CalculateAnisotropyTangent(Parameters, PixelMaterialInputs);
 #else
 	Parameters.WorldTangent = 0;
 #endif

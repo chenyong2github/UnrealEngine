@@ -62,14 +62,10 @@ public:
 
 	void UnsetParameters(
 		FRHICommandList& RHICmdList,
-		EResourceTransitionAccess TransitionAccess,
-		EResourceTransitionPipeline TransitionPipeline,
-		FRWBuffer& TotalRayCountBuffer,
-		FRHIComputeFence* Fence)
+		ERHIAccess TransitionAccess,
+		FRWBuffer& TotalRayCountBuffer)
 	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, TotalRayCountBuffer.UAV, Fence);
+		RHICmdList.Transition(FRHITransitionInfo(TotalRayCountBuffer.UAV, ERHIAccess::Unknown, TransitionAccess));
 	}
 
 private:

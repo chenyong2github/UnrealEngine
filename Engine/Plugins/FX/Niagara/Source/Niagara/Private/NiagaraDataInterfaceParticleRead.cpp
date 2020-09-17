@@ -499,36 +499,12 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			InstanceData->bWarnFailedToFindAcquireTag = true;
 		}
 
-		if (!bReadingOwnEmitter)
-		{
-			FRHIUnorderedAccessView* InputBuffers[3];
-			int32 NumTransitions = 0;
-			InputBuffers[NumTransitions] = SourceData->GetGPUBufferFloat().UAV;
-			++NumTransitions;
-			InputBuffers[NumTransitions] = SourceData->GetGPUBufferInt().UAV;
-			++NumTransitions;
-			if (SourceData->GetGPUIDToIndexTable().UAV)
-			{
-				InputBuffers[NumTransitions] = SourceData->GetGPUIDToIndexTable().UAV;
-				++NumTransitions;
-			}
-			checkSlow(NumTransitions <= UE_ARRAY_COUNT(InputBuffers));
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, InputBuffers, NumTransitions);
-
-			if (InstanceCountOffsetParam.IsBound())
-			{
-				// If we're reading the instance count from another emitter, we must insert a barrier on the instance count buffer, to make sure the
-				// previous dispatch finished writing to it. For D3D11, we need to insert an end overlap / begin overlap pair to break up the current
-				// overlap group.
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, const_cast<NiagaraEmitterInstanceBatcher*>(Context.Batcher)->GetGPUInstanceCounterManager().GetInstanceCountBuffer().UAV);
-				RHICmdList.EndUAVOverlap();
-				RHICmdList.BeginUAVOverlap();
-			}
-		}
-
 		const uint32 ParticleStrideFloat = SourceData->GetFloatStride() / sizeof(float);
 		const uint32 ParticleStrideInt = SourceData->GetInt32Stride() / sizeof(int32);
 		const uint32 ParticleStrideHalf = SourceData->GetHalfStride() / sizeof(FFloat16);
+
+		// There's no need to transition the input buffers, because the grouping logic inside NiagaraEmitterInstanceBatcher ensures that our source emitter has ran before us,
+		// and its buffers have been transitioned to readable.
 
 		SetShaderValue(RHICmdList, ComputeShader, InstanceCountOffsetParam, InstanceCountOffset);
 		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, GetIntSRVWithFallback(SourceData->GetGPUIDToIndexTable()));

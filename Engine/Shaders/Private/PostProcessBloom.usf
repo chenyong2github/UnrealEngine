@@ -4,6 +4,8 @@
 	PostProcessBloom.usf: PostProcessing bloom
 =============================================================================*/
 
+#define EYE_ADAPTATION_LOOSE_PARAMETERS 1
+
 #include "Common.ush"
 #include "PostProcessCommon.ush"
 #include "EyeAdaptationCommon.ush"

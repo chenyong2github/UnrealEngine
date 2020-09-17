@@ -25,6 +25,11 @@ public:
 		return DefaultName;
 	}
 
+	int32 GetXRSystemFlags() const
+	{
+		return EXRSystemFlags::IsHeadMounted;
+	}
+
 	virtual bool EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type = EXRTrackedDeviceType::Any) override;
 
 	virtual void SetInterpupillaryDistance(float NewInterpupillaryDistance) override;

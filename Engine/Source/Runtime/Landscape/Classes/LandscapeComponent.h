@@ -11,7 +11,6 @@
 #include "LandscapePhysicalMaterial.h"
 #include "LandscapeWeightmapUsage.h"
 #include "Engine/StreamableRenderAsset.h"
-#include "RenderAssetUpdate.h"
 
 #include "LandscapeComponent.generated.h"
 
@@ -390,45 +389,32 @@ class ULandscapeLODStreamingProxy : public UStreamableRenderAsset
 {
 	GENERATED_UCLASS_BODY()
 
-	//~ Begin UObject Interface
-	virtual bool IsReadyForFinishDestroy() final override;
-	//~ End UObject Interface
-
 	//~ Begin UStreamableRenderAsset Interface
-	virtual int32 GetLODGroupForStreaming() const final override;
-	virtual LANDSCAPE_API int32 GetNumMipsForStreaming() const final override;
-	virtual int32 GetNumNonStreamingMips() const final override;
-	virtual int32 CalcNumOptionalMips() const final override;
 	virtual LANDSCAPE_API int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
 	virtual LANDSCAPE_API FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const  final override;
-	virtual bool IsReadyForStreaming() const final override;
-	virtual int32 GetNumResidentMips() const final override;
-	virtual int32 GetNumRequestedMips() const final override;
-	virtual bool CancelPendingMipChangeRequest() final override;
-	virtual bool HasPendingUpdate() const final override;
-	virtual bool IsPendingUpdateLocked() const final override;
+	virtual LANDSCAPE_API bool HasPendingRenderResourceInitialization() const final override;
 	virtual bool StreamOut(int32 NewMipCount) final override;
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr) final override;
+	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::LandscapeMeshMobile; }
 	//~ End UStreamableRenderAsset Interface
 
 	LANDSCAPE_API bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
 
-	LANDSCAPE_API void LinkStreaming();
-	void UnlinkStreaming();
 
 	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
 	LANDSCAPE_API TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> GetRenderData() const;
 
 	typedef typename TChooseClass<LANDSCAPE_LOD_STREAMING_USE_TOKEN, FBulkDataStreamingToken, FByteBulkData>::Result BulkDataType;
-	LANDSCAPE_API BulkDataType& GetStreamingLODBulkData(int32 LODIdx);
+	LANDSCAPE_API BulkDataType& GetStreamingLODBulkData(int32 LODIdx) const;
 
 	static LANDSCAPE_API void CancelAllPendingStreamingActions();
 
-private:
-	ULandscapeComponent* LandscapeComponent;
+	void ClearStreamingResourceState();
+	void InitResourceStateForMobileStreaming();
 
-	TRefCountPtr<FRenderAssetUpdate> PendingUpdate;
+private:
+
+	ULandscapeComponent* LandscapeComponent = nullptr;
 };
 
 UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility, VirtualTexture), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
@@ -613,7 +599,7 @@ public:
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional)
 	FLandscapeEditToolRenderData EditToolRenderData;
 
-	/** Hash of source for ES2 generated data. Used determine if we need to re-generate ES2 pixel data. */
+	/** Hash of source for mobile generated data. Used determine if we need to re-generate mobile pixel data. */
 	UPROPERTY(DuplicateTransient)
 	FGuid MobileDataSourceHash;
 
@@ -632,7 +618,7 @@ public:
 	uint32 PhysicalMaterialHash;
 #endif
 
-	/** For ES2 */
+	/** For mobile */
 	UPROPERTY()
 	uint8 MobileBlendableLayerMask;
 
@@ -643,7 +629,7 @@ public:
 	UPROPERTY(NonPIEDuplicateTransient)
 	TArray<UMaterialInterface*> MobileMaterialInterfaces;
 
-	/** Generated weightmap textures used for ES2. The first entry is also used for the normal map. 
+	/** Generated weightmap textures used for mobile. The first entry is also used for the normal map. 
 	  * Serialized only when cooking or loading cooked builds. */
 	UPROPERTY(NonPIEDuplicateTransient)
 	TArray<UTexture2D*> MobileWeightmapTextures;
@@ -1068,8 +1054,6 @@ public:
 	friend class ULandscapeLODStreamingProxy;
 
 	void SetLOD(bool bForced, int32 InLODValue);
-
-	void SetReadyForLODStreaming(bool bReady);
 
 protected:
 

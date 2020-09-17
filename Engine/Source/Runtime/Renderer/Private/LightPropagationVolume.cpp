@@ -19,6 +19,7 @@
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
 #include "LightPropagationVolumeSettings.h"
+#include "RenderGraphUtils.h"
 
 DECLARE_GPU_STAT(LPV);
 
@@ -179,7 +180,7 @@ public:
 		TArray<int32> ResourceIndices;
 		TArray<FRHIUnorderedAccessView*> UAVs;
 
-		for(int i  =0; i < 7; i++)
+		for(int i = 0; i < 7; i++)
 		{
 			if ( LpvBufferSRVParameters[i].IsBound() )
 			{
@@ -256,7 +257,14 @@ public:
 		}
 
 		check(ResourceIndices.Num() == UAVs.Num());
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, UAVs.GetData(), UAVs.Num());
+
+		TArray<FRHITransitionInfo> TransitionInfo;
+		for (FRHIUnorderedAccessView* UAV : UAVs)
+		{
+			TransitionInfo.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		}
+		RHICmdList.Transition(MakeArrayView(TransitionInfo.GetData(), TransitionInfo.Num()));
+
 		for (int32 i = 0; i < ResourceIndices.Num(); ++i)
 		{
 			RHICmdList.SetUAVParameter(ShaderRHI, ResourceIndices[i], UAVs[i]);
@@ -272,28 +280,16 @@ public:
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		for ( int i = 0; i < 7; i++ )
 		{
-			if ( LpvBufferSRVParameters[i].IsBound() )
-		    {
-				RHICmdList.SetShaderTexture(ShaderRHI, LpvBufferSRVParameters[i].GetBaseIndex(), nullptr);
-		    }
 			if ( LpvBufferUAVs[i].IsBound() )
 		    {
 				ResourceIndices.Add(LpvBufferUAVs[i].GetBaseIndex());
 				UAVs.Add(Params.LpvBufferUAVs[i]);			    
 		    }
 	    }
-		if ( VplListHeadBufferSRV.IsBound() )
-		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, VplListHeadBufferSRV.GetBaseIndex(), nullptr );
-		}
 		if ( VplListHeadBufferUAV.IsBound() )
 		{
 			ResourceIndices.Add(VplListHeadBufferUAV.GetBaseIndex());
 			UAVs.Add(Params.VplListHeadBufferUAV);			
-		}
-		if ( VplListBufferSRV.IsBound() )
-		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, VplListBufferSRV.GetBaseIndex(), nullptr );
 		}
 		if ( VplListBufferUAV.IsBound() )
 		{
@@ -318,10 +314,6 @@ public:
 			ResourceIndices.Add(AOVolumeTextureUAV.GetBaseIndex());
 			UAVs.Add(Params.AOVolumeTextureUAV);
 		}
-		if ( AOVolumeTextureSRV.IsBound() )
-		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, AOVolumeTextureSRV.GetBaseIndex(), nullptr );
-		}
 		if(GvListBufferUAV.IsBound())
 		{
 			ResourceIndices.Add(GvListBufferUAV.GetBaseIndex());
@@ -332,21 +324,19 @@ public:
 			ResourceIndices.Add(GvListHeadBufferUAV.GetBaseIndex());
 			UAVs.Add(Params.GvListHeadBufferUAV);
 		}
-		if ( GvListBufferSRV.IsBound() )
-		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, GvListBufferSRV.GetBaseIndex(), nullptr );
-		}
-		if ( GvListHeadBufferSRV.IsBound() )
-		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, GvListHeadBufferSRV.GetBaseIndex(), nullptr );
-		}
 
 		check(ResourceIndices.Num() == UAVs.Num());
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, UAVs.GetData(), UAVs.Num());
-		FRHIUnorderedAccessView* NullUAV = nullptr;
+
+		TArray<FRHITransitionInfo> TransitionInfo;
+		for (FRHIUnorderedAccessView* UAV : UAVs)
+		{
+			TransitionInfo.Add(FRHITransitionInfo(UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		}
+		RHICmdList.Transition(MakeArrayView(TransitionInfo.GetData(), TransitionInfo.Num()));
+
 		for (int32 i = 0; i < ResourceIndices.Num(); ++i)
 		{
-			RHICmdList.SetUAVParameter(ShaderRHI, ResourceIndices[i], NullUAV);
+			RHICmdList.SetUAVParameter(ShaderRHI, ResourceIndices[i], nullptr);
 		}
 	}
 
@@ -454,6 +444,8 @@ public:
 
 		FRHISamplerState* SamplerStateLinear  = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 		FRHISamplerState* SamplerStatePoint   = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
+
+		RHICmdList.Transition(FRHITransitionInfo(RsmDepthTextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 		// FIXME: Why do we have to bind a samplerstate to a sampler here? Presumably this is for legacy reasons... 
 		SetTextureParameter(RHICmdList, ShaderRHI, RsmDiffuseTexture, LinearTextureSampler, SamplerStateLinear, RsmDiffuseTextureRHI );
@@ -792,6 +784,11 @@ void FLightPropagationVolume::InitSettings(FRHICommandListImmediate& RHICmdList,
 			1,
 			false));
 
+		// The rest of the code expects to find all these in SRVMask mode, and transitions them as appropriate.
+		FMemMark Mark(FMemStack::Get());
+		TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
+		Transitions.Reserve(20);
+
 		{
 			const TCHAR* Names[] = { TEXT("LPV_A0"), TEXT("LPV_B0"), TEXT("LPV_A1"), TEXT("LPV_B1"), TEXT("LPV_A2"), TEXT("LPV_B2"), TEXT("LPV_A3"), TEXT("LPV_B3"), TEXT("LPV_A4"), TEXT("LPV_B4"), TEXT("LPV_A5"), TEXT("LPV_B5"), TEXT("LPV_A6"), TEXT("LPV_B6") };
 
@@ -801,6 +798,7 @@ void FLightPropagationVolume::InitSettings(FRHICommandListImmediate& RHICmdList,
 				for ( int j = 0; j < 7; j++ )
 				{
 					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LpvVolumeTextures[i][j], Names[j * 2 + i] );
+					Transitions.Add(FRHITransitionInfo(LpvVolumeTextures[i][j]->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 				}
 			}
 		}
@@ -811,6 +809,7 @@ void FLightPropagationVolume::InitSettings(FRHICommandListImmediate& RHICmdList,
 			for ( int i = 0; i < NUM_GV_TEXTURES; i++ )
 			{
 				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GvVolumeTextures[i], Names[i]);
+				Transitions.Add(FRHITransitionInfo(GvVolumeTextures[i]->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 			}
 		}
 
@@ -826,7 +825,10 @@ void FLightPropagationVolume::InitSettings(FRHICommandListImmediate& RHICmdList,
 				false,
 				1));
 			GRenderTargetPool.FindFreeElement(RHICmdList, AODesc, AOVolumeTexture, TEXT("LPVAOVolume"));
+			Transitions.Add(FRHITransitionInfo(AOVolumeTexture->GetRenderTargetItem().UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
+
+		RHICmdList.Transition(Transitions);
 
 		bInitialized = true;
 	}  
@@ -939,9 +941,6 @@ void FLightPropagationVolume::Clear(FRHICommandListImmediate& RHICmdList, FViewI
 	}
 	LpvWriteUniformBuffer.SetContents( *LpvWriteUniformBufferParams );
 
-	// Allow the three clear compute shaders to run in parallel...
-	RHICmdList.BeginUAVOverlap();
-
 	// Clear the list buffers
 	{
 		TShaderMapRef<FLpvClearListsCS> Shader(View.ShaderMap);
@@ -978,7 +977,6 @@ void FLightPropagationVolume::Clear(FRHICommandListImmediate& RHICmdList, FViewI
 		DispatchComputeShader(RHICmdList, Shader.GetShader(), LPV_GRIDRES/4, LPV_GRIDRES/4, LPV_GRIDRES/4 );
 		Shader->UnbindBuffers(RHICmdList, ShaderParams);
 	}
-	RHICmdList.EndUAVOverlap();
 }
 
 /**
@@ -1439,7 +1437,7 @@ void FSceneViewState::DestroyLightPropagationVolume()
 }
 
 
-void FDeferredShadingSceneRenderer::ClearLPVs(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::ClearLPVs(FRDGBuilder& GraphBuilder)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateLPVs);
 	bool bAnyViewHasLPVs = false;
@@ -1463,11 +1461,11 @@ void FDeferredShadingSceneRenderer::ClearLPVs(FRHICommandListImmediate& RHICmdLi
 
 	if (bAnyViewHasLPVs)
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, ClearLPVs);
+		RDG_EVENT_SCOPE(GraphBuilder, "ClearLPVs");
 
 		for(int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 			FViewInfo& View = Views[ViewIndex];
 
@@ -1478,9 +1476,15 @@ void FDeferredShadingSceneRenderer::ClearLPVs(FRHICommandListImmediate& RHICmdLi
 
 				if(LightPropagationVolume)
 				{
-					SCOPED_GPU_STAT(RHICmdList, LPV);
-					LightPropagationVolume->InitSettings(RHICmdList, Views[ViewIndex]);
-					LightPropagationVolume->Clear(RHICmdList, View);
+					RDG_GPU_STAT_SCOPE(GraphBuilder, LPV);
+					LightPropagationVolume->InitSettings(GraphBuilder.RHICmdList, Views[ViewIndex]);
+
+					AddPass(
+						GraphBuilder,
+						[LightPropagationVolume, &View](FRHICommandListImmediate& RHICmdList)
+					{
+						LightPropagationVolume->Clear(RHICmdList, View);
+					});
 				}
 			}
 		}

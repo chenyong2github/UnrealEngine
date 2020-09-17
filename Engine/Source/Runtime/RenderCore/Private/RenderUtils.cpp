@@ -15,6 +15,35 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #endif
 
+FTextureWithRDG::FTextureWithRDG() = default;
+FTextureWithRDG::FTextureWithRDG(const FTextureWithRDG& Other) = default;
+FTextureWithRDG& FTextureWithRDG::operator=(const FTextureWithRDG & Other) = default;
+FTextureWithRDG::~FTextureWithRDG() = default;
+
+FRDGTexture* FTextureWithRDG::GetRDG(FRDGBuilder& GraphBuilder) const
+{
+	checkf(RenderTarget, TEXT("InitRDG was not called before use."));
+	return GraphBuilder.RegisterExternalTexture(RenderTarget);
+}
+
+FRDGTexture* FTextureWithRDG::GetPassthroughRDG() const
+{
+	checkf(RenderTarget, TEXT("InitRDG was not called before use."));
+	return FRDGTexture::GetPassthrough(RenderTarget);
+}
+
+void FTextureWithRDG::ReleaseRHI()
+{
+	RenderTarget = nullptr;
+	FTexture::ReleaseRHI();
+}
+
+void FTextureWithRDG::InitRDG(const TCHAR* Name)
+{
+	check(TextureRHI);
+	RenderTarget = CreateRenderTarget(TextureRHI, Name);
+}
+
 const uint16 GCubeIndices[12*3] =
 {
 	0, 2, 3,
@@ -61,136 +90,6 @@ FArchive& operator<<(FArchive& Ar, FPackedRGBA16N& N)
 }
 
 //
-//	Pixel format information.
-//
-
-FPixelFormatInfo	GPixelFormats[PF_MAX] =
-{
-	// Name						BlockSizeX	BlockSizeY	BlockSizeZ	BlockBytes	NumComponents	PlatformFormat	Supported		UnrealFormat
-
-	{ TEXT("unknown"),			0,			0,			0,			0,			0,				0,				0,				PF_Unknown			},
-	{ TEXT("A32B32G32R32F"),	1,			1,			1,			16,			4,				0,				1,				PF_A32B32G32R32F	},
-	{ TEXT("B8G8R8A8"),			1,			1,			1,			4,			4,				0,				1,				PF_B8G8R8A8			},
-	{ TEXT("G8"),				1,			1,			1,			1,			1,				0,				1,				PF_G8				},
-	{ TEXT("G16"),				1,			1,			1,			2,			1,				0,				1,				PF_G16				},
-	{ TEXT("DXT1"),				4,			4,			1,			8,			3,				0,				1,				PF_DXT1				},
-	{ TEXT("DXT3"),				4,			4,			1,			16,			4,				0,				1,				PF_DXT3				},
-	{ TEXT("DXT5"),				4,			4,			1,			16,			4,				0,				1,				PF_DXT5				},
-	{ TEXT("UYVY"),				2,			1,			1,			4,			4,				0,				0,				PF_UYVY				},
-	{ TEXT("FloatRGB"),			1,			1,			1,			4,			3,				0,				1,				PF_FloatRGB			},
-	{ TEXT("FloatRGBA"),		1,			1,			1,			8,			4,				0,				1,				PF_FloatRGBA		},
-	{ TEXT("DepthStencil"),		1,			1,			1,			4,			1,				0,				0,				PF_DepthStencil		},
-	{ TEXT("ShadowDepth"),		1,			1,			1,			4,			1,				0,				0,				PF_ShadowDepth		},
-	{ TEXT("R32_FLOAT"),		1,			1,			1,			4,			1,				0,				1,				PF_R32_FLOAT		},
-	{ TEXT("G16R16"),			1,			1,			1,			4,			2,				0,				1,				PF_G16R16			},
-	{ TEXT("G16R16F"),			1,			1,			1,			4,			2,				0,				1,				PF_G16R16F			},
-	{ TEXT("G16R16F_FILTER"),	1,			1,			1,			4,			2,				0,				1,				PF_G16R16F_FILTER	},
-	{ TEXT("G32R32F"),			1,			1,			1,			8,			2,				0,				1,				PF_G32R32F			},
-	{ TEXT("A2B10G10R10"),      1,          1,          1,          4,          4,              0,              1,				PF_A2B10G10R10		},
-	{ TEXT("A16B16G16R16"),		1,			1,			1,			8,			4,				0,				1,				PF_A16B16G16R16		},
-	{ TEXT("D24"),				1,			1,			1,			4,			1,				0,				1,				PF_D24				},
-	{ TEXT("PF_R16F"),			1,			1,			1,			2,			1,				0,				1,				PF_R16F				},
-	{ TEXT("PF_R16F_FILTER"),	1,			1,			1,			2,			1,				0,				1,				PF_R16F_FILTER		},
-	{ TEXT("BC5"),				4,			4,			1,			16,			2,				0,				1,				PF_BC5				},
-	{ TEXT("V8U8"),				1,			1,			1,			2,			2,				0,				1,				PF_V8U8				},
-	{ TEXT("A1"),				1,			1,			1,			1,			1,				0,				0,				PF_A1				},
-	{ TEXT("FloatR11G11B10"),	1,			1,			1,			4,			3,				0,				0,				PF_FloatR11G11B10	},
-	{ TEXT("A8"),				1,			1,			1,			1,			1,				0,				1,				PF_A8				},	
-	{ TEXT("R32_UINT"),			1,			1,			1,			4,			1,				0,				1,				PF_R32_UINT			},
-	{ TEXT("R32_SINT"),			1,			1,			1,			4,			1,				0,				1,				PF_R32_SINT			},
-
-	// IOS Support
-	{ TEXT("PVRTC2"),			8,			4,			1,			8,			4,				0,				0,				PF_PVRTC2			},
-	{ TEXT("PVRTC4"),			4,			4,			1,			8,			4,				0,				0,				PF_PVRTC4			},
-
-	{ TEXT("R16_UINT"),			1,			1,			1,			2,			1,				0,				1,				PF_R16_UINT			},
-	{ TEXT("R16_SINT"),			1,			1,			1,			2,			1,				0,				1,				PF_R16_SINT			},
-	{ TEXT("R16G16B16A16_UINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_UINT},
-	{ TEXT("R16G16B16A16_SINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_SINT},
-	{ TEXT("R5G6B5_UNORM"),     1,          1,          1,          2,          3,              0,              1,              PF_R5G6B5_UNORM		},
-	{ TEXT("R8G8B8A8"),			1,			1,			1,			4,			4,				0,				1,				PF_R8G8B8A8			},
-	{ TEXT("A8R8G8B8"),			1,			1,			1,			4,			4,				0,				1,				PF_A8R8G8B8			},
-	{ TEXT("BC4"),				4,			4,			1,			8,			1,				0,				1,				PF_BC4				},
-	{ TEXT("R8G8"),				1,			1,			1,			2,			2,				0,				1,				PF_R8G8				},
-
-	{ TEXT("ATC_RGB"),			4,			4,			1,			8,			3,				0,				0,				PF_ATC_RGB			},
-	{ TEXT("ATC_RGBA_E"),		4,			4,			1,			16,			4,				0,				0,				PF_ATC_RGBA_E		},
-	{ TEXT("ATC_RGBA_I"),		4,			4,			1,			16,			4,				0,				0,				PF_ATC_RGBA_I		},
-	{ TEXT("X24_G8"),			1,			1,			1,			1,			1,				0,				0,				PF_X24_G8			},
-	{ TEXT("ETC1"),				4,			4,			1,			8,			3,				0,				0,				PF_ETC1				},
-	{ TEXT("ETC2_RGB"),			4,			4,			1,			8,			3,				0,				0,				PF_ETC2_RGB			},
-	{ TEXT("ETC2_RGBA"),		4,			4,			1,			16,			4,				0,				0,				PF_ETC2_RGBA		},
-	{ TEXT("PF_R32G32B32A32_UINT"),1,		1,			1,			16,			4,				0,				1,				PF_R32G32B32A32_UINT},
-	{ TEXT("PF_R16G16_UINT"),	1,			1,			1,			4,			4,				0,				1,				PF_R16G16_UINT},
-
-	// ASTC support
-	{ TEXT("ASTC_4x4"),			4,			4,			1,			16,			4,				0,				0,				PF_ASTC_4x4			},
-	{ TEXT("ASTC_6x6"),			6,			6,			1,			16,			4,				0,				0,				PF_ASTC_6x6			},
-	{ TEXT("ASTC_8x8"),			8,			8,			1,			16,			4,				0,				0,				PF_ASTC_8x8			},
-	{ TEXT("ASTC_10x10"),		10,			10,			1,			16,			4,				0,				0,				PF_ASTC_10x10		},
-	{ TEXT("ASTC_12x12"),		12,			12,			1,			16,			4,				0,				0,				PF_ASTC_12x12		},
-
-	{ TEXT("BC6H"),				4,			4,			1,			16,			3,				0,				1,				PF_BC6H				},
-	{ TEXT("BC7"),				4,			4,			1,			16,			4,				0,				1,				PF_BC7				},
-	{ TEXT("R8_UINT"),			1,			1,			1,			1,			1,				0,				1,				PF_R8_UINT			},
-	{ TEXT("L8"),				1,			1,			1,			1,			1,				0,				0,				PF_L8				},
-	{ TEXT("XGXR8"),			1,			1,			1,			4,			4,				0,				1,				PF_XGXR8 			},
-	{ TEXT("R8G8B8A8_UINT"),	1,			1,			1,			4,			4,				0,				1,				PF_R8G8B8A8_UINT	},
-	{ TEXT("R8G8B8A8_SNORM"),	1,			1,			1,			4,			4,				0,				1,				PF_R8G8B8A8_SNORM	},
-
-	{ TEXT("R16G16B16A16_UINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_UNORM },
-	{ TEXT("R16G16B16A16_SINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_SNORM },
-	{ TEXT("PLATFORM_HDR_0"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_0   },
-	{ TEXT("PLATFORM_HDR_1"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_1   },
-	{ TEXT("PLATFORM_HDR_2"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_2   },
-
-	// NV12 contains 2 textures: R8 luminance plane followed by R8G8 1/4 size chrominance plane.
-	// BlockSize/BlockBytes/NumComponents values don't make much sense for this format, so set them all to one.
-	{ TEXT("NV12"),				1,			1,			1,			1,			1,				0,				0,				PF_NV12             },
-
-	{ TEXT("PF_R32G32_UINT"),   1,   		1,			1,			8,			2,				0,				1,				PF_R32G32_UINT      },
-
-	{ TEXT("PF_ETC2_R11_EAC"),  4,   		4,			1,			8,			1,				0,				0,				PF_ETC2_R11_EAC     },
-	{ TEXT("PF_ETC2_RG11_EAC"), 4,   		4,			1,			16,			2,				0,				0,				PF_ETC2_RG11_EAC    },
-	{ TEXT("R8"),				1,			1,			1,			1,			1,				0,				1,				PF_R8				},
-};
-
-static struct FValidatePixelFormats
-{
-	FValidatePixelFormats()
-	{
-		for (int32 X = 0; X < UE_ARRAY_COUNT(GPixelFormats); ++X)
-		{
-			// Make sure GPixelFormats has an entry for every unreal format
-			check(X == GPixelFormats[X].UnrealFormat);
-		}
-	}
-} ValidatePixelFormats;
-
-//
-//	CalculateImageBytes
-//
-
-SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format)
-{
-	if ( Format == PF_A1 )
-	{
-		// The number of bytes needed to store all 1 bit pixels in a line is the width of the image divided by the number of bits in a byte
-		uint32 BytesPerLine = SizeX / 8;
-		// The number of actual bytes in a 1 bit image is the bytes per line of pixels times the number of lines
-		return sizeof(uint8) * BytesPerLine * SizeY;
-	}
-	else if( SizeZ > 0 )
-	{
-		return static_cast<SIZE_T>(SizeX / GPixelFormats[Format].BlockSizeX) * (SizeY / GPixelFormats[Format].BlockSizeY) * (SizeZ / GPixelFormats[Format].BlockSizeZ) * GPixelFormats[Format].BlockBytes;
-	}
-	else
-	{
-		return static_cast<SIZE_T>(SizeX / GPixelFormats[Format].BlockSizeX) * (SizeY / GPixelFormats[Format].BlockSizeY) * GPixelFormats[Format].BlockBytes;
-	}
-}
-
-//
 // FWhiteTexture implementation
 //
 
@@ -206,7 +105,7 @@ public:
 	{
 		// Create the texture RHI.  		
 		FRHIResourceCreateInfo CreateInfo(TEXT("ColoredTexture"));
-		uint32 CreateFlags = TexCreate_ShaderResource;
+		ETextureCreateFlags CreateFlags = TexCreate_ShaderResource;
 		if(bWithUAV)
 		{
 			CreateFlags |= TexCreate_UAV;
@@ -340,7 +239,7 @@ private:
  * A class representing a 1x1x1 black volume texture.
  */
 template <EPixelFormat PixelFormat, uint8 Alpha>
-class FBlackVolumeTexture : public FTexture
+class FBlackVolumeTexture : public FTextureWithRDG
 {
 public:
 	
@@ -349,12 +248,14 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
+		const TCHAR* Name = TEXT("BlackVolumeTexture");
+
 		if (GSupportsTexture3D)
 		{
 			// Create the texture.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
-			CreateInfo.DebugName = TEXT("BlackVolumeTexture");
+			CreateInfo.DebugName = Name;
 			FTexture3DRHIRef Texture3D = RHICreateTexture3D(1,1,1,PixelFormat,1,TexCreate_ShaderResource,CreateInfo);
 			TextureRHI = Texture3D;	
 		}
@@ -363,6 +264,7 @@ public:
 			// Create a texture, even though it's not a volume texture
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
+			CreateInfo.DebugName = Name;
 			FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = Texture2D;
 		}
@@ -370,6 +272,8 @@ public:
 		// Create the sampler state.
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point, AM_Wrap, AM_Wrap, AM_Wrap);
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
+
+		FTextureWithRDG::InitRDG(Name);
 	}
 
 	/**
@@ -390,11 +294,11 @@ public:
 };
 
 /** Global black volume texture resource. */
-FTexture* GBlackVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 0>>();
-FTexture* GBlackAlpha1VolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 255>>();
+FTextureWithRDG* GBlackVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 0>>();
+FTextureWithRDG* GBlackAlpha1VolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 255>>();
 
 /** Global black volume texture resource. */
-FTexture* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R8G8B8A8_UINT, 0>>();
+FTextureWithRDG* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R8G8B8A8_UINT, 0>>();
 
 class FBlackArrayTexture : public FTexture
 {
@@ -1123,9 +1027,6 @@ static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlat
 RENDERCORE_API uint64 GBasePassVelocityPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBasePassVelocityPlatformMask must be large enough to support all shader platforms");
 
-RENDERCORE_API uint64 GAnisotropicBRDFPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GAnisotropicBRDFPlatformMask) * 8, "GAnisotropicBRDFPlatformMask must be large enough to support all shader platforms");
-
 RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
 
@@ -1166,12 +1067,6 @@ RENDERCORE_API void RenderUtilsInit()
 	if (BasePassVelocityCVar && BasePassVelocityCVar->GetInt())
 	{
 		GBasePassVelocityPlatformMask = ~0ull;
-	}
-
-	static const IConsoleVariable* AnisotropicBRDFCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
-	if (AnisotropicBRDFCVar && AnisotropicBRDFCVar->GetInt())
-	{
-		GAnisotropicBRDFPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
@@ -1230,15 +1125,6 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GBasePassVelocityPlatformMask &= ~Mask;
-				}
-
-				if (TargetPlatform->UsesAnisotropicBRDF())
-				{
-					GAnisotropicBRDFPlatformMask |= Mask;
-				}
-				else
-				{
-					GAnisotropicBRDFPlatformMask &= ~Mask;
 				}
 
 				if (TargetPlatform->UsesSelectiveBasePassOutputs())
@@ -1432,7 +1318,7 @@ RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntP
 	// Ensure sizes are dividable by the ideal group size for 2d tiles to make it more convenient.
 	const uint32 DividableBy = 4;
 
-	check(DividableBy % 4 == 0); // A lot of graphic algorithms where previously assuming DividableBy == 4.
+	static_assert(DividableBy % 4 == 0, "A lot of graphic algorithms where previously assuming DividableBy == 4");
 
 	const uint32 Mask = ~(DividableBy - 1);
 	OutBufferSize.X = (InBufferSize.X + DividableBy - 1) & Mask;

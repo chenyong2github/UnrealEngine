@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
+#include "UnrealEngine.h"
+#include "DebugViewModeRendering.h"
 
 namespace
 {

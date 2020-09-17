@@ -267,13 +267,13 @@ static void LogBreadcrumbData(ID3D12Device* Device)
 	bool bValidData = true;
 
 	// Check all the devices
-	FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+	FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
 	D3D12RHI->ForEachDevice(Device, [&](FD3D12Device* Device)
-		{
+	{
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCommandListManager());
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetAsyncCommandListManager());
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCopyCommandListManager());
-		});
+	});
 
 	if (!bValidData)
 	{
@@ -567,7 +567,7 @@ namespace D3D12RHI
 		// Log RHI independent breadcrumbing data
 		LogBreadcrumbData(InDevice);
 
-		FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
+		FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
 #if PLATFORM_WINDOWS
 		// If no device provided then try and log the DRED status of each device
 		D3D12RHI->ForEachDevice(InDevice, [&](FD3D12Device* IterationDevice)
@@ -620,7 +620,7 @@ namespace D3D12RHI
 			UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *ErrorMessage.ToText().ToString());
 		}
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 		// If we have crash dump data then dump to disc
 		if (InGPUCrashDump != nullptr)
 		{
@@ -638,7 +638,7 @@ namespace D3D12RHI
 			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
 			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
 		}
-#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif // PLATFORM_WINDOWS
 
 		// hard break here when the debugger is attached
 		if (IsDebuggerPresent())

@@ -355,7 +355,7 @@ private:
 			RHICmdList.DrawIndexedPrimitive(GHoloLensCameraImageConversionIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2, 1);
 		}
 		RHICmdList.EndRenderPass();
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DecodedTextureRef);
+		RHICmdList.Transition(FRHITransitionInfo(DecodedTextureRef, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 	}
 
 	/** The size we get from the incoming camera image */

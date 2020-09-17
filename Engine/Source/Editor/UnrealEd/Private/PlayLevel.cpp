@@ -3189,7 +3189,8 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	// Change the system resolution to match our window, to make sure game and slate window are kept synchronized
 	FSystemResolution::RequestResolutionChange(WindowSize.X, WindowSize.Y, EWindowMode::Windowed);
 
-	if (bVRPreview)
+	const bool bHMDIsReady = (GEngine && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected());
+	if (bVRPreview && bHMDIsReady)
 	{
 		GEngine->StereoRenderingDevice->EnableStereo(true);
 

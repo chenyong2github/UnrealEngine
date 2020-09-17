@@ -83,7 +83,7 @@ void FMediaFoundationMovieStreamer::ConvertSample()
 
 	{
 		const bool SrgbTexture = false;
-		const uint32 InputCreateFlags = TexCreate_Dynamic | (SrgbTexture ? TexCreate_SRGB : 0);
+		const ETextureCreateFlags InputCreateFlags = TexCreate_Dynamic | (SrgbTexture ? TexCreate_SRGB : TexCreate_None);
 
 		// create a new input render target if necessary
 		if (!InputTarget.IsValid() || (InputTarget->GetSizeXY() != SourceFormat.BufferDim) || (InputTarget->GetFormat() != InputPixelFormat) || ((InputTarget->GetFlags() & InputCreateFlags) != InputCreateFlags))
@@ -117,6 +117,8 @@ void FMediaFoundationMovieStreamer::ConvertSample()
 
 	// perform the conversion
 	FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	CommandList.Transition(FRHITransitionInfo(RenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 	FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::Load_Store);
 	CommandList.BeginRenderPass(RPInfo, TEXT("WindowsMovieConvertSample"));
@@ -170,7 +172,7 @@ void FMediaFoundationMovieStreamer::ConvertSample()
 		CommandList.DrawPrimitive(0, 2, 1);
 	}
 	CommandList.EndRenderPass();
-	CommandList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTarget);
+	CommandList.Transition(FRHITransitionInfo(RenderTarget, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 }
 
 bool FMediaFoundationMovieStreamer::Tick(float DeltaTime)

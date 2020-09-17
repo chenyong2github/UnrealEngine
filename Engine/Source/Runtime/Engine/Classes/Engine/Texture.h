@@ -40,6 +40,7 @@ enum TextureCompressionSettings
 	TC_HDR_Compressed			UMETA(DisplayName="HDRCompressed (RGB, BC6H, DX11)"),
 	TC_BC7						UMETA(DisplayName="BC7 (DX11, optional A)"),
 	TC_HalfFloat				UMETA(DisplayName="Half Float (R16F)"),
+	TC_ReflectionCapture		UMETA(DisplayName="Default (DXT5)"),
 	TC_MAX,
 };
 
@@ -576,7 +577,12 @@ public:
 	bool AreDerivedVTChunksAvailable() const;
 #endif
 
+	/** Return the number of mips that are not streamable. */
 	int32 GetNumNonStreamingMips() const;
+	/** Return the number of mips that streamable but not optional. */
+	int32 GetNumNonOptionalMips() const;
+	/** Return true if at least one mip can be loaded either from DDC or disk. */
+	bool CanBeLoaded() const;
 
 	// Only because we don't want to expose FVirtualTextureBuiltData
 	ENGINE_API int32 GetNumVTMips() const;
@@ -885,18 +891,6 @@ public:
 	virtual EMaterialValueType GetMaterialType() const PURE_VIRTUAL(UTexture::GetMaterialType,return MCT_Texture;);
 
 	/**
-	 * Waits until all streaming requests for this texture has been fully processed.
-	 */
-	virtual void WaitForStreaming()
-	{
-	}
-
-	virtual bool HasPendingUpdate() const override 
-	{ 
-		return false; // Overriden in UTexture2D
-	}
-
-	/**
 	 * Returns if the texture is actually being rendered using virtual texturing right now.
 	 * Unlike the 'VirtualTextureStreaming' property which reflects the user's desired state
 	 * this reflects the actual current state on the renderer depending on the platform, VT
@@ -1044,7 +1038,14 @@ public:
 
 	//~ Begin UStreamableRenderAsset Interface
 	virtual int32 GetLODGroupForStreaming() const final override { return static_cast<int32>(LODGroup); }
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr) override { return false; }
+	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::Texture; }
+	ENGINE_API virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
+	ENGINE_API virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
+	ENGINE_API virtual bool HasPendingRenderResourceInitialization() const final override;
+	ENGINE_API virtual bool HasPendingLODTransition() const final override;
+	ENGINE_API virtual void InvalidateLastRenderTimeForStreaming() final override;
+	ENGINE_API virtual float GetLastRenderTimeForStreaming() const final override;
+	ENGINE_API virtual bool ShouldMipLevelsBeForcedResident() const final override;
 	//~ End UStreamableRenderAsset Interface
 
 	/**
@@ -1134,7 +1135,19 @@ public:
 	 */
 	ENGINE_API static class UEnum* GetPixelFormatEnum();
 
+	/** Returns the minimum number of mips that must be resident in memory (cannot be streamed). */
+	static FORCEINLINE int32 GetStaticMinTextureResidentMipCount()
+	{
+		return GMinTextureResidentMipCount;
+	}
+
+	/** Sets the minimum number of mips that must be resident in memory (cannot be streamed). */
+	static void SetMinTextureResidentMipCount(int32 InMinTextureResidentMipCount);
+
 protected:
+
+	/** The minimum number of mips that must be resident in memory (cannot be streamed). */
+	static ENGINE_API int32 GMinTextureResidentMipCount;
 
 #if WITH_EDITOR
 
@@ -1147,7 +1160,19 @@ protected:
 	/** Notify any loaded material instances that the texture has changed. */
 	ENGINE_API void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
 
-#endif //WITH_EDOTIR
+#endif //WITH_EDITOR
+
+	void BeginFinalReleaseResource();
+
+	/**
+	 * Calculates the render resource initial state, expected to be used in InitResource() for derived classes implementing streaming.
+	 *
+	 * @param	PlatformData - the asset platform data.
+	 * @param	bAllowStreaming - where streaming is allowed, might still be disabled based on asset settings.
+	 * @param	MaxMipCount - optional limitation on the max mip count.
+	 * @return  The state to be passed to FStreamableTextureResource.
+	 */
+	FStreamableRenderResourceState GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount = 0, int32 MaxMipCount = 0) const;
 };
 
 /** 

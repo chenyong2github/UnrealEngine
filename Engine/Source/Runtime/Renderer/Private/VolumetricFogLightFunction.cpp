@@ -202,7 +202,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 
 		if (MaterialProxy && MaterialProxy->GetMaterial(Scene->GetFeatureLevel())->IsLightFunction())
 		{
-			FPooledRenderTargetDesc LightFunctionTextureDesc = FPooledRenderTargetDesc::Create2DDesc(LightFunctionResolution, PF_G8, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable, false);
+			FRDGTextureDesc LightFunctionTextureDesc = FRDGTextureDesc::Create2D(LightFunctionResolution, PF_G8, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable);
 			LightFunctionTextureDesc.Flags |= GFastVRamConfig.VolumetricFog;
 
 			OutLightFunctionTexture = GraphBuilder.CreateTexture(LightFunctionTextureDesc, TEXT("VolumetricFogLightFunction"));

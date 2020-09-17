@@ -92,11 +92,11 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 
 		UpateSkin(GraphBuilder, ShaderMap, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneMatricesBuffer, MatrixOffsetsBuffer, DeformedPositionsBuffer);
 
-		GraphBuilder.QueueBufferExtraction(DeformedPositionsBuffer, &CachedGeometry.DeformedPositionBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+		ConvertToExternalBuffer(GraphBuilder, DeformedPositionsBuffer, CachedGeometry.DeformedPositionBuffer);
 
 		GraphBuilder.Execute();
 
-		CachedGeometry.DeformedPositionsSRV = RHICreateShaderResourceView(CachedGeometry.DeformedPositionBuffer->VertexBuffer, sizeof(float), PF_R32_FLOAT);
+		CachedGeometry.DeformedPositionsSRV = RHICreateShaderResourceView(CachedGeometry.DeformedPositionBuffer->GetVertexBufferRHI(), sizeof(float), PF_R32_FLOAT);
 
 		for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
 		{

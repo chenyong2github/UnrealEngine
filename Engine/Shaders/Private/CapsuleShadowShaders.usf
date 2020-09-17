@@ -1134,6 +1134,10 @@ void CapsuleShadowingCS(
 	#if LIGHT_SOURCE_MODE == LIGHT_SOURCE_FROM_CAPSULE && !FORWARD_SHADING
 		ApplySelfShadowingIntensityForDeferred(ScreenUV, Visibility);
 	#endif
+	#if METAL_PROFILE 
+		// clamp max depth to avoid #inf
+		SceneDepth = min(SceneDepth, 65500.0f);
+	#endif
 	RWBentNormalTexture[DispatchThreadId.xy] = float4(ReceiverBentNormal * Visibility, SceneDepth);
 #else
 	RWShadowFactors[DispatchThreadId.xy] = float2(Visibility, SceneDepth);

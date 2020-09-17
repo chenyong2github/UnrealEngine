@@ -178,6 +178,12 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
 		}
 #endif
+#if VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT
+		if (VendorId == EGpuVendorId::Nvidia && bAllowVendorDevice)
+		{
+			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
+		}
+#endif
 	}
 
 #if VULKAN_SUPPORTS_COLOR_CONVERSIONS

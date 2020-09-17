@@ -156,7 +156,7 @@ bool FMaterialQualityOverrides::HasAnyOverridesSet() const
 	static const FMaterialQualityOverrides DefaultOverrides;
 
 	return
-		MobileCSMQuality != DefaultOverrides.MobileCSMQuality
+		MobileShadowQuality != DefaultOverrides.MobileShadowQuality
 		|| bForceDisableLMDirectionality != DefaultOverrides.bForceDisableLMDirectionality
 		|| bForceFullyRough != DefaultOverrides.bForceFullyRough
 		|| bForceNonMetal != DefaultOverrides.bForceNonMetal

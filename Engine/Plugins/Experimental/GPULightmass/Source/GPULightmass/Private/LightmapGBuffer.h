@@ -10,9 +10,6 @@
 #include "LightMapRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapGBufferParams, )
-	SHADER_PARAMETER(FVector4, VirtualTexturePhysicalTileCoordinateScaleAndBias)
-	SHADER_PARAMETER(FIntPoint, ScratchTilePoolOffset)
-	SHADER_PARAMETER(int, RenderPassIndex)
 	SHADER_PARAMETER_UAV(RWTexture2D<float4>, ScratchTilePoolLayer0)
 	SHADER_PARAMETER_UAV(RWTexture2D<float4>, ScratchTilePoolLayer1)
 	SHADER_PARAMETER_UAV(RWTexture2D<float4>, ScratchTilePoolLayer2)
@@ -24,6 +21,10 @@ struct FLightmapElementData : public FMeshMaterialShaderElementData
 {
 	const FLightCacheInterface* LCI;
 
+	FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias;
+	int32 RenderPassIndex;
+	FIntPoint ScratchTilePoolOffset;
+
 	FLightmapElementData(const FLightCacheInterface* LCI) : LCI(LCI) {}
 };
 
@@ -31,7 +32,10 @@ class FLightmapGBufferVS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FLightmapGBufferVS, MeshMaterial);
 
+	LAYOUT_FIELD(FShaderParameter, VirtualTexturePhysicalTileCoordinateScaleAndBias)
+	LAYOUT_FIELD(FShaderParameter, RenderPassIndex)
 	LAYOUT_FIELD(FShaderUniformBufferParameter, PrecomputedLightingBufferParameter);
+
 protected:
 
 	FLightmapGBufferVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -39,6 +43,8 @@ protected:
 	{
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FLightmapGBufferParams::StaticStructMetadata.GetShaderVariableName());
 		PrecomputedLightingBufferParameter.Bind(Initializer.ParameterMap, TEXT("PrecomputedLightingBuffer"));
+		VirtualTexturePhysicalTileCoordinateScaleAndBias.Bind(Initializer.ParameterMap, TEXT("VirtualTexturePhysicalTileCoordinateScaleAndBias"));
+		RenderPassIndex.Bind(Initializer.ParameterMap, TEXT("RenderPassIndex"));
 	}
 
 	FLightmapGBufferVS() = default;
@@ -90,12 +96,17 @@ public:
 				ShaderBindings.Add(PrecomputedLightingBufferParameter, ShaderElementData.LCI->GetPrecomputedLightingBuffer());
 			}
 		}
+
+		ShaderBindings.Add(VirtualTexturePhysicalTileCoordinateScaleAndBias, ShaderElementData.VirtualTexturePhysicalTileCoordinateScaleAndBias);
+		ShaderBindings.Add(RenderPassIndex, ShaderElementData.RenderPassIndex);
 	}
 };
 
 class FLightmapGBufferPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FLightmapGBufferPS, MeshMaterial);
+
+	LAYOUT_FIELD(FShaderParameter, ScratchTilePoolOffset)
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -126,15 +137,41 @@ public:
 		: FMeshMaterialShader(Initializer)
 	{
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FLightmapGBufferParams::StaticStructMetadata.GetShaderVariableName());
+		ScratchTilePoolOffset.Bind(Initializer.ParameterMap, TEXT("ScratchTilePoolOffset"));
+	}
+
+	void GetShaderBindings(
+		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		const FMeshPassProcessorRenderState& DrawRenderState,
+		const FLightmapElementData& ShaderElementData,
+		FMeshDrawSingleShaderBindings& ShaderBindings) const
+	{
+		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
+		ShaderBindings.Add(ScratchTilePoolOffset, ShaderElementData.ScratchTilePoolOffset);
 	}
 };
 
 class FLightmapGBufferMeshProcessor : public FMeshPassProcessor
 {
 public:
-	FLightmapGBufferMeshProcessor(const FScene* InScene, const FSceneView* InView, FMeshPassDrawListContext* InDrawListContext, FRHIUniformBuffer* InPassUniformBuffer)
+	FLightmapGBufferMeshProcessor(
+		const FScene* InScene, 
+		const FSceneView* InView,
+		FMeshPassDrawListContext* InDrawListContext, 
+		FRHIUniformBuffer* InPassUniformBuffer,
+		FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias,
+		int32 RenderPassIndex,
+		FIntPoint ScratchTilePoolOffset
+	)
 		: FMeshPassProcessor(InScene, InView->GetFeatureLevel(), InView, InDrawListContext)
 		, DrawRenderState(*InView, InPassUniformBuffer)
+		, VirtualTexturePhysicalTileCoordinateScaleAndBias(VirtualTexturePhysicalTileCoordinateScaleAndBias)
+		, RenderPassIndex(RenderPassIndex)
+		, ScratchTilePoolOffset(ScratchTilePoolOffset)
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 		DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
@@ -179,6 +216,9 @@ private:
 
 		FLightmapElementData ShaderElementData(MeshBatch.LCI);
 		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
+		ShaderElementData.VirtualTexturePhysicalTileCoordinateScaleAndBias = VirtualTexturePhysicalTileCoordinateScaleAndBias;
+		ShaderElementData.RenderPassIndex = RenderPassIndex;
+		ShaderElementData.ScratchTilePoolOffset = ScratchTilePoolOffset;
 
 		FMeshDrawCommandSortKey SortKey {};
 
@@ -199,4 +239,8 @@ private:
 
 private:
 	FMeshPassProcessorRenderState DrawRenderState;
+
+	FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias;
+	int32 RenderPassIndex;
+	FIntPoint ScratchTilePoolOffset;
 };

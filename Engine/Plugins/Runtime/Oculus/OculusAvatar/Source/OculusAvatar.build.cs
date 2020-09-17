@@ -23,6 +23,7 @@ public class OculusAvatar : ModuleRules
 				"CoreUObject",
 				"Engine",
                 "RenderCore",
+				"RHI",
                 "HeadMountedDisplay"
             }
         );

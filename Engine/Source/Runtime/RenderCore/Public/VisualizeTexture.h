@@ -1,117 +1,137 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	VisualizeTexture.h: Post processing visualize texture.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "RenderResource.h"
 #include "RenderGraph.h"
+
+class FOutputDevice;
 
 #define SUPPORTS_VISUALIZE_TEXTURE (WITH_ENGINE && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 class RENDERCORE_API FVisualizeTexture : public FRenderResource
 {
 public:
-	FVisualizeTexture();
+	FVisualizeTexture() = default;
 
-	static constexpr int32 kInvalidCaptureId = -1;
+	void ParseCommands(const TCHAR* Cmd, FOutputDevice &Ar);
 
-#if WITH_ENGINE
-	virtual void ReleaseDynamicRHI() override;
+	void DebugLogOnCrash();
 
-	/**
-	* calling this allows to grab the state of the texture at this point to be queried by visualizetexture e.g. "vis LightAttenuation@2"
-	* @param PooledRenderTarget 0 is silently ignored
-	* Warning: this may change the active render target and other state
-	*/
+	void GetTextureInfos_GameThread(TArray<FString>& Infos) const;
+
+	/** Creates a new checkpoint (e.g. "SceneDepth@N") for the pooled render target. A null parameter is a no-op. */
 #if SUPPORTS_VISUALIZE_TEXTURE
-	void SetCheckPoint(FRHICommandList& RHICmdList, const IPooledRenderTarget* PooledRenderTarget);
+	void SetCheckPoint(FRHICommandListImmediate& RHICmdList, IPooledRenderTarget* PooledRenderTarget);
 #else
-	inline void SetCheckPoint(FRHICommandList& RHICmdList, const IPooledRenderTarget* PooledRenderTarget) {}
+	inline void SetCheckPoint(FRHICommandListImmediate& RHICmdList, IPooledRenderTarget* PooledRenderTarget) {}
 #endif
-
-	/** Query some information from game thread. */
-	// TODO: refactor
-	void QueryInfo_GameThread( FQueryVisualizeTexureInfo& Out );
-
-	/** Sets the render  */
-	void SetRenderTargetNameToObserve(const FString& InObservedDebugName, uint32 InObservedDebugNameReusedGoal = 0xffffffff);
-#endif
-
-	// VisualizeTexture console command settings:
-	// written on game thread, read on render thread (uses FlushRenderingCommands to avoid the threading issues)
-
-	// 0=off, >0=texture id, changed by "VisualizeTexture" console command, useful for debugging
-	int32 Mode;
-	//
-	float RGBMul;
-
-	// -1=off, 0=R, 1=G, 2=B, 3=A
-	int32 SingleChannel;
-
-	// Multiplier for the single channel
-	float SingleChannelMul;
-
-	//
-	float AMul;
-	// 0=view in left top, 1=whole texture, 2=pixel perfect centered, 3=Picture in Picture
-	int32 UVInputMapping;
-	// bit 1: if 1, saturation mode, if 0, frac mode
-	int32 Flags;
-	//
-	int32 CustomMip;
-	//
-	int32 ArrayIndex;
-	//
-	bool bSaveBitmap;
-	// stencil normally displays in the alpha channel of depth buffer visualization.  This option is just for BMP writeout to get a stencil only BMP.
-	bool bOutputStencil;
-	//
-	bool bFullList;
-	// -1:by index, 0:by name, 1:by size
-	int32 SortOrder;
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	// [DebugName of the RT] = ReuseCount this frame
-	TMap<const TCHAR*, uint32> VisualizeTextureCheckpoints;
-#endif
-
-	// render target DebugName that is observed, "" if the feature is deactivated
-	FString ObservedDebugName;
-	// each frame this is counting up each time a RT with the same name is reused
-	uint32 ObservedDebugNameReusedCurrent;
-	// this is the count we want to reach, 0xffffffff if the last one
-	uint32 ObservedDebugNameReusedGoal;
 
 private:
-	// Copy of the texture being visualized.
-	TRefCountPtr<IPooledRenderTarget> VisualizeTextureContent;
+	enum class EFlags
+	{
+		None				= 0,
+		SaveBitmap			= 1 << 0,
+		SaveBitmapAsStencil = 1 << 1, // stencil normally displays in the alpha channel of depth buffer visualization. This option is just for BMP writeout to get a stencil only BMP.
+		FullList			= 1 << 2,
+	};
+	FRIEND_ENUM_CLASS_FLAGS(EFlags);
 
-	/** Descriptor of the texture being visualized. */
-	FPooledRenderTargetDesc VisualizeTextureDesc;
+	enum class EDebugLogVerbosity
+	{
+		Default,
+		Extended
+	};
 
-	// Flag to determine whether texture visualization is enabled, currently based on the feature level we are rendering with
-	bool bEnabled;
+	enum class EInputUVMapping
+	{
+		LeftTop,
+		Whole,
+		PixelPerfectCenter,
+		PictureInPicture
+	};
 
-	// Store feature level that we're currently using
-	ERHIFeatureLevel::Type FeatureLevel;
+	enum class EInputValueMapping
+	{
+		Color,
+		Depth,
+		Shadow
+	};
 
-#if WITH_ENGINE
-	/** Determine whether a texture should be captured for debugging purpose, and return the capture id if needed, or kInvalidCaptureId otherwise. */
-	int32 ShouldCapture(const TCHAR* DebugName);
+	enum class ESortBy
+	{
+		Index,
+		Name,
+		Size
+	};
+
+	enum class EShaderOp
+	{
+		Frac,
+		Saturate
+	};
+
+#if SUPPORTS_VISUALIZE_TEXTURE
+	void DebugLog(EDebugLogVerbosity Verbosity);
+
+	/** Determine whether a texture should be captured for debugging purposes and return the capture id if needed. */
+	TOptional<uint32> ShouldCapture(const TCHAR* DebugName, uint32 MipIndex);
 
 	/** Create a pass capturing a texture. */
-	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, int32 CaptureId);
+	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, uint32 CaptureId);
+
+	void ReleaseDynamicRHI() override;
+
+	void Visualize(const FString& InName, TOptional<uint32> InVersion = {});
+
+	uint32 GetVersionCount(const TCHAR* InName) const;
+
+	struct FConfig
+	{
+		float RGBMul = 1.0f;
+		float AMul = 0.0f;
+
+		// -1=off, 0=R, 1=G, 2=B, 3=A
+		int32 SingleChannel = -1;
+		float SingleChannelMul = 0.0f;
+
+		EFlags Flags = EFlags::None;
+		ESortBy SortBy = ESortBy::Index;
+		EInputUVMapping InputUVMapping = EInputUVMapping::PictureInPicture;
+		EShaderOp ShaderOp = EShaderOp::Frac;
+		uint32 MipIndex = 0;
+		uint32 ArrayIndex = 0;
+	} Config;
+
+	struct FRequested
+	{
+		FString Name;
+		TOptional<uint32> Version;
+	} Requested;
+
+	struct FCaptured
+	{
+		FCaptured()
+		{
+			Desc.DebugName = TEXT("VisualizeTexture");
+		}
+
+		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget;
+		FRDGTextureRef Texture = nullptr;
+		FPooledRenderTargetDesc Desc;
+		EInputValueMapping InputValueMapping = EInputValueMapping::Color;
+	} Captured;
+
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::SM5;
+
+	// Maps a texture name to its checkpoint version.
+	TMap<const TCHAR*, uint32> VersionCountMap;
 #endif
 
 	friend class FRDGBuilder;
 	friend class FVisualizeTexturePresent;
 };
 
+ENUM_CLASS_FLAGS(FVisualizeTexture::EFlags);
 
 /** The global render targets for easy shading. */
 extern RENDERCORE_API TGlobalResource<FVisualizeTexture> GVisualizeTexture;

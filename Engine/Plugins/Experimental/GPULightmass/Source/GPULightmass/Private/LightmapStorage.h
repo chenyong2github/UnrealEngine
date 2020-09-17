@@ -60,6 +60,7 @@ public:
 	FLightmapRenderState(Initializer InInitializer, FGeometryInstanceRenderStateRef GeometryInstanceRef);
 
 	FIntPoint GetSize() const { return Size; }
+	int32 GetMaxLevel() const { return MaxLevel; }
 	uint32 GetNumTilesAcrossAllMipmapLevels() const { return TileStates.Num(); }
 	FIntPoint GetPaddedSizeInTiles() const
 	{
@@ -69,6 +70,7 @@ public:
 	}
 	FIntPoint GetPaddedSize() const { return GetPaddedSizeInTiles() * GPreviewLightmapVirtualTileSize; }
 	FIntPoint GetPaddedPhysicalSize() const { return GetPaddedSizeInTiles() * GPreviewLightmapPhysicalTileSize; }
+	FIntPoint GetPaddedSizeAtMipLevel(int32 MipLevel) const { return GetPaddedSizeInTilesAtMipLevel(MipLevel) * GPreviewLightmapVirtualTileSize; }
 	FIntPoint GetPaddedSizeInTilesAtMipLevel(int32 MipLevel) const
 	{
 		return FIntPoint(FMath::DivideAndRoundUp(GetPaddedSizeInTiles().X, 1 << MipLevel), FMath::DivideAndRoundUp(GetPaddedSizeInTiles().Y, 1 << MipLevel));
@@ -79,7 +81,24 @@ public:
 		int32 Revision = -1;
 		int32 RenderPassIndex = 0;
 		int32 CPURevision = -1;
+		bool bCanBeDenoised = false;
+		bool bWasDenoisedWithoutProximity = false;
 		bool bHasReadbackInFlight = false;
+
+		void Invalidate()
+		{
+			Revision = -1;
+			RenderPassIndex = 0;
+			InvalidateCPUData();
+		}
+
+		void InvalidateCPUData()
+		{
+			CPURevision = -1;
+			bCanBeDenoised = false;
+			bWasDenoisedWithoutProximity = false;
+			bHasReadbackInFlight = false;
+		}
 	};
 
 	bool IsTileCoordinatesValid(FTileVirtualCoordinates Coords)
@@ -168,7 +187,8 @@ public:
 	FUintVector4 LightmapVTPackedPageTableUniform[2]; // VT (1 page table, 2x uint4)
 	FUintVector4 LightmapVTPackedUniform[5]; // VT (5 layers, 1x uint4 per layer)
 
-	TArray<FLinearColor> CPUTextureData[(int32)ELightMapVirtualTextureType::Count];
+	TArray<TArray<FLinearColor>> CPUTextureData[(int32)ELightMapVirtualTextureType::Count];
+	TArray<TArray<FLinearColor>> CPUTextureRawData[(int32)ELightMapVirtualTextureType::Count];
 	FGeometryInstanceRenderStateRef GeometryInstanceRef;
 
 	TArray<FPointLightRenderStateRef> RelevantPointLights;

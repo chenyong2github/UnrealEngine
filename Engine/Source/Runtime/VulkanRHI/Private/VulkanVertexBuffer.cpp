@@ -19,7 +19,7 @@ void FVulkanVertexBuffer::Swap(FVulkanVertexBuffer& Other)
 	FVulkanResourceMultiBuffer::Swap(Other);
 }
 
-FVertexBufferRHIRef FVulkanDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+FVertexBufferRHIRef FVulkanDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanVertexBuffers);
 	if (CreateInfo.bWithoutNativeResource)

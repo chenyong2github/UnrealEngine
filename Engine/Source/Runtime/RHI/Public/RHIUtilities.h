@@ -47,6 +47,14 @@ static inline bool IsStencilFormat(EPixelFormat Format)
 	return false;
 }
 
+
+/** Get the best default resource state for the given texture creation flags */
+extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData);
+
+/** Get the best default resource state for the given buffer creation flags */
+extern RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bInHasInitialData);
+
+
 /** Encapsulates a GPU read/write texture 2D with its UAV and SRV. */
 struct FTextureRWBuffer2D
 {
@@ -65,8 +73,8 @@ struct FTextureRWBuffer2D
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	const static uint32 DefaultTextureInitFlag = TexCreate_ShaderResource | TexCreate_UAV;
-	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, uint32 Flags = DefaultTextureInitFlag)
+	static constexpr ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource | TexCreate_UAV;
+	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
 		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
 			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
@@ -248,7 +256,7 @@ struct FRWBuffer
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.ResourceArray = InResourceArray;
 		CreateInfo.DebugName = InDebugName;
-		Buffer = RHICreateVertexBuffer(NumBytes, BUF_UnorderedAccess | BUF_ShaderResource | AdditionalUsage, CreateInfo);
+		Buffer = RHICreateVertexBuffer(NumBytes, BUF_UnorderedAccess | BUF_ShaderResource | AdditionalUsage, ERHIAccess::UAVCompute, CreateInfo);
 		UAV = RHICreateUnorderedAccessView(Buffer, Format);
 		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);
 	}
@@ -295,8 +303,8 @@ struct FTextureReadBuffer2D
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	const static uint32 DefaultTextureInitFlag = TexCreate_ShaderResource;
-	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, uint32 Flags = DefaultTextureInitFlag)
+	const static ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource;
+	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
 		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
 			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
@@ -358,7 +366,7 @@ struct FReadBuffer
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.ResourceArray = InResourceArray;
 		CreateInfo.DebugName = InDebugName;
-		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | AdditionalUsage, CreateInfo);
+		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | AdditionalUsage, ERHIAccess::SRVMask, CreateInfo);
 		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);
 	}
 
@@ -394,7 +402,7 @@ struct FRWBufferStructured
 		NumBytes = BytesPerElement * NumElements;
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.DebugName = InDebugName;
-		Buffer = RHICreateStructuredBuffer(BytesPerElement, NumBytes, BUF_UnorderedAccess | BUF_ShaderResource | AdditionalUsage, CreateInfo);
+		Buffer = RHICreateStructuredBuffer(BytesPerElement, NumBytes, BUF_UnorderedAccess | BUF_ShaderResource | AdditionalUsage, ERHIAccess::UAVMask, CreateInfo);
 		UAV = RHICreateUnorderedAccessView(Buffer, bUseUavCounter, bAppendBuffer);
 		SRV = RHICreateShaderResourceView(Buffer);
 	}
@@ -439,7 +447,7 @@ struct FByteAddressBuffer
 		check( NumBytes % 4 == 0 );
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.DebugName = InDebugName;
-		Buffer = RHICreateStructuredBuffer(4, NumBytes, BUF_ShaderResource | BUF_ByteAddressBuffer | AdditionalUsage, CreateInfo);
+		Buffer = RHICreateStructuredBuffer(4, NumBytes, BUF_ShaderResource | BUF_ByteAddressBuffer | AdditionalUsage, ERHIAccess::SRVMask, CreateInfo);
 		SRV = RHICreateShaderResourceView(Buffer);
 	}
 
@@ -598,7 +606,7 @@ inline void DecodeRenderTargetMode(ESimpleRenderTargetMode Mode, ERenderTargetLo
 
 inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIRenderPassInfo& RPInfo)
 {
-	FRHITexture* Transitions[MaxSimultaneousRenderTargets];
+	FRHITransitionInfo Transitions[MaxSimultaneousRenderTargets];
 	int32 TransitionIndex = 0;
 	uint32 NumColorRenderTargets = RPInfo.GetNumColorRenderTargets();
 	for (uint32 Index = 0; Index < NumColorRenderTargets; Index++)
@@ -606,7 +614,7 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 		const FRHIRenderPassInfo::FColorEntry& ColorRenderTarget = RPInfo.ColorRenderTargets[Index];
 		if (ColorRenderTarget.RenderTarget != nullptr)
 		{
-			Transitions[TransitionIndex] = ColorRenderTarget.RenderTarget;
+			Transitions[TransitionIndex] = FRHITransitionInfo(ColorRenderTarget.RenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV);
 			TransitionIndex++;
 		}
 	}
@@ -617,7 +625,7 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 		RHICmdList.TransitionResource(RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil, DepthStencilTarget.DepthStencilTarget);
 	}
 
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, Transitions, TransitionIndex);
+	RHICmdList.Transition(MakeArrayView(Transitions, TransitionIndex));
 }
 
 /**
@@ -633,8 +641,8 @@ inline void RHICreateTargetableShaderResource2D(
 	uint32 SizeY,
 	uint8 Format,	
 	uint32 NumMips,
-	uint32 Flags,
-	uint32 TargetableTextureFlags,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
 	bool bForceSharedTargetAndShaderResource,
 	FRHIResourceCreateInfo& CreateInfo,
@@ -646,13 +654,9 @@ inline void RHICreateTargetableShaderResource2D(
 	// Ensure none of the usage flags are passed in.
 	check(!(Flags & TexCreate_RenderTargetable));
 	check(!(Flags & TexCreate_ResolveTargetable));
-	check(!(Flags & TexCreate_ShaderResource));
 
 	// Ensure we aren't forcing separate and shared textures at the same time.
 	check(!(bForceSeparateTargetAndShaderResource && bForceSharedTargetAndShaderResource));
-
-	// Ensure that all of the flags provided for the targetable texture are not already passed in Flags.
-	check(!(Flags & TargetableTextureFlags));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
 	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
@@ -665,18 +669,18 @@ inline void RHICreateTargetableShaderResource2D(
 	if (!bForceSeparateTargetAndShaderResource)
 	{
 		// Create a single texture that has both TargetableTextureFlags and TexCreate_ShaderResource set.
-		OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags | TargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
+		OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags | TargetableTextureFlags | TexCreate_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
 	}
 	else
 	{
-		uint32 ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
+		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
 		if (TargetableTextureFlags & TexCreate_DepthStencilTargetable)
 		{
 			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
 		}
 		// Create a texture that has TargetableTextureFlags set, and a second texture that has TexCreate_ResolveTargetable and TexCreate_ShaderResource set.
-		OutTargetableTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags | TargetableTextureFlags, CreateInfo);
-		OutShaderResourceTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, 1, Flags | ResolveTargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
+		OutTargetableTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags | TargetableTextureFlags, ERHIAccess::SRVMask, CreateInfo);
+		OutShaderResourceTexture = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, 1, Flags | ResolveTargetableTextureFlags | TexCreate_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
 	}
 }
 
@@ -685,8 +689,8 @@ inline void RHICreateTargetableShaderResource2D(
 	uint32 SizeY,
 	uint8 Format,
 	uint32 NumMips,
-	uint32 Flags,
-	uint32 TargetableTextureFlags,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
 	FRHIResourceCreateInfo& CreateInfo,
 	FTexture2DRHIRef& OutTargetableTexture,
@@ -702,8 +706,8 @@ inline void RHICreateTargetableShaderResource2DArray(
 	uint32 SizeZ,
 	uint8 Format,
 	uint32 NumMips,
-	uint32 Flags,
-	uint32 TargetableTextureFlags,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
 	bool bForceSharedTargetAndShaderResource,
 	FRHIResourceCreateInfo& CreateInfo,
@@ -715,13 +719,9 @@ inline void RHICreateTargetableShaderResource2DArray(
 	// Ensure none of the usage flags are passed in.
 	check(!(Flags & TexCreate_RenderTargetable));
 	check(!(Flags & TexCreate_ResolveTargetable));
-	check(!(Flags & TexCreate_ShaderResource));
 
 	// Ensure we aren't forcing separate and shared textures at the same time.
 	check(!(bForceSeparateTargetAndShaderResource && bForceSharedTargetAndShaderResource));
-
-	// Ensure that all of the flags provided for the targetable texture are not already passed in Flags.
-	check(!(Flags & TargetableTextureFlags));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
 	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
@@ -738,7 +738,7 @@ inline void RHICreateTargetableShaderResource2DArray(
 	}
 	else
 	{
-		uint32 ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
+		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
 		if (TargetableTextureFlags & TexCreate_DepthStencilTargetable)
 		{
 			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
@@ -755,8 +755,8 @@ inline void RHICreateTargetableShaderResource2DArray(
 	uint32 SizeZ,
 	uint8 Format,
 	uint32 NumMips,
-	uint32 Flags,
-	uint32 TargetableTextureFlags,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
 	FRHIResourceCreateInfo& CreateInfo,
 	FTexture2DArrayRHIRef& OutTargetableTexture,
 	FTexture2DArrayRHIRef& OutShaderResourceTexture,
@@ -777,8 +777,8 @@ inline void RHICreateTargetableShaderResourceCube(
 	uint32 LinearSize,
 	uint8 Format,
 	uint32 NumMips,
-	uint32 Flags,
-	uint32 TargetableTextureFlags,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
 	FRHIResourceCreateInfo& CreateInfo,
 	FTextureCubeRHIRef& OutTargetableTexture,
@@ -788,16 +788,9 @@ inline void RHICreateTargetableShaderResourceCube(
 	// Ensure none of the usage flags are passed in.
 	check(!(Flags & TexCreate_RenderTargetable));
 	check(!(Flags & TexCreate_ResolveTargetable));
-	check(!(Flags & TexCreate_ShaderResource));
-
-	// Ensure that all of the flags provided for the targetable texture are not already passed in Flags.
-	check(!(Flags & TargetableTextureFlags));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
 	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
-
-	// ES2 doesn't support resolve operations.
-	bForceSeparateTargetAndShaderResource &= (GMaxRHIFeatureLevel >= ERHIFeatureLevel::ES3_1);
 
 	if(!bForceSeparateTargetAndShaderResource/* && GSupportsRenderDepthTargetableShaderResources*/)
 	{
@@ -825,8 +818,8 @@ inline void RHICreateTargetableShaderResourceCubeArray(
 	uint32 ArraySize,
 	uint8 Format,
 	uint32 NumMips,
-	uint32 Flags,
-	uint32 TargetableTextureFlags,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
 	FRHIResourceCreateInfo& CreateInfo,
 	FTextureCubeRHIRef& OutTargetableTexture,
@@ -836,10 +829,6 @@ inline void RHICreateTargetableShaderResourceCubeArray(
 	// Ensure none of the usage flags are passed in.
 	check(!(Flags & TexCreate_RenderTargetable));
 	check(!(Flags & TexCreate_ResolveTargetable));
-	check(!(Flags & TexCreate_ShaderResource));
-
-	// Ensure that all of the flags provided for the targetable texture are not already passed in Flags.
-	check(!(Flags & TargetableTextureFlags));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
 	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
@@ -871,8 +860,8 @@ inline void RHICreateTargetableShaderResource3D(
 	uint32 SizeZ,
 	uint8 Format,	
 	uint32 NumMips,
-	uint32 Flags,
-	uint32 TargetableTextureFlags,
+	ETextureCreateFlags Flags,
+	ETextureCreateFlags TargetableTextureFlags,
 	bool bForceSeparateTargetAndShaderResource,
 	FRHIResourceCreateInfo& CreateInfo,
 	FTexture3DRHIRef& OutTargetableTexture,
@@ -882,10 +871,6 @@ inline void RHICreateTargetableShaderResource3D(
 	// Ensure none of the usage flags are passed in.
 	check(!(Flags & TexCreate_RenderTargetable));
 	check(!(Flags & TexCreate_ResolveTargetable));
-	check(!(Flags & TexCreate_ShaderResource));
-
-	// Ensure that all of the flags provided for the targetable texture are not already passed in Flags.
-	check(!(Flags & TargetableTextureFlags));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
 	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
@@ -897,7 +882,7 @@ inline void RHICreateTargetableShaderResource3D(
 	}
 	else
 	{
-		uint32 ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
+		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
 		if (TargetableTextureFlags & TexCreate_DepthStencilTargetable)
 		{
 			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
@@ -940,7 +925,7 @@ inline uint32 ComputeAnisotropyRT(int32 InitializerMaxAnisotropy)
 class RHI_API FDumpTransitionsHelper
 {
 public:
-	static void DumpResourceTransition(const FName& ResourceName, const EResourceTransitionAccess TransitionType);
+	static void DumpResourceTransition(const FName& ResourceName, const ERHIAccess TransitionType);
 	
 private:
 	static void DumpTransitionForResourceHandler();

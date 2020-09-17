@@ -182,10 +182,7 @@ void FNDIVelocityGridParametersCS::Set(FRHICommandList& RHICmdList, const FNiaga
 		FNDIVelocityGridBuffer* CurrentGridBuffer = ProxyData->CurrentGridBuffer;
 		FNDIVelocityGridBuffer* DestinationGridBuffer = ProxyData->DestinationGridBuffer;
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, DestinationGridBuffer->GridDataBuffer.UAV);
 		SetUAVParameter(RHICmdList, ComputeShaderRHI, GridDestinationBuffer, DestinationGridBuffer->GridDataBuffer.UAV);
-
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CurrentGridBuffer->GridDataBuffer.UAV);
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, GridCurrentBuffer, CurrentGridBuffer->GridDataBuffer.SRV);
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, GridSize, ProxyData->GridSize);
@@ -634,6 +631,13 @@ void FNDIVelocityGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 		{
 			ClearBuffer(RHICmdList, ProxyData->DestinationGridBuffer);
 		}
+
+		FRHITransitionInfo Transitions[] = {
+			// FIXME: what's the source state for these?
+			FRHITransitionInfo(ProxyData->CurrentGridBuffer->GridDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+			FRHITransitionInfo(ProxyData->DestinationGridBuffer->GridDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		};
+		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 	}
 }
 

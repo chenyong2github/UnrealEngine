@@ -26,7 +26,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureBool(const FString& Key, bool DataToStore);
 
 	/**
@@ -35,7 +35,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureByte(const FString& Key, uint8 DataToStore);
 
 	/**
@@ -44,7 +44,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureInt(const FString& Key, int32 DataToStore);
 
 	/**
@@ -53,7 +53,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureInt64(const FString& Key, int64 DataToStore);
 
 	/**
@@ -62,7 +62,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureFloat(const FString& Key, float DataToStore);
 
 	/**
@@ -71,7 +71,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureString(const FString& Key, const FString& DataToStore);
 
 	/**
@@ -80,7 +80,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `PutSecureArray`"), Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureVector(const FString& Key, const FVector& DataToStore);
 
 	/**
@@ -89,7 +89,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `PutSecureArray`"), Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureRotator(const FString& Key, const FRotator& DataToStore);
 
 	/**
@@ -98,7 +98,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `PutSecureArray`"), Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureTransform(const FString& Key, const FTransform& DataToStore);
 
 	/**
@@ -107,7 +107,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureBool(const FString& Key, bool& DataToRetrieve);
 
 	/**
@@ -116,7 +116,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureByte(const FString& Key, uint8& DataToRetrieve);
 
 	/**
@@ -125,7 +125,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureInt(const FString& Key, int32& DataToRetrieve);
 
 	/**
@@ -134,7 +134,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureInt64(const FString& Key, int64& DataToRetrieve);
 
 	/**
@@ -143,7 +143,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureFloat(const FString& Key, float& DataToRetrieve);
 
 	/**
@@ -152,7 +152,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureString(const FString& Key, FString& DataToRetrieve);
 
 	/**
@@ -161,7 +161,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `GetSecureArray`"), Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureVector(const FString& Key, FVector& DataToRetrieve);
 
 	/**
@@ -170,7 +170,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `GetSecureArray`"), Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureRotator(const FString& Key, FRotator& DataToRetrieve);
 
 	/**
@@ -179,7 +179,7 @@ public:
 	  @param   DataToRetrieve Reference to the variable that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="This function has been replaced by `GetSecureArray`"),Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"),Category = "SecureStorage|MagicLeap")
 	static bool GetSecureTransform(const FString& Key, FTransform& DataToRetrieve);
 
 	/**
@@ -188,7 +188,7 @@ public:
 	  @param   ObjectToStore The USaveGame object to serialize and store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureSaveGame(const FString& Key, USaveGame* ObjectToStore);
 
 	/**
@@ -197,7 +197,7 @@ public:
 	  @param   DataToStore The data to store.
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, CustomThunk, meta = (ArrayParm = "DataToStore"), Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, CustomThunk, meta = (ArrayParm = "DataToStore", DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool PutSecureArray(const FString& Key, const TArray<int32>& DataToStore);
 
 	DECLARE_FUNCTION(execPutSecureArray)
@@ -218,11 +218,14 @@ public:
 		P_FINISH;
 
 		P_NATIVE_BEGIN;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		*static_cast<bool*>(RESULT_PARAM) = GenericPutSecureArray(Key, ArrayProperty, ArrayAddress);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		P_NATIVE_END;
 
 	}
 
+	UE_DEPRECATED(4.26, "This function has been replaced by UGameplayStatics::SaveGameToSlot()")
 	static bool GenericPutSecureArray(const FString& Key, const FArrayProperty* ArrayProperty, void* TargetArray);
 
 	/**
@@ -231,7 +234,7 @@ public:
 	  @param   ObjectToRetrieve Reference to a USaveGame object that will be populated with the serialized data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureSaveGame(const FString& Key, USaveGame*& ObjectToRetrieve);
 
 	/**
@@ -240,7 +243,7 @@ public:
 	  @param   DataToRetrieve Reference to an array that will be populated with the stored data.
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, CustomThunk, meta = (ArrayParm = "DataToRetrieve"), Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, CustomThunk, meta = (ArrayParm = "DataToRetrieve", DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool GetSecureArray(const FString& Key, TArray<int32>& DataToRetrieve);
 
 	DECLARE_FUNCTION(execGetSecureArray)
@@ -261,11 +264,14 @@ public:
 		P_FINISH;
 
 		P_NATIVE_BEGIN;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		*static_cast<bool*>(RESULT_PARAM) = GenericGetSecureArray(Key, ArrayProperty, ArrayAddress);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		P_NATIVE_END;
 
 	}
 
+	UE_DEPRECATED(4.26, "This function has been replaced by UGameplayStatics::LoadGameFromSlot()")
 	static bool GenericGetSecureArray(const FString& Key, FArrayProperty* ArrayProperty, void* TargetArray);
 
 	/**
@@ -275,6 +281,7 @@ public:
 	  @return  True if the data was stored successfully, false otherwise.
 	*/
 	template<class T>
+	UE_DEPRECATED(4.26, "This function has been replaced by UGameplayStatics::SaveGameToSlot()")
 	static bool PutSecureBlob(const FString& Key, const T* DataToStore);
 
 	/**
@@ -284,6 +291,7 @@ public:
 	  @return  True if the key was found and output parameter was successfully populated with the data, false otherwise.
 	*/
 	template<class T>
+	UE_DEPRECATED(4.26, "This function has been replaced by UGameplayStatics::LoadGameFromSlot()")
 	static bool GetSecureBlob(const FString& Key, T& DataToRetrieve);
 
 	/**
@@ -291,7 +299,7 @@ public:
 	  @param   Key The string key of the data to delete.
 	  @return  True if the data was deleted successfully or did not exist altogether, false otherwise.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SecureStorage|MagicLeap")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by `UGameplayStatics::SaveGameToSlot()`"), Category = "SecureStorage|MagicLeap")
 	static bool DeleteSecureData(const FString& Key);
 
 private:

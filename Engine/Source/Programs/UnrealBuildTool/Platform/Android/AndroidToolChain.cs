@@ -475,7 +475,7 @@ namespace UnrealBuildTool
 			return GPUArchitectures;
 		}
 
-		public int GetNdkApiLevelInt(int MinNdk = 19)
+		public int GetNdkApiLevelInt(int MinNdk = 21)
 		{
 			string NDKVersion = GetNdkApiLevel();
 			int NDKVersionInt = MinNdk;

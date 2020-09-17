@@ -135,8 +135,6 @@ static TAutoConsoleVariable<int32> CVarStripDistanceFieldDataDuringLoad(
 	TEXT("If non-zero, data for distance fields will be discarded on load. TODO: change to discard during cook!."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-extern bool TrackRenderAssetEvent(struct FStreamingRenderAsset* StreamingRenderAsset, UStreamableRenderAsset* RenderAsset, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager);
-
 #if ENABLE_COOK_STATS
 namespace StaticMeshCookStats
 {
@@ -1400,6 +1398,54 @@ FStaticMeshRenderData::~FStaticMeshRenderData()
 	LODResources.Empty();
 }
 
+int32 FStaticMeshRenderData::GetNumNonStreamingLODs() const
+{
+	int32 Tmp = 0;
+	for (int32 Idx = LODResources.Num() - 1; Idx >= 0; --Idx)
+	{
+		if (!LODResources[Idx].bBuffersInlined)
+		{
+			break;
+		}
+		++Tmp;
+	}
+
+	if (Tmp == 0 && LODResources.Num())
+	{
+		return 1;
+	}
+	else
+	{
+		return Tmp;
+	}
+}
+
+int32 FStaticMeshRenderData::GetNumNonOptionalLODs() const
+{
+	int32 NumNonOptionalLODs = 0;
+	for (int32 Idx = LODResources.Num() - 1; Idx >= 0; --Idx)
+	{
+		const FStaticMeshLODResources& Resource = LODResources[Idx];
+		if (!Resource.bIsOptionalLOD)
+		{
+			++NumNonOptionalLODs;
+		}
+		else // Stop at the first optional LOD
+		{
+			break;
+		}
+	}
+
+	if (NumNonOptionalLODs == 0 && LODResources.Num())
+	{
+		return 1;
+	}
+	else
+	{
+		return NumNonOptionalLODs;
+	}
+}
+
 void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCooked)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Serialize);
@@ -1427,21 +1473,11 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITOR
 	if (Ar.IsSaving())
 	{
-		int32 Tmp = 0;
-		for (int32 Idx = LODResources.Num() - 1; Idx >= 0; --Idx)
-		{
-			if (!LODResources[Idx].bBuffersInlined)
-			{
-				break;
-			}
-			++Tmp;
-		}
-		NumInlinedLODs = Tmp;
+		NumInlinedLODs = GetNumNonStreamingLODs();
 	}
 #endif
 	Ar << NumInlinedLODs;
 	CurrentFirstLODIdx = LODResources.Num() - NumInlinedLODs;
-	Owner->SetCachedNumResidentLODs(NumInlinedLODs);
 
 	if (Ar.IsLoading())
 	{
@@ -1605,7 +1641,6 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 		[this, Owner](FRHICommandListImmediate&)
 	{
 		bReadyForStreaming = true;
-		Owner->SetCachedReadyForStreaming(true);
 	});
 	bIsInitialized = true;
 }
@@ -1646,10 +1681,24 @@ int32 FStaticMeshRenderData::GetFirstValidLODIdx(int32 MinIdx) const
 {
 	const int32 LODCount = LODResources.Num();
 	int32 LODIndex = FMath::Clamp<int32>(MinIdx, 0, LODCount - 1);
-	while (LODIndex < LODCount && !LODResources[LODIndex].GetNumVertices())
+
+	if (FPlatformProperties::RequiresCookedData())
 	{
-		++LODIndex;
+		// When cooked, BuffersSize can be used reliably to know if there is valid data, even though num vertices could be non zero.
+		// This happens because UStaticMesh::MinLOD is platform specific, where as num vertices is the same for all platforms.
+		while (LODIndex < LODCount && !LODResources[LODIndex].GetNumVertices() && LODResources[LODIndex].BuffersSize)
+		{
+			++LODIndex;
+		}
 	}
+	else
+	{
+		while (LODIndex < LODCount && !LODResources[LODIndex].GetNumVertices())
+		{
+			++LODIndex;
+		}
+	}
+
 	return LODIndex;
 }
 
@@ -2460,7 +2509,6 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 		return;
 	}
 
-
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Cache);
 
@@ -2689,10 +2737,33 @@ void UStaticMesh::InitResources()
 
 	UpdateUVChannelData(false);
 
+	CachedSRRState.Clear();
 	if (RenderData)
 	{
+		{
+			const int32 NumLODs = GetNumLODs();
+			const int32 MinFirstLOD = MinLOD.GetValue();
+
+			CachedSRRState.NumNonStreamingLODs = RenderData->NumInlinedLODs;
+			CachedSRRState.NumNonOptionalLODs = RenderData->GetNumNonOptionalLODs();
+			// Limit the number of LODs based on MinLOD value.
+			CachedSRRState.MaxNumLODs = FMath::Clamp<int32>(NumLODs - MinFirstLOD, RenderData->NumInlinedLODs, NumLODs);
+			CachedSRRState.AssetLODBias = MinFirstLOD;
+			// The optional LOD might be culled now.
+			CachedSRRState.NumNonOptionalLODs = FMath::Min(CachedSRRState.NumNonOptionalLODs, CachedSRRState.MaxNumLODs);
+			// Set LOD count to fit the current state.
+			CachedSRRState.NumResidentLODs = NumLODs - RenderData->CurrentFirstLODIdx;
+			CachedSRRState.NumRequestedLODs = CachedSRRState.NumResidentLODs;
+			// Set whether the mips can be streamed.
+			CachedSRRState.bSupportsStreaming = !NeverStream && CachedSRRState.NumNonStreamingLODs != CachedSRRState.MaxNumLODs;
+		}
+
+		// TODO : Update RenderData->CurrentFirstLODIdx based on whether IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::StaticMesh).
+		// TODO : This will require to refactor code in FStaticMeshLODResources::Serialize() and FStaticMeshRenderData::Cache() around bBuffersInlined (in cooked).
+
 		UWorld* World = GetWorld();
 		RenderData->InitResources(World ? World->FeatureLevel.GetValue() : ERHIFeatureLevel::Num, this);
+		CachedSRRState.bHasPendingInitHint = true;
 	}
 
 	if (OccluderData)
@@ -2700,17 +2771,11 @@ void UStaticMesh::InitResources()
 		INC_DWORD_STAT_BY( STAT_StaticMeshOccluderMemory, OccluderData->GetResourceSizeBytes() );
 	}
 
-	// Determine whether or not this mesh can be streamed.
-	const int32 NumLODs = GetNumLODs();
-
-	bIsStreamable = !NeverStream
-		&& NumLODs > 1
-		&& !RenderData->LODResources[0].bBuffersInlined;
-		//&& !bTemporarilyDisableStreaming;
-
 #if (WITH_EDITOR && DO_CHECK)
-	if (bIsStreamable && !GetOutermost()->bIsCookedForEditor)
+	if (RenderData && CachedSRRState.bSupportsStreaming && !GetOutermost()->bIsCookedForEditor)
 	{
+		const int32 NumLODs = GetNumLODs();
+
 		for (int32 LODIdx = 0; LODIdx < NumLODs; ++LODIdx)
 		{
 			const FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
@@ -2719,11 +2784,8 @@ void UStaticMesh::InitResources()
 	}
 #endif
 
-	UnlinkStreaming();
-	if (bIsStreamable)
-	{
-		LinkStreaming();
-	}
+	LinkStreaming();
+
 #if	STATS
 	UStaticMesh* This = this;
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
@@ -3426,16 +3488,7 @@ void UStaticMesh::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	// Cancel any in flight IO requests
-	CancelPendingMipChangeRequest();
-
-	// Safely unlink mesh from list of streamable ones.
-	UnlinkStreaming();
-
-	// Remove from the list of tracked assets if necessary
-	TrackRenderAssetEvent(nullptr, this, false, nullptr);
-
-	if (!UpdateStreamingStatus() && bRenderingResourcesInitialized)
+	if (!HasPendingInitOrStreaming() && bRenderingResourcesInitialized)
 	{
 		ReleaseResources();
 	}
@@ -3443,7 +3496,7 @@ void UStaticMesh::BeginDestroy()
 
 bool UStaticMesh::IsReadyForFinishDestroy()
 {
-	if (UpdateStreamingStatus())
+	if (!Super::IsReadyForFinishDestroy())
 	{
 		return false;
 	}
@@ -4862,10 +4915,10 @@ void UStaticMesh::PostLoad()
 		}
 		else
 		{
-		// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
-		// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
-		// is then released, and can be reloaded on demand.
-		CacheDerivedData();
+			// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
+			// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
+			// is then released, and can be reloaded on demand.
+			CacheDerivedData();
 		}
 
 		//Fix up the material to remove redundant material, this is needed since the material refactor where we do not have anymore copy of the materials
@@ -5446,54 +5499,9 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	return true;
 }
 
-
 bool UStaticMesh::CanBeClusterRoot() const
 {
 	return false;
-}
-
-int32 UStaticMesh::GetLODGroupForStreaming() const
-{
-	// TODO: mesh LOD streaming may need to know LOD group settings
-	return 0;
-}
-
-int32 UStaticMesh::GetNumMipsForStreaming() const
-{
-	check(RenderData);
-	return GetNumLODs();
-}
-
-int32 UStaticMesh::GetNumNonStreamingMips() const
-{
-	check(RenderData);
-	return RenderData->NumInlinedLODs;
-}
-
-int32 UStaticMesh::CalcNumOptionalMips() const
-{
-#if !WITH_EDITOR
-	return MinLOD.Default;
-#else
-	int32 NumOptionalLODs = 0;
-	if (RenderData)
-	{
-		const FStaticMeshLODResourcesArray& LODResources = RenderData->LODResources;
-		for (int32 Idx = 0; Idx < LODResources.Num(); ++Idx)
-		{
-			const FStaticMeshLODResources& Resource = LODResources[Idx];
-			if (Resource.bIsOptionalLOD)
-			{
-				++NumOptionalLODs;
-			}
-			else
-			{
-				break;
-			}
-		}
-	}
-	return NumOptionalLODs;
-#endif
 }
 
 int32 UStaticMesh::CalcCumulativeLODSize(int32 NumLODs) const
@@ -5524,7 +5532,6 @@ bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataF
 	bool bSucceed = FPackageName::DoesPackageExist(LocalizedName, nullptr, &OutBulkDataFilename);
 	check(bSucceed);
 	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < MinLOD.Default ? TEXT(".uptnl") : TEXT(".ubulk"));
-	check(MipIndex < MinLOD.Default || IFileManager::Get().FileExists(*OutBulkDataFilename));
 	return true;
 }
 #endif // USE_BULKDATA_STREAMING_TOKEN
@@ -5559,59 +5566,18 @@ bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
 #endif
 }
 
-bool UStaticMesh::IsReadyForStreaming() const
+bool UStaticMesh::HasPendingRenderResourceInitialization() const
 {
-	return RenderData && RenderData->bReadyForStreaming;
-}
-
-int32 UStaticMesh::GetNumResidentMips() const
-{
-	check(RenderData);
-	return GetNumLODs() - RenderData->CurrentFirstLODIdx;
-}
-
-int32 UStaticMesh::GetNumRequestedMips() const
-{
-	if (PendingUpdate && !PendingUpdate->IsCancelled())
-	{
-		return PendingUpdate->GetNumRequestedMips();
-	}
-	else
-	{
-		return GetCachedNumResidentLODs();
-	}
-}
-
-bool UStaticMesh::CancelPendingMipChangeRequest()
-{
-	if (PendingUpdate)
-	{
-		if (!PendingUpdate->IsCancelled())
-		{
-			PendingUpdate->Abort();
-		}
-		return true;
-	}
-	return false;
-}
-
-bool UStaticMesh::HasPendingUpdate() const
-{
-	return !!PendingUpdate;
-}
-
-bool UStaticMesh::IsPendingUpdateLocked() const 
-{ 
-	return PendingUpdate && PendingUpdate->IsLocked(); 
+	return RenderData.IsValid() && !RenderData->bReadyForStreaming;
 }
 
 bool UStaticMesh::StreamOut(int32 NewMipCount)
 {
 	check(IsInGameThread());
-	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount < GetNumResidentMips())
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamOut(NewMipCount))
 	{
 		// We need to keep the CPU data in non cook in order to be able for tools to work correctly.
-		PendingUpdate = new FStaticMeshStreamOut(this, NewMipCount, bAllowCPUAccess && !FPlatformProperties::HasEditorOnlyData());
+		PendingUpdate = new FStaticMeshStreamOut(this, bAllowCPUAccess && !FPlatformProperties::HasEditorOnlyData());
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
@@ -5620,18 +5586,18 @@ bool UStaticMesh::StreamOut(int32 NewMipCount)
 bool UStaticMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 {
 	check(IsInGameThread());
-	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount > GetNumResidentMips())
+	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamIn(NewMipCount))
 	{
 #if WITH_EDITOR
 		if (FPlatformProperties::HasEditorOnlyData())
 		{
 			if (GRHISupportsAsyncTextureCreation)
 			{
-				PendingUpdate = new FStaticMeshStreamIn_DDC_Async(this, NewMipCount);
+				PendingUpdate = new FStaticMeshStreamIn_DDC_Async(this);
 			}
 			else
 			{
-				PendingUpdate = new FStaticMeshStreamIn_DDC_RenderThread(this, NewMipCount);
+				PendingUpdate = new FStaticMeshStreamIn_DDC_RenderThread(this);
 			}
 		}
 		else
@@ -5640,105 +5606,16 @@ bool UStaticMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 			// When not using threaded rendering, rendercommands get executed on async thread which create issues on some RHI. See EnqueueUniqueRenderCommand() and IsInRenderingThread().
 			if (GRHISupportsAsyncTextureCreation && GIsThreadedRendering)
 			{
-				PendingUpdate = new FStaticMeshStreamIn_IO_Async(this, NewMipCount, bHighPrio);
+				PendingUpdate = new FStaticMeshStreamIn_IO_Async(this, bHighPrio);
 			}
 			else
 			{
-				PendingUpdate = new FStaticMeshStreamIn_IO_RenderThread(this, NewMipCount, bHighPrio);
+				PendingUpdate = new FStaticMeshStreamIn_IO_RenderThread(this, bHighPrio);
 			}
 		}
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
-}
-
-bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
-{
-	bool bUpdatePending = false;
-
-	// if resident and requested mip counts match then no pending request is in flight
-	if (PendingUpdate)
-	{
-		if (IsEngineExitRequested() || !RenderData)
-		{
-			PendingUpdate->Abort();
-		}
-
-		// When there is no renderthread, allow the gamethread to tick as the renderthread.
-		FRenderAssetUpdate::EThreadType TickThread = GIsThreadedRendering ? FRenderAssetUpdate::TT_None : FRenderAssetUpdate::TT_Render;
-		if (HasAnyFlags(RF_BeginDestroyed) && PendingUpdate->GetRelevantThread() == FRenderAssetUpdate::TT_Async)
-		{
-			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
-			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
-			TickThread = FRenderAssetUpdate::TT_GameRunningAsync;
-		}
-		PendingUpdate->Tick(TickThread);
-
-		if (!PendingUpdate->IsCompleted())
-		{
-			bUpdatePending = true;
-		}
-		else
-		{
-#if WITH_EDITOR
-			const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
-#endif
-
-			PendingUpdate.SafeRelease();
-
-#if WITH_EDITOR
-			if (GIsEditor)
-			{
-				// When all the requested mips are streamed in, generate an empty property changed event, to force the
-				// ResourceSize asset registry tag to be recalculated.
-				FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
-				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, EmptyPropertyChangedEvent);
-
-				// We can't load the source art from a bulk data object if the mesh itself is pending kill because the linker will have been detached.
-				// In this case we don't rebuild the data and instead let the streaming request be cancelled. This will let the garbage collector finish
-				// destroying the object.
-				if (bRebuildPlatformData)
-				{
-					// TODO: force rebuild even if DDC keys match
-					ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-					ITargetPlatform* TargetPlatform = TargetPlatformManager.GetRunningTargetPlatform();
-					check(TargetPlatform);
-					const FStaticMeshLODSettings& LODSettings = TargetPlatform->GetStaticMeshLODSettings();
-					RenderData->Cache(TargetPlatform, this, LODSettings);
-					// @TODO this can not be called from this callstack since the entry needs to be removed completely from the streamer.
-					// UpdateResource();
-				}
-			}
-#endif
-		}
-	}
-
-	TickMipLevelChangeCallbacks(DeferredTickCBAssets);
-
-	// TODO: LOD fading?
-
-	return bUpdatePending;
-}
-
-void UStaticMesh::LinkStreaming()
-{
-	if (!IsTemplate() && IStreamingManager::Get().IsMeshStreamingEnabled() && IsStreamingRenderAsset(this))
-	{
-		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingRenderAsset(this);
-	}
-	else
-	{
-		StreamingIndex = INDEX_NONE;
-	}
-}
-
-void UStaticMesh::UnlinkStreaming()
-{
-	if (!IsTemplate() && StreamingIndex != INDEX_NONE)
-	{
-		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
-		RemoveAllMipLevelChangeCallbacks();
-	}
 }
 
 void UStaticMesh::CancelAllPendingStreamingActions()
@@ -5748,7 +5625,7 @@ void UStaticMesh::CancelAllPendingStreamingActions()
 	for (TObjectIterator<UStaticMesh> It; It; ++It)
 	{
 		UStaticMesh* StaticMesh = *It;
-		StaticMesh->CancelPendingMipChangeRequest();
+		StaticMesh->CancelPendingStreamingRequest();
 	}
 
 	FlushRenderingCommands();

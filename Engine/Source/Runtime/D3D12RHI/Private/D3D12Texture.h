@@ -11,7 +11,7 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 	const D3D12_CLEAR_VALUE* ClearValue, 
 	FD3D12ResourceLocation* OutTexture2D, 
 	uint8 Format, 
-	uint32 Flags,
+	ETextureCreateFlags Flags,
 	D3D12_RESOURCE_STATES InitialState,
 	const TCHAR* Name);
 
@@ -217,7 +217,7 @@ protected:
 	FTextureRHIRef AliasingSourceTexture;
 };
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 struct FD3D12TextureLayout {};
 #endif
 
@@ -228,7 +228,7 @@ class TD3D12Texture2D : public BaseResourceType, public FD3D12TextureBase
 public:
 
 	/** Flags used when the texture was created */
-	uint32 Flags;
+	ETextureCreateFlags Flags;
 
 	/** Initialization constructor. */
 	TD3D12Texture2D(
@@ -240,7 +240,7 @@ public:
 		uint32 InNumSamples,
 		EPixelFormat InFormat,
 		bool bInCubemap,
-		uint32 InFlags,
+		ETextureCreateFlags InFlags,
 		const FClearValueBinding& InClearValue,
 		const FD3D12TextureLayout* InTextureLayout = nullptr
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
@@ -381,7 +381,7 @@ public:
 		uint32 InSizeZ,
 		uint32 InNumMips,
 		EPixelFormat InFormat,
-		uint32 InFlags,
+		ETextureCreateFlags InFlags,
 		const FClearValueBinding& InClearValue
 		)
 		: FRHITexture3D(InSizeX, InSizeY, InSizeZ, InNumMips, InFormat, InFlags, InClearValue)
@@ -431,7 +431,7 @@ private:
 class FD3D12BaseTexture2D : public FRHITexture2D, public FD3D12FastClearResource
 {
 public:
-	FD3D12BaseTexture2D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FD3D12BaseTexture2D(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 		: FRHITexture2D(InSizeX, InSizeY, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
 	{}
 	uint32 GetSizeZ() const { return 0; }
@@ -445,7 +445,7 @@ public:
 class FD3D12BaseTexture2DArray : public FRHITexture2DArray, public FD3D12FastClearResource
 {
 public:
-	FD3D12BaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FD3D12BaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 		: FRHITexture2DArray(InSizeX, InSizeY, InSizeZ, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
 	{
 		check(InNumSamples == 1);
@@ -455,7 +455,7 @@ public:
 class FD3D12BaseTextureCube : public FRHITextureCube, public FD3D12FastClearResource
 {
 public:
-	FD3D12BaseTextureCube(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
+	FD3D12BaseTextureCube(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, ETextureCreateFlags InFlags, const FClearValueBinding& InClearValue)
 		: FRHITextureCube(InSizeX, InNumMips, InFormat, InFlags, InClearValue)
 		, SliceCount(InSizeZ)
 	{
@@ -556,20 +556,29 @@ struct TD3D12ResourceTraits<FRHITexture3D>
 {
 	typedef FD3D12Texture3D TConcreteType;
 };
+
 template<>
 struct TD3D12ResourceTraits<FRHITexture2D>
 {
 	typedef FD3D12Texture2D TConcreteType;
 };
+
 template<>
 struct TD3D12ResourceTraits<FRHITexture2DArray>
 {
 	typedef FD3D12Texture2DArray TConcreteType;
 };
+
 template<>
 struct TD3D12ResourceTraits<FRHITextureCube>
 {
 	typedef FD3D12TextureCube TConcreteType;
+};
+
+template<>
+struct TD3D12ResourceTraits<FRHITextureReference>
+{
+	typedef FD3D12TextureReference TConcreteType;
 };
 
 struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHICommandD3D12AsyncReallocateTexture2D>
@@ -592,10 +601,4 @@ struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHIC
 	}
 
 	void Execute(FRHICommandListBase& RHICmdList);
-};
-
-template<>
-struct TD3D12ResourceTraits<FRHITextureReference>
-{
-	typedef FD3D12TextureReference TConcreteType;
 };

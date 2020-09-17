@@ -1249,17 +1249,7 @@ FShaderType* FindShaderTypeByName(const FHashedName& ShaderTypeName)
 }
 
 void DispatchComputeShader(
-	FRHICommandList& RHICmdList,
-	FShader* Shader,
-	uint32 ThreadGroupCountX,
-	uint32 ThreadGroupCountY,
-	uint32 ThreadGroupCountZ)
-{
-	RHICmdList.DispatchComputeShader(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
-}
-
-void DispatchComputeShader(
-	FRHIAsyncComputeCommandListImmediate& RHICmdList,
+	FRHIComputeCommandList& RHICmdList,
 	FShader* Shader,
 	uint32 ThreadGroupCountX,
 	uint32 ThreadGroupCountY,
@@ -1269,7 +1259,7 @@ void DispatchComputeShader(
 }
 
 void DispatchIndirectComputeShader(
-	FRHICommandList& RHICmdList,
+	FRHIComputeCommandList& RHICmdList,
 	FShader* Shader,
 	FRHIVertexBuffer* ArgumentBuffer,
 	uint32 ArgumentOffset)
@@ -1277,6 +1267,35 @@ void DispatchIndirectComputeShader(
 	RHICmdList.DispatchIndirectComputeShader(ArgumentBuffer, ArgumentOffset);
 }
 
+bool IsDxcEnabledForPlatform(EShaderPlatform Platform)
+{
+	if (IsD3DPlatform(Platform, false))
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
+		return (CVar && CVar->GetInt() != 0);
+	}
+	if (IsOpenGLPlatform(Platform))
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.ForceDXC"));
+		return (CVar && CVar->GetInt() != 0);
+	}
+	if (IsMetalPlatform(Platform))
+	{
+		// Hlslcc has been removed for Metal. There is only DXC now.
+		return true;
+	}
+	if (IsVulkanPlatform(Platform))
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.ForceDXC"));
+		int32 VulkanForceDxc = (CVar ? CVar->GetInt() : 0);
+		const bool bIsVulkanMobile = IsVulkanMobilePlatform((EShaderPlatform)Platform);
+		const bool bIsDxcEnabledForDesktop = (VulkanForceDxc == 1 && !bIsVulkanMobile);
+		const bool bIsDxcEnabledForMobile = (VulkanForceDxc == 2 && bIsVulkanMobile);
+		const bool bIsDxcEnableForAll = (VulkanForceDxc == 3);
+		return (bIsDxcEnabledForDesktop || bIsDxcEnabledForMobile || bIsDxcEnableForAll);
+	}
+	return false;
+}
 
 void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 {
@@ -1311,10 +1330,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 	{
 		KeyString += IsUsingBasePassVelocity(Platform) ? TEXT("_GV") : TEXT("");
-	}
-
-	{
-		KeyString += BasePassCanOutputTangent(Platform) ? TEXT("_GT") : TEXT("");
 	}
 
 	{
@@ -1417,13 +1432,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 				KeyString += TEXT("_UnInt");
 			}
 		}
-		{
-			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
-			if (CVar && CVar->GetInt() != 0)
-			{
-				KeyString += TEXT("_DXC");
-			}
-		}
 	}
 
 	if (IsMobilePlatform(Platform))
@@ -1437,11 +1445,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			static const auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.CSM.MaxMobileCascades"));
 			KeyString += (CVar) ? FString::Printf(TEXT("MMC%d"), CVar->GetValueOnAnyThread()) : TEXT("");
 		}	
-
-		{
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseLegacyShadingModel"));
-			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_legshad") : TEXT("");
-		}
 		
 		{
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.ForceFullPrecisionInPS"));
@@ -1460,8 +1463,13 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 
 		{
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableMovableSpotlights"));
-			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MSPTL") : TEXT("");
+			static IConsoleVariable* CVarMobileEnableMovableSpotlights = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableMovableSpotlights"));
+			bool bMobileEnableMovableSpotlights = CVarMobileEnableMovableSpotlights ? (CVarMobileEnableMovableSpotlights->GetInt() != 0) : false;
+			KeyString += (bMobileEnableMovableSpotlights) ? TEXT("_MSPTL") : TEXT("");
+
+			static IConsoleVariable* CVarMobileEnableMovableSpotlightsShadow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableMovableSpotlightsShadow"));
+			bool bMobileEnableMovableSpotlightsShadow = CVarMobileEnableMovableSpotlightsShadow ? (CVarMobileEnableMovableSpotlightsShadow->GetInt() != 0) : false;
+			KeyString += (bMobileEnableMovableSpotlights && bMobileEnableMovableSpotlightsShadow) ? TEXT("S") : TEXT("");
 		}
 		
 		{
@@ -1491,6 +1499,19 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileHDR"));
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobileHDR") : TEXT("");
+		}
+
+		{
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.ShadingPath"));
+			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobDSh") : TEXT("");
+		}
+
+		{
+			static IConsoleVariable* MobileGTAOPreIntegratedTextureTypeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.GTAOPreIntegratedTextureType"));
+			static IConsoleVariable* MobileAmbientOcclusionCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.AmbientOcclusion"));
+			static IConsoleVariable* MobileHDRCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileHDR"));
+			int32 GTAOPreIntegratedTextureType = MobileGTAOPreIntegratedTextureTypeCVar ? MobileGTAOPreIntegratedTextureTypeCVar->GetInt() : 0;
+			KeyString += ((MobileAmbientOcclusionCVar && MobileAmbientOcclusionCVar->GetInt() != 0) && (MobileHDRCVar && MobileHDRCVar->GetInt() !=0)) ? FString::Printf(TEXT("_MobileAO_%d"), GTAOPreIntegratedTextureType) : TEXT("");
 		}
 	}
 
@@ -1563,23 +1584,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			KeyString += TEXT("_ARCHIVE");
 		}
-		{
-			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Metal.ForceDXC"));
-			if (CVar && CVar->GetInt() != 0)
-			{
-				KeyString += TEXT("_DXC");
-			}
-		}
 	}
 
-	if (IsOpenGLPlatform(Platform))
-	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.ForceDXC"));
-		if (CVar && CVar->GetInt() != 0)
-		{
-			KeyString += TEXT("_DXC");
-		}
-	}
+	// Is DXC shader compiler enabled for this platform?
+	KeyString += (IsDxcEnabledForPlatform(Platform) ? TEXT("_DXC1") : TEXT("_DXC0"));
 
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{

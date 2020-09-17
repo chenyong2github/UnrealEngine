@@ -409,19 +409,19 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 	SharedBuffers->AddRef();
 				
 	// Init vertex buffer
-		{
+	{
 		check(MobileRenderData->VertexBuffer);
 		MobileRenderData->VertexBuffer->InitResource();
 
 		FLandscapeVertexFactoryMobile* LandscapeVertexFactory = new FLandscapeVertexFactoryMobile(FeatureLevel);
 		LandscapeVertexFactory->MobileData.PositionComponent = FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, Position), sizeof(FLandscapeMobileVertex), VET_UByte4N);
 		for (uint32 Index = 0; Index < LANDSCAPE_MAX_ES_LOD_COMP; ++Index)
-			{
-				LandscapeVertexFactory->MobileData.LODHeightsComponent.Add
-			(FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, LODHeights) + sizeof(uint8) * 4 * Index, sizeof(FLandscapeMobileVertex), VET_UByte4N));
-			}
+		{
+			LandscapeVertexFactory->MobileData.LODHeightsComponent.Add
+				(FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, LODHeights) + sizeof(uint8) * 4 * Index, sizeof(FLandscapeMobileVertex), VET_UByte4N));
+		}
 
-			LandscapeVertexFactory->InitResource();
+		LandscapeVertexFactory->InitResource();
 		VertexFactory = LandscapeVertexFactory;
 	}
 
@@ -432,12 +432,12 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 		LandscapeVertexFactory->MobileData.PositionComponent = FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, Position), sizeof(FLandscapeMobileVertex), VET_UByte4N);
 		
 		for (uint32 Index = 0; Index < LANDSCAPE_MAX_ES_LOD_COMP; ++Index)
-	{
-		LandscapeVertexFactory->MobileData.LODHeightsComponent.Add
-			(FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, LODHeights) + sizeof(uint8) * 4 * Index, sizeof(FLandscapeMobileVertex), VET_UByte4N));
-	}
+		{
+			LandscapeVertexFactory->MobileData.LODHeightsComponent.Add
+				(FVertexStreamComponent(MobileRenderData->VertexBuffer, STRUCT_OFFSET(FLandscapeMobileVertex, LODHeights) + sizeof(uint8) * 4 * Index, sizeof(FLandscapeMobileVertex), VET_UByte4N));
+		}
 
-	LandscapeVertexFactory->InitResource();
+		LandscapeVertexFactory->InitResource();
 		FixedGridVertexFactory = LandscapeVertexFactory;
 	}
 
@@ -458,20 +458,7 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 		LandscapeFixedGridUniformShaderParameters[LodIndex].SetContents(Parameters);
 	}
 
-	if (GetLandscapeComponent())
-	{
-		const_cast<ULandscapeComponent*>(GetLandscapeComponent())->SetReadyForLODStreaming(true);
-	}
-}
-
-void FLandscapeComponentSceneProxyMobile::DestroyRenderThreadResources()
-{
-	if (GetLandscapeComponent())
-	{
-		const_cast<ULandscapeComponent*>(GetLandscapeComponent())->SetReadyForLODStreaming(false);
-	}
-
-	FLandscapeComponentSceneProxy::DestroyRenderThreadResources();
+	MobileRenderData->bReadyForStreaming = true;
 }
 
 TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> FLandscapeComponentDerivedData::GetRenderData()
@@ -523,16 +510,6 @@ TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> FLandscapeComponentD
 
 		return RenderData;
 	}
-}
-
-int32 ULandscapeLODStreamingProxy::GetNumResidentMips() const
-{
-	check(LandscapeComponent);
-	const int32 NumLODs = GetNumMipsForStreaming();
-	const int32 NumMissingLODs = LandscapeComponent->PlatformData.CachedRenderData.IsValid() ?
-		LandscapeComponent->PlatformData.CachedRenderData->CurrentFirstLODIdx :
-		LandscapeComponent->PlatformData.StreamingLODDataArray.Num();
-	return NumLODs - NumMissingLODs;
 }
 
 void FLandscapeComponentSceneProxyMobile::ApplyMeshElementModifier(FMeshBatchElement& InOutMeshElement, int32 InLodIndex) const

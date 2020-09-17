@@ -1264,8 +1264,7 @@ void GenerateFolliculeMask(
 		OutputDesc.Depth = 0;
 		OutputDesc.Format = Format;
 		OutputDesc.NumMips = MipCount;
-		OutputDesc.Flags = 0;
-		OutputDesc.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV;
+		OutputDesc.Flags = TexCreate_None;
 		OutTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FollicleMask"));
 	}
 
@@ -1295,8 +1294,7 @@ void GenerateFolliculeMask(
 		OutputDesc.Depth = 0;
 		OutputDesc.Format = Format;
 		OutputDesc.NumMips = MipCount;
-		OutputDesc.Flags = 0;
-		OutputDesc.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV;
+		OutputDesc.Flags = TexCreate_None;
 		OutTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FollicleMask"));
 	}
 
@@ -1361,7 +1359,7 @@ void AddComputeMipsPass(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HairStrandsComputeVoxelMip"),
 			Parameters,
-			ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
+			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader, TargetResolution](FRHICommandList& RHICmdList)
 		{
 			const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(FIntPoint(TargetResolution, TargetResolution), FIntPoint(8, 8));

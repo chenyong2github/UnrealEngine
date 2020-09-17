@@ -1025,6 +1025,8 @@ FArchive& operator << (FArchive& Ar, FGfxPipelineDesc& Entry)
 	}
 #endif
 
+	Ar << Entry.UseAlphaToCoverage;
+
 	return Ar;
 }
 
@@ -1109,6 +1111,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	VkPipelineMultisampleStateCreateInfo MSInfo;
 	ZeroVulkanStruct(MSInfo, VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
 	MSInfo.rasterizationSamples = (VkSampleCountFlagBits)FMath::Max<uint16>(1u, GfxEntry->RasterizationSamples);
+	MSInfo.alphaToCoverageEnable = GfxEntry->UseAlphaToCoverage;
 
 	VkPipelineShaderStageCreateInfo ShaderStages[ShaderStage::NumStages];
 	FMemory::Memzero(ShaderStages);
@@ -1533,26 +1536,35 @@ void FVulkanPipelineStateCacheManager::CreateGfxEntry(const FGraphicsPipelineSta
 
 	FDescriptorSetRemappingInfo& RemappingInfo = DescriptorSetLayoutInfo.RemappingInfo;
 
-	for(const FInputAttachmentData& Input : RemappingInfo.InputAttachmentData)
+	if (RemappingInfo.InputAttachmentData.Num())
 	{
-		// check that any depth fetch is actually using depth read sub-pass
-		if(Input.Type == FVulkanShaderHeader::EAttachmentType::Depth)
-		{
-			check(PSOInitializer.SubpassHint == ESubpassHint::DepthReadSubpass);
-			check(PSOInitializer.SubpassIndex == 1);
-		}
+		// input attachements can't exist in a first sub-pass
+		check(PSOInitializer.SubpassHint != ESubpassHint::None); 
+		check(PSOInitializer.SubpassIndex != 0);
 	}
 	OutGfxEntry->SubpassIndex = PSOInitializer.SubpassIndex;
+
+	FVulkanBlendState* BlendState = ResourceCast(PSOInitializer.BlendState);
+
+	OutGfxEntry->UseAlphaToCoverage = PSOInitializer.NumSamples > 1 && BlendState->Initializer.bUseAlphaToCoverage ? 1 : 0;
 
 	const bool bHasTessellation = (PSOInitializer.BoundShaderState.DomainShaderRHI != nullptr);
 
 	OutGfxEntry->RasterizationSamples = PSOInitializer.NumSamples;
 	OutGfxEntry->Topology = (uint32)UEToVulkanTopologyType(Device, PSOInitializer.PrimitiveType, bHasTessellation, OutGfxEntry->ControlPoints);
 	uint32 NumRenderTargets = PSOInitializer.ComputeNumValidRenderTargets();
+	
+	if (PSOInitializer.SubpassHint == ESubpassHint::DeferredShadingSubpass && PSOInitializer.SubpassIndex >= 2)
+	{
+		// GBuffer attachements are not used as output in a shading sub-pass
+		// Only SceneColor is used as a color attachment
+		NumRenderTargets = 1;
+	}
+
 	OutGfxEntry->ColorAttachmentStates.AddUninitialized(NumRenderTargets);
 	for (int32 Index = 0; Index < OutGfxEntry->ColorAttachmentStates.Num(); ++Index)
 	{
-		OutGfxEntry->ColorAttachmentStates[Index].ReadFrom(ResourceCast(PSOInitializer.BlendState)->BlendStates[Index]);
+		OutGfxEntry->ColorAttachmentStates[Index].ReadFrom(BlendState->BlendStates[Index]);
 	}
 
 	{

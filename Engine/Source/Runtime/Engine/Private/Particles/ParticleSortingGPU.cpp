@@ -185,7 +185,10 @@ int32 GenerateParticleSortKeys(
 	KeyGenCS->SetOutput(RHICmdList, KeyBufferUAV, SortedVertexBufferUAV);
 	KeyGenCS->SetPositionTextures(RHICmdList, PositionTextureRHI);
 
-	FRHIUnorderedAccessView* OutputUAVs[] = { KeyBufferUAV, SortedVertexBufferUAV };
+	FRHITransitionInfo UAVTransitions[] = { 
+		FRHITransitionInfo(KeyBufferUAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier),
+		FRHITransitionInfo(SortedVertexBufferUAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier),
+	};
 	// For each simulation, generate keys and store them in the sorting buffers.
 	for (const FParticleSimulationSortInfo& SortInfo : SimulationsToSort)
 	{
@@ -209,7 +212,7 @@ int32 GenerateParticleSortKeys(
 			DispatchComputeShader(RHICmdList, KeyGenCS.GetShader(), GroupCount, 1, 1);
 
 			// TR-KeyGen : No sync needed between tasks since they update different parts of the data (assuming it's ok if cache line overlap).
-			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, OutputUAVs, UE_ARRAY_COUNT(OutputUAVs));
+			RHICmdList.Transition(MakeArrayView(UAVTransitions, UE_ARRAY_COUNT(UAVTransitions)));
 		}
 	}
 

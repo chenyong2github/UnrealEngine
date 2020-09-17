@@ -175,6 +175,7 @@ private:
 	bool GetMeshResult();
 
 	class FMagicLeapMeshTrackerImpl *Impl;
+	float PreviousWorldScale;
 
 #if WITH_EDITOR
 private:

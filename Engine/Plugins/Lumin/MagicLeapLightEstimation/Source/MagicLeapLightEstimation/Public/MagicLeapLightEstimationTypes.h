@@ -24,7 +24,7 @@ enum class EMagicLeapLightEstimationCamera : uint8
 	causing the retrieved data to be stale (old timestamps).
 */
 USTRUCT(BlueprintType)
-struct FMagicLeapLightEstimationAmbientGlobalState
+struct MAGICLEAPLIGHTESTIMATION_API FMagicLeapLightEstimationAmbientGlobalState
 {
 	GENERATED_BODY()
 
@@ -43,7 +43,7 @@ public:
 	causing the retrieved data to be stale (old timestamps).
 */
 USTRUCT(BlueprintType)
-struct FMagicLeapLightEstimationColorTemperatureState
+struct MAGICLEAPLIGHTESTIMATION_API FMagicLeapLightEstimationColorTemperatureState
 {
 	GENERATED_BODY()
 

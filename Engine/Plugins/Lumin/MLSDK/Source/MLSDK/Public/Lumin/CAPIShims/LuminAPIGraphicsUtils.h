@@ -11,17 +11,17 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_graphics_utils.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 #ifdef VK_VERSION_1_0
 CREATE_FUNCTION_SHIM(ml_graphics_utils, MLResult, MLGraphicsEnumerateRequiredVkDeviceExtensionsForMediaHandleImport)
-#define MLGraphicsEnumerateRequiredVkDeviceExtensionsForMediaHandleImport ::MLSDK_API::MLGraphicsEnumerateRequiredVkDeviceExtensionsForMediaHandleImportShim
+#define MLGraphicsEnumerateRequiredVkDeviceExtensionsForMediaHandleImport ::LUMIN_MLSDK_API::MLGraphicsEnumerateRequiredVkDeviceExtensionsForMediaHandleImportShim
 CREATE_FUNCTION_SHIM(ml_graphics_utils, MLResult, MLGraphicsImportVkImageFromMediaHandle)
-#define MLGraphicsImportVkImageFromMediaHandle ::MLSDK_API::MLGraphicsImportVkImageFromMediaHandleShim
+#define MLGraphicsImportVkImageFromMediaHandle ::LUMIN_MLSDK_API::MLGraphicsImportVkImageFromMediaHandleShim
 #endif // VK_VERSION_1_0
 CREATE_FUNCTION_SHIM(ml_graphics_utils, MLResult, MLMeshingPopulateDepth)
-#define MLMeshingPopulateDepth ::MLSDK_API::MLMeshingPopulateDepthShim
+#define MLMeshingPopulateDepth ::LUMIN_MLSDK_API::MLMeshingPopulateDepthShim
 
 }
 

@@ -18,7 +18,7 @@
 // Misc/Helpers
 
 struct FHairStrandClusterCullingData;
-struct FPooledRDGBuffer;
+class FRDGPooledBuffer;
 struct IPooledRenderTarget;
 struct FRWBuffer;
 struct FHairGroupInstance;

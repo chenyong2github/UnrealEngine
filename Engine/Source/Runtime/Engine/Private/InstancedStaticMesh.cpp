@@ -1187,32 +1187,29 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			{
 				const uint32 InstanceIdx = Node.Instance;
 
-				if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(InstanceIdx))
+				FVector InstanceLocation = Node.Center;
+				FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
+				float DistanceToInstanceCenter = VToInstanceCenter.Size();
+				float InstanceRadius = Node.Radius;
+				float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
+
+				// Cull instance based on distance
+				if (DistanceToInstanceStart > BVHCullRadius && ApplyGeneralCulling)
+					continue;
+
+				// Special culling for small scale objects
+				if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
 				{
-					FVector InstanceLocation = Node.Center;
-					FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
-					float DistanceToInstanceCenter = VToInstanceCenter.Size();
-					float InstanceRadius = Node.Radius;
-					float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
-
-					// Cull instance based on distance
-					if (DistanceToInstanceStart > BVHCullRadius && ApplyGeneralCulling)
+					if (DistanceToInstanceStart > BVHLowScaleRadius)
 						continue;
+				}
 
-					// Special culling for small scale objects
-					if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
-					{
-						if (DistanceToInstanceStart > BVHLowScaleRadius)
-							continue;
-					}
+				FMatrix Transform;
+				InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
+				Transform.M[3][3] = 1.0f;
+				FMatrix InstanceTransform = Transform * GetLocalToWorld();
 
-					FMatrix Transform;
-					InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
-					Transform.M[3][3] = 1.0f;
-					FMatrix InstanceTransform = Transform * GetLocalToWorld();
-
-					RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
-                }
+				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
 			}
 		}
 	}
@@ -1221,15 +1218,12 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		// No culling
 		for (int32 InstanceIdx = 0; InstanceIdx < InstanceCount; ++InstanceIdx)
 		{
-			if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(InstanceIdx))
-			{
-				FMatrix Transform;
-				InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
-				Transform.M[3][3] = 1.0f;
-				FMatrix InstanceTransform = Transform * GetLocalToWorld();
+			FMatrix Transform;
+			InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
+			Transform.M[3][3] = 1.0f;
+			FMatrix InstanceTransform = Transform * GetLocalToWorld();
 
-				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
-			}
+			RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
 		}
 	}
 

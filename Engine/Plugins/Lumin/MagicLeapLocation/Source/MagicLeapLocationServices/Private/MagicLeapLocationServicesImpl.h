@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "AppEventHandler.h"
-#include "MagicLeapPluginUtil.h"
 #include "LocationServicesBPLibrary/Classes/LocationServicesImpl.h"
 #include "LocationServicesBPLibrary/Classes/LocationServicesBPLibrary.h"
 #include "MagicLeapLocationServicesImpl.generated.h"

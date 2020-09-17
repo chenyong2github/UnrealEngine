@@ -9,7 +9,6 @@
 #include "MagicLeapControllerKeys.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Async/Async.h"
-#include "MagicLeapPluginUtil.h"
 #include "TouchpadGesturesComponent.h"
 #include "AssetData.h"
 #include "MagicLeap/Private/MagicLeapHMD.h"

@@ -9,7 +9,16 @@
 // Reroute SceneTexturesStruct uniform buffer references to the appropriate base pass uniform buffer
 #if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
 	#define SceneTexturesStruct TranslucentBasePass.SceneTextures 
-	#define EyeAdaptationStruct TranslucentBasePass.SceneTextures
+	#define EyeAdaptationStruct TranslucentBasePass
+	#define SceneColorCopyTexture	TranslucentBasePass.SceneColorCopyTexture
+	#define PreIntegratedGF			TranslucentBasePass.PreIntegratedGFTexture
+	#if SUPPORTS_INDEPENDENT_SAMPLERS
+		#define PreIntegratedGFSampler	View.SharedBilinearClampedSampler
+		#define SceneColorCopySampler	View.SharedBilinearClampedSampler
+	#else
+		#define PreIntegratedGFSampler	TranslucentBasePass.PreIntegratedGFSampler
+		#define SceneColorCopySampler	TranslucentBasePass.SceneColorCopySampler
+	#endif
 #else
 	#define EyeAdaptationStruct OpaqueBasePass
 #endif
@@ -750,8 +759,8 @@ void ApplyBentNormal( in FMaterialPixelParameters MaterialParameters, in float R
 uint GetSelectiveOutputMask()
 {
 	uint Mask = 0;
-#if !WRITES_CUSTOMDATA_TO_GBUFFER
-	Mask |= SKIP_CUSTOMDATA_MASK;
+#if MATERIAL_USES_ANISOTROPY
+	Mask |= HAS_ANISOTROPY_MASK;
 #endif
 #if !GBUFFER_HAS_PRECSHADOWFACTOR
 	Mask |= SKIP_PRECSHADOW_MASK;
@@ -790,9 +799,6 @@ void FPixelShaderInOut_MainPS(
 	// PreShadowFactor
 	float4 OutGBufferE = 0;
 	
-	// Wolrd Space Tangent 
-	float4 OutGBufferF = 0;
-
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, In.SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
 
@@ -1143,7 +1149,7 @@ void FPixelShaderInOut_MainPS(
 			uint GridIndex = 0;
 
 			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-				GridIndex = ComputeLightGridCellIndex((uint2)(MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy), MaterialParameters.SvPosition.w, EyeIndex);
+				GridIndex = ComputeLightGridCellIndex((uint2)(MaterialParameters.SvPosition.xy * View.LightProbeSizeRatioAndInvSizeRatio.zw - ResolvedView.ViewRectMin.xy), MaterialParameters.SvPosition.w, EyeIndex);
 
 				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 					const float Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
@@ -1447,7 +1453,7 @@ void FPixelShaderInOut_MainPS(
 
 		// -0.5 .. 0.5, could be optimzed as lower quality noise would be sufficient
 		float QuantizationBias = PseudoRandom( MaterialParameters.SvPosition.xy ) - 0.5f;
-		EncodeGBuffer(GBuffer, Out.MRT[1], Out.MRT[2], Out.MRT[3], OutGBufferD, OutGBufferE, OutGBufferF, OutVelocity, QuantizationBias);
+		EncodeGBuffer(GBuffer, Out.MRT[1], Out.MRT[2], Out.MRT[3], OutGBufferD, OutGBufferE, OutVelocity, QuantizationBias);
 	#endif 
 
 	if(bEditorWeightedZBuffering)
@@ -1479,14 +1485,12 @@ void FPixelShaderInOut_MainPS(
 #if USES_GBUFFER
 	#if GBUFFER_HAS_VELOCITY
 		Out.MRT[4] = OutVelocity;
-	#elif GBUFFER_HAS_TANGENT
-		Out.MRT[4] = OutGBufferF;
 	#endif
 
-	Out.MRT[GBUFFER_HAS_VELOCITY || GBUFFER_HAS_TANGENT ? 5 : 4] = OutGBufferD;
+	Out.MRT[GBUFFER_HAS_VELOCITY ? 5 : 4] = OutGBufferD;
 
 	#if GBUFFER_HAS_PRECSHADOWFACTOR
-		Out.MRT[GBUFFER_HAS_VELOCITY || GBUFFER_HAS_TANGENT ? 6 : 5] = OutGBufferE;
+		Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = OutGBufferE;
 	#endif
 #else
 	// If not using the full gbuffer (forward shading) the velocity buffer can still be written to in the basepass.
@@ -1550,11 +1554,11 @@ void FPixelShaderInOut_MainPS(
 #define PIXELSHADEROUTPUT_MRT1 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
 #define PIXELSHADEROUTPUT_MRT2 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
 #define PIXELSHADEROUTPUT_MRT3 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
-	#if GBUFFER_HAS_VELOCITY || GBUFFER_HAS_TANGENT
-		#define PIXELSHADEROUTPUT_MRT4 WRITES_VELOCITY_TO_GBUFFER || GBUFFER_HAS_TANGENT
+	#if GBUFFER_HAS_VELOCITY
+		#define PIXELSHADEROUTPUT_MRT4 WRITES_VELOCITY_TO_GBUFFER
 		#define PIXELSHADEROUTPUT_MRT5 (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_CUSTOMDATA_TO_GBUFFER)
 		#define PIXELSHADEROUTPUT_MRT6 (GBUFFER_HAS_PRECSHADOWFACTOR && (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_PRECSHADOWFACTOR_TO_GBUFFER && !MATERIAL_SHADINGMODEL_UNLIT))
-	#else //GBUFFER_HAS_VELOCITY || GBUFFER_HAS_TANGENT
+	#else //GBUFFER_HAS_VELOCITY
 		#define PIXELSHADEROUTPUT_MRT4 (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_CUSTOMDATA_TO_GBUFFER)
 		#define PIXELSHADEROUTPUT_MRT5 (GBUFFER_HAS_PRECSHADOWFACTOR && (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_PRECSHADOWFACTOR_TO_GBUFFER && !MATERIAL_SHADINGMODEL_UNLIT))
 	#endif //GBUFFER_HAS_VELOCITY

@@ -15,24 +15,14 @@
 {
     if (self = [super init]) {
         _owner = &owner;
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-        if ([GKLocalPlayer instancesRespondToSelector : @selector(registerListener:)] == YES)
-#endif
-		{
-			[[GKLocalPlayer localPlayer] registerListener:self];
-		}
+        [[GKLocalPlayer localPlayer] registerListener:self];
     }
     return self;
 }
 
 - (void)dealloc
 {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-	if ([GKLocalPlayer instancesRespondToSelector : @selector(unregisterListener:)] == YES)
-#endif
-	{
-		[[GKLocalPlayer localPlayer] unregisterListener:self];
-	}
+    [[GKLocalPlayer localPlayer] unregisterListener:self];
     [super dealloc];
 }
 

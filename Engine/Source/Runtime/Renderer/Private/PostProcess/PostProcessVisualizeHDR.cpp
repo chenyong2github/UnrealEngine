@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessVisualizeHDR.h"
 #include "PostProcess/PostProcessTonemap.h"
 #include "Curves/CurveFloat.h"
+#include "UnrealEngine.h"
 
 extern bool IsExtendLuminanceRangeEnabled();
 
@@ -216,6 +217,11 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 
 		Canvas.DrawShadowedString(X, Y += YStep, TEXT("Histogram EV100 Min/Max:"), GetStatsFont(), FLinearColor(1, 1, 1));
 		Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(0.3f, 0.3f, 1));
+
+		Line = FString::Printf(TEXT("%.5g"), View.PreExposure);
+		Canvas.DrawShadowedString(X, Y += YStep, TEXT("PreExposure Value:"), GetStatsFont(), FLinearColor(1, 1, 1));
+		Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(0.3f, 0.3f, 1));
+
 
 	});
 

@@ -6,7 +6,6 @@
 
 #include "HlslParser.h"
 #include "HlslExpressionParser.inl"
-#include "CCIR.h"
 
 namespace CrossCompiler
 {
@@ -2039,8 +2038,6 @@ Done:
 
 			//Parser.Scanner.Dump();
 
-			IR::FIRCreator IRCreator(&Allocator);
-
 			bool bSuccess = true;
 			TLinearArray<AST::FNode*> Nodes(&Allocator);
 			while (Parser.Scanner.HasMoreTokens())
@@ -2080,8 +2077,6 @@ Done:
 			{
 				return false;
 			}
-
-			IR::FIRCreator IRCreator(&Allocator);
 
 			bool bSuccess = true;
 			TLinearArray<AST::FNode*> Nodes(&Allocator);

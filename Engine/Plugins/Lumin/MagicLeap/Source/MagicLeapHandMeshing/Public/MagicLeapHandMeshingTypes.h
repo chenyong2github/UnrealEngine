@@ -7,7 +7,7 @@
 
 /** Stores a hand mesh's vertices and indices. */
 USTRUCT(BlueprintType)
-struct FMagicLeapHandMeshBlock
+struct MAGICLEAPHANDMESHING_API FMagicLeapHandMeshBlock
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -30,7 +30,7 @@ struct FMagicLeapHandMeshBlock
 
 /** Stores MLHandMeshBlock data. */
 USTRUCT(BlueprintType)
-struct FMagicLeapHandMesh
+struct MAGICLEAPHANDMESHING_API FMagicLeapHandMesh
 {
 	GENERATED_USTRUCT_BODY()
 

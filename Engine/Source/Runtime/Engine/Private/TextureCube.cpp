@@ -103,7 +103,7 @@ uint32 UTextureCube::CalcTextureMemorySize( int32 MipCount ) const
 		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
 		
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, FMath::Max( 1, MipCount ), 0, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, FMath::Max( 1, MipCount ), TexCreate_None, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 		Size = (uint32)TextureSize;
 	}
 	return Size;
@@ -205,7 +205,7 @@ public:
 		INC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
 
 		// Create the RHI texture.
-		uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0)  | (Owner->bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed);
+		ETextureCreateFlags TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (Owner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed);
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->GetExtData() : 0;
 		TextureCubeRHI = RHICreateTextureCube( Owner->GetSizeX(), Owner->GetPixelFormat(), Owner->GetNumMips(), TexCreateFlags, CreateInfo );

@@ -225,15 +225,15 @@ void FHardwareTargetingModule::GatherSettings(FMetaSettingGatherer& Builder)
 		// Bloom works and isn't terribly expensive on anything beyond low-end
 		UE_META_SETTING_ENTRY(Builder, URendererSettings, bDefaultFeatureBloom, !bLowEndMobile);
 
-		// Separate translucency does nothing in the ES2 renderer
+		// Separate translucency
 		UE_META_SETTING_ENTRY(Builder, URendererSettings, bSeparateTranslucency, !bAnyMobile);
 
-		// Motion blur, auto-exposure, and ambient occlusion don't work in the ES2 renderer
+		// Motion blur, auto-exposure, and ambient occlusion
 		UE_META_SETTING_ENTRY(Builder, URendererSettings, bDefaultFeatureMotionBlur, bHighEndPC);
 		UE_META_SETTING_ENTRY(Builder, URendererSettings, bDefaultFeatureAutoExposure, bHighEndPC);
 		UE_META_SETTING_ENTRY(Builder, URendererSettings, bDefaultFeatureAmbientOcclusion, bAnyPC);
 
-		// lens flare doesn't work in the ES2 renderer, the quality is low and the feature is controversial
+		// lens flare
 		UE_META_SETTING_ENTRY(Builder, URendererSettings, bDefaultFeatureLensFlare, false);
 
 		// DOF and AA work on mobile but are expensive, keeping them off by default

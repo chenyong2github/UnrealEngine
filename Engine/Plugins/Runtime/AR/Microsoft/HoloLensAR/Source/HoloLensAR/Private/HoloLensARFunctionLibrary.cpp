@@ -4,19 +4,6 @@
 #include "HoloLensModule.h"
 #include "Engine/Engine.h"
 
-
-
-bool UHoloLensARFunctionLibrary::IsWMRAnchorStoreReady()
-{
-	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
-	if (!ARSystem.IsValid())
-	{
-		return false;
-	}
-
-	return ARSystem->IsWMRAnchorStoreReady();
-}
-
 UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPin(FName Name, const FTransform& PinToWorldTransform)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
@@ -24,17 +11,7 @@ UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPin(FName Name, const FTrans
 	{
 		return nullptr;
 	}
-	return ARSystem->CreateNamedARPin(Name, PinToWorldTransform);
-}
-
-bool UHoloLensARFunctionLibrary::PinComponentToARPin(USceneComponent* ComponentToPin, UWMRARPin* Pin)
-{
-	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
-	if (!ARSystem.IsValid())
-	{
-		return false;
-	}
-	return ARSystem->PinComponentToARPin(ComponentToPin, Pin);
+	return ARSystem->WMRCreateNamedARPin(Name, PinToWorldTransform);
 }
 
 TArray<UWMRARPin*> UHoloLensARFunctionLibrary::LoadWMRAnchorStoreARPins()
@@ -45,7 +22,7 @@ TArray<UWMRARPin*> UHoloLensARFunctionLibrary::LoadWMRAnchorStoreARPins()
 		static TArray<UWMRARPin*> Empty;
 		return Empty;
 	}
-	return ARSystem->LoadWMRAnchorStoreARPins();
+	return ARSystem->WMRLoadWMRAnchorStoreARPins();
 }
 
 bool UHoloLensARFunctionLibrary::SaveARPinToWMRAnchorStore(UARPin* InPin)
@@ -61,7 +38,7 @@ bool UHoloLensARFunctionLibrary::SaveARPinToWMRAnchorStore(UARPin* InPin)
 		return false;
 	}
 
-	return ARSystem->SaveARPinToAnchorStore(InPin);
+	return ARSystem->WMRSaveARPinToAnchorStore(InPin);
 }
 
 void UHoloLensARFunctionLibrary::RemoveARPinFromWMRAnchorStore(UARPin* InPin)
@@ -77,18 +54,9 @@ void UHoloLensARFunctionLibrary::RemoveARPinFromWMRAnchorStore(UARPin* InPin)
 		return;
 	}
 
-	ARSystem->RemoveARPinFromAnchorStore(InPin);
+	ARSystem->WMRRemoveARPinFromAnchorStore(InPin);
 }
 
-void UHoloLensARFunctionLibrary::RemoveAllARPinsFromWMRAnchorStore()
-{
-	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
-	if (!ARSystem.IsValid())
-	{
-		return;
-	}
-	ARSystem->RemoveAllARPinsFromAnchorStore();
-}
 
 void UHoloLensARFunctionLibrary::SetEnabledMixedRealityCamera(bool IsEnabled)
 {
@@ -168,6 +136,38 @@ void UHoloLensARFunctionLibrary::StopCameraCapture()
 	ARSystem->StopCameraCapture();
 }
 
+void UHoloLensARFunctionLibrary::StartQRCodeCapture()
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return;
+	}
+
+	ARSystem->SetupQRCodeTracking();
+}
+
+void UHoloLensARFunctionLibrary::StopQRCodeCapture()
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return;
+	}
+
+	ARSystem->StopQRCodeTracking();
+}
+
+bool UHoloLensARFunctionLibrary::ShowKeyboard()
+{
+	return false;
+}
+
+bool UHoloLensARFunctionLibrary::HideKeyboard()
+{
+	return false;
+}
+
 UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName Name, const FString& AnchorId)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
@@ -175,5 +175,5 @@ UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName Name, 
 	{
 		return nullptr;
 	}
-	return ARSystem->CreateNamedARPinAroundAnchor(Name, AnchorId);
+	return ARSystem->WMRCreateNamedARPinAroundAnchor(Name, AnchorId);
 }

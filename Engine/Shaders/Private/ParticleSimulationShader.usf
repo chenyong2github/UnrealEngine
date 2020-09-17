@@ -385,7 +385,7 @@ void CollideWithDepthBuffer(
 			WorldNormal *= sign(dot(View.WorldCameraOrigin - NewPosition, WorldNormal));
 #else //!FORWARD_SHADING_NORMAL_CALC
 			// Sample the normal buffer to create a plane to collide against.
-			float3 WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct.GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
+			float3 WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
 #endif
 			float4 CollisionPlane = float4(WorldNormal, dot(WorldPosition.xyz,WorldNormal));
 

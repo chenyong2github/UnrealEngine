@@ -142,10 +142,8 @@ static void FD3D11DumpLiveObjects()
 {
 	if (D3D11RHI_ShouldCreateWithD3DDebug())
 	{
-		FD3D11DynamicRHI* D3DRHI = (FD3D11DynamicRHI*)GDynamicRHI;
-
 		TRefCountPtr<ID3D11Debug> DebugDevice = nullptr;
-		VERIFYD3D11RESULT_EX(D3DRHI->GetDevice()->QueryInterface(__uuidof(ID3D11Debug), (void**)DebugDevice.GetInitReference()), D3DRHI->GetDevice());
+		VERIFYD3D11RESULT_EX(GD3D11RHI->GetDevice()->QueryInterface(__uuidof(ID3D11Debug), (void**)DebugDevice.GetInitReference()), GD3D11RHI->GetDevice());
 		if (DebugDevice)
 		{
 			HRESULT HR = DebugDevice->ReportLiveDeviceObjects(D3D11_RLDO_SUMMARY|D3D11_RLDO_DETAIL);
@@ -945,7 +943,18 @@ void FD3D11DynamicRHIModule::FindAdapter()
 				if(bIsNVIDIA) bIsAnyNVIDIA = true;
 
 				// Simple heuristic but without profiling it's hard to do better
-				const bool bIsIntegrated = bIsIntel;
+				bool bIsNonLocalMemoryPresent = false;
+				if (bIsIntel)
+				{
+					TRefCountPtr<IDXGIAdapter3> TempDxgiAdapter3;
+					DXGI_QUERY_VIDEO_MEMORY_INFO NonLocalVideoMemoryInfo;
+					if (SUCCEEDED(TempAdapter->QueryInterface(_uuidof(IDXGIAdapter3), (void**)TempDxgiAdapter3.GetInitReference())) &&
+						TempDxgiAdapter3.IsValid() && SUCCEEDED(TempDxgiAdapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &NonLocalVideoMemoryInfo)))
+					{
+						bIsNonLocalMemoryPresent = NonLocalVideoMemoryInfo.Budget != 0;
+					}
+				}
+				const bool bIsIntegrated = bIsIntel && !bIsNonLocalMemoryPresent;
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description,TEXT("NVIDIA PerfHUD"));
 
@@ -1000,7 +1009,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 		}
 	}
 
-	if(bFavorNonIntegrated && (bIsAnyAMD || bIsAnyNVIDIA))
+	if(bFavorNonIntegrated)
 	{
 		ChosenAdapter = FirstWithoutIntegratedAdapter;
 
@@ -1038,20 +1047,16 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	check(DXGIFactory1);
 
 	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);
+	FDynamicRHI* FinalRHI = GD3D11RHI;
+
 #if ENABLE_RHI_VALIDATION
 	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
 	{
-		GValidationRHI = new FValidationRHI(GD3D11RHI);
+		FinalRHI = new FValidationRHI(FinalRHI);
 	}
-	else
-	{
-		check(!GValidationRHI);
-	}
-
-	return GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)GD3D11RHI;
-#else
-	return GD3D11RHI;
 #endif
+
+	return FinalRHI;
 }
 
 void FD3D11DynamicRHI::Init()
@@ -2057,8 +2062,13 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		GRHISupportsFirstInstance = true;
 		GRHINeedsExtraDeletionLatency = false;
 
-		GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
-		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
+		// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
+		GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
+		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
+
+		// Now that the driver extensions have been initialized, turn on UAV overlap for the first time.
+		EnableUAVOverlap();
+
 		FRenderResource::InitPreRHIResources();
 		GIsRHIInitialized = true;
 	}

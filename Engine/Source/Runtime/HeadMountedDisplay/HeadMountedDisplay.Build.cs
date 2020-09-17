@@ -36,9 +36,16 @@ public class HeadMountedDisplay : ModuleRules
 
         PublicDependencyModuleNames.AddRange(
             new string[] {
-                "AugmentedReality"
+                "AugmentedReality",
             }
         );
+
+        PublicIncludePathModuleNames.AddRange(
+            new string[]
+            {
+            }
+       );
+
 
         if (Target.bBuildEditor == true)
 		{

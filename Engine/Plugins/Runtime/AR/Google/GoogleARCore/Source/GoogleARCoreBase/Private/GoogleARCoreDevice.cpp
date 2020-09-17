@@ -6,18 +6,22 @@
 #include "HAL/ThreadSafeCounter64.h"
 #include "GameFramework/WorldSettings.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Engine/World.h" // for FWorldDelegates
 #include "Engine/Engine.h"
 #include "GeneralProjectSettings.h"
 #include "GoogleARCoreXRTrackingSystem.h"
 #include "GoogleARCoreAndroidHelper.h"
 #include "GoogleARCoreBaseLogCategory.h"
+#include "GoogleARCoreTexture.h"
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #endif
 
 #include "GoogleARCorePermissionHandler.h"
+
+DECLARE_CYCLE_STAT(TEXT("UpdateGameFrame"), STAT_UpdateGameFrame, STATGROUP_ARCore);
+
+#define NUM_CAMERA_TEXTURES 4
 
 int32 GARCoreEnableVulkanSupport = 0;
 static FAutoConsoleVariableRef CVarARCoreEnableVulkanSupport(
@@ -71,14 +75,7 @@ FGoogleARCoreDevice* FGoogleARCoreDevice::GetInstance()
 }
 
 FGoogleARCoreDevice::FGoogleARCoreDevice()
-	: PassthroughCameraTexture(nullptr)
-	, PassthroughCameraTextureId(-1)
-	, bIsARCoreSessionRunning(false)
-	, bForceLateUpdateEnabled(false)
-	, bSessionConfigChanged(false)
-	, bAndroidRuntimePermissionsRequested(false)
-	, bAndroidRuntimePermissionsGranted(false)
-	, bPermissionDeniedByUser(false)
+	: bIsARCoreSessionRunning(false)
 	, bStartSessionRequested(false)
 	, bShouldSessionRestart(false)
 	, bARCoreInstallRequested(false)
@@ -116,13 +113,10 @@ void FGoogleARCoreDevice::OnModuleLoaded()
 {
 	// Init display orientation.
 	OnDisplayOrientationChanged();
-
-	FWorldDelegates::OnWorldTickStart.AddRaw(this, &FGoogleARCoreDevice::OnWorldTickStart);
 }
 
 void FGoogleARCoreDevice::OnModuleUnloaded()
 {
-	FWorldDelegates::OnWorldTickStart.RemoveAll(this);
 	// clear the shared ptr.
 	ARCoreSession.Reset();
 	FrontCameraARCoreSession.Reset();
@@ -149,8 +143,14 @@ void FGoogleARCoreDevice::StartARCoreSessionRequest(UARSessionConfig* SessionCon
 {
 	UE_LOG(LogGoogleARCore, Log, TEXT("Start ARCore session requested."));
 	
+	if (!GCObject)
+	{
+		GCObject = MakeShared<FInternalGCObject, ESPMode::ThreadSafe>(this);
+	}
+	
 #if PLATFORM_ANDROID
-	if (ShouldUseVulkan() && !GARCoreEnableVulkanSupport)
+	// Vulkan support is currently disabled, until it's revisited and fixed
+	if (ShouldUseVulkan()) // !GARCoreEnableVulkanSupport
 	{
 		UE_LOG(LogGoogleARCore, Error, TEXT("StartARCoreSessionRequest ignored - ARCore requires an OpenGL context, but we're using Vulkan!"));
 		return;
@@ -180,8 +180,6 @@ void FGoogleARCoreDevice::StartARCoreSessionRequest(UARSessionConfig* SessionCon
 	}
 
 	bStartSessionRequested = true;
-	// Re-request permission if necessary
-	bPermissionDeniedByUser = false;
 	bARCoreInstallRequested = false;
 
 	// Try recreating the ARCoreSession to fix the fatal error.
@@ -296,8 +294,10 @@ bool FGoogleARCoreDevice::GetStartSessionRequestFinished()
 }
 
 // Note that this function will only be registered when ARCore is supported.
-void FGoogleARCoreDevice::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaTime)
+void FGoogleARCoreDevice::UpdateGameFrame(UWorld* World)
 {
+	SCOPE_CYCLE_COUNTER(STAT_UpdateGameFrame);
+	
 	WorldToMeterScale = World->GetWorldSettings()->WorldToMeters;
 	TFunction<void()> Func;
 	while (RunOnGameThreadQueue.Dequeue(Func))
@@ -327,8 +327,7 @@ void FGoogleARCoreDevice::OnWorldTickStart(UWorld* World, ELevelTick TickType, f
 				bARCoreInstallRequested = true;
 			}
 		}
-
-		else if (bPermissionDeniedByUser)
+		else if (PermissionStatus == EARCorePermissionStatus::Denied)
 		{
 			CurrentSessionStatus.Status = EARSessionStatus::PermissionNotGranted;
 			CurrentSessionStatus.AdditionalInfo = TEXT("Camera permission has been denied by the user.");
@@ -339,7 +338,7 @@ void FGoogleARCoreDevice::OnWorldTickStart(UWorld* World, ELevelTick TickType, f
 			CheckAndRequrestPermission(*AccessSessionConfig());
 			// Either we don't need to request permission or the permission request is done.
 			// Queue the session start task on UiThread
-			if (!bAndroidRuntimePermissionsRequested)
+			if (PermissionStatus == EARCorePermissionStatus::Granted)
 			{
 				StartSessionWithRequestedConfig();
 			}
@@ -365,20 +364,18 @@ void FGoogleARCoreDevice::OnWorldTickStart(UWorld* World, ELevelTick TickType, f
 		}
 		else
 		{
-			// Copy the camera GPU texture to a normal Texture2D so that we can get around the multi-threaded rendering issue.
-			if (!CameraBlitter)
+			if (auto Frame = ARCoreSession->GetLatestFrame())
 			{
-				CameraBlitter = MakeShared<FGoogleARCoreDeviceCameraBlitter, ESPMode::ThreadSafe>();
+				LastCameraTextureId = Frame->GetCameraTextureId();
+				Frame->UpdateDepthTexture(DepthTexture);
 			}
-			
-			CameraBlitter->DoBlit(PassthroughCameraTextureId, SessionCameraConfig.CameraTextureResolution);
 		}
 	}
 }
 
-void FGoogleARCoreDevice::CheckAndRequrestPermission(const UARSessionConfig& ConfigurationData)
+EARCorePermissionStatus FGoogleARCoreDevice::CheckAndRequrestPermission(const UARSessionConfig& ConfigurationData)
 {
-	if (!bAndroidRuntimePermissionsRequested)
+	if (PermissionStatus == EARCorePermissionStatus::Unknown)
 	{
 		TArray<FString> RuntimePermissions;
 		TArray<FString> NeededPermissions;
@@ -393,22 +390,23 @@ void FGoogleARCoreDevice::CheckAndRequrestPermission(const UARSessionConfig& Con
 				}
 			}
 		}
+		
 		if (NeededPermissions.Num() > 0)
 		{
-			bAndroidRuntimePermissionsGranted = false;
-			bAndroidRuntimePermissionsRequested = true;
+			PermissionStatus = EARCorePermissionStatus::Requested;
 			if (PermissionHandler == nullptr)
 			{
 				PermissionHandler = NewObject<UARCoreAndroidPermissionHandler>();
-				PermissionHandler->AddToRoot();
 			}
 			PermissionHandler->RequestRuntimePermissions(NeededPermissions);
 		}
 		else
 		{
-			bAndroidRuntimePermissionsGranted = true;
+			PermissionStatus = EARCorePermissionStatus::Granted;
 		}
 	}
+	
+	return PermissionStatus;
 }
 
 void FGoogleARCoreDevice::HandleRuntimePermissionsGranted(const TArray<FString>& RuntimePermissions, const TArray<bool>& Granted)
@@ -426,13 +424,8 @@ void FGoogleARCoreDevice::HandleRuntimePermissionsGranted(const TArray<FString>&
 			UE_LOG(LogGoogleARCore, Log, TEXT("Android runtime permission granted: %s"), *RuntimePermissions[i]);
 		}
 	}
-	bAndroidRuntimePermissionsRequested = false;
-	bAndroidRuntimePermissionsGranted = bGranted;
-
-	if (!bGranted)
-	{
-		bPermissionDeniedByUser = true;
-	}
+	
+	PermissionStatus = bGranted ? EARCorePermissionStatus::Granted : EARCorePermissionStatus::Denied;
 }
 
 void FGoogleARCoreDevice::StartSessionWithRequestedConfig()
@@ -444,18 +437,6 @@ void FGoogleARCoreDevice::StartSessionWithRequestedConfig()
 		GLContext = FGoogleARCoreOpenGLContext::CreateContext();
 	}
 	
-	// Allocate passthrough camera texture if necessary.
-	if (PassthroughCameraTexture == nullptr)
-	{
-		ENQUEUE_RENDER_COMMAND(UpdateCameraImageUV)(
-			[ARCoreDevicePtr = this](FRHICommandListImmediate& RHICmdList)
-			{
-				ARCoreDevicePtr->AllocatePassthroughCameraTexture_RenderThread();
-			}
-		);
-		FlushRenderingCommands();
-	}
-
 	UARSessionConfig* RequestedConfig = AccessSessionConfig();
 	UGoogleARCoreSessionConfig* ARCoreConfig = Cast<UGoogleARCoreSessionConfig>(RequestedConfig);
 	bool bUseFrontCamera = (ARCoreConfig != nullptr && ARCoreConfig->CameraFacing == EGoogleARCoreCameraFacing::Front)
@@ -483,6 +464,12 @@ void FGoogleARCoreDevice::StartSessionWithRequestedConfig()
 	if (!ARCoreSession.IsValid())
 	{
 		return;
+	}
+	
+	// Allocate passthrough camera texture if necessary.
+	if (!PassthroughCameraTextures.Num())
+	{
+		AllocatePassthroughCameraTextures();
 	}
 
 	StartSession();
@@ -540,8 +527,10 @@ void FGoogleARCoreDevice::StartSession()
 		return;
 	}
 
-	check(PassthroughCameraTextureId != -1);
-	ARCoreSession->SetCameraTextureId(PassthroughCameraTextureId);
+	check(PassthroughCameraTextures.Num());
+	TArray<uint32> TextureIds;
+	PassthroughCameraTextures.GetKeys(TextureIds);
+	ARCoreSession->SetCameraTextureIds(TextureIds);
 
 	EGoogleARCoreCameraFacing CameraFacing = EGoogleARCoreCameraFacing::Back;
 	const UGoogleARCoreSessionConfig *GoogleConfig = Cast<UGoogleARCoreSessionConfig>(RequestedConfig);
@@ -552,6 +541,48 @@ void FGoogleARCoreDevice::StartSession()
 
 	TArray<FGoogleARCoreCameraConfig> SupportedCameraConfigs = ARCoreSession->GetSupportedCameraConfig();
 	FGoogleARCoreDelegates::OnCameraConfig.Broadcast(SupportedCameraConfigs);
+	
+	UE_LOG(LogGoogleARCore, Log, TEXT("Got %d supported camera config from ARCore:"), SupportedCameraConfigs.Num());
+	for (int Index = 0; Index < SupportedCameraConfigs.Num(); ++Index)
+	{
+		UE_LOG(LogGoogleARCore, Log, TEXT("%d: %s"), Index + 1, *SupportedCameraConfigs[Index].ToLogString());
+	}
+
+	// If the session config specifies a meaningful video format, we'll try to match it here
+	const FARVideoFormat DesiredVideoFormat = RequestedConfig->GetDesiredVideoFormat();
+	if (DesiredVideoFormat.Width > 0 && DesiredVideoFormat.Height > 0)
+	{
+		if (DesiredVideoFormat.FPS == 30 || DesiredVideoFormat.FPS == 60)
+		{
+			const FGoogleARCoreCameraConfig* MatchCameraConfig = nullptr;
+			for (const FGoogleARCoreCameraConfig& CameraConfig : SupportedCameraConfigs)
+			{
+				if (CameraConfig.CameraTextureResolution.X == DesiredVideoFormat.Width &&
+					CameraConfig.CameraTextureResolution.Y == DesiredVideoFormat.Height &&
+					CameraConfig.GetMaxFPS() == DesiredVideoFormat.FPS)
+				{
+					MatchCameraConfig = &CameraConfig;
+					break;
+				}
+			}
+
+			if (MatchCameraConfig)
+			{
+				SetARCameraConfig(*MatchCameraConfig);
+				UE_LOG(LogGoogleARCore, Log, TEXT("Found and applied camera config matching video format (%d x %d, %d FPS): %s"),
+					DesiredVideoFormat.Width, DesiredVideoFormat.Height, DesiredVideoFormat.FPS, *MatchCameraConfig->ToLogString());
+			}
+			else
+			{
+				UE_LOG(LogGoogleARCore, Warning, TEXT("Couldn't find any camera config matching desired video format (%d x %d, %d FPS)"),
+					DesiredVideoFormat.Width, DesiredVideoFormat.Height, DesiredVideoFormat.FPS);
+			}
+		}
+		else
+		{
+			UE_LOG(LogGoogleARCore, Warning, TEXT("ARCore camera only supports 30/60 FPS"));
+		}
+	}
 
 	Status = ARCoreSession->Resume();
 
@@ -574,20 +605,16 @@ void FGoogleARCoreDevice::StartSession()
 		return;
 	}
 
-	if (GEngine->XRSystem.IsValid())
+	if (auto TrackingSystem = FGoogleARCoreXRTrackingSystem::GetInstance())
 	{
-		FGoogleARCoreXRTrackingSystem* ARCoreTrackingSystem = static_cast<FGoogleARCoreXRTrackingSystem*>(GEngine->XRSystem.Get());
-		if (ARCoreTrackingSystem)
-		{
-			const bool bMatchFOV = RequestedConfig->ShouldRenderCameraOverlay();
-			ARCoreTrackingSystem->ConfigARCoreXRCamera(bMatchFOV, RequestedConfig->ShouldRenderCameraOverlay());
-		}
-		else
-		{
-			UE_LOG(LogGoogleARCore, Error, TEXT("ERROR: GoogleARCoreXRTrackingSystem is not available."));
-		}
+		const bool bMatchFOV = RequestedConfig->ShouldRenderCameraOverlay();
+		TrackingSystem->ConfigARCoreXRCamera(bMatchFOV, RequestedConfig->ShouldRenderCameraOverlay());
 	}
-
+	else
+	{
+		UE_LOG(LogGoogleARCore, Error, TEXT("ERROR: GoogleARCoreXRTrackingSystem is not available."));
+	}
+	
 	ARCoreSession->GetARCameraConfig(SessionCameraConfig);
 
 	bIsARCoreSessionRunning = true;
@@ -664,37 +691,41 @@ void FGoogleARCoreDevice::ResetARCoreSession()
 	BackCameraARCoreSession.Reset();
 	CurrentSessionStatus.Status = EARSessionStatus::NotStarted;
 	CurrentSessionStatus.AdditionalInfo = TEXT("ARCore Session is uninitialized.");
-	// Release the CameraBlitter first as it may need to release resources created from the GLContext
 	if (GLContext)
 	{
-		CameraBlitter = nullptr;
 		GLContext = nullptr;
 	}
+	
+	PassthroughCameraTextures = {};
+	LastCameraTextureId = 0;
 }
 
-void FGoogleARCoreDevice::AllocatePassthroughCameraTexture_RenderThread()
+void FGoogleARCoreDevice::AllocatePassthroughCameraTextures()
 {
-	if (ShouldUseVulkan())
+	FGoogleARCoreCameraConfig CameraConfig;
+	GetARCameraConfig(CameraConfig);
+	
+	TArray<UARCoreCameraTexture*> Textures;
+	for (auto Index = 0; Index < NUM_CAMERA_TEXTURES; ++Index)
 	{
-		check(GLContext);
-		PassthroughCameraTextureId = GLContext->GetCameraTextureId();
+		if (auto Texture = UARTexture::CreateARTexture<UARCoreCameraTexture>(EARTextureType::CameraImage))
+		{
+			Texture->Size = { (float)CameraConfig.CameraTextureResolution.X, (float)CameraConfig.CameraTextureResolution.Y };
+			Texture->UpdateResource();
+			Textures.Add(Texture);
+		}
 	}
-	else
+	
+	FlushRenderingCommands();
+	
+	for (auto Texture : Textures)
 	{
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		FRHIResourceCreateInfo CreateInfo;
-		
-		PassthroughCameraTexture = RHICmdList.CreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
-		
-		void* NativeResource = PassthroughCameraTexture->GetNativeResource();
-		check(NativeResource);
-		PassthroughCameraTextureId = *reinterpret_cast<uint32*>(NativeResource);
+		auto TextureId = Texture->GetTextureId();
+		check(TextureId);
+		PassthroughCameraTextures.Add(TextureId, Texture);
+		UE_LOG(LogGoogleARCore, Log, TEXT("Created external camera texture of size (%.0f x %.0f) with texture Id (%d) and external texture Guid (%s)"),
+			   Texture->Size.X, Texture->Size.Y, TextureId, *Texture->ExternalTextureGuid.ToString());
 	}
-}
-
-FTextureRHIRef FGoogleARCoreDevice::GetPassthroughCameraTexture()
-{
-	return PassthroughCameraTexture;
 }
 
 FMatrix FGoogleARCoreDevice::GetPassthroughCameraProjectionMatrix(FIntPoint ViewRectSize) const
@@ -789,16 +820,6 @@ EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetLatestCameraMetadata(const A
 }
 #endif
 
-UTexture* FGoogleARCoreDevice::GetCameraTexture()
-{
-	if (CameraBlitter.IsValid())
-	{
-		return CameraBlitter->GetLastCameraImageTexture();
-	}
-
-	return nullptr;
-}
-
 EGoogleARCoreFunctionStatus FGoogleARCoreDevice::AcquireCameraImage(UGoogleARCoreCameraImage *&OutLatestCameraImage)
 {
 	if (!ARCoreSession.IsValid() || ARCoreSession->GetLatestFrame() == nullptr)
@@ -863,6 +884,17 @@ EGoogleARCoreFunctionStatus FGoogleARCoreDevice::CreateARPin(const FTransform& P
 	EGoogleARCoreFunctionStatus Status = ToARCoreFunctionStatus(ARCoreSession->CreateARAnchor(PinToTrackingTransform, TrackedGeometry, ComponentToPin, DebugName, OutARAnchorObject));
 
 	return Status;
+}
+
+bool FGoogleARCoreDevice::TryGetOrCreatePinForNativeResource(void* InNativeResource, const FString& InPinName, UARPin*& OutPin)
+{
+	OutPin = nullptr;
+	if (!bIsARCoreSessionRunning)
+	{
+		return false;
+	}
+
+	return ARCoreSession->TryGetOrCreatePinForNativeResource(InNativeResource, InPinName, OutPin);
 }
 
 void FGoogleARCoreDevice::RemoveARPin(UARPin* ARAnchorObject)
@@ -946,7 +978,7 @@ UARSessionConfig* FGoogleARCoreDevice::AccessSessionConfig() const
 }
 
 
-EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetCameraImageIntrinsics(UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics)
+EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetCameraImageIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics)
 {
 	if (!ARCoreSession.IsValid() || ARCoreSession->GetLatestFrame() == nullptr)
 	{
@@ -956,7 +988,7 @@ EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetCameraImageIntrinsics(UGoogl
 	return ToARCoreFunctionStatus(ARCoreSession->GetLatestFrame()->GetCameraImageIntrinsics(OutCameraIntrinsics));
 }
 
-EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetCameraTextureIntrinsics(UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics)
+EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetCameraTextureIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics)
 {
 	if (!ARCoreSession.IsValid() || ARCoreSession->GetLatestFrame() == nullptr)
 	{
@@ -964,4 +996,26 @@ EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetCameraTextureIntrinsics(UGoo
 	}
 
 	return ToARCoreFunctionStatus(ARCoreSession->GetLatestFrame()->GetCameraTextureIntrinsics(OutCameraIntrinsics));
+}
+
+UARTexture* FGoogleARCoreDevice::GetLastCameraTexture() const
+{
+	if (auto Record = PassthroughCameraTextures.Find(LastCameraTextureId))
+	{
+		return *Record;
+	}
+	
+	return nullptr;
+}
+
+UARTexture* FGoogleARCoreDevice::GetDepthTexture() const
+{
+	return DepthTexture;
+}
+
+void FGoogleARCoreDevice::FInternalGCObject::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(ARCoreDevice->DepthTexture);
+	Collector.AddReferencedObject(ARCoreDevice->PermissionHandler);
+	Collector.AddReferencedObjects(ARCoreDevice->PassthroughCameraTextures);
 }

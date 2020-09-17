@@ -6,12 +6,26 @@
 #include "DrawDebugHelpers.h"
 #include "Math/NumericLimits.h"
 #include "Templates/Casts.h"
+#include "GoogleARCoreDevice.h"
+#include "GoogleARCoreXRTrackingSystem.h"
+#include "ARLifeCycleComponent.h"
+#include "GoogleARCoreResources.h"
+#include "GoogleARCoreBaseModule.h"
+#include "GoogleARCoreTexture.h"
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidJNI.h"
 #include "arcore_c_api.h"
 #endif
+
+DECLARE_CYCLE_STAT(TEXT("Update AR Session"), STAT_UpdateARSession, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("Update AR Frame"), STAT_UpdateARFrame, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("Update AR Frame - Camera"), STAT_UpdateCamera, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("Update AR Frame - DepthImage"), STAT_UpdateDepthImage, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("Update AR Frame - PointCloud"), STAT_UpdatePointCloud, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("Update AR Frame - Trackables"), STAT_UpdateTrackables, STATGROUP_ARCore);
+DECLARE_CYCLE_STAT(TEXT("Update AR Frame - Anchors"), STAT_UpdateAnchors, STATGROUP_ARCore);
 
 namespace
 {
@@ -29,19 +43,6 @@ namespace
 		return static_cast<EGoogleARCoreAPIStatus>(Status);
 	}
 
-	EARTrackingState ToARTrackingState(ArTrackingState State)
-	{
-		switch (State)
-		{
-		case AR_TRACKING_STATE_PAUSED:
-			return EARTrackingState::NotTracking;
-		case AR_TRACKING_STATE_STOPPED:
-			return EARTrackingState::StoppedTracking;
-		case AR_TRACKING_STATE_TRACKING:
-			return EARTrackingState::Tracking;
-		}
-	}
-
 	FGoogleARCoreCameraConfig ToARCoreCameraConfig(const ArSession* SessionHandle, const ArCameraConfig* CameraConfigHandle)
 	{
 		FGoogleARCoreCameraConfig OutConfig;
@@ -51,17 +52,17 @@ namespace
 		ArCameraConfig_getCameraId(SessionHandle, CameraConfigHandle, &CameraID);
 		OutConfig.CameraID = FString(ANSI_TO_TCHAR(CameraID));
 
+		// Figure out depth sensor usage mode
+		uint32_t DepthSensorUsage = 0;
+		ArCameraConfig_getDepthSensorUsage(SessionHandle, CameraConfigHandle, &DepthSensorUsage);
+		OutConfig.DepthSensorUsage = DepthSensorUsage;
+
+		// Figure out target FPS mode
+		int32_t MinFPS = 0;
+		int32_t MaxFPS = 0;
+		ArCameraConfig_getFpsRange(SessionHandle, CameraConfigHandle, &MinFPS, &MaxFPS);
+		OutConfig.SetMaxFPS(MaxFPS);
 		return OutConfig;
-	}
-
-	FTransform ARCorePoseToUnrealTransform(ArPose* ArPoseHandle, const ArSession* SessionHandle, float WorldToMeterScale)
-	{
-		FMatrix ARCorePoseMatrix;
-		ArPose_getMatrix(SessionHandle, ArPoseHandle, ARCorePoseMatrix.M[0]);
-		FTransform Result = FTransform(ARCoreToUnrealTransform * ARCorePoseMatrix * ARCoreToUnrealTransformInverse);
-		Result.SetLocation(Result.GetLocation() * WorldToMeterScale);
-
-		return Result;
 	}
 
 	void UnrealTransformToARCorePose(const FTransform& UnrealTransform, const ArSession* SessionHandle, ArPose** OutARPose, float WorldToMeterScale)
@@ -126,22 +127,47 @@ namespace
 		}
 	}
 #endif
+}
 
-	inline bool CheckIsSessionValid(FString TypeName, const TWeakPtr<FGoogleARCoreSession>& SessionPtr)
+bool CheckIsSessionValid(FString TypeName, const TWeakPtr<FGoogleARCoreSession>& SessionPtr)
+{
+	if (!SessionPtr.IsValid())
 	{
-		if (!SessionPtr.IsValid())
-		{
-			return false;
-		}
+		return false;
+	}
 #if PLATFORM_ANDROID
-		if (SessionPtr.Pin()->GetHandle() == nullptr)
-		{
-			return false;
-		}
+	if (SessionPtr.Pin()->GetHandle() == nullptr)
+	{
+		return false;
+	}
 #endif
-		return true;
+	return true;
+}
+
+#if PLATFORM_ANDROID
+EARTrackingState ToARTrackingState(ArTrackingState State)
+{
+	switch (State)
+	{
+	case AR_TRACKING_STATE_PAUSED:
+		return EARTrackingState::NotTracking;
+	case AR_TRACKING_STATE_STOPPED:
+		return EARTrackingState::StoppedTracking;
+	case AR_TRACKING_STATE_TRACKING:
+		return EARTrackingState::Tracking;
 	}
 }
+
+FTransform ARCorePoseToUnrealTransform(ArPose* ArPoseHandle, const ArSession* SessionHandle, float WorldToMeterScale)
+{
+	FMatrix ARCorePoseMatrix;
+	ArPose_getMatrix(SessionHandle, ArPoseHandle, ARCorePoseMatrix.M[0]);
+	FTransform Result = FTransform(ARCoreToUnrealTransform * ARCorePoseMatrix * ARCoreToUnrealTransformInverse);
+	Result.SetLocation(Result.GetLocation() * WorldToMeterScale);
+
+	return Result;
+}
+#endif
 
 extern "C"
 {
@@ -198,7 +224,6 @@ FGoogleARCoreSession::FGoogleARCoreSession(bool bUseFrontCamera)
 	, SessionConfig(nullptr)
 	, LatestFrame(nullptr)
 	, UObjectManager(nullptr)
-	, CameraTextureId(0)
 	, CachedWorldToMeterScale(100.0f)
 	, FrameNumber(0)
 
@@ -242,11 +267,18 @@ FGoogleARCoreSession::FGoogleARCoreSession(bool bUseFrontCamera)
 
 FGoogleARCoreSession::~FGoogleARCoreSession()
 {
-	for (UARPin* Anchor : UObjectManager->AllAnchors)
+	if (UObjectManager)
 	{
-		Anchor->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
+		UObjectManager->ClearTrackables();
+		for (auto Itr : UObjectManager->HandleToAnchorMap)
+		{
+			if (auto Anchor = Itr.Value)
+			{
+				Anchor->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
+			}
+		}
 	}
-
+	
 	delete LatestFrame;
 
 #if PLATFORM_ANDROID
@@ -391,6 +423,20 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::ConfigSession(const UARSessionConfi
 		FaceMode = AR_AUGMENTED_FACE_MODE_MESH3D;
 	}
 	ArConfig_setAugmentedFaceMode(SessionHandle, ConfigHandle, FaceMode);
+	
+	// Whether scene depth is requested and supported
+	auto bShouldEnableSceneDepth = false;
+	if (Config.GetEnabledSessionTrackingFeature() == EARSessionTrackingFeature::SceneDepth)
+	{
+		int32_t bSupported = 0;
+		ArSession_isDepthModeSupported(SessionHandle, AR_DEPTH_MODE_AUTOMATIC, &bSupported);
+		if (bSupported)
+		{
+			bShouldEnableSceneDepth = true;
+		}
+	}
+	
+	ArConfig_setDepthMode(SessionHandle, ConfigHandle, bShouldEnableSceneDepth ? AR_DEPTH_MODE_AUTOMATIC : AR_DEPTH_MODE_DISABLED);
 
 	ConfigStatus = ToARCoreAPIStatus(ArSession_configure(SessionHandle, ConfigHandle));
 #endif
@@ -409,7 +455,10 @@ TArray<FGoogleARCoreCameraConfig> FGoogleARCoreSession::GetSupportedCameraConfig
 	ArCameraConfigList* CameraConfigList = nullptr;
 	ArCameraConfigList_create(SessionHandle, &CameraConfigList);
 
-	ArSession_getSupportedCameraConfigs(SessionHandle, CameraConfigList);
+	ArCameraConfigFilter* CameraConfigFilter = nullptr;
+	ArCameraConfigFilter_create(SessionHandle, &CameraConfigFilter);
+
+	ArSession_getSupportedCameraConfigsWithFilter(SessionHandle, CameraConfigFilter, CameraConfigList);
 
 	ArCameraConfig* CameraConfigHandle = nullptr;
 	ArCameraConfig_create(SessionHandle, &CameraConfigHandle);
@@ -417,19 +466,21 @@ TArray<FGoogleARCoreCameraConfig> FGoogleARCoreSession::GetSupportedCameraConfig
 	int ListSize = 0;
 	ArCameraConfigList_getSize(SessionHandle, CameraConfigList, &ListSize);
 
-	UE_LOG(LogGoogleARCoreAPI, Verbose, TEXT("ARCore supported camera configs:"));
 	for (int i = 0; i < ListSize; i++)
 	{
 		ArCameraConfigList_getItem(SessionHandle, CameraConfigList, i, CameraConfigHandle);
 		FGoogleARCoreCameraConfig CameraConfig = ToARCoreCameraConfig(SessionHandle, CameraConfigHandle);
-		SupportedConfigs.Add(CameraConfig);
-		UE_LOG(LogGoogleARCoreAPI, Verbose, TEXT("Camera Config %d: Camera Image - %d x %d, Camera Texture - %d x %d"),
-			i, CameraConfig.CameraImageResolution.X, CameraConfig.CameraImageResolution.Y,
-			CameraConfig.CameraTextureResolution.X, CameraConfig.CameraTextureResolution.Y);
+		SupportedConfigs.Add(CameraConfig);		
 	}
 
 	ArCameraConfig_destroy(CameraConfigHandle);
+	CameraConfigHandle = nullptr;
+
 	ArCameraConfigList_destroy(CameraConfigList);
+	CameraConfigList = nullptr;
+
+	ArCameraConfigFilter_destroy(CameraConfigFilter);
+	CameraConfigFilter = nullptr;
 #endif
 
 	return SupportedConfigs;
@@ -440,7 +491,17 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::SetCameraConfig(FGoogleARCoreCamera
 #if PLATFORM_ANDROID
 	ArCameraConfigList* CameraConfigList = nullptr;
 	ArCameraConfigList_create(SessionHandle, &CameraConfigList);
-	ArSession_getSupportedCameraConfigs(SessionHandle, CameraConfigList);
+
+	ArCameraConfigFilter* CameraConfigFilter = nullptr;
+	ArCameraConfigFilter_create(SessionHandle, &CameraConfigFilter);
+
+	// Filter on camera FPS
+	ArCameraConfigFilter_setTargetFps(SessionHandle, CameraConfigFilter, SelectedCameraConfig.TargetFPS);
+
+	// Filter on depth sensor usage
+	ArCameraConfigFilter_setDepthSensorUsage(SessionHandle, CameraConfigFilter, SelectedCameraConfig.DepthSensorUsage);
+
+	ArSession_getSupportedCameraConfigsWithFilter(SessionHandle, CameraConfigFilter, CameraConfigList);
 
 	int ListSize = 0;
 	ArCameraConfigList_getSize(SessionHandle, CameraConfigList, &ListSize);
@@ -454,7 +515,7 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::SetCameraConfig(FGoogleARCoreCamera
 	{
 		ArCameraConfigList_getItem(SessionHandle, CameraConfigList, i, CameraConfigHandle);
 		FGoogleARCoreCameraConfig CameraConfig = ToARCoreCameraConfig(SessionHandle, CameraConfigHandle);
-		if (CameraConfig == SelectedCameraConfig)
+		if (CameraConfig.IsCompatibleWith(SelectedCameraConfig))
 		{
 			Status = ArSession_setCameraConfig(SessionHandle, CameraConfigHandle);
 			UE_LOG(LogGoogleARCoreAPI, Log, TEXT("Configure ARCore session with camera config(Camera Image - %d x %d, Camera Texture - %d x %d) returns %d"),
@@ -467,7 +528,14 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::SetCameraConfig(FGoogleARCoreCamera
 	}
 
 	ArCameraConfig_destroy(CameraConfigHandle);
+	CameraConfigHandle = nullptr;
+
 	ArCameraConfigList_destroy(CameraConfigList);
+	CameraConfigList = nullptr;
+
+	ArCameraConfigFilter_destroy(CameraConfigFilter);
+	CameraConfigFilter = nullptr;
+
 	if (!bFoundSelectedConfig)
 	{
 		UE_LOG(LogGoogleARCoreAPI, Error, TEXT("The provided CameraConfig isn't supported on this device!"));
@@ -620,11 +688,14 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::Pause()
 	}
 #endif
 
-	for (UARPin* Anchor : UObjectManager->AllAnchors)
+	for (auto Itr : UObjectManager->HandleToAnchorMap)
 	{
-		if (Anchor->GetTrackingState() == EARTrackingState::Tracking)
+		if (auto Anchor = Itr.Value)
 		{
-			Anchor->OnTrackingStateChanged(EARTrackingState::NotTracking);
+			if (Anchor->GetTrackingState() == EARTrackingState::Tracking)
+			{
+				Anchor->OnTrackingStateChanged(EARTrackingState::NotTracking);
+			}
 		}
 	}
 
@@ -634,12 +705,16 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::Pause()
 EGoogleARCoreAPIStatus FGoogleARCoreSession::Update(float WorldToMeterScale)
 {
 	EGoogleARCoreAPIStatus UpdateStatus = EGoogleARCoreAPIStatus::AR_SUCCESS;
+
 #if PLATFORM_ANDROID
 	if (SessionHandle == nullptr)
 	{
 		return EGoogleARCoreAPIStatus::AR_ERROR_FATAL;
 	}
-	UpdateStatus = ToARCoreAPIStatus(ArSession_update(SessionHandle, LatestFrame->FrameHandle));
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateARSession);
+		UpdateStatus = ToARCoreAPIStatus(ArSession_update(SessionHandle, LatestFrame->FrameHandle));
+	}
 #endif
 
 	CachedWorldToMeterScale = WorldToMeterScale;
@@ -663,15 +738,14 @@ uint32 FGoogleARCoreSession::GetFrameNum()
 	return FrameNumber;
 }
 
-void FGoogleARCoreSession::SetCameraTextureId(uint32_t TextureId)
+void FGoogleARCoreSession::SetCameraTextureIds(const TArray<uint32_t>& TextureIds)
 {
-	CameraTextureId = TextureId;
 #if PLATFORM_ANDROID
 	if (SessionHandle == nullptr)
 	{
 		return;
 	}
-	ArSession_setCameraTextureName(SessionHandle, TextureId);
+	ArSession_setCameraTextureNames(SessionHandle, TextureIds.Num(), TextureIds.GetData());
 #endif
 }
 
@@ -722,16 +796,60 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::CreateARAnchor(const FTransform& Tr
 		OutAnchor->InitARPin(GetARSystem(), ComponentToPin, TransfromInTrackingSpace, TrackedGeometry, InDebugName);
 		OutAnchor->SetNativeResource(reinterpret_cast<void*>(NewAnchorHandle));
 
-		UObjectManager->AllAnchors.Add(OutAnchor);
-		UObjectManager->HandleToAnchorMap.Add(NewAnchorHandle, OutAnchor);
+		UObjectManager->HandleToAnchorMap.Add(FARCorePointer(NewAnchorHandle), OutAnchor);
 	}
 #endif
 	return AnchorCreateStatus;
 }
 
+bool FGoogleARCoreSession::TryGetOrCreatePinForNativeResource(void* InNativeResource, const FString& InPinName, UARPin*& OutPin)
+{
+#if PLATFORM_ANDROID
+	OutPin = nullptr;
+	if (SessionHandle == nullptr ||
+		InNativeResource == nullptr)
+	{
+		return false;
+	}
+
+	ArAnchor* AnchorHandle = reinterpret_cast<ArAnchor*>(InNativeResource);
+
+	if (UObjectManager->HandleToAnchorMap.Contains(AnchorHandle))
+	{
+		OutPin = UObjectManager->HandleToAnchorMap[AnchorHandle];
+		return true;
+	}
+
+	ArTrackingState AnchorTrackingState;
+	ArAnchor_getTrackingState(SessionHandle, AnchorHandle, &AnchorTrackingState);
+	if (ToARTrackingState(AnchorTrackingState) != EARTrackingState::Tracking)
+	{
+		return false;
+	}
+	
+	ArPose* AnchorPoseHandle;
+	ArPose_create(SessionHandle, nullptr, &AnchorPoseHandle);
+	ArAnchor_getPose(SessionHandle, AnchorHandle, AnchorPoseHandle);
+	FTransform UnrealAnchorTransform = ARCorePoseToUnrealTransform(AnchorPoseHandle, SessionHandle, CachedWorldToMeterScale);
+	ArPose_destroy(AnchorPoseHandle);
+
+	FName AnchorName{ InPinName };
+
+	OutPin = NewObject<UARPin>();
+	OutPin->InitARPin(GetARSystem(), nullptr, UnrealAnchorTransform, nullptr, AnchorName);
+	OutPin->SetNativeResource(reinterpret_cast<void*>(AnchorHandle));
+	UObjectManager->HandleToAnchorMap.Add(AnchorHandle, OutPin);
+	return true;
+#else
+	OutPin = nullptr;
+	return false;
+#endif
+}
+
 void FGoogleARCoreSession::DetachAnchor(UARPin* Anchor)
 {
-	if (!UObjectManager->AllAnchors.Contains(Anchor))
+	auto Key = UObjectManager->HandleToAnchorMap.FindKey(Anchor);
+	if (!Key)
 	{
 		return;
 	}
@@ -742,8 +860,7 @@ void FGoogleARCoreSession::DetachAnchor(UARPin* Anchor)
 		return;
 	}
 
-	ArAnchor* AnchorHandle = *UObjectManager->HandleToAnchorMap.FindKey(Anchor);
-
+	ArAnchor* AnchorHandle = Key->AsRawPointer<ArAnchor>();
 	ArAnchor_detach(SessionHandle, AnchorHandle);
 	ArAnchor_release(AnchorHandle);
 
@@ -751,12 +868,14 @@ void FGoogleARCoreSession::DetachAnchor(UARPin* Anchor)
 
 	UObjectManager->HandleToAnchorMap.Remove(AnchorHandle);
 #endif
-	UObjectManager->AllAnchors.Remove(Anchor);
 }
 
 void FGoogleARCoreSession::GetAllAnchors(TArray<UARPin*>& OutAnchors) const
 {
-	OutAnchors = UObjectManager->AllAnchors;
+	for (auto Itr : UObjectManager->HandleToAnchorMap)
+	{
+		OutAnchors.Add(Itr.Value);
+	}
 }
 
 void FGoogleARCoreSession::AddReferencedObjects(FReferenceCollector& Collector)
@@ -809,146 +928,171 @@ void FGoogleARCoreFrame::Init()
 #endif
 }
 
-
+void FGoogleARCoreFrame::UpdateDepthTexture(UARCoreDepthTexture*& OutDepthTexture) const
+{
+#if PLATFORM_ANDROID
+	SCOPE_CYCLE_COUNTER(STAT_UpdateDepthImage);
+	ArImage* DepthImage = nullptr;
+	if (ArFrame_acquireDepthImage(SessionHandle, FrameHandle, &DepthImage) == AR_SUCCESS)
+	{
+		if (!OutDepthTexture)
+		{
+			OutDepthTexture = UARTexture::CreateARTexture<UARCoreDepthTexture>(EARTextureType::SceneDepthMap);
+		}
+		OutDepthTexture->UpdateDepthImage(SessionHandle, DepthImage);
+		ArImage_release(DepthImage);
+	}
+#endif
+}
 
 void FGoogleARCoreFrame::Update(float WorldToMeterScale)
 {
+	SCOPE_CYCLE_COUNTER(STAT_UpdateARFrame);
+	
 #if PLATFORM_ANDROID
 	if (SessionHandle == nullptr)
 	{
 		return;
 	}
-
-	ArCamera_release(CameraHandle);
-	ArFrame_acquireCamera(SessionHandle, FrameHandle, &CameraHandle);
-
-	ArCamera_getDisplayOrientedPose(SessionHandle, CameraHandle, SketchPoseHandle);
-
-	ArTrackingState ARCoreTrackingState;
-	ArCamera_getTrackingState(SessionHandle, CameraHandle, &ARCoreTrackingState);
-	LatestCameraTrackingState = static_cast<EGoogleARCoreTrackingState>(ARCoreTrackingState);
-	LatestCameraPose = ARCorePoseToUnrealTransform(SketchPoseHandle, SessionHandle, WorldToMeterScale);
-
-	LatestCameraTrackingFailureReason = EGoogleARCoreTrackingFailureReason::None;
-	ArTrackingFailureReason TrackingFailureReason;
-	ArCamera_getTrackingFailureReason(SessionHandle, CameraHandle, &TrackingFailureReason);
-	LatestCameraTrackingFailureReason = static_cast<EGoogleARCoreTrackingFailureReason>(TrackingFailureReason);
-
-	int64_t FrameTimestamp = 0;
-	ArFrame_getTimestamp(SessionHandle, FrameHandle, &FrameTimestamp);
-	LatestCameraTimestamp = FrameTimestamp;
-
-	if (LatestCameraTrackingState == EGoogleARCoreTrackingState::Tracking)
+	
 	{
-		// Update Point Cloud
-		UGoogleARCorePointCloud* LatestPointCloud = Session->GetUObjectManager()->LatestPointCloud;
-		LatestPointCloud->bIsUpdated = false;
-		int64 PreviousTimeStamp = LatestPointCloud->GetUpdateTimestamp();
-		ArPointCloud_release(LatestPointCloud->PointCloudHandle);
-		LatestPointCloud->PointCloudHandle = nullptr;
-		LatestPointCloudStatus = ToARCoreAPIStatus(ArFrame_acquirePointCloud(SessionHandle, FrameHandle, &LatestPointCloud->PointCloudHandle));
+		SCOPE_CYCLE_COUNTER(STAT_UpdateCamera);
+		ArFrame_getCameraTextureName(SessionHandle, FrameHandle, &CameraTextureId);
 
-		if (PreviousTimeStamp != LatestPointCloud->GetUpdateTimestamp())
-		{
-			LatestPointCloud->bIsUpdated = true;
-		}
+		ArCamera_release(CameraHandle);
+		ArFrame_acquireCamera(SessionHandle, FrameHandle, &CameraHandle);
+
+		ArCamera_getDisplayOrientedPose(SessionHandle, CameraHandle, SketchPoseHandle);
+
+		ArTrackingState ARCoreTrackingState;
+		ArCamera_getTrackingState(SessionHandle, CameraHandle, &ARCoreTrackingState);
+		LatestCameraTrackingState = static_cast<EGoogleARCoreTrackingState>(ARCoreTrackingState);
+		LatestCameraPose = ARCorePoseToUnrealTransform(SketchPoseHandle, SessionHandle, WorldToMeterScale);
+
+		LatestCameraTrackingFailureReason = EGoogleARCoreTrackingFailureReason::None;
+		ArTrackingFailureReason TrackingFailureReason;
+		ArCamera_getTrackingFailureReason(SessionHandle, CameraHandle, &TrackingFailureReason);
+		LatestCameraTrackingFailureReason = static_cast<EGoogleARCoreTrackingFailureReason>(TrackingFailureReason);
+
+		int64_t FrameTimestamp = 0;
+		ArFrame_getTimestamp(SessionHandle, FrameHandle, &FrameTimestamp);
+		LatestCameraTimestamp = FrameTimestamp;
 	}
-
-	// Update trackable that is cached in Unreal
-	ArTrackableList* TrackableListHandle = nullptr;
-	ArTrackableList_create(Session->GetHandle(), &TrackableListHandle);
-	ArFrame_getUpdatedTrackables(Session->GetHandle(), FrameHandle, ArTrackableType::AR_TRACKABLE_BASE_TRACKABLE, TrackableListHandle);
-
-	int TrackableListSize = 0;
-	ArTrackableList_getSize(Session->GetHandle(), TrackableListHandle, &TrackableListSize);
-	for (int i = 0; i < TrackableListSize; i++)
+	
+	auto ObjectManager = Session->GetUObjectManager();
+	auto TrackingSystem = FGoogleARCoreXRTrackingSystem::GetInstance();
+	
 	{
-		ArTrackable* TrackableHandle = nullptr;
-		ArTrackableList_acquireItem(Session->GetHandle(), TrackableListHandle, i, &TrackableHandle);
-		// Note that we only update trackables that is converted to Unreal type, this makes sure we only updated
-		// the trackable that user has reference to, which avoid holding reference for all trackable so that ARCore may
-		// have a chance to free it.
-		if (Session->GetUObjectManager()->TrackableHandleMap.Contains(TrackableHandle))
+		SCOPE_CYCLE_COUNTER(STAT_UpdatePointCloud);
+		if (LatestCameraTrackingState == EGoogleARCoreTrackingState::Tracking)
 		{
-			TWeakObjectPtr<UARTrackedGeometry> UETrackableObject = Session->GetUObjectManager()->TrackableHandleMap[TrackableHandle];
-			if (UETrackableObject.IsValid())
+			// Update Point Cloud
+			UGoogleARCorePointCloud* LatestPointCloud = ObjectManager->LatestPointCloud;
+			LatestPointCloud->bIsUpdated = false;
+			int64 PreviousTimeStamp = LatestPointCloud->GetUpdateTimestamp();
+			ArPointCloud_release(LatestPointCloud->PointCloudHandle);
+			LatestPointCloud->PointCloudHandle = nullptr;
+			LatestPointCloudStatus = ToARCoreAPIStatus(ArFrame_acquirePointCloud(SessionHandle, FrameHandle, &LatestPointCloud->PointCloudHandle));
+
+			if (PreviousTimeStamp != LatestPointCloud->GetUpdateTimestamp())
 			{
-				// Updated the cached tracked geometry when it is valid.
-				FGoogleARCoreTrackableResource* TrackableResource = reinterpret_cast<FGoogleARCoreTrackableResource*>(UETrackableObject->GetNativeResource());
-				TrackableResource->UpdateGeometryData();
+				LatestPointCloud->bIsUpdated = true;
 			}
 		}
-
-		ArTrackable_release(TrackableHandle);
 	}
 
-	// Force update all face trackable here since getUpdateTrackables doesn't return faces.
-	ArSession_getAllTrackables(Session->GetHandle(), AR_TRACKABLE_FACE, TrackableListHandle);
-	ArTrackableList_getSize(Session->GetHandle(), TrackableListHandle, &TrackableListSize);
-	for (int i = 0; i < TrackableListSize; i++)
 	{
-		ArTrackable* TrackableHandle = nullptr;
-		ArTrackableList_acquireItem(Session->GetHandle(), TrackableListHandle, i, &TrackableHandle);
-		// Note that we only update trackables that is converted to Unreal type, this makes sure we only updated
-		// the trackable that user has reference to, which avoid holding reference for all trackable so that ARCore may
-		// have a chance to free it.
-		if (Session->GetUObjectManager()->TrackableHandleMap.Contains(TrackableHandle))
+		SCOPE_CYCLE_COUNTER(STAT_UpdateTrackables);
+		// Update trackable that is cached in Unreal
+		ArTrackableList* TrackableListHandle = nullptr;
+		ArTrackableList_create(SessionHandle, &TrackableListHandle);
+		ArFrame_getUpdatedTrackables(SessionHandle, FrameHandle, ArTrackableType::AR_TRACKABLE_BASE_TRACKABLE, TrackableListHandle);
+
+		auto Trackables = GetTrackables(SessionHandle, TrackableListHandle, true);
+		for (auto TrackableHandle : Trackables)
 		{
-			TWeakObjectPtr<UARTrackedGeometry> UETrackableObject = Session->GetUObjectManager()->TrackableHandleMap[TrackableHandle];
-			if (UETrackableObject.IsValid())
+			// Note that this will create a new UARTrackedGeometry if there's no existing record for it for the handle
+			const auto& Group = ObjectManager->GetBaseTrackableFromHandle(TrackableHandle, Session);
+			// Updated the cached tracked geometry when it is valid.
+			FGoogleARCoreTrackableResource* TrackableResource = reinterpret_cast<FGoogleARCoreTrackableResource*>(Group.TrackedGeometry->GetNativeResource());
+			TrackableResource->UpdateGeometryData();
+			
+			//trigger delegates
+			if (Group.ARComponent)
 			{
-				// Updated the cached tracked geometry when it is valid.
-				FGoogleARCoreTrackableResource* TrackableResource = reinterpret_cast<FGoogleARCoreTrackableResource*>(UETrackableObject->GetNativeResource());
-				TrackableResource->UpdateGeometryData();
+				Group.ARComponent->Update(Group.TrackedGeometry);
+			}
+			
+			if (TrackingSystem)
+			{
+				TrackingSystem->OnTrackableUpdated(Group.TrackedGeometry);
 			}
 		}
-
-		ArTrackable_release(TrackableHandle);
+		
+		// ARCore doesn't provide a way to mark plane as removed when they're "subsumed"
+		// So here we're getting all the trackables in the session and manually remove the ones that are no longer valid
+		ArSession_getAllTrackables(SessionHandle, AR_TRACKABLE_BASE_TRACKABLE, TrackableListHandle);
+		Trackables = GetTrackables(SessionHandle, TrackableListHandle, true);
+		TArray<UARPin*> ARPinsToRemove;
+		ObjectManager->RemoveInvalidTrackables(Trackables, ARPinsToRemove);
+		for (auto TrackableHandle : Trackables)
+		{
+			ArTrackable_release(TrackableHandle);
+		}
+		
+		ArTrackableList_destroy(TrackableListHandle);
+		
+		for (auto Pin : ARPinsToRemove)
+		{
+			FGoogleARCoreDevice::GetInstance()->RemoveARPin(Pin);
+		}
 	}
-
-	ArTrackableList_destroy(TrackableListHandle);
+	
 
 	// Update Image Metadata
 	ArImageMetadata_release(LatestImageMetadata);
 	LatestImageMetadata = nullptr;
 	LatestImageMetadataStatus = ToARCoreAPIStatus(ArFrame_acquireImageMetadata(SessionHandle, FrameHandle, &LatestImageMetadata));
 
-	// Update Anchors
-	ArAnchorList* UpdatedAnchorListHandle = nullptr;
-	ArAnchorList_create(SessionHandle, &UpdatedAnchorListHandle);
-	ArFrame_getUpdatedAnchors(SessionHandle, FrameHandle, UpdatedAnchorListHandle);
-	int AnchorListSize = 0;
-	ArAnchorList_getSize(SessionHandle, UpdatedAnchorListHandle, &AnchorListSize);
-
-	UpdatedAnchors.Empty();
-	for (int i = 0; i < AnchorListSize; i++)
 	{
-		ArAnchor* AnchorHandle = nullptr;
-		ArAnchorList_acquireItem(SessionHandle, UpdatedAnchorListHandle, i, &AnchorHandle);
+		SCOPE_CYCLE_COUNTER(STAT_UpdateAnchors);
+		// Update Anchors
+		ArAnchorList* UpdatedAnchorListHandle = nullptr;
+		ArAnchorList_create(SessionHandle, &UpdatedAnchorListHandle);
+		ArFrame_getUpdatedAnchors(SessionHandle, FrameHandle, UpdatedAnchorListHandle);
+		int AnchorListSize = 0;
+		ArAnchorList_getSize(SessionHandle, UpdatedAnchorListHandle, &AnchorListSize);
 
-		ArTrackingState AnchorTrackingState;
-		ArAnchor_getTrackingState(SessionHandle, AnchorHandle, &AnchorTrackingState);
-		if (!Session->GetUObjectManager()->HandleToAnchorMap.Contains(AnchorHandle))
+		UpdatedAnchors.Empty();
+		for (int i = 0; i < AnchorListSize; i++)
 		{
-			continue;
-		}
-		UARPin* AnchorObject = Session->GetUObjectManager()->HandleToAnchorMap[AnchorHandle];
-		if (AnchorObject->GetTrackingState() != EARTrackingState::StoppedTracking)
-		{
-			AnchorObject->OnTrackingStateChanged(ToARTrackingState(AnchorTrackingState));
-		}
+			ArAnchor* AnchorHandle = nullptr;
+			ArAnchorList_acquireItem(SessionHandle, UpdatedAnchorListHandle, i, &AnchorHandle);
 
-		if (AnchorObject->GetTrackingState() == EARTrackingState::Tracking)
-		{
-			ArAnchor_getPose(SessionHandle, AnchorHandle, SketchPoseHandle);
-			FTransform AnchorPose = ARCorePoseToUnrealTransform(SketchPoseHandle, SessionHandle, WorldToMeterScale);
-			AnchorObject->OnTransformUpdated(AnchorPose);
-		}
-		UpdatedAnchors.Add(AnchorObject);
+			ArTrackingState AnchorTrackingState;
+			ArAnchor_getTrackingState(SessionHandle, AnchorHandle, &AnchorTrackingState);
+			if (!ObjectManager->HandleToAnchorMap.Contains(AnchorHandle))
+			{
+				continue;
+			}
+			UARPin* AnchorObject = ObjectManager->HandleToAnchorMap[AnchorHandle];
+			if (AnchorObject->GetTrackingState() != EARTrackingState::StoppedTracking)
+			{
+				AnchorObject->OnTrackingStateChanged(ToARTrackingState(AnchorTrackingState));
+			}
 
-		ArAnchor_release(AnchorHandle);
+			if (AnchorObject->GetTrackingState() == EARTrackingState::Tracking)
+			{
+				ArAnchor_getPose(SessionHandle, AnchorHandle, SketchPoseHandle);
+				FTransform AnchorPose = ARCorePoseToUnrealTransform(SketchPoseHandle, SessionHandle, WorldToMeterScale);
+				AnchorObject->OnTransformUpdated(AnchorPose);
+			}
+			UpdatedAnchors.Add(AnchorObject);
+
+			ArAnchor_release(AnchorHandle);
+		}
+		ArAnchorList_destroy(UpdatedAnchorListHandle);
 	}
-	ArAnchorList_destroy(UpdatedAnchorListHandle);
 #endif
 }
 
@@ -972,53 +1116,44 @@ EGoogleARCoreTrackingFailureReason FGoogleARCoreFrame::GetCameraTrackingFailureR
 	return LatestCameraTrackingFailureReason;
 }
 
-EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraImageIntrinsics(
-	UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics) const
+#if PLATFORM_ANDROID
+static FARCameraIntrinsics FromCameraIntrinsics(const ArSession* SessionHandle, const ArCameraIntrinsics* NativeCameraIntrinsics)
+{
+	FARCameraIntrinsics ConvertedIntrinsics;
+	ArCameraIntrinsics_getFocalLength(SessionHandle, NativeCameraIntrinsics, &ConvertedIntrinsics.FocalLength.X, &ConvertedIntrinsics.FocalLength.Y);
+	ArCameraIntrinsics_getPrincipalPoint(SessionHandle, NativeCameraIntrinsics, &ConvertedIntrinsics.PrincipalPoint.X, &ConvertedIntrinsics.PrincipalPoint.Y);
+	ArCameraIntrinsics_getImageDimensions(SessionHandle, NativeCameraIntrinsics, &ConvertedIntrinsics.ImageResolution.X, &ConvertedIntrinsics.ImageResolution.Y);
+	return ConvertedIntrinsics;
+}
+#endif
+
+EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraImageIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const
 {
 	EGoogleARCoreAPIStatus ApiStatus = EGoogleARCoreAPIStatus::AR_SUCCESS;
 
 #if PLATFORM_ANDROID
-
-	OutCameraIntrinsics = NewObject<UGoogleARCoreCameraIntrinsics>();
-
-	ArCameraIntrinsics_create(
-		SessionHandle,
-		&OutCameraIntrinsics->NativeCameraIntrinsics);
-
-	ArCamera_getImageIntrinsics(
-		SessionHandle,
-		CameraHandle,
-		OutCameraIntrinsics->NativeCameraIntrinsics);
-
-	OutCameraIntrinsics->Session = Session->AsShared();
-
+	ArCameraIntrinsics* NativeCameraIntrinsics = nullptr;
+	ArCameraIntrinsics_create(SessionHandle, &NativeCameraIntrinsics);
+	ArCamera_getImageIntrinsics(SessionHandle, CameraHandle, NativeCameraIntrinsics);
+	OutCameraIntrinsics = FromCameraIntrinsics(SessionHandle, NativeCameraIntrinsics);
+	ArCameraIntrinsics_destroy(NativeCameraIntrinsics);
 #endif
 
 	return ApiStatus;
 }
 
-EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraTextureIntrinsics(
-	UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics) const
+EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraTextureIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const
 {
 	EGoogleARCoreAPIStatus ApiStatus = EGoogleARCoreAPIStatus::AR_SUCCESS;
-
+	
 #if PLATFORM_ANDROID
-
-	OutCameraIntrinsics = NewObject<UGoogleARCoreCameraIntrinsics>();
-
-	ArCameraIntrinsics_create(
-		SessionHandle,
-		&OutCameraIntrinsics->NativeCameraIntrinsics);
-
-	ArCamera_getTextureIntrinsics(
-		SessionHandle,
-		CameraHandle,
-		OutCameraIntrinsics->NativeCameraIntrinsics);
-
-	OutCameraIntrinsics->Session = Session->AsShared();
-
+	ArCameraIntrinsics* NativeCameraIntrinsics = nullptr;
+	ArCameraIntrinsics_create(SessionHandle, &NativeCameraIntrinsics);
+	ArCamera_getTextureIntrinsics(SessionHandle, CameraHandle, NativeCameraIntrinsics);
+	OutCameraIntrinsics = FromCameraIntrinsics(SessionHandle, NativeCameraIntrinsics);
+	ArCameraIntrinsics_destroy(NativeCameraIntrinsics);
 #endif
-
+	
 	return ApiStatus;
 }
 
@@ -1249,7 +1384,7 @@ EGoogleARCoreAPIStatus FGoogleARCoreFrame::AcquireCameraImage(UGoogleARCoreCamer
 	{
 		OutCameraImage = NewObject<UGoogleARCoreCameraImage>();
 		OutCameraImage->ArImage = OutImage;
-		ArImage_getNdkImage(OutImage, &OutCameraImage->NdkImage);
+		OutCameraImage->SessionHandle = SessionHandle;
 	}
 	else
 	{
@@ -1281,8 +1416,7 @@ TSharedPtr<FGoogleARCoreSession> FGoogleARCoreSession::CreateARCoreSession(bool 
 	UGoogleARCoreUObjectManager* UObjectManager = NewObject<UGoogleARCoreUObjectManager>();
 	UObjectManager->LatestPointCloud = NewObject<UGoogleARCorePointCloud>();
 	UObjectManager->LatestPointCloud->Session = NewSession;
-	UObjectManager->AddToRoot();
-
+	
 	NewSession->UObjectManager = UObjectManager;
 	return NewSession;
 }
@@ -1307,8 +1441,6 @@ void FGoogleARCoreFrame::FilterLineTraceResults(ArHitResultList* HitResultList, 
 
 		ArHitResult_getHitPose(SessionHandle, HitResultHandle, HitResultPoseHandle);
 		FTransform HitTransform = ARCorePoseToUnrealTransform(HitResultPoseHandle, SessionHandle, Session->GetWorldToMeterScale());
-		// Apply the alignment transform to the hit test result.
-		HitTransform *= Session->GetARSystem()->GetAlignmentTransform();
 
 		ArTrackable* TrackableHandle = nullptr;
 		ArHitResult_acquireTrackable(SessionHandle, HitResultHandle, &TrackableHandle);
@@ -1390,303 +1522,6 @@ void FGoogleARCoreFrame::FilterLineTraceResults(ArHitResultList* HitResultList, 
 	ArPose_destroy(HitResultPoseHandle);
 }
 #endif
-
-/************************************************/
-/*       UGoogleARCoreTrackableResource         */
-/************************************************/
-#if PLATFORM_ANDROID
-
-EARTrackingState FGoogleARCoreTrackableResource::GetTrackingState()
-{
-	EARTrackingState TrackingState = EARTrackingState::StoppedTracking;
-	if (CheckIsSessionValid("ARCoreTrackable", Session))
-	{
-		ArTrackingState ARTrackingState = ArTrackingState::AR_TRACKING_STATE_STOPPED;
-		ArTrackable_getTrackingState(Session.Pin()->GetHandle(), TrackableHandle, &ARTrackingState);
-		TrackingState = ToARTrackingState(ARTrackingState);
-	}
-	return TrackingState;
-}
-
-void FGoogleARCoreTrackableResource::UpdateGeometryData()
-{
-	TrackedGeometry->UpdateTrackingState(GetTrackingState());
-}
-
-void FGoogleARCoreTrackableResource::ResetNativeHandle(ArTrackable* InTrackableHandle)
-{
-	if (TrackableHandle != nullptr)
-	{
-		ArTrackable_release(TrackableHandle);
-	}
-	TrackableHandle = InTrackableHandle;
-
-	UpdateGeometryData();
-}
-
-void FGoogleARCoreTrackedPlaneResource::UpdateGeometryData()
-{
-	FGoogleARCoreTrackableResource::UpdateGeometryData();
-
-	UARPlaneGeometry* PlaneGeometry = CastChecked<UARPlaneGeometry>(TrackedGeometry);
-
-	if (!CheckIsSessionValid("ARCorePlane", Session) || TrackedGeometry->GetTrackingState() == EARTrackingState::StoppedTracking)
-	{
-		return;
-	}
-
-	TSharedPtr<FGoogleARCoreSession> SessionPtr = Session.Pin();
-
-	FTransform LocalToTrackingTransform;
-	FVector Extent = FVector::ZeroVector;
-
-	// Get Center Transform
-	ArPose* ARPoseHandle = nullptr;
-	ArPose_create(SessionPtr->GetHandle(), nullptr, &ARPoseHandle);
-	ArPlane_getCenterPose(SessionPtr->GetHandle(), GetPlaneHandle(), ARPoseHandle);
-	LocalToTrackingTransform = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
-	ArPose_destroy(ARPoseHandle);
-
-	// Get Plane Extents
-	float ARCorePlaneExtentX = 0; // X is right vector
-	float ARCorePlaneExtentZ = 0; // Z is backward vector
-	ArPlane_getExtentX(SessionPtr->GetHandle(), GetPlaneHandle(), &ARCorePlaneExtentX);
-	ArPlane_getExtentZ(SessionPtr->GetHandle(), GetPlaneHandle(), &ARCorePlaneExtentZ);
-
-	// Convert OpenGL axis to Unreal axis.
-	// Unreal TrackedPlaneGeometry extent is the length from the plane center to edge.
-	Extent = FVector(FMath::Abs(ARCorePlaneExtentZ / 2.0f), FMath::Abs(ARCorePlaneExtentX / 2.0f), 0) * SessionPtr->GetWorldToMeterScale();
-
-	// Update Boundary Polygon
-	int PolygonSize = 0;
-	ArPlane_getPolygonSize(SessionPtr->GetHandle(), GetPlaneHandle(), &PolygonSize);
-
-	TArray<FVector> BoundaryPolygon;
-	BoundaryPolygon.Empty(PolygonSize / 2);
-
-	if (PolygonSize != 0)
-	{
-		TArray<float> PolygonPointsXZ;
-		PolygonPointsXZ.SetNumUninitialized(PolygonSize);
-		ArPlane_getPolygon(SessionPtr->GetHandle(), GetPlaneHandle(), PolygonPointsXZ.GetData());
-
-		for (int i = 0; i < PolygonSize / 2; i++)
-		{
-			const FVector PointInLocalSpace(-PolygonPointsXZ[2 * i + 1] * SessionPtr->GetWorldToMeterScale(), PolygonPointsXZ[2 * i] * SessionPtr->GetWorldToMeterScale(), 0.0f);
-			BoundaryPolygon.Add(PointInLocalSpace);
-		}
-	}
-
-	ArPlane* SubsumedByPlaneHandle = nullptr;
-	ArPlane_acquireSubsumedBy(SessionPtr->GetHandle(), GetPlaneHandle(), &SubsumedByPlaneHandle);
-	ArTrackable* TrackableHandle = reinterpret_cast<ArTrackable*>(SubsumedByPlaneHandle);
-
-	UARPlaneGeometry* SubsumedByPlane = SubsumedByPlaneHandle  == nullptr? nullptr : SessionPtr->GetUObjectManager()->GetTrackableFromHandle<UARPlaneGeometry>(TrackableHandle, SessionPtr.Get());
-
-	uint32 FrameNum = SessionPtr->GetFrameNum();
-	int64 TimeStamp = SessionPtr->GetLatestFrame()->GetCameraTimestamp();
-
-	PlaneGeometry->UpdateTrackedGeometry(SessionPtr->GetARSystem(), FrameNum, static_cast<double>(TimeStamp), LocalToTrackingTransform, SessionPtr->GetARSystem()->GetAlignmentTransform(), FVector::ZeroVector, Extent, BoundaryPolygon, SubsumedByPlane);
-	PlaneGeometry->SetDebugName(FName(TEXT("ARCorePlane")));
-}
-
-void FGoogleARCoreTrackedPointResource::UpdateGeometryData()
-{
-	FGoogleARCoreTrackableResource::UpdateGeometryData();
-
-	UARTrackedPoint* TrackedPoint = CastChecked<UARTrackedPoint>(TrackedGeometry);
-
-	if (!CheckIsSessionValid("ARCoreTrackablePoint", Session) || TrackedGeometry->GetTrackingState() == EARTrackingState::StoppedTracking)
-	{
-		return;
-	}
-
-	TSharedPtr<FGoogleARCoreSession> SessionPtr = Session.Pin();
-
-	ArPose* ARPoseHandle = nullptr;
-	ArPose_create(SessionPtr->GetHandle(), nullptr, &ARPoseHandle);
-	ArPoint_getPose(SessionPtr->GetHandle(), GetPointHandle(), ARPoseHandle);
-	FTransform PointPose = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
-	// TODO: hook up Orientation valid.
-	bool bIsPoseOrientationValid = false;
-	ArPose_destroy(ARPoseHandle);
-
-	uint32 FrameNum = SessionPtr->GetFrameNum();
-	int64 TimeStamp = SessionPtr->GetLatestFrame()->GetCameraTimestamp();
-	TrackedPoint->UpdateTrackedGeometry(SessionPtr->GetARSystem(), FrameNum, static_cast<double>(TimeStamp), PointPose, SessionPtr->GetARSystem()->GetAlignmentTransform());
-	TrackedPoint->SetDebugName(FName(TEXT("ARCoreTrackedPoint")));
-}
-
-void FGoogleARCoreAugmentedImageResource::UpdateGeometryData()
-{
-	FGoogleARCoreTrackableResource::UpdateGeometryData();
-
-	UGoogleARCoreAugmentedImage* AugmentedImage = CastChecked<UGoogleARCoreAugmentedImage>(TrackedGeometry);
-
-	if (!CheckIsSessionValid("ARCoreTrackableImage", Session) || TrackedGeometry->GetTrackingState() == EARTrackingState::StoppedTracking)
-	{
-		return;
-	}
-
-	TSharedPtr<FGoogleARCoreSession> SessionPtr = Session.Pin();
-
-	FTransform LocalToTrackingTransform;
-	FVector2D EstimatedSize = FVector2D::ZeroVector;
-
-	// Get Center Transform
-	ArPose* ARPoseHandle = nullptr;
-	ArPose_create(SessionPtr->GetHandle(), nullptr, &ARPoseHandle);
-	ArAugmentedImage_getCenterPose(SessionPtr->GetHandle(), GetImageHandle(), ARPoseHandle);
-	LocalToTrackingTransform = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
-	ArPose_destroy(ARPoseHandle);
-
-	// Get AugmentedImage Extents
-	float ARCoreAugmentedImageExtentX = 0; // X is right vector
-	float ARCoreAugmentedImageExtentZ = 0; // Z is backward vector
-	ArAugmentedImage_getExtentX(
-		SessionPtr->GetHandle(), GetImageHandle(),
-		&ARCoreAugmentedImageExtentX);
-	ArAugmentedImage_getExtentZ(
-		SessionPtr->GetHandle(), GetImageHandle(),
-		&ARCoreAugmentedImageExtentZ);
-
-	int32 ImageIndex = 0;
-	ArAugmentedImage_getIndex(
-		SessionPtr->GetHandle(),
-		GetImageHandle(),
-		&ImageIndex);
-
-	// Convert extents to estimated size where x is the width and y is the height.
-	EstimatedSize = FVector2D(FMath::Abs(ARCoreAugmentedImageExtentX), FMath::Abs(ARCoreAugmentedImageExtentZ)) * SessionPtr->GetWorldToMeterScale();
-
-	uint32 FrameNum = SessionPtr->GetFrameNum();
-	int64 TimeStamp = SessionPtr->GetLatestFrame()->GetCameraTimestamp();
-
-	char *ImageName = nullptr;
-	ArAugmentedImage_acquireName(
-		SessionPtr->GetHandle(),
-		GetImageHandle(),
-		&ImageName);
-
-	UARCandidateImage* TargetCandidateImage = nullptr;
-
-	if (SessionPtr->GetCurrentSessionConfig()->GetCandidateImageList().Num() > 0) {
-		TargetCandidateImage = SessionPtr->GetCurrentSessionConfig()->GetCandidateImageList()[ImageIndex];
-	}
-
-	AugmentedImage->UpdateTrackedGeometry(
-		SessionPtr->GetARSystem(), FrameNum,
-		static_cast<double>(TimeStamp), LocalToTrackingTransform,
-		SessionPtr->GetARSystem()->GetAlignmentTransform(),
-		EstimatedSize, TargetCandidateImage,
-		ImageIndex, ImageName);
-
-	ArString_release(ImageName);
-
-	AugmentedImage->SetDebugName(FName(TEXT("ARCoreAugmentedImage")));
-}
-
-void FGoogleARCoreAugmentedFaceResource::UpdateGeometryData()
-{
-	FGoogleARCoreTrackableResource::UpdateGeometryData();
-
-	ArAugmentedFace* FaceHandle = GetFaceHandle();
-	UGoogleARCoreAugmentedFace* AugmentedFace = CastChecked<UGoogleARCoreAugmentedFace>(TrackedGeometry);
-
-	if (!CheckIsSessionValid("ARCoreAugmentedFace", Session) || TrackedGeometry->GetTrackingState() == EARTrackingState::StoppedTracking)
-	{
-		return;
-	}
-
-	TSharedPtr<FGoogleARCoreSession> SessionPtr = Session.Pin();
-	double TimeStamp = static_cast<double>(SessionPtr->GetLatestFrame()->GetCameraTimestamp());
-
-	ArPose* ARPoseHandle = nullptr;
-	ArPose_create(SessionPtr->GetHandle(), nullptr, &ARPoseHandle);
-	ArAugmentedFace_getCenterPose(SessionPtr->GetHandle(), FaceHandle, ARPoseHandle);
-	FTransform LocalToTrackingTransform = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
-
-	const float* VerticesHandle = nullptr;
-	const uint16* IndicesHandle = nullptr;
-	const float* UVHandle = nullptr;
-	int VerticesNumber = 0;
-	int IndicesNumber = 0;
-	int UVNumber = 0;
-
-	// Prepare vertex buffer
-	ArAugmentedFace_getMeshVertices(SessionPtr->GetHandle(), FaceHandle, &VerticesHandle, &VerticesNumber);
-	TArray<FVector> Vertices;
-	Vertices.AddUninitialized(VerticesNumber);
-	FMemory::Memcpy(reinterpret_cast<float*>(Vertices.GetData()), VerticesHandle, VerticesNumber * 3 * sizeof(float));
-
-	for (int i = 0; i < VerticesNumber; i++)
-	{
-		FVector Vert = Vertices[i];
-		Vertices[i].X = -Vert.Z;
-		Vertices[i].Y = Vert.X;
-		Vertices[i].Z = Vert.Y;
-		Vertices[i] = Vertices[i] * SessionPtr->GetWorldToMeterScale();
-	}
-
-	// Prepare index buffer
-	TArray<int32> Indices = AugmentedFace->GetIndexBuffer();
-	if(Indices.Num() == 0)
-	{
-		ArAugmentedFace_getMeshTriangleIndices(SessionPtr->GetHandle(), FaceHandle, &IndicesHandle, &IndicesNumber);
-		IndicesNumber *= 3;
-
-		// We need to convert index value to int32.
-		Indices.AddUninitialized(IndicesNumber);
-		for (int i = 0; i < IndicesNumber; i += 3)
-		{
-			Indices[i] = static_cast<int32>(IndicesHandle[i]);
-			Indices[i + 1] = static_cast<int32>(IndicesHandle[i + 1]);
-			Indices[i + 2] = static_cast<int32>(IndicesHandle[i + 2]);
-		}
-	}
-
-	// Prepare UVs
-	ArAugmentedFace_getMeshTextureCoordinates(SessionPtr->GetHandle(), FaceHandle, &UVHandle, &UVNumber);
-	TArray<FVector2D> UVs;
-	UVs.AddUninitialized(UVNumber);
-	FMemory::Memcpy(reinterpret_cast<float*>(UVs.GetData()), UVHandle, UVNumber * sizeof(float) * 2);
-	for (int i = 0; i < UVs.Num(); i++)
-	{
-		UVs[i].Y = -UVs[i].Y;
-	}
-
-	FARBlendShapeMap EmptyBlendShape;
-
-	AugmentedFace->UpdateFaceGeometry(SessionPtr->GetARSystem(), SessionPtr->GetFrameNum(), TimeStamp,
-		LocalToTrackingTransform, SessionPtr->GetARSystem()->GetAlignmentTransform(),
-		EmptyBlendShape, Vertices, Indices, UVs,
-		FTransform::Identity, FTransform::Identity, FVector::ForwardVector);
-
-	// Update augmented face region
-	TMap<EGoogleARCoreAugmentedFaceRegion, FTransform> RegionLocalToTrackingTransform;
-
-	FTransform RegionLocalToTracking;
-	// Nose
-	ArAugmentedFace_getRegionPose(SessionPtr->GetHandle(), FaceHandle, AR_AUGMENTED_FACE_REGION_NOSE_TIP, ARPoseHandle);
-	RegionLocalToTracking = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
-	RegionLocalToTrackingTransform.Add(EGoogleARCoreAugmentedFaceRegion::NoseTip, RegionLocalToTracking);
-
-	// Forehead left
-	ArAugmentedFace_getRegionPose(SessionPtr->GetHandle(), FaceHandle, AR_AUGMENTED_FACE_REGION_FOREHEAD_LEFT, ARPoseHandle);
-	RegionLocalToTracking = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
-	RegionLocalToTrackingTransform.Add(EGoogleARCoreAugmentedFaceRegion::ForeheadLeft, RegionLocalToTracking);
-
-	// Forehead right
-	ArAugmentedFace_getRegionPose(SessionPtr->GetHandle(), FaceHandle, AR_AUGMENTED_FACE_REGION_FOREHEAD_RIGHT, ARPoseHandle);
-	RegionLocalToTracking = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
-	RegionLocalToTrackingTransform.Add(EGoogleARCoreAugmentedFaceRegion::ForeheadRight, RegionLocalToTracking);
-
-	AugmentedFace->UpdateRegionTransforms(RegionLocalToTrackingTransform);
-
-	ArPose_destroy(ARPoseHandle);
-}
-#endif
-
 
 /****************************************/
 /*       UGoogleARCorePointCloud        */
@@ -1801,8 +1636,8 @@ void UGoogleARCoreUObjectManager::DumpTrackableHandleMap(const ArSession* Sessio
 {
 	for (auto KeyValuePair : TrackableHandleMap)
 	{
-		ArTrackable* TrackableHandle = KeyValuePair.Key;
-		TWeakObjectPtr<UARTrackedGeometry> TrackedGeometry = KeyValuePair.Value;
+		ArTrackable* TrackableHandle = KeyValuePair.Key.AsRawPointer<ArTrackable>();
+		UARTrackedGeometry* TrackedGeometry = KeyValuePair.Value.TrackedGeometry;
 
 		ArTrackableType TrackableType = ArTrackableType::AR_TRACKABLE_NOT_VALID;
 		ArTrackable_getType(SessionHandle, TrackableHandle, &TrackableType);
@@ -1811,12 +1646,11 @@ void UGoogleARCoreUObjectManager::DumpTrackableHandleMap(const ArSession* Sessio
 
 		UE_LOG(LogGoogleARCoreAPI, Log, TEXT("TrackableHandle - address: %p, type: 0x%x, tracking state: %d"),
 			TrackableHandle, (int)TrackableType, (int)ARTrackingState);
-		if (TrackedGeometry.IsValid())
+		if (TrackedGeometry != nullptr)
 		{
-			UARTrackedGeometry* TrackedGeometryObj = TrackedGeometry.Get();
-			FGoogleARCoreTrackableResource* NativeResource = reinterpret_cast<FGoogleARCoreTrackableResource*>(TrackedGeometryObj->GetNativeResource());
+			FGoogleARCoreTrackableResource* NativeResource = reinterpret_cast<FGoogleARCoreTrackableResource*>(TrackedGeometry->GetNativeResource());
 			UE_LOG(LogGoogleARCoreAPI, Log, TEXT("TrackedGeometry - NativeResource:%p, type: %s, tracking state: %d"),
-				NativeResource->GetNativeHandle(), *TrackedGeometryObj->GetClass()->GetFName().ToString(), (int)TrackedGeometryObj->GetTrackingState());
+				NativeResource->GetNativeHandle(), *TrackedGeometry->GetClass()->GetFName().ToString(), (int)TrackedGeometry->GetTrackingState());
 		}
 		else
 		{
@@ -1824,6 +1658,51 @@ void UGoogleARCoreUObjectManager::DumpTrackableHandleMap(const ArSession* Sessio
 		}
 	}
 }
+
+
+// Wraps a pointer inside a guid by xoring them with the last 64 bits of a constant base guid
+FGuid UGoogleARCoreUObjectManager::TrackableHandleToGuid(const ArTrackable* TrackableHandle)
+{
+
+	FGuid Guid = BaseGuid;
+	if (TrackableHandle == nullptr)
+	{
+		Guid.Invalidate();
+	}
+	else
+	{
+		UPTRINT IntPtr = reinterpret_cast<UPTRINT>(TrackableHandle);
+		if (sizeof(UPTRINT) > 4)
+		{
+			Guid[0] ^= (static_cast<uint64>(IntPtr) >> 32);
+		}
+		Guid[1] ^= IntPtr & 0xFFFFFFFF;
+	}
+	return Guid;
+}
+
+// Unwrap a pointer previously wrapped using TrackabeHandleToGuid. The caller must somehow validate the returned pointer, 
+// for instance by checking whether it is in TrackableHandleMap
+ArTrackable* UGoogleARCoreUObjectManager::GuidToTrackableHandle(const FGuid& Guid)
+{
+	UPTRINT IntPtr = 0;
+
+	// Check whether the unmodified parts of the guid match the base guid belonging to this instance
+	if (Guid[2] != BaseGuid[2] || Guid[3] != BaseGuid[3] || (sizeof(UPTRINT) == 4 && Guid[0] != BaseGuid[0]))
+	{
+		return nullptr;
+	}
+	if (sizeof(UPTRINT) > 4)
+	{
+		IntPtr = static_cast<UPTRINT>(static_cast<uint64>(Guid[0] ^ BaseGuid[0]) << 32);
+	}
+	IntPtr |= (Guid[1] ^ BaseGuid[1]) & 0xFFFFFFFF;
+
+	ArTrackable* Result = reinterpret_cast<ArTrackable*>(IntPtr);
+	//check(TrackableHandleMap.Contains(Result));
+	return Result;
+}
+
 #endif
 
 void* FGoogleARCoreSession::GetLatestFrameRawPointer()
@@ -1833,3 +1712,308 @@ void* FGoogleARCoreSession::GetLatestFrameRawPointer()
 #endif
 	return nullptr;
 }
+
+UGoogleARCoreUObjectManager::UGoogleARCoreUObjectManager()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		SpawnARActorDelegateHandle = UARLifeCycleComponent::OnSpawnARActorDelegate.AddUObject(this, &UGoogleARCoreUObjectManager::OnSpawnARActor);
+#if PLATFORM_ANDROID
+		BaseGuid = FGuid::NewGuid();
+#endif
+	}
+}
+
+UGoogleARCoreUObjectManager::~UGoogleARCoreUObjectManager()
+{
+	UARLifeCycleComponent::OnSpawnARActorDelegate.Remove(SpawnARActorDelegateHandle);
+}
+
+
+UARSessionConfig& UGoogleARCoreUObjectManager::AccessSessionConfig()
+{
+	return FGoogleARCoreDevice::GetInstance()->GetARSystem()->AccessSessionConfig();
+}
+
+void UGoogleARCoreUObjectManager::OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID)
+{
+#if PLATFORM_ANDROID
+	FTrackedGeometryGroup* TrackedGeometryGroup = TrackableHandleMap.Find(GuidToTrackableHandle(NativeID));
+	if (TrackedGeometryGroup != nullptr)
+	{
+		//this should still be null
+		check(TrackedGeometryGroup->ARActor == nullptr);
+		check(TrackedGeometryGroup->ARComponent == nullptr);
+
+		check(NewARActor);
+		check(NewARComponent);
+
+		TrackedGeometryGroup->ARActor = NewARActor;
+		TrackedGeometryGroup->ARComponent = NewARComponent;
+		
+		//NOW, we can make the callbacks
+		TrackedGeometryGroup->ARComponent->Update(TrackedGeometryGroup->TrackedGeometry);
+		if (auto TrackingSystem = FGoogleARCoreXRTrackingSystem::GetInstance())
+		{
+			TrackingSystem->OnTrackableAdded(TrackedGeometryGroup->TrackedGeometry);
+		}
+	}
+	else
+	{
+		UE_LOG(LogGoogleARCoreAPI, Warning, TEXT("AR NativeID not found.  Make sure to set this on the ARComponent!"));
+	}
+#endif
+}
+
+FGoogleARCoreCameraConfig::FGoogleARCoreCameraConfig()
+{
+#if PLATFORM_ANDROID
+	static_assert((int32)EGoogleARCoreCameraFPS::FPS_30 == AR_CAMERA_CONFIG_TARGET_FPS_30, "");
+	static_assert((int32)EGoogleARCoreCameraFPS::FPS_60 == AR_CAMERA_CONFIG_TARGET_FPS_60, "");
+	static_assert((int32)EGoogleARCoreCameraDepthSensorUsage::DepthSensor_RequireAndUse == AR_CAMERA_CONFIG_DEPTH_SENSOR_USAGE_REQUIRE_AND_USE, "");
+	static_assert((int32)EGoogleARCoreCameraDepthSensorUsage::DepthSensor_DoNotUse == AR_CAMERA_CONFIG_DEPTH_SENSOR_USAGE_DO_NOT_USE, "");
+#endif
+}
+
+int32 FGoogleARCoreCameraConfig::GetMaxFPS() const
+{
+	return TargetFPS & (int32)EGoogleARCoreCameraFPS::FPS_60 ? 60 : 30;
+}
+
+void FGoogleARCoreCameraConfig::SetMaxFPS(int32 MaxFPS)
+{
+	if (MaxFPS > 30)
+	{
+		TargetFPS = (int32)EGoogleARCoreCameraFPS::FPS_60 | (int32)EGoogleARCoreCameraFPS::FPS_30;
+	}
+	else
+	{
+		TargetFPS = (int32)EGoogleARCoreCameraFPS::FPS_30;
+	}
+}
+
+FString FGoogleARCoreCameraConfig::ToLogString() const
+{
+	FString LogString = FString::Printf(TEXT("CameraImageResolution (%d x %d), CameraTextureResolution (%d x %d), CameraID (%s), TargetFPS Mode (%d, %d Max FPS), DepthSensorUsage Mode (%d)"),
+		CameraImageResolution.X, CameraImageResolution.Y, CameraTextureResolution.X, CameraTextureResolution.Y, *CameraID, TargetFPS, GetMaxFPS(), DepthSensorUsage);
+	return MoveTemp(LogString);
+}
+
+bool FGoogleARCoreCameraConfig::IsCompatibleWith(const FGoogleARCoreCameraConfig& OtherConfig) const
+{
+	if (CameraImageResolution != OtherConfig.CameraImageResolution ||
+		CameraTextureResolution != OtherConfig.CameraTextureResolution ||
+		CameraID != OtherConfig.CameraID)
+	{
+		return false;
+	}
+
+	static const int32 FPS_ALL = (int32)EGoogleARCoreCameraFPS::FPS_30 | (int32)EGoogleARCoreCameraFPS::FPS_60;
+	static const int32 DepthSensorUsage_ALL = (int32)EGoogleARCoreCameraDepthSensorUsage::DepthSensor_RequireAndUse | (int32)EGoogleARCoreCameraDepthSensorUsage::DepthSensor_DoNotUse;
+
+	/**
+		Not specifying the target FPS or the depth sensor usage means none of the filtering is applied, which equals to selecting all the filtering options.
+		And for 2 configs to be considered compatible, their filtering options only need to overlap - for instance, requesting both 30 and 60 FPS, but only get 30 FPS back
+		To make it easier for the overlap check, the "none filtering option" case needs to be converted to the "all filtering options" version
+	*/
+	int32 MyTargetFPS = TargetFPS ? TargetFPS : FPS_ALL;
+	int32 OtherTargetFPS = OtherConfig.TargetFPS ? OtherConfig.TargetFPS : FPS_ALL;
+
+	int32 MyDepthSensorUsage = DepthSensorUsage ? DepthSensorUsage : DepthSensorUsage_ALL;
+	int32 OtherDepthSensorUsage = OtherConfig.DepthSensorUsage ? OtherConfig.DepthSensorUsage : DepthSensorUsage_ALL;
+
+	return (MyTargetFPS & OtherTargetFPS) && (MyDepthSensorUsage & OtherDepthSensorUsage);
+}
+
+UARTrackedGeometry* UGoogleARCoreUObjectManager::RemoveTrackable(FARCorePointer Pointer)
+{
+	if (auto Record = TrackableHandleMap.Find(Pointer))
+	{
+		if (Record->ARComponent)
+		{
+			Record->ARComponent->Remove(Record->TrackedGeometry);
+			AARActor::RequestDestroyARActor(Record->ARActor);
+		}
+		
+		if (Record->TrackedGeometry)
+		{
+			Record->TrackedGeometry->UpdateTrackingState(EARTrackingState::StoppedTracking);
+			if (auto TrackingSystem = FGoogleARCoreXRTrackingSystem::GetInstance())
+			{
+				TrackingSystem->OnTrackableRemoved(Record->TrackedGeometry);
+			}
+		}
+		
+		auto RemovedGeometry = Record->TrackedGeometry;
+		TrackableHandleMap.Remove(Pointer);
+		return RemovedGeometry;
+	}
+	
+	return nullptr;
+}
+
+void UGoogleARCoreUObjectManager::ClearTrackables()
+{
+	TArray<FARCorePointer> Pointers;
+	TrackableHandleMap.GetKeys(Pointers);
+	for (auto Pointer : Pointers)
+	{
+		RemoveTrackable(Pointer);
+	}
+	
+	// The stored UARTrackedGeometry* will be deleted by GC
+	TrackableHandleMap = {};
+}
+
+#if PLATFORM_ANDROID
+const FTrackedGeometryGroup& UGoogleARCoreUObjectManager::GetBaseTrackableFromHandle(ArTrackable* TrackableHandle, FGoogleARCoreSession* Session)
+{
+	if (!TrackableHandleMap.Contains(TrackableHandle)
+		|| (TrackableHandleMap[TrackableHandle].TrackedGeometry == nullptr)
+		|| TrackableHandleMap[TrackableHandle].TrackedGeometry->GetTrackingState() == EARTrackingState::StoppedTracking)
+	{
+		// Add the trackable to the cache.
+		UARTrackedGeometry* NewTrackableObject = nullptr;
+		ArTrackableType TrackableType = ArTrackableType::AR_TRACKABLE_NOT_VALID;
+		ArTrackable_getType(Session->GetHandle(), TrackableHandle, &TrackableType);
+		IARRef* NativeResource = nullptr;
+		UClass* ARComponentClass = nullptr;
+		if (TrackableType == ArTrackableType::AR_TRACKABLE_PLANE)
+		{
+			NewTrackableObject = NewObject<UARPlaneGeometry>();
+			NativeResource = new FGoogleARCoreTrackedPlaneResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
+			ARComponentClass = AccessSessionConfig().GetPlaneComponentClass();
+		}
+		else if (TrackableType == ArTrackableType::AR_TRACKABLE_POINT)
+		{
+			NewTrackableObject = NewObject<UARTrackedPoint>();
+			NativeResource = new FGoogleARCoreTrackedPointResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
+			ARComponentClass = AccessSessionConfig().GetPointComponentClass();
+		}
+		else if (TrackableType == ArTrackableType::AR_TRACKABLE_AUGMENTED_IMAGE)
+		{
+			NewTrackableObject = NewObject<UGoogleARCoreAugmentedImage>();
+			NativeResource = new FGoogleARCoreAugmentedImageResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
+			ARComponentClass = AccessSessionConfig().GetImageComponentClass();
+		}
+		else if (TrackableType == ArTrackableType::AR_TRACKABLE_FACE)
+		{
+			NewTrackableObject = NewObject<UGoogleARCoreAugmentedFace>();
+			NativeResource = new FGoogleARCoreAugmentedFaceResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
+			ARComponentClass = AccessSessionConfig().GetFaceComponentClass();
+		}
+		// We should have a valid trackable object now.
+		checkf(NewTrackableObject, TEXT("Unknown ARCore Trackable Type: %d"), TrackableType);
+
+		NewTrackableObject->InitializeNativeResource(NativeResource);
+		NativeResource = nullptr;
+
+		FGoogleARCoreTrackableResource* TrackableResource = reinterpret_cast<FGoogleARCoreTrackableResource*>(NewTrackableObject->GetNativeResource());
+		
+		FTrackedGeometryGroup TrackedGeometryGroup(NewTrackableObject);
+		
+		// Update the tracked geometry data using the native resource
+		TrackableResource->UpdateGeometryData();
+		
+		// Add the new object to the record
+		TrackableHandleMap.Add(TrackableHandle, TrackedGeometryGroup);
+		
+		UE_LOG(LogGoogleARCoreAPI, Log, TEXT("Added NewTrackableObject: %s for handle 0x%x, current total number of trackables: %d"),
+			   *NewTrackableObject->GetName(), TrackableHandle, TrackableHandleMap.Num());
+		
+		const auto Guid = TrackableHandleToGuid(TrackableHandle);
+		NewTrackableObject->UniqueId = Guid;
+		AARActor::RequestSpawnARActor(Guid, ARComponentClass);
+	}
+	else
+	{
+		// If we are not create new trackable object, release the trackable handle.
+		ArTrackable_release(TrackableHandle);
+	}
+	
+	const auto& Group = TrackableHandleMap[TrackableHandle];
+	checkf(Group.TrackedGeometry, TEXT("UGoogleARCoreUObjectManager failed to get a valid trackable %p from the map."), TrackableHandle);
+	return Group;
+}
+
+void UGoogleARCoreUObjectManager::RemoveInvalidTrackables(const TArray<ArTrackable*>& ValidTrackables, TArray<UARPin*>& ARPinsToRemove)
+{
+	TArray<FARCorePointer> InvalidPointers;
+	for (auto Itr : TrackableHandleMap)
+	{
+		auto TrackableHandle = Itr.Key.AsRawPointer<ArTrackable>();
+		
+		if (!ValidTrackables.Contains(TrackableHandle))
+		{
+			InvalidPointers.Add(Itr.Key);
+		}
+	}
+	
+	TArray<UARTrackedGeometry*> RemovedGeometries;
+	for (auto Pointer : InvalidPointers)
+	{
+		if (auto RemovedGeometry = RemoveTrackable(Pointer))
+		{
+			RemovedGeometries.Add(RemovedGeometry);
+		}
+	}
+	
+	for (auto Itr : HandleToAnchorMap)
+	{
+		if (auto Pin = Itr.Value)
+		{
+			if (RemovedGeometries.Contains(Pin->GetTrackedGeometry()))
+			{
+				ARPinsToRemove.Add(Pin);
+			}
+		}
+	}
+}
+
+TArray<ArTrackable*> FGoogleARCoreFrame::GetTrackables(const ArSession* SessionHandle, ArTrackableList* ListHandle, bool bRemoveSubsumedPlanes)
+{
+	TArray<ArTrackable*> Trackables;
+	if (SessionHandle && ListHandle)
+	{
+		int TrackableListSize = 0;
+		ArTrackableList_getSize(SessionHandle, ListHandle, &TrackableListSize);
+		for (auto Index = 0; Index < TrackableListSize; ++Index)
+		{
+			ArTrackable* TrackableHandle = nullptr;
+			ArTrackableList_acquireItem(SessionHandle, ListHandle, Index, &TrackableHandle);
+			
+			// Check whether this is a plane that's subsumed
+			auto bSubsumed = false;
+			if (bRemoveSubsumedPlanes)
+			{
+				ArTrackableType TrackableType;
+				ArTrackable_getType(SessionHandle, TrackableHandle, &TrackableType);
+				if (TrackableType == AR_TRACKABLE_PLANE)
+				{
+					ArPlane* SubsumedByPlaneHandle = nullptr;
+					ArPlane_acquireSubsumedBy(SessionHandle, (ArPlane*)TrackableHandle, &SubsumedByPlaneHandle);
+					if (SubsumedByPlaneHandle)
+					{
+						bSubsumed = true;
+					}
+				}
+			}
+			else
+			{
+				bSubsumed = false;
+			}
+			
+			if (bSubsumed)
+			{
+				ArTrackable_release(TrackableHandle);
+			}
+			else
+			{
+				Trackables.Add(TrackableHandle);
+			}
+		}
+	}
+	
+	return MoveTemp(Trackables);
+}
+#endif

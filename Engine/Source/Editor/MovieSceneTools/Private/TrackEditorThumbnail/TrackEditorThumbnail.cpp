@@ -353,7 +353,7 @@ void FTrackEditorThumbnailCache::DrawThumbnail(FTrackEditorThumbnail& TrackEdito
 			[bHasFinishedDrawingPtr, pSlateResource](FRHICommandList& RHICmdList)
 			{
 				FRHITexture* InTexture = pSlateResource->GetTextureRHI();
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, InTexture);
+				RHICmdList.Transition(FRHITransitionInfo(InTexture, ERHIAccess::RTV, ERHIAccess::SRVMask));
 				*bHasFinishedDrawingPtr = true;
 			}
 		);

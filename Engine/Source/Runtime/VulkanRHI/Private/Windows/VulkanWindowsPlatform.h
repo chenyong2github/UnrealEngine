@@ -17,6 +17,7 @@
 #define VULKAN_SUPPORTS_COLOR_CONVERSIONS			1
 #define VULKAN_SUPPORTS_AMD_BUFFER_MARKER			1
 #define VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT	1
+#define VULKAN_SUPPORTS_NV_DEVICE_DIAGNOSTIC_CONFIG	1
 
 #define	UE_VK_API_VERSION							VK_API_VERSION_1_1
 
@@ -29,6 +30,7 @@
 #define ENUM_VK_ENTRYPOINTS_PLATFORM_INSTANCE(EnumMacro)	\
 	EnumMacro(PFN_vkCreateWin32SurfaceKHR, vkCreateWin32SurfaceKHR) \
 	EnumMacro(PFN_vkGetPhysicalDeviceProperties2KHR, vkGetPhysicalDeviceProperties2KHR) \
+	EnumMacro(PFN_vkGetPhysicalDeviceFeatures2KHR, vkGetPhysicalDeviceFeatures2KHR) \
 	EnumMacro(PFN_vkGetImageMemoryRequirements2KHR , vkGetImageMemoryRequirements2KHR) \
 	EnumMacro(PFN_vkCmdWriteBufferMarkerAMD, vkCmdWriteBufferMarkerAMD) \
 	EnumMacro(PFN_vkCmdSetCheckpointNV, vkCmdSetCheckpointNV) \
@@ -66,8 +68,6 @@ public:
 		static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Vulkan.UseRealUBs"));
 		return (CVar && CVar->GetValueOnAnyThread() == 0) ? false : bCodeHeaderUseRealUBs;
 	}
-
-	static bool RequiresRenderPassResolveAttachments() { return GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1; }
 };
 
 typedef FVulkanWindowsPlatform FVulkanPlatform;

@@ -26,6 +26,7 @@ static int32 GBuiltinDisplayHeight = 960;
 
 FString FLuminPlatformMisc::WritableDirPath = "";
 FString FLuminPlatformMisc::PackageDirPath = "";
+FString FLuminPlatformMisc::TempDirPath = "";
 FString FLuminPlatformMisc::PackageName = "";
 FString FLuminPlatformMisc::ComponentName = "";
 bool FLuminPlatformMisc::ApplicationPathsInitialized = false;
@@ -133,6 +134,11 @@ bool FLuminPlatformMisc::GetOverrideResolution(int32 &ResX, int32& ResY)
 	return true;
 }
 
+const TCHAR* FLuminPlatformMisc::GetPlatformFeaturesModuleName()
+{
+	return TEXT("LuminPlatformFeatures");
+}
+
 bool FLuminPlatformMisc::ShouldUseVulkan()
 {
 	bool bUseVulkan = false;
@@ -197,7 +203,7 @@ void FLuminPlatformMisc::LowLevelOutputDebugStringfWithVerbosity(ELogVerbosity::
 // @todo override FOutputDevice and FOutputDeviceError to actually utilize this
 void FLuminPlatformMisc::LocalPrintWithVerbosity(const TCHAR *Message, ELogVerbosity::Type Verbosity)
 {
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING || USE_LOGGING_IN_SHIPPING
 	MLLogLevel logLevel = MLLogLevel_Debug;
 	switch (Verbosity)
 	{
@@ -270,6 +276,12 @@ const FString& FLuminPlatformMisc::GetApplicationPackageDirectoryPath()
 {
 	InitApplicationPaths();
 	return PackageDirPath;
+}
+
+const FString& FLuminPlatformMisc::GetApplicationTempDirectoryPath()
+{
+	InitApplicationPaths();
+	return TempDirPath;
 }
 
 const FString& FLuminPlatformMisc::GetApplicationApplicationPackageName()
@@ -354,6 +366,8 @@ void FLuminPlatformMisc::InitApplicationPaths()
 	WritableDirPath.RemoveFromEnd(TEXT("/"));
 	PackageDirPath = FString(ANSI_TO_TCHAR(SelfInfo->package_dir_path));
 	PackageDirPath.RemoveFromEnd(TEXT("/"));
+	TempDirPath = FString(ANSI_TO_TCHAR(SelfInfo->tmp_dir_path));
+	TempDirPath.RemoveFromEnd(TEXT("/"));
 	PackageName = FString(ANSI_TO_TCHAR(SelfInfo->package_name));
 	ComponentName = FString(ANSI_TO_TCHAR(SelfInfo->component_name));
 

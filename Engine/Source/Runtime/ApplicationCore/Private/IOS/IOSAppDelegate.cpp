@@ -201,12 +201,7 @@ bool FIOSCoreDelegates::PassesPushNotificationFilters(NSDictionary* Payload)
 @implementation IOSAppDelegate
 
 #if !UE_BUILD_SHIPPING && !PLATFORM_TVOS
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0
-	@synthesize ConsoleAlert;
-#endif
-#ifdef __IPHONE_8_0
     @synthesize ConsoleAlertController;
-#endif
 	@synthesize ConsoleHistoryValues;
 	@synthesize ConsoleHistoryValuesIndex;
 #endif
@@ -272,12 +267,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 -(void)dealloc
 {
 #if !UE_BUILD_SHIPPING && !PLATFORM_TVOS
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0
-	[ConsoleAlert release];
-#endif
-#ifdef __IPHONE_8_0
 	[ConsoleAlertController release];
-#endif
 	[ConsoleHistoryValues release];
 #endif
 	[Window release];
@@ -1717,18 +1707,10 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 #if !PLATFORM_TVOS
 	GameCenterDisplay.viewState = GKGameCenterViewControllerStateLeaderboards;
 #endif
-#ifdef __IPHONE_7_0
 	if ([GameCenterDisplay respondsToSelector : @selector(leaderboardIdentifier)] == YES)
 	{
 #if !PLATFORM_TVOS // @todo tvos: Why not??
 		GameCenterDisplay.leaderboardIdentifier = Category;
-#endif
-	}
-	else
-#endif
-	{
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-		GameCenterDisplay.leaderboardCategory = Category;
 #endif
 	}
 	GameCenterDisplay.gameCenterDelegate = self;

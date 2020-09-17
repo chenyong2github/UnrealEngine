@@ -14,5 +14,16 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : false,
 	"Installed": false,
-	"Modules": []
+	"Modules": [
+		{
+			"Name": "MLSDK",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		}
+	]
 }

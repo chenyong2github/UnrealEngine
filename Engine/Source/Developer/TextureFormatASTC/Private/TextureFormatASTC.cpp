@@ -381,12 +381,12 @@ public:
 
 		if (bIsRGBColor)
 		{
-			CompressedPixelFormat = GetQualityFormat();
+			CompressedPixelFormat = GetQualityFormat(BuildSettings.CompressionQuality);
 			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -ch 1 1 1 0"), *GetQualityString(BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
 		}
 		else if (bIsRGBAColor)
 		{
-			CompressedPixelFormat = GetQualityFormat();
+			CompressedPixelFormat = GetQualityFormat(BuildSettings.CompressionQuality);
 			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -ch 1 1 1 1"), *GetQualityString(BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG)
@@ -407,7 +407,7 @@ public:
 		{
 			TArray64<uint8> CompressedSliceData;
 			bCompressionSucceeded = CompressSliceToASTC(
-				Image.AsBGRA8() + (SliceIndex * SliceSizeInTexels),
+				(&Image.AsBGRA8()[0]) + (SliceIndex * SliceSizeInTexels),
 				Image.SizeX,
 				Image.SizeY,
 				CompressionParameters,

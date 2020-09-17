@@ -76,6 +76,16 @@ float GetClearCoatIor(FMaterialClosestHitPayload HitInfo)
 	return 1.5;
 }
 
+float GetIor(FMaterialClosestHitPayload HitInfo)
+{
+	return DielectricF0ToIor(DielectricSpecularToF0(HitInfo.Specular));
+}
+
+float3 GetSubsurfaceColor(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.CustomData.xyz;
+}
+
 float3 GetWorldNormal(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.WorldNormal;
@@ -109,6 +119,16 @@ bool IsDefaultLitMaterial(FMaterialClosestHitPayload HitInfo)
 bool IsClearCoatMaterial(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.ShadingModelID == SHADINGMODELID_CLEAR_COAT;
+}
+
+bool IsTwoSidedFoliageMaterial(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
+}
+
+bool IsMaterialTransmissive(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
 }
 
 bool BSDF_Refract(float3 V, float3 N, float Eta, out float3 L)

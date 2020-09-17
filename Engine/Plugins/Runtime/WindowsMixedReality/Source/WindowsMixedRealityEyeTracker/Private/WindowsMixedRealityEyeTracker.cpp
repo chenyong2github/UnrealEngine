@@ -5,6 +5,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/World.h"
 #include "WindowsMixedRealityInteropLoader.h"
+#include "IXRTrackingSystem.h"
 
 #if WITH_WINDOWS_MIXED_REALITY
 	#include "MixedRealityInterop.h"
@@ -54,9 +55,20 @@ private:
 			return false;
 		}
 		
-		OutGazeData.GazeDirection = FromMixedRealityVector(ray.direction);
-		OutGazeData.GazeOrigin = FromMixedRealityVector(ray.origin) * GetWorldToMetersScale();
+		FTransform t2w = FTransform::Identity;
+		if (GEngine != nullptr)
+		{
+			IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
+			if (TrackingSys)
+			{
+				t2w = TrackingSys->GetTrackingToWorldTransform();
+			}
+		}
+		
+		OutGazeData.GazeDirection = t2w.TransformVector(FromMixedRealityVector(ray.direction));
+		OutGazeData.GazeOrigin = t2w.TransformPosition(FromMixedRealityVector(ray.origin) * GetWorldToMetersScale());
 		OutGazeData.ConfidenceValue = 1;
+		
 		return true;
 	}
 	virtual bool GetEyeTrackerStereoGazeData(FEyeTrackerStereoGazeData& OutGazeData) const override

@@ -27,12 +27,5 @@ public class MetalRHI : ModuleRules
 		{
 			PublicFrameworks.Add("QuartzCore");
 		}
-
-		string StatsPlugin = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Plugins/MetalStatistics/MetalStatistics.uplugin");
-		bool bMetalStats = File.Exists(StatsPlugin);
-		if ( bMetalStats && Target.Configuration != UnrealTargetConfiguration.Shipping )
-		{
-			PublicDefinitions.Add("METAL_STATISTICS=1");
-		}
 	}
 }

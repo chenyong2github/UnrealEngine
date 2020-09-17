@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOS/IOSPaymentTransactionObserver.h"
+#include "CoreGlobals.h"
 
 @implementation FPaymentTransactionObserver
 

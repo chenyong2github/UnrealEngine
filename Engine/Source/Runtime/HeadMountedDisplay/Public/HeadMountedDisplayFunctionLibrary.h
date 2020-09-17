@@ -7,7 +7,10 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "HeadMountedDisplayTypes.h"
 #include "IIdentifiableXRDevice.h" // for FXRDeviceId
+#include "XRGestureConfig.h"
 #include "HeadMountedDisplayFunctionLibrary.generated.h"
+
+DECLARE_DYNAMIC_DELEGATE_OneParam(FXRDeviceOnDisconnectDelegate, const FString, OutReason);
 
 UCLASS()
 class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBlueprintFunctionLibrary
@@ -46,6 +49,20 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	 */
 	UFUNCTION(BlueprintPure, Category="Input|HeadMountedDisplay")
 	static FName GetHMDDeviceName();
+
+	/**
+	 * Returns the flags for the device, so scripts can modify their behaviour appropriately
+	 *
+	 * @return	IsAR, IsTablet, IsHeadMounted.  Returns false
+	 */
+	UFUNCTION(BlueprintPure, Category="Input|HeadMountedDisplay")
+	static int32 GetXRSystemFlags();
+
+	/**
+	 * Returns name of tracking system specific version string.
+	 */
+	UFUNCTION(BlueprintPure, Category = "HeadMountedDisplay")
+	static FString GetVersionString();
 
 	/**
 	* Returns the worn state of the device.
@@ -302,4 +319,32 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	 */
 	UFUNCTION(BlueprintCallable, Category="Input|XRTracking")
 	static bool IsDeviceTracking(const FXRDeviceId& XRDeviceId);
+
+	/**
+	 * Cross XR-System query that returns critical information about the HMD display (position, orientation, device name)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
+	static void GetHMDData(UObject* WorldContext, FXRHMDData& HMDData);
+
+	/**
+	 * Cross XR-System query that returns critical information about the motion controller (position, orientation, hand/finger position)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
+	static void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking", meta = (ToolTip = "Specify which gestures to capture."))
+	static bool ConfigureGestures(const FXRGestureConfig& GestureConfig);
+
+	
+	/** Connect to a remote device */
+	UFUNCTION(BlueprintCallable, Category = "XR|HeadMountedDisplay")
+	static EXRDeviceConnectionResult::Type ConnectRemoteXRDevice(const FString& IpAddress, const int32 BitRate);
+	/** Disconnect remote AR Device */
+	UFUNCTION(BlueprintCallable, Category = "XR|HeadMountedDisplay")
+	static void DisconnectRemoteXRDevice();
+	UFUNCTION(BlueprintCallable, Category = "XR|HeadMountedDisplay")
+	static void SetXRDisconnectDelegate(const FXRDeviceOnDisconnectDelegate& InDisconnectedDelegate);
+
+	static FXRDeviceOnDisconnectDelegate OnXRDeviceOnDisconnectDelegate;
 };

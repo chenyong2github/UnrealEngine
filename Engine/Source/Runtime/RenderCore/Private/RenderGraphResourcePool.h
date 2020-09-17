@@ -21,13 +21,6 @@ class RENDERCORE_API FRenderGraphResourcePool : public FRenderResource
 public:
 	FRenderGraphResourcePool();
 
-	/** Allocate a buffer from a given descriptor. */
-	void FindFreeBuffer(
-		FRHICommandList& RHICmdList,
-		const FRDGBufferDesc& Desc,
-		TRefCountPtr<FPooledRDGBuffer>& Out,
-		const TCHAR* InDebugName);
-
 	/** Free renderer resources */
 	virtual void ReleaseDynamicRHI() override;
 
@@ -35,10 +28,15 @@ public:
 	void TickPoolElements();
 
 private:
+	/** Allocate a buffer from a given descriptor. */
+	TRefCountPtr<FRDGPooledBuffer> FindFreeBuffer(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, const TCHAR* InDebugName);
+
 	/** Elements can be 0, we compact the buffer later. */
-	TArray<TRefCountPtr<FPooledRDGBuffer>> AllocatedBuffers;
+	TArray<TRefCountPtr<FRDGPooledBuffer>> AllocatedBuffers;
 
 	uint32 FrameCounter = 0;
+
+	friend class FRDGBuilder;
 };
 
 /** The global render targets for easy shading. */

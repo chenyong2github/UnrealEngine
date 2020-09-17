@@ -27,7 +27,7 @@ template<class ResourceType> class TGlobalResource;
 DECLARE_LOG_CATEGORY_EXTERN(LogRenderer, Log, All);
 
 /** The renderer module implementation. */
-class FRendererModule : public IRendererModule
+class FRendererModule final : public IRendererModule
 {
 public:
 	FRendererModule();
@@ -79,20 +79,11 @@ public:
 
 	virtual void RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDelegate& PostOpaqueRenderDelegate) override;
 	virtual void RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& OverlayRenderDelegate) override;
-	virtual void RenderPostOpaqueExtensions(const FViewInfo& View, FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, TUniformBufferRef<FSceneTexturesUniformParameters>& SceneTextureUniformParams) override;
-	virtual void RenderOverlayExtensions(const FViewInfo& View, FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext) override;
-
-	virtual bool HasPostOpaqueExtentions() const override
-	{
-		return PostOpaqueRenderDelegate.IsBound();
-	}
 
 	virtual FOnResolvedSceneColor& GetResolvedSceneColorCallbacks() override
 	{
 		return PostResolvedSceneColorCallbacks;
 	}
-
-	virtual void RenderPostResolvedSceneColorExtension(FRHICommandListImmediate& RHICmdList, class FSceneRenderTargets& SceneContext) override;
 
 	virtual void PostRenderAllViewports() override;
 
@@ -109,6 +100,11 @@ public:
 	virtual void LoadPendingVirtualTextureTiles(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel) override;
 	virtual void FlushVirtualTextureCache() override;
 	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) override;
+
+	void RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FSceneRenderTargets& SceneContext);
+	void RenderOverlayExtensions(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FSceneRenderTargets& SceneContext);
+	void RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, class FSceneRenderTargets& SceneContext);
+
 private:
 	TSet<FSceneInterface*> AllocatedScenes;
 	FPostOpaqueRenderDelegate PostOpaqueRenderDelegate;

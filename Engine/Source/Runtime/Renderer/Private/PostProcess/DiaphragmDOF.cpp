@@ -19,6 +19,7 @@
 #include "SpriteIndexBuffer.h"
 #include "TemporalAA.h"
 #include "SceneTextureParameters.h"
+#include "TranslucentRendering.h"
 
 // ---------------------------------------------------- Cvars
 
@@ -859,7 +860,7 @@ class FDiaphragmDOFReduceCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER(float, MinScatteringCocRadius)
 		SHADER_PARAMETER(float, NeighborCompareMaxColor)
 		
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 
 		SHADER_PARAMETER(FVector4, GatherInputSize)
@@ -1319,7 +1320,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	FRDGTextureRef InputSceneColor,
-	FRDGTextureRef SceneSeparateTranslucency)
+	const FSeparateTranslucencyTextures& SeparateTranslucencyTextures)
 {
 	if (View.Family->EngineShowFlags.VisualizeDOF)
 	{
@@ -1496,9 +1497,8 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		FullResDesc.Reset();
 
 		FullResDesc.Format = PF_FloatRGBA;
-		FullResDesc.TargetableFlags |= TexCreate_UAV;
-		FullResDesc.TargetableFlags &= ~TexCreate_RenderTargetable;
-		FullResDesc.Flags &= ~TexCreate_FastVRAM;
+		FullResDesc.Flags |= TexCreate_UAV;
+		FullResDesc.Flags &= ~(TexCreate_RenderTargetable | TexCreate_FastVRAM);
 	}
 	
 	FDOFGatherInputDescs FullResGatherInputDescs;
@@ -1570,7 +1570,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->ViewportRect = FIntRect(FIntPoint::ZeroValue, PassViewSize);
 			PassParameters->CocRadiusBasis = FVector2D(GatheringViewSize.X, PreprocessViewSize.X);
 			PassParameters->SceneColorTexture = InputSceneColor;
-			PassParameters->SceneDepthTexture = SceneTextures.SceneDepthBuffer;
+			PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
 		
 			if (!bOutputFullResolution)
 			{
@@ -1617,8 +1617,8 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	// TAA the setup for the convolution to be temporally stable.
 	if (View.AntiAliasingMethod == AAM_TemporalAA && ViewState)
 	{
-		TAAParameters.SceneDepthTexture = SceneTextures.SceneDepthBuffer;
-		TAAParameters.SceneVelocityTexture = SceneTextures.SceneVelocityBuffer;
+		TAAParameters.SceneDepthTexture = SceneTextures.SceneDepthTexture;
+		TAAParameters.SceneVelocityTexture = SceneTextures.GBufferVelocityTexture;
 		TAAParameters.SceneColorInput = HalfResGatherInputTextures.SceneColor;
 		TAAParameters.SceneMetadataInput = HalfResGatherInputTextures.SeparateCoc;
 
@@ -1647,11 +1647,11 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		{
 			FIntPoint MaxTileCount = CocTileGridSize(HalfResGatherInputTextures.SceneColor->Desc.Extent);
 			
-			TileClassificationDescs.Foreground = FPooledRenderTargetDesc::Create2DDesc(
-				MaxTileCount, PF_G16R16F, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false);
+			TileClassificationDescs.Foreground = FRDGTextureDesc::Create2D(
+				MaxTileCount, PF_G16R16F, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV);
 
-			TileClassificationDescs.Background = FPooledRenderTargetDesc::Create2DDesc(
-				MaxTileCount, PF_FloatRGBA, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false);
+			TileClassificationDescs.Background = FRDGTextureDesc::Create2D(
+				MaxTileCount, PF_FloatRGBA, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV);
 		}
 
 		// Adds a coc flatten pass.
@@ -1854,7 +1854,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		{
 			FDOFGatherInputDescs ReducedGatherInputDescs = HalfResGatherInputDescs;
 			ReducedGatherInputDescs.SceneColor.NumMips = MipLevelCount;
-			ReducedGatherInputDescs.SceneColor.Flags = (ReducedGatherInputDescs.SceneColor.Flags & ~(TexCreate_FastVRAM)) | GFastVRamConfig.DOFReduce;
+			ReducedGatherInputDescs.SceneColor.Flags = (ReducedGatherInputDescs.SceneColor.Flags & ~(TexCreate_FastVRAM)) | (ETextureCreateFlags)GFastVRamConfig.DOFReduce;
 			
 			// Make sure the mip 0 is a multiple of 2^NumMips so there is no per mip level UV conversion to do in the gathering shader.
 			// Also make sure it is a multiple of group size because reduce shader unconditionally output Mip0.
@@ -1952,7 +1952,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->MinScatteringCocRadius = MinScatteringCocRadius;
 			PassParameters->NeighborCompareMaxColor = CVarScatterNeighborCompareMaxColor.GetValueOnRenderThread();
 			
-			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
+			PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 			PassParameters->CommonParameters = CommonParameters;
 
 			PassParameters->GatherInputSize = FVector4(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
@@ -2012,7 +2012,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				(PreprocessViewSize.X - 0.5f) / SrcSize.X,
 				(PreprocessViewSize.Y - 0.5f) / SrcSize.Y);
 
-			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
+			PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 			PassParameters->CommonParameters = CommonParameters;
 
 			float InputMipLevelPow2 = 1 << InputMipLevel;
@@ -2024,7 +2024,6 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				PassParameters->OutputMips[1 + MipLevel] = CreateUAVs(GraphBuilder, ReducedGatherInputTextures, ReducedMipLevelCount + MipLevel);
 			}
 
-			// TODO(RDG): ERDGPassFlags::GenerateMips has no reason to exist.
 			TShaderMapRef<FDiaphragmDOFReduceCS> ComputeShader(View.ShaderMap, PermutationVector);
 			ClearUnusedGraphResources(ComputeShader, PassParameters);
 			GraphBuilder.AddPass(
@@ -2034,7 +2033,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 					bRGBBufferSeparateCocBuffer ? TEXT(" R11G11B10") : TEXT(""),
 					PassViewSize.X, PassViewSize.Y),
 				PassParameters,
-				ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
+				ERDGPassFlags::Compute,
 				[PassParameters, ComputeShader, PassViewSize](FRHICommandList& RHICmdList)
 			{
 				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(PassViewSize, kDefaultGroupSize));
@@ -2084,13 +2083,11 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			TEXT("DOFGatherBokehLUT"),
 		};
 
-		FRDGTextureDesc BokehLUTDesc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc BokehLUTDesc = FRDGTextureDesc::Create2D(
 			FIntPoint(32, 32),
 			LUTFormat == EDiaphragmDOFBokehLUTFormat::GatherSamplePos ? PF_G16R16F : PF_R16F,
 			FClearValueBinding::None,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_UAV);
 
 		FRDGTextureRef BokehLUT = GraphBuilder.CreateTexture(BokehLUTDesc, DebugNames[int32(LUTFormat)]);
 
@@ -2166,7 +2163,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				FRDGTextureDesc Desc = ReducedGatherInputTextures.SceneColor->Desc;
 				Desc.Extent = RefBufferSize;
 				Desc.Format = PF_FloatRGBA;
-				Desc.TargetableFlags |= TexCreate_UAV;
+				Desc.Flags |= TexCreate_UAV;
 				Desc.NumMips = 1;
 
 				{
@@ -2186,7 +2183,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 					// Scattering pass will be drawing directly into the color of the gathered texture, so need to be render targetable.
 					if (ConvolutionSettings.bHasScatterPass && ConvolutionSettings.PostfilterMethod == EDiaphragmDOFPostfilterMethod::None)
 					{
-						SceneColorDesc.TargetableFlags |= TexCreate_RenderTargetable;
+						SceneColorDesc.Flags |= TexCreate_RenderTargetable;
 					}
 
 					ConvolutionOutputTextures->SceneColor = GraphBuilder.CreateTexture(SceneColorDesc, DebugName);
@@ -2333,7 +2330,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				// Scattering pass will be drawing directly into the post filtered color texture, so need to be render targetable.
 				if (ConvolutionSettings.bHasScatterPass)
 				{
-					Desc.TargetableFlags |= TexCreate_RenderTargetable;
+					Desc.Flags |= TexCreate_RenderTargetable;
 				}
 
 				NewConvolutionTextures.SceneColor = GraphBuilder.CreateTexture(Desc, ConvolutionTextures->SceneColor->Name);
@@ -2557,14 +2554,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		{
 			FRDGTextureDesc Desc = InputSceneColor->Desc;
 			Desc.NumSamples = 1;
-			Desc.TargetableFlags |= TexCreate_UAV;
+			Desc.Flags |= TexCreate_UAV;
 			NewSceneColor = GraphBuilder.CreateTexture(Desc, TEXT("DOFRecombine"));
 		}
 
-		const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get_FrameConstantsOnly();
-
-		FIntRect SeparateTranslucencyRect = SceneContext.GetSeparateTranslucencyViewRect(View);
-		bool bScaleSeparateTranslucency = SeparateTranslucencyRect != View.ViewRect && SceneSeparateTranslucency;
+		const FSeparateTranslucencyDimensions SeparateTranslucencyDimensions = SeparateTranslucencyTextures.GetDimensions();
+		const FIntRect SeparateTranslucencyRect = SeparateTranslucencyDimensions.GetViewport(View.ViewRect).Rect;
+		const bool bScaleSeparateTranslucency = SeparateTranslucencyDimensions.Scale != 1.0f;
 
 		FIntRect PassViewRect = View.ViewRect;
 
@@ -2574,7 +2570,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PermutationVector.Set<FDDOFBokehSimulationDim>(BokehSimulation);
 		PermutationVector.Set<FDiaphragmDOFRecombineCS::FQualityDim>(RecombineQuality);
 
-		FRDGTextureRef SeparateTranslucency = SceneSeparateTranslucency ? SceneSeparateTranslucency : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
+		FRDGTextureRef SeparateTranslucency = SeparateTranslucencyTextures.GetColorForRead(GraphBuilder);
 
 		FDiaphragmDOFRecombineCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFRecombineCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
@@ -2587,13 +2583,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			(GatheringViewSize.X - 0.5f) / float(RefBufferSize.X),
 			(GatheringViewSize.Y - 0.5f) / float(RefBufferSize.Y));
 		
-		PassParameters->SeparateTranslucencyBilinearUVMinMax.X = (SeparateTranslucencyRect.Min.X + 0.5f) / float(SeparateTranslucency->Desc.Extent.X);
-		PassParameters->SeparateTranslucencyBilinearUVMinMax.Y = (SeparateTranslucencyRect.Min.Y + 0.5f) / float(SeparateTranslucency->Desc.Extent.Y);
-		PassParameters->SeparateTranslucencyBilinearUVMinMax.Z = (SeparateTranslucencyRect.Max.X - 0.5f) / float(SeparateTranslucency->Desc.Extent.X);
-		PassParameters->SeparateTranslucencyBilinearUVMinMax.W = (SeparateTranslucencyRect.Max.Y - 0.5f) / float(SeparateTranslucency->Desc.Extent.Y);
+		PassParameters->SeparateTranslucencyBilinearUVMinMax.X = (SeparateTranslucencyRect.Min.X + 0.5f) / float(SeparateTranslucencyDimensions.Extent.X);
+		PassParameters->SeparateTranslucencyBilinearUVMinMax.Y = (SeparateTranslucencyRect.Min.Y + 0.5f) / float(SeparateTranslucencyDimensions.Extent.Y);
+		PassParameters->SeparateTranslucencyBilinearUVMinMax.Z = (SeparateTranslucencyRect.Max.X - 0.5f) / float(SeparateTranslucencyDimensions.Extent.X);
+		PassParameters->SeparateTranslucencyBilinearUVMinMax.W = (SeparateTranslucencyRect.Max.Y - 0.5f) / float(SeparateTranslucencyDimensions.Extent.Y);
 
 		PassParameters->SceneColorInput = FullResGatherInputTextures.SceneColor;
-		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthBuffer;
+		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
 		PassParameters->SceneSeparateCoc = FullResGatherInputTextures.SeparateCoc; // TODO looks useless.
 		PassParameters->SceneSeparateTranslucency = SeparateTranslucency;
 		PassParameters->SceneSeparateTranslucencySampler = bScaleSeparateTranslucency ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();

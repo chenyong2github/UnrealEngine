@@ -87,7 +87,7 @@ struct FGPUSkinBatchElementUserData
 	int32 Section;
 };
 
-struct FPooledRDGBuffer;
+class FRDGPooledBuffer;
 struct FCachedGeometry
 {
 	struct Section
@@ -108,7 +108,7 @@ struct FCachedGeometry
 
 	int32 LODIndex = 0;
 	TArray<Section> Sections;
-	TRefCountPtr<FPooledRDGBuffer> DeformedPositionBuffer;
+	TRefCountPtr<FRDGPooledBuffer> DeformedPositionBuffer;
 	FShaderResourceViewRHIRef DeformedPositionsSRV;
 };
 
@@ -273,7 +273,7 @@ public:
 			return WithTangents ? &IntermediateTangents : nullptr;
 		}
 
-		void RemoveAllFromTransitionArray(TArray<FRHIUnorderedAccessView*>& BuffersToTransition);
+		void RemoveAllFromTransitionArray(TSet<FRHIUnorderedAccessView*>& BuffersToTransition);
 
 	private:
 		// Output of the GPU skinning (ie Pos, Normals)
@@ -362,7 +362,7 @@ public:
 		const FVertexBufferAndSRV* BoneBuffers[NUM_BUFFERS];
 	};
 
-	ENGINE_API void TransitionAllToReadable(FRHICommandList& RHICmdList, EResourceTransitionPipeline Pipeline = EResourceTransitionPipeline::EComputeToGfx);
+	ENGINE_API void TransitionAllToReadable(FRHICommandList& RHICmdList);
 
 #if RHI_RAYTRACING
 	void AddRayTracingGeometryToUpdate(FRayTracingGeometry* RayTracingGeometry)
@@ -392,7 +392,10 @@ public:
 	bool IsBatchingDispatch() const { return bShouldBatchDispatches; }
 
 protected:
-	TArray<FRHIUnorderedAccessView*> BuffersToTransition;
+
+	void AddBufferToTransition(FRHIUnorderedAccessView* InUAV);
+
+	TSet<FRHIUnorderedAccessView*> BuffersToTransition;
 #if RHI_RAYTRACING
 	TSet<FRayTracingGeometry*> RayTracingGeometriesToUpdate;
 #endif // RHI_RAYTRACING

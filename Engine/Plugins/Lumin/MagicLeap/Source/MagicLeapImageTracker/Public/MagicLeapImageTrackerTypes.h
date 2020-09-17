@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-//#include "CoreMinimal.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
 #include "Lumin/CAPIShims/LuminAPIImageTracking.h"
 #include "MagicLeapImageTrackerTypes.generated.h"
 
@@ -25,7 +25,7 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FMagicLeapImageTargetReliableTracking, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMagicLeapImageTargetReliableTrackingMulti, const FVector&, NewLocation, const FRotator&, NewRotation);
 
 /** Delegate used to notify LuminARImageTracker that the target image was successfully set. */
-DECLARE_DELEGATE_OneParam(FMagicLeapSetImageTargetSucceededStaticDelegate, FMagicLeapImageTrackerTarget& /*Target*/);
+DECLARE_DELEGATE_OneParam(FMagicLeapSetImageTargetCompletedStaticDelegate, const FString& /* TargetName */);
 
 /** Delegate used to notify the instigating blueprint that the target image was successfully set. */
 DECLARE_DYNAMIC_DELEGATE(FMagicLeapSetImageTargetSucceeded);
@@ -43,40 +43,70 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMagicLeapImageTargetFoundMulti);
 DECLARE_DYNAMIC_DELEGATE(FMagicLeapImageTargetLost);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMagicLeapImageTargetLostMulti);
 
-USTRUCT()
-struct FMagicLeapImageTrackerTarget
+UENUM(BlueprintType)
+enum class EMagicLeapImageTargetStatus : uint8
+{
+	Tracked,
+	Unreliable,
+	NotTracked
+};
+
+USTRUCT(BlueprintType)
+struct MAGICLEAPIMAGETRACKER_API FMagicLeapImageTargetSettings
 {
 	GENERATED_BODY()
 
-	FString Name;
-#if WITH_MLSDK
-	MLHandle Handle;
-	MLImageTrackerTargetStaticData Data;
-	MLImageTrackerTargetSettings Settings;
-	MLImageTrackerTargetResult OldTrackingStatus;
-#endif // WITH_MLSDK
-	UTexture2D* Texture;
-	FVector Location;
-	FRotator Rotation;
-	FVector UnreliableLocation;
-	FRotator UnreliableRotation;
-	bool bUseUnreliablePose;
-	FMagicLeapSetImageTargetSucceededMulti OnSetImageTargetSucceeded;
-	FMagicLeapSetImageTargetFailedMulti OnSetImageTargetFailed;
-	FMagicLeapImageTargetFoundMulti OnImageTargetFound;
-	FMagicLeapImageTargetLostMulti OnImageTargetLost;
-	FMagicLeapImageTargetUnreliableTrackingMulti OnImageTargetUnreliableTracking;
-	FMagicLeapSetImageTargetSucceededStaticDelegate SetImageTargetSucceededDelegate;
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
+	UTexture2D* ImageTexture;
 
-	FMagicLeapImageTrackerTarget()
-	: Name(TEXT("Undefined"))
-#if WITH_MLSDK
-	, Handle(ML_INVALID_HANDLE)
-#endif // WITH_MLSDK
-	, Texture(nullptr)
-	{
-#if WITH_MLSDK
-		OldTrackingStatus.status = MLImageTrackerTargetStatus_Ensure32Bits;
-#endif // WITH_MLSDK
-	}
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
+	FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
+	float LongerDimension;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
+	bool bIsStationary;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
+	bool bIsEnabled;
+
+public:
+	FMagicLeapImageTargetSettings();
+};
+
+USTRUCT(BlueprintType)
+struct MAGICLEAPIMAGETRACKER_API FMagicLeapImageTargetState
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ImageTracking|MagicLeap")
+	EMagicLeapImageTargetStatus TrackingStatus;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ImageTracking|MagicLeap")
+	FVector Location;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ImageTracking|MagicLeap")
+	FRotator Rotation;
+};
+
+UENUM(BlueprintType)
+enum class EMagicLeapImageTargetOrientation : uint8
+{
+	/**
+		Unreal's Forward (X) axis will be normal to image target plane,
+		Right (Y) axis will point to the edge towards the left hand of the user facing the image (this edge is "right" for the image itself),
+		Up (Z) axis will point to the top edge of the image.
+	*/
+	ForwardAxisAsNormal,
+
+	/**
+		Unreal's Up (Z) axis will be normal to image target plane,
+		Right (Y) axis will point to the edge towards the right hand of the user facing the image,
+		Forward (X) axis will point to the top edge of the image.
+		Matches image target orientation reported by ARKit, ARCore.
+	*/
+	UpAxisAsNormal
 };

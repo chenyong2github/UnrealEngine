@@ -432,7 +432,7 @@ void ComposeVolumetricRTOverScenePS(
 
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, ClipPosition.z, 1.0)), 1.0).xyz;
 #else
-	float PixelDeviceZ = SceneDepthBuffer.Load(uint3(SVPos.xy, 0)).r;
+	float PixelDeviceZ = SampleDeviceZFromSceneTextures(ScreenUV);
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, PixelDeviceZ, 1.0)), 1.0).xyz;
 #endif 
 

@@ -4,11 +4,14 @@
 #include "HoloLensModule.h"
 #include "HoloLensCameraImageTexture.h"
 
+#include "ARLifeCycleComponent.h"
 #include "ARPin.h"
 #include "ARTrackable.h"
 #include "ARTraceResult.h"
 #include "MixedRealityInterop.h"
 #include "WindowsMixedRealityInteropUtility.h"
+
+#include "HoloLensARFunctionLibrary.h"
 
 #include "Misc/ConfigCacheIni.h"
 #include "Async/Async.h"
@@ -94,12 +97,12 @@ FHoloLensARSystem::FHoloLensARSystem()
 	: CameraImage(nullptr)
 	, SessionConfig(nullptr)
 {
-
+	SpawnARActorDelegateHandle = UARLifeCycleComponent::OnSpawnARActorDelegate.AddRaw(this, &FHoloLensARSystem::OnSpawnARActor);
 }
 
 FHoloLensARSystem::~FHoloLensARSystem()
 {
-
+	UARLifeCycleComponent::OnSpawnARActorDelegate.Remove(SpawnARActorDelegateHandle);
 }
 
 void FHoloLensARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMode::ThreadSafe> InTrackingSystem)
@@ -111,27 +114,41 @@ void FHoloLensARSystem::SetInterop(WindowsMixedReality::MixedRealityInterop* InW
 {
 	WMRInterop = InWMRInterop;
 
+	if (!WMRInterop)
+	{
+		return;
+	}
+	
 	HandlerId = WMRInterop->SubscribeConnectionEvent([this](WindowsMixedReality::MixedRealityInterop::ConnectionEvent evt) 
 	{
 		if (evt == WindowsMixedReality::MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer)
 		{
-			OnStopARSession();
+			OnPauseARSession();
 
 #if WITH_EDITOR
-			if (GEditor && GEditor->IsVRPreviewActive())
-			{
-				GEditor->RequestEndPlayMap();
-			}
+			//Removed in case it is intentional to keep executing on accidental disconnect
+			//if (GEditor && GEditor->IsVRPreviewActive())
+			//{
+			//	GEditor->RequestEndPlayMap();
+			//}
 #endif
 
 			UE_LOG(LogHoloLensAR, Warning, TEXT("HoloLens AR session disconnected from peer"));
+		}
+		else if (evt == WindowsMixedReality::MixedRealityInterop::ConnectionEvent::Connected)
+		{
+			OnResumeARSession();
 		}
 	});
 }
 
 void FHoloLensARSystem::Shutdown()
 {
-	WMRInterop->UnsubscribeConnectionEvent(HandlerId);
+	OnStopARSession();
+	if (WMRInterop)
+	{
+		WMRInterop->UnsubscribeConnectionEvent(HandlerId);
+	}
 	HandlerId = 0;
 	FWorldDelegates::OnWorldTickStart.RemoveAll(this);
 	WMRInterop = nullptr;
@@ -151,7 +168,15 @@ void FHoloLensARSystem::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(SessionConfig);
 	Collector.AddReferencedObjects(AnchorIdToPinMap);
 	Collector.AddReferencedObjects(Pins);
-	Collector.AddReferencedObjects(TrackedGeometries);
+	// Iterate all geometries
+	for (auto GeoIt = TrackedGeometryGroups.CreateIterator(); GeoIt; ++GeoIt)
+	{
+		FTrackedGeometryGroup& TrackedGeometryGroup = GeoIt.Value();
+
+		Collector.AddReferencedObject(TrackedGeometryGroup.TrackedGeometry);
+		Collector.AddReferencedObject(TrackedGeometryGroup.ARActor);
+		Collector.AddReferencedObject(TrackedGeometryGroup.ARComponent);
+	}
 }
 
 void FHoloLensARSystem::OnARSystemInitialized()
@@ -171,9 +196,26 @@ EARTrackingQuality FHoloLensARSystem::OnGetTrackingQuality() const
 
 EARTrackingQualityReason FHoloLensARSystem::OnGetTrackingQualityReason() const
 {
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
+	if (WMRInterop == nullptr
+		|| !WMRInterop->IsInitialized())
+	{
+		return EARTrackingQualityReason::Initializing;
+	}
+#endif
+
+	switch (TrackingQuality)
+	{
+	case EARTrackingQuality::NotTracking:
+	case EARTrackingQuality::OrientationOnly:
+		return EARTrackingQualityReason::Relocalizing;
+
+	case EARTrackingQuality::OrientationAndPosition:
+		return EARTrackingQualityReason::None;
+	}
+
 	return EARTrackingQualityReason::None;
 }
-
 void OnTrackingChanged_Raw(WindowsMixedReality::HMDSpatialLocatability InTrackingState)
 {
 	UE_LOG(LogHoloLensAR, Log, TEXT("OnTrackingChanged(%d)"), (int32)InTrackingState);
@@ -238,14 +280,15 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 		WMRInterop->SetLogCallback(&OnLog);
 	}
 
+#if WITH_EDITOR
 	if (SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+#else
+	if (!WMRInterop->IsRemoting() && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+#endif
 	{
 		// Start spatial mesh mapping
 		SetupMeshObserver();
 	}
-
-	// Start QR code tracking
-	SetupQRCodeTracking();
 
 	SessionStatus.Status = EARSessionStatus::Running;
 
@@ -286,17 +329,32 @@ void FHoloLensARSystem::SetupCameraImageSupport()
 #if UE_BUILD_DEBUG
 	CameraCapture.SetOnLog(&OnLog);
 #endif
-	const FARVideoFormat Format = SessionConfig->GetDesiredVideoFormat();
-	CameraCapture.StartCameraCapture(&OnCameraImageReceived_Raw, Format.Width, Format.Height, Format.FPS);
+	if (SessionConfig)
+	{
+		const FARVideoFormat Format = SessionConfig->GetDesiredVideoFormat();
+		CameraCapture.StartCameraCapture(&OnCameraImageReceived_Raw, Format.Width, Format.Height, Format.FPS);
+	}
+	else
+	{
+		UE_LOG(LogHoloLensAR, Warning, TEXT("Session Config must be specified before using SetupCameraImageSupport."));
+	}
 }
 #endif
 
 void FHoloLensARSystem::OnPauseARSession()
 {
-	if (SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+	if (SessionConfig != nullptr && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 	{
 		// Stop spatial mesh mapping. Existing meshes will remain
 		WMRInterop->StopSpatialMapping();
+	}
+}
+
+void FHoloLensARSystem::OnResumeARSession()
+{
+	if (!WITH_EDITOR && SessionConfig != nullptr && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+	{
+		SetupMeshObserver();
 	}
 }
 
@@ -305,11 +363,7 @@ void FHoloLensARSystem::OnStopARSession()
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	FWorldDelegates::OnWorldTickStart.RemoveAll(this);
 
-	// If remoting stay connected.
-	if (WMRInterop && !WMRInterop->IsRemoting())
-	{
-		WMRInterop->DisconnectFromDevice();
-	}
+	ClearTrackedGeometries();
 
 #if !PLATFORM_HOLOLENS
 	// wmr does not support CameraCapture currently.
@@ -373,14 +427,19 @@ TArray<FARTraceResult> FHoloLensARSystem::OnLineTraceTrackedObjects(const FVecto
 TArray<UARTrackedGeometry*> FHoloLensARSystem::OnGetAllTrackedGeometries() const
 {
 	TArray<UARTrackedGeometry*> Geometries;
-	TrackedGeometries.GenerateValueArray(Geometries);
+	//TrackedGeometries.GenerateValueArray(Geometries);
+	// Gather all geometries
+	for (auto GeoIt = TrackedGeometryGroups.CreateConstIterator(); GeoIt; ++GeoIt)
+	{
+		Geometries.Add(GeoIt.Value().TrackedGeometry);
+	}
 	return Geometries;
 }
 
 TArray<UARPin*> FHoloLensARSystem::OnGetAllPins() const
 {
 	TArray<UARPin*> ConvPins;
-	for (UWMRARPin* Pin : Pins)
+	for (UARPin* Pin : Pins)
 	{
 		ConvPins.Add(Pin);
 	}
@@ -404,14 +463,57 @@ bool FHoloLensARSystem::OnIsTrackingTypeSupported(EARSessionType SessionType) co
 	return false;
 }
 
+bool FHoloLensARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType)
+{
+	bool bSuccess = true;
+	switch (CaptureType)
+	{
+		case EARCaptureType::Camera:
+			if (bOnOff)
+			{
+				UHoloLensARFunctionLibrary::StartCameraCapture();
+			}
+			else
+			{
+				UHoloLensARFunctionLibrary::StopCameraCapture();
+			}
+			break;
+		case EARCaptureType::QRCode:
+			if (bOnOff)
+			{
+				UHoloLensARFunctionLibrary::StartQRCodeCapture();
+			}
+			else
+			{
+				UHoloLensARFunctionLibrary::StopQRCodeCapture();
+			}
+			break;
+		default:
+			bSuccess = false;
+			break;
+	}
+	return bSuccess;
+}
+
+void FHoloLensARSystem::OnSetEnabledXRCamera(bool bOnOff)
+{
+	UHoloLensARFunctionLibrary::SetEnabledMixedRealityCamera(bOnOff);
+}
+
+FIntPoint FHoloLensARSystem::OnResizeXRCamera(const FIntPoint& InSize)
+{
+	return UHoloLensARFunctionLibrary::ResizeMixedRealityCamera(InSize);
+}
+
+
 UARLightEstimate* FHoloLensARSystem::OnGetCurrentLightEstimate() const
 {
 	return nullptr;
 }
 
-UWMRARPin* FHoloLensARSystem::FindPinByComponent(const USceneComponent* Component)
+UARPin* FHoloLensARSystem::FindARPinByComponent(const USceneComponent* Component) const
 {
-	for (UWMRARPin* Pin : Pins)
+	for (UARPin* Pin : Pins)
 	{
 		if (Pin->GetPinnedComponent() == Component)
 		{
@@ -426,7 +528,7 @@ UARPin* FHoloLensARSystem::OnPinComponent(USceneComponent* ComponentToPin, const
 {
 	if (ensureMsgf(ComponentToPin != nullptr, TEXT("Cannot pin component.")))
 	{
-		if (UWMRARPin* FindResult = FindPinByComponent(ComponentToPin))
+		if (UARPin* FindResult = FindARPinByComponent(ComponentToPin))
 		{
 			UE_LOG(LogHoloLensAR, Warning, TEXT("Component %s is already pinned. Unpinning it first."), *ComponentToPin->GetReadableName());
 			OnRemovePin(FindResult);
@@ -448,7 +550,7 @@ UARPin* FHoloLensARSystem::OnPinComponent(USceneComponent* ComponentToPin, const
 			{
 				RuntimeWMRAnchorCount += 1;
 				WMRAnchorId = FString::Format(TEXT("_RuntimeAnchor_{0}_{1}"), { DebugName.ToString(), RuntimeWMRAnchorCount });
-			} while (AnchorIdToPinMap.Contains(WMRAnchorId));
+			} while (AnchorIdToPinMap.Contains(FName(*WMRAnchorId)));
 
 			bool bSuccess = WMRCreateAnchor(*WMRAnchorId, PinToTrackingTransform.GetLocation(), PinToTrackingTransform.GetRotation());
 			if (!bSuccess)
@@ -462,8 +564,9 @@ UARPin* FHoloLensARSystem::OnPinComponent(USceneComponent* ComponentToPin, const
 		NewPin->InitARPin(ARSupportInterface.ToSharedRef(), ComponentToPin, PinToTrackingTransform, TrackedGeometry, DebugName);
 		if (!WMRAnchorId.IsEmpty())
 		{
-			AnchorIdToPinMap.Add(WMRAnchorId, NewPin);
-			NewPin->SetAnchorId(WMRAnchorId);
+			FName AnchorID = FName(*WMRAnchorId);
+			AnchorIdToPinMap.Add(AnchorID, NewPin);
+			NewPin->SetAnchorId(AnchorID);
 		}
 		Pins.Add(NewPin);
 
@@ -488,12 +591,12 @@ void FHoloLensARSystem::OnRemovePin(UARPin* PinToRemove)
 	{
 		Pins.RemoveSingleSwap(WMRARPin);
 
-		const FString& AnchorId = WMRARPin->GetAnchorId();
-		if (!AnchorId.IsEmpty())
+		const FName& AnchorId = WMRARPin->GetAnchorIdName();
+		if (AnchorId.IsValid())
 		{
 			AnchorIdToPinMap.Remove(AnchorId);
-			WMRRemoveAnchor(*AnchorId);
-			WMRARPin->SetAnchorId(FString());
+			WMRRemoveAnchor(*AnchorId.ToString());
+			WMRARPin->SetAnchorId(FName());
 		}
 	}
 }
@@ -502,13 +605,14 @@ void FHoloLensARSystem::UpdateWMRAnchors()
 {
 	if (SessionStatus.Status != EARSessionStatus::Running) { return; }
 	
-	for (UWMRARPin* Pin : Pins)
+	for (UARPin* Pin : Pins)
 	{
-		const FString& AnchorId = Pin->GetAnchorId();
-		if (!AnchorId.IsEmpty())
+		UWMRARPin* WMRPin = Cast<UWMRARPin>(Pin);
+		const FName& AnchorId = WMRPin->GetAnchorIdName();
+		if (AnchorId.IsValid())
 		{
 			FTransform Transform;
-			if (WMRGetAnchorTransform(*AnchorId, Transform))
+			if (WMRGetAnchorTransform(*AnchorId.ToString(), Transform))
 			{
 				Pin->OnTransformUpdated(Transform);
 				Pin->OnTrackingStateChanged(EARTrackingState::Tracking);
@@ -521,13 +625,12 @@ void FHoloLensARSystem::UpdateWMRAnchors()
 	}
 }
 
-UARTextureCameraImage* FHoloLensARSystem::OnGetCameraImage()
+UARTexture* FHoloLensARSystem::OnGetARTexture(EARTextureType TextureType) const
 {
-	return CameraImage;
-}
-
-UARTextureCameraDepth* FHoloLensARSystem::OnGetCameraDepth()
-{
+	if (TextureType == EARTextureType::CameraImage)
+	{
+		return CameraImage;
+	}
 	return nullptr;
 }
 
@@ -565,6 +668,95 @@ bool FHoloLensARSystem::OnAddRuntimeCandidateImage(UARSessionConfig* InSessionCo
 {
 	return false;
 }
+
+bool FHoloLensARSystem::IsLocalPinSaveSupported() const
+{
+	return true;
+}
+
+bool FHoloLensARSystem::ArePinsReadyToLoad()
+{
+#if WITH_WINDOWS_MIXED_REALITY
+	return WMRInterop && WMRInterop->IsSpatialAnchorStoreLoaded();
+#else
+	return false;
+#endif
+}
+
+void FHoloLensARSystem::LoadARPins(TMap<FName, UARPin*>& LoadedPins)
+{
+	TArray<FName> AnchorIds;
+	bool Success = WMRLoadAnchors([&AnchorIds](const wchar_t* SaveId, const wchar_t* AnchorId) { AnchorIds.Add(AnchorId); });
+
+	TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface = TrackingSystem->GetARCompositionComponent();
+	for (FName& AnchorId : AnchorIds)
+	{
+		UWMRARPin* NewPin = NewObject<UWMRARPin>();
+		NewPin->InitARPin(ARSupportInterface.ToSharedRef(), nullptr, FTransform::Identity, nullptr, AnchorId);
+
+		AnchorIdToPinMap.Add(AnchorId, NewPin);
+		NewPin->SetAnchorId(AnchorId);
+		NewPin->SetIsInAnchorStore(true); // Note this is deprecated functionality.
+
+		Pins.Add(NewPin);
+		LoadedPins.Add(AnchorId, NewPin);
+	}
+	UpdateWMRAnchors();
+}
+
+bool FHoloLensARSystem::SaveARPin(FName InName, UARPin* InPin)
+{
+	if(InPin != nullptr)
+	{
+		UWMRARPin* WMRPin = CastChecked<UWMRARPin>(InPin);
+		
+		// Force save identifier to lowercase because FName case is not guaranteed to be the same across multiple UE4 sessions.
+		const FString SaveId = InName.ToString().ToLower();
+		const FString AnchorId = WMRPin->GetAnchorIdName().ToString();
+		bool Saved = WMRSaveAnchor(*SaveId, *AnchorId);
+		if (!Saved)
+		{
+			UE_LOG(LogHoloLensAR, Warning, TEXT("SaveARPin with SaveId %s and AnchorId %s failed!  Perhaps the SaveId is already used or the AnchorId is invalid?"), *SaveId, *AnchorId);
+		}
+		WMRPin->SetIsInAnchorStore(Saved); // Note this is deprecated functionality.
+		return Saved;
+	}
+
+	UE_LOG(LogHoloLensAR, Log, TEXT("SaveARPin: InName %s not found!"), *InName.ToString());
+	return false;
+}
+
+void FHoloLensARSystem::RemoveSavedARPin(FName InName)
+{
+	UARPin** ARPin = AnchorIdToPinMap.Find(InName);
+	if (ARPin)
+	{
+		UWMRARPin* WMRPin = Cast<UWMRARPin>(*ARPin);
+		check(WMRPin);
+
+		WMRPin->SetIsInAnchorStore(false); // Note this is deprecated functionality.
+		const FString& AnchorId = WMRPin->GetAnchorId();
+		// Force save identifier to lowercase because FName case is not guaranteed to be the same across multiple UE4 sessions.
+		FString SaveId = AnchorId.ToLower();
+		WMRRemoveSavedAnchor(*SaveId);
+	}
+}
+
+void FHoloLensARSystem::RemoveAllSavedARPins()
+{
+	for (UARPin* Pin : Pins)
+	{
+		UWMRARPin* WMRPin = Cast<UWMRARPin>(Pin);
+		if (WMRPin)
+		{
+			WMRPin->SetIsInAnchorStore(false);
+		}
+	}
+	WMRClearSavedAnchors();
+}
+
+
+
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 void FHoloLensARSystem::OnCameraImageReceived_Raw(void* handle, DirectX::XMFLOAT4X4 camToTracking)
@@ -676,7 +868,7 @@ void FHoloLensARSystem::OnLog(const wchar_t* LogMsg)
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
 	if (HoloLensARThis)
 	{
-		UE_LOG(LogHoloLensAR, Log, TEXT("%s"), LogMsg);
+	UE_LOG(LogHoloLensAR, Log, TEXT("%s"), LogMsg);
 	}
 }
 
@@ -843,19 +1035,27 @@ void FHoloLensARSystem::ProcessMeshUpdates_GameThread()
 void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 {
 	bool bIsAdd = false;
-	UARTrackedGeometry* NewUpdatedGeometry = nullptr;
-	UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(CurrentMesh->Id);
-	if (FoundGeometry == nullptr)
+
+	FTrackedGeometryGroup* FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(CurrentMesh->Id);
+	//UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(CurrentMesh->Id);
+	if (FoundTrackedGeometryGroup == nullptr)
 	{
 		// We haven't seen this one before so add it to our set
-		NewUpdatedGeometry = NewObject<UARTrackedGeometry>();
-		TrackedGeometries.Add(CurrentMesh->Id, NewUpdatedGeometry);
+		//JB AR - Which class to use for this one?  Should the base class just work?
+		FTrackedGeometryGroup TrackedGeometryGroup(NewObject<UARTrackedGeometry>());
+		TrackedGeometryGroups.Add(CurrentMesh->Id, TrackedGeometryGroup);
+
+		FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(CurrentMesh->Id);
+		check(FoundTrackedGeometryGroup);
+		
 		bIsAdd = true;
+		
+		AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
 	}
-	else
-	{
-		NewUpdatedGeometry = *FoundGeometry;
-	}
+
+	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
+	UARComponent* NewUpdatedARComponent = FoundTrackedGeometryGroup->ARComponent;
+
 	check(NewUpdatedGeometry != nullptr);
 	// We will only get a new transform when there are also vert updates
 	if (CurrentMesh->Vertices.Num() > 0)
@@ -868,36 +1068,13 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 			TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform());
 		// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
 		NewUpdatedGeometry->SetObjectClassification(CurrentMesh->Type);
-		if (NewUpdatedGeometry->GetUnderlyingMesh() == nullptr)
+		
+		// Update MRMesh if it's available
+		if (auto MRMesh = NewUpdatedGeometry->GetUnderlyingMesh())
 		{
-			// Attach this component to our single origin actor
-			AAROriginActor* OriginActor = AAROriginActor::GetOriginActor();
-
-			// During shutdown we can get a mesh update after the OriginActor has been destroyed, just return in that case.
-			if (OriginActor == nullptr)
-			{
-				return;
-			}
-
-			UMRMeshComponent* MRMesh = NewObject<UMRMeshComponent>(OriginActor);
-
-			// Set the occlusion and wireframe defaults
-			MRMesh->SetEnableMeshOcclusion(SessionConfig->bUseMeshDataForOcclusion);
-			MRMesh->SetUseWireframe(SessionConfig->bRenderMeshDataInWireframe);
-			MRMesh->SetNeverCreateCollisionMesh(!SessionConfig->bGenerateCollisionForMeshData);
-			MRMesh->SetEnableNavMesh(SessionConfig->bGenerateNavMeshForMeshData);
-
-			// Set parent and register
-			MRMesh->SetupAttachment(OriginActor->GetRootComponent());
-			MRMesh->RegisterComponent();
-
-			// Connect the tracked geo to the MRMesh
-			NewUpdatedGeometry->SetUnderlyingMesh(MRMesh);
+			// MRMesh takes ownership of the data in the arrays at this point
+			MRMesh->UpdateMesh(CurrentMesh->Location, CurrentMesh->Rotation, CurrentMesh->Scale, CurrentMesh->Vertices, CurrentMesh->Indices);
 		}
-		UMRMeshComponent* MRMesh = NewUpdatedGeometry->GetUnderlyingMesh();
-		check(MRMesh != nullptr);
-		// MRMesh takes ownership of the data in the arrays at this point
-		MRMesh->UpdateMesh(CurrentMesh->Location, CurrentMesh->Rotation, CurrentMesh->Scale, CurrentMesh->Vertices, CurrentMesh->Indices);
 	}
 	else
 	{
@@ -910,33 +1087,45 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 	}
 
 	// Trigger the proper notification delegate
-	if (bIsAdd)
+	if (!bIsAdd)
 	{
-		TriggerOnTrackableAddedDelegates(NewUpdatedGeometry);
-	}
-	else
-	{
-		TriggerOnTrackableUpdatedDelegates(NewUpdatedGeometry);
+		if (NewUpdatedARComponent)
+		{
+			NewUpdatedARComponent->Update(NewUpdatedGeometry);
+			TriggerOnTrackableUpdatedDelegates(NewUpdatedGeometry);
+		}
 	}
 }
 
 void FHoloLensARSystem::RemovedMesh_GameThread(FMeshUpdate* RemovedMesh)
 {
-	UARTrackedGeometry** TrackedGeometry = TrackedGeometries.Find(RemovedMesh->Id);
-	if (TrackedGeometry != nullptr)
+	FTrackedGeometryGroup* FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(RemovedMesh->Id);
+	if (FoundTrackedGeometryGroup != nullptr)
 	{
-		(*TrackedGeometry)->SetTrackingState(EARTrackingState::NotTracking);
+		UARTrackedGeometry* TrackedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
+		UARComponent* ARComponent = FoundTrackedGeometryGroup->ARComponent;
+		AARActor* ARActor = FoundTrackedGeometryGroup->ARActor;
+
+		check(TrackedGeometry != nullptr);
+
+		//send the notification before we delete anything
+		if (ARComponent)
+		{
+			ARComponent->Remove(TrackedGeometry);
+			AARActor::RequestDestroyARActor(ARActor);
+		}
+		TrackedGeometry->SetTrackingState(EARTrackingState::NotTracking);
 
 		// Detach the mesh component from our scene if it's valid
-		UMRMeshComponent* MRMesh = (*TrackedGeometry)->GetUnderlyingMesh();
+		UMRMeshComponent* MRMesh = TrackedGeometry->GetUnderlyingMesh();
 		if (MRMesh != nullptr)
 		{
 			MRMesh->UnregisterComponent();
-			(*TrackedGeometry)->SetUnderlyingMesh(nullptr);
+			TrackedGeometry->SetUnderlyingMesh(nullptr);
 		}
 
-		TrackedGeometries.Remove(RemovedMesh->Id);
-		TriggerOnTrackableRemovedDelegates(*TrackedGeometry);
+		TrackedGeometryGroups.Remove(RemovedMesh->Id);
+		TriggerOnTrackableRemovedDelegates(TrackedGeometry);
 	}
 	delete RemovedMesh;
 }
@@ -973,6 +1162,14 @@ void FHoloLensARSystem::SetupQRCodeTracking()
 	UE_LOG(LogHoloLensAR, Verbose, TEXT("FHoloLensARSystem::SetupQRCodeTracking() called"));
 }
 
+void FHoloLensARSystem::StopQRCodeTracking()
+{
+	check(WMRInterop != nullptr);
+
+	WMRInterop->StopQRCodeTracking();
+	UE_LOG(LogHoloLensAR, Verbose, TEXT("FHoloLensARSystem::StopQRCodeTracking() called"));
+}
+
 static void DebugDumpQRData(QRCodeData* InCode)
 {
 	FGuid Guid = GUIDToFGuid(InCode->Id);
@@ -999,9 +1196,12 @@ void FHoloLensARSystem::QRCodeAdded_GameThread(FQRCodeData* InCode)
 
 	if (InCode != nullptr)
 	{
-		UARTrackedQRCode* NewQRCode = NewObject<UARTrackedQRCode>();
+		// We haven't seen this one before so add it to our set
+		FTrackedGeometryGroup TrackedGeometryGroup(NewObject<UARTrackedQRCode>());
+		TrackedGeometryGroups.Add(InCode->Id, TrackedGeometryGroup);
+		
+		UARTrackedQRCode* NewQRCode = Cast<UARTrackedQRCode>(TrackedGeometryGroup.TrackedGeometry);
 		NewQRCode->UniqueId = InCode->Id;
-		TrackedGeometries.Add(InCode->Id, NewQRCode);
 
 		NewQRCode->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
 			GFrameCounter,
@@ -1012,9 +1212,9 @@ void FHoloLensARSystem::QRCodeAdded_GameThread(FQRCodeData* InCode)
 			InCode->QRCode,
 			InCode->Version);
 
-		TriggerOnTrackableAddedDelegates(NewQRCode);
-
 		//		DebugDumpQRData(InCode);
+		
+		AARActor::RequestSpawnARActor(InCode->Id, SessionConfig->GetQRCodeComponentClass());
 	}
 	delete InCode;
 }
@@ -1025,10 +1225,12 @@ void FHoloLensARSystem::QRCodeUpdated_GameThread(FQRCodeData* InCode)
 
 	if (InCode != nullptr)
 	{
-		UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(InCode->Id);
-		if (FoundGeometry != nullptr)
+		FTrackedGeometryGroup* TrackedGeometryGroup = TrackedGeometryGroups.Find(InCode->Id);
+		if (TrackedGeometryGroup != nullptr)
 		{
-			UARTrackedQRCode* UpdatedQRCode = Cast<UARTrackedQRCode>(*FoundGeometry);
+			UARTrackedGeometry* FoundGeometry = TrackedGeometryGroup->TrackedGeometry;
+			UARTrackedQRCode* UpdatedQRCode = Cast<UARTrackedQRCode>(FoundGeometry);
+			check(UpdatedQRCode != nullptr);
 
 			UpdatedQRCode->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
 				GFrameCounter,
@@ -1039,7 +1241,11 @@ void FHoloLensARSystem::QRCodeUpdated_GameThread(FQRCodeData* InCode)
 				InCode->QRCode,
 				InCode->Version);
 
-			TriggerOnTrackableUpdatedDelegates(UpdatedQRCode);
+			if (TrackedGeometryGroup->ARComponent != nullptr)
+			{
+				TrackedGeometryGroup->ARComponent->Update(UpdatedQRCode);
+				TriggerOnTrackableUpdatedDelegates(UpdatedQRCode);
+			}
 		}
 		//		DebugDumpQRData(InCode);
 	}
@@ -1052,13 +1258,22 @@ void FHoloLensARSystem::QRCodeRemoved_GameThread(FQRCodeData* InCode)
 
 	if (InCode != nullptr)
 	{
-		UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(InCode->Id);
-		if (FoundGeometry != nullptr)
+		FTrackedGeometryGroup* TrackedGeometryGroup = TrackedGeometryGroups.Find(InCode->Id);
+		if (TrackedGeometryGroup != nullptr)
 		{
-			(*FoundGeometry)->SetTrackingState(EARTrackingState::NotTracking);
+			if (TrackedGeometryGroup->ARComponent)
+			{
+				check(TrackedGeometryGroup->ARActor);
 
-			TrackedGeometries.Remove(InCode->Id);
-			TriggerOnTrackableRemovedDelegates(*FoundGeometry);
+				TrackedGeometryGroup->ARComponent->Remove(TrackedGeometryGroup->TrackedGeometry);
+				AARActor::RequestDestroyARActor(TrackedGeometryGroup->ARActor);
+			}
+
+			check(TrackedGeometryGroup->TrackedGeometry);
+			TrackedGeometryGroup->TrackedGeometry->SetTrackingState(EARTrackingState::NotTracking);
+
+			TrackedGeometryGroups.Remove(InCode->Id);
+			TriggerOnTrackableRemovedDelegates(TrackedGeometryGroup->TrackedGeometry);
 		}
 		//		DebugDumpQRData(InCode);
 	}
@@ -1090,6 +1305,39 @@ void FHoloLensARSystem::ResizeMixedRealityCamera(/*inout*/ FIntPoint& size)
 			size = FIntPoint(newSize.cx, newSize.cy);
 		}
 	}
+}
+
+void FHoloLensARSystem::ClearTrackedGeometries()
+{
+	TArray<UARPin*> TempPins;
+	for (UARPin* Pin : Pins)
+	{
+		TempPins.Add(Pin);
+	}
+
+	for (UARPin* PinToRemove : TempPins)
+	{
+		OnRemovePin(PinToRemove);
+	}
+
+	for (auto GeoIt = TrackedGeometryGroups.CreateIterator(); GeoIt; ++GeoIt)
+	{
+		FTrackedGeometryGroup& TrackedGeometryGroup = GeoIt.Value();
+		if (TrackedGeometryGroup.ARActor)
+		{
+			AARActor::RequestDestroyARActor(TrackedGeometryGroup.ARActor);
+		}
+		// Remove the occlusion mesh if present
+		UARTrackedGeometry* TrackedGeometryBeingRemoved = TrackedGeometryGroup.TrackedGeometry;
+		check(TrackedGeometryBeingRemoved);
+		UMRMeshComponent* MRMesh = TrackedGeometryBeingRemoved->GetUnderlyingMesh();
+		if (MRMesh != nullptr)
+		{
+			MRMesh->DestroyComponent();
+			TrackedGeometryBeingRemoved->SetUnderlyingMesh(nullptr);
+		}
+	}
+	TrackedGeometryGroups.Empty();
 }
 
 /** Used to run Exec commands */
@@ -1131,4 +1379,6 @@ static bool HoloLensARTestingExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevi
 	return false;
 }
 
+
 FStaticSelfRegisteringExec HoloLensARTestingExecRegistration(HoloLensARTestingExec);
+

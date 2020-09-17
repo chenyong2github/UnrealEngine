@@ -30,7 +30,7 @@ class UVolumetricCloudComponent : public USceneComponent
 	float LayerBottomAltitude;
 
 	/** The altitude at which the cloud layer ends. (kilometers above the ground) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Layer", meta = (UIMin = 0.1f, UIMax = 20.0f, ClampMin = 0.1f, SliderExponent = 2.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Layer", meta = (UIMin = 0.1f, UIMax = 20.0f, ClampMin = 0.1, SliderExponent = 2.0))
 	float LayerHeight;
 
 	/** The maximum distance of the volumetric surface before which we will accept to start tracing. (kilometers) */
@@ -42,7 +42,7 @@ class UVolumetricCloudComponent : public USceneComponent
 	float TracingMaxDistance;
 
 	/** The planet radius used when there is not SkyAtmosphere component present in the scene. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (UIMin = 100.0f, UIMax = 7000.0f, ClampMin = 100.0f, ClampMax = 10000.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (UIMin = 100.0f, UIMax = 7000.0f, ClampMin = 0.1, ClampMax = 10000.0f))
 	float PlanetRadius;
 
 	/** 

@@ -16,7 +16,7 @@ class FTexture2DStreamIn_IO : public FTexture2DStreamIn
 {
 public:
 
-	FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest);
+	FTexture2DStreamIn_IO(UTexture2D* InTexture, bool InPrioritizedIORequest);
 	~FTexture2DStreamIn_IO();
 
 protected:

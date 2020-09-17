@@ -4,6 +4,7 @@
 #include "MagicLeapHMD.h"
 #include "Engine/Engine.h"
 #include "Lumin/CAPIShims/LuminAPILifecycle.h"
+#include "MagicLeapPluginUtil.h"
 
 static const FName MLDeviceName(TEXT("MagicLeap"));
 
@@ -96,20 +97,7 @@ int32 UMagicLeapHMDFunctionLibrary::GetMinimumAPILevel()
 
 int32 UMagicLeapHMDFunctionLibrary::GetPlatformAPILevel()
 {
-#if PLATFORM_LUMIN
-	int PlatformAPILevel = 0;
-
-	auto Result = MLPlatformGetAPILevel(&PlatformAPILevel);
-	if (Result != MLResult_Ok)
-	{
-		UE_LOG(LogMagicLeap, Error, TEXT("MLPlatformGetAPILevel failed with error %s!"), UTF8_TO_TCHAR(MLGetResultString(Result)));
-	}
-	else
-	{
-		return PlatformAPILevel;
-	}
-#endif
-	return 0;
+	return MagicLeapAPISetup::GetPlatformLevel();
 }
 
 bool UMagicLeapHMDFunctionLibrary::IsRunningOnMagicLeapHMD()

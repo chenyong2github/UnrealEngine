@@ -289,15 +289,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 #endif
 		case GL_TEXTURE_2D_MULTISAMPLE:
 		{
-			if (!FOpenGL::SupportsCombinedDepthStencilAttachment() && DepthStencilTarget->Attachment == GL_DEPTH_STENCIL_ATTACHMENT)
-			{
-				FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->Target, DepthStencilTarget->Resource, 0);
-				FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, DepthStencilTarget->Target, DepthStencilTarget->Resource, 0);
-			}
-			else
-			{
-				FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, DepthStencilTarget->Target, DepthStencilTarget->Resource, 0);
-			}
+			FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, DepthStencilTarget->Target, DepthStencilTarget->Resource, 0);
 			break;
 		}
 		case GL_RENDERBUFFER:
@@ -307,10 +299,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			if (NumSamplesTileMem > 1)
 			{	
 				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->Resource);
-				if (FOpenGL::SupportsPackedDepthStencil())
-				{
-					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->Resource);
-				}
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->Resource);
 				VERIFY_GL(glFramebufferRenderbuffer);
 			}
 			break;
@@ -322,15 +311,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			FOpenGL::FramebufferTexture(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, DepthStencilTarget->Resource, 0);
 			break;
 		default:
-			if (!FOpenGL::SupportsCombinedDepthStencilAttachment() && DepthStencilTarget->Attachment == GL_DEPTH_STENCIL_ATTACHMENT)
-			{
-				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->Resource);
-				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->Resource);
-			}
-			else
-			{
-				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, GL_RENDERBUFFER, DepthStencilTarget->Resource);
-			}
+			FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, GL_RENDERBUFFER, DepthStencilTarget->Resource);
 			break;
 		}
 	}
@@ -447,7 +428,7 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 	FOpenGLTextureBase* SourceTexture = GetOpenGLTextureFromRHITexture(SourceTextureRHI);
 	FOpenGLTextureBase* DestTexture = GetOpenGLTextureFromRHITexture(DestTextureRHI);
 
-	if (SourceTexture != DestTexture && FOpenGL::SupportsBlitFramebuffer())
+	if (SourceTexture != DestTexture)
 	{
 		VERIFY_GL_SCOPE();
 
@@ -568,7 +549,7 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 		// For CPU readback resolve targets we should issue the resolve to the internal PBO immediately.
 		// This makes any subsequent locking of that texture much cheaper as it won't have to stall on a pixel pack op.
 		bool bLockableTarget = DestTextureRHI->GetTexture2D() && (DestTextureRHI->GetFlags() & TexCreate_CPUReadback) && !(DestTextureRHI->GetFlags() & (TexCreate_RenderTargetable|TexCreate_DepthStencilTargetable)) && !DestTextureRHI->IsMultisampled();
-		if(bLockableTarget && FOpenGL::SupportsPixelBuffers() && !ResolveParams.Rect.IsValid())
+		if(bLockableTarget && !ResolveParams.Rect.IsValid())
 		{
 			FOpenGLTexture2D* DestTex = (FOpenGLTexture2D*)DestTexture;
 			DestTex->Resolve(MipmapLevel, DestIndex);
@@ -655,7 +636,7 @@ void FOpenGLDynamicRHI::ReadSurfaceDataRaw(FOpenGLContextState& ContextState, FR
 
 	check( !bDepthFormat || FOpenGL::SupportsDepthStencilReadSurface() );
 	check( !bFloatFormat || FOpenGL::SupportsFloatReadSurface() );
-	const GLenum Attachment = bDepthFormat ? (FOpenGL::SupportsPackedDepthStencil() && bDepthStencilFormat ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT) : GL_COLOR_ATTACHMENT0;
+	const GLenum Attachment = bDepthFormat ? (bDepthStencilFormat ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT) : GL_COLOR_ATTACHMENT0;
 	const bool bIsColorBuffer = Texture->Attachment == GL_COLOR_ATTACHMENT0;
 
 	const uint32 MipmapLevel = InFlags.GetMip();
@@ -1164,29 +1145,6 @@ void FOpenGLDynamicRHI::BindPendingFramebuffer( FOpenGLContextState& ContextStat
 
 void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
 {
-	if (InInfo.bGeneratingMips)
-	{
-		FRHITexture* Textures[MaxSimultaneousRenderTargets];
-		FRHITexture** LastTexture = Textures;
-		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-		{
-			if (!InInfo.ColorRenderTargets[Index].RenderTarget)
-			{
-				break;
-			}
-
-			*LastTexture = InInfo.ColorRenderTargets[Index].RenderTarget;
-			++LastTexture;
-		}
-
-		//Use RWBarrier since we don't transition individual subresources.  Basically treat the whole texture as R/W as we walk down the mip chain.
-		int32 NumTextures = (int32)(LastTexture - Textures);
-		if (NumTextures)
-		{
-			RHITransitionResources(EResourceTransitionAccess::ERWSubResBarrier, Textures, NumTextures);
-		}
-	}
-
 	FRHISetRenderTargetsInfo RTInfo;
 	InInfo.ConvertToRenderTargetsInfo(RTInfo);
 	SetRenderTargetsAndClear(RTInfo);
@@ -1260,3 +1218,10 @@ void FOpenGLDynamicRHI::RHINextSubpass()
 	}
 }
 
+void FOpenGLDynamicRHI::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+}
+
+void FOpenGLDynamicRHI::RHIEndTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+}

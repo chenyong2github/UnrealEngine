@@ -87,6 +87,8 @@ public:
 	// Generate the draw indirect buffers, and reset all release counts.
 	void UpdateDrawIndirectBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 
+	static const ERHIAccess kCountBufferDefaultState = ERHIAccess::SRVMask | ERHIAccess::CopySrc;
+
 protected:
 
 	/** The current used instance counts allocated from FNiagaraDataBuffer::AllocateGPU() */

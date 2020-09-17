@@ -33,11 +33,11 @@ class FAppleImageUtilsPlugin :
 	virtual TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> ConvertToTIFF(UTexture* SourceImage, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) override;
 #if SUPPORTS_IMAGE_UTILS_1_0
 	virtual CGImageRef UTexture2DToCGImage(UTexture2D* Source) override;
-	virtual void ConvertToJPEG(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality = 85, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) override;
+	virtual void ConvertToJPEG(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality = 85, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None, FIntPoint* ConvertedImageSize = nullptr) override;
 #if SUPPORTS_IMAGE_UTILS_2_1
-	virtual void ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality = 85,  bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) override;
-	virtual void ConvertToPNG(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) override;
-	virtual void ConvertToTIFF(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None) override;
+	virtual void ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality = 85,  bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None, FIntPoint* ConvertedImageSize = nullptr) override;
+	virtual void ConvertToPNG(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None, FIntPoint* ConvertedImageSize = nullptr) override;
+	virtual void ConvertToTIFF(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor = true, bool bUseGpu = true, float Scale = 1.f, ETextureRotationDirection Rotate = ETextureRotationDirection::None, FIntPoint* ConvertedImageSize = nullptr) override;
 #endif
 #endif
 };
@@ -90,6 +90,7 @@ public:
 
 	//~ IAppleImageUtilsConversionTask
 	virtual TArray<uint8> GetData() override { return MoveTemp(ConvertedBytes); }
+	virtual FIntPoint GetConvertedImageSize() const override { return ConvertedImageSize; };
 	//~ IAppleImageUtilsConversionTask
 
 	void MarkComplete()
@@ -112,6 +113,9 @@ public:
 #endif
 	/** Where the data is placed when the task is done */
 	TArray<uint8> ConvertedBytes;
+	
+	/** The size of the converted image */
+	FIntPoint ConvertedImageSize = FIntPoint::ZeroValue;
 };
 
 #if SUPPORTS_IMAGE_UTILS_1_0
@@ -173,6 +177,20 @@ static inline CIImage* AllocateImage(IAppleImageInterface* AppleImageInterface)
 			}
 			break;
 		}
+			
+		case EAppleTextureType::MetalTexture:
+		{
+			if (auto MetalTexture = AppleImageInterface->GetMetalTexture())
+			{
+				// initWithMTLTexture seems to initialize the image as up-side-down flipped
+				// and we need to fix it before the conversion
+				CIImage* MetalImage = [[CIImage alloc] initWithMTLTexture: MetalTexture options: nullptr];
+				Image = [MetalImage imageByApplyingOrientation: kCGImagePropertyOrientationDownMirrored];
+				[Image retain];
+				[MetalImage release];
+			}
+			break;
+		}
 	}
 	return Image;
 }
@@ -185,7 +203,9 @@ static inline CIImage* ApplyScaleAndRotation(CIImage* SourceImage, float Scale, 
 	if (Scale != 1.f)
 	{
 		CGRect Rect = Image.extent;
-		float AspectRatio = (float)Rect.size.width / (float)Rect.size.height;
+		// Note that this is the additional aspect ratio to apply, which we don't need
+		// See https://developer.apple.com/documentation/coreimage/cilanczosscaletransform/3228516-aspectratio?language=objc
+		const auto AspectRatio = 1.f;
 		CIFilter* ScaleFilter = [CIFilter filterWithName: @"CILanczosScaleTransform"];
 		[ScaleFilter setValue: Image forKey: kCIInputImageKey];
 		[ScaleFilter setValue: @(Scale) forKey: kCIInputScaleKey];
@@ -204,6 +224,18 @@ static inline CIImage* ApplyScaleAndRotation(CIImage* SourceImage, float Scale, 
 		case ETextureRotationDirection::Down:
 			Image = [Image imageByApplyingOrientation: kCGImagePropertyOrientationDown];
 			break;
+		case ETextureRotationDirection::LeftMirrored:
+			Image = [Image imageByApplyingOrientation: kCGImagePropertyOrientationLeftMirrored];
+			break;
+		case ETextureRotationDirection::RightMirrored:
+			Image = [Image imageByApplyingOrientation: kCGImagePropertyOrientationRightMirrored];
+			break;
+		case ETextureRotationDirection::DownMirrored:
+			Image = [Image imageByApplyingOrientation: kCGImagePropertyOrientationDownMirrored];
+			break;
+		case ETextureRotationDirection::UpMirrored:
+			Image = [Image imageByApplyingOrientation: kCGImagePropertyOrientationUpMirrored];
+			break;
 	}
 	return Image;
 }
@@ -218,6 +250,7 @@ static inline bool CanBeConverted(IAppleImageInterface* AppleImageInterface)
 		case EAppleTextureType::Image:
 		case EAppleTextureType::PixelBuffer:
 		case EAppleTextureType::Surface:
+		case EAppleTextureType::MetalTexture:
 			return true;
 	}
 	return false;
@@ -245,7 +278,7 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 	TSharedPtr<FAppleImageUtilsConversionTask, ESPMode::ThreadSafe> ConversionTask = MakeShared<FAppleImageUtilsConversionTask, ESPMode::ThreadSafe>(AllocateImage(AppleImage));
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, ConversionTask, Quality, bWantColor, bUseGpu, Scale, Rotate]()
 	{
-		ConvertToJPEG(ConversionTask->SourceImage, ConversionTask->ConvertedBytes, Quality, bWantColor, bUseGpu, Scale, Rotate);
+		ConvertToJPEG(ConversionTask->SourceImage, ConversionTask->ConvertedBytes, Quality, bWantColor, bUseGpu, Scale, Rotate, &ConversionTask->ConvertedImageSize);
 		// Notify any async listeners that we are done
 		ConversionTask->MarkComplete();
 	});
@@ -276,7 +309,7 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 	TSharedPtr<FAppleImageUtilsConversionTask, ESPMode::ThreadSafe> ConversionTask = MakeShared<FAppleImageUtilsConversionTask, ESPMode::ThreadSafe>(AllocateImage(AppleImage));
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, ConversionTask, Quality, bWantColor, bUseGpu, Scale, Rotate]()
 	{
-		ConvertToHEIF(ConversionTask->SourceImage, ConversionTask->ConvertedBytes, Quality, bWantColor, bUseGpu, Scale, Rotate);
+		ConvertToHEIF(ConversionTask->SourceImage, ConversionTask->ConvertedBytes, Quality, bWantColor, bUseGpu, Scale, Rotate, &ConversionTask->ConvertedImageSize);
 		// Notify any async listeners that we are done
 		ConversionTask->MarkComplete();
 	});
@@ -307,7 +340,7 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 	TSharedPtr<FAppleImageUtilsConversionTask, ESPMode::ThreadSafe> ConversionTask = MakeShared<FAppleImageUtilsConversionTask, ESPMode::ThreadSafe>(AllocateImage(AppleImage));
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, ConversionTask, bWantColor, bUseGpu, Scale, Rotate]()
 	{
-		ConvertToPNG(ConversionTask->SourceImage, ConversionTask->ConvertedBytes, bWantColor, bUseGpu, Scale, Rotate);
+		ConvertToPNG(ConversionTask->SourceImage, ConversionTask->ConvertedBytes, bWantColor, bUseGpu, Scale, Rotate, &ConversionTask->ConvertedImageSize);
 		// Notify any async listeners that we are done
 		ConversionTask->MarkComplete();
 	});
@@ -338,7 +371,7 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 	TSharedPtr<FAppleImageUtilsConversionTask, ESPMode::ThreadSafe> ConversionTask = MakeShared<FAppleImageUtilsConversionTask, ESPMode::ThreadSafe>(AllocateImage(AppleImage));
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, ConversionTask, bWantColor, bUseGpu, Scale, Rotate]()
 	{
-		ConvertToTIFF(ConversionTask->SourceImage, ConversionTask->ConvertedBytes, bWantColor, bUseGpu, Scale, Rotate);
+		ConvertToTIFF(ConversionTask->SourceImage, ConversionTask->ConvertedBytes, bWantColor, bUseGpu, Scale, Rotate, &ConversionTask->ConvertedImageSize);
 		// Notify any async listeners that we are done
 		ConversionTask->MarkComplete();
 	});
@@ -410,7 +443,7 @@ CGImageRef FAppleImageUtilsPlugin::UTexture2DToCGImage(UTexture2D* Source)
 	return ImageRef;
 }
 
-void FAppleImageUtilsPlugin::ConvertToJPEG(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality, bool bWantColor, bool bUseGpu, float Scale, ETextureRotationDirection Rotate)
+void FAppleImageUtilsPlugin::ConvertToJPEG(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality, bool bWantColor, bool bUseGpu, float Scale, ETextureRotationDirection Rotate, FIntPoint* ConvertedImageSize)
 {
 	SCOPED_AUTORELEASE_POOL;
 
@@ -418,6 +451,12 @@ void FAppleImageUtilsPlugin::ConvertToJPEG(CIImage* SourceImage, TArray<uint8>& 
 	CIContext* ConversionContext = [CIContext contextWithOptions: ToCpuDictionary(bUseGpu)];
 	CGColorSpaceRef ColorSpace = ToColorSpace(bWantColor);
 	CIImage* Image = ApplyScaleAndRotation(SourceImage, Scale, Rotate);
+	
+	if (ConvertedImageSize)
+	{
+		ConvertedImageSize->X = Image.extent.size.width;
+		ConvertedImageSize->Y = Image.extent.size.height;
+	}
 
 	// This will perform the work on the GPU or inline on this thread
 	NSData* ConvertedData = [ConversionContext JPEGRepresentationOfImage: Image colorSpace: ColorSpace options: ToQualityDictionary(Quality)];
@@ -432,7 +471,7 @@ void FAppleImageUtilsPlugin::ConvertToJPEG(CIImage* SourceImage, TArray<uint8>& 
 }
 
 #if SUPPORTS_IMAGE_UTILS_2_1
-void FAppleImageUtilsPlugin::ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality,  bool bWantColor, bool bUseGpu, float Scale, ETextureRotationDirection Rotate)
+void FAppleImageUtilsPlugin::ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& OutBytes, int32 Quality,  bool bWantColor, bool bUseGpu, float Scale, ETextureRotationDirection Rotate, FIntPoint* ConvertedImageSize)
 {
 	SCOPED_AUTORELEASE_POOL;
 
@@ -440,6 +479,12 @@ void FAppleImageUtilsPlugin::ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& 
 	CIContext* ConversionContext = [CIContext contextWithOptions: ToCpuDictionary(bUseGpu)];
 	CGColorSpaceRef ColorSpace = ToColorSpace(bWantColor);
 	CIImage* Image = ApplyScaleAndRotation(SourceImage, Scale, Rotate);
+	
+	if (ConvertedImageSize)
+	{
+		ConvertedImageSize->X = Image.extent.size.width;
+		ConvertedImageSize->Y = Image.extent.size.height;
+	}
 
 	// This will perform the work on the GPU or inline on this thread
 	NSData* ConvertedData = [ConversionContext HEIFRepresentationOfImage: Image format: kCIFormatARGB8 colorSpace: ColorSpace options: ToQualityDictionary(Quality)];
@@ -453,7 +498,7 @@ void FAppleImageUtilsPlugin::ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& 
 	CGColorSpaceRelease(ColorSpace);
 }
 
-void FAppleImageUtilsPlugin::ConvertToPNG(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor, bool bUseGpu, float Scale, ETextureRotationDirection Rotate)
+void FAppleImageUtilsPlugin::ConvertToPNG(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor, bool bUseGpu, float Scale, ETextureRotationDirection Rotate, FIntPoint* ConvertedImageSize)
 {
 	SCOPED_AUTORELEASE_POOL;
 
@@ -461,6 +506,12 @@ void FAppleImageUtilsPlugin::ConvertToPNG(CIImage* SourceImage, TArray<uint8>& O
 	CIContext* ConversionContext = [CIContext contextWithOptions: ToCpuDictionary(bUseGpu)];
 	CGColorSpaceRef ColorSpace = ToColorSpace(bWantColor);
 	CIImage* Image = ApplyScaleAndRotation(SourceImage, Scale, Rotate);
+	
+	if (ConvertedImageSize)
+	{
+		ConvertedImageSize->X = Image.extent.size.width;
+		ConvertedImageSize->Y = Image.extent.size.height;
+	}
 
 	// This will perform the work on the GPU or inline on this thread
 	NSData* ConvertedData = [ConversionContext PNGRepresentationOfImage: Image format: kCIFormatARGB8 colorSpace: ColorSpace options: @{}];
@@ -474,7 +525,7 @@ void FAppleImageUtilsPlugin::ConvertToPNG(CIImage* SourceImage, TArray<uint8>& O
 	CGColorSpaceRelease(ColorSpace);
 }
 
-void FAppleImageUtilsPlugin::ConvertToTIFF(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor, bool bUseGpu, float Scale, ETextureRotationDirection Rotate)
+void FAppleImageUtilsPlugin::ConvertToTIFF(CIImage* SourceImage, TArray<uint8>& OutBytes, bool bWantColor, bool bUseGpu, float Scale, ETextureRotationDirection Rotate, FIntPoint* ConvertedImageSize)
 {
 	SCOPED_AUTORELEASE_POOL;
 
@@ -482,6 +533,12 @@ void FAppleImageUtilsPlugin::ConvertToTIFF(CIImage* SourceImage, TArray<uint8>& 
 	CIContext* ConversionContext = [CIContext contextWithOptions: ToCpuDictionary(bUseGpu)];
 	CGColorSpaceRef ColorSpace = ToColorSpace(bWantColor);
 	CIImage* Image = ApplyScaleAndRotation(SourceImage, Scale, Rotate);
+	
+	if (ConvertedImageSize)
+	{
+		ConvertedImageSize->X = Image.extent.size.width;
+		ConvertedImageSize->Y = Image.extent.size.height;
+	}
 
 	// This will perform the work on the GPU or inline on this thread
 	NSData* ConvertedData = [ConversionContext TIFFRepresentationOfImage: Image format: kCIFormatARGB8 colorSpace: ColorSpace options: @{}];

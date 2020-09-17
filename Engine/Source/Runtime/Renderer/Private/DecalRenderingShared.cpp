@@ -455,7 +455,6 @@ void FDecalRendering::SetDecalCompilationEnvironment(const FMaterialShaderPermut
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERA"), (bDBufferMask & 0x1) != 0);
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERB"), (bDBufferMask & 0x2) != 0);
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERC"), (bDBufferMask & 0x4) != 0);
-
 }
 
 void FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -470,47 +469,22 @@ void FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(const FMater
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERC"), 0);
 }
 
-static FRHIBlendState* GetDecalBlendStateMobile(EDecalBlendMode DecalBlendMode)
-{
-	switch(DecalBlendMode)
-	{
-	case DBM_Translucent:
-	case DBM_DBuffer_Color:
-	case DBM_DBuffer_ColorNormal:
-	case DBM_DBuffer_ColorRoughness:
-	case DBM_DBuffer_ColorNormalRoughness:
-		return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
-		break;
-	case DBM_Stain:
-		// Modulate
-		return TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha>::GetRHI();
-		break;
-	case DBM_Emissive:
-	case DBM_DBuffer_Emissive:
-		// Additive
-		return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_One>::GetRHI();
-		break;
-	case DBM_AlphaComposite:
-	case DBM_DBuffer_AlphaComposite:
-		// Premultiplied alpha
-		return TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
-		break;
-	case DBM_DBuffer_EmissiveAlphaComposite:
-		return TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
-		break;
-	default:
-		ensure(0);
-	};
-
-	return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
-}
+extern FRHIBlendState* MobileForward_GetDecalBlendState(EDecalBlendMode DecalBlendMode);
+extern FRHIBlendState* MobileDeferred_GetDecalBlendState(EDecalBlendMode DecalBlendMode, bool bHasNormal);
 
 // @param RenderState 0:before BasePass, 1:before lighting, (later we could add "after lighting" and multiply)
 FRHIBlendState* FDecalRendering::GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal)
 {
-	if (SMFeatureLevel == ERHIFeatureLevel::ES3_1)
+	if (InDecalRenderStage == DRS_Mobile)
 	{
-		return GetDecalBlendStateMobile(DecalBlendMode);
+		if (IsMobileDeferredShading())
+		{
+			return MobileDeferred_GetDecalBlendState(DecalBlendMode, bHasNormal);
+		}
+		else
+		{
+			return MobileForward_GetDecalBlendState(DecalBlendMode);
+		}
 	}
 	
 	if (InDecalRenderStage == DRS_BeforeBasePass)
@@ -635,7 +609,6 @@ FRHIBlendState* FDecalRendering::GetDecalBlendState(const ERHIFeatureLevel::Type
 				{
 					return TStaticBlendState<
 						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
-						CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,	// Normal
 						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
 						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
 					>::GetRHI();
@@ -658,7 +631,6 @@ FRHIBlendState* FDecalRendering::GetDecalBlendState(const ERHIFeatureLevel::Type
 				{
 					return TStaticBlendState<
 						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
-						CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,	// Normal
 						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
 						CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
 					>::GetRHI();

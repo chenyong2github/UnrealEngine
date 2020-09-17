@@ -61,7 +61,7 @@ private:
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDistortionPassUniformParameters, )
-	SHADER_PARAMETER_STRUCT(FSceneTexturesUniformParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER(FVector4, DistortionParams)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -72,8 +72,6 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 
 extern void SetupDistortionParams(FVector4& DistortionParams, const FViewInfo& View);
-
-extern void SetupMobileDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FMobileDistortionPassUniformParameters& DistortionPassParameters);
 
 class FDistortionMeshProcessor : public FMeshPassProcessor
 {

@@ -25,6 +25,7 @@
 #include "RenderGraphUtils.h"
 #include "GpuDebugRendering.h"
 #include "ShaderPrint.h"
+#include "ScreenPass.h"
 
 static int32 GDeepShadowDebugIndex = 0;
 static float GDeepShadowDebugScale = 20;
@@ -124,10 +125,10 @@ FHairStrandsDebugData::Data FHairStrandsDebugData::ImportData(FRDGBuilder& Graph
 
 void FHairStrandsDebugData::ExtractData(FRDGBuilder& GraphBuilder, FHairStrandsDebugData::Data& In, FHairStrandsDebugData& Out)
 {
-	GraphBuilder.QueueBufferExtraction(In.ShadingPointBuffer, &Out.ShadingPointBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
-	GraphBuilder.QueueBufferExtraction(In.ShadingPointCounter, &Out.ShadingPointCounter, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
-	GraphBuilder.QueueBufferExtraction(In.SampleBuffer, &Out.SampleBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
-	GraphBuilder.QueueBufferExtraction(In.SampleCounter, &Out.SampleCounter, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+	GraphBuilder.QueueBufferExtraction(In.ShadingPointBuffer, &Out.ShadingPointBuffer);
+	GraphBuilder.QueueBufferExtraction(In.ShadingPointCounter, &Out.ShadingPointCounter);
+	GraphBuilder.QueueBufferExtraction(In.SampleBuffer, &Out.SampleBuffer);
+	GraphBuilder.QueueBufferExtraction(In.SampleCounter, &Out.SampleCounter);
 }
 
 void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, FHairStrandsDebugData::Data& In, FHairStrandsDebugData::FWriteParameters& Out)
@@ -299,7 +300,7 @@ static void AddDebugHairPrintPass(
 	const TRefCountPtr<IPooledRenderTarget>& InViewHairCountTexture = VisibilityData.ViewHairCountTexture;
 	const TRefCountPtr<IPooledRenderTarget>& InCategorizationTexture = VisibilityData.CategorizationTexture;
 	const TRefCountPtr<IPooledRenderTarget>& InNodeIndex = VisibilityData.NodeIndex;
-	const TRefCountPtr<FPooledRDGBuffer>& InNodeData = VisibilityData.NodeData;
+	const TRefCountPtr<FRDGPooledBuffer>& InNodeData = VisibilityData.NodeData;
 	
 	if (!InCategorizationTexture || !InNodeIndex || !InNodeData || !InDepthStencilTexture) return;
 
@@ -397,7 +398,7 @@ static void AddDebugHairPass(
 
 	const TRefCountPtr<IPooledRenderTarget>& InCategorizationTexture = VisibilityData.CategorizationTexture;
 	const TRefCountPtr<IPooledRenderTarget>& InNodeIndex = VisibilityData.NodeIndex;
-	const TRefCountPtr<FPooledRDGBuffer>& InNodeData = VisibilityData.NodeData;
+	const TRefCountPtr<FRDGPooledBuffer>& InNodeData = VisibilityData.NodeData;
 	const TRefCountPtr<IPooledRenderTarget>& InTileIndexTexture = VisibilityData.TileIndexTexture;
 
 	if (!InCategorizationTexture || !InNodeIndex || !InNodeData || !InTileIndexTexture) return;
@@ -643,8 +644,7 @@ static void AddDeepShadowInfoPass(
 		return;
 	}
 
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	FRDGBufferRef MacroGroupAABBsBuffer = GraphBuilder.RegisterExternalBuffer(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer);
 	FRDGBufferRef DeepShadowWorldToLightTransforms = GraphBuilder.RegisterExternalBuffer(MacroGroupDatas.DeepShadowResources.DeepShadowWorldToLightTransforms);
@@ -710,8 +710,7 @@ static void AddVoxelPageRaymarchingPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	FRDGTextureRef& OutputTexture)
 {
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	const FVirtualVoxelResources& VoxelResources = MacroGroupDatas.VirtualVoxelResources;
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
@@ -779,8 +778,7 @@ static void AddPlotBSDFPass(
 	FRDGTextureRef& OutputTexture)
 {
 	
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	FHairStrandsPlotBSDFPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPlotBSDFPS::FParameters>();
@@ -794,7 +792,7 @@ static void AddPlotBSDFPass(
 	Parameters->Exposure = GHairStrandsDebugPlotBsdfExposure;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
 
-	const FIntPoint OutputResolution = SceneTextures.SceneDepthBuffer->Desc.Extent;
+	const FIntPoint OutputResolution = SceneTextures.SceneDepthTexture->Desc.Extent;
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FHairStrandsPlotBSDFPS> PixelShader(View.ShaderMap);
 	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
@@ -874,8 +872,7 @@ static void AddPlotSamplePass(
 	FHairStrandsDebugData::Data& DebugData,
 	FRDGTextureRef& OutputTexture)
 {
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	FHairStrandsPlotSamplePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPlotSamplePS::FParameters>();
@@ -892,7 +889,7 @@ static void AddPlotSamplePass(
 	Parameters->HairLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
 
-	const FIntPoint OutputResolution = SceneTextures.SceneDepthBuffer->Desc.Extent;
+	const FIntPoint OutputResolution = SceneTextures.SceneDepthTexture->Desc.Extent;
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FHairStrandsPlotSamplePS> PixelShader(View.ShaderMap);
 	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
@@ -1018,10 +1015,10 @@ IMPLEMENT_GLOBAL_SHADER(FDrawDebugClusterAABBCS, "/Engine/Private/HairStrands/Ha
 bool IsHairStrandsClusterCullingEnable();
 
 static void AddDrawDebugClusterPass(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FHairStrandsMacroGroupViews& InMacroGroupViews,
 	const FHairStrandClusterData& HairClusterData,
-	TArray<FViewInfo>& Views)
+	TArrayView<FViewInfo> Views)
 {
 	check(ShaderDrawDebug::IsShaderDrawDebugEnabled());
 
@@ -1058,8 +1055,6 @@ static void AddDrawDebugClusterPass(
 						FViewInfo& ViewInfo = Views[ViewIndex];
 						if (ShaderDrawDebug::IsShaderDrawDebugEnabled(ViewInfo) && HairGroupClusters.CulledDispatchIndirectParametersClusterCount)
 						{
-							FRDGBuilder GraphBuilder(RHICmdList);
-
 							FRDGBufferRef CulledDispatchIndirectParametersClusterCount = GraphBuilder.RegisterExternalBuffer(HairGroupClusters.CulledDispatchIndirectParametersClusterCount);
 							FRWBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
 
@@ -1091,8 +1086,6 @@ static void AddDrawDebugClusterPass(
 							FComputeShaderUtils::AddPass(
 								GraphBuilder, RDG_EVENT_NAME("DrawDebugClusterAABB"),
 								ComputeShader, Parameters, DispatchCount);
-
-							GraphBuilder.Execute();
 						}
 					}
 				}
@@ -1104,16 +1097,19 @@ static void AddDrawDebugClusterPass(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void RenderHairStrandsDebugInfo(
-	FRHICommandListImmediate& RHICmdList, 
-	TArray<FViewInfo>& Views, 
+	FRDGBuilder& GraphBuilder,
+	TArrayView<FViewInfo> Views,
 	const FHairStrandsRenderingData* HairDatas,
-	const struct FHairStrandClusterData& HairClusterData)
+	const struct FHairStrandClusterData& HairClusterData,
+	FRDGTextureRef SceneColorTexture)
 {
 	const float YStep = 14;
 	const float ColumnWidth = 200;
 
 	if (Views.Num() == 0)
 		return;
+
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsDebug");
 
 	if (GHairStrandsUpdateCullIndex)
 	{
@@ -1127,13 +1123,15 @@ void RenderHairStrandsDebugInfo(
 	const uint32 ViewIndex = 0;
 	FViewInfo& View = Views[ViewIndex];
 	const FSceneViewFamily& ViewFamily = *(View.Family);
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
 	{
 		FHairStrandsBookmarkParameters Params = CreateHairStrandsBookmarkParameters(Views[0]);
 		Params.SceneColorTexture = SceneTargets.GetSceneColor();
-		RunHairStrandsBookmark(RHICmdList, EHairStrandsBookmark::ProcessDebug, Params);
+		RunHairStrandsBookmark(GraphBuilder.RHICmdList, EHairStrandsBookmark::ProcessDebug, Params);
 	}
+
+	const FScreenPassRenderTarget SceneColor(SceneColorTexture, View.ViewRect, ERenderTargetLoadAction::ELoad);
 
 	// Debug mode name only
 	const EHairStrandsDebugMode StrandsDebugMode = GetHairStrandsDebugStrandsMode();
@@ -1141,8 +1139,6 @@ void RenderHairStrandsDebugInfo(
 
 	if (HairDatas && (GHairStrandsDebugPlotBsdf > 0 || HairDatas->DebugData.IsValid()))
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 		if (GHairStrandsDebugPlotBsdf > 0)
 		{
 			AddPlotBSDFPass(GraphBuilder, View, SceneColorTexture);
@@ -1151,8 +1147,7 @@ void RenderHairStrandsDebugInfo(
 		{
 			FHairStrandsDebugData::Data DebugData = FHairStrandsDebugData::ImportData(GraphBuilder, HairDatas->DebugData);
 			AddPlotSamplePass(GraphBuilder, View, DebugData, SceneColorTexture);
-		}
-		GraphBuilder.Execute();		
+		}	
 	}
 
 	float ClusterY = 38;
@@ -1165,11 +1160,9 @@ void RenderHairStrandsDebugInfo(
 	{
 		if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
 		{
-			FRDGBuilder GraphBuilder(RHICmdList);
 			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
 			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, MacroGroupDatas, SceneTargets.SceneStencilSRV);
-			GraphBuilder.Execute();	
 		}
 
 		// CPU bound of macro groups
@@ -1184,34 +1177,31 @@ void RenderHairStrandsDebugInfo(
 			}
 		}
 
-		FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)SceneTargets.GetSceneColor()->GetRenderTargetItem().TargetableTexture);
-		FCanvas Canvas(&TempRenderTarget, NULL, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.FeatureLevel);
-
-		float X = 20;
-		float Y = ClusterY;
-		FLinearColor InactiveColor(0.5, 0.5, 0.5);
-		FLinearColor DebugColor(1, 1, 0);
-		FString Line;
-
-		Line = FString::Printf(TEXT("----------------------------------------------------------------"));
-		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-
-		Line = FString::Printf(TEXT("Macro group count : %d"), MacroGroupDatas.Datas.Num());
-		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+		AddDrawCanvasPass(GraphBuilder, {}, View, SceneColor, [ClusterY, &MacroGroupDatas, YStep] (FCanvas& Canvas)
 		{
-			Line = FString::Printf(TEXT(" %d - Bound Radus: %f.2m (%dx%d)"), MacroGroupData.MacroGroupId, MacroGroupData.Bounds.GetSphere().W);
-			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		}
+			float X = 20;
+			float Y = ClusterY;
+			FLinearColor InactiveColor(0.5, 0.5, 0.5);
+			FLinearColor DebugColor(1, 1, 0);
+			FString Line;
 
-		Canvas.Flush_RenderThread(RHICmdList);
+			Line = FString::Printf(TEXT("----------------------------------------------------------------"));
+			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+
+			Line = FString::Printf(TEXT("Macro group count : %d"), MacroGroupDatas.Datas.Num());
+			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+			{
+				Line = FString::Printf(TEXT(" %d - Bound Radus: %f.2m (%dx%d)"), MacroGroupData.MacroGroupId, MacroGroupData.Bounds.GetSphere().W);
+				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			}
+		});
 	}
 
 	if (HairDebugMode == EHairDebugMode::DeepOpacityMaps)
 	{
 		if (ViewIndex < uint32(InMacroGroupViews.Views.Num()))
 		{
-			FRDGBuilder GraphBuilder(RHICmdList);
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
 			for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas.Datas)
 			{
@@ -1229,19 +1219,15 @@ void RenderHairStrandsDebugInfo(
 					if (DeepShadowData.AtlasSlotIndex != DomIndex)
 						continue;
 
-					FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 					AddDebugDeepShadowTexturePass(GraphBuilder, &View, FIntRect(), &DeepShadowData, &MacroGroupDatas.DeepShadowResources, SceneColorTexture);
 				}
 			}
-			GraphBuilder.Execute();
 		}
 	}
 
 	// View Rect
 	if (IsHairStrandsViewRectOptimEnable() && HairDebugMode == EHairDebugMode::MacroGroupScreenRect)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 		if (ViewIndex < uint32(InMacroGroupViews.Views.Num()))
 		{
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
@@ -1253,7 +1239,6 @@ void RenderHairStrandsDebugInfo(
 			const FIntRect TotalRect = ComputeVisibleHairStrandsMacroGroupsRect(View.ViewRect, MacroGroupDatas);
 			AddDebugDeepShadowTexturePass(GraphBuilder, &View, TotalRect, nullptr, nullptr, SceneColorTexture);
 		}
-		GraphBuilder.Execute();
 	}
 	
 	const bool bIsVoxelMode = HairDebugMode == EHairDebugMode::VoxelsDensity || HairDebugMode == EHairDebugMode::VoxelsTangent || HairDebugMode == EHairDebugMode::VoxelsBaseColor || HairDebugMode == EHairDebugMode::VoxelsRoughness;
@@ -1267,10 +1252,7 @@ void RenderHairStrandsDebugInfo(
 				const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
 				if (MacroGroupDatas.DeepShadowResources.bIsGPUDriven)
 				{
-					FRDGBuilder GraphBuilder(RHICmdList);
-					FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 					AddDeepShadowInfoPass(GraphBuilder, View, MacroGroupDatas, SceneColorTexture);
-					GraphBuilder.Execute();
 				}
 			}
 		}
@@ -1342,8 +1324,6 @@ void RenderHairStrandsDebugInfo(
 		HairDebugMode == EHairDebugMode::Tile;
 	if (bRunDebugPass)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 		if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
 		{
 			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
@@ -1351,8 +1331,6 @@ void RenderHairStrandsDebugInfo(
 			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData, SceneTargets.SceneStencilSRV, SceneColorTexture);
 			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, MacroGroupDatas, SceneTargets.SceneStencilSRV);
 		}
-
-		GraphBuilder.Execute();
 	}
 
 	if (bIsVoxelMode)
@@ -1362,10 +1340,7 @@ void RenderHairStrandsDebugInfo(
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
 			if (MacroGroupDatas.VirtualVoxelResources.IsValid())
 			{
-				FRDGBuilder GraphBuilder(RHICmdList);
-				FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 				AddVoxelPageRaymarchingPass(GraphBuilder, View, MacroGroupDatas, SceneColorTexture);
-				GraphBuilder.Execute();
 			}
 		}
 	}
@@ -1375,8 +1350,6 @@ void RenderHairStrandsDebugInfo(
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 		if (GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debug view is enabled.
 		{
-			FRDGBuilder GraphBuilder(RHICmdList);
-			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.GetSceneColor(), TEXT("SceneColorTexture"));
 			FRDGTextureRef PPLLNodeCounterTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.PPLLNodeCounterTexture, TEXT("PPLLNodeCounterTexture"));
 			FRDGTextureRef PPLLNodeIndexTexture = GraphBuilder.RegisterExternalTexture(VisibilityData.PPLLNodeIndexTexture, TEXT("PPLLNodeIndexTexture"));
 			FRDGBufferRef  PPLLNodeDataBuffer = GraphBuilder.RegisterExternalBuffer(VisibilityData.PPLLNodeDataBuffer, TEXT("PPLLNodeDataBuffer"));
@@ -1397,83 +1370,80 @@ void RenderHairStrandsDebugInfo(
 			FIntVector TextureSize = SceneColorTexture->Desc.GetSize(); TextureSize.Z = 1;
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairPPLLDebug"), ComputeShader, PassParameters,
 				FIntVector::DivideAndRoundUp(TextureSize, FIntVector(8, 8, 1)));
-			GraphBuilder.Execute();
 		}
 	}
 
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled() && GHairStrandsClusterDebug > 0)
 	{
-		AddDrawDebugClusterPass(RHICmdList, InMacroGroupViews, HairClusterData, Views);
+		AddDrawDebugClusterPass(GraphBuilder, InMacroGroupViews, HairClusterData, Views);
 	}
 
 	// Text
 	if (HairDebugMode == EHairDebugMode::LightBounds || HairDebugMode == EHairDebugMode::DeepOpacityMaps)
 	{
-		FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)SceneTargets.GetSceneColor()->GetRenderTargetItem().TargetableTexture);
-		FCanvas Canvas(&TempRenderTarget, NULL, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.FeatureLevel);
-
-		const uint32 AtlasTotalSlotCount = FDeepShadowResources::MaxAtlasSlotCount;
-		uint32 AtlasAllocatedSlot = 0;
-		FIntPoint AtlasSlotResolution = FIntPoint(0, 0);
-		FIntPoint AtlasResolution = FIntPoint(0, 0);
-		bool bIsGPUDriven = false;
-		if (ViewIndex < uint32(InMacroGroupViews.Views.Num()))
+		AddDrawCanvasPass(GraphBuilder, {}, View, SceneColor, [&InMacroGroupViews, YStep, ViewIndex, StrandsDebugMode, HairDebugMode](FCanvas& Canvas)
 		{
-			const FDeepShadowResources& Resources = InMacroGroupViews.Views[ViewIndex].DeepShadowResources;
-			AtlasResolution = Resources.DepthAtlasTexture ? Resources.DepthAtlasTexture->GetRenderTargetItem().TargetableTexture->GetTexture2D()->GetSizeXY() : FIntPoint(0,0);
-			AtlasAllocatedSlot = Resources.TotalAtlasSlotCount;
-			bIsGPUDriven = Resources.bIsGPUDriven;
-		}
-
-		const uint32 DomTextureIndex = GDeepShadowDebugIndex;
-
-		float X = 20;
-		float Y = 38;
-
-		FLinearColor DebugColor(1, 1, 0);
-		FString Line;
-
-		const FHairComponent HairComponent = GetHairComponents();
-		Line = FString::Printf(TEXT("Hair Components : (R=%d, TT=%d, TRT=%d, GS=%d, LS=%d)"), HairComponent.R, HairComponent.TT, HairComponent.TRT, HairComponent.GlobalScattering, HairComponent.LocalScattering);
-		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("----------------------------------------------------------------"));						Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("Debug strands mode : %s"), ToString(StrandsDebugMode));									Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("Voxelization : %s"), IsHairStrandsVoxelizationEnable() ? TEXT("On") : TEXT("Off"));		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("View rect optim.: %s"), IsHairStrandsViewRectOptimEnable() ? TEXT("On") : TEXT("Off"));	Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("----------------------------------------------------------------"));						Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("DOM Atlas resolution  : %dx%d"), AtlasResolution.X, AtlasResolution.Y);					Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("DOM Atlas slot        : %d/%d"), AtlasAllocatedSlot, AtlasTotalSlotCount);					Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("DOM Texture Index     : %d/%d"), DomTextureIndex, AtlasAllocatedSlot);						Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-		Line = FString::Printf(TEXT("DOM GPU driven        : %s"), bIsGPUDriven ? TEXT("On") : TEXT("Off"));					Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-
-		if (ViewIndex < uint32(InMacroGroupViews.Views.Num()))
-		{
-			for (const FHairStrandsMacroGroupData& MacroGroupData : InMacroGroupViews.Views[ViewIndex].Datas)
+			const uint32 AtlasTotalSlotCount = FDeepShadowResources::MaxAtlasSlotCount;
+			uint32 AtlasAllocatedSlot = 0;
+			FIntPoint AtlasSlotResolution = FIntPoint(0, 0);
+			FIntPoint AtlasResolution = FIntPoint(0, 0);
+			bool bIsGPUDriven = false;
+			if (ViewIndex < uint32(InMacroGroupViews.Views.Num()))
 			{
-				for (const FHairStrandsDeepShadowData& DomData : MacroGroupData.DeepShadowDatas.Datas)
+				const FDeepShadowResources& Resources = InMacroGroupViews.Views[ViewIndex].DeepShadowResources;
+				AtlasResolution = Resources.DepthAtlasTexture ? Resources.DepthAtlasTexture->GetRenderTargetItem().TargetableTexture->GetTexture2D()->GetSizeXY() : FIntPoint(0, 0);
+				AtlasAllocatedSlot = Resources.TotalAtlasSlotCount;
+				bIsGPUDriven = Resources.bIsGPUDriven;
+			}
+
+			const uint32 DomTextureIndex = GDeepShadowDebugIndex;
+
+			float X = 20;
+			float Y = 38;
+
+			FLinearColor DebugColor(1, 1, 0);
+			FString Line;
+
+			const FHairComponent HairComponent = GetHairComponents();
+			Line = FString::Printf(TEXT("Hair Components : (R=%d, TT=%d, TRT=%d, GS=%d, LS=%d)"), HairComponent.R, HairComponent.TT, HairComponent.TRT, HairComponent.GlobalScattering, HairComponent.LocalScattering);
+			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("----------------------------------------------------------------"));						Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("Debug strands mode : %s"), ToString(StrandsDebugMode));									Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("Voxelization : %s"), IsHairStrandsVoxelizationEnable() ? TEXT("On") : TEXT("Off"));		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("View rect optim.: %s"), IsHairStrandsViewRectOptimEnable() ? TEXT("On") : TEXT("Off"));	Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("----------------------------------------------------------------"));						Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("DOM Atlas resolution  : %dx%d"), AtlasResolution.X, AtlasResolution.Y);					Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("DOM Atlas slot        : %d/%d"), AtlasAllocatedSlot, AtlasTotalSlotCount);					Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("DOM Texture Index     : %d/%d"), DomTextureIndex, AtlasAllocatedSlot);						Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+			Line = FString::Printf(TEXT("DOM GPU driven        : %s"), bIsGPUDriven ? TEXT("On") : TEXT("Off"));					Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+
+			if (ViewIndex < uint32(InMacroGroupViews.Views.Num()))
+			{
+				for (const FHairStrandsMacroGroupData& MacroGroupData : InMacroGroupViews.Views[ViewIndex].Datas)
 				{
-					Line = FString::Printf(TEXT(" %d - Bound Radus: %f.2m (%dx%d)"), DomData.AtlasSlotIndex, DomData.Bounds.GetSphere().W / 10.f, DomData.ShadowResolution.X, DomData.ShadowResolution.Y);
-					Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+					for (const FHairStrandsDeepShadowData& DomData : MacroGroupData.DeepShadowDatas.Datas)
+					{
+						Line = FString::Printf(TEXT(" %d - Bound Radus: %f.2m (%dx%d)"), DomData.AtlasSlotIndex, DomData.Bounds.GetSphere().W / 10.f, DomData.ShadowResolution.X, DomData.ShadowResolution.Y);
+						Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
+					}
 				}
 			}
-		}
-
-		Canvas.Flush_RenderThread(RHICmdList);
+		});
 	}
 
 	if (StrandsDebugMode != EHairStrandsDebugMode::NoneDebug || HairDebugMode != EHairDebugMode::None)
 	{
-		float X = 40;
-		float Y = View.ViewRect.Height() - YStep * 3.f;
-		FString Line;
-		if (StrandsDebugMode != EHairStrandsDebugMode::NoneDebug)
-			Line = FString::Printf(TEXT("Hair Debug mode - %s"), ToString(StrandsDebugMode));
-		else if (HairDebugMode != EHairDebugMode::None)
-			Line = FString::Printf(TEXT("Hair Debug mode - %s"), ToString(HairDebugMode));
+		AddDrawCanvasPass(GraphBuilder, {}, View, SceneColor, [&View, &StrandsDebugMode, YStep, HairDebugMode](FCanvas& Canvas)
+		{
+			float X = 40;
+			float Y = View.ViewRect.Height() - YStep * 3.f;
+			FString Line;
+			if (StrandsDebugMode != EHairStrandsDebugMode::NoneDebug)
+				Line = FString::Printf(TEXT("Hair Debug mode - %s"), ToString(StrandsDebugMode));
+			else if (HairDebugMode != EHairDebugMode::None)
+				Line = FString::Printf(TEXT("Hair Debug mode - %s"), ToString(HairDebugMode));
 
-		FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)SceneTargets.GetSceneColor()->GetRenderTargetItem().TargetableTexture);
-		FCanvas Canvas(&TempRenderTarget, NULL, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.FeatureLevel);
-		Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
-		Canvas.Flush_RenderThread(RHICmdList);
+			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
+		});
 	}
 }

@@ -52,6 +52,7 @@
 #include "Lumin/CAPIShims/LuminAPIGraphics.h"
 #include "Lumin/CAPIShims/LuminAPIPrivileges.h"
 #include "Lumin/CAPIShims/LuminAPIInput.h"
+#include "Lumin/CAPIShims/LuminAPILifecycle.h"
 
 #if WITH_MLSDK
 #if !PLATFORM_LUMIN
@@ -74,6 +75,16 @@
 #include "MagicLeapVulkanExtensions.h"
 
 #define LOCTEXT_NAMESPACE "MagicLeap"
+
+const FString FMagicLeapHMD::kVulkanExtensionsWarningMsg = 
+			"Engine is attempting to use the Magic Leap HMD since Zero Iteration is enabled but its required Vulkan extensions have not been enabled\n"
+			"Update the DefaultEngine.ini config of your project to set the [HMDPluginPriority] of MagicLeap higher than other HMDs\n"
+			"or launch the editor with the -hmd=MagicLeap command line arg.";
+
+static TAutoConsoleVariable<bool> CVarWaitForHeadTrackerInit(TEXT("MagicLeap.WaitForHeadTrackerInit"),
+	true,
+	TEXT("If true (default), graphics won't be initialized until after head tracking has been initialized."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 //---------------------------------------------------
 // MagicLeapHMD Plugin Implementation
@@ -103,7 +114,8 @@ public:
 		if (bIsVDZIEnabled)
 		{
 #if WITH_MLSDK
-			const bool bLoadedRemoteDLL = (MLSDK_API::LibraryLoader::Ref().LoadDLL(TEXT("ml_remote")) != nullptr);
+			const IMagicLeapLibraryLoader* LibraryLoader = static_cast<IMagicLeapLibraryLoader*>(FModuleManager::Get().LoadModule(TEXT("MLSDK")));
+			const bool bLoadedRemoteDLL = (LibraryLoader) ? (LibraryLoader->LoadDLL(TEXT("ml_remote")) != nullptr) : false;
 #else
 			const bool bLoadedRemoteDLL = false;
 #endif // WITH_MLSDK
@@ -387,6 +399,16 @@ public:
 		return bIsVDZIEnabled && bUseMLAudioForZI;
 	}
 
+	bool IsVulkanExtensionsObjValid() const
+	{
+#if PLATFORM_WINDOWS || PLATFORM_LUMIN
+		return VulkanExtensions.IsValid();
+#else
+		// on non vulkan platforms, assume the extensions were enabled already
+		return true;
+#endif // PLATFORM_WINDOWS || PLATFORM_LUMIN
+	}
+
 private:
 
 #if WITH_EDITOR
@@ -448,6 +470,11 @@ FName FMagicLeapHMD::GetSystemName() const
 	return SystemName;
 }
 
+int32 FMagicLeapHMD::GetXRSystemFlags() const
+{
+	return EXRSystemFlags::IsAR | EXRSystemFlags::IsHeadMounted;
+}
+
 FString FMagicLeapHMD::GetVersionString() const
 {
 	FString s = FString::Printf(TEXT("LuminHMD - %s, built %s, %s"), *FEngineVersion::Current().ToString(),
@@ -477,11 +504,6 @@ bool FMagicLeapHMD::OnStartGameFrame(FWorldContext& WorldContext)
 		bStereoEnabled = EnableStereo(bStereoDesired);
 	}
 #endif //!PLATFORM_LUMIN
-
-	if (bStereoEnabled)
-	{
-		InitDevice();
-	}
 
 	AppFramework.BeginUpdate();
 
@@ -524,7 +546,8 @@ bool FMagicLeapHMD::IsHMDConnected()
 #if PLATFORM_LUMIN
 	return true;
 #elif WITH_MLSDK && (PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC)
-	const bool bLoadedRemoteDLL = (MLSDK_API::LibraryLoader::Ref().LoadDLL(TEXT("ml_remote")) != nullptr);
+	const IMagicLeapLibraryLoader* LibraryLoader = static_cast<IMagicLeapLibraryLoader*>(FModuleManager::Get().LoadModule(TEXT("MLSDK")));
+	const bool bLoadedRemoteDLL = (LibraryLoader)? (LibraryLoader->LoadDLL(TEXT("ml_remote")) != nullptr) : false;
 	if (!bIsVDZIEnabled || !bLoadedRemoteDLL)
 	{
 		return false;
@@ -966,20 +989,8 @@ void FMagicLeapHMD::DisplayWarningIfVDZINotEnabled()
 	// the user was attempting to run with VR mode, but neglected to enabled VDZI.
 	// For game mode on the host platform, we can just check command-line and .ini settings to see if VR is enabled.
 
-	bool VREnabled = false;
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		VREnabled = (GetDefault<ULevelEditorPlaySettings>()->LastExecutedPlayModeType == PlayMode_InVR);
-	}
-	else
-#endif // WITH_EDITOR
-	{
-		VREnabled = FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR;
-	}
-
 #if WITH_MLSDK
-	if (!bIsVDZIEnabled && !bVDZIWarningDisplayed && VREnabled)
+	if (!bIsVDZIEnabled && !bVDZIWarningDisplayed && IsVREnabled())
 	{
 		FString message =
 			"Zero Iteration must be enabled to work with VR mode, which can be done as follows:\n"
@@ -991,6 +1002,29 @@ void FMagicLeapHMD::DisplayWarningIfVDZINotEnabled()
 		bVDZIWarningDisplayed = true;
 	}
 #endif //WITH_MLSDK
+}
+
+void FMagicLeapHMD::DisplayWarningIfRequiredVkExtensionsNotEnabled()
+{
+#if WITH_MLSDK
+	if (bIsVDZIEnabled && IsVREnabled() && !bVkExtensionsWarningDisplayed && !static_cast<FMagicLeapPlugin*>(&IMagicLeapPlugin::Get())->IsVulkanExtensionsObjValid())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(kVulkanExtensionsWarningMsg));
+		bVkExtensionsWarningDisplayed = true;
+	}
+#endif
+}
+
+bool FMagicLeapHMD::IsVREnabled() const
+{
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		return (GetDefault<ULevelEditorPlaySettings>()->LastExecutedPlayModeType == PlayMode_InVR);
+	}
+#endif // WITH_EDITOR
+
+	return FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR;
 }
 #endif // !PLATFORM_LUMIN
 
@@ -1112,7 +1146,13 @@ bool FMagicLeapHMD::SetIgnoreInput(bool Ignore)
 {
 #if WITH_EDITOR
 	// Only necessary in PIE
-	auto WorldContext = CastChecked<UEditorEngine>(GEngine)->GetPIEWorldContext();
+	UEditorEngine* Engine = Cast<UEditorEngine>(GEngine);
+	if (Engine == nullptr)
+	{
+		return false;
+	}
+
+	FWorldContext* WorldContext = Engine->GetPIEWorldContext();
 	if (IsStereoEnabled() && WorldContext != nullptr)
 	{
 		auto ViewportClient = WorldContext->GameViewport;
@@ -1196,7 +1236,7 @@ bool FMagicLeapHMD::NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderT
 	return bNeedReAllocateDepthTexture;
 }
 
-bool FMagicLeapHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 FlagsIn, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
+bool FMagicLeapHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags FlagsIn, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
 	if (IsStereoEnabled() && bNeedReAllocateDepthTexture)
 	{
@@ -1305,7 +1345,7 @@ bool FMagicLeapHMD::NeedReAllocateViewportRenderTarget(const FViewport& Viewport
 	return false;
 }
 
-bool FMagicLeapHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
+bool FMagicLeapHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
 	if (!IsStereoEnabled())
 	{
@@ -1364,6 +1404,7 @@ FMagicLeapHMD::FMagicLeapHMD(IMagicLeapPlugin* InMagicLeapPlugin, IARSystemSuppo
 	bIsVDZIEnabled(bEnableVDZI),
 	bUseVulkanForZI(bUseVulkan),
 	bVDZIWarningDisplayed(false),
+	bVkExtensionsWarningDisplayed(false),
 #if PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC
 	ZIServerPingState(static_cast<int32>(EServerPingState::NotInitialized)),
 #endif // PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC
@@ -1374,7 +1415,7 @@ FMagicLeapHMD::FMagicLeapHMD(IMagicLeapPlugin* InMagicLeapPlugin, IARSystemSuppo
 	bHeadTrackingStateAvailable(false),
 	bHeadposeMapEventsAvailable(false),
 	SavedMaxFPS(0.0f),
-	DefaultRenderTargetSize(1280 * 2, 960)
+	DefaultRenderTargetSize(EForceInit::ForceInitToZero)
 {
 #if WITH_EDITOR
 	World = nullptr;
@@ -1433,6 +1474,15 @@ void FMagicLeapHMD::Startup()
 		CustomPresentMetal = new FMagicLeapCustomPresentMetal(this);
 	}
 #endif // PLATFORM_MAC
+
+#if PLATFORM_LUMIN
+	// On Lumin, set up and initialize the device on Startup.  For ZI, this will be done OnBeginPlay.
+	if (bStereoEnabled)
+	{
+		EnableDeviceFeatures();
+		InitDevice();
+	}
+#endif
 
 	UE_LOG(LogMagicLeap, Log, TEXT("MagicLeap initialized."));
 }
@@ -1509,7 +1559,17 @@ void FMagicLeapHMD::OnBeginPlay(FWorldContext& InWorldContext)
 	// Reset CurrentFrameTimingHint so that proper value from config can be updated after device is initialized.
 	CurrentFrameTimingHint = ELuminFrameTimingHint::Unspecified;
 
+#if !PLATFORM_LUMIN
+	// In ZI, set up the device OnBeginPlay.  For ZI, this will be done on Startup.
 	EnableDeviceFeatures();
+#endif
+	// EnableTrackerEntities must be done in OnBeginPlay since not all tracker modules have been registered by Startup.
+	EnableTrackerEntities();
+#if !PLATFORM_LUMIN
+	// In ZI, initialize the device OnBeginPlay.  For ZI, this will be done on Startup.
+	InitDevice();
+#endif
+	AppFramework.OnApplicationStart();
 }
 
 void FMagicLeapHMD::OnEndPlay(FWorldContext& InWorldContext)
@@ -1530,6 +1590,7 @@ void FMagicLeapHMD::EnableDeviceFeatures()
 
 #if !PLATFORM_LUMIN
 	DisplayWarningIfVDZINotEnabled();
+	DisplayWarningIfRequiredVkExtensionsNotEnabled();
 #endif
 
 	// When run on a non-target platform, the VDZI may not necessarily be initialized.
@@ -1555,13 +1616,11 @@ void FMagicLeapHMD::EnableDeviceFeatures()
 		EnablePrivileges();
 		EnablePerception();
 		EnableHeadTracking();
-		EnableTrackerEntities();
 
 		// We also avoid enabling the custom profile when there's no HMD, as otherwise
 		// we get the profile effects on non-vr-preview rendering.
 		EnableLuminProfile();
 	}
-	AppFramework.OnApplicationStart();
 }
 
 void FMagicLeapHMD::DisableDeviceFeatures()
@@ -1578,6 +1637,7 @@ void FMagicLeapHMD::DisableDeviceFeatures()
 	}
 	bIsPlaying = false;
 	bVDZIWarningDisplayed = false;
+	bVkExtensionsWarningDisplayed = false;
 
 #if !PLATFORM_LUMIN && WITH_MLSDK
 	if (MLHandleIsValid(InputTracker))
@@ -1598,11 +1658,18 @@ void FMagicLeapHMD::DisableDeviceFeatures()
 void FMagicLeapHMD::InitDevice_RenderThread()
 {
 #if WITH_MLSDK
-	// Can't initialize render thread until head tracking has been enabled
-	MLHandle HeadTrackerHandle = FPlatformAtomics::AtomicRead(reinterpret_cast<const volatile int64*>(&HeadTracker));
-	if (HeadTrackerHandle == ML_INVALID_HANDLE)
+#if PLATFORM_LUMIN
+	// On lumin, check cvar and command line to see if we should forgo waiting on head tracker initialization
+	bool bWaitForHeadTrackerInit = CVarWaitForHeadTrackerInit.GetValueOnRenderThread() && !FParse::Param(FCommandLine::Get(), TEXT("ForceNoWaitForHeadTrackerInit"));
+	if (bWaitForHeadTrackerInit)
+#endif // PLATFORM_LUMIN
 	{
-		return;
+		// Can't initialize render thread until head tracking has been enabled
+		MLHandle HeadTrackerHandle = FPlatformAtomics::AtomicRead(reinterpret_cast<const volatile int64*>(&HeadTracker));
+		if (HeadTrackerHandle == ML_INVALID_HANDLE)
+		{
+			return;
+		}
 	}
 
 	if (bQueuedGraphicsCreateCall)
@@ -1613,6 +1680,14 @@ void FMagicLeapHMD::InitDevice_RenderThread()
 
 	if (!bDeviceInitialized)
 	{
+		// If the device can't render, we can't initialize graphics, so just consider the device initialized.
+		if (!FApp::CanEverRender())
+		{
+			FPlatformAtomics::InterlockedExchange(&bDeviceInitialized, true);
+			FPlatformAtomics::InterlockedExchange(&bDeviceWasJustInitialized, true);
+			return;
+		}
+
 		bool bDeviceSuccessfullyInitialized = false;
 		// Unreal supports sRGB which is the default we are requesting from graphics as well now.
 		MLGraphicsOptions gfx_opts;
@@ -1710,9 +1785,8 @@ void FMagicLeapHMD::InitDevice_RenderThread()
 			ExecuteOnRHIThread_DoNotWait([this, gfx_opts]()
 			{
 				UE_LOG(LogMagicLeap, Display, TEXT("FMagicLeapCustomPresentVulkan is supported."));
-				FVulkanDynamicRHI* VulkanDynamicRHI = (FVulkanDynamicRHI*)GDynamicRHI;
-				uint64 Instance = VulkanRHIBridge::GetInstance(VulkanDynamicRHI);
-				FVulkanDevice* VulkanDevice = VulkanRHIBridge::GetDevice(VulkanDynamicRHI);
+				uint64 Instance = VulkanRHIBridge::GetInstance(GVulkanRHI);
+				FVulkanDevice* VulkanDevice = VulkanRHIBridge::GetDevice(GVulkanRHI);
 				uint64 PhysicalDevice = VulkanRHIBridge::GetPhysicalDevice(VulkanDevice);
 				uint64 LogicalDevice = VulkanRHIBridge::GetLogicalDevice(VulkanDevice);
 				GraphicsClient = ML_INVALID_HANDLE;
@@ -1750,8 +1824,9 @@ void FMagicLeapHMD::InitDevice()
 {
 	if (!bDeviceInitialized)
 	{
+		const bool bMLRemoteVkExtensionsEnabled = static_cast<FMagicLeapPlugin*>(&IMagicLeapPlugin::Get())->IsVulkanExtensionsObjValid();
 		// If the HMD is not connected don't bother initializing the render device since the VDZI graphics calls freeze the editor if the VDZI server is not running.
-		if (IsHMDConnected())
+		if (IsHMDConnected() && bMLRemoteVkExtensionsEnabled)
 		{
 			// Enable HMD as it could have been disabled on a previous VRPreview failure
 			EnableHMD(true);
@@ -1769,6 +1844,8 @@ void FMagicLeapHMD::InitDevice()
 		}
 		else
 		{
+			UE_CLOG(!bMLRemoteVkExtensionsEnabled, LogMagicLeap, Error, TEXT("%s"), *kVulkanExtensionsWarningMsg);
+
 			bDeviceInitialized = 1;
 			bDeviceWasJustInitialized = 1;
 			// Disable HMD and Stereo rendering if the device is not connected.
@@ -1815,6 +1892,18 @@ void FMagicLeapHMD::InitDevice()
 				// If HMD is not enabled, set bDeviceWasJustInitialized to false so the device resolution code is not run every frame.
 				FPlatformAtomics::InterlockedExchange(&bDeviceWasJustInitialized, 0);				
 			}
+
+#if WITH_MLSDK
+			// If the device can't render, we still need to update the lifecycle.  Instead of after the first render, do it after initialization.
+			if (!FApp::CanEverRender())
+			{
+				MLResult Result = MLLifecycleSetReadyIndication();
+				if (Result != MLResult_Ok)
+				{
+					UE_LOG(LogMagicLeap, Error, TEXT("MLLifecycleSetReadyIndication failed with error %d."), Result);
+				}
+			}
+#endif
 		}
 	}
 }
@@ -2029,7 +2118,11 @@ void FMagicLeapHMD::RenderTexture_RenderThread(class FRHICommandListImmediate& R
 		const uint32 TextureWidth = SrcTexture->GetSizeX();
 		const uint32 TextureHeight = SrcTexture->GetSizeY();
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SrcTexture);
+		FRHITransitionInfo Transitions[] = {
+			FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask),
+			FRHITransitionInfo(BackBuffer, ERHIAccess::Unknown, ERHIAccess::RTV)
+		};
+		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
 		// The BackBuffer is the debug view for mirror modes, i.e. vr-preview. In which case
 		// it can be an arbitrary size different than the render size. Which means

@@ -108,6 +108,11 @@ public:
 	virtual void SetTextFromVirtualKeyboard(const FText& InNewText, ETextEntryType TextEntryType) override;
 	virtual void SetSelectionFromVirtualKeyboard(int InSelStart, int InSelEnd) override;
 
+	virtual bool GetSelection(int& OutSelStart, int& OutSelEnd) override
+	{
+		return false;
+	}
+
 	virtual FText GetText() const override
 	{
 		check(IsInGameThread());

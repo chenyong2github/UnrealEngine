@@ -18,7 +18,7 @@ class ENGINE_API FSlateTexture2DRHIRef : public TSlateTexture<FTexture2DRHIRef>,
 {
 public:
 	FSlateTexture2DRHIRef( FTexture2DRHIRef InRef, uint32 InWidth, uint32 InHeight );
-	FSlateTexture2DRHIRef( uint32 InWidth, uint32 InHeight, EPixelFormat InPixelFormat, TSharedPtr<FSlateTextureData, ESPMode::ThreadSafe> InTextureData, uint32 InTexCreateFlags = 0, bool bCreateEmptyTexture = false );
+	FSlateTexture2DRHIRef( uint32 InWidth, uint32 InHeight, EPixelFormat InPixelFormat, TSharedPtr<FSlateTextureData, ESPMode::ThreadSafe> InTextureData, ETextureCreateFlags InTexCreateFlags = TexCreate_None, bool bCreateEmptyTexture = false );
 
 	virtual ~FSlateTexture2DRHIRef();
 
@@ -65,7 +65,7 @@ public:
 	 * @param InPixelFormat		The format of the texture data
 	 * @param InTexCreateFlags	Flags for creating the rendering resource  
 	 */
-	void SetTextureData( FSlateTextureDataPtr NewTextureData, EPixelFormat InPixelFormat, uint32 InTexCreateFlags );
+	void SetTextureData( FSlateTextureDataPtr NewTextureData, EPixelFormat InPixelFormat, ETextureCreateFlags InTexCreateFlags );
 
 	/**
 	 * Clears texture data being used.  Can only be accessed on the render thread                   
@@ -94,7 +94,7 @@ private:
 	void SetTextureData(const TArray<uint8>& Bytes);
 
 	/** Texture creation flags for if this texture needs to be recreated dynamically */
-	uint32 TexCreateFlags;
+	ETextureCreateFlags TexCreateFlags;
 	/** Data used between ReleaseDynamicRHI and InitDynamicRHI.  May be null if the data is not used */
 	TSharedPtr<FSlateTextureData, ESPMode::ThreadSafe> TextureData;
 	/** Pixel format of the texture */

@@ -57,6 +57,43 @@ PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 #define _strdup strdup
 #endif
 
+const char* VULKAN_SUBPASS_FETCH[9] = 
+{
+	"VulkanSubpassDepthFetch",
+	"VulkanSubpassFetch0",
+	"VulkanSubpassFetch1",
+	"VulkanSubpassFetch2",
+	"VulkanSubpassFetch3",
+	"VulkanSubpassFetch4",
+	"VulkanSubpassFetch5",
+	"VulkanSubpassFetch6",
+	"VulkanSubpassFetch7"
+};
+const char* VULKAN_SUBPASS_FETCH_VAR[9] = 
+{
+	"GENERATED_SubpassDepthFetchAttachment",
+	"GENERATED_SubpassFetchAttachment0",
+	"GENERATED_SubpassFetchAttachment1",
+	"GENERATED_SubpassFetchAttachment2",
+	"GENERATED_SubpassFetchAttachment3",
+	"GENERATED_SubpassFetchAttachment4",
+	"GENERATED_SubpassFetchAttachment5",
+	"GENERATED_SubpassFetchAttachment6",
+	"GENERATED_SubpassFetchAttachment7"
+};
+const TCHAR* VULKAN_SUBPASS_FETCH_VAR_W[9] =
+{
+	TEXT("GENERATED_SubpassDepthFetchAttachment"),
+	TEXT("GENERATED_SubpassFetchAttachment0"),
+	TEXT("GENERATED_SubpassFetchAttachment1"),
+	TEXT("GENERATED_SubpassFetchAttachment2"),
+	TEXT("GENERATED_SubpassFetchAttachment3"),
+	TEXT("GENERATED_SubpassFetchAttachment4"),
+	TEXT("GENERATED_SubpassFetchAttachment5"),
+	TEXT("GENERATED_SubpassFetchAttachment6"),
+	TEXT("GENERATED_SubpassFetchAttachment7")
+};
+
 static inline std::string FixHlslName(const glsl_type* Type, bool bUseTextureInsteadOfSampler = false)
 {
 	check(Type->is_image() || Type->is_vector() || Type->is_numeric() || Type->is_void() || Type->is_sampler() || Type->is_scalar());
@@ -770,7 +807,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 	int loop_count;
 
 	/** Whether the shader being cross compiled needs EXT_shader_texture_lod. */
-	bool bUsesES2TextureLODExtension;
+	bool bUsesGLTextureLODExtension;
 
 	/** Found dFdx or dFdy */
 	bool bUsesDXDY;
@@ -1617,7 +1654,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 		if (bIsES && op == ir_txl)
 		{
 			// See http://www.khronos.org/registry/gles/extensions/EXT/EXT_shader_texture_lod.txt
-			bUsesES2TextureLODExtension = true;
+			bUsesGLTextureLODExtension = true;
 			bEmitEXT = true;
 		}
 
@@ -3368,7 +3405,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 
 	void print_extensions(_mesa_glsl_parse_state* state, bool bUsesES31Extensions, bool bShouldEmitOESExtensions, bool bShouldEmitMultiview)
 	{
-		if (bUsesES2TextureLODExtension)
+		if (bUsesGLTextureLODExtension)
 		{
 			//ralloc_asprintf_append(buffer, "#ifndef DONTEMITEXTENSIONSHADERTEXTURELODENABLE\n");
 			//ralloc_asprintf_append(buffer, "#extension GL_EXT_shader_texture_lod : enable\n");
@@ -3444,7 +3481,7 @@ public:
 		, needs_semicolon(false)
 		, should_print_uint_literals_as_ints(false)
 		, loop_count(0)
-		, bUsesES2TextureLODExtension(false)
+		, bUsesGLTextureLODExtension(false)
 		, bUsesDXDY(false)
 		, bUsesDiscard(false)
 		, bUsesImageWriteAtomic(false)
@@ -3453,8 +3490,8 @@ public:
 		used_structures = hash_table_ctor(32, hash_table_pointer_hash, hash_table_pointer_compare);
 		used_uniform_blocks = hash_table_ctor(32, hash_table_string_hash, hash_table_string_compare);
 
-		bEmitPrecision = (Target == HCT_FeatureLevelES2 || Target == HCT_FeatureLevelES3_1 || Target == HCT_FeatureLevelES3_1Ext);
-		bIsES = false;//(Target == HCT_FeatureLevelES2 || Target == HCT_FeatureLevelES3_1 || Target == HCT_FeatureLevelES3_1Ext);
+		bEmitPrecision = (Target == HCT_FeatureLevelES3_1 || Target == HCT_FeatureLevelES3_1Ext);
+		bIsES = false;//(Target == HCT_FeatureLevelES3_1 || Target == HCT_FeatureLevelES3_1Ext);
 		bIsES31 = (Target == HCT_FeatureLevelES3_1 || Target == HCT_FeatureLevelES3_1Ext);
 	}
 
@@ -3494,7 +3531,7 @@ public:
 	* Executes the visitor on the provided ir.
 	* @returns the GLSL source code generated.
 	*/
-	const char* run(exec_list* ir, _mesa_glsl_parse_state* state, bool bGroupFlattenedUBs, bool bCanHaveUBs, bool bUsesSubpassFetch, bool bUsesSubpassDepthFetch)
+	const char* run(exec_list* ir, _mesa_glsl_parse_state* state, bool bGroupFlattenedUBs, bool bCanHaveUBs, uint32 SubpassFetchMask)
 	{
 		mem_ctx = ralloc_context(NULL);
 
@@ -3651,45 +3688,47 @@ public:
 
 				return "";
 			};
-
-			if (bUsesSubpassFetch)
+			
+			BindingTable.InputAttachmentsMask = SubpassFetchMask;
+			for (uint32 Index = 0; SubpassFetchMask != 0; ++Index, SubpassFetchMask>>=1)
 			{
-				int32 BindingIndex = BindingTable.RegisterBinding(VULKAN_SUBPASS_FETCH, "a", EVulkanBindingType::InputAttachment);
-				int32 InputAttachmentIndex = BindingTable.GetInputAttachmentIndex(VULKAN_SUBPASS_FETCH_VAR_W);
+				if ((SubpassFetchMask & 1) == 0)
+				{
+					continue;
+				}
+				
+				int32 BindingIndex = BindingTable.RegisterBinding(VULKAN_SUBPASS_FETCH_VAR[Index], "a", EVulkanBindingType::InputAttachment);
+				int32 InputAttachmentIndex = Index;
 				ralloc_asprintf_append(buffer, "layout(set=%d, binding=BINDING_%d, input_attachment_index=%d) uniform highp subpassInput %s;\n",
 					GetDescriptorSetForStage(ParseState->target),
 					BindingIndex,
 					InputAttachmentIndex,
-					VULKAN_SUBPASS_FETCH_VAR);
+					VULKAN_SUBPASS_FETCH_VAR[Index]);
 
-				ralloc_asprintf_append(buffer,
-					"highp float %s()\n"
-					"{\n"\
-					"\treturn subpassLoad(%s).x;\n"\
-					"}\n\n",
-					VULKAN_SUBPASS_FETCH,
-					VULKAN_SUBPASS_FETCH_VAR);
+				if (Index == 0) 
+				{
+					// Depth Input
+					ralloc_asprintf_append(buffer,
+						"highp float %s()\n"
+						"{\n"\
+						"\treturn subpassLoad(%s).x;\n"\
+						"}\n\n",
+						VULKAN_SUBPASS_FETCH[Index],
+						VULKAN_SUBPASS_FETCH_VAR[Index]);
+				}
+				else
+				{
+					// Color Input
+					ralloc_asprintf_append(buffer,
+						"highp vec4 %s()\n"
+						"{\n"\
+						"\treturn subpassLoad(%s);\n"\
+						"}\n\n",
+						VULKAN_SUBPASS_FETCH[Index],
+						VULKAN_SUBPASS_FETCH_VAR[Index]);
+				}
 			}
-
-			if (bUsesSubpassDepthFetch)
-			{
-				int32 BindingIndex = BindingTable.RegisterBinding(VULKAN_SUBPASS_DEPTH_FETCH_VAR, "a", EVulkanBindingType::InputAttachment);
-				int32 InputAttachmentIndex = BindingTable.GetInputAttachmentIndex(VULKAN_SUBPASS_DEPTH_FETCH_VAR_W);
-				ralloc_asprintf_append(buffer, "layout(set=%d, binding=BINDING_%d, input_attachment_index=%d) uniform highp subpassInput %s;\n",
-					GetDescriptorSetForStage(ParseState->target),
-					BindingIndex,
-					InputAttachmentIndex,
-					VULKAN_SUBPASS_DEPTH_FETCH_VAR);
-
-				ralloc_asprintf_append(buffer,
-					"highp float %s()\n"
-					"{\n"\
-					"\treturn subpassLoad(%s).x;\n"\
-					"}\n\n",
-					VULKAN_SUBPASS_DEPTH_FETCH,
-					VULKAN_SUBPASS_DEPTH_FETCH_VAR);
-			}
-
+						
 			for (int32 Index = 0; Index < BindingTable.Bindings.Num(); ++Index)
 			{
 				if (BindingTable.Bindings[Index].Type == EVulkanBindingType::Sampler)
@@ -3918,21 +3957,27 @@ char* FVulkanCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* st
 		visitor.SamplerMapping.Consolidate(GenerateSamplerToTextureMapVisitor.GatherData);
 	}
 
-	const bool bUsesSubpassFetch = (Frequency == HSF_PixelShader) && UsesUEIntrinsic(ir, VULKAN_SUBPASS_FETCH);
-	const bool bUsesSubpassDepthFetch = (Frequency == HSF_PixelShader) && UsesUEIntrinsic(ir, VULKAN_SUBPASS_DEPTH_FETCH);
+	uint32 SubpassFetchMask = 0;
+	if (Frequency == HSF_PixelShader)
+	{
+		for (int32 i = 0; i < UE_ARRAY_COUNT(VULKAN_SUBPASS_FETCH); ++i)	
+		{
+			SubpassFetchMask|= (UsesUEIntrinsic(ir, VULKAN_SUBPASS_FETCH[i]) ? 1 << i : 0);
+		}
+	}
 
-	const char* code = visitor.run(ir, state, bGroupFlattenedUBs, bCanHaveUBs, bUsesSubpassFetch, bUsesSubpassDepthFetch);
+	const char* code = visitor.run(ir, state, bGroupFlattenedUBs, bCanHaveUBs, SubpassFetchMask);
 
 	return _strdup(code);
 }
 
 
 // Verify if SampleLevel() is used
-struct SPromoteSampleLevelES2 : public ir_hierarchical_visitor
+struct SPromoteSampleLevelES : public ir_hierarchical_visitor
 {
 	_mesa_glsl_parse_state* ParseState;
 	const bool bIsVertexShader;
-	SPromoteSampleLevelES2(_mesa_glsl_parse_state* InParseState, bool bInIsVertexShader) :
+	SPromoteSampleLevelES(_mesa_glsl_parse_state* InParseState, bool bInIsVertexShader) :
 		ParseState(InParseState),
 		bIsVertexShader(bInIsVertexShader)
 	{
@@ -3977,18 +4022,18 @@ struct SPromoteSampleLevelES2 : public ir_hierarchical_visitor
 
 
 // Converts an array index expression using an integer input attribute, to a float input attribute using a conversion to int
-struct SConvertIntVertexAttributeES2 final : public ir_hierarchical_visitor
+struct SConvertIntVertexAttributeES final : public ir_hierarchical_visitor
 {
 	_mesa_glsl_parse_state* ParseState;
 	exec_list* FunctionBody;
 	int InsideArrayDeref;
 	std::map<ir_variable*, ir_variable*> ConvertedVarMap;
 
-	SConvertIntVertexAttributeES2(_mesa_glsl_parse_state* InParseState, exec_list* InFunctionBody) : ParseState(InParseState), FunctionBody(InFunctionBody), InsideArrayDeref(0)
+	SConvertIntVertexAttributeES(_mesa_glsl_parse_state* InParseState, exec_list* InFunctionBody) : ParseState(InParseState), FunctionBody(InFunctionBody), InsideArrayDeref(0)
 	{
 	}
 
-	virtual ~SConvertIntVertexAttributeES2()
+	virtual ~SConvertIntVertexAttributeES()
 	{
 	}
 
@@ -4060,7 +4105,7 @@ bool FVulkanCodeBackend::ApplyAndVerifyPlatformRestrictions(exec_list* Instructi
 
 		// Handle SampleLevel
 		{
-			SPromoteSampleLevelES2 Visitor(ParseState, bIsVertexShader);
+			SPromoteSampleLevelES Visitor(ParseState, bIsVertexShader);
 			Visitor.run(Instructions);
 		}
 
@@ -4070,7 +4115,7 @@ bool FVulkanCodeBackend::ApplyAndVerifyPlatformRestrictions(exec_list* Instructi
 		// Handle integer vertex attributes used as array indices
 		if (bIsVertexShader)
 		{
-			SConvertIntVertexAttributeES2 ConvertIntVertexAttributeVisitor(ParseState, Instructions);
+			SConvertIntVertexAttributeES ConvertIntVertexAttributeVisitor(ParseState, Instructions);
 			ConvertIntVertexAttributeVisitor.run(Instructions);
 		}
 	}
@@ -5995,10 +6040,10 @@ void FVulkanCodeBackend::GenShaderPatchConstantFunctionInputs(_mesa_glsl_parse_s
 
 void FVulkanLanguageSpec::SetupLanguageIntrinsics(_mesa_glsl_parse_state* State, exec_list* ir)
 {
-	auto AddIntrisicReturningFloat = [](_mesa_glsl_parse_state* State, exec_list* ir, const char* Name)
+	auto AddIntrisicReturningFloat = [](_mesa_glsl_parse_state* State, exec_list* ir, const char* Name, int32 NumColumns)
 	{
 		ir_function* Func = new(State) ir_function(Name);
-		auto* ReturnType = glsl_type::get_instance(GLSL_TYPE_FLOAT, 1, 1);
+		auto* ReturnType = glsl_type::get_instance(GLSL_TYPE_FLOAT, NumColumns, 1);
 		ir_function_signature* Sig = new(State) ir_function_signature(ReturnType);
 		Sig->is_builtin = true;
 		Func->add_signature(Sig);
@@ -6006,9 +6051,14 @@ void FVulkanLanguageSpec::SetupLanguageIntrinsics(_mesa_glsl_parse_state* State,
 		ir->push_head(Func);
 	};
 
-	AddIntrisicReturningFloat(State, ir, VULKAN_SUBPASS_FETCH);
-	AddIntrisicReturningFloat(State, ir, VULKAN_SUBPASS_DEPTH_FETCH);
-
+	// Depth fetch
+	AddIntrisicReturningFloat(State, ir, VULKAN_SUBPASS_FETCH[0], 1);
+	// Color fetch
+	for (int32 i = 1; i < UE_ARRAY_COUNT(VULKAN_SUBPASS_FETCH); ++i)	
+	{
+		AddIntrisicReturningFloat(State, ir, VULKAN_SUBPASS_FETCH[i], 4);
+	}
+	
 	//if (State->language_version >= 310)
 	{
 		/**
@@ -6128,7 +6178,6 @@ int32 FVulkanBindingTable::RegisterBinding(const char* InName, const char* Block
 		return -1;
 	}
 
-
 	for (int32 Index = 0; Index < Bindings.Num(); ++Index)
 	{
 		if (FCStringAnsi::Strcmp(Bindings[Index].Name, InName) == 0)
@@ -6138,13 +6187,8 @@ int32 FVulkanBindingTable::RegisterBinding(const char* InName, const char* Block
 	}
 
 	int32 BindingIdx = Bindings.Num();
-
+	
 	Bindings.Add(FBinding(InName, BindingIdx, Type, ExtractHLSLCCType(BlockName)));
-
-	if (Type == EVulkanBindingType::InputAttachment)
-	{
-		InputAttachments.Add(ANSI_TO_TCHAR(InName));
-	}
 
 	return BindingIdx;
 }

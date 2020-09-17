@@ -83,13 +83,14 @@ UTextureRenderTarget2D* FWidgetRenderer::CreateTargetFor(FVector2D DrawSize, Tex
 	if ( LIKELY(FApp::CanEverRender()) )
 	{
 		const bool bIsLinearSpace = !bUseGammaCorrection;
+		const EPixelFormat requestedFormat = FSlateApplication::Get().GetRenderer()->GetSlateRecommendedColorFormat();
 
 		UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
 		RenderTarget->Filter = InFilter;
 		RenderTarget->ClearColor = FLinearColor::Transparent;
 		RenderTarget->SRGB = bIsLinearSpace;
 		RenderTarget->TargetGamma = 1;
-		RenderTarget->InitCustomFormat(DrawSize.X, DrawSize.Y, PF_B8G8R8A8, bIsLinearSpace);
+		RenderTarget->InitCustomFormat(DrawSize.X, DrawSize.Y, requestedFormat, bIsLinearSpace);
 		RenderTarget->UpdateResourceImmediate(true);
 
 		return RenderTarget;

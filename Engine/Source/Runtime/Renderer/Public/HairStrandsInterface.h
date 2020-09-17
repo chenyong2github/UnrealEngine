@@ -80,9 +80,9 @@ RENDERER_API FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
 	const float OverrideStrandHairRasterizationScale);
 
 struct FHairStrandClusterCullingData;
-struct FPooledRDGBuffer;
 struct IPooledRenderTarget;
 struct FRWBuffer;
+class  FRDGPooledBuffer;
 class  FHairGroupPublicData;
 class  FRDGShaderResourceView;
 class  FResourceArrayInterface;
@@ -238,9 +238,9 @@ struct FHairStrandClusterData
 		FReadBuffer* VertexToClusterIdBuffer = nullptr;
 		FReadBuffer* ClusterVertexIdBuffer = nullptr;
 
-		TRefCountPtr<FPooledRDGBuffer> ClusterIdBuffer;
-		TRefCountPtr<FPooledRDGBuffer> ClusterIndexOffsetBuffer;
-		TRefCountPtr<FPooledRDGBuffer> ClusterIndexCountBuffer;
+		TRefCountPtr<FRDGPooledBuffer> ClusterIdBuffer;
+		TRefCountPtr<FRDGPooledBuffer> ClusterIndexOffsetBuffer;
+		TRefCountPtr<FRDGPooledBuffer> ClusterIndexCountBuffer;
 
 		// Culling & LOD output
 		FRWBuffer* GetCulledVertexIdBuffer() const			{ return HairGroupPublicPtr ? &HairGroupPublicPtr->GetCulledVertexIdBuffer() : nullptr; }
@@ -248,8 +248,8 @@ struct FHairStrandClusterData
 		bool GetCullingResultAvailable() const				{ return HairGroupPublicPtr ? HairGroupPublicPtr->GetCullingResultAvailable() : false; }
 		void SetCullingResultAvailable(bool b)				{ if (HairGroupPublicPtr) HairGroupPublicPtr->SetCullingResultAvailable(b); }
 
-		TRefCountPtr<FPooledRDGBuffer> ClusterDebugInfoBuffer;							// Null if this debug is not enabled.
-		TRefCountPtr<FPooledRDGBuffer> CulledDispatchIndirectParametersClusterCount;	// Null if this debug is not enabled.
+		TRefCountPtr<FRDGPooledBuffer> ClusterDebugInfoBuffer;							// Null if this debug is not enabled.
+		TRefCountPtr<FRDGPooledBuffer> CulledDispatchIndirectParametersClusterCount;	// Null if this debug is not enabled.
 
 		FHairGroupPublicData* HairGroupPublicPtr = nullptr;
 	};

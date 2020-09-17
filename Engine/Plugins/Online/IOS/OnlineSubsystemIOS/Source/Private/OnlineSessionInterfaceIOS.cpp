@@ -6,110 +6,6 @@
 
 #if !PLATFORM_TVOS // @todo tvos: What is up with all this being busted?? Multipeer is gone, but so is older stuff? What's to do??
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-@implementation FGameCenterSessionDelegateGK
-@synthesize Session;
-
-- (instancetype)initSessionWithName:(NSString*) sessionName
-{
-	UE_LOG_ONLINE_SESSION(Display, TEXT("- (void)initSessionWithName:(NSString*) sessionName"));
-    self.Session = [[GKSession alloc] initWithSessionID:sessionName displayName:nil sessionMode:GKSessionModePeer];
-    self.Session.delegate = self;
-    self.Session.disconnectTimeout = 5.0f;
-    self.Session.available = YES;
-	return self;
-}
-
-- (void)shutdownSession
-{
-	UE_LOG_ONLINE_SESSION(Display, TEXT("- (void)shutdownSession"));
-	[self.Session disconnectFromAllPeers];
-	self.Session.available = NO;
-	self.Session.delegate = nil;
-}
-
-- (bool)sessionsAvailable
-{
-    NSArray* availablePeers = [self.Session peersWithConnectionState:GKPeerStateAvailable];
-    return [availablePeers count] > 0;
-}
-
--(void)joinSession
-{
-    NSString* PeerID = [self.Session peerID];
-    [self connectToPeer:PeerID];
-}
-
--(void)session:(GKSession *)session didReceiveConnectionRequestFromPeer:(NSString *)peerID
-{
-	UE_LOG_ONLINE_SESSION(Display, TEXT("-(void)session:(GKSession *)session didReceiveConnectionRequestFromPeer:(NSString *)peerID - %s"), *FString([session displayNameForPeer:peerID]));
-	[session acceptConnectionFromPeer:peerID error:nil];
-}
-
-- (void)connectToPeer:(NSString *)peerId 
-{
-    [self.Session connectToPeer:peerId withTimeout:10];
-}
-
-- (void)session:(GKSession *)session peer:(NSString *)peerID didChangeState:(GKPeerConnectionState)state
-{
-	const FString PeerId([session displayNameForPeer:peerID]);
-	switch (state)
-	{
-		case GKPeerStateAvailable:
-		{
-			UE_LOG_ONLINE_SESSION(Display, TEXT("Peer available: %s"), *PeerId);
-
-			[session connectToPeer:peerID withTimeout:5.0f];
-			break;
-		}
-
-		case GKPeerStateUnavailable:
-		{
-			UE_LOG_ONLINE_SESSION(Display, TEXT("Peer unavailable: %s"), *PeerId);
-			break;
-		}
-
-		case GKPeerStateConnected:
-		{
-			UE_LOG_ONLINE_SESSION(Display, TEXT("Peer connected: %s"), *PeerId);
-			break;
-		}
-
-		case GKPeerStateDisconnected:
-		{
-			UE_LOG_ONLINE_SESSION(Display, TEXT("Peer disconnected: %s"), *PeerId);
-			break;
-		}
-
-		case GKPeerStateConnecting:
-		{
-			UE_LOG_ONLINE_SESSION(Display, TEXT("Peer connecting: %s"), *PeerId);
-			break;
-		}
-	}
-}
-
-
-- (void)session:(GKSession *)session didFailWithError:(NSError *)error
-{
-	UE_LOG_ONLINE_SESSION(Warning, TEXT("Session failed with error code %i"), [error code]);
-
-	[self shutdownSession];
-}
-
-
-- (void)session:(GKSession *)session connectionWithPeerFailed:(NSString *)peerID withError:(NSError *)error
-{
-	NSString* ErrorString = [NSString stringWithFormat:@"connectionWithPeerFailed - Failed to connect to %@ with error code %d", [session displayNameForPeer:peerID], (uint32)[error code]];
-	const FString ConvertedErrorStr(ErrorString);
-	UE_LOG_ONLINE_SESSION(Display, TEXT("%s"), *ConvertedErrorStr);
-}
-
-@end
-#endif
-
-#if defined(__IPHONE_7_0)
 @implementation FGameCenterSessionDelegateMC
 @synthesize Session;
 @synthesize PeerID;
@@ -186,78 +82,44 @@
 }
 
 @end
-#endif
 
 @implementation FGameCenterSessionDelegate
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-@synthesize SessionGK;
-#endif
-#ifdef __IPHONE_7_0
 @synthesize SessionMC;
-#endif
 
 - (instancetype)initSessionWithName:(NSString*) sessionName
 {
     UE_LOG_ONLINE_SESSION(Display, TEXT("- (void)initSessionWithName:(NSString*) sessionName"));
 	self = [super init];
 	// Create the session object
-#ifdef __IPHONE_7_0
     if ([MCSession class])
     {
         self.SessionMC = [[[FGameCenterSessionDelegateMC alloc] initSessionWithName:sessionName] autorelease];
     }
-    else
-#endif
-    {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-        self.SessionGK = [[[FGameCenterSessionDelegateGK alloc] initSessionWithName:sessionName] autorelease];
-#endif
-    }
-	return self;
+    
+    return self;
 }
 
 -(void)dealloc
 {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-	[SessionGK release];
-#endif
-#ifdef __IPHONE_7_0
 	[SessionMC release];
-#endif
 	[super dealloc];
 }
 
 - (void)shutdownSession
 {
     UE_LOG_ONLINE_SESSION(Display, TEXT("- (void)shutdownSession"));
-#ifdef __IPHONE_7_0
     if ([MCSession class])
     {
         [self.SessionMC shutdownSession];
-    }
-    else
-#endif
-    {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-        [self.SessionGK shutdownSession];
-#endif
     }
 }
 
 - (bool)sessionsAvailable
 {
     UE_LOG_ONLINE_SESSION(Display, TEXT("- (void)shutdownSession"));
-#ifdef __IPHONE_7_0
     if ([MCSession class])
     {
         return [self.SessionMC sessionsAvailable];
-    }
-    else
-#endif
-    {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-        return [self.SessionGK sessionsAvailable];
-#endif
     }
     return NO;
 }
@@ -265,17 +127,9 @@
 - (void)joinSession
 {
     UE_LOG_ONLINE_SESSION(Display, TEXT("- (void)shutdownSession"));
-#ifdef __IPHONE_7_0
     if ([MCSession class])
     {
         [self.SessionMC joinSession];
-    }
-    else
-#endif
-    {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-        [self.SessionGK joinSession];
-#endif
     }
 }
 

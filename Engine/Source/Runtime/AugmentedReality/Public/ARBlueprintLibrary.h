@@ -10,6 +10,8 @@
 #include "ARTraceResult.h"
 #include "ARSessionConfig.h"
 #include "ARTrackable.h"
+#include "ARTextures.h"
+
 #include "ARBlueprintLibrary.generated.h"
 
 
@@ -85,6 +87,19 @@ public:
 	/** @return the configuration that the current session was started with. */
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Session", meta = (DisplayName="Get AR Session Config", Keywords = "ar augmentedreality augmented reality session"))
 	static UARSessionConfig* GetSessionConfig();
+
+	/** Starts or stops a battery intensive service on device. */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Session", meta = (Keywords = "ar augmentedreality augmented reality capture start stop"))
+	static bool ToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType);
+
+	/** Enable or disable Mixed Reality Capture camera. */
+	UFUNCTION(BlueprintCallable, Category = "AR", meta = (Keywords = "ar all"))
+	static void SetEnabledXRCamera(bool bOnOff);
+
+	/** Change screen size of Mixed Reality Capture camera. */
+	UFUNCTION(BlueprintCallable, Category = "AR", meta = (Keywords = "ar all"))
+	static FIntPoint ResizeXRCamera(const FIntPoint& InSize);
+
 	
 	/**
 	 * Set a transform that will be applied to the tracking space. This effectively moves any camera
@@ -134,15 +149,25 @@ public:
 	/** @return a list of all the real-world geometry as currently seen by the Augmented Reality system */
 	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Geometries", Keywords = "ar augmentedreality augmented reality tracking geometry anchor"))
 	static TArray<UARTrackedGeometry*> GetAllGeometries();
+	
+	/** @return a list of all the real-world geometry of the specified class as currently seen by the Augmented Reality system */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Geometries By Class", Keywords = "ar augmentedreality augmented reality tracking geometry anchor", DeterminesOutputType = "GeometryClass"))
+	static TArray<UARTrackedGeometry*> GetAllGeometriesByClass(TSubclassOf<UARTrackedGeometry> GeometryClass);
 
 	/** @return the current camera image from the Augmented Reality system */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Camera", meta = (DisplayName="Get AR Camera Image", Keywords = "ar augmentedreality augmented reality camera image"))
+	UE_DEPRECATED(4.26, "GetCameraImage is deprecated, use GetARTexture.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Camera", meta = (DeprecatedFunction, DeprecationMessage="GetCameraImage is deprecated, use GetARTexture.", DisplayName="Get AR Camera Image", Keywords = "ar augmentedreality augmented reality camera image"))
 	static UARTextureCameraImage* GetCameraImage();
 
 	/** @return the current camera depth data from the Augmented Reality system */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Camera", meta = (DisplayName="Get AR Camera Depth", Keywords = "ar augmentedreality augmented reality camera image depth"))
+	UE_DEPRECATED(4.26, "GetCameraDepth is deprecated, use GetARTexture.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Camera", meta = (DeprecatedFunction, DeprecationMessage="GetCameraDepth is deprecated, use GetARTexture.", DisplayName="Get AR Camera Depth", Keywords = "ar augmentedreality augmented reality camera image depth"))
 	static UARTextureCameraDepth* GetCameraDepth();
-
+	
+	/** @return the AR texture for the specified type */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Texture", meta = (DisplayName="Get AR Texture", Keywords = "ar augmentedreality augmented reality texture"))
+	static UARTexture* GetARTexture(EARTextureType TextureType);
+	
 	/**
 	 * Test whether this type of session is supported by the current Augmented Reality platform.
 	 * e.g. is your device capable of doing positional tracking or orientation only?
@@ -188,42 +213,105 @@ public:
 	 * @return an object representing the pin that connects \c ComponentToPin component to a real-world
 	 *         location and optionally to the \c TrackedGeometry.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pin", meta = (AdvancedDisplay="3", Keywords = "ar augmentedreality augmented reality tracking pin tracked geometry pinning anchor"))
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (AdvancedDisplay="3", Keywords = "ar augmentedreality augmented reality tracking arpin tracked geometry pinning anchor"))
 	static UARPin* PinComponent( USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry = nullptr, const FName DebugName = NAME_None );
 	
 	/**
 	 * A convenient version of \c PinComponent() that can be used in conjunction
 	 * with a result of a \c LineTraceTrackedObjects call.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pin", meta = (AdvancedDisplay="2", Keywords = "ar augmentedreality augmented reality tracking pin tracked geometry pinning anchor"))
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (AdvancedDisplay="2", Keywords = "ar augmentedreality augmented reality tracking arpin tracked geometry pinning anchor"))
 	static UARPin* PinComponentToTraceResult( USceneComponent* ComponentToPin, const FARTraceResult& TraceResult, const FName DebugName = NAME_None );
 	
+	/**
+	 * Associate a component with an ARPin, so that its transform will be updated by the pin.  Any previously associated component will be detached.
+	 *
+	 * @param ComponentToPin	The Component which will be updated by the Pin.
+	 * @param Pin				The Pin which the component will be updated by.
+	 *
+	 * @return					True if the operation was successful.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin tracked geometry pinning anchor"))
+	static bool PinComponentToARPin(USceneComponent* ComponentToPin, UARPin* Pin);
+
 	/** Given a pinned \c ComponentToUnpin, remove its attachment to the real world. */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pin", meta = (Keywords = "ar augmentedreality augmented reality tracking pin tracked geometry pinning anchor"))
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin tracked geometry pinning anchor"))
 	static void UnpinComponent( USceneComponent* ComponentToUnpin );
 	
 	/** Remove a pin such that it no longer updates the associated component. */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pin", meta = (Keywords = "ar augmentedreality augmented reality tracking pin tracked geometry pinning anchor"))
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin tracked geometry pinning anchor"))
 	static void RemovePin( UARPin* PinToRemove );
 	
 	/** Get a list of all the \c UARPin objects that the Augmented Reality session is currently using to connect virtual objects to real-world, tracked locations. */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pin", meta = (Keywords = "ar augmentedreality augmented reality tracking pin anchor"))
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin anchor"))
 	static TArray<UARPin*> GetAllPins();
+
+	/**
+	 * Is ARPin Local Store Supported
+	 *
+	 * @return					True if Local Pin saving is supported by the device/platform.
+	 */
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin anchor LocalStore"))
+	static bool IsARPinLocalStoreSupported();
+
+	/**
+	 * Is ARPin Local Store Ready
+	 *
+	 * @return					True if local store is ready for use.
+	 */
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin anchor LocalStore"))
+	static bool IsARPinLocalStoreReady();
+
+	/**
+	 * Load all ARPins from local save
+	 * Note: Multiple loads of a saved pin may result in duplicate pins OR overwritten pins.  It is reccomended to only load once.
+	 *
+	 * @return					Map of SaveName:ARPin.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin anchor LocalStore"))
+	static TMap<FName, UARPin*> LoadARPinsFromLocalStore();
+	
+	/**
+	 * Save an ARPin to local store
+	 * @param InName			The save name for the pin.
+	 * @param InPin				The ARPin which will be saved to the local store.
+	 *
+	 * @return					True if saved successfully.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin anchor LocalStore"))
+	static bool SaveARPinToLocalStore(FName InSaveName, UARPin* InPin);
+	
+	/**
+	 * Remove an ARPin from the local store
+	 * @param InName			The save name to remove.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin anchor LocalStore"))
+	static void RemoveARPinFromLocalStore(FName InSaveName);
+
+	/**
+	 * Remove all ARPins from the local store
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|ARPin", meta = (Keywords = "ar augmentedreality augmented reality tracking arpin anchor LocalStore"))
+	static void RemoveAllARPinsFromLocalStore();
 	
 	/** @return a list of all the tracked planes as currently seen by the Augmented Reality system */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Tracked Planes", Keywords = "ar augmentedreality augmented reality tracking geometry anchor"))
+	UE_DEPRECATED(4.26, "GetAllTrackedPlanes is deprecated, use GetAllGeometriesByClass.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Tracked Planes", Keywords = "ar augmentedreality augmented reality tracking geometry anchor", DeprecatedFunction, DeprecationMessage="GetAllTrackedPlanes is deprecated, use GetAllGeometriesByClass."))
 	static TArray<UARPlaneGeometry*> GetAllTrackedPlanes();
 	
 	/** @return a list of all the tracked points as currently seen by the Augmented Reality system */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (KDisplayName="Get All AR Tracked Points", eywords = "ar augmentedreality augmented reality tracking geometry anchor"))
+	UE_DEPRECATED(4.26, "GetAllTrackedPoints is deprecated, use GetAllGeometriesByClass.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (KDisplayName="Get All AR Tracked Points", eywords = "ar augmentedreality augmented reality tracking geometry anchor", DeprecatedFunction, DeprecationMessage="GetAllTrackedPoints is deprecated, use GetAllGeometriesByClass."))
 	static TArray<UARTrackedPoint*> GetAllTrackedPoints();
 	
 	/** @return a list of all the tracked images as currently seen by the Augmented Reality system */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Tracked Images", Keywords = "ar augmentedreality augmented reality tracking images anchor"))
+	UE_DEPRECATED(4.26, "GetAllTrackedImages is deprecated, use GetAllGeometriesByClass.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Tracked Images", Keywords = "ar augmentedreality augmented reality tracking images anchor", DeprecatedFunction, DeprecationMessage="GetAllTrackedImages is deprecated, use GetAllGeometriesByClass."))
 	static TArray<UARTrackedImage*> GetAllTrackedImages();
 	
 	/** @return a list of all the tracked environment capture probes as currently seen by the Augmented Reality system */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Tracked Environment Probes", Keywords = "ar augmentedreality augmented reality tracking anchor"))
+	UE_DEPRECATED(4.26, "GetAllTrackedEnvironmentCaptureProbes is deprecated, use GetAllGeometriesByClass.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Tracked Environment Probes", Keywords = "ar augmentedreality augmented reality tracking anchor", DeprecatedFunction, DeprecationMessage="GetAllTrackedEnvironmentCaptureProbes is deprecated, use GetAllGeometriesByClass."))
 	static TArray<UAREnvironmentCaptureProbe*> GetAllTrackedEnvironmentCaptureProbes();
 
 	/** Adds an environment capture probe to the ar world */
@@ -264,21 +352,79 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Session", meta = (DisplayName="Is AR Session Tracking Feature Supported", Keywords = "ar augmentedreality augmented reality session tracking feature"))
 	static bool IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature);
 	
+	/** @return if a particular scene reconstruction method is supported with the specified session type on the current platform */
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Session", meta = (DisplayName="Is AR Scene Reconstruction Supported", Keywords = "ar augmentedreality augmented reality session scene reconstruction"))
+	static bool IsSceneReconstructionSupported(EARSessionType SessionType, EARSceneReconstruction SceneReconstructionMethod);
+	
 	/** @return all the 2D poses tracked by the AR system */
 	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pose Tracking", meta = (DisplayName="Get All AR Tracked 2D Poses", Keywords = "ar augmentedreality augmented reality pose tracking"))
 	static TArray<FARPose2D> GetAllTracked2DPoses();
 	
 	/** @return all the 3D poses tracked by the AR system */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pose Tracking", meta = (DisplayName="Get All AR Tracked 3D Poses", Keywords = "ar augmentedreality augmented reality pose tracking"))
+	UE_DEPRECATED(4.26, "GetAllTrackedPoses is deprecated, use GetAllGeometriesByClass.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pose Tracking", meta = (DisplayName="Get All AR Tracked 3D Poses", Keywords = "ar augmentedreality augmented reality pose tracking", DeprecatedFunction, DeprecationMessage="GetAllTrackedPoses is deprecated, use GetARTexture."))
 	static TArray<UARTrackedPose*> GetAllTrackedPoses();
 	
 	/** @return the segmentation image if the person segmentation session feature is used */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Person Segmentation", meta = (DisplayName="Get AR Person Segmentation Image", Keywords = "ar augmentedreality augmented reality person segmentation image"))
-	static UARTextureCameraImage* GetPersonSegmentationImage();
+	UE_DEPRECATED(4.26, "GetPersonSegmentationImage is deprecated, use GetARTexture.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Person Segmentation", meta = (DeprecatedFunction, DeprecationMessage="GetPersonSegmentationImage is deprecated, use GetARTexture.", DisplayName="Get AR Person Segmentation Image", Keywords = "ar augmentedreality augmented reality person segmentation image"))
+	static UARTexture* GetPersonSegmentationImage();
 
 	/** @return the segmentation depth image if the person segmentation with depth session feature is used */
-	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Person Segmentation", meta = (DisplayName="Get AR Person Segmentation Depth Image", Keywords = "ar augmentedreality augmented reality person segmentation depth image"))
-	static UARTextureCameraImage* GetPersonSegmentationDepthImage();
+	UE_DEPRECATED(4.26, "GetPersonSegmentationDepthImage is deprecated, use GetARTexture.")
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Person Segmentation", meta = (DeprecatedFunction, DeprecationMessage="GetPersonSegmentationDepthImage is deprecated, use GetARTexture.", DisplayName="Get AR Person Segmentation Depth Image", Keywords = "ar augmentedreality augmented reality person segmentation depth image"))
+	static UARTexture* GetPersonSegmentationDepthImage();
+	
+	/**
+	 * Try to determine the classification of the object at a world space location
+	 * @InWorldLocation: the world location where the classification is needed
+	 * @OutClassification: the classification result
+	 * @OutClassificationLocation: the world location at where the classification is calculated
+	 * @MaxLocationDiff: the max distance between the specified world location and the classification location
+	 * @return: whether a valid classification result is calculated
+	*/
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Classification")
+	static bool GetObjectClassificationAtLocation(const FVector& InWorldLocation, EARObjectClassification& OutClassification, FVector& OutClassificationLocation, float MaxLocationDiff = 10.f);
+	
+	/**
+	 * For a point P in the AR local space, whose location and rotation are "OriginLocation" and "OriginRotation" in the world space
+	 * modify the alignment transform so that the same point P will be transformed to the origin in the world space.
+	 * @bIsTransformInWorldSpace: whether "OriginLocation" and "OriginRotation" are specified in UE4's world space or AR system's local space.
+	 * @bMaintainUpDirection: if set, only the yaw roation of the alignment transform will be modified, pitch and roll will be zeroed out.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Alignment", meta = (DisplayName="Set AR World Origin Location and Rotation", Keywords = "ar augmentedreality augmented reality world origin"))
+	static void SetARWorldOriginLocationAndRotation(FVector OriginLocation, FRotator OriginRotation, bool bIsTransformInWorldSpace = true, bool bMaintainUpDirection = true);
+	
+	/**
+	 * Helper function that modifies the alignment transform scale so that virtual content in the world space appears to be "scaled".
+	 * Note that ultimately the scaling effect is achieved through modifying the translation of the camera:
+	 * moving the camera further away from the origin makes objects appear to be smaller, and vice versa.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Alignment", meta = (DisplayName="Set AR World Scale", Keywords = "ar augmentedreality augmented reality world scale"))
+	static void SetARWorldScale(float InWorldScale);
+	
+	/** @return the AR world scale, see "SetARWorldScale" */
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Alignment", meta = (DisplayName="Get AR World Scale", Keywords = "ar augmentedreality augmented reality world scale"))
+	static float GetARWorldScale();
+	
+	/** @return the alignment transform, see "SetAlignmentTransform" */
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Alignment", meta = (DisplayName="Get Alignment Transform", Keywords = "ar augmentedreality augmented reality alignment transform"))
+	static FTransform GetAlignmentTransform();
+	
+	/**
+	 * Manually add a tracked point with name and world transform.
+	 * @WorldTransform: transform in the world space where the point should be created.
+	 * @PointName: the name of the created point, must be non-empty.
+	 * @bDeletePointsWithSameName: if existing points with the same name should be deleted.
+	 * @return if the operation succeeds.
+	 * Note that this is an async operation - the added point won't be available until a few frames later.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality", meta = (Keywords = "ar augmentedreality augmented reality add point"))
+	static bool AddTrackedPointWithName(const FTransform& WorldTransform, const FString& PointName, bool bDeletePointsWithSameName = true);
+	
+	/** @return a list of the tracked points with the given name */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality", meta = (Keywords = "ar augmentedreality augmented reality find point"))
+	static TArray<UARTrackedPoint*> FindTrackedPointsByName(const FString& PointName);
 	
 	// Static helpers to create the methods needed to add/remove delegates from the AR system
 	DEFINE_AR_BPLIB_DELEGATE_FUNCS(OnTrackableAdded)
@@ -286,6 +432,37 @@ public:
 	DEFINE_AR_BPLIB_DELEGATE_FUNCS(OnTrackableRemoved)
 	// End helpers
 
+	//Alignment helpers
+	UFUNCTION(BlueprintCallable, Category = Alignment)
+	static void CalculateClosestIntersection(const TArray<FVector>& StartPoints, const TArray<FVector>& EndPoints, FVector& ClosestIntersection);
+
+	// Computes a transform that aligns two coordinate systems. Requires the transform of the same known point in each coordinate system.
+	UFUNCTION(BlueprintCallable, Category = Alignment)
+	static void CalculateAlignmentTransform(const FTransform& TransformInFirstCoordinateSystem, const FTransform& TransformInSecondCoordinateSystem, FTransform& AlignmentTransform);
+	
+	/** @return the max number of faces can be tracked at the same time */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Face Tracking")
+	static int32 GetNumberOfTrackedFacesSupported();
+	
+	/** @return the intrinsics of the AR camera. */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Geo Tracking")
+	static bool GetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics);
+	
+	/** @return a list of all the real-world geometry of the specified class as currently seen by the Augmented Reality system */
+	template<class T>
+	static TArray<T*> GetAllGeometriesByClass()
+	{
+		TArray<T*> Geometries;
+		for (auto Geometry : GetAllGeometries())
+		{
+			if (auto CastedGeometry = Cast<T>(Geometry))
+			{
+				Geometries.Add(CastedGeometry);
+			}
+		}
+		return MoveTemp(Geometries);
+	}
+	
 public:
 	static void RegisterAsARSystem(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& NewArSystem);
 	
@@ -317,6 +494,10 @@ class AUGMENTEDREALITY_API UARTraceResultLibrary : public UBlueprintFunctionLibr
 	/** @return Get the transform of the trace result in Unreal World Space. */
 	UFUNCTION( BlueprintPure, Category = "AR AugmentedReality|Trace Result" )
 	static FTransform GetLocalToWorldTransform( const FARTraceResult& TraceResult );
+	
+	/** @return Get the transform of the trace result in the AR system's local space. */
+	UFUNCTION( BlueprintPure, Category = "AR AugmentedReality|Trace Result" )
+	static FTransform GetLocalTransform( const FARTraceResult& TraceResult );
 	
 	/** @return Get the real-world object (as observed by the Augmented Reality system) that was intersected by the line trace. */
 	UFUNCTION( BlueprintPure, Category = "AR AugmentedReality|Trace Result" )

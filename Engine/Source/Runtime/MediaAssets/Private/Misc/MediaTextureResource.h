@@ -16,6 +16,7 @@
 #include "RHIResources.h"
 #include "Async/Async.h"
 #include "RenderingThread.h"
+#include "RendererInterface.h"
 
 class FMediaPlayerFacade;
 class IMediaPlayer;
@@ -334,5 +335,5 @@ private:
 	TSharedRef<FPriorSamples, ESPMode::ThreadSafe> PriorSamples;
 
 	/** cached params etc. for use with mip generator */
-	TSharedPtr<FGenerateMipsStruct> CachedMipsGenParams;
+	TRefCountPtr<IPooledRenderTarget> MipGenerationCache;
 };

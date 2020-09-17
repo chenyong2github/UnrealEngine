@@ -41,18 +41,10 @@
 
 			NSMutableArray* playerIdentifierArray = [NSMutableArray array];
 			for (GKTurnBasedParticipant* participant in match.participants) {
-				NSString* PlayerIDString = nil;
-#ifdef __IPHONE_8_0
+                NSString* PlayerIDString = nil;
 				if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
 				{
 					PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
-				}
-				else
-#endif
-				{
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-					PlayerIDString = participant.playerID;
-#endif
 				}
 				if (!PlayerIDString)
 				{

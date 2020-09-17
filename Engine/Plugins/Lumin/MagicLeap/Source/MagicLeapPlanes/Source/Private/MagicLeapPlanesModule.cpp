@@ -211,28 +211,38 @@ bool FMagicLeapPlanesModule::Tick(float DeltaTime)
 				// Unreal uses FRU, so the Y-axis is towards the right which makes the Y component of the vector the width.
 				ResultPlane.PlaneDimensions = FVector2D(PendingRequest.ResultMLPlanes[i].height * WorldToMetersScale, PendingRequest.ResultMLPlanes[i].width * WorldToMetersScale);
 
-				FTransform PlaneTransform = FTransform(MagicLeap::ToFQuat(PendingRequest.ResultMLPlanes[i].rotation), MagicLeap::ToFVector(PendingRequest.ResultMLPlanes[i].position, WorldToMetersScale), FVector(1.0f, 1.0f, 1.0f));
-				if (PlaneTransform.ContainsNaN())
+				FTransform PlaneTransform_TrackingSpace = FTransform(MagicLeap::ToFQuat(PendingRequest.ResultMLPlanes[i].rotation), MagicLeap::ToFVector(PendingRequest.ResultMLPlanes[i].position, WorldToMetersScale), FVector(1.0f, 1.0f, 1.0f));
+				if (PlaneTransform_TrackingSpace.ContainsNaN())
 				{
 					UE_LOG(LogMagicLeapPlanes, Error, TEXT("Plane result %d transform contains NaN."), i);
 					continue;
 				}
-				if (!PlaneTransform.GetRotation().IsNormalized())
+				if (!PlaneTransform_TrackingSpace.GetRotation().IsNormalized())
 				{
-					FQuat rotation = PlaneTransform.GetRotation();
+					FQuat rotation = PlaneTransform_TrackingSpace.GetRotation();
 					rotation.Normalize();
-					PlaneTransform.SetRotation(rotation);
+					PlaneTransform_TrackingSpace.SetRotation(rotation);
 				}
 
-				PlaneTransform.ConcatenateRotation(FQuat(FVector(0, 0, 1), PI));
-				PlaneTransform = PlaneTransform * TrackingToWorld;
-				ResultPlane.PlanePosition = PlaneTransform.GetLocation();
-				ResultPlane.PlaneOrientation = PlaneTransform.Rotator();
-				// The plane orientation has the forward axis (X) pointing in the direction of the plane's normal.
-				// We are rotating it by 90 degrees clock-wise about the right axis (Y) to get the up vector (Z) to point in the direction of the plane's normal.
-				// Since we are rotating the axis, the rotation is in the opposite direction of the object i.e. -90 degrees.
-				PlaneTransform.ConcatenateRotation(FQuat(FVector(0, 1, 0), -PI/2));
-				ResultPlane.ContentOrientation = PlaneTransform.Rotator();
+				// Cache origin tracking space orientation, since we'll use it later on to calculate ContentOrientation
+				const FQuat PlaneOrientation_TrackingSpace = PlaneTransform_TrackingSpace.GetRotation();
+
+				// The plane orientation from the C-API has its Back axis (Z) pointing in the direction of the plane's normal.
+				// When converted to Unreal's FRU system, its Forward axis (X) ends up pointing in the opposite direction of the plane's normal (RUB to FRU, Back -> Forward)
+				// So, rotate by 180 degrees about the Z (Up) axis to make X (Forward) line up with the plane's normal.
+				PlaneTransform_TrackingSpace.ConcatenateRotation(FQuat(FVector(0, 0, 1), PI));
+
+				FTransform PlaneTransform_WorldSpace = PlaneTransform_TrackingSpace * TrackingToWorld;
+				ResultPlane.PlanePosition = PlaneTransform_WorldSpace.GetLocation();
+				ResultPlane.PlaneOrientation = PlaneTransform_WorldSpace.Rotator();
+
+				// The plane orientation from the C-API has its Back axis (Z) pointing in the direction of the plane's normal.
+				// When converted to Unreal's FRU system, its Forward axis (X) ends up pointing in the opposite direction of the plane's normal (RUB to FRU, Back -> Forward)
+				// Rotate -90 degrees around Y (Right) to makes Z (Up) line up with the plane's normal.
+				PlaneTransform_TrackingSpace.SetRotation(PlaneOrientation_TrackingSpace * FQuat(FVector(0, 1, 0), -PI / 2));
+				PlaneTransform_WorldSpace = PlaneTransform_TrackingSpace * TrackingToWorld;
+				ResultPlane.ContentOrientation = PlaneTransform_WorldSpace.Rotator();
+
 				ResultPlane.ID = MagicLeap::MLHandleToFGuid(PendingRequest.ResultMLPlanes[i].id);
 				MLToUnrealPlanesQueryFlags(PendingRequest.ResultMLPlanes[i].flags, ResultPlane.PlaneFlags);
 
@@ -246,7 +256,7 @@ bool FMagicLeapPlanesModule::Tick(float DeltaTime)
 				else
 				{
 
-					const FMatrix PlaneMatrix = PlaneTransform.ToMatrixWithScale();
+					const FMatrix PlaneMatrix = PlaneTransform_WorldSpace.ToMatrixWithScale();
 
 					bool bPlaneFound = false;
 

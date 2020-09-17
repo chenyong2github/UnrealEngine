@@ -55,7 +55,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	ESkyAtmosphereTransformMode TransformMode;
 
 	/** The planet radius. (kilometers from the center to the ground level). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 1.0, UIMax = 7000.0, ClampMin = 1.0, ClampMax = 10000.0, SliderExponent = 5.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 1.0, UIMax = 7000.0, ClampMin = 0.1, ClampMax = 10000.0, SliderExponent = 5.0))
 	float BottomRadius;
 
 	/** The ground albedo that will tint the astmophere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
@@ -92,7 +92,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	FLinearColor RayleighScattering;
 
 	/** The altitude in kilometer at which Rayleigh scattering effect is reduced to 40%.*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Rayleigh", meta = (UIMin = 0.01, UIMax = 20.0, ClampMin = 0.1, SliderExponent = 5.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Rayleigh", meta = (UIMin = 0.01, UIMax = 20.0, ClampMin = 0.001, SliderExponent = 5.0))
 	float RayleighExponentialDistribution;
 
 
@@ -118,7 +118,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	float MieAnisotropy;
 
 	/** The altitude in kilometer at which Mie effects are reduced to 40%.*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Mie", meta = (UIMin = 0.01, UIMax = 10.0, ClampMin = 0.1, SliderExponent = 5.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Mie", meta = (UIMin = 0.01, UIMax = 10.0, ClampMin = 0.001, SliderExponent = 5.0))
 	float MieExponentialDistribution;
 
 

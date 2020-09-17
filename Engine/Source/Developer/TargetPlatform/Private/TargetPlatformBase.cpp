@@ -31,12 +31,6 @@ bool FTargetPlatformBase::UsesBasePassVelocity() const
 	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
-bool FTargetPlatformBase::UsesAnisotropicBRDF() const
-{
-	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
-	return CVar && CVar->GetInt();
-}
-
 bool FTargetPlatformBase::UsesSelectiveBasePassOutputs() const
 {
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));

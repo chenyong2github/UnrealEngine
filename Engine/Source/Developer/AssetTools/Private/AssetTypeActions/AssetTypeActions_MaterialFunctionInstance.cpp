@@ -80,13 +80,13 @@ void FAssetTypeActions_MaterialFunctionInstance::ExecuteFindParent(TArray<TWeakO
 
 UClass* FAssetTypeActions_MaterialFunctionLayerInstance::GetSupportedClass() const
 {
-	UClass* SupportedClass = IMaterialEditorModule::Get().MaterialLayersEnabled() ? UMaterialFunctionMaterialLayerInstance::StaticClass() : nullptr;
+	UClass* SupportedClass = UMaterialFunctionMaterialLayerInstance::StaticClass();
 	return SupportedClass;
 }
 
 bool FAssetTypeActions_MaterialFunctionLayerInstance::CanFilter()
 {
-	return IMaterialEditorModule::Get().MaterialLayersEnabled();
+	return true;
 }
 
 void FAssetTypeActions_MaterialFunctionLayerInstance::ExecuteNewMFI(TArray<TWeakObjectPtr<UMaterialFunctionInterface>> Objects)
@@ -147,13 +147,13 @@ void FAssetTypeActions_MaterialFunctionLayerInstance::ExecuteNewMFI(TArray<TWeak
 
 UClass* FAssetTypeActions_MaterialFunctionLayerBlendInstance::GetSupportedClass() const
 {
-	UClass* SupportedClass = IMaterialEditorModule::Get().MaterialLayersEnabled() ? UMaterialFunctionMaterialLayerBlendInstance::StaticClass() : nullptr;
+	UClass* SupportedClass = UMaterialFunctionMaterialLayerBlendInstance::StaticClass();
 	return SupportedClass;
 }
 
 bool FAssetTypeActions_MaterialFunctionLayerBlendInstance::CanFilter()
 {
-	return IMaterialEditorModule::Get().MaterialLayersEnabled();
+	return true;
 }
 
 

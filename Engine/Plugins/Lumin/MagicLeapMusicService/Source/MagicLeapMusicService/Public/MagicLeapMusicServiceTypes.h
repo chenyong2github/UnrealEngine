@@ -87,7 +87,7 @@ enum class EMagicLeapMusicServiceStatus : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FMagicLeapMusicServiceTrackMetadata
+struct MAGICLEAPMUSICSERVICE_API FMagicLeapMusicServiceTrackMetadata
 {
 	GENERATED_BODY()
 
@@ -134,7 +134,7 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FMagicLeapMusicServiceVolumeDelegate, const fl
 
 
 USTRUCT(BlueprintType)
-struct FMagicLeapMusicServiceCallbacks
+struct MAGICLEAPMUSICSERVICE_API FMagicLeapMusicServiceCallbacks
 {
 	GENERATED_BODY()
 

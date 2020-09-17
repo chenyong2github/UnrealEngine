@@ -202,17 +202,6 @@ void UAndroidRuntimeSettings::PostInitProperties()
 		UpdateDefaultConfigFile();
 	}
 
-	// Upgrade old Oculus packaging settings as necessary.
-	const TCHAR* AndroidSettings = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
-	bool bPackageForGearVR = false;
-	GConfig->GetBool(AndroidSettings, TEXT("bPackageForGearVR"), bPackageForGearVR, GEngineIni);
-	if (bPackageForGearVR)
-	{
-		// Update default config
-		PackageForOculusMobile.Add(EOculusMobileDevice::GearGo);
-		UpdateDefaultConfigFile();
-	}
-
 	EnsureValidGPUArch();
 	HandlesRGBHWSupport();
 }

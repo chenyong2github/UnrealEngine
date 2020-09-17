@@ -19,7 +19,7 @@ class UTextureCube;
 /** 
  * A cubemap texture resource that knows how to upload the capture data from a sky capture. 
  */
-class FSkyTextureCubeResource : public FTexture, private FDeferredCleanupInterface
+class ENGINE_API FSkyTextureCubeResource : public FTexture, private FDeferredCleanupInterface
 {
 	// @todo - support compression
 

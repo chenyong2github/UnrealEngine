@@ -35,7 +35,6 @@ void FGoogleARCoreXRCamera::SetupViewProjectionMatrix(FSceneViewProjectionData& 
 
 void FGoogleARCoreXRCamera::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 {
-	PassthroughRenderer->InitializeOverlayMaterial();
 	FDefaultXRCamera::BeginRenderViewFamily(InViewFamily);
 }
 
@@ -47,7 +46,7 @@ void FGoogleARCoreXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImme
 
 	if (TS.ARCoreDeviceInstance->GetIsARCoreSessionRunning() && bEnablePassthroughCameraRendering_RT)
 	{
-		PassthroughRenderer->InitializeRenderer_RenderThread(TS.ARCoreDeviceInstance->GetPassthroughCameraTexture());
+		PassthroughRenderer->InitializeRenderer_RenderThread(InViewFamily);
 	}
 
 #if PLATFORM_ANDROID
@@ -64,12 +63,7 @@ void FGoogleARCoreXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImme
 
 void FGoogleARCoreXRCamera::PostRenderBasePass_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
 {
-	TArray<FVector2D> PassthroughUVs;
-	if (GetPassthroughCameraUVs_RenderThread(PassthroughUVs))
-	{
-		PassthroughRenderer->UpdateOverlayUVCoordinate_RenderThread(PassthroughUVs, InView);
-		PassthroughRenderer->RenderVideoOverlay_RenderThread(RHICmdList, InView);
-	}
+	PassthroughRenderer->RenderVideoOverlay_RenderThread(RHICmdList, InView);
 }
 
 bool FGoogleARCoreXRCamera::GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs)
@@ -79,7 +73,8 @@ bool FGoogleARCoreXRCamera::GetPassthroughCameraUVs_RenderThread(TArray<FVector2
 	{
 		TArray<float> TransformedUVs;
 		// TODO save the transformed UVs and only calculate if uninitialized or FGoogleARCoreFrame::IsDisplayRotationChanged() returns true
-		GoogleARCoreTrackingSystem.ARCoreDeviceInstance->GetPassthroughCameraImageUVs(PassthroughRenderer->OverlayQuadUVs, TransformedUVs);
+		static const TArray<float> OverlayQuadUVs = { 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f };
+		GoogleARCoreTrackingSystem.ARCoreDeviceInstance->GetPassthroughCameraImageUVs(OverlayQuadUVs, TransformedUVs);
 		
 		OutUVs.SetNumUninitialized(4);
 
@@ -110,4 +105,12 @@ void FGoogleARCoreXRCamera::ConfigXRCamera(bool bInMatchDeviceCameraFOV, bool bI
 			ARCoreXRCamera->bEnablePassthroughCameraRendering_RT = bInEnablePassthroughCameraRendering;
 		}
 	);
+}
+
+void FGoogleARCoreXRCamera::UpdateCameraTextures(UTexture* NewCameraTexture, UTexture* DepthTexture, bool bEnableOcclusion)
+{
+	if (PassthroughRenderer)
+	{
+		PassthroughRenderer->UpdateCameraTextures(NewCameraTexture, DepthTexture, bEnableOcclusion);
+	}
 }
