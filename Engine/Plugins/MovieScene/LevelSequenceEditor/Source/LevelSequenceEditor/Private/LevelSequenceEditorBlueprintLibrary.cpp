@@ -3,6 +3,7 @@
 #include "LevelSequenceEditorBlueprintLibrary.h"
 
 #include "ISequencer.h"
+#include "IKeyArea.h"
 #include "LevelSequence.h"
 
 #include "Modules/ModuleManager.h"
@@ -10,6 +11,8 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "MovieSceneCommonHelpers.h"
+#include "MovieSceneSection.h"
+#include "Channels/MovieSceneChannelProxy.h"
 
 namespace
 {
@@ -112,6 +115,27 @@ TArray<UMovieSceneSection*> ULevelSequenceEditorBlueprintLibrary::GetSelectedSec
 	return OutSelectedSections;
 }
 
+TArray<FSequencerChannelProxy> ULevelSequenceEditorBlueprintLibrary::GetSelectedChannels()
+{
+	TArray<FSequencerChannelProxy> OutSelectedChannels;
+	if (CurrentSequencer.IsValid())
+	{
+		TArray<const IKeyArea*> SelectedKeyAreas;
+
+		CurrentSequencer.Pin()->GetSelectedKeyAreas(SelectedKeyAreas);
+
+		for (const IKeyArea* KeyArea : SelectedKeyAreas)
+		{
+			if (KeyArea)
+			{
+				FSequencerChannelProxy ChannelProxy(KeyArea->GetName(), KeyArea->GetOwningSection());
+				OutSelectedChannels.Add(ChannelProxy);
+			}
+		}
+	}
+	return OutSelectedChannels;
+}
+
 TArray<UMovieSceneFolder*> ULevelSequenceEditorBlueprintLibrary::GetSelectedFolders()
 {
 	TArray<UMovieSceneFolder*> OutSelectedFolders;
@@ -150,6 +174,23 @@ void ULevelSequenceEditorBlueprintLibrary::SelectSections(const TArray<UMovieSce
 		for (UMovieSceneSection* Section : Sections)
 		{
 			CurrentSequencer.Pin()->SelectSection(Section);
+		}
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SelectChannels(const TArray<FSequencerChannelProxy>& Channels)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		for (FSequencerChannelProxy ChannelProxy : Channels)
+		{
+			UMovieSceneSection* Section = ChannelProxy.Section;
+			if (Section)
+			{
+				TArray<FName> ChannelNames;
+				ChannelNames.Add(ChannelProxy.ChannelName);
+				CurrentSequencer.Pin()->SelectByChannels(Section, ChannelNames, false, true);
+			}
 		}
 	}
 }
