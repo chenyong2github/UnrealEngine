@@ -201,6 +201,7 @@ void FWebRemoteControlModule::StartRoute(const FRemoteControlRoute& Route)
 
 void FWebRemoteControlModule::RegisterRoutes()
 {
+	// Misc
 	RegisterRoute({
 		TEXT("Get information about different routes available on this API."),
 		FHttpPath(TEXT("/remote/info")),
@@ -215,6 +216,7 @@ void FWebRemoteControlModule::RegisterRoutes()
 		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleOptionsRoute)
 		});
 
+	// Raw API
 	RegisterRoute({
 		TEXT("Allows batching multiple calls into one request."),
 		FHttpPath(TEXT("/remote/batch")),
@@ -243,6 +245,7 @@ void FWebRemoteControlModule::RegisterRoutes()
 		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleDescribeObjectRoute)
 		});
 
+	// Preset API
 	RegisterRoute({
 		TEXT("Get a remote control preset's content."),
 		FHttpPath(TEXT("/remote/preset/:preset")),
@@ -291,7 +294,8 @@ void FWebRemoteControlModule::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_GET,
 		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleGetPresetRoute)
 		});
-
+	
+	// Search
 	RegisterRoute({
 		TEXT("Search for assets"),
 		FHttpPath(TEXT("/remote/search/assets")),
@@ -299,6 +303,20 @@ void FWebRemoteControlModule::RegisterRoutes()
 		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleSearchAssetRoute)
 		});
 
+	// Metadata
+	RegisterRoute({
+		TEXT("Get a preset's metadata"),
+		FHttpPath(TEXT("/remote/preset/:preset/metadata")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleGetMetadataRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Get/Set/Delete a preset metadata field"),
+		FHttpPath(TEXT("/remote/preset/:preset/metadata/:metadatafield")),
+		EHttpServerRequestVerbs::VERB_GET | EHttpServerRequestVerbs::VERB_PUT | EHttpServerRequestVerbs::VERB_DELETE,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleMetadataFieldOperationsRoute)
+		});
 
 	//**************************************
 	// Special websocket route just using http request
@@ -953,6 +971,76 @@ bool FWebRemoteControlModule::HandleSearchAssetRoute(const FHttpServerRequest& R
 
 	WebRemoteControlUtils::SerializeResponse(FSearchAssetResponse{ MoveTemp(FilteredAssets) }, Response->Body);
 	Response->Code = EHttpServerResponseCodes::Accepted;
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandleGetMetadataRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+
+	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+
+	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
+	{
+		WebRemoteControlUtils::SerializeResponse(FGetMetadataResponse{Preset->Metadata}, Response->Body);
+		Response->Code = EHttpServerResponseCodes::Accepted;
+	}
+	else
+	{
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
+		Response->Code = EHttpServerResponseCodes::NotFound;
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+
+	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+	FString MetadataField = Request.PathParams.FindChecked(TEXT("metadatafield"));
+
+	if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(FName(*PresetName)))
+	{
+		if (Request.Verb == EHttpServerRequestVerbs::VERB_GET)
+		{
+			if (FString* MetadataValue = Preset->Metadata.Find(MetadataField))
+			{
+				WebRemoteControlUtils::SerializeResponse(FGetMetadataFieldResponse{ *MetadataValue }, Response->Body);
+			}
+			else
+			{
+				WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Metadata field %s could not be found."), *MetadataField), Response->Body);
+				Response->Code = EHttpServerResponseCodes::NotFound;
+			}
+		}
+		else if (Request.Verb == EHttpServerRequestVerbs::VERB_PUT)
+		{
+			FSetPresetMetadataRequest SetMetadataRequest;
+			if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetMetadataRequest))
+			{
+				return true;
+			}
+			
+			FString& MetadataValue = Preset->Metadata.FindOrAdd(MoveTemp(MetadataField));
+			MetadataValue = MoveTemp(SetMetadataRequest.Value);
+		}
+		else if (Request.Verb == EHttpServerRequestVerbs::VERB_DELETE)
+		{
+			Preset->Metadata.Remove(MoveTemp(MetadataField));
+		}
+
+		Response->Code = EHttpServerResponseCodes::Accepted;
+	}
+	else
+	{
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
+		Response->Code = EHttpServerResponseCodes::NotFound;
+	}
 
 	OnComplete(MoveTemp(Response));
 	return true;

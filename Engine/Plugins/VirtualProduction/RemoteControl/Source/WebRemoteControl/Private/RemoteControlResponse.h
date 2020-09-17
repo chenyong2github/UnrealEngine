@@ -114,3 +114,34 @@ struct FSearchActorResponse
 	UPROPERTY()
 	TArray<FRCActorDescription> Actors;
 };
+
+USTRUCT()
+struct FGetMetadataFieldResponse
+{
+	GENERATED_BODY()
+
+	FGetMetadataFieldResponse() = default;
+
+	FGetMetadataFieldResponse(FString InValue)
+		: Value(MoveTemp(InValue))
+	{}
+
+	UPROPERTY()
+	FString Value;
+};
+
+
+USTRUCT()
+struct FGetMetadataResponse
+{
+	GENERATED_BODY()
+
+	FGetMetadataResponse() = default;
+
+	FGetMetadataResponse(TMap<FString, FString> InMetadata)
+		: Metadata(MoveTemp(InMetadata))
+	{}
+
+	UPROPERTY()
+	TMap<FString, FString> Metadata;
+};
