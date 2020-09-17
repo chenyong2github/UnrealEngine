@@ -289,6 +289,7 @@ void UDMXPixelMappingFixtureGroupComponent::SetSize(const FVector2D& InSize)
 	SetSizeWithinMinBoundaryBox();
 }
 
+#if WITH_EDITOR
 void UDMXPixelMappingFixtureGroupComponent::SetZOrder(int32 NewZOrder)
 {
 	// Adjust ZOrder on childs relatively. Alike childs always remain ordered above their parent
@@ -304,6 +305,7 @@ void UDMXPixelMappingFixtureGroupComponent::SetZOrder(int32 NewZOrder)
 	// Adjust ZOrder on self
 	ZOrder = NewZOrder;
 }
+#endif //WITH_EDITOR
 
 void UDMXPixelMappingFixtureGroupComponent::ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY)
 {
