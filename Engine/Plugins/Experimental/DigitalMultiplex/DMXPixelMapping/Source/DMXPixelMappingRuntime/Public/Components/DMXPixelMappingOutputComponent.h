@@ -112,7 +112,7 @@ public:
 	TSharedPtr<SWidget> GetCachedWidget() const;
 
 	/** Sets the ZOrder in the UI */
-	void SetZOrder(int32 NewZOrder);
+	virtual void SetZOrder(int32 NewZOrder);
 
 	/** Returns the UI ZOrder */
 	int32 GetZOrder() const { return ZOrder; }

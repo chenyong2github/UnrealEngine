@@ -12,6 +12,7 @@
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
+#include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingMatrixPixelComponent.h"
 #include "DMXPixelMapping.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
@@ -250,7 +251,16 @@ FReply SDMXPixelMappingDesignerView::OnMouseButtonDown(const FGeometry& MyGeomet
 		if (bFoundWidgetUnderCursor)
 		{
 			SelectedWidgetContextMenuLocation = HitResult.WidgetArranged.Geometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-			PendingSelectedComponent = HitResult.Component;
+			
+			if (UDMXPixelMappingMatrixPixelComponent* MatrixPixelComponent = Cast<UDMXPixelMappingMatrixPixelComponent>(HitResult.Component))
+			{
+				// If a matrix pixel component is selected and it is locked in designer, select the owning Matrix Component instead
+				PendingSelectedComponent = MatrixPixelComponent->IsLockInDesigner() ? MatrixPixelComponent->Parent : HitResult.Component;
+			}
+			else
+			{
+				PendingSelectedComponent = HitResult.Component;
+			}
 		}
 	}
 
@@ -534,30 +544,26 @@ FReply SDMXPixelMappingDesignerView::OnDrop(const FGeometry& MyGeometry, const F
 							Target->AddChild(Component);
 							Component->PostParentAssigned();
 
-							SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));
-							
+							SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));							
 						}
 
-						ToolkitWeakPtr.Pin()->SelectComponents(SelectedComponents);
+						ToolkitPtr->HandleAddComponent(true);
+						ToolkitPtr->SelectComponents(SelectedComponents);
 						CreateExtensionWidgetsForSelection();
 					}
 				}
 			}
 		}
-
-		ToolkitPtr->HandleAddComponent(true);
 	}
 
 	CachedRendererComponent = nullptr;
-	UpdateOutput(true);
+	UpdateOutput(false);
 
 	return FReply::Handled();
 }
 
 bool SDMXPixelMappingDesignerView::FindComponentUnderCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSubclassOf<UDMXPixelMappingOutputComponent> FindType, FComponentHitResult& HitResult)
 {
-	//TArray<FWidgetAndPointer> BubblePath = HittestGrid->GetBubblePath(MouseEvent.GetScreenSpacePosition(), 0.0f, true, INDEX_NONE);
-
 	UDMXPixelMappingBaseComponent* ComponentUnderCursor = nullptr;
 
 	TSharedPtr<SGraphNode> ResultNode;
@@ -742,7 +748,12 @@ void SDMXPixelMappingDesignerView::UpdateOutput(bool bForceUpdate)
 	check(Toolkit.IsValid());
 
 	UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent();
-	if (RendererComponent != nullptr)
+	if (!CachedRendererComponent.IsValid())
+	{
+		CachedRendererComponent = RendererComponent;
+	}
+
+	if (RendererComponent)
 	{
 		if (bForceUpdate || RendererComponent != CachedRendererComponent)
 		{
@@ -759,13 +770,13 @@ void SDMXPixelMappingDesignerView::UpdateOutput(bool bForceUpdate)
 		DesignCanvas->ClearChildren();
 	}
 
-	CachedRendererComponent = Toolkit->GetActiveRendererComponent();
+	CachedRendererComponent = RendererComponent;
 }
 
 void SDMXPixelMappingDesignerView::HandleChangeComponents(bool bIsSuccess)
 {
 	CachedRendererComponent = nullptr;
-	UpdateOutput(true);
+	UpdateOutput(false);
 }
 
 EVisibility SDMXPixelMappingDesignerView::GetRulerVisibility() const

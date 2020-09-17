@@ -132,6 +132,7 @@ TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConst
 		&InCanvas->AddSlot()
 		.AutoSize(true)
 		.Alignment(FVector2D::ZeroVector)
+		.ZOrder(ZOrder)
 		[
 			CachedWidget.ToSharedRef()
 		];

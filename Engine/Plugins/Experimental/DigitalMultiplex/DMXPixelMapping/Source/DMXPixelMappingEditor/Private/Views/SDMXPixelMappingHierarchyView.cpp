@@ -59,6 +59,7 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 	Toolkit = InToolkit;
 
 	DelegateHandleAddComponent = InToolkit->GetOnComponenetAddedOrDeletedDelegate().AddSP(this, &SDMXPixelMappingHierarchyView::HandleAddComponent);
+	OnSelectedComponenetChangedHandle = InToolkit->GetOnSelectedComponenetChangedDelegate().AddSP(this, &SDMXPixelMappingHierarchyView::OnEditorSelectionChanged);
 
 	bRebuildTreeRequested = false;
 	bIsUpdatingSelection = false;
@@ -122,23 +123,9 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 
 	bRefreshRequested = true;
 
-	OnSelectedComponenetChangedHandle = InToolkit->GetOnSelectedComponenetChangedDelegate().AddRaw(this, &SDMXPixelMappingHierarchyView::OnEditorSelectionChanged);
-
 	bSelectFirstRenderer = true;
 
 	GEditor->RegisterForUndo(this);
-}
-
-SDMXPixelMappingHierarchyView::~SDMXPixelMappingHierarchyView()
-{
-	if (DelegateHandleAddComponent.IsValid())
-	{
-		if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = Toolkit.Pin())
-		{
-			ToolkitPtr->GetOnComponenetAddedOrDeletedDelegate().Remove(DelegateHandleAddComponent);
-			ToolkitPtr->GetOnSelectedComponenetChangedDelegate().Remove(OnSelectedComponenetChangedHandle);
-		}
-	}
 }
 
 void SDMXPixelMappingHierarchyView::SelectFirstAvailableRenderer()
@@ -260,6 +247,8 @@ void SDMXPixelMappingHierarchyView::ConditionallyUpdateTree()
 		void RecursiveTakeSnapshot(FDMXPixelMappingHierarchyItemWidgetModelPtr Model, TreeViewPtr TreeView)
 		{
 			UDMXPixelMappingBaseComponent* Component = Model->GetReference().GetComponent();
+			check(Component && Component->IsValidLowLevel());
+
 			ComponentExpansionStates.Add(Component) = TreeView->IsItemExpanded(Model);
 
 			FDMXPixelMappingHierarchyItemWidgetModelArr Children;
@@ -274,6 +263,8 @@ void SDMXPixelMappingHierarchyView::ConditionallyUpdateTree()
 		void RecursiveRestoreSnapshot(FDMXPixelMappingHierarchyItemWidgetModelPtr Model, TreeViewPtr TreeView)
 		{
 			UDMXPixelMappingBaseComponent* Component = Model->GetReference().GetComponent();
+			check(Component && Component->IsValidLowLevel());
+
 			bool* pPreviousExpansionState = ComponentExpansionStates.Find(Component);
 			if(pPreviousExpansionState == nullptr)
 			{
@@ -293,8 +284,7 @@ void SDMXPixelMappingHierarchyView::ConditionallyUpdateTree()
 			}
 		}
 		
-		TMap<UDMXPixelMappingBaseComponent*, bool> ComponentExpansionStates;
-		
+		TMap<UDMXPixelMappingBaseComponent*, bool> ComponentExpansionStates;		
 	};
 	
 	if (bRebuildTreeRequested || bRefreshRequested)

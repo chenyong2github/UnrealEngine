@@ -42,20 +42,23 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeChainProperty(FPropert
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, PositionX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, PositionY))
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		SetPositionWithChildren();
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, PositionX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, PositionY))
+		{
+			SetPositionWithChildren();
 
-		// Cache positions
-		PositionXCached = PositionX;
-		PositionYCached = PositionY;
-	}
+			// Cache positions
+			PositionXCached = PositionX;
+			PositionYCached = PositionY;
+		}
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, SizeX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, SizeY))
-	{
-		SetSizeWithinMinBoundaryBox();
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, SizeX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, SizeY))
+		{
+			SetSizeWithinMinBoundaryBox();
+		}
 	}
 
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, bVisibleInDesigner))
@@ -154,6 +157,7 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupComponent::BuildSlot(TSharedRef<
 		&InCanvas->AddSlot()
 		.AutoSize(true)
 		.Alignment(FVector2D::ZeroVector)
+		.ZOrder(ZOrder)
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
@@ -283,6 +287,22 @@ void UDMXPixelMappingFixtureGroupComponent::SetSize(const FVector2D& InSize)
 {
 	Super::SetSize(InSize);
 	SetSizeWithinMinBoundaryBox();
+}
+
+void UDMXPixelMappingFixtureGroupComponent::SetZOrder(int32 NewZOrder)
+{
+	// Adjust ZOrder on childs relatively. Alike childs always remain ordered above their parent
+	int32 DeltaZOrder = NewZOrder - ZOrder;
+	for (UDMXPixelMappingBaseComponent* BaseComponent : GetChildren())
+	{
+		UDMXPixelMappingFixtureGroupItemComponent* PixelComponent = CastChecked<UDMXPixelMappingFixtureGroupItemComponent>(BaseComponent);
+
+		int32 NewChildZOrder = PixelComponent->GetZOrder() + DeltaZOrder;
+		PixelComponent->SetZOrder(NewChildZOrder);
+	}
+
+	// Adjust ZOrder on self
+	ZOrder = NewZOrder;
 }
 
 void UDMXPixelMappingFixtureGroupComponent::ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY)

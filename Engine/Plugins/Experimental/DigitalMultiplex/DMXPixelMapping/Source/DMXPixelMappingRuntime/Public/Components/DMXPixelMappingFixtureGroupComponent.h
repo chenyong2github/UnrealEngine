@@ -54,6 +54,10 @@ public:
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
+
+#if WITH_EDITOR
+	virtual void SetZOrder(int32 NewZOrder) override;
+#endif // WITH_EDITOR
 	//~ End UDMXPixelMappingOutputComponent implementation
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
