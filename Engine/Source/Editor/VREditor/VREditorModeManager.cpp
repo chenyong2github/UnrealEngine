@@ -163,10 +163,16 @@ void FVREditorModeManager::EnableVREditor( const bool bEnable, const bool bForce
 
 				if (VRModeVRModeLegacyModeUIWarning.ShowModal() != FSuppressableWarningDialog::Cancel)
 				{
-					StyleSettings->bEnableLegacyEditorModeUI = true;
-					StyleSettings->SaveConfig();
-					LevelEditorSettings->bEnableLegacyMeshPaintMode = true;
-					LevelEditorSettings->SaveConfig();
+					if (StyleSettings)
+					{
+						StyleSettings->bEnableLegacyEditorModeUI = true;
+						StyleSettings->SaveConfig();
+					}
+					if (LevelEditorSettings)
+					{
+						LevelEditorSettings->bEnableLegacyMeshPaintMode = true;
+						LevelEditorSettings->SaveConfig();
+					}
 					FUnrealEdMisc::Get().RestartEditor(true);
 					return;
 				}
