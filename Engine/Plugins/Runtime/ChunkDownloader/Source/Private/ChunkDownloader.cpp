@@ -334,7 +334,7 @@ static TArray<FPakFileEntry> ParseManifest(const FString& ManifestPath, TMap<FSt
 					}
 
 					// parse the line
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_MICROSOFT
 					if (!ensure(sscanf_s(&FileBuffer[LineStart], "%511[^\t]\t%llu\t%511[^\t]\t%d\t%2047[^\r\n]", 
 						NameBuffer, (int)sizeof(NameBuffer), 
 						&FinalFileLen, 
