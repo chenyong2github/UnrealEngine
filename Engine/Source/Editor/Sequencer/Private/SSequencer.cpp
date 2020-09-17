@@ -2501,7 +2501,8 @@ TSharedRef<SWidget> SSequencer::MakeAutoChangeMenu()
 
 TSharedRef<SWidget> SSequencer::MakeAllowEditsMenu()
 {
-	FMenuBuilder MenuBuilder(false, SequencerPtr.Pin()->GetCommandBindings());
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, SequencerPtr.Pin()->GetCommandBindings());
 
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().AllowAllEdits);
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().AllowSequencerEditsOnly);
@@ -2513,7 +2514,8 @@ TSharedRef<SWidget> SSequencer::MakeAllowEditsMenu()
 
 TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 {
-	FMenuBuilder MenuBuilder(false, SequencerPtr.Pin()->GetCommandBindings());
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, SequencerPtr.Pin()->GetCommandBindings());
 
 	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
 	{
