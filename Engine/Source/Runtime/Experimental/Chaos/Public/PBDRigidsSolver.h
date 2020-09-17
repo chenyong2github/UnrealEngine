@@ -31,7 +31,7 @@
 #include "ChaosSolversModule.h"
 
 class FPhysInterface_Chaos;
-
+struct FChaosSolverConfiguration;
 class FSkeletalMeshPhysicsProxy;
 class FStaticMeshPhysicsProxy;
 class FPerSolverFieldSystem;
@@ -41,6 +41,8 @@ class FPerSolverFieldSystem;
 #define GEOMETRY_PREALLOC_COUNT 100
 
 extern int32 ChaosSolverParticlePoolNumFrameUntilShrink;
+extern CHAOS_API int32 ChaosSolverCollisionDefaultIterationsCVar;
+extern CHAOS_API int32 ChaosSolverCollisionDefaultPushoutIterationsCVar;
 
 namespace ChaosTest
 {
@@ -242,8 +244,6 @@ namespace Chaos
 		//
 
 		/**/
-		bool Enabled() const { if (bEnabled) return this->IsSimulating(); return false; }
-		void SetEnabled(bool bEnabledIn) { bEnabled = bEnabledIn; }
 		bool HasActiveParticles() const { return !!GetNumPhysicsProxies(); }
 		FDirtyParticlesBuffer* GetDirtyParticlesBuffer() const { return MDirtyParticlesBuffer.Get(); }
 
@@ -391,6 +391,9 @@ namespace Chaos
 
 		void UpdateExternalAccelerationStructure_External(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>>& ExternalStructure);
 
+		/** Apply a solver configuration to this solver, set externally by the owner of a solver (see UPhysicsSettings for world solver settings) */
+		void ApplyConfig(const FChaosSolverConfiguration& InConfig);
+
 	private:
 
 		template<typename ParticleType>
@@ -444,7 +447,6 @@ namespace Chaos
 		float MMaxDeltaTime;
 		float MMinDeltaTime;
 		int32 MMaxSubSteps;
-		bool bEnabled;
 		bool bHasFloor;
 		bool bIsFloorAnalytic;
 		float FloorHeight;

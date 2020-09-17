@@ -20,6 +20,7 @@
 #include "EventDefaults.h"
 #include "EventsData.h"
 #include "RewindData.h"
+#include "ChaosSolverConfiguration.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolver, Log, All);
@@ -241,7 +242,6 @@ namespace Chaos
 		, MMaxDeltaTime(0.0)
 		, MMinDeltaTime(SMALL_NUMBER)
 		, MMaxSubSteps(1)
-		, bEnabled(false)
 		, bHasFloor(true)
 		, bIsFloorAnalytic(false)
 		, FloorHeight(0.f)
@@ -603,7 +603,6 @@ namespace Chaos
 
 		MTime = 0;
 		MLastDt = 0.0f;
-		bEnabled = false;
 		CurrentFrame = 0;
 		MMaxDeltaTime = 1.f;
 		MMinDeltaTime = SMALL_NUMBER;
@@ -656,13 +655,10 @@ namespace Chaos
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
 
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::Tick(%3.5f)"), DeltaTime);
-		if (bEnabled)
-		{
-			MLastDt = DeltaTime;
-			EventPreSolve.Broadcast(DeltaTime);
-			AdvanceOneTimeStepTask<Traits>(this, DeltaTime).DoWork();
-			EventPreBuffer.Broadcast(DeltaTime);
-		}
+		MLastDt = DeltaTime;
+		EventPreSolve.Broadcast(DeltaTime);
+		AdvanceOneTimeStepTask<Traits>(this, DeltaTime).DoWork();
+		EventPreBuffer.Broadcast(DeltaTime);
 	}
 
 	template <typename Traits>
@@ -997,11 +993,8 @@ namespace Chaos
 			Proxy->BufferPhysicsResults();
 		}
 
-		if(bEnabled)
-		{
-			// Now that results have been buffered we have completed a solve step so we can broadcast that event
-			EventPostSolve.Broadcast(MLastDt);
-		}
+		// Now that results have been buffered we have completed a solve step so we can broadcast that event
+		EventPostSolve.Broadcast(MLastDt);
 	}
 
 	template <typename Traits>
@@ -1225,6 +1218,41 @@ namespace Chaos
 	void TPBDRigidsSolver<Traits>::UpdateExternalAccelerationStructure_External(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>>& ExternalStructure)
 	{
 		GetEvolution()->UpdateExternalAccelerationStructure_External(ExternalStructure,*PendingSpatialOperations_External);
+	}
+
+	Chaos::FClusterCreationParameters<Chaos::FReal>::EConnectionMethod ToInternalConnectionMethod(EClusterUnionMethod InMethod)
+	{
+		using ETargetEnum = Chaos::FClusterCreationParameters<Chaos::FReal>::EConnectionMethod;
+		switch(InMethod)
+		{
+		case EClusterUnionMethod::PointImplicit:
+			return ETargetEnum::PointImplicit;
+		case EClusterUnionMethod::DelaunayTriangulation:
+			return ETargetEnum::DelaunayTriangulation;
+		case EClusterUnionMethod::MinimalSpanningSubsetDelaunayTriangulation:
+			return ETargetEnum::MinimalSpanningSubsetDelaunayTriangulation;
+		case EClusterUnionMethod::PointImplicitAugmentedWithMinimalDelaunay:
+			return ETargetEnum::PointImplicitAugmentedWithMinimalDelaunay;
+		}
+
+		return ETargetEnum::None;
+	}
+
+	template <typename Traits>
+	void Chaos::TPBDRigidsSolver<Traits>::ApplyConfig(const FChaosSolverConfiguration& InConfig)
+	{
+		GetEvolution()->GetRigidClustering().SetClusterConnectionFactor(InConfig.ClusterConnectionFactor);
+		GetEvolution()->GetRigidClustering().SetClusterUnionConnectionType(ToInternalConnectionMethod(InConfig.ClusterUnionConnectionType));
+		SetIterations(InConfig.CollisionIterations);
+		SetPushOutPairIterations(InConfig.PushOutPairIterations);
+		SetPushOutIterations(InConfig.PushOutIterations);
+		SetGenerateCollisionData(InConfig.bGenerateCollisionData);
+		SetGenerateBreakingData(InConfig.bGenerateBreakData);
+		SetGenerateTrailingData(InConfig.bGenerateTrailingData);
+		SetCollisionFilterSettings(InConfig.CollisionFilterSettings);
+		SetBreakingFilterSettings(InConfig.BreakingFilterSettings);
+		SetTrailingFilterSettings(InConfig.TrailingFilterSettings);
+		SetUseContactGraph(InConfig.bGenerateContactGraph);
 	}
 
 #define EVOLUTION_TRAIT(Trait) template class CHAOS_API TPBDRigidsSolver<Trait>;

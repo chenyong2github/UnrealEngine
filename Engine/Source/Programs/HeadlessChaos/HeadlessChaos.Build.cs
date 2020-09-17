@@ -17,7 +17,8 @@ public class HeadlessChaos : ModuleRules
 			new string[] {
                 "ApplicationCore",
 				"Core",
-                "Projects",
+				"CoreUObject",
+				"Projects",
                 "GoogleTest",
 				"GeometricObjects",
 				"ChaosVehiclesCore"

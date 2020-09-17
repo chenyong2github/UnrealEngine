@@ -27,9 +27,10 @@
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Box.h"
-#include "EventsData.h"
-#include "EventManager.h"
-#include "RewindData.h"
+#include "Chaos/Public/EventsData.h"
+#include "Chaos/Public/EventManager.h"
+#include "Chaos/Public/RewindData.h"
+#include "PhysicsSettingsCore.h"
 
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -37,6 +38,7 @@ DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"),STAT_UpdateK
 CSV_DEFINE_CATEGORY(ChaosPhysics,true);
 
 TAutoConsoleVariable<int32> CVar_ChaosSimulationEnable(TEXT("P.Chaos.Simulation.Enable"),1,TEXT("Enable / disable chaos simulation. If disabled, physics will not tick."));
+TAutoConsoleVariable<int32> CVar_ApplyProjectSettings(TEXT("p.Chaos.Simulation.ApplySolverProjectSettings"), 1, TEXT("Whether to apply the solver project settings on spawning a solver"));
 
 FChaosScene::FChaosScene(
 	UObject* OwnerPtr
@@ -65,6 +67,15 @@ FChaosScene::FChaosScene(
 	check(SceneSolver);
 
 	SceneSolver->PhysSceneHack = this;
+
+	if(CVar_ApplyProjectSettings.GetValueOnAnyThread() != 0)
+	{
+		UPhysicsSettingsCore* Settings = UPhysicsSettingsCore::Get();
+		SceneSolver->EnqueueCommandImmediate([InSolver = SceneSolver, SolverConfigCopy = Settings->SolverOptions]()
+		{
+			InSolver->ApplyConfig(SolverConfigCopy);
+		});
+	}
 
 	Flush_AssumesLocked();	//make sure acceleration structure exists right away
 }

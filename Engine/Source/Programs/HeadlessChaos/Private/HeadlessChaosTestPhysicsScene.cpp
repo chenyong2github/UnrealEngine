@@ -119,7 +119,6 @@ namespace ChaosTest {
 
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),0);	//timestamp of 0 because we flush when scene is created
 
@@ -140,7 +139,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -180,7 +178,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -224,7 +221,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -267,7 +263,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -311,7 +306,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -356,7 +350,6 @@ namespace ChaosTest {
 		{
 			FChaosScene Scene(nullptr);
 			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-			Scene.GetSolver()->SetEnabled(true);
 			Scene.GetSolver()->GetMarshallingManager().SetTickDelay_External(Delay);
 
 			FActorCreationParams Params;
@@ -486,7 +479,6 @@ namespace ChaosTest {
 		{
 			FChaosScene Scene(nullptr);
 			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-			Scene.GetSolver()->SetEnabled(true);
 			Scene.GetSolver()->GetMarshallingManager().SetTickDelay_External(Delay);
 
 			FActorCreationParams Params;
@@ -582,7 +574,6 @@ namespace ChaosTest {
 		{
 			FChaosScene Scene(nullptr);
 			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-			Scene.GetSolver()->SetEnabled(true);
 			Scene.GetSolver()->GetMarshallingManager().SetTickDelay_External(Delay);
 
 			FActorCreationParams Params;
@@ -690,7 +681,6 @@ namespace ChaosTest {
 	{
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Scene.GetSolver()->SetEnabled(true);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;

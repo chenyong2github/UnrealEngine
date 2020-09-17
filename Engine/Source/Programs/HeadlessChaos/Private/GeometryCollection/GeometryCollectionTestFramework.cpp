@@ -299,8 +299,6 @@ namespace GeometryCollectionTest
 	template<typename Traits>
 	void TFramework<Traits>::Initialize()
 	{
-		Solver->SetEnabled(true);
-
 		for (WrapperBase* Object : PhysicsObjects)
 		{
 			if (TGeometryCollectionWrapper<Traits>* GCW = Object->As<TGeometryCollectionWrapper<Traits>>())

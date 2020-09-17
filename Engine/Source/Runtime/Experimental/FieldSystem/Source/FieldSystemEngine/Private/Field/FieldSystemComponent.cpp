@@ -137,7 +137,7 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 				{
 					Concrete.EnqueueCommandImmediate([ConcreteSolver = &Concrete, NewCommand = InCommand]()
 					{
-						if(ConcreteSolver->Enabled() && ConcreteSolver->HasActiveParticles())
+						if(ConcreteSolver->HasActiveParticles())
 						{
 							ConcreteSolver->GetPerSolverField().BufferCommand(NewCommand);
 						}
