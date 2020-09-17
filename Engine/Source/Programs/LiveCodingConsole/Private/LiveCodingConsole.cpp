@@ -469,7 +469,7 @@ bool LiveCodingConsoleMain(const TCHAR* CmdLine)
 #endif
 
 			// Load the server module
-			FModuleManager::Get().LoadModuleChecked<ILiveCodingServer>(TEXT("LiveCodingServer"));
+			FModuleManager::Get().LoadModuleChecked<ILiveCodingServerModule>(TEXT("LiveCodingServer"));
 			ILiveCodingServer& Server = IModularFeatures::Get().GetModularFeature<ILiveCodingServer>(LIVE_CODING_SERVER_FEATURE_NAME);
 
 			// Run the inner application loop

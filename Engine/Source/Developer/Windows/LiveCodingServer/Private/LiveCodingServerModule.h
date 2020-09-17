@@ -3,10 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Modules/ModuleInterface.h"
 #include "ILiveCodingServer.h"
 
-class FLiveCodingServerModule : public IModuleInterface
+class FLiveCodingServerModule : public ILiveCodingServerModule
 {
 public:
 	// IModuleInterface implementation
