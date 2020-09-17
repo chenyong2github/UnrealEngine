@@ -511,6 +511,35 @@ public:
 	}
 };
 
+class FD3D12Viewport;
+
+class FD3D12BackBufferReferenceTexture2D : public FD3D12Texture2D
+{
+public:
+
+	FD3D12BackBufferReferenceTexture2D(
+		FD3D12Viewport* InViewPort,
+		bool bInIsSDR,
+		FD3D12Device* InDevice,
+		uint32 InSizeX,
+		uint32 InSizeY,
+		EPixelFormat InFormat) :
+		FD3D12Texture2D(InDevice, InSizeX, InSizeY, 1, 1, 1, InFormat, false, TexCreate_Presentable, FClearValueBinding()),
+		Viewport(InViewPort), bIsSDR(bInIsSDR)
+	{
+	}
+
+	FD3D12Viewport* GetViewPort() { return Viewport; }
+	bool IsSDR() const { return bIsSDR; }
+
+	D3D12RHI_API FRHITexture* GetBackBufferTexture();
+
+private:
+
+	FD3D12Viewport* Viewport = nullptr;
+	bool bIsSDR = false;
+};
+
 /** Given a pointer to a RHI texture that was created by the D3D12 RHI, returns a pointer to the FD3D12TextureBase it encapsulates. */
 FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Texture)
 {
@@ -519,7 +548,15 @@ FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Textur
 		return NULL;
 	}
 	
-	FD3D12TextureBase* Result((FD3D12TextureBase*)Texture->GetTextureBaseRHI());
+	// If it's the dummy backbuffer then swap with actual current RHI backbuffer right now
+	FRHITexture* RHITexture = Texture;
+	if (RHITexture && RHITexture->GetFlags() & TexCreate_Presentable)
+	{
+		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)RHITexture;
+		RHITexture = BufferBufferReferenceTexture->GetBackBufferTexture();
+	}
+
+	FD3D12TextureBase* Result((FD3D12TextureBase*)RHITexture->GetTextureBaseRHI());
 	check(Result);
 	return Result;
 }
