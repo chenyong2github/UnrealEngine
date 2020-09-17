@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { setDefault } from '../common/helper';
-import { ContextualLogger } from '../common/logger';
 import { BranchSpec } from '../common/perforce';
-import { Branch, BranchGraphInterface, TargetInfo } from './branch-interfaces';
+import { Branch, BranchGraphInterface } from './branch-interfaces';
 import { BotConfig, BranchDefs, BranchGraphDefinition, EdgeOptions, EdgeProperties, IntegrationMethod, NodeOptions } from './branchdefs';
-import { computeTargets, computeImplicitTargets } from './targets';
 
 type ConfigBlendMode = 'override' | 'accumulate'
 
@@ -382,11 +380,11 @@ if (botname === '__TEST__') {
 		return null
 	}
 
-	computeImplicitTargets(errors: string[], source: Branch, targets: Branch[]) {
+	// computeImplicitTargets(errors: string[], source: Branch, targets: Branch[]) {
 
-		return computeImplicitTargets(source, source.parent, errors, new Set(targets), new Set()) /* not supporting skipping yet - should check can divert route this way */
+	// 	return computeImplicitTargets(source, source.parent, errors, new Set(targets), new Set()) /* not supporting skipping yet - should check can divert route this way */
 
-	}
+	// }
 
 	private _fixFlow(list: string[], branchName: string) {
 		const output = []
@@ -470,111 +468,4 @@ if (botname === '__TEST__') {
 
 	private names = new Map<string, Branch>()
 	private branchesWithCommonStreams = new Map<Branch, Branch[]>()
-}
-
-
-
-//  _______        _       
-// |__   __|      | |      
-//    | | ___  ___| |_ ___ 
-//    | |/ _ \/ __| __/ __|
-//    | |  __/\__ \ |_\__ \
-//    |_|\___||___/\__|___/
-
-// for unit tests!
-
-
-function makeBranchDataForComputeTargetTest(nodeStrs: any) {
-	return nodeStrs.map((str: string, index: number) => ({
-		name: String.fromCharCode('A'.charCodeAt(0) + index),
-		flowsTo: [...str.toUpperCase()],
-		forceFlowTo: [...str].filter(x => x.toUpperCase() === x).map(x => x.toUpperCase()),
-	}))
-	.map((branch: any) => ({
-		name: branch.name, flowsTo: branch.flowsTo, forceFlowTo: branch.forceFlowTo,
-		nameUpper: branch.name.toUpperCase(),
-		defaultFlow: [], whitelist: [], rootPath: '/x/y/z'
-	}))
-}
-
-function computeTargetTestActionToShortString(arg: any) {
-	const mergeMode = arg.mergeMode
-	const br = arg.targetName || arg.branch.name
-	return mergeMode === 'normal' ? br :
-		mergeMode === 'skip' ? '-' + br :
-		mergeMode === 'null' ? '!' + br : '@' + br
-}
-
-function runComputeTargetTest(targets: string[], self: string, ...flows: string[]) {
-	const branchGraph = new BranchGraph('__TEST__', makeBranchDataForComputeTargetTest(flows))
-	const selfBranch = branchGraph.getBranch(self)!
-	const results: TargetInfo = {author: 'author', forceStompChanges: false, sendNoShelfEmail: false}
-	computeTargets(selfBranch, null, -1, results, targets, selfBranch.forceFlowTo, new ContextualLogger('runComputeTargetTest'))
-	const result = results.errors || (results.targets ?
-		results.targets.map(action => computeTargetTestActionToShortString(action) + ': ' + action.furtherMerges.map(x => computeTargetTestActionToShortString(x)).join(', '))
-		: ['no targets'])
-	return result
-}
-
-function runComputeTargetTestStr(def: string[]) {
-	const targetBits = def[0].split('-') // up to three section in target (1st) string: normal, skip, null
-
-
-	let targets = [...targetBits[0]]
-	if (targetBits.length > 1) {
-		targets = [...targets, ...[...targetBits[1]].map(x => '-' + x)]
-	}
-	if (targetBits.length > 2) {
-		targets = [...targets, ...[...targetBits[2]].map(x => '!' + x)]
-	}
-	return runComputeTargetTest(targets, def[1], ...def.slice(2))
-}
-
-
-export function runTests(parentLogger: ContextualLogger) {
-	const unitTestLogger = parentLogger.createChild('BranchGraph')
-	const tests: [string[], string | null][] = [
-		[['c-b', 'a', 'b', 'c', ''], null],
-		[['c-b', 'a', 'B', 'c', ''], null],
-		[['c-d', 'a', 'bd', 'c', '', 'c'], 'B:C'],
-		[['c-b', 'a', 'bD', 'c', '', 'c'], 'D:C'],
-		[['-c', 'a', 'Bd', 'C', '', ''], 'B:-C'],
-		[['-c-b', 'a', 'B', 'C', ''], '!B:-C'],
-		[['b', 'a', 'b', 'C', ''], 'B:'],
-		[['f', 'b', 'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'], 'A:DEF'],
-		[['b', 'f', 'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'], 'E:DAB'],
-		[['a', 'g', 'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'], 'F:EDA'],
-		[['-a', 'g', 'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'], 'F:ED-A'],
-		[['de', 'h', 'hc', 'hd', 'deFg', 'hbc', 'c', 'c', 'c', 'abd'], 'D:CE'],
-		[['de', 'h', 'bd', 'hc', 'hd', 'eFg', 'hbc', 'c', 'c', 'c'], 'C:DE'],
-		[['db', 'h', 'abd', 'hc', 'hd', 'deFg', 'hbc', 'c', 'c', 'c'], 'C:DEB'],
-		[['cg', 'a', 'be', 'acd', 'b', 'b', 'aFg', 'e', 'e'], 'B:C;E:G'],
-		[['cf', 'a', 'bE', 'acd', 'b', 'b', 'aFg', 'e', 'e'], 'E:F;B:C'],
-		[['c-e', 'a', 'bE', 'acd', 'b', 'b', 'aFg', 'e', 'e'], 'B:C'],
-		[['cf-b', 'a', 'bE', 'acd', 'b', 'b', 'aFg', 'e', 'e'], null],
-		[['fg', 'h', 'abd', 'hC', 'hd', 'defg', 'hbc', 'c', 'c', 'c'], 'C:DGF'],
-		[['dge', 'h', 'abd', 'hC', 'hd', 'defg', 'hbc', 'c', 'c', 'c'], 'C:DGE'],
-		[['e', 'i', 'abcd', 'Ie', 'if', 'iG', 'ih', 'a', 'b', 'c', 'D'], 'D:GBE']
-	]
-
-	let ran = 0, success = 0, fail = 0
-	for (const [test, expected] of tests) {
-		const result = runComputeTargetTestStr(test)
-		++ran
-		let expectedOnFail
-		if (expected) {
-			if (result.join(';').replace(/\s|,/g, '') === expected)
-				++success
-			else {
-				expectedOnFail = expected
-				++fail
-			}
-		}
-		const out = result.join('; ')
-		if (expectedOnFail) {
-			unitTestLogger.error(`MISMATCH!!!    ${out} vs ${expectedOnFail}`)
-		}
-	}
-	unitTestLogger.info(`Target tests: ran ${ran} tests, ${success} matched, ${fail} failed`)
-	return fail
 }

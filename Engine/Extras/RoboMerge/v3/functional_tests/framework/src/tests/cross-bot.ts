@@ -48,7 +48,7 @@ function createStreams(p4: Perforce, test: FunctionalTest) {
 				await Promise.all([
 					p4.populate(test.getStreamPath('Release', DEPOT_NAME), 'Initial branch of files from Main'),
 					p4.populate(test.getStreamPath('Dev', DEPOT_NAME), 'Initial branch of files from Main'),
-	
+
 					p4.populate(test.getStreamPath('RES', DEPOT_NAME), 'Initial branch of files from Main')
 						.then(() => Promise.all([
 							p4.populate(test.getStreamPath('R26', DEPOT_NAME), 'Initial branch of files from RES')
@@ -83,17 +83,18 @@ export class CrossBotTest extends FunctionalTest {
 		await P4Util.editFile(releaseClient, 'test1.txt', 'Initial content\n\nMergeable line')
 		await P4Util.submit(releaseClient, `Edit\n#robomerge[${crossBot2!.botName}] dev`)
 
-		await P4Util.editFile(releaseClient, 'test2.txt', 'Initial content\n\nMergeable line')
-		await P4Util.submit(releaseClient, `Edit\n#robomerge[SomeOtherBot] dev-alias`)
-
 		await P4Util.editFile(releaseClient, 'test3.txt', 'Initial content\n\nMergeable line')
 		await P4Util.submit(releaseClient, `Edit\n#robomerge[${crossBot2!.botName}-alias] dev`)
+
+// not testing invalid bot here - more important to get default syntax error testing
+		// await P4Util.editFile(releaseClient, 'test2.txt', 'Initial content\n\nMergeable line')
+		// await P4Util.submit(releaseClient, `Edit\n#robomerge[InvalidBot] dev-alias`)
 	}
 
 	verify() {
 		return Promise.all([
 			this.ensureNotBlocked('Release'),
-			...[1, 2, 3].map(n => this.checkHeadRevision('Main', `test${n}.txt`, 2, DEPOT_NAME))
+			...[1, 3].map(n => this.checkHeadRevision('Main', `test${n}.txt`, 2, DEPOT_NAME))
 		])
 	}
 
@@ -102,7 +103,7 @@ export class CrossBotTest extends FunctionalTest {
 		releaseStream.incognitoMode = true
 		return [
 			this.makeForceAllBranchDef('Main', []),
-			releaseStream	
+			releaseStream
 		]
 	}
 
@@ -136,9 +137,9 @@ export class CrossBotTest2 extends FunctionalTest {
 		return Promise.all([
 			this.ensureNotBlocked('Main', 'Dev'),
 			this.checkHeadRevision('Release', 'test1.txt', 2, DEPOT_NAME),
-			this.checkHeadRevision('Release', 'test2.txt', 2, DEPOT_NAME),
+			// this.checkHeadRevision('Release', 'test2.txt', 2, DEPOT_NAME),
 			this.checkHeadRevision('Dev', 'test1.txt', 2, DEPOT_NAME),
-			this.checkHeadRevision('Dev', 'test2.txt', 1, DEPOT_NAME), // unrelated bot name
+			// this.checkHeadRevision('Dev', 'test2.txt', 1, DEPOT_NAME), // unrelated bot name
 			this.checkHeadRevision('Dev', 'test3.txt', 2, DEPOT_NAME)  // alias
 		])
 	}
@@ -189,7 +190,6 @@ function getNextgenCommands() {
 	]
 }
 
-// fortnite
 export class ComplexCrossBot extends ComplexBase {
 	constructor(p4: Perforce) {
 		super(p4)
@@ -297,5 +297,3 @@ export class ComplexCrossBot3 extends ComplexBase {
 		]
 	}
 }
-
-/** syntax error: R26 has Plus -R26 command, but can't reach Plus */

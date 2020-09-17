@@ -386,12 +386,25 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			flags += ' #REVIEW'
 		}
 
-		const furtherMergeCommands = target.furtherMerges.map(target => (
-			target.mergeMode === 'skip' ? '-' :
-			target.mergeMode === 'null' ? '!' : '') + target.branch.name)
-		if (flags || target.furtherMerges.length !== 0) {
-			const botname = (this.incognitoMode && this.sourceNode.branchGraph.config.alias) || this.graphBotName
-			description += `#ROBOMERGE[${botname}]: ${furtherMergeCommands.join(' ')}${flags}\n`
+		const thisBotMergeCommands = target.furtherMerges
+			.filter(target => !target.otherBot)
+			.map(target => (
+				target.mergeMode === 'skip' ? '-' :
+				target.mergeMode === 'null' ? '!' : '') + target.branchName)
+
+		if (flags || thisBotMergeCommands.length !== 0) {
+			const thisBotname = 
+				(this.incognitoMode && this.sourceNode.branchGraph.config.alias) ||
+				this.graphBotName
+
+			description += `#ROBOMERGE[${thisBotname}]: ${thisBotMergeCommands.join(' ')}${flags}\n`
+		}
+
+		for (const other of target.furtherMerges) {
+			// slight hack here: mergemode is always normal and branchName is all the original commands/flags unaltered
+			if (other.otherBot) {
+				description += `#ROBOMERGE[${other.otherBot}]: ${other.branchName}\n`
+			}
 		}
 
 		if (convertIntegratesToEdits) {
