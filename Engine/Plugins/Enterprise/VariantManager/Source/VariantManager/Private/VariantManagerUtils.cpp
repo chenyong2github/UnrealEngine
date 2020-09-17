@@ -145,10 +145,12 @@ FStructProperty* FVariantManagerUtils::GetLightColorProperty()
 
 FStructProperty* FVariantManagerUtils::GetDefaultLightColorProperty()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!DefaultLightColorProperty)
 	{
 		DefaultLightColorProperty = FindFProperty<FStructProperty>( UAtmosphericFogComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( UAtmosphericFogComponent, DefaultLightColor) );
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return DefaultLightColorProperty;
 }

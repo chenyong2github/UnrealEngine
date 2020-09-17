@@ -246,26 +246,30 @@ public:
 	 * Adds a new atmospheric fog component to the scene
 	 * 
 	 * @param FogComponent - fog component to add
-	 */	
+	 */
+	UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.")
 	virtual void AddAtmosphericFog(class UAtmosphericFogComponent* FogComponent) = 0;
 
 	/** 
 	 * Removes a atmospheric fog component from the scene
 	 * 
 	 * @param FogComponent - fog component to remove
-	 */	
+	 */
+	UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.")
 	virtual void RemoveAtmosphericFog(class UAtmosphericFogComponent* FogComponent) = 0;
 
 	/** 
 	 * Removes a atmospheric fog resource from the scene...this is just a double check to make sure we don't have stale stuff hanging around; should already be gone.
 	 * 
 	 * @param FogResource - fog resource to remove
-	 */	
+	 */
+	UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.")
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) = 0;
 
 	/**
 	 * Returns the scene's FAtmosphericFogSceneInfo if it exists
 	 */
+	UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.")
 	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() = 0;
 
 	/**
