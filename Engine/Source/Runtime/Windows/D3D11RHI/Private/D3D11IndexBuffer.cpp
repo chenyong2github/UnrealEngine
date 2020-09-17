@@ -40,6 +40,18 @@ FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 S
 		Desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 	}
 
+	if (InUsage & BUF_Shared)
+	{
+		if (GCVarUseSharedKeyedMutex->GetInt() != 0)
+		{
+			Desc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+		}
+		else
+		{
+			Desc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
+		}
+	}
+
 	// If a resource array was provided for the resource, create the resource pre-populated
 	D3D11_SUBRESOURCE_DATA InitData;
 	D3D11_SUBRESOURCE_DATA* pInitData = NULL;
