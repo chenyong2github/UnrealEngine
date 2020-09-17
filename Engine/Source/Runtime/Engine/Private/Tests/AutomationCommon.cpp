@@ -151,7 +151,8 @@ namespace AutomationCommon
 	{
 		TArray<uint8> FrameTrace;
 
-		if (CVarAutomationAllowFrameTraceCapture.GetValueOnGameThread() != 0 && FAutomationTestFramework::Get().OnCaptureFrameTrace.IsBound())
+		bool bDisableFrameTraceCapture = FParse::Param(FCommandLine::Get(), TEXT("DisableFrameTraceCapture"));
+		if (!bDisableFrameTraceCapture && CVarAutomationAllowFrameTraceCapture.GetValueOnGameThread() != 0 && FAutomationTestFramework::Get().OnCaptureFrameTrace.IsBound())
 		{
 			const FString MapAndTest = MapOrContext / FPaths::MakeValidFileName(TestName, TEXT('_'));
 			FString ScreenshotName = GetScreenshotName(MapAndTest);
