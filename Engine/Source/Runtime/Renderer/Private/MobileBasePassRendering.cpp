@@ -204,10 +204,6 @@ void SetupMobileBasePassUniformParameters(
 	}
 	BasePassParameters.AmbientOcclusionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	BasePassParameters.AmbientOcclusionStaticFraction = FMath::Clamp(View.FinalPostProcessSettings.AmbientOcclusionStaticFraction, 0.0f, 1.0f);
-
-	BasePassParameters.DynamicSpotLightShadowSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	BasePassParameters.DynamicSpotLightShadowBufferSize = View.MobileMovableSpotLightsShadowInfo.ShadowBufferSize;
-	BasePassParameters.DynamicSpotLightShadowTexture = View.MobileMovableSpotLightsShadowInfo.ShadowDepthTexture != nullptr ? View.MobileMovableSpotLightsShadowInfo.ShadowDepthTexture : (FRHITexture*)GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture;
 }
 
 void CreateMobileBasePassUniformBuffer(
@@ -269,6 +265,14 @@ void SetupMobileDirectionalLightUniformParameters(
 				Params.DirectionalLightShadowDistances[i] = ShadowInfo->CascadeSettings.SplitFar;
 			}
 		}
+	}
+	
+	if (SceneView.MobileMovableSpotLightsShadowInfo.ShadowDepthTexture != nullptr)
+	{
+		checkSlow(Params.DirectionalLightShadowTexture == SceneView.MobileMovableSpotLightsShadowInfo.ShadowDepthTexture || Params.DirectionalLightShadowTexture == GWhiteTexture->TextureRHI);
+
+		Params.DirectionalLightShadowSize = SceneView.MobileMovableSpotLightsShadowInfo.ShadowBufferSize;
+		Params.DirectionalLightShadowTexture = SceneView.MobileMovableSpotLightsShadowInfo.ShadowDepthTexture;
 	}
 }
 

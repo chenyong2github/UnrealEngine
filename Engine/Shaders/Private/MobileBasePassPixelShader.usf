@@ -39,15 +39,9 @@ int NumDynamicPointLights;
 #define NumDynamicPointLights NUM_DYNAMIC_POINT_LIGHTS
 #endif
 
-#if DIRECTIONAL_LIGHT_CSM
 #define DynamicSpotLightShadowTexture		MobileDirectionalLight.DirectionalLightShadowTexture
 #define DynamicSpotLightShadowSampler		MobileDirectionalLight.DirectionalLightShadowSampler
 #define DynamicSpotLightShadowBufferSize	MobileDirectionalLight.DirectionalLightShadowSize
-#else
-#define DynamicSpotLightShadowTexture		MobileBasePass.DynamicSpotLightShadowTexture
-#define DynamicSpotLightShadowSampler		MobileBasePass.DynamicSpotLightShadowSampler
-#define DynamicSpotLightShadowBufferSize	MobileBasePass.DynamicSpotLightShadowBufferSize
-#endif
 
 #define LightShadowType_PointLight	1
 #define LightShadowType_SpotLight	2
