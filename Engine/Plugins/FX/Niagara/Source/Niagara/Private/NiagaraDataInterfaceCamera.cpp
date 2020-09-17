@@ -59,13 +59,13 @@ void UNiagaraDataInterfaceCamera::PostInitProperties()
 
 bool UNiagaraDataInterfaceCamera::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
-	CameraDataInterface_InstanceData* PIData = new (PerInstanceData) CameraDataInterface_InstanceData;
+	FCameraDataInterface_InstanceData* PIData = new (PerInstanceData) FCameraDataInterface_InstanceData;
 	return true;
 }
 
 bool UNiagaraDataInterfaceCamera::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
-	CameraDataInterface_InstanceData* PIData = (CameraDataInterface_InstanceData*)PerInstanceData;
+	FCameraDataInterface_InstanceData* PIData = (FCameraDataInterface_InstanceData*)PerInstanceData;
 	if (!PIData)
 	{
 		return true;
@@ -363,7 +363,7 @@ void UNiagaraDataInterfaceCamera::GetVMExternalFunction(const FVMExternalFunctio
 
 void UNiagaraDataInterfaceCamera::GetCameraFOV(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<CameraDataInterface_InstanceData> InstData(Context);
+	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutFov(Context);
 
 	float Fov = InstData.Get()->CameraFOV;
@@ -376,7 +376,7 @@ void UNiagaraDataInterfaceCamera::GetCameraFOV(FVectorVMContext& Context)
 
 void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<CameraDataInterface_InstanceData> InstData(Context);
+	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<float> CamPosX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> CamPosY(Context);
@@ -394,7 +394,7 @@ void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> CamRightY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> CamRightZ(Context);
 
-	CameraDataInterface_InstanceData* CamData = InstData.Get();
+	FCameraDataInterface_InstanceData* CamData = InstData.Get();
 	float XPos = CamData->CameraLocation.X;
 	float YPos = CamData->CameraLocation.Y;
 	float ZPos = CamData->CameraLocation.Z;
@@ -426,7 +426,7 @@ void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMContext& Context)
 
 void UNiagaraDataInterfaceCamera::GetClosestParticles(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<CameraDataInterface_InstanceData> InstData(Context);
+	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 
 	FNDIInputParam<FNiagaraID> ParticleIDParam(Context);
 	FNDIInputParam<int32> CountParam(Context);
@@ -459,7 +459,7 @@ void UNiagaraDataInterfaceCamera::GetClosestParticles(FVectorVMContext& Context)
 
 void UNiagaraDataInterfaceCamera::CalculateParticleDistances(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<CameraDataInterface_InstanceData> InstData(Context);
+	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 
 	FNDIInputParam<FNiagaraID> IDParam(Context);
 	FNDIInputParam<FVector> ParticlePosParam(Context);
@@ -551,7 +551,7 @@ void UNiagaraDataInterfaceCamera::GetFeedback(UNiagaraSystem* Asset, UNiagaraCom
 
 void UNiagaraDataInterfaceCamera::GetViewPropertiesGPU(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<CameraDataInterface_InstanceData> InstData(Context);
+	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	TArray<VectorVM::FExternalFuncRegisterHandler<float>> OutParams;
 	OutParams.Reserve(24);
 	for (int i = 0; i < 24; i++)
@@ -570,7 +570,7 @@ void UNiagaraDataInterfaceCamera::GetViewPropertiesGPU(FVectorVMContext& Context
 
 void UNiagaraDataInterfaceCamera::GetClipSpaceTransformsGPU(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<CameraDataInterface_InstanceData> InstData(Context);
+	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	TArray<VectorVM::FExternalFuncRegisterHandler<float>> OutParams;
 	OutParams.Reserve(128);
 	for (int i = 0; i < 128; i++)
@@ -589,7 +589,7 @@ void UNiagaraDataInterfaceCamera::GetClipSpaceTransformsGPU(FVectorVMContext& Co
 
 void UNiagaraDataInterfaceCamera::GetViewSpaceTransformsGPU(FVectorVMContext& Context)
 {
-	VectorVM::FUserPtrHandler<CameraDataInterface_InstanceData> InstData(Context);
+	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	TArray<VectorVM::FExternalFuncRegisterHandler<float>> OutParams;
 	OutParams.Reserve(96);
 	for (int i = 0; i < 96; i++)
