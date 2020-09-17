@@ -556,7 +556,7 @@
 			<CsCompile Project="$(CsToolsDir)/Engine/Source/Programs/IOS/DeploymentServerLauncher/DeploymentServerLauncher.csproj" Configuration="Development" Platform="AnyCPU" Arguments="/verbosity:minimal /target:Rebuild" Tag="#Build Tools CS Binaries;#Sign Binaries" TagReferences="#Build Tools CS Binaries"/>
 
 			<!-- Create tag set for saved source needed for documentation -->
-			<Tag Files="$(CsToolsDir)/Engine/Source/..." With="#SourceForDocumentation" />
+			<Tag Files="$(CsToolsDir)/Engine/..." With="#SourceForDocumentation" />
 
 			<!-- Sign the binaries -->
 			<Sign Files="#Sign Binaries" If="'$(SignExecutables)' == true"/>
