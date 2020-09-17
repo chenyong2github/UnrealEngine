@@ -131,7 +131,6 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 				.Text(IsRayTracingEnabled() ? LOCTEXT("GPULightmassReady", "GPU Lightmass is ready.") : LOCTEXT("GPULightmassRayTracingDisabled", "GPU Lightmass requires ray tracing support which is disabled."))
 			]
 			+ SVerticalBox::Slot()
-			.AutoHeight()
 			[
 				SettingsView.ToSharedRef()
 			]
