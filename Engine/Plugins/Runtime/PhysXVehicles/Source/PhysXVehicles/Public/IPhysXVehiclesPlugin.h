@@ -10,7 +10,7 @@
 /**
  * The public interface to this module
  */
-class UE_DEPRECATED(4.26, "PhysX is deprecated. Use IChaosVehiclesPlugin from the ChaosVehiclePhysics Plugin.") IPhysXVehiclesPlugin : public IModuleInterface
+class IPhysXVehiclesPlugin : public IModuleInterface
 {
 
 public:
