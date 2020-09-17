@@ -4036,6 +4036,7 @@ public:
 				FName(TEXT("TMaterialCHSFPrecomputedVolumetricLightmapLightingPolicy")),
 				FName(TEXT("TMaterialCHSFNoLightMapPolicy")),
 				FName(TEXT("FRayTracingDynamicGeometryConverterCS")),
+				FName(TEXT("FTrivialMaterialCHS"))
 #endif // RHI_RAYTRACING
 		};
 		return ExcludedShaderTypes;
