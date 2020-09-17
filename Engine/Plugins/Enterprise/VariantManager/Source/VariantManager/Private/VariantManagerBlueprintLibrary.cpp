@@ -277,14 +277,16 @@ TArray<FString> UVariantManagerBlueprintLibrary::GetCapturableProperties(UObject
 
 	TArray<FString> Result;
 	TArray<TSharedPtr<FCapturableProperty>> OutProps;
+	const bool bCaptureAllArrayIndices = false;
+	FString TargetPropertyPath;
 
 	if (AActor* Actor = Cast<AActor>(ActorOrClass))
 	{
-		VariantManager.GetCapturableProperties({Actor}, OutProps);
+		VariantManager.GetCapturableProperties({Actor}, OutProps, TargetPropertyPath, bCaptureAllArrayIndices);
 	}
 	else if (UClass* Class = Cast<UClass>(ActorOrClass))
 	{
-		VariantManager.GetCapturableProperties({Class}, OutProps);
+		VariantManager.GetCapturableProperties({Class}, OutProps, TargetPropertyPath, bCaptureAllArrayIndices);
 	}
 
 	Result.Reserve(OutProps.Num());
@@ -334,8 +336,9 @@ UPropertyValue* UVariantManagerBlueprintLibrary::CaptureProperty(UVariant* Varia
 		return nullptr;
 	}
 
+	const bool bCaptureAllArrayIndices = false;
 	TArray<TSharedPtr<FCapturableProperty>> OutProps;
-	VariantManager.GetCapturableProperties({Actor}, OutProps, PropertyPath);
+	VariantManager.GetCapturableProperties({Actor}, OutProps, PropertyPath, bCaptureAllArrayIndices);
 
 	if (OutProps.Num() < 1)
 	{
