@@ -221,7 +221,7 @@ UNiagaraDataInterfaceGrid2DCollection::UNiagaraDataInterfaceGrid2DCollection(FOb
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyGrid2DCollectionProxy());
 
-	FNiagaraTypeDefinition Def(UObject::StaticClass());
+	FNiagaraTypeDefinition Def(UTextureRenderTarget::StaticClass());
 	RenderTargetUserParameter.Parameter.SetType(Def);
 }
 
@@ -1364,7 +1364,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 
 	InstanceData->TargetTexture = nullptr;
 
-	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
+	if (UTextureRenderTarget* UserParamObject = Cast<UTextureRenderTarget>(InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter)))
 	{
 		InstanceData->TargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject);
 		if (!InstanceData->TargetTexture)
@@ -1465,7 +1465,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceDat
 	FTextureResource* RT_Resource = nullptr;
 
 	bool NeedsReset = false;
-	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
+	if (UTextureRenderTarget* UserParamObject = Cast<UTextureRenderTarget>(InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter)))
 	{
 		if (UTextureRenderTarget2D* LocalTargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
 		{
@@ -1531,7 +1531,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetExposedVariableValue(const FNiaga
 	FGrid2DCollectionRWInstanceData_GameThread* InstanceData = static_cast<FGrid2DCollectionRWInstanceData_GameThread*>(InPerInstanceData);
 	if (InVariable.IsValid() && InVariable == ExposedRTVar && InstanceData && InstanceData->TargetTexture)
 	{
-		UObject** Var = (UObject**)OutData;
+		UTextureRenderTarget** Var = (UTextureRenderTarget**)OutData;
 		*Var = InstanceData->TargetTexture;
 		return true;
 	}

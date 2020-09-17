@@ -753,7 +753,8 @@ bool FNiagaraMaterialAttributeBindingCustomization::IsCompatibleNiagaraVariable(
 			InVar.GetType() == FNiagaraTypeDefinition::GetVec2Def() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetVec3Def() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetUObjectDef() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureDef())
+			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureDef() ||
+			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureRenderTargetDef() )
 		{
 			return true;
 		}

@@ -139,7 +139,7 @@ UNiagaraDataInterfaceGrid3DCollection::UNiagaraDataInterfaceGrid3DCollection(FOb
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyGrid3DCollectionProxy());	
 
-	FNiagaraTypeDefinition Def(UObject::StaticClass());
+	FNiagaraTypeDefinition Def(UTextureRenderTarget::StaticClass());
 	RenderTargetUserParameter.Parameter.SetType(Def);
 }
 
@@ -469,7 +469,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 
 	FTextureResource* RT_Resource = nullptr;
 
-	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
+	if (UTextureRenderTarget* UserParamObject = Cast<UTextureRenderTarget>(InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter)))
 	{
 		if (UTextureRenderTargetVolume* TargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
 		{
@@ -549,7 +549,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTick(void* PerInstanceDat
 	FTextureResource* RT_Resource = nullptr;
 
 	bool NeedsReset = false;
-	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
+	if (UTextureRenderTarget* UserParamObject = Cast<UTextureRenderTarget>(InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter)))
 	{
 		if (UTextureRenderTargetVolume* TargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
 		{

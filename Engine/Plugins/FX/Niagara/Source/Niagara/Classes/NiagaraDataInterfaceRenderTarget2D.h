@@ -67,6 +67,7 @@ public:
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	// GPU sim functionality
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
@@ -97,11 +98,10 @@ public:
 	static const FString SizeName;
 	static const FString OutputName;
 
-protected:
-	//~ UNiagaraDataInterface interface
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	UPROPERTY(EditAnywhere, Category = "Render Target")
+	FIntPoint Size;
 
-	//~ UNiagaraDataInterface interface END
+protected:
 
 	static FNiagaraVariableBase ExposedRTVar;
 	

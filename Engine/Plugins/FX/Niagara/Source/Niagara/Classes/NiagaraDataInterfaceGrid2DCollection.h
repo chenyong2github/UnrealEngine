@@ -10,6 +10,7 @@
 #include "NiagaraDataInterfaceGrid2DCollection.generated.h"
 
 class FNiagaraSystemInstance;
+class UTextureRenderTarget;
 class UTextureRenderTarget2D;
 
 class FGrid2DBuffer

@@ -428,6 +428,7 @@ UScriptStruct* FNiagaraTypeDefinition::HalfVec4Struct;
 UClass* FNiagaraTypeDefinition::UObjectClass;
 UClass* FNiagaraTypeDefinition::UMaterialClass;
 UClass* FNiagaraTypeDefinition::UTextureClass;
+UClass* FNiagaraTypeDefinition::UTextureRenderTargetClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
@@ -459,6 +460,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfVec4Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureRenderTargetDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -513,6 +515,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
 	FNiagaraTypeDefinition::UMaterialClass = UMaterialInterface::StaticClass();
 	FNiagaraTypeDefinition::UTextureClass = UTexture::StaticClass();
+	FNiagaraTypeDefinition::UTextureRenderTargetClass = UTextureRenderTarget::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -535,6 +538,7 @@ void FNiagaraTypeDefinition::Init()
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
 	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
 	UTextureDef = FNiagaraTypeDefinition(UTextureClass);
+	UTextureRenderTargetDef = FNiagaraTypeDefinition(UTextureRenderTargetClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -722,6 +726,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
 	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
 	FNiagaraTypeRegistry::Register(UTextureDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, true, false, false);
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, false);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 
