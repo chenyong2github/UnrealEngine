@@ -10,6 +10,7 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Serializers/MovieSceneAnimationSerialization.h"
+#include "Misc/QualifiedFrameTime.h"
 
 class UAnimBoneCompressionSettings;
 class UAnimNotify;
@@ -53,6 +54,9 @@ private:
 
 	static float DefaultSampleRate;
 
+	/** Array of times recorded */
+	TArray<FQualifiedFrameTime> RecordedTimes;
+
 public:
 	FAnimationRecorder();
 	~FAnimationRecorder();
@@ -78,6 +82,8 @@ public:
 	bool SetAnimCompressionScheme(UAnimBoneCompressionSettings* Settings);
 
 	const FTransform& GetInitialRootTransform() const { return InitialRootTransform; }
+
+	void ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate);
 
 	/** If true, it will record root to include LocalToWorld */
 	uint8 bRecordLocalToWorld :1;
@@ -142,6 +148,7 @@ public:
 	bool BeginRecording();
 	void Update(float DeltaTime);
 	void FinishRecording(bool bShowMessage = true);
+	void ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate);
 
 private:
 	void InitInternal(USkeletalMeshComponent* InComponent, const FAnimationRecordingSettings& Settings, FAnimationSerializer *InAnimationSerializer = nullptr);

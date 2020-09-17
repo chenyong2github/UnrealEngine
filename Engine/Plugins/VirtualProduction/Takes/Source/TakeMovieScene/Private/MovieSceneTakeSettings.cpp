@@ -5,12 +5,12 @@
 #define LOCTEXT_NAMESPACE "MovieSceneTakeSettings"
 
 UMovieSceneTakeSettings::UMovieSceneTakeSettings()
-	: HoursText(LOCTEXT("HoursText", "Hours"))
-	, MinutesText(LOCTEXT("MinutesText", "Minutes"))
-	, SecondsText(LOCTEXT("SecondsText", "Seconds"))
-	, FramesText(LOCTEXT("FramesText", "Frames"))
-	, SubFramesText(LOCTEXT("SubFramesText", "SubFrames"))
-	, SlateText(LOCTEXT("Slatetext", "Slate"))
+	: HoursName(TEXT("Hours"))
+	, MinutesName(TEXT("Minutes"))
+	, SecondsName(TEXT("Seconds"))
+	, FramesName(TEXT("Frames"))
+	, SubFramesName(TEXT("SubFrames"))
+	, SlateName(TEXT("Slate"))
 {
 }
 
