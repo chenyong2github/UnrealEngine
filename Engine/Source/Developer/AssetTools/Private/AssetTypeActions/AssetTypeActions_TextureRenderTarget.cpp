@@ -49,16 +49,16 @@ void FAssetTypeActions_TextureRenderTarget::ExecuteCreateStatic(TArray<TWeakObje
 			if( TexRTCube )
 			{
 				// create a static cube texture as well as its 6 faces
-				NewObj = TexRTCube->ConstructTextureCube( CreatePackage(NULL,*PackageName), Name, Object->GetMaskedFlags() );
+				NewObj = TexRTCube->ConstructTextureCube( CreatePackage(*PackageName), Name, Object->GetMaskedFlags() );
 			}
 			else if (TexRTVolume)
 			{
-				NewObj = TexRTVolume->ConstructTextureVolume(CreatePackage(NULL, *PackageName), Name, Object->GetMaskedFlags());
+				NewObj = TexRTVolume->ConstructTextureVolume(CreatePackage( *PackageName), Name, Object->GetMaskedFlags());
 			}
 			else if( TexRT )
 			{
 				// create a static 2d texture
-				NewObj = TexRT->ConstructTexture2D( CreatePackage(NULL,*PackageName), Name, Object->GetMaskedFlags(), CTF_Default, NULL );
+				NewObj = TexRT->ConstructTexture2D( CreatePackage(*PackageName), Name, Object->GetMaskedFlags(), CTF_Default, NULL );
 			}
 
 			if( NewObj )

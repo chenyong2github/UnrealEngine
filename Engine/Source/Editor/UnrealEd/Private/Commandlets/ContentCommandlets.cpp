@@ -2687,7 +2687,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 						It->GetOuter()->IsA(UPackage::StaticClass()) &&
 						It->GetOutermost()->GetName().Left(4) != TEXT("NFS_"))
 					{
-						UPackage* NewPackage = CreatePackage(NULL, *(FString(TEXT("NFS_")) + It->GetOuter()->GetPathName()));
+						UPackage* NewPackage = CreatePackage( *(FString(TEXT("NFS_")) + It->GetOuter()->GetPathName()));
 						//UE_LOG(LogContentCommandlet, Warning, TEXT("Renaming object from %s to %s.%s"), *It->GetPathName(), *NewPackage->GetPathName(), *It->GetName());
 
 						// move the object if we can. IF the rename fails, then the object was already renamed to this spot, but not GC'd.

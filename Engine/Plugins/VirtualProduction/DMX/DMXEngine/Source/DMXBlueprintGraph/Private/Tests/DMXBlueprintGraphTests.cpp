@@ -173,7 +173,7 @@ private:
 		UDMXEditorFactoryNew* Factory = NewObject<UDMXEditorFactoryNew>();
 
 		const FString PackageName = GetGamePath() + TEXT("/") + DMXLibraryNameString;
-		DMXPackage = CreatePackage(NULL, *PackageName);
+		DMXPackage = CreatePackage(*PackageName);
 		EObjectFlags Flags = RF_Public | RF_Standalone;
 
 		UObject* ExistingDMXLibrary = FindObject<UBlueprint>(DMXPackage, *DMXLibraryNameString);
@@ -351,7 +351,7 @@ private:
 		Factory->ParentClass = AActor::StaticClass();
 
 		const FString PackageName = GetGamePath() + TEXT("/") + BlueprintNameString;
-		BlueprintPackage = CreatePackage(NULL, *PackageName);
+		BlueprintPackage = CreatePackage(*PackageName);
 		EObjectFlags Flags = RF_Public | RF_Standalone;
 
 		UObject* ExistingBlueprint = FindObject<UBlueprint>(BlueprintPackage, *BlueprintNameString);

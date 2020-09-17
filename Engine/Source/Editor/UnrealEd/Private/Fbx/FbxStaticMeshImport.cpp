@@ -100,7 +100,7 @@ struct FRestoreReimportData
 		int32 EditorCloseCount = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(EditorObject);
 		//Restore the duplicate asset
 		OriginalPackageName = UPackageTools::SanitizePackageName(OriginalPackageName);
-		Package = CreatePackage(NULL, *OriginalPackageName);
+		Package = CreatePackage( *OriginalPackageName);
 		UObject* ExistingObject = StaticFindObject(UStaticMesh::StaticClass(), Package, *OriginalName, true);
 		if (ExistingObject)
 		{
@@ -1587,7 +1587,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 				return nullptr;
 			}
 			NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
-			Package = CreatePackage(NULL, *NewPackageName);
+			Package = CreatePackage( *NewPackageName);
 		}
 		Package->FullyLoad();
 
@@ -1614,7 +1614,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 
 			// Create a package for each mesh
-			Package = CreatePackage(NULL, *NewPackageName);
+			Package = CreatePackage( *NewPackageName);
 
 			// Require the parent because it will have been invalidated from the garbage collection
 			Parent = Package;

@@ -177,7 +177,7 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 
 	// Find existing package
 	bool bCreatedNewPackage = false;
-	UPackage* HLODPackage = CreatePackage(nullptr, *HLODLevelPackageName);
+	UPackage* HLODPackage = CreatePackage( *HLODLevelPackageName);
 	HLODPackage->FullyLoad();
 	HLODPackage->SetPackageFlags(PKG_ContainsMapData);		// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 
@@ -220,7 +220,7 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 	const FString BaseName = FPackageName::GetShortName(LevelOuterMost->GetPathName());
 	const FString HLODLevelPackageName = FString::Printf(TEXT("%s/HLOD/%s_HLOD"), *PathName, *BaseName);
 
-	HLODPackage = CreatePackage(NULL, *HLODLevelPackageName);
+	HLODPackage = CreatePackage( *HLODLevelPackageName);
 	HLODPackage->FullyLoad();
 	HLODPackage->Modify();
 	HLODPackage->SetPackageFlags(PKG_ContainsMapData);		// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
@@ -269,7 +269,7 @@ UPackage* CreateOrRetrieveImposterMeshPackage(const UMaterialInterface* InImpost
 
 	const FString MeshPackageName = GetImposterMeshPackageName(InImposterMaterial);
 
-	UPackage* MeshPackage = CreatePackage(NULL, *MeshPackageName);
+	UPackage* MeshPackage = CreatePackage( *MeshPackageName);
 	MeshPackage->FullyLoad();
 
 	// Target filename

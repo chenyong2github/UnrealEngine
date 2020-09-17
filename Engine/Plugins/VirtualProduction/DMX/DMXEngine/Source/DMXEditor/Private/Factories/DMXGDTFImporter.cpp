@@ -75,7 +75,7 @@ UPackage* FDMXGDTFImporter::GetPackage(const FString& InImportName)
 
         NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
         LastPackageName = NewPackageName;
-        Package = CreatePackage(NULL, *NewPackageName);
+        Package = CreatePackage(*NewPackageName);
         Package->FullyLoad();
     }
 

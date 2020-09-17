@@ -170,7 +170,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	FString MeshAssetName = TEXT("SM_") + AssetBaseName;
 	if (MeshPackage == nullptr)
 	{
-		MeshPackage = CreatePackage(NULL, *(AssetBasePath + MeshAssetName));
+		MeshPackage = CreatePackage( *(AssetBasePath + MeshAssetName));
 		MeshPackage->FullyLoad();
 		MeshPackage->Modify();
 	}

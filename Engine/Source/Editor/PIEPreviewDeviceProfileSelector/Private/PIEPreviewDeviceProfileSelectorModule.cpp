@@ -265,7 +265,7 @@ bool FPIEPreviewDeviceModule::ReadDeviceSpecification()
 	if (JsonRootObject.IsValid())
 	{
 		// We need to initialize FPIEPreviewDeviceSpecifications early as device profiles need to be evaluated before ProcessNewlyLoadedUObjects can be called.
-		CreatePackage(nullptr, TEXT("/Script/PIEPreviewDeviceProfileSelector"));
+		CreatePackage( TEXT("/Script/PIEPreviewDeviceProfileSelector"));
 
 		Device = MakeShareable(new FPIEPreviewDevice());
 

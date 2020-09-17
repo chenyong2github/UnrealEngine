@@ -233,7 +233,7 @@ namespace CreateAssetHelper
 		void CreateAsset()
 		{
 			const FString PackageName = AssetPath + TEXT("/") + AssetName;
-			AssetPackage = CreatePackage(NULL, *PackageName);
+			AssetPackage = CreatePackage(*PackageName);
 			EObjectFlags Flags = RF_Public | RF_Standalone;
 
 			CreatedAsset = Factory->FactoryCreateNew(Class, AssetPackage, FName(*AssetName), Flags, NULL, GWarn);
@@ -311,7 +311,7 @@ namespace CreateAssetHelper
 				GEditor->GetSelectedObjects()->Deselect(CreatedAsset);
 
 				// Duplicate the asset
-				DuplicatedPackage = CreatePackage(NULL, *NewPackageName);
+				DuplicatedPackage = CreatePackage(*NewPackageName);
 				DuplicatedAsset = StaticDuplicateObject(CreatedAsset, DuplicatedPackage, *NewObjectName);
 
 				if (DuplicatedAsset)

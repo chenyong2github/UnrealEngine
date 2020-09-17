@@ -259,8 +259,8 @@ void FAssetFolderContextMenu::ExecuteSCCCheckOut()
 		{
 			// Since the file exists, create the package if it isn't loaded or just find the one that is already loaded
 			// No need to load unloaded packages. It isn't needed for the checkout process
-			UPackage* Package = CreatePackage(NULL, **PackageIt);
-			PackagesToCheckOut.Add( CreatePackage(NULL, **PackageIt) );
+			UPackage* Package = CreatePackage(**PackageIt);
+			PackagesToCheckOut.Add( CreatePackage(**PackageIt) );
 		}
 	}
 
