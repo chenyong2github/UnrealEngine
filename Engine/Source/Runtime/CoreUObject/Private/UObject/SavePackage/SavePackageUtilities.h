@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
+#include "Containers/StringFwd.h"
 #include "HAL/ThreadSingleton.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/ArchiveObjectCrc32.h"
@@ -114,34 +115,6 @@ private:
  */
 struct FEDLCookChecker : public TThreadSingleton<FEDLCookChecker>
 {
-	friend TThreadSingleton<FEDLCookChecker>;
-
-	struct FEDLNodeID
-	{
-		TArray<FName> ObjectPath;
-		bool bDepIsSerialize;
-
-		FEDLNodeID();
-		FEDLNodeID(UObject* DepObject, bool bInDepIsSerialize);
-
-		bool operator==(const FEDLNodeID& Other) const;
-
-		FString ToString() const;
-
-		friend uint32 GetTypeHash(const FEDLNodeID& A);
-		
-	};
-
-	static FCriticalSection CookCheckerInstanceCritical;
-	static TArray<FEDLCookChecker*> CookCheckerInstances;
-
-	bool bIsActive;
-	TMultiMap<FEDLNodeID, FName> ImportToImportingPackage;
-	TSet<FEDLNodeID> Exports;
-	TMultiMap<FEDLNodeID, FEDLNodeID> NodePrereqs;
-
-	FEDLCookChecker();
-
 	void SetActiveIfNeeded();
 
 	void Reset();
@@ -151,8 +124,127 @@ struct FEDLCookChecker : public TThreadSingleton<FEDLCookChecker>
 	void AddArc(UObject* DepObject, bool bDepIsSerialize, UObject* Export, bool bExportIsSerialize);
 
 	static void StartSavingEDLCookInfoForVerification();
-	static bool CheckForCyclesInner(TMultiMap<FEDLNodeID, FEDLNodeID>& NodePrereqs, TSet<FEDLNodeID>& Visited, TSet<FEDLNodeID>& Stack, const FEDLNodeID& Visit, FEDLNodeID& FailNode);
 	static void Verify(bool bFullReferencesExpected);
+
+private:
+	typedef uint32 FEDLNodeID;
+	static const FEDLNodeID NodeIDInvalid = static_cast<FEDLNodeID>(-1);
+
+	struct FEDLNodeData;
+public: // FEDLNodeHash is public only so that GetTypeHash can be defined
+	enum class EObjectEvent : uint8
+	{
+		Create,
+		Serialize
+	};
+
+	/**
+	 * Wrapper aroundan FEDLNodeData (or around a UObject when searching for an FEDLNodeData corresponding to the UObject)
+	 * that provides the hash-by-objectpath to lookup the FEDLNodeData for an objectpath.
+	 */
+	struct FEDLNodeHash
+	{
+		FEDLNodeHash(); // creates an uninitialized node; only use this to provide as an out parameter
+		FEDLNodeHash(const TArray<FEDLNodeData>* InNodes, FEDLNodeID InNodeID, EObjectEvent InObjectEvent);
+		FEDLNodeHash(const UObject* InObject, EObjectEvent InObjectEvent);
+		bool operator==(const FEDLNodeHash& Other) const;
+		friend uint32 GetTypeHash(const FEDLNodeHash& A);
+
+		FName GetName() const;
+		bool TryGetParent(FEDLNodeHash& Parent) const;
+		EObjectEvent GetObjectEvent() const;
+		void SetNodes(const TArray<FEDLNodeData>* InNodes);
+
+	private:
+		static FName ObjectNameFirst(const FEDLNodeHash& InNode, uint32& OutNodeID, const UObject*& OutObject);
+		static FName ObjectNameNext(const FEDLNodeHash& InNode, uint32& OutNodeID, const UObject*& OutObject);
+			
+		union
+		{
+			/**
+			 * The array of nodes from the FEDLCookChecker; this is how we lookup the node for the FEDLNodeData.
+			 * Because the FEDLNodeData are elements in an array which can resize and therefore reallocate the nodes, we cannot store the pointer to the node.
+			 * Only used if bIsNode is true.
+			 */
+			const TArray<FEDLNodeData>* Nodes;
+			/** Pointer to the Object we are looking up, if this hash was created during lookup-by-objectpath for an object */
+			const UObject* Object;
+		};
+		/** The identifier for the FEDLNodeData this hash is wrapping. Only used if bIsNode is true. */
+		FEDLNodeID NodeID;
+		/** True if this hash is wrapping an FEDLNodeData, false if it is wrapping a UObject. */
+		bool bIsNode;
+		EObjectEvent ObjectEvent;
+	};
+
+private:
+
+	/**
+	 * Node representing either the Create event or Serialize event of a UObject in the graph of runtime dependencies between UObjects.
+	 */
+	struct FEDLNodeData
+	{
+		// Note that order of the variables is important to reduce alignment waste in the size of FEDLNodeData.
+		/** Name of the UObject represented by this node; full objectpath name is obtainable by combining parent data with the name. */
+		FName Name;
+		/** Index of this node in the FEDLCookChecker's Nodes array. This index is used to provide a small-memory-usage identifier for the node. */
+		FEDLNodeID ID;
+		/**
+		 * Tracks references to this node's UObjects from other packages (which is the reverse of the references from each node that we track in NodePrereqs.)
+		 * We only need this information from each package, so we track by package name instead of node id.
+		 */
+		TArray<FName> ImportingPackagesSorted;
+		/**
+		 * ID of the node representing the UObject parent of this node's UObject. NodeIDInvalid if the UObject has no parent.
+		 * The ParentID always refers to the node for the Create event of the parent UObject.
+		 */
+		uint32 ParentID;
+		/** True if this node represents the Serialize event on the UObject, false if it represents the Create event. */
+		EObjectEvent ObjectEvent;
+		/** True if the UObject represented by this node has been exported by a SavePackage call; used to verify that the imports requested by packages are present somewhere in the cook. */
+		bool bIsExport;
+
+		FEDLNodeData(FEDLNodeID InID, FEDLNodeID InParentID, FName InName, EObjectEvent InObjectEvent);
+		FEDLNodeData(FEDLNodeID InID, FEDLNodeID InParentID, FName InName, FEDLNodeData&& Other);
+		FEDLNodeHash GetNodeHash(const FEDLCookChecker& Owner) const;
+
+		FString ToString(const FEDLCookChecker& Owner) const;
+		void AppendPathName(const FEDLCookChecker& Owner, FStringBuilderBase& Result) const;
+		void Merge(FEDLNodeData&& Other);
+	};
+
+	enum class EInternalConstruct
+	{
+		Type
+	};
+
+	FEDLCookChecker();
+	FEDLCookChecker(EInternalConstruct);
+
+	FEDLNodeID FindOrAddNode(const FEDLNodeHash& NodeLookup);
+	FEDLNodeID FindOrAddNode(FEDLNodeData&& NodeData, const FEDLCookChecker& OldOwnerOfNode, FEDLNodeID ParentIDInThis, bool& bNew);
+	FEDLNodeID FindNode(const FEDLNodeHash& NodeHash);
+	void Merge(FEDLCookChecker&& Other);
+	bool CheckForCyclesInner(TSet<FEDLNodeID>& Visited, TSet<FEDLNodeID>& Stack, const FEDLNodeID& Visit, FEDLNodeID& FailNode);
+	void AddDependency(FEDLNodeID SourceID, FEDLNodeID TargetID);
+
+	/**
+	 * All the FEDLNodeDatas that have been created for this checker. These are allocated as elements of an array rather than pointers to reduce cputime and
+	 * memory due to many small allocations, and to provide index-based identifiers. Nodes are not deleted during the lifetime of the checker.
+	 */
+	TArray<FEDLNodeData> Nodes;
+	/** A map to lookup the node for a UObject or for the corresponding node in another thread's FEDLCookChecker. */
+	TMap<FEDLNodeHash, FEDLNodeID> NodeHashToNodeID;
+	/** The graph of dependencies between nodes. */
+	TMultiMap<FEDLNodeID, FEDLNodeID> NodePrereqs;
+	/** True if the EDLCookChecker should be active; it is turned off if the runtime will not be using EDL. */
+	bool bIsActive;
+
+	/** When cooking with concurrent saving, each thread has its own FEDLCookChecker, and these are merged after the cook is complete. */
+	static FCriticalSection CookCheckerInstanceCritical;
+	static TArray<FEDLCookChecker*> CookCheckerInstances;
+
+	friend TThreadSingleton<FEDLCookChecker>;
 };
 
 #if WITH_EDITORONLY_DATA
