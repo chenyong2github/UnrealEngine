@@ -4207,6 +4207,7 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 				OutDirtyPackages.Add(WorldPackage);
 			}
 
+			// Add the Map built data as well if world is
 			if (WorldIt->PersistentLevel && WorldIt->PersistentLevel->MapBuildData)
 			{
 				UPackage* BuiltDataPackage = WorldIt->PersistentLevel->MapBuildData->GetOutermost();
@@ -4260,6 +4261,18 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 					}
 				}
 			}
+
+			// Now gather the world external packages and save them if needed
+			if (WorldIt->PersistentLevel)
+			{
+				for (UPackage* ExternalPackage : WorldIt->PersistentLevel->GetLoadedExternalActorPackages())
+				{
+					if (ExternalPackage->IsDirty())
+					{
+						OutDirtyPackages.Add(ExternalPackage);
+					}
+				}
+			}
 		}
 	}
 }
@@ -4289,11 +4302,15 @@ void FEditorFileUtils::GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackag
 
 		if (!bShouldIgnorePackage)
 		{
-			UWorld*		AssociatedWorld = UWorld::FindWorldInPackage(Package);
-			const bool	bIsMapPackage = AssociatedWorld != NULL;
+			UObject* Asset = Package->FindAssetInPackage();
+			const bool bIsMapPackage = Cast<UWorld>(Asset) != nullptr;
+			const bool bIsExternalMapObject = Asset && Asset->GetTypedOuter<UWorld>() != nullptr;
 
 			// Ignore map packages, they are caught above.
 			bShouldIgnorePackage |= bIsMapPackage;
+
+			// Ignore external actors, they are caught alongside maps
+			bShouldIgnorePackage |= bIsExternalMapObject;
 
 			if (!bShouldIgnorePackage)
 			{
