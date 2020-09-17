@@ -875,8 +875,8 @@ public:
 		{
 			FVolumetricCloudRenderSceneInfo* CloudInfo = LightSceneInfo->Scene->GetVolumetricCloudSceneInfo();
 
-			const bool bLight0CloudPerPixelTransmittance = CloudInfo && View.ViewState && View.ViewState->VolumetricCloudShadowRenderTarget[0].CurrentIsValid() && AtmosphereLight0Proxy == LightSceneInfo->Proxy;
-			const bool bLight1CloudPerPixelTransmittance = CloudInfo && View.ViewState && View.ViewState->VolumetricCloudShadowRenderTarget[1].CurrentIsValid() && AtmosphereLight1Proxy == LightSceneInfo->Proxy;
+			const bool bLight0CloudPerPixelTransmittance = CloudInfo && View.ViewState && View.ViewState->VolumetricCloudShadowRenderTarget[0].CurrentIsValid() && AtmosphereLight0Proxy && AtmosphereLight0Proxy == LightSceneInfo->Proxy;
+			const bool bLight1CloudPerPixelTransmittance = CloudInfo && View.ViewState && View.ViewState->VolumetricCloudShadowRenderTarget[1].CurrentIsValid() && AtmosphereLight1Proxy && AtmosphereLight1Proxy == LightSceneInfo->Proxy;
 
 			if (bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance)
 			{

@@ -3172,7 +3172,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 	GameLayerManagerRef->SetSceneViewport(InSlateInfo.SlatePlayInEditorWindowViewport.Get());
 
-	const bool bShouldGameGetMouseControl = InSessionParams.EditorPlaySettings->GameGetsMouseControl || (bEnableStereoRendering && GEngine->XRSystem.IsValid());
+	const bool bShouldGameGetMouseControl = InSessionParams.EditorPlaySettings->GameGetsMouseControl || (bEnableStereoRendering && GEngine && GEngine->XRSystem.IsValid());
 	InSlateInfo.SlatePlayInEditorWindowViewport->SetPlayInEditorGetsMouseControl(bShouldGameGetMouseControl);
 	PieViewportWidget->SetViewportInterface(InSlateInfo.SlatePlayInEditorWindowViewport.ToSharedRef());
 

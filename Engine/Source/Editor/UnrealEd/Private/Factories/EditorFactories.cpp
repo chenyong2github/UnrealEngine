@@ -4421,6 +4421,9 @@ UObject* UTextureFactory::FactoryCreateBinary
 	{
 		// Update with new settings, which should disable streaming...
 		ExistingTexture2D->UpdateResource();
+	}
+	if(ExistingTexture)
+	{
 		// Wait for InitRHI() to complete before the FTextureReferenceReplacer calls ReleaseRHI() to follow the workflow.
 		// Static texture needs to avoid having pending InitRHI() before enqueuing ReleaseRHI() to safely track access of the PlatformData on the renderthread.
 		ExistingTexture->WaitForPendingInitOrStreaming();
