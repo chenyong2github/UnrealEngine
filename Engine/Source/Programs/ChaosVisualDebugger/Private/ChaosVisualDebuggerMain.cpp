@@ -2,12 +2,12 @@
 
 
 #include "ChaosVisualDebuggerMain.h"
+#include "ChaosVisualDebuggerSlateStyle.h"
 #include "RequiredProgramMainCPPInclude.h"
 #include "StandaloneRenderer.h"
 #include "Widgets\Testing\STestSuite.h"
 #include "Modules/ModuleManager.h"
 #include "ISlateReflectorModule.h"
-
 
 DEFINE_LOG_CATEGORY_STATIC(LogChaosVisualDebugger, Log, All);
 
@@ -19,8 +19,6 @@ void InitializedSlateApplication()
 	// crank up a normal Slate application using the platform's standalone renderer
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 
-
-	// Menu anims aren't supported. See Runtime\Slate\Private\Framework\Application\MenuStack.cpp.
 	FSlateApplication::Get().EnableMenuAnimations(false);
 
 	// Set the application name.
@@ -28,11 +26,47 @@ void InitializedSlateApplication()
 	FGlobalTabmanager::Get()->SetApplicationTitle(ApplicationTitle);
 }
 
+TSharedRef<SDockTab> SpawnViewport(const FSpawnTabArgs& Args)
+{
+	TSharedRef<SDockTab> ViewportTab =
+	SNew(SDockTab)
+	.TabRole(ETabRole::MajorTab)
+	.Label(NSLOCTEXT("ChaosVisualDebugger","ViewportTabLabel", "Viewport"))
+	.ToolTipText(NSLOCTEXT("ChaosVisualDebugger","ViewportTabToolTip", "The Chaos Visual debugger Viewport is under development"));
+
+
+	FVisualDebuggerStyle::ResetToDefault();	
+	
+	ViewportTab->SetContent
+	(
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Center)
+		.Padding(30)
+		[
+			SNew(SImage)
+			.Image(FVisualDebuggerStyle::Get().GetBrush("UE4Icon"))
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("ChaosVisualDebugger", "TestBlock", "Visual Debugger, under development!"))
+		]
+	);
+
+	return ViewportTab;
+}
+
 
 void BuildChaosVDBUserInterface()
 {
 	// Need to load this module so we have the widget reflector tab available
 	FModuleManager::LoadModuleChecked<ISlateReflectorModule>("SlateReflector");
+
+	FGlobalTabmanager::Get()->RegisterTabSpawner("Viewport", FOnSpawnTab::CreateStatic(&SpawnViewport));
 
 	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("SlateVisualDebugger_Layout")
 		->AddArea
@@ -45,7 +79,8 @@ void BuildChaosVDBUserInterface()
 				->AddTab("Viewport", ETabState::OpenedTab)
 			)
 		)
-		->AddArea
+		// This is for debugging the GUI
+		/*->AddArea
 		(
 			// This area will get a 400x600 window at 10,10
 			FTabManager::NewArea(400, 600)
@@ -55,7 +90,7 @@ void BuildChaosVDBUserInterface()
 				// The area contains a single tab with the widget reflector, for debugging purposes
 				FTabManager::NewStack()->AddTab("WidgetReflector", ETabState::OpenedTab)
 			)
-		)
+		)*/
 		;
 
 	FGlobalTabmanager::Get()->RestoreFrom(Layout, TSharedPtr<SWindow>());
@@ -84,7 +119,6 @@ int32 ChaosVisualDebuggerMain(const TCHAR* CommandLine)
 
 	{
 		BuildChaosVDBUserInterface();
-
 		// Bring up the test suite (for testing)
 		//RestoreSlateTestSuite();
 	}
