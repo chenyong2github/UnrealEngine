@@ -85,8 +85,6 @@ public:
 
 	/** UObject interface */
 	virtual void BeginDestroy() override;
-	/** Destruction is not thread-safe because ~IMovieScenePlayer accesses the global player registry */
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 
 	void TearDown();
 
