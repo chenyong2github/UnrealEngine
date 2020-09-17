@@ -331,11 +331,10 @@ function _checkForAutoPauseBots(branches: Branch[], logger: ContextualLogger) {
 async function _onBranchSpecReloaded(graphBot: GraphBot, logger: ContextualLogger) {
 	await _initWorkspacesForGraphBot(graphBot, await _getExistingWorkspaces(), logger)
 
-	graphBot.initBots()
-
 	// regenerate ubergraph
 	const graph = new Graph
 
+	graphBot.initBots(graph)
 
 	// race condition when two or more branches get reloaded at the same time!
 	//	- multiple bots await above, at which time new branch objects have no bots
@@ -387,7 +386,7 @@ async function init(logger: ContextualLogger) {
 	}
 
 	for (const graphBot of robo.graphBots.values()) {
-		graphBot.initBots()
+		graphBot.initBots(robo.graph)
 		addBranchGraph(robo.graph, graphBot.branchGraph)
 	}
 }

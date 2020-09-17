@@ -509,7 +509,7 @@ function runComputeTargetTest(targets: string[], self: string, ...flows: string[
 	const branchGraph = new BranchGraph('__TEST__', makeBranchDataForComputeTargetTest(flows))
 	const selfBranch = branchGraph.getBranch(self)!
 	const results: TargetInfo = {author: 'author', forceStompChanges: false, sendNoShelfEmail: false}
-	computeTargets(selfBranch, selfBranch.parent, results, targets, selfBranch.forceFlowTo, new ContextualLogger('runComputeTargetTest'))
+	computeTargets(selfBranch, null, -1, results, targets, selfBranch.forceFlowTo, new ContextualLogger('runComputeTargetTest'))
 	const result = results.errors || (results.targets ?
 		results.targets.map(action => computeTargetTestActionToShortString(action) + ': ' + action.furtherMerges.map(x => computeTargetTestActionToShortString(x)).join(', '))
 		: ['no targets'])
