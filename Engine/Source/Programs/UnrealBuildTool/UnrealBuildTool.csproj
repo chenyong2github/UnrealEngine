@@ -187,6 +187,7 @@
     <Compile Include="ProjectFiles\QMake\QMakefileGenerator.cs" />
     <Compile Include="ProjectFiles\Rider\RiderProjectFile.cs" />
     <Compile Include="ProjectFiles\Rider\RiderProjectFileGenerator.cs" />
+    <Compile Include="ProjectFiles\Rider\ToolchainInfo.cs" />
     <Compile Include="ProjectFiles\VisualStudioCode\VSCodeProjectFileGenerator.cs" />
     <Compile Include="ProjectFiles\VisualStudio\VCProject.cs" />
     <Compile Include="ProjectFiles\VisualStudio\VCProjectFileGenerator.cs" />
