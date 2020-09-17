@@ -503,7 +503,10 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 
 		RT_WorldBBoxSize = FVector(RT_NumCells.X, RT_NumCells.Y, RT_NumCells.Z) * TmpCellSize;		 
 	}
-	
+	RT_NumCells.X = FMath::Max(RT_NumCells.X, 1);
+	RT_NumCells.Y = FMath::Max(RT_NumCells.Y, 1);
+	RT_NumCells.Z = FMath::Max(RT_NumCells.Z, 1);
+
 	InstanceData->CellSize = TmpCellSize;
 	InstanceData->WorldBBoxSize = RT_WorldBBoxSize;
 	InstanceData->MaxNeighborsPerCell = RT_MaxNeighborsPerCell;	
