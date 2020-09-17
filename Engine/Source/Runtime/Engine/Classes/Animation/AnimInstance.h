@@ -1453,6 +1453,7 @@ protected:
 	}
 
 	friend struct FAnimNode_LinkedAnimGraph;
+	friend struct FAnimInstanceProxy;
 	
 	/** Return whether this AnimNotifyState should be triggered */
 	virtual bool ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNotifyState) const;
