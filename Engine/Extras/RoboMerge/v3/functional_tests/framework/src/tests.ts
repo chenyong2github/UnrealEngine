@@ -14,7 +14,7 @@ import { EdigrateMainRevToRelease } from './tests/edigrate-main-rev-to-release'
 import { ExclusiveCheckout } from './tests/exclusive-checkout'
 import { ExcludeAuthors } from './tests/exclude-authors'
 import { ExcludeAuthorsPerEdge } from './tests/exclude-authors-per-edge'
-import { ForwardCommands } from './tests/forward-commands'
+import { ForwardCommands, ForwardCommands2 } from './tests/forward-commands'
 import { IncognitoEdge } from './tests/incognito-edge'
 import { IncognitoTest } from './tests/incognito-test'
 import { IndirectTarget } from './tests/indirect-target'
@@ -39,7 +39,7 @@ import { TestReconsider } from './tests/test-reconsider'
 import { TestEdgeReconsider } from './tests/test-edge-reconsider'
 import { TestTerminal } from './tests/test-terminal'
 
-import { CrossBotTest, CrossBotTest2, /*ComplexCrossBot, ComplexCrossBot2, ComplexCrossBot3*/ } from './tests/cross-bot'
+import { CrossBotTest, CrossBotTest2, ComplexCrossBot, ComplexCrossBot2, ComplexCrossBot3 } from './tests/cross-bot'
 
 const P4_USERS: [string, string][] = [
 	['testuser1', 'RoboMerge TestUser1'],
@@ -99,24 +99,29 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 	tests.map(test => test.storeNodesAndEdges())
 }
 
-async function verifyWrapper(test: FunctionalTest) {
-	try {
-		await test.verify()
-		if (!test.allowSyntaxErrors()) {
-			for (const branch of test.getBranches()) {
-				// console.log(test.botName, branch.name)
-				const branchState = await FunctionalTest.getBranchState(test.botName, branch.name)
-				// console.log(branchState)
-				if (branchState.is_blocked) {
-					throw new Error(branchState.blockage.message)
-				}
+async function checkForSyntaxErrors(test: FunctionalTest) {
+	if (!test.allowSyntaxErrors()) {
+		for (const branch of test.getBranches()) {
+			const branchState = await FunctionalTest.getBranchState(test.botName, branch.name)
+			if (branchState.is_blocked) {
+				test.error(branchState.blockage.message)
+				throw new Error('Unexpected syntax error')
 			}
 		}
 	}
+}
+
+async function verifyWrapper(test: FunctionalTest) {
+	try {
+		// console.log(test.testName, await test.isRobomergeIdle())
+		await test.verify()
+		// console.log(test.testName, await test.isRobomergeIdle())
+	}
 	catch (e) {
 		test.error('Failed to verify: ' + e.toString().split('\n')[0])
-		throw e
+		return e
 	}
+	return null
 }
 
 async function go() {
@@ -124,16 +129,16 @@ async function go() {
 	await p4.init()
 
 	const availableTests: FunctionalTest[] = [
-		new ConfirmBinaryStomp(p4),
+		new BlockAssets(p4),
 
+		new ConfirmBinaryStomp(p4),
 		new ConfirmTextResolve(p4),
 		new ConfirmTextResolveBinaryStomp(p4),
 		new CrossDepotStreamIntegration(p4),
-		new EdgeIndependence(p4),
-		new EdigrateMainRevToRelease(p4), // 5
+		new EdgeIndependence(p4), // 5
 
+		new EdigrateMainRevToRelease(p4),
 		new ExclusiveCheckout(p4),
-		new ForwardCommands(p4),
 		new IncognitoTest(p4),
 		new IndirectTarget(p4),
 		new MergeMainRevToMultipleRelease(p4), // 10
@@ -162,18 +167,20 @@ async function go() {
 		new TestReconsider(p4),
 		new TestEdgeReconsider(p4), // 30
 
-		new BlockAssets(p4),
-		new TestTerminal(p4),
 		new TestGate(p4),
 
-		// these must be consecutive
-		new CrossBotTest(p4), 
-		new CrossBotTest2(p4), // 35
+		// these must be consecutive (try to start on a multiple of 4)
+		new ForwardCommands(p4),
+		new ForwardCommands2(p4),
 
-		// new ComplexCrossBot(p4), 
-		// new ComplexCrossBot2(p4), 
-		// new ComplexCrossBot3(p4), 
+		new CrossBotTest(p4),
+		new CrossBotTest2(p4), 	// 35
 
+		new ComplexCrossBot(p4),
+		new ComplexCrossBot2(p4),
+		new ComplexCrossBot3(p4),
+
+		new TestTerminal(p4),
 	]
 
 	// const testToDebug = availableTests[30]
@@ -199,7 +206,7 @@ async function go() {
 	///////////////////////
 	// TESTS TO RUN 
 
-	const tests = /*/[availableTests[32]]/*/availableTests/**/
+	const tests = /*/[availableTests[20]]/*/availableTests   /*.slice(36)/**/
 
 	//
 	///////////////////////
@@ -216,13 +223,21 @@ async function go() {
 	await System.mediumSleep()
 
 	console.log('Running tests')
-	await Promise.all(tests.map(test => 
-		test.run()
-		.then(() => test.waitForRobomergeIdle())
-	))
+	await Promise.all(tests.map(test => test.run()))
+
+	// wait for all tests after running, in case tests caused activity in other test streams (cross-bot, I'm looking at you)
+	for (const test of tests) {
+		await test.waitForRobomergeIdle()
+	}
 
 	console.log('Verifying tests')
-	await Promise.all(tests.map(test => verifyWrapper(test)))
+	let error: Error | null = null
+	await Promise.all(tests.map(async (test) => { error = await verifyWrapper(test) || error }))
+	await Promise.all(tests.map(test => checkForSyntaxErrors(test)))
+
+	if (error) {
+		throw error
+	}
 }
 
 go()

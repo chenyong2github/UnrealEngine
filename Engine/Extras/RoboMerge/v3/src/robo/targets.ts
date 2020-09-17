@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { Branch, BranchGraphInterface, MergeAction, MergeMode } from './branch-interfaces';
-import { PendingChange, Target, TargetInfo } from './branch-interfaces';
-import { Graph } from '../new/graph';
+import { Branch, MergeAction, MergeMode } from './branch-interfaces';
+import { BranchGraphInterface, PendingChange, Target, TargetInfo } from './branch-interfaces';
+import { BotName, Edge, Graph, Node, makeTargetName } from '../new/graph';
 import { ContextualLogger } from '../common/logger';
-import { setDefault } from '../common/helper';
 
 // const NEW_STUFF = false
 
@@ -87,7 +86,7 @@ function parseTargetList(targetString: string) {
 }
 
 export class DescriptionParser {
-	source: string | null = null
+	source = ''
 	owner: string | null = null
 	authorTag: string | null = null
 
@@ -96,17 +95,22 @@ export class DescriptionParser {
 	propagatingNullMerge = false
 	hasOkForGithubTag = false
 	useDefaultFlow = true
+
+	// arguments: string[] = []
+
+	// per target bot arguments
 	arguments: string[] = []
+	otherBotArguments: [string, string][] = []
 
 	expandedMacros: string[] = []
 	expandedMacroLines: string[] = []
 
 	constructor(
-	private isDefaultBot: boolean, 
-	private graphBotName: string, 
-	private cl: number, 
-	private aliasUpper: string,
-	private macros: {[name: string]: string[]}
+		private isDefaultBot: boolean, 
+		private graphBotName: string, 
+		private cl: number, 
+		private aliasUpper: string,
+		private macros: {[name: string]: string[]}
 
 	) {
 	}
@@ -194,11 +198,15 @@ export class DescriptionParser {
 				specificBot === 'ALL') {
 				this.useDefaultFlow = false
 
+// @todo 'ALL' with targets should be an error (but don't know at this point ...)
 				this.arguments = [...this.arguments, ...parseTargetList(value)]
 			}
 			else {
-				// allow commands to other bots to propagate!
-				this.descFinal.push(line)
+				// keep a record of commands to forward to other bots - processed later
+				this.otherBotArguments = [
+					...this.otherBotArguments,
+					...(parseTargetList(value).map(arg => [specificBot, arg]) as [string, string][])
+				]
 			}
 		}
 		else if (command === 'ROBOMERGE-AUTHOR') {
@@ -252,97 +260,179 @@ export function parseDescriptionLines(
 	return lineParser
 }
 
-export function computeImplicitTargets(
-		sourceBranch: Branch,
-		branchGraph: BranchGraphInterface,
-		outErrors: string[],
-		targets: Set<Branch>,
-		skipBranches: Set<Branch>
+function isFlag(arg: string) {
+	return ALLOWED_RAW_FLAGS.indexOf(arg.toLowerCase()) >= 0 || '$#'.indexOf(arg[0]) >= 0
+}
+
+
+/**
+
+Algorithm:
+	For each command
+		* find all routes (skip some non-viable ones, like initial skip)
+		* if none, error, listing reasons for discounting non-viable routes
+		* otherwise add complete command list (including flags) to the further merges list of each target branch
+			that is the first step of a route
+
+	So we have a set of branches that are the first hop for routes relevant to a particular other bot
+ */
+
+type OtherBotInfo = {
+	firstHopBranches: Set<Branch>
+	commands: string[]
+	aliasOrName: string
+}
+
+export function processOtherBotTargets(
+	parsedLines: DescriptionParser,
+	sourceBranch: Branch,
+	ubergraph: Graph,
+	actions: MergeAction[],
+	errors: string[]
 	) {
-	const merges = new Map<Branch, Branch[]>()
 
-	// parallel flood the flowsTo graph to find all specified targets
+	const ensureNode = (bot: BotName, branch: Branch) => {
+		const node = ubergraph.getNode(makeTargetName(bot, branch.upperName))
 
-	// branchPaths is an array of 3-tuples, representing the branches at the current boundary of the flood
-	//	- first entry is the branch
-	//	- second and third entries make up the path to get to that branch
-	//		- second entry, if non-empty, has the path up to the most recent explicit target
-	//		- third entry has any remaining implicit targets
+		if (!node) {
+			throw new Error(`Node look-up in ubergraph failed for '${bot}:${branch.upperName}'`)
+		}
+		return node
+	}
 
-	const branchPaths: [Branch, Branch[], Branch[]][] = [[sourceBranch, [], [sourceBranch]]]
-
-	const seen = new Set([sourceBranch])
-
-	while (targets.size !== 0 && branchPaths.length !== 0) {
-
-		const [sourceBranch, explicit, implicit] = branchPaths.shift()!
-
-		// flood the graph one step to include all unseen direct flowsTo nodes of one branch
-		let anyUnseen = false
-		if (sourceBranch.flowsTo && !skipBranches.has(sourceBranch)) {
-			for (const branchName of sourceBranch.flowsTo) {
-				const branch = branchGraph.getBranch(branchName)
-				if (!branch) {
-					// shouldn't happen: branch map takes care of validating flow graph
-					throw "unknown branch in flowsTo"
-				}
-				if (seen.has(branch))
-					continue
-				seen.add(branch)
-				anyUnseen = true
-				if (targets.has(branch)) {
-					branchPaths.unshift([branch, [...explicit, ...implicit, branch], []])
-				}
-				else {
-					branchPaths.push([branch, explicit, [...implicit, branch]])
-				}
+	const otherBotInfo = new Map<BotName, OtherBotInfo>()
+	const botInfo = (bg: BranchGraphInterface) => {
+		const key = bg.botname as BotName
+		let info = otherBotInfo.get(key)
+		if (!info) {
+			info = {
+				firstHopBranches: new Set<Branch>(),
+				commands: [],
+				aliasOrName: bg.config.alias || bg.botname
 			}
+			otherBotInfo.set(key, info)
+		}
+		return info
+	}
+
+	const sourceBotName = sourceBranch.parent.botname as BotName
+
+	// calculate skip set first time we need it
+	let skipNodes: Node[] | null = null
+
+	for (const [bot, arg] of parsedLines.otherBotArguments) {
+		const targetBranchGraph = ubergraph.branchGraphAliases.get(bot.toUpperCase())
+		if (!targetBranchGraph) {
+			errors.push(`Bot '${bot}' not found in ubergraph`)
+			continue
 		}
 
-		// store the calculated merge data if we've exhausted a sub-tree of the graph
-		if (!anyUnseen && explicit.length > 1) {
-			const directTarget = explicit[1]
+		const targetBotName = targetBranchGraph.botname as BotName
 
-			const indirectTargets = setDefault(merges, directTarget, [])
-			targets.delete(directTarget)
-			for (let index = 2; index < explicit.length; ++index) {
-				const indirectTarget = explicit[index]
-				if (indirectTargets.indexOf(indirectTarget) === -1) {
-					indirectTargets.push(indirectTarget)
+		if (isFlag(arg)) {
+			// no further checking for flags
+			botInfo(targetBranchGraph).commands.push(arg)
+			continue
+		}
+
+		const target = '!-'.indexOf(arg[0]) < 0 ? arg : arg.substr(1)
+		const branch = targetBranchGraph.getBranch(target)
+		if (!branch) {
+			errors.push(`Branch '${target}' not found in ${bot}`)
+			continue
+		}
+
+		const sourceNode = ensureNode(sourceBotName, sourceBranch)
+		const targetNode = ensureNode(targetBotName, branch)
+
+		if (sourceNode === targetNode) {
+			// ignore accidental self reference: not sure if this can happen legitimately (maybe try making stricter later)
+			continue
+		}
+
+		if (!skipNodes) {
+			// would ideally add all non-forced edges that aren't explicit targets
+			skipNodes = actions
+				.filter(action => action.mergeMode === 'skip')
+				.map(action => ensureNode(sourceBotName, action.branch))
+		}
+
+		const routes = ubergraph.findAllRoutesBetween(sourceNode, targetNode, [], new Set(skipNodes))
+		if (routes.length === 0)
+		{
+			errors.push(`No route between '${sourceNode.debugName}' and '${targetNode.debugName}'`)
+			continue
+		}
+
+		for (const route of routes) {
+			if (route.length === 0) {
+				throw new Error('empty route!')
+			}
+
+			// if first edge is outside of bot, ignore (the other bot will pick this up)
+			if (route[0].bot !== sourceBotName) {
+				continue
+			}
+
+			// check if route uses the target bot
+			// mostly this just means at least the last edge should belong to the target bot
+			let relevant = false
+			for (const edge of route) {
+				if (edge.bot === targetBotName) {
+					relevant = true
+					break
 				}
-				targets.delete(indirectTarget)
+			}
+
+			if (!relevant) {
+				continue
+			}
+
+			const firstBranchOnRoute = sourceBranch.parent.getBranch(route[0].targetName)
+			if (!firstBranchOnRoute) {
+				throw new Error(`Can't find branch ${route[0].target.debugName} (${route[0].targetName}) from ubergraph`)
+			}
+
+			botInfo(targetBranchGraph).firstHopBranches.add(firstBranchOnRoute)
+		}
+		botInfo(targetBranchGraph).commands.push(arg)
+	}
+
+	if (errors.length > 0 || otherBotInfo.size === 0) {
+		return
+	}
+
+	// no more errors after this point: add or do not add.
+	// (we allow some non-viable routes for simplicity: if we want to catch them, do so above)
+
+	// always use bot aliases here if available, on the assumption that they are the more obfuscated/less
+	// likely to trip up commit hooks
+
+	for (const info of otherBotInfo.values()) {
+		for (const firstHop of info.firstHopBranches) {
+			for (const action of actions) {
+				if (action.branch === firstHop) {
+					// slight hack here: mergemode is always normal and branchName is all the original commands/flags unaltered
+					action.furtherMerges.push({branchName: info.commands.join(' '), mergeMode: 'normal', otherBot: info.aliasOrName})
+				}
 			}
 		}
 	}
-
-	if (targets.size > 0) {
-		const branchesMonitoringSameStream = branchGraph.getBranchesMonitoringSameStreamAs(sourceBranch)
-
-	targetLoop:
-		for (const unreachableTarget of targets) {
-
-			// don't error if target reachable by another bot monitoring this stream
-			if (branchesMonitoringSameStream) {
-				for (const other of branchesMonitoringSameStream) {
-					if (other.reachable!.indexOf(unreachableTarget.upperName) !== -1) {
-						continue targetLoop
-					}
-				}
-			}
-
-			outErrors.push(`Branch '${unreachableTarget.name}' is not reachable from '${getNodeBotFullName(branchGraph.botname, sourceBranch.name)}'`)
-		}
-	}
-
-	return merges
 }
 
 class RequestedIntegrations {
 
 	readonly flags = new Set<string>()
-	readonly integrations: [string, MergeMode][] = []
+	integrations: [string, MergeMode][] = []
 
 	parse(commandArguments: string[], cl: number, forceStomp: boolean, logger: ContextualLogger) {
+		// If forceStompChanges, add the target as a stomp if it isn't a flagged target
+		if (forceStomp) {
+			this.integrations = commandArguments
+				.filter(arg => '!-$#'.indexOf(arg[0]) < 0)
+				.map(arg => [arg, 'clobber'])
+			return
+		}
 
 		for (const arg of commandArguments) {
 			const argLower = arg.toLowerCase()
@@ -354,13 +444,7 @@ class RequestedIntegrations {
 				continue;
 			}
 
-			const firstChar = arg.charAt(0)
-
-			// If forceStompChanges, add the target as a stomp if it isn't a flagged target
-			if (forceStomp && '!-$#'.indexOf(firstChar) === -1) {
-				this.integrations.push([arg, 'clobber'])
-				continue
-			}
+			const firstChar = arg[0]
 
 			// see if this has a modifier
 			switch (firstChar)
@@ -394,23 +478,25 @@ class RequestedIntegrations {
 	}
 }
 
-// public so it can be called from unit tests
-export function computeTargetsImpl(
-	sourceBranch: Branch, 
-	_ubergraph: Graph | null,
-	cl: number,
-	forceStomp: boolean,
-	commandArguments: string[],
-	defaultTargets: string[], 
-	logger: ContextualLogger
-):	{ blah:
+type ComputeTargetsResult =
+	{ computeResult:
 	  { merges: Map<Branch, Branch[]> | null
 	  , flags: Set<string>
 	  , targets: Map<Branch, MergeMode>
 	  } | null
 	, errors: string[] 
+	}
 
-	} {
+// public so it can be called from unit tests
+export function computeTargetsImpl(
+	sourceBranch: Branch, 
+	ubergraph: Graph,
+	cl: number,
+	forceStomp: boolean,
+	commandArguments: string[],
+	defaultTargets: string[], 
+	logger: ContextualLogger
+): ComputeTargetsResult {
 
 	// list of branch names and merge mode (default targets first, so merge mode gets overwritten if added explicitly)
 
@@ -418,7 +504,7 @@ export function computeTargetsImpl(
 	ri.parse(commandArguments, cl, forceStomp, logger)
 
 	if (ri.flags.has('ignore')) {
-		return { blah: null, errors: [] }
+		return { computeResult: null, errors: [] }
 	}
 
 	if (ri.flags.has('null')) {
@@ -427,8 +513,6 @@ export function computeTargetsImpl(
 		}
 	}
 
-	// note: this allows multiple mentions of same branch, with flag of last mention taking priority. Could be an error instead
-
 	const defaultMergeMode: MergeMode = forceStomp ? 'clobber' : 'normal'
 
 	const requestedMerges = [
@@ -436,6 +520,7 @@ export function computeTargetsImpl(
 		...ri.integrations
 	]
 
+	console.log(requestedMerges)
 	const branchGraph = sourceBranch.parent
 
 	// compute the targets map
@@ -461,44 +546,95 @@ export function computeTargetsImpl(
 			skipBranches.add(targetBranch)
 		}
 
+// note: this allows multiple mentions of same branch, with flag of last mention taking priority. Could be an error instead
 		targets.set(targetBranch, mergeMode)
 	}
 
-	if (targets.size === 0) {
-		return {blah: null, errors}
+	const botname = sourceBranch.parent.botname as BotName
+
+	const sourceNode = ubergraph.getNode(makeTargetName(botname, sourceBranch.upperName))
+	if (!sourceNode) {
+		throw new Error(`Source node ${sourceBranch.upperName} not found in ubergraph`)
 	}
 
-	const merges = computeImplicitTargets(sourceBranch, branchGraph, errors, new Set(targets.keys()), skipBranches)
-	return {blah: {merges, flags: ri.flags, targets}, errors}
+// note: this allows multiple mentions of same branch, with flag of last mention taking priority. Could be an error instead
+	const allIntegrations = new Map<string, MergeMode>(requestedMerges)
+
+	const requestedTargets = new Map<Node, MergeMode>()
+	for (const [targetName, mergeMode] of allIntegrations) {
+		const node = ubergraph.getNode(makeTargetName(botname, targetName))
+		if (node) {
+			if (node !== sourceNode) {
+				requestedTargets.set(node, mergeMode)
+			}
+		}
+		else {
+			errors.push(`Target node ${targetName} not found in ubergraph`)
+		}
+	}
+
+	if (errors.length > 0) {
+		return { computeResult: null, errors }
+	}
+
+	const {status, integrations, unreachable} = ubergraph.computeImplicitTargets(sourceNode, requestedTargets, [botname])
+
+	// send errors if we had any
+	if (status !== 'succeeded') {
+		const sourceNodeDebugName = sourceNode.debugName
+		const errors = unreachable ? unreachable.map((node: Node) => 
+					`Branch '${node.debugName}' is not reachable from '${sourceNodeDebugName}'`) : ['need more info!']
+
+		return { computeResult: null, errors }
+	}
+
+	// report targets
+	if (!integrations || integrations.size === 0) {
+		return {computeResult: null, errors: []}
+	}
+
+	const merges = new Map<Branch, Branch[]>()
+	for (const [initialEdge, furtherEdges] of integrations) {
+		const edgeTargetBranch = (e: Edge) => {
+			const branch = branchGraph.getBranch(e.targetName)
+			if (!branch) {
+				throw new Error('Unknown branch ' + e.targetName)
+			}
+			return branch
+		}
+
+		merges.set(edgeTargetBranch(initialEdge), furtherEdges.map(edgeTargetBranch))
+	}
+
+	return {computeResult: {merges, targets, flags: ri.flags}, errors}
 }
 
 
 export function computeTargets(
-	sourceBranch: Branch, 
-	// branchGraph: BranchGraph | null,
-	ubergraph: Graph | null,
+	sourceBranch: Branch,
+	ubergraph: Graph,
 	cl: number,
-	info: TargetInfo, 
+	info: TargetInfo,
 	commandArguments: string[],
-	defaultTargets: string[], 
+	defaultTargets: string[],
 	logger: ContextualLogger,
 
 	optTargetBranch?: Branch | null
 ) {
 
 
-	const { blah, errors } = computeTargetsImpl(sourceBranch, ubergraph, cl, info.forceStompChanges, commandArguments, defaultTargets, logger)
+	const { computeResult, errors } = computeTargetsImpl(sourceBranch, ubergraph, cl, info.forceStompChanges, commandArguments, defaultTargets, logger)
 
 	if (errors.length > 0) {
 		info.errors = errors
 		return
 	}
 
-	if (!blah) {
+	if (!computeResult) {
 		return
 	}
 
-	let { merges, flags, targets } = blah
+	let { merges, flags, targets } = computeResult
 	if (!merges) {
 		// shouldn't get here - there will have been errors
 		return
@@ -537,7 +673,7 @@ export function computeTargets(
 
 		const furtherMerges: Target[] = []
 		for (const branch of indirectTargets) {
-			furtherMerges.push({branch, mergeMode: targets.get(branch) || 'normal'})
+			furtherMerges.push({branchName: branch.name, mergeMode: targets.get(branch) || 'normal'})
 			allDownstream.add(branch)
 		}
 
