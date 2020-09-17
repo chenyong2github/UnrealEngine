@@ -88,6 +88,7 @@ TSharedRef<SWidget> UDMXPixelMappingMatrixPixelComponent::BuildSlot(TSharedRef<S
 		&InCanvas->AddSlot()
 		.AutoSize(true)
 		.Alignment(FVector2D::ZeroVector)
+		.ZOrder(ZOrder)
 		[
 			CachedWidget.ToSharedRef()
 		];

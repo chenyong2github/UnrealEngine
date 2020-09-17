@@ -62,7 +62,12 @@ public:
 	virtual FVector2D GetPosition() override;
 	virtual void SetSize(const FVector2D& InSize) override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
+
+#if WITH_EDITOR
+	virtual void SetZOrder(int32 NewZOrder) override;
+#endif // WITH_EDITOR
 	//~ End UDMXPixelMappingOutputComponent implementation
+
 
 	/** Resize the target to max available size, it is driven by children components */
 	void SetSizeWithinMaxBoundaryBox();
