@@ -851,6 +851,7 @@ void FSceneViewState::FEyeAdaptationManager::SwapBuffers(bool bInUpdateLastExpos
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationManager_SwapBuffers);
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	
 
 	check(CurrentBuffer==0 || CurrentBuffer==1);
 
@@ -896,7 +897,7 @@ void FSceneViewState::FEyeAdaptationManager::SwapBuffers(bool bInUpdateLastExpos
 		}
 	}
 
-	CurrentBuffer = FMath::Max(1 - CurrentBuffer, 0);
+	CurrentBuffer = 1 - CurrentBuffer;
 }
 
 void FSceneViewState::UpdatePreExposure(FViewInfo& View)
