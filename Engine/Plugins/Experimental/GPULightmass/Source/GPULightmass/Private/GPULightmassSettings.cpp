@@ -245,7 +245,8 @@ void UGPULightmassSettings::GatherSettingsFromCVars()
 void UGPULightmassSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	UWorld* World = Cast<UWorld>(GetOuter());
-	ensure(World);
+	
+	if (!World) return;
 
 	AGPULightmassSettingsActor* SettingsActor = GetSettingsActor();
 
@@ -267,7 +268,8 @@ void UGPULightmassSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UGPULightmassSubsystem::Launch()
 {
 	UWorld* World = Cast<UWorld>(GetOuter());
-	ensure(World);
+
+	if (!World) return;
 
 	FGPULightmassModule& GPULightmassModule = FModuleManager::LoadModuleChecked<FGPULightmassModule>(TEXT("GPULightmass"));
 
@@ -345,7 +347,8 @@ void UGPULightmassSubsystem::Launch()
 void UGPULightmassSubsystem::Stop()
 {
 	UWorld* World = Cast<UWorld>(GetOuter());
-	ensure(World);
+
+	if (!World) return;
 
 	FGPULightmassModule& GPULightmassModule = FModuleManager::LoadModuleChecked<FGPULightmassModule>(TEXT("GPULightmass"));
 
@@ -407,7 +410,8 @@ void UGPULightmassSubsystem::Stop()
 bool UGPULightmassSubsystem::IsRunning()
 {
 	UWorld* World = Cast<UWorld>(GetOuter());
-	ensure(World);
+
+	if (!World) return false;
 
 	FGPULightmassModule& GPULightmassModule = FModuleManager::LoadModuleChecked<FGPULightmassModule>(TEXT("GPULightmass"));
 
@@ -417,7 +421,8 @@ bool UGPULightmassSubsystem::IsRunning()
 AGPULightmassSettingsActor* UGPULightmassSubsystem::GetSettingsActor()
 {
 	UWorld* World = Cast<UWorld>(GetOuter());
-	ensure(World);
+
+	if (!World) return nullptr;
 
 	AGPULightmassSettingsActor* SettingsActor = nullptr;
 
