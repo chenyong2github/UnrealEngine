@@ -574,6 +574,21 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 	ChunkLayerFile->Close();
 	PakChunkListFile->Close();
+	
+	if (bSucceeded)
+	{
+		FString ChunkManifestDirectory = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("ChunkManifest");
+		ChunkManifestDirectory =
+			InSandboxFile->ConvertToAbsolutePathForExternalAppForWrite(*ChunkManifestDirectory)
+				.Replace(TEXT("[Platform]"), *Platform);
+
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		if (!PlatformFile.CopyDirectoryTree(*ChunkManifestDirectory, *TmpPackagingDir, true))
+		{
+			UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Failed to copy chunk manifest from '%s' to '%s'"), *TmpPackagingDir, *ChunkManifestDirectory)
+			return false;
+		}
+	}
 
 	return bSucceeded;
 }
