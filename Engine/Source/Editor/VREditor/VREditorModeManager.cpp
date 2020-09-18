@@ -23,6 +23,7 @@
 #include "UnrealEdMisc.h"
 #include "Classes/EditorStyleSettings.h"
 #include "VREditorInteractor.h"
+#include "Settings/LevelEditorMiscSettings.h"
 
 #define LOCTEXT_NAMESPACE "VREditor"
 
