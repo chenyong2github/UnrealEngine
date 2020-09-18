@@ -10,6 +10,10 @@
 #include "Misc/BufferedOutputDevice.h"
 #include "HAL/PlatformStackWalk.h"
 
+#ifndef NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND
+#define NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND 0
+#endif
+
 #if D3D12RHI_SEGREGATED_TEXTURE_ALLOC
 static int32 GD3D12ReadOnlyTextureAllocatorMinPoolSize = 4 * 1024 * 1024;
 static FAutoConsoleVariableRef CVarD3D12ReadOnlyTextureAllocatorMinPoolSize(
@@ -1012,7 +1016,9 @@ FD3D12ResourceAllocator::FInitConfig FD3D12DefaultBufferPool::GetResourceAllocat
 	if (EnumHasAnyFlags(InBufferUsage, BUF_DrawIndirect))
 	{
 		check(InResourceFlags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+#if !NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND
 		InitConfig.HeapFlags |= D3D12RHI_HEAP_FLAG_ALLOW_INDIRECT_BUFFERS;
+#endif
 	}
 
 	return InitConfig;
