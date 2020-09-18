@@ -71,8 +71,6 @@ DECLARE_DELEGATE_SixParams(FMakeNoiseDelegate, AActor*, float /*Loudness*/, clas
 DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnProcessEvent, AActor*, UFunction*, void*);
 #endif
 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("GetComponentsTime"),STAT_GetComponentsTime,STATGROUP_Engine,ENGINE_API);
-
 #if WITH_EDITOR
 /** Annotation for actor selection.  This must be in engine instead of editor for ::IsSelected to work */
 extern ENGINE_API FUObjectAnnotationSparseBool GSelectedActorAnnotation;
@@ -3072,8 +3070,6 @@ public:
 	template<class AllocatorType>
 	void GetComponents(TSubclassOf<UActorComponent> ComponentClass, TArray<UActorComponent*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
 	{
-		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
-
 		OutComponents.Reset();
 		ForEachComponent_Internal<UActorComponent>(ComponentClass, bIncludeFromChildActors, [&](UActorComponent* InComp)
 		{
@@ -3094,8 +3090,6 @@ public:
 	template<class T, class AllocatorType>
 	void GetComponents(TArray<T*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
 	{
-		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
-
 		OutComponents.Reset();
 		ForEachComponent_Internal<T>(T::StaticClass(), bIncludeFromChildActors, [&](T* InComp)
 		{
@@ -3117,8 +3111,6 @@ public:
 	template<class AllocatorType>
 	void GetComponents(TArray<UActorComponent*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
 	{
-		SCOPE_CYCLE_COUNTER(STAT_GetComponentsTime);
-
 		OutComponents.Reset();
 		ForEachComponent_Internal<UActorComponent>(UActorComponent::StaticClass(), bIncludeFromChildActors, [&](UActorComponent* InComp)
 		{
