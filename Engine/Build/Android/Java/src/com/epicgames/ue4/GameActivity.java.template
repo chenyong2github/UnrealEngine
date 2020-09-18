@@ -519,7 +519,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	private StoreHelper IapStoreHelper;
 	
 	private MemoryAdvisor MemAdvisor;
-	private static final int MemoryAdvisorPollDelayMs = 100;
+	private static final int MemoryAdvisorPollDelayMs = 1000;
 	private static final int ProcessMemoryInfoPollDelayMs = 10000;
 	private long LastMemoryInfoPollTime;
 	private MemoryAdvisor.MemoryState MemState = MemoryAdvisor.MemoryState.OK;
@@ -2379,7 +2379,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			{
 				JSONObject Advice = MemAdvisor.getAdvice();
 				MemoryAdvisor.MemoryState CurrentMemoryState = MemoryAdvisor.getMemoryState(Advice);				
-				if (CurrentMemoryState != MemState)
+				if ((CurrentMemoryState != MemState) || (CurrentMemoryState == MemoryAdvisor.MemoryState.CRITICAL))
 				{
 					final int MB = 1024 * 1024;
 					switch (CurrentMemoryState)
