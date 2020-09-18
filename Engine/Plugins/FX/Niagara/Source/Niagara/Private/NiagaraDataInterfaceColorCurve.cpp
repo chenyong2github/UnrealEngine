@@ -18,6 +18,8 @@ const FName UNiagaraDataInterfaceColorCurve::SampleCurveName(TEXT("SampleColorCu
 UNiagaraDataInterfaceColorCurve::UNiagaraDataInterfaceColorCurve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ExposedName = TEXT("Color Curve");
+
 	SetDefaultLUT();
 }
 

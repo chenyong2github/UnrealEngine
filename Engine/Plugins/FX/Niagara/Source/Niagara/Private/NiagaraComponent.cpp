@@ -1660,6 +1660,11 @@ void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials
 	if (!bNeedsUpdateEmitterMaterials && !bForceUpdateEmitterMaterials)
 		return;
 
+	if (bForceUpdateEmitterMaterials)
+	{
+		EmitterMaterials.Empty();
+	}
+
 	TArray<FNiagaraMaterialOverride> NewEmitterMaterials;
 	
 	if (SystemInstance)
