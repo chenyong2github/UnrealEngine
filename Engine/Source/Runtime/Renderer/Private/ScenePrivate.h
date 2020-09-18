@@ -3016,6 +3016,8 @@ public:
 
 	void FlushAsyncLightPrimitiveInteractionCreation() const;
 
+	bool IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) const;
+
 private:
 
 	/**

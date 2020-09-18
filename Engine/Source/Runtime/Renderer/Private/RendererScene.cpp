@@ -1104,6 +1104,7 @@ public:
 
 	void DoWork()
 	{
+		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 		for (TSet<FPrimitiveSceneInfo*>::TConstIterator It(PendingPrimitives); It; ++It)
 		{
 			FMemMark MemStackMark(FMemStack::Get());
@@ -4393,6 +4394,12 @@ void FScene::FlushAsyncLightPrimitiveInteractionCreation() const
 		SCOPE_CYCLE_COUNTER(STAT_FlushAsyncLPICreation);
 		AsyncCreateLightPrimitiveInteractionsTask->EnsureCompletion();
 	}
+}
+
+bool FScene::IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) const
+{
+	check(IsInRenderingThread() || IsInParallelRenderingThread());
+	return RemovedPrimitiveSceneInfos.Contains(PrimitiveSceneInfo);
 }
 
 /**
