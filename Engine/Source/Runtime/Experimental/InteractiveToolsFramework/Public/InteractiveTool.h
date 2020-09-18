@@ -267,7 +267,12 @@ public:
 	 */
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
-	virtual void DrawHUD( FCanvas* Canvas );
+	/**
+	 * Allow the Tool to do any custom screen space drawing
+	 * @param Canvas the FCanvas to use to do the drawing
+	 * @param RenderAPI Abstraction that provides access to Rendering in the current ToolsContext
+	 */
+	virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
 
 	/**
 	 * Non overrideable func which does processing and calls the tool's OnTick

@@ -49,7 +49,7 @@ void UInteractiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
-void UInteractiveTool::DrawHUD(FCanvas* Canvas)
+void UInteractiveTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
 }
 

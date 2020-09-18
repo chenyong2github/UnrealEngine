@@ -68,7 +68,7 @@ FVector3i ULatticeDeformerTool::GetLatticeResolution() const
 	return FVector3i{ Settings->XAxisResolution, Settings->YAxisResolution, Settings->ZAxisResolution };
 }
 
-void ULatticeDeformerTool::DrawHUD(FCanvas* Canvas)
+void ULatticeDeformerTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
 	// Draw the drag rectangle if it's active
 	if (ControlPointsMechanic->bIsDragging)

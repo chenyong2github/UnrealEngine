@@ -316,16 +316,16 @@ void UInteractiveToolManager::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-void UInteractiveToolManager::DrawHUD(FCanvas* Canvas)
+void UInteractiveToolManager::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
 	if (ActiveLeftTool != nullptr)
 	{
-		ActiveLeftTool->DrawHUD(Canvas);
+		ActiveLeftTool->DrawHUD(Canvas, RenderAPI);
 	}
 
 	if (ActiveRightTool != nullptr)
 	{
-		ActiveRightTool->DrawHUD(Canvas);
+		ActiveRightTool->DrawHUD(Canvas, RenderAPI);
 	}
 }
 

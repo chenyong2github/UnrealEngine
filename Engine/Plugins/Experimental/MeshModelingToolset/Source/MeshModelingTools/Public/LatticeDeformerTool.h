@@ -91,7 +91,7 @@ class MESHMODELINGTOOLS_API ULatticeDeformerTool : public USingleSelectionTool
 
 public:
 
-	virtual void DrawHUD(FCanvas* Canvas) override;
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 	virtual void SetAssetAPI(IToolsContextAssetAPI* NewAssetApi) { AssetAPI = NewAssetApi; }

@@ -205,7 +205,7 @@ void FModelingToolsEditorMode::DrawHUD(FEditorViewportClient* ViewportClient,FVi
 	FEdMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
 	if (ToolsContext != nullptr)
 	{
-		ToolsContext->DrawHUD(Canvas);
+		ToolsContext->DrawHUD(ViewportClient, Viewport, View, Canvas);
 	}
 }
 
