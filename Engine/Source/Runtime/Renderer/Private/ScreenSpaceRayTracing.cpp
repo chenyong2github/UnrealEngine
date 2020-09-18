@@ -533,13 +533,11 @@ void GetSSRTGIShaderOptionsForQuality(int32 Quality, FIntPoint* OutGroupSize, in
 FRDGTextureUAV* CreateScreenSpaceRayTracingDebugUAV(FRDGBuilder& GraphBuilder, const FRDGTextureDesc& Desc, const TCHAR* Name, bool bClear = false)
 #if 0
 {
-	FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+	FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
 		Desc.Extent,
 		PF_FloatRGBA,
 		FClearValueBinding::None,
-		/* InFlags = */ TexCreate_None,
-		/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-		/* bInForceSeparateTargetAndShaderResource = */ false);
+		/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTexture* DebugTexture = GraphBuilder.CreateTexture(DebugDesc, Name);
 	FRDGTextureUAVRef DebugOutput = GraphBuilder.CreateUAV(DebugTexture);
 	if (bClear)
