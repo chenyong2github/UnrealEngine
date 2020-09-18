@@ -399,6 +399,9 @@ class FMaterialVectorParameterInfo
 {
 	DECLARE_TYPE_LAYOUT(FMaterialVectorParameterInfo, NonVirtual);
 public:
+
+	FMaterialVectorParameterInfo() : DefaultValue(ForceInitToZero) {}
+
 	friend inline bool operator==(const FMaterialVectorParameterInfo& Lhs, const FMaterialVectorParameterInfo& Rhs)
 	{
 		return Lhs.ParameterInfo == Rhs.ParameterInfo && Lhs.DefaultValue == Rhs.DefaultValue;

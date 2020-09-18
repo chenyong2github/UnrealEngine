@@ -1611,7 +1611,7 @@ class RENDERCORE_API FShaderPipeline
 {
 	DECLARE_TYPE_LAYOUT(FShaderPipeline, NonVirtual);
 public:
-	explicit FShaderPipeline(const FShaderPipelineType* InType) : TypeName(InType->GetHashedName()) {}
+	explicit FShaderPipeline(const FShaderPipelineType* InType) : TypeName(InType->GetHashedName()) { FMemory::Memzero(&PermutationIds, sizeof(PermutationIds)); }
 	~FShaderPipeline();
 
 	void AddShader(FShader* Shader, int32 PermutationId);
