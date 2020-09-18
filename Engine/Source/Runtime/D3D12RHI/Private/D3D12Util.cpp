@@ -656,15 +656,14 @@ namespace D3D12RHI
 
 		const FString& ErrorString = GetD3D12ErrorString(D3DResult, Device);
 		UE_LOG(LogD3D12RHI, Error, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
-
-		// Terminate with device removed or hung then try and get the current GPU state and dump to log
-		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG)
-		{	 
-			TerminateOnGPUCrash(Device, nullptr, 0);
-		}
-		else if (D3DResult == E_OUTOFMEMORY)
+		
+		if (D3DResult == E_OUTOFMEMORY)
 		{
 			TerminateOnOutOfMemory(D3DResult, false);
+		}
+		else
+		{
+			TerminateOnGPUCrash(Device, nullptr, 0);
 		}
 
 		// Make sure the log is flushed!
