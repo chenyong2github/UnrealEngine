@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Engine/EngineTypes.h"
 #include "Units/RigUnit.h"
 #include "RigUnit_WorldCollision.generated.h"
 
