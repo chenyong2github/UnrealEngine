@@ -1313,33 +1313,55 @@ bool UNiagaraEmitter::UsesCollection(const class UNiagaraParameterCollection* Co
 
 bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InVar) const
 {
+	check(!HasAnyFlags(RF_NeedPostLoad));
+
 	if (SpawnScriptProps.Script)
+	{
+		// make sure that this isn't called before our dependents are fully loaded
+		check(!SpawnScriptProps.Script->HasAnyFlags(RF_NeedPostLoad));
+
 		return SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(InVar);
+	}
 	return false;
 }
 bool UNiagaraEmitter::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const
 {
+	check(!HasAnyFlags(RF_NeedPostLoad));
+
 	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
 	if (Sys)
 	{
+		// make sure that this isn't called before our dependents are fully loaded
+		check(!Sys->HasAnyFlags(RF_NeedPostLoad));
+
 		return Sys->CanObtainEmitterAttribute(InVarWithUniqueNameNamespace);
 	}
 	return false;
 }
 bool UNiagaraEmitter::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const
 {
+	check(!HasAnyFlags(RF_NeedPostLoad));
+
 	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
 	if (Sys)
 	{
+		// make sure that this isn't called before our dependents are fully loaded
+		check(!Sys->HasAnyFlags(RF_NeedPostLoad));
+
 		return Sys->CanObtainSystemAttribute(InVar);
 	}
 	return false;
 }
 bool UNiagaraEmitter::CanObtainUserVariable(const FNiagaraVariableBase& InVar) const
 {
+	check(!HasAnyFlags(RF_NeedPostLoad));
+
 	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
 	if (Sys)
 	{
+		// make sure that this isn't called before our dependents are fully loaded
+		check(!Sys->HasAnyFlags(RF_NeedPostLoad));
+
 		return Sys->CanObtainUserVariable(InVar);
 	}
 	return false;
@@ -1444,6 +1466,10 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	for (UNiagaraRendererProperties* Renderer : RendererProperties)
 	{
 		Renderer->OnChanged().RemoveAll(this);
+
+		// some renderer properties have been incorrectly flagged as RF_Public meaning that even if we remove them here with the merge
+		// they will be included in a cook; so clear the flag while we're removing them
+		Renderer->ClearFlags(RF_Public);
 	}
 	RendererProperties.Empty();
 
