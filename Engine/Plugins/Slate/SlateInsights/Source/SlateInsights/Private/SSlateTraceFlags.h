@@ -3,7 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SlateFwd.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SLeafWidget.h"
+
+#include "FastUpdate/WidgetUpdateFlags.h"
+#include "Widgets/InvalidateWidgetReason.h"
 
 namespace UE
 {
