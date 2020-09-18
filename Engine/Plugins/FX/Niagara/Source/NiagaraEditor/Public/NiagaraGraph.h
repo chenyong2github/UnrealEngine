@@ -424,7 +424,7 @@ private:
 	FOnGraphChanged OnGraphNeedsRecompile;
 
 	/** Find all nodes in the graph that can be reached during compilation. */
-	TArray<UEdGraphNode*> FindReachbleNodes() const;
+	TArray<UEdGraphNode*> FindReachableNodes() const;
 
 	/** Compares the values on the default pins with the metadata and syncs the two if necessary */
 	void ValidateDefaultPins();
