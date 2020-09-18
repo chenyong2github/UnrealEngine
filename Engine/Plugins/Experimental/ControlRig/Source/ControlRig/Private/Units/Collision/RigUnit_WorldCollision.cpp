@@ -3,6 +3,7 @@
 #include "RigUnit_WorldCollision.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
+#include "Components/PrimitiveComponent.h"
 
 FRigUnit_SphereTraceWorld_Execute()
 {
