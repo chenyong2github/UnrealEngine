@@ -47,6 +47,10 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 	TArray<uint32> Offsets;
 
 	bool NeedsRealloc = false;
+
+	static void FindAttributes(FNiagaraSystemInstance* SystemInstance, UNiagaraDataInterfaceGrid2DCollection* Collection, uint32 NumUnnamedAttributes, TArray<FNiagaraVariableBase>& OutVars, TArray<uint32>& OutOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr);
+
+	int32 FindAttributeIndexByName(const FName& InName, int32 NumChannels);
 };
 
 struct FGrid2DCollectionRWInstanceData_RenderThread
@@ -64,6 +68,7 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	FTextureRHIRef RenderTargetToCopyTo; 
 	TArray<int32> AttributeIndices;
 	TArray<FName> Vars;
+	TArray<int32> VarComponents;
 	TArray<uint32> Offsets;
 
 	void BeginSimulate(FRHICommandList& RHICmdList);
@@ -151,6 +156,7 @@ public:
 	void GetCellSize(FVectorVMContext& Context);
 	void GetNumCells(FVectorVMContext& Context);
 	void SetNumCells(FVectorVMContext& Context);
+	void GetAttributeIndex(FVectorVMContext& Context, const FName& InName, int32 NumChannels);
 
 	static const FString NumTilesName;
 
@@ -180,8 +186,16 @@ public:
 	static const FName SetFloatValueFunctionName;
 	static const FName GetFloatValueFunctionName;
 	static const FName SampleGridFloatFunctionName;
+	
+	static const FString AttributeIndicesBaseName;
+	static const TCHAR* VectorComponentNames[];
 
 	static const FName SetNumCellsFunctionName;
+
+	static const FName GetVector4AttributeIndexFunctionName;
+	static const FName GetVector3AttributeIndexFunctionName;
+	static const FName GetVector2AttributeIndexFunctionName;
+	static const FName GetFloatAttributeIndexFunctionName;
 
 #if WITH_EDITOR
 	virtual bool SupportsSetupAndTeardownHLSL() const { return true; }
@@ -192,10 +206,15 @@ public:
 	virtual bool GenerateIterationSourceNamespaceWriteAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const override;
 #endif
 
+	static int32 GetComponentCountFromFuncName(const FName& FuncName);
+	static FNiagaraTypeDefinition GetValueTypeFromFuncName(const FName& FuncName);
+	static bool CanCreateVarFromFuncName(const FName& FuncName);
 protected:
 	void WriteSetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
 	void WriteGetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
 	void WriteSampleHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+	void WriteAttributeGetIndexHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+
 	const TCHAR* TypeDefinitionToHLSLTypeString(const FNiagaraTypeDefinition& InDef) const;
 	FName TypeDefinitionToGetFunctionName(const FNiagaraTypeDefinition& InDef) const;
 	FName TypeDefinitionToSetFunctionName(const FNiagaraTypeDefinition& InDef) const;
