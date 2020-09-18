@@ -2297,41 +2297,61 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 		CurrentScalabilitySettings = ActualEffectType->GetActiveSystemScalabilitySettings();
 	}
 
-	for (FNiagaraSystemScalabilityOverride& Override : SystemScalabilityOverrides.Overrides)
+	if (bOverrideScalabilitySettings)
 	{
-		if (Override.Platforms.IsActive())
+		for (FNiagaraSystemScalabilityOverride& Override : SystemScalabilityOverrides.Overrides)
 		{
-			if (Override.bOverrideDistanceSettings)
+			if (Override.Platforms.IsActive())
 			{
-				CurrentScalabilitySettings.bCullByDistance = Override.bCullByDistance;
-				CurrentScalabilitySettings.MaxDistance = Override.MaxDistance;
-			}
+				if (Override.bOverrideDistanceSettings)
+				{
+					CurrentScalabilitySettings.bCullByDistance = Override.bCullByDistance;
+					CurrentScalabilitySettings.MaxDistance = Override.MaxDistance;
+				}
 
-			if (Override.bOverrideInstanceCountSettings)
-			{
-				CurrentScalabilitySettings.bCullMaxInstanceCount = Override.bCullMaxInstanceCount;
-				CurrentScalabilitySettings.MaxInstances = Override.MaxInstances;
-			}
-			
-			if (Override.bOverridePerSystemInstanceCountSettings)
-			{
-				CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount = Override.bCullPerSystemMaxInstanceCount;
-				CurrentScalabilitySettings.MaxSystemInstances = Override.MaxSystemInstances;
-			}
+				if (Override.bOverrideInstanceCountSettings)
+				{
+					CurrentScalabilitySettings.bCullMaxInstanceCount = Override.bCullMaxInstanceCount;
+					CurrentScalabilitySettings.MaxInstances = Override.MaxInstances;
+				}
 
-			if (Override.bOverrideTimeSinceRendererSettings)
-			{
-				CurrentScalabilitySettings.bCullByMaxTimeWithoutRender = Override.bCullByMaxTimeWithoutRender;
-				CurrentScalabilitySettings.MaxTimeWithoutRender = Override.MaxTimeWithoutRender;
+				if (Override.bOverridePerSystemInstanceCountSettings)
+				{
+					CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount = Override.bCullPerSystemMaxInstanceCount;
+					CurrentScalabilitySettings.MaxSystemInstances = Override.MaxSystemInstances;
+				}
+
+				if (Override.bOverrideTimeSinceRendererSettings)
+				{
+					CurrentScalabilitySettings.bCullByMaxTimeWithoutRender = Override.bCullByMaxTimeWithoutRender;
+					CurrentScalabilitySettings.MaxTimeWithoutRender = Override.MaxTimeWithoutRender;
+				}
+				break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 			}
-			break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 		}
 	}
 
 	CurrentScalabilitySettings.MaxDistance = FMath::Max(GNiagaraScalabiltiyMinumumMaxDistance, CurrentScalabilitySettings.MaxDistance);
 
 	//Work out if this system needs to have sorted significance culling done.
-	bNeedsSortedSignificanceCull = CurrentScalabilitySettings.bCullMaxInstanceCount || CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount;
+	bNeedsSortedSignificanceCull = false;
+
+	if (CurrentScalabilitySettings.bCullMaxInstanceCount || CurrentScalabilitySettings.bCullPerSystemMaxInstanceCount)
+	{
+		bNeedsSortedSignificanceCull = true;
+	}
+	else
+	{
+		//If we're not using it at the system level, maybe one of the emitters is.
+		auto ScriptUsesSigIndex = [&](UNiagaraScript* Script)
+		{
+			if (Script && bNeedsSortedSignificanceCull == false)//Skip if we've already found one using it.
+			{
+				bNeedsSortedSignificanceCull = Script->GetVMExecutableData().bReadsSignificanceIndex;
+			}
+		};
+		ForEachScript(ScriptUsesSigIndex);
+	}
 }
 
 void UNiagaraSystem::OnQualityLevelChanged()

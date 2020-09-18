@@ -36,6 +36,7 @@
 #define SYS_PARAM_ENGINE_INV_DELTA_TIME                  INiagaraModule::GetVar_Engine_InvDeltaTime()
 #define SYS_PARAM_ENGINE_TIME                            INiagaraModule::GetVar_Engine_Time()
 #define SYS_PARAM_ENGINE_REAL_TIME                       INiagaraModule::GetVar_Engine_RealTime()
+#define SYS_PARAM_ENGINE_QUALITY_LEVEL                   INiagaraModule::GetVar_Engine_QualityLevel()
 #define SYS_PARAM_ENGINE_POSITION                        INiagaraModule::GetVar_Engine_Owner_Position()
 #define SYS_PARAM_ENGINE_VELOCITY                        INiagaraModule::GetVar_Engine_Owner_Velocity()
 #define SYS_PARAM_ENGINE_X_AXIS                          INiagaraModule::GetVar_Engine_Owner_XAxis()
@@ -65,6 +66,7 @@
 #define SYS_PARAM_ENGINE_EMITTER_SPAWN_COUNT_SCALE       INiagaraModule::GetVar_Engine_Emitter_SpawnCountScale()
 #define SYS_PARAM_ENGINE_EMITTER_INSTANCE_SEED           INiagaraModule::GetVar_Engine_Emitter_InstanceSeed()
 #define SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE       INiagaraModule::GetVar_Engine_System_NumEmittersAlive()
+#define SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX	 INiagaraModule::GetVar_Engine_System_SignificanceIndex()
 #define SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS             INiagaraModule::GetVar_Engine_System_NumEmitters()
 #define SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES            INiagaraModule::GetVar_Engine_NumSystemInstances()
 

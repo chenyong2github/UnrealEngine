@@ -268,6 +268,10 @@ public:
 	const FNiagaraDataSetAccessor<ENiagaraExecutionState>& GetSystemExecutionStateAccessor() const { return SystemExecutionStateAccessor; }
 	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> GetEmitterExecutionStateAccessors() const { return MakeArrayView(EmitterExecutionStateAccessors); }
 	TConstArrayView<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>> GetEmitterSpawnInfoAccessors(int32 EmitterIndex) const { return MakeArrayView(EmitterSpawnInfoAccessors[EmitterIndex]);  }
+	
+	/** Performs the passed action for all scripts in this system. */
+	template<typename TAction>
+	void ForEachScript(TAction Func) const;
 
 private:
 	bool IsReadyToRunInternal() const;
@@ -682,4 +686,19 @@ FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
 FORCEINLINE void UNiagaraSystem::UnregisterActiveInstance()
 {
 	--ActiveInstances;
+}
+
+template<typename TAction>
+void UNiagaraSystem::ForEachScript(TAction Func) const
+{	
+	Func(SystemSpawnScript);
+	Func(SystemUpdateScript);
+			
+	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+		{
+			Emitter->ForEachScript(Func);
+		}
+	}
 }

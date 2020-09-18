@@ -333,6 +333,15 @@ public:
 		return SystemInstanceIndex;
 	}
 
+	/**
+	The significant index for this component. i.e. this is the Nth most significant instance of it's system in the scene.
+	Passed to the script to allow us to scale down internally for less significant systems instances.
+*/
+	FORCEINLINE void SetSystemSignificanceIndex(int32 InIndex) { SignificanceIndex = InIndex; }
+
+	/** Calculates the distance to use for distance based LODing / culling. */
+	float GetLODDistance();
+
 	void OnSimulationDestroyed();
 
 private:
@@ -352,13 +361,13 @@ private:
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();	
 	
-	/** Calculates the distance to use for distance based LODing / culling. */
-	float GetLODDistance();
-
 	void ProcessComponentRendererTasks();
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
+
+	/** Index of how significant this system is in the scene. 0 = Most significant instance of this systems in the scene. */
+	int32 SignificanceIndex;
 
 	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 
