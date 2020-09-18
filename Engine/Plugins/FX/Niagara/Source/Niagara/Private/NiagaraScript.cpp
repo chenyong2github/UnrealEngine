@@ -96,6 +96,7 @@ FNiagaraVMExecutableData::FNiagaraVMExecutableData()
 	, bReadsAttributeData(false)
 	, CompileTime(0.0f)
 #endif
+	, bReadsSignificanceIndex(false)
 {
 }
 

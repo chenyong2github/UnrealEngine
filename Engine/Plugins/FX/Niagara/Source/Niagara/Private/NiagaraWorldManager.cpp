@@ -66,6 +66,14 @@ static FAutoConsoleVariableRef CVarNigaraAllowPrimedPools(
 	ECVF_Default
 );
 
+static int32 GbAllowVisibilityCullingForDynamicBounds = 1;
+static FAutoConsoleVariableRef CVarAllowVisibilityCullingForDynamicBounds(
+	TEXT("fx.Niagara.AllowVisibilityCullingForDynamicBounds"),
+	GbAllowVisibilityCullingForDynamicBounds,
+	TEXT("Allow async work to continue until the end of the frame, if false it will complete within the tick group it's started in."),
+	ECVF_Default
+);
+
 FAutoConsoleCommandWithWorld DumpNiagaraWorldManagerCommand(
 	TEXT("DumpNiagaraWorldManager"),
 	TEXT("Dump Information About the Niagara World Manager Contents"),
@@ -716,8 +724,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 			CachedPlayerViewLocations.Append(World->ViewLocationsRenderedLastFrame);
 		}
 
-		UpdateScalabilityManagers();
-
+		UpdateScalabilityManagers(false);
 
 		//Tick our collections to push any changes to bound stores.
 		//-TODO: Do we need to do this per tick group?
@@ -757,6 +764,9 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	// Loop over all simulations that have been marked for post actor (i.e. ones whos TG is changing or have pending spawn systems)
 	if (GNiagaraSpawnPerTickGroup && (SimulationsWithPostActorWork.Num() > 0))
 	{
+		//We update scalability managers here so that any new systems can be culled or setup with other scalability based parameters correctly for their spawn.
+		UpdateScalabilityManagers(true);
+
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_NiagaraSpawnPerTickGroup_GT);
 		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
 		{
@@ -805,7 +815,7 @@ UWorld* FNiagaraWorldManager::GetWorld()
 
 //////////////////////////////////////////////////////////////////////////
 
-void FNiagaraWorldManager::UpdateScalabilityManagers()
+void FNiagaraWorldManager::UpdateScalabilityManagers(bool bNewSpawnsOnly)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateScalabilityManagers);
 
@@ -815,12 +825,19 @@ void FNiagaraWorldManager::UpdateScalabilityManagers()
 		UNiagaraEffectType* EffectType = Pair.Key;
 		check(EffectType);
 
-		EffectType->ProcessLastFrameCycleCounts();
+		if (bNewSpawnsOnly)
+		{
+			ScalabilityMan.Update(this, true);
+		}
+		else
+		{
+			EffectType->ProcessLastFrameCycleCounts();
 
-		//TODO: Work out how best to budget each effect type.
-		//EffectType->ApplyDynamicBudget(DynamicBudget_GT, DynamicBudget_GT_CNC, DynamicBudget_RT);
+			//TODO: Work out how best to budget each effect type.
+			//EffectType->ApplyDynamicBudget(DynamicBudget_GT, DynamicBudget_GT_CNC, DynamicBudget_RT);
 
-		ScalabilityMan.Update(this);
+			ScalabilityMan.Update(this, false);
+		}
 	}
 }
 
@@ -897,22 +914,12 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 
 void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState)
 {
-	float DistSignificance = DistanceSignificance(EffectType, ScalabilitySettings, Location);
-
-	float Significance = DistSignificance;
-
-	//TODO: Other significance metrics? 
-	//TODO: Provide hook into game code for special case significance calcs?
-	OutState.Significance = Significance;
-
 	bool bOldCulled = OutState.bCulled;
-	if (GEnableNiagaraDistanceCulling)
-	{
-		SignificanceCull(EffectType, ScalabilitySettings, Significance, OutState);
-	}
 
-	//Only apply hard instance count cull limit for precull + spawn only fx. We can apply instance count via significance cull for managed fx.
-	if (GEnableNiagaraInstanceCountCulling && bIsPreCull && EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
+	DistanceCull(EffectType, ScalabilitySettings, Location, OutState);
+
+	//If we have no significance handler there is no concept of relative significance for these systems so we can just pre cull if we go over the instance count.
+	if (GEnableNiagaraInstanceCountCulling && bIsPreCull && EffectType->GetSignificanceHandler() == nullptr)
 	{
 		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
@@ -924,32 +931,18 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 
 void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState)
 {
-	float DistSignificance = DistanceSignificance(EffectType, ScalabilitySettings, Component);
-	
-	//If/when we do have multiple drivers of significance, how best to combine them?
-	float Significance = DistSignificance;
-
-	//TODO: Other significance metrics? 
-	//TODO: Provide hook into game code for special case significance calcs?
-	OutState.Significance = Significance;
-
 	bool bOldCulled = OutState.bCulled;
 	OutState.bCulled = false;
 
-	if (GEnableNiagaraDistanceCulling)
-	{
-		SignificanceCull(EffectType, ScalabilitySettings, Significance, OutState);
-	}
+	DistanceCull(EffectType, ScalabilitySettings, Component, OutState);
 	
-	//Can't cull dynamic bounds by visibility
-
-	if (System->bFixedBounds && bAppHasFocus && GEnableNiagaraVisCulling)
+	if ((GbAllowVisibilityCullingForDynamicBounds || System->bFixedBounds) && bAppHasFocus && GEnableNiagaraVisCulling)
 	{
 		VisibilityCull(EffectType, ScalabilitySettings, Component, OutState);
 	}
 
-	//Only apply hard instance count cull limit for precull + spawn only fx. We can apply instance count via significance cull for managed fx.
-	if (GEnableNiagaraInstanceCountCulling && bIsPreCull && EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
+	//Only apply hard instance count cull limit for precull if we have no significance handler.
+	if (GEnableNiagaraInstanceCountCulling && bIsPreCull && EffectType->GetSignificanceHandler() == nullptr)
 	{
 		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
@@ -990,27 +983,6 @@ void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType
 #endif
 }
 
-void FNiagaraWorldManager::SignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, FNiagaraScalabilityState& OutState)
-{
-	float MinSignificance = 0.0f;
-
-// 	//Could We adjust the minimum significance needed by how much of this effect types budget is being used?
-// 	if (ScalabilitySettings.bCullByRuntimePerf)
-// 	{
-// 		MinSignificance = MinSignificanceFromPerf;
-// 
-// 		//TODO: Other factors raising the min significance?
-// 	}
-
-
-
-	bool bCull = Significance <= MinSignificance;
-	OutState.bCulled |= bCull;
-#if DEBUG_SCALABILITY_STATE
-	OutState.bCulledBySignificance = bCull;
-#endif
-}
-
 void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
 {
 	float TimeSinceRendered = Component->GetSafeTimeSinceRendered(World->TimeSeconds);
@@ -1032,7 +1004,7 @@ void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, UNi
 #endif
 }
 
-float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component)
+void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
 {
 	float LODDistance = 0.0f;
 
@@ -1059,26 +1031,17 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 
 	Component->SetLODDistance(LODDistance, FMath::Max(MaxDist, 1.0f));
 
-	if (ScalabilitySettings.bCullByDistance)
+	if (GEnableNiagaraDistanceCulling && ScalabilitySettings.bCullByDistance)
 	{
-		if (LODDistance >= ScalabilitySettings.MaxDistance)
-		{
-			return 0.0f;
-		}
-
-		return 1.0f - (LODDistance / ScalabilitySettings.MaxDistance);
+		bool bCull = LODDistance > ScalabilitySettings.MaxDistance;
+		OutState.bCulled |= bCull;
+#if DEBUG_SCALABILITY_STATE
+		OutState.bCulledByDistance = bCull;
+#endif
 	}
-	else
-	{
-		//We still need a sensible significance value for sorted instance count culling.
-		//100 here purely to make 1m LODDistance = 1.0 significance.
-		return 100.0f / LODDistance;
-	}
-
-	return 1.0f;
 }
 
-float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location)
+void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location, FNiagaraScalabilityState& OutState)
 {
 	if (bCachedPlayerViewLocationsValid)
 	{
@@ -1088,25 +1051,15 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 			ClosestDistSq = FMath::Min(ClosestDistSq, FVector::DistSquared(ViewLocation, Location));
 		}
 
-		float ClosestDist = FMath::Sqrt(ClosestDistSq);
-		if (ScalabilitySettings.bCullByDistance)
+		if (GEnableNiagaraDistanceCulling && ScalabilitySettings.bCullByDistance)
 		{
-			if (ClosestDist >= ScalabilitySettings.MaxDistance)
-			{
-				return 0.0f;
-			}
-
-			return ClosestDist / ScalabilitySettings.MaxDistance;
-		}
-		else
-		{
-			//We still need a sensible significance value for sorted instance count culling.
-			//100 here purely to make 1m ClosestDist = 1.0 significance.
-			return 100.0f / ClosestDist;
+			bool bCull = ClosestDistSq > ScalabilitySettings.MaxDistance;
+			OutState.bCulled |= bCull;
+#if DEBUG_SCALABILITY_STATE
+			OutState.bCulledByDistance = bCull;
+#endif
 		}
 	}
-
-	return 1.0f;
 }
 
 void FNiagaraWorldManager::PrimePoolForAllWorlds(UNiagaraSystem* System)

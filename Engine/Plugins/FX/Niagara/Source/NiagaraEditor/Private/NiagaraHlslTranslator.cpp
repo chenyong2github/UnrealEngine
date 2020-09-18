@@ -5153,7 +5153,15 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 		{
 			ExternalVariablesForBulkUsage.Add(InVariable);
 		}
+
 		Output = AddSourceChunk(ParameterMapInstanceName + TEXT(".") + SymbolName, InVariable.GetType());
+
+		//Track a few special case reads that the system needs to know about.
+		if(InVariable == SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX)
+		{
+			CompilationOutput.ScriptData.bReadsSignificanceIndex = true;
+		}
+
 		return true;
 	}
 

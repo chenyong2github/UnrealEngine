@@ -482,16 +482,10 @@ public:
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
 
 	template<typename TAction>
-	void ForEachEnabledRenderer(TAction Func) const
-	{
-		for (UNiagaraRendererProperties* Renderer : RendererProperties)
-		{
-			if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
-			{
-				Func(Renderer);
-			}
-		}
-	}
+	void ForEachEnabledRenderer(TAction Func) const;
+
+	template<typename TAction>
+	void ForEachScript(TAction Func) const;
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
 
@@ -666,3 +660,29 @@ private:
 	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
 #endif
 };
+
+
+template<typename TAction>
+void UNiagaraEmitter::ForEachEnabledRenderer(TAction Func) const
+{
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
+		{
+			Func(Renderer);
+		}
+	}
+}
+template<typename TAction>
+void UNiagaraEmitter::ForEachScript(TAction Func) const
+{
+	Func(SpawnScriptProps.Script);
+	Func(UpdateScriptProps.Script);
+
+	Func(GPUComputeScript);
+
+	for (auto& EventScriptProps : EventHandlerScriptProps)
+	{
+		Func(EventScriptProps.Script);
+	}
+}

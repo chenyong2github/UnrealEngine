@@ -204,6 +204,11 @@ FNiagaraPlatformSet::FNiagaraPlatformSet()
 {
 }
 
+bool FNiagaraPlatformSet::operator==(const FNiagaraPlatformSet& Other)const
+{
+	return QualityLevelMask == Other.QualityLevelMask && DeviceProfileStates == Other.DeviceProfileStates;
+}
+
 bool FNiagaraPlatformSet::IsActive()const
 {
 	if (LastBuiltFrame <= LastDirtiedFrame || LastBuiltFrame == 0)

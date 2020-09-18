@@ -430,6 +430,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	UNiagaraDataInterface* GetDataInterface(const FString &Name);
 
+	/** 
+		The significant index for this component. i.e. this is the Nth most significant instance of it's system in the scene. 
+		Passed to the script to allow us to scale down internally for less significant systems instances.
+	*/
+	FORCEINLINE void SetSystemSignificanceIndex(int32 InIndex) 	{ if(SystemInstance) SystemInstance->SetSystemSignificanceIndex(InIndex); }
+
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
 
