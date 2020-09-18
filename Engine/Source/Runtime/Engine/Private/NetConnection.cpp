@@ -886,12 +886,15 @@ void UNetConnection::DestroyOwningActor()
 {
 	if (OwningActor != nullptr)
 	{
-		// Cleanup/Destroy the connection actor & controller
-		if (!OwningActor->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+		bool bIsServer = Driver != nullptr && Driver->IsServer();
+
+		// Cleanup/Destroy the connection actor & controller - serverside only
+		if (bIsServer && !OwningActor->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
 		{
 			// UNetConnection::CleanUp can be called from UNetDriver::FinishDestroyed that is called from GC.
 			OwningActor->OnNetCleanup(this);
 		}
+
 		OwningActor = nullptr;
 		PlayerController = nullptr;
 	}
