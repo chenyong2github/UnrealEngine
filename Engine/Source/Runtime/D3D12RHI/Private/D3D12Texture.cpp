@@ -6,6 +6,10 @@
 
 #include "D3D12RHIPrivate.h"
 
+#ifndef NEEDS_D3D12_GETCOPYABLEFOOTPRINTS_WORKAROUND
+#define NEEDS_D3D12_GETCOPYABLEFOOTPRINTS_WORKAROUND 0
+#endif
+
 int64 FD3D12GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D12GlobalStats::GDedicatedSystemMemory = 0;
 int64 FD3D12GlobalStats::GSharedSystemMemory = 0;
@@ -1841,6 +1845,20 @@ void FD3D12TextureBase::InitializeTextureData(FRHICommandListImmediate* RHICmdLi
 	uint64 Size = 0;
 	const D3D12_RESOURCE_DESC& Desc = GetResource()->GetDesc();
 	Device->GetDevice()->GetCopyableFootprints(&Desc, 0, NumSubresources, 0, Footprints, Rows, RowSizeInBytes, &Size);
+
+#if NEEDS_D3D12_GETCOPYABLEFOOTPRINTS_WORKAROUND
+	{
+		uint64 WorkaroundSize = 0;
+		for (uint32 Subresource = 0; Subresource < NumSubresources; Subresource++)
+		{
+			const uint32 NumRows = Rows[Subresource] * Footprints[Subresource].Footprint.Depth;
+			const uint32 SrcRowPitch = RowSizeInBytes[Subresource];
+			const uint32 DstRowPitch = Footprints[Subresource].Footprint.RowPitch;
+			WorkaroundSize += FMath::Max(SrcRowPitch, DstRowPitch) * NumRows;
+		}
+		Size = FMath::Max(Size, WorkaroundSize);
+	}
+#endif
 
 	FD3D12ResourceLocation SrcResourceLoc(Device);
 	uint8* DstDataBase = (uint8*) Device->GetDefaultFastAllocator().Allocate(Size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, &SrcResourceLoc);
