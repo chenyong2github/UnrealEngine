@@ -128,12 +128,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 }
 
 #if WITH_EDITOR
-void UWorldPartition::OnPostGarbageCollect()
-{
-	// Clean-up ModifiedActors (deleted/garbage collected actors)
-	ModifiedActors.Remove(nullptr);
-}
-
 void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 {
 	check(IsMainWorldPartition());
@@ -158,37 +152,6 @@ void UWorldPartition::OnObjectPropertyChanged(UObject* Object, FPropertyChangedE
 		if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(Actor->GetActorGuid()))
 		{
 			UpdateActorDesc(Actor);
-		}
-	}
-}
-
-void UWorldPartition::OnObjectModified(UObject* Object)
-{
-	if (Object->GetPackage()->IsDirty())
-	{
-		// Don't rely on undo stack and keep references on modified actor to avoid loosing changes when unloading editor cells
-		if (AActor* Actor = Cast<AActor>(Object))
-		{
-			if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(Actor->GetActorGuid()))
-			{
-				UPackage* Package = Actor->GetOutermost();
-				if (Package && Package->IsDirty())
-				{
-					ModifiedActors.Add(Actor);
-				}
-			}
-		}
-	}
-}
-
-void UWorldPartition::OnObjectSaved(UObject* Object)
-{
-	if (FUnrealEdMisc::Get().GetAutosaveState() == FUnrealEdMisc::EAutosaveState::Inactive)
-	{
-		// Once modified actor is saved, we can remove reference on it
-		if (AActor* Actor = Cast<AActor>(Object))
-		{
-			ModifiedActors.Remove(Actor);
 		}
 	}
 }
@@ -454,9 +417,6 @@ void UWorldPartition::RegisterDelegates()
 		GEditor->OnLevelActorDeleted().AddUObject(this, &UWorldPartition::OnActorDeleted);
 
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UWorldPartition::OnObjectPropertyChanged);
-		FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &UWorldPartition::OnObjectModified);
-		FCoreUObjectDelegates::OnObjectSaved.AddUObject(this, &UWorldPartition::OnObjectSaved);
-		FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UWorldPartition::OnPostGarbageCollect);
 
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
 		FEditorDelegates::EndPIE.AddUObject(this, &UWorldPartition::OnEndPIE);
@@ -500,9 +460,6 @@ void UWorldPartition::UnregisterDelegates()
 		GEditor->OnLevelActorDeleted().RemoveAll(this);
 
 		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-		FCoreUObjectDelegates::OnObjectModified.RemoveAll(this);
-		FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
-		FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 	}
 }
 
@@ -782,8 +739,6 @@ void UWorldPartition::LoadEditorCells(const TArray<UWorldPartitionEditorCell*>& 
 {
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
 
-	FScopedTransaction Transaction(LOCTEXT("UWorldPartition_LoadCells", "Load Cells"));
-
 	int32 NumActorsToLoad = Algo::TransformAccumulate(CellsToLoad, [](UWorldPartitionEditorCell* Cell) { return Cell->Actors.Num() - Cell->LoadedActors.Num();}, 0);
 
 	FScopedSlowTask SlowTask(NumActorsToLoad, LOCTEXT("LoadingCells", "Loading cells..."));
@@ -799,11 +754,57 @@ void UWorldPartition::LoadEditorCells(const TArray<UWorldPartitionEditorCell*>& 
 void UWorldPartition::UnloadEditorCells(const TArray<UWorldPartitionEditorCell*>& CellsToUnload)
 {
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
+		
+	TSet<UPackage*> ModifiedPackages;
+	TMap<FWorldPartitionActorDesc*, int32> UnloadCount;
+	
+	int32 NumActorsToUnload = Algo::TransformAccumulate(CellsToUnload, [&UnloadCount](UWorldPartitionEditorCell* Cell)
+	{ 
+		for (FWorldPartitionActorDesc* ActorDesc : Cell->LoadedActors)
+		{
+			UnloadCount.FindOrAdd(ActorDesc, 0)++;
+		}
+						
+		return Cell->LoadedActors.Num(); 
+	}, 0);
+		
+	for (const TPair<FWorldPartitionActorDesc*, int32> Pair : UnloadCount)
+	{
+		FWorldPartitionActorDesc* ActorDesc = Pair.Key;
+		// Only prompt if the actor will get unloaded by the unloading cells
+		if (ActorDesc->GetLoadedRefCount() == Pair.Value)
+		{
+			AActor* LoadedActor = ActorDesc->GetActor();
+			check(LoadedActor);
+			UPackage* ActorPackage = LoadedActor->GetExternalPackage();
+			if (ActorPackage && ActorPackage->IsDirty())
+			{
+				ModifiedPackages.Add(ActorPackage);
+			}
+		}
+	}
+		
+	// Make sure we save modified actor packages before unloading
+	if (ModifiedPackages.Num())
+	{
+		const bool bCheckDirty = false;
+		const bool bAlreadyCheckedOut = false;
+		const bool bCanBeDeclined = true;
+		const bool bPromptToSave = true;
+		const FText Title = LOCTEXT("SaveActorsTitle", "Save Actor(s)");
+		const FText Message = LOCTEXT("SaveActorsMessage", "Save Actor(s) before unloading them.");
 
-	FScopedTransaction Transaction(LOCTEXT("UWorldPartition_UnloadCells", "Unload Cells"));
+		FEditorFileUtils::EPromptReturnCode RetCode = FEditorFileUtils::PromptForCheckoutAndSave(ModifiedPackages.Array(), bCheckDirty, bPromptToSave, Title, Message, nullptr, bAlreadyCheckedOut, bCanBeDeclined);
+		if (RetCode == FEditorFileUtils::PR_Cancelled)
+		{
+			return;
+		}
 
-	int32 NumActorsToUnload = Algo::TransformAccumulate(CellsToUnload, [](UWorldPartitionEditorCell* Cell) { return Cell->LoadedActors.Num(); }, 0);
+		check(RetCode != FEditorFileUtils::PR_Failure);
+	}
 
+	GEditor->SelectNone(true, true);
+	
 	FScopedSlowTask SlowTask(NumActorsToUnload, LOCTEXT("UnloadingCells", "Unloading cells..."));
 	SlowTask.MakeDialog();
 
@@ -811,6 +812,13 @@ void UWorldPartition::UnloadEditorCells(const TArray<UWorldPartitionEditorCell*>
 	{
 		SlowTask.EnterProgressFrame(Cell->LoadedActors.Num());
 		UpdateLoadingEditorCell(Cell, false);
+	}
+		
+	GEditor->ResetTransaction(LOCTEXT("UnloadingEditorCellsResetTrans", "Unloading Cells"));
+	
+	for (UPackage* ModifiedPackage : ModifiedPackages)
+	{
+		ModifiedPackage->ClearDirtyFlag();
 	}
 }
 
@@ -1111,7 +1119,9 @@ void UWorldPartition::OnActorOuterChanged(AActor* InActor, UObject* InOldOuter)
 	{
 		if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(InActor->GetActorGuid()))
 		{
-			RemoveFromPartition(ActorDesc);
+			const bool bRemoveDescriptor = true;
+			const bool bUnloadDescriptor = false;
+			RemoveFromPartition(ActorDesc, bRemoveDescriptor, bUnloadDescriptor);
 		}
 	}
 }
@@ -1140,7 +1150,7 @@ void UWorldPartition::AddToPartition(FWorldPartitionActorDesc* ActorDesc)
 	HashActorDesc(ActorDesc);	
 }
 
-void UWorldPartition::RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, bool bRemoveDescriptorFromArray)
+void UWorldPartition::RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, bool bRemoveDescriptorFromArray, bool bUnloadRemovedDescriptor)
 {
 	// Unhash this actor from the editor hash
 	UnhashActorDesc(ActorDesc);
@@ -1150,7 +1160,12 @@ void UWorldPartition::RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, b
 	// Remove this actor descriptor
 	if (bRemoveDescriptorFromArray)
 	{
-		Actors.Remove(ActorDesc->GetGuid());
+		TUniquePtr<FWorldPartitionActorDesc> RemovedActorDesc = Actors.FindAndRemoveChecked(ActorDesc->GetGuid());
+		check(RemovedActorDesc->GetLoadedRefCount() == 0);
+		if (bUnloadRemovedDescriptor)
+		{
+			RemovedActorDesc->Unload();
+		}
 	}
 }
 

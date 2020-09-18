@@ -65,9 +65,6 @@ private:
 	static FWorldPartitionChangedEvent WorldPartitionChangedEvent;
 
 	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& InPropertyChangedEvent);
-	void OnObjectModified(UObject* Object);
-	void OnObjectSaved(UObject* Object);
-	void OnPostGarbageCollect();
 
 	static FWorldPartitionActorDescFactory* GetActorDescFactory(TSubclassOf<AActor> Class);
 	static FWorldPartitionActorDescFactory* GetActorDescFactory(const AActor* Actor);
@@ -213,9 +210,6 @@ private:
 	UPROPERTY()
 	bool bIsPreCooked;
 
-	UPROPERTY(Transient)
-	TSet<AActor*> ModifiedActors;
-
 	FLinkerInstancingContext InstancingContext;
 #endif
 
@@ -243,7 +237,7 @@ private:
 	void RemoveFromClusters(const FWorldPartitionActorDesc* ActorDesc);
 
 	void AddToPartition(FWorldPartitionActorDesc* ActorDesc);
-	void RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, bool bRemoveDescriptorFromArray = true);
+	void RemoveFromPartition(FWorldPartitionActorDesc* ActorDesc, bool bRemoveDescriptorFromArray = true, bool bUnloadRemovedDescriptor = true);
 
 	TMap<FGuid, UWorldPartition::FActorCluster*> ActorToActorCluster;
 	TSet<UWorldPartition::FActorCluster*> ActorClustersSet;

@@ -25,16 +25,10 @@ public:
 	void AddActor(FWorldPartitionActorDesc* InActorDesc);
 	void RemoveActor(FWorldPartitionActorDesc* InActorDesc);
 
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
-
 	FBox						Bounds;
 
 	/** Tells if the cell was manually loaded in the editor */
 	bool						bLoaded : 1;
-
-	/** Tells if the cell loaded state changed during transactions */
-	bool						bWasLoaded : 1;
 
 	TSet<FWorldPartitionActorDesc*> Actors;
 	TSet<FWorldPartitionActorDesc*> LoadedActors;

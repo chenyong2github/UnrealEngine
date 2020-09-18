@@ -610,6 +610,7 @@ bool ULevel::IsNetActor(const AActor* Actor)
 void ULevel::AddLoadedActor(AActor* Actor)
 {
 	check(Actor->GetLevel() == this);
+	check(!Actor->IsPendingKill());
 
 	Actors.Add(Actor);
 	ActorsForGC.Add(Actor);
@@ -642,6 +643,9 @@ void ULevel::RemoveLoadedActor(AActor* Actor)
 	ActorsForGC.Remove(Actor);
 
 	OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
+
+	Actor->MarkPendingKill();
+	Actor->MarkComponentsAsPendingKill();
 }
 #endif
 

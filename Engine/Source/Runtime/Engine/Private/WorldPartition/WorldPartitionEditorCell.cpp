@@ -58,24 +58,6 @@ void UWorldPartitionEditorCell::RemoveActor(FWorldPartitionActorDesc* InActorDes
 		UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Unreferenced loaded actor %s(%d) [UWorldPartitionEditorCell::RemoveActor]"), *InActorDesc->GetActor()->GetFullName(), ActorRefCount);
 	}
 }
-
-void UWorldPartitionEditorCell::PreEditUndo()
-{
-	bWasLoaded = bLoaded;
-
-	Super::PreEditUndo();
-}
-
-void UWorldPartitionEditorCell::PostEditUndo()
-{
-	Super::PostEditUndo();
-
-	if (bWasLoaded != bLoaded)
-	{
-		bLoaded = bWasLoaded;
-		GetWorldPartition()->UpdateLoadingEditorCell(this, !bLoaded);
-	}
-}
 #endif
 
 UWorldPartitionEditorCell::UWorldPartitionEditorCell(const FObjectInitializer& ObjectInitializer)
@@ -83,6 +65,5 @@ UWorldPartitionEditorCell::UWorldPartitionEditorCell(const FObjectInitializer& O
 #if WITH_EDITOR
 	, Bounds(ForceInitToZero)
 	, bLoaded(false)
-	, bWasLoaded(false)
 #endif
 {}
