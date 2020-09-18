@@ -1441,6 +1441,15 @@ static bool ValidateExecData(const UNiagaraScript* Script, const FNiagaraVMExecu
 		}
 	}
 
+	for (const auto& Parameter : ExecData.Parameters.Parameters)
+	{
+		if (!Parameter.IsValid())
+		{
+			ErrorString.Appendf(TEXT("Failure - %s - Parameter [%s] is invalid!\n"), Script ? *Script->GetFullName() : TEXT("<unknown>"), *Parameter.GetName().ToString());
+			IsValid = false;
+		}
+	}
+
 	return IsValid;
 }
 
@@ -1459,7 +1468,7 @@ bool UNiagaraScript::BinaryToExecData(const UNiagaraScript* Script, const TArray
 	FString ValidationErrors;
 	if (!ValidateExecData(Script, OutExecData, ValidationErrors))
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to validate FNiagaraVMExecutableData received from DDC, rejecting!  Warnings:\n%s"), *ValidationErrors);
+		UE_LOG(LogNiagara, Display, TEXT("Failed to validate FNiagaraVMExecutableData received from DDC, rejecting!  Reasons:\n%s"), *ValidationErrors);
 		return false;
 	}
 
