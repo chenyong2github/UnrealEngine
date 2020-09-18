@@ -107,16 +107,27 @@ extern RENDERCORE_API bool ShouldExportShaderDebugInfo(EShaderPlatform Platform)
 
 struct FShaderTarget
 {
-	uint32 Frequency : SF_NumBits;
-	uint32 Platform : SP_NumBits;
+	// The rest of uint32 holding the bitfields can be left unitialized. Union with a uint32 serves to prevent that to be able to set the whole uint32 value
+	union
+	{
+		uint32 Packed;
+		struct
+		{
+			uint32 Frequency : SF_NumBits;
+			uint32 Platform : SP_NumBits;
+		};
+	};
 
 	FShaderTarget()
+		: Packed(0)
 	{}
 
 	FShaderTarget(EShaderFrequency InFrequency,EShaderPlatform InPlatform)
-	:	Frequency(InFrequency)
-	,	Platform(InPlatform)
-	{}
+	:	Packed(0)
+	{
+		Frequency = InFrequency;
+		Platform = InPlatform;
+	}
 
 	friend bool operator==(const FShaderTarget& X, const FShaderTarget& Y)
 	{
@@ -130,6 +141,7 @@ struct FShaderTarget
 		Ar << TargetFrequency << TargetPlatform;
 		if (Ar.IsLoading())
 		{
+			Target.Packed = 0;
 			Target.Frequency = TargetFrequency;
 			Target.Platform = TargetPlatform;
 		}
