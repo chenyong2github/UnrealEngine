@@ -2634,7 +2634,7 @@ void USkeletalMeshComponent::ExtractCollisionsForCloth(
 		{
 			FClothCollisionPrim_Sphere& OutSphere = OutCollisions.Spheres.Add_GetRef(CachedSphere);
 
-			const FTransform& BoneTransform = SourceComponent->GetBoneTransform(OutSphere.BoneIndex, FTransform::Identity) * ComponentToComponentTransform;
+			const FTransform BoneTransform = SourceComponent->GetBoneTransform(OutSphere.BoneIndex, FTransform::Identity) * ComponentToComponentTransform;
 			OutSphere.LocalPosition = BoneTransform.TransformPosition(OutSphere.LocalPosition);
 			OutSphere.BoneIndex = INDEX_NONE;
 		}
