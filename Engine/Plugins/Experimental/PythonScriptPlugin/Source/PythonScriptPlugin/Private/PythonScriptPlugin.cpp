@@ -443,7 +443,8 @@ FPythonScriptPlugin::FPythonScriptPlugin()
 
 bool FPythonScriptPlugin::IsPythonAvailable() const
 {
-	return WITH_PYTHON;
+	static const bool bDisablePython = FParse::Param(FCommandLine::Get(), TEXT("DisablePython"));
+	return WITH_PYTHON && !bDisablePython;
 }
 
 bool FPythonScriptPlugin::ExecPythonCommand(const TCHAR* InPythonCommand)
@@ -455,6 +456,13 @@ bool FPythonScriptPlugin::ExecPythonCommand(const TCHAR* InPythonCommand)
 
 bool FPythonScriptPlugin::ExecPythonCommandEx(FPythonCommandEx& InOutPythonCommand)
 {
+	if (!IsPythonAvailable())
+	{
+		InOutPythonCommand.CommandResult = TEXT("Python is not available!");
+		ensureAlwaysMsgf(false, TEXT("%s"), *InOutPythonCommand.CommandResult);
+		return false;
+	}
+
 #if WITH_PYTHON
 	if (InOutPythonCommand.ExecutionMode == EPythonCommandExecutionMode::ExecuteFile)
 	{
@@ -479,11 +487,7 @@ bool FPythonScriptPlugin::ExecPythonCommandEx(FPythonCommandEx& InOutPythonComma
 	else
 	{
 		return RunString(InOutPythonCommand);
-	}
-#else	// WITH_PYTHON
-	InOutPythonCommand.CommandResult = TEXT("Python is not available!");
-	ensureAlwaysMsgf(false, TEXT("%s"), *InOutPythonCommand.CommandResult);
-	return false;
+	}	
 #endif	// WITH_PYTHON
 }
 
@@ -499,6 +503,11 @@ FSimpleMulticastDelegate& FPythonScriptPlugin::OnPythonShutdown()
 
 void FPythonScriptPlugin::StartupModule()
 {
+	if (!IsPythonAvailable())
+	{
+		return;
+	}
+
 #if WITH_PYTHON
 	InitializePython();
 	IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), &CmdExec);
@@ -536,6 +545,11 @@ void FPythonScriptPlugin::OnPostEngineInit()
 
 void FPythonScriptPlugin::ShutdownModule()
 {
+	if (!IsPythonAvailable())
+	{
+		return;
+	}
+
 #if WITH_PYTHON
 	FCoreDelegates::OnPreExit.RemoveAll(this);
 
