@@ -1459,7 +1459,7 @@ bool UNiagaraScript::BinaryToExecData(const UNiagaraScript* Script, const TArray
 	FString ValidationErrors;
 	if (!ValidateExecData(Script, OutExecData, ValidationErrors))
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to validate FNiagaraVMExecutableData received from DDC, rejecting!  Errors:\n%s"), *ValidationErrors);
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to validate FNiagaraVMExecutableData received from DDC, rejecting!  Warnings:\n%s"), *ValidationErrors);
 		return false;
 	}
 
