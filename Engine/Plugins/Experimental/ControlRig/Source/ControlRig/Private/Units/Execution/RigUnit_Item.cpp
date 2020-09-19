@@ -33,5 +33,23 @@ FRigUnit_ItemReplace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
+	Result = Item;
 	FRigUnit_NameReplace::StaticExecute(RigVMExecuteContext, Item.Name, Old, New, Result.Name, Context);
 }
+
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Units/RigUnitTest.h"
+
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ItemReplace)
+{
+	Unit.Item.Name = FName("OldItemName");
+	Unit.Item.Type = ERigElementType::Bone;
+
+	Unit.Old = FName("Old");
+	Unit.New = FName("New");
+	
+	Execute();
+	AddErrorIfFalse(Unit.Result == FRigElementKey("NewItemName", ERigElementType::Bone), TEXT("unexpected result"));
+	return true;
+}
+#endif
