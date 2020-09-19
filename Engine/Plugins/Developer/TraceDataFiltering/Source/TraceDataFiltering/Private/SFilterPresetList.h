@@ -29,7 +29,7 @@ public:
 
 	SLATE_BEGIN_ARGS( SFilterPresetList ){}
 		/** Delegate for when the selected presets have changed */
-		SLATE_EVENT(FOnPresetsChanged, OnPresetsChanged)
+		SLATE_EVENT(FOnPresetChanged, OnPresetChanged)
 		/** Delegate for when a preset is to be saved, given the current filtering state */
 		SLATE_EVENT(FOnSavePreset, OnSavePreset)
 		/** Delegate for when a specific preset is to be highlighted outside of this widget */
@@ -118,7 +118,7 @@ private:
 	TWeakObjectPtr<UEngineFilterPresetContainer> EnginePresetContainer;
 
 	/** Delegate for when Presets have changed */
-	FOnPresetsChanged OnPresetsChanged;
+	FOnPresetChanged OnPresetChanged;
 
 	/** Delegate for when a Preset is to be saved */
 	FOnSavePreset OnSavePreset;
