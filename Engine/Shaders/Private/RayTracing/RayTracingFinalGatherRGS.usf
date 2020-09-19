@@ -41,7 +41,7 @@ int2 GatherPointsResolution;
 StructuredBuffer<FGatherPoints> GatherPointsBuffer;
 
 RWTexture2D<float4> RWGlobalIlluminationUAV;
-RWTexture2D<float> RWRayDistanceUAV;
+RWTexture2D<float2> RWGlobalIlluminationRayDistanceUAV;
 
 uint DispatchThreadIdToLinearIndex(uint2 DispatchThreadId)
 {
@@ -52,7 +52,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(RenderTileOffsetX, RenderTileOffsetY);
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;
-	RWRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
+	RWGlobalIlluminationRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
 
 	// Get G-Buffer surface data
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
@@ -386,5 +386,5 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 	}
 
 	RWGlobalIlluminationUAV[DispatchThreadId] = float4(ExitantRadiance, AmbientOcclusion);
-	RWRayDistanceUAV[DispatchThreadId] = float2(HitDistance, ValidSamplesPerPixel);
+	RWGlobalIlluminationRayDistanceUAV[DispatchThreadId] = float2(HitDistance, ValidSamplesPerPixel);
 }
