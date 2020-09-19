@@ -18,6 +18,9 @@
 #include "EditorFontGlyphs.h"
 #include "GPULightmassModule.h"
 #include "LevelEditorViewport.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SButton.h"
 
 extern ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld);
 
