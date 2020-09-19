@@ -202,64 +202,21 @@ void UMoviePipelineImagePassBase::RendererSubmission_GameThread(const FMoviePipe
 	PostRendererSubmission(InSampleState, InCanvas);
 }
 
-TArray<FString> UMoviePipelineDeferredPassBase::GetCompositionGraphPasses() const
-{
-	TArray<FString> RenderPasses;
-	if (bWriteWorldDepth)
-	{
-		RenderPasses.Add(TEXT("SceneDepthWorldUnits"));
-	}
-	if (bWriteMotionVectors)
-	{
-		RenderPasses.Add(TEXT("Velocity"));
-	}
-	if (bWriteAmbientOcclusion)
-	{
-		RenderPasses.Add(TEXT("AmbientOcclusion"));
-
-	}
-
-	return RenderPasses;
-}
-
 void UMoviePipelineDeferredPassBase::RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily)
 {
 	FSceneView* View = const_cast<FSceneView*>(InViewFamily.Views[0]);
 	View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Empty();
 	View->FinalPostProcessSettings.BufferVisualizationPipes.Empty();
 
-	TArray<FString> RenderPasses = GetCompositionGraphPasses();
-
-	struct FIterator
-	{
-		FFinalPostProcessSettings& FinalPostProcessSettings;
-		const TArray<FString>& RenderPasses;
-
-		FIterator(FFinalPostProcessSettings& InFinalPostProcessSettings, const TArray<FString>& InRenderPasses)
-			: FinalPostProcessSettings(InFinalPostProcessSettings), RenderPasses(InRenderPasses)
-		{}
-
-		void ProcessValue(const FString& InName, UMaterialInterface* Material, const FText& InText)
-		{
-			if (RenderPasses.Contains(InName) || RenderPasses.Contains(InText.ToString()))
-			{
-				FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(Material);
-			}
-		}
-	} Iterator(View->FinalPostProcessSettings, RenderPasses);
-
-	// Turn our desired passes (by name) into the actual material which implements the visualization
-	GetBufferVisualizationData().IterateOverAvailableMaterials(Iterator);
-
-	for (UMaterialInterface* Material : AdditionalPostProcessMaterials)
+	for (UMaterialInterface* Material : ActivePostProcessMaterials)
 	{
 		if (Material)
 		{
-			Iterator.FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(Material);
+			View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(Material);
 		}
 	}
 
-	for (UMaterialInterface* VisMaterial : Iterator.FinalPostProcessSettings.BufferVisualizationOverviewMaterials)
+	for (UMaterialInterface* VisMaterial : View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials)
 	{
 		// If this was just to contribute to the history buffer, no need to go any further.
 		if (InSampleState.bDiscardResult)
@@ -286,9 +243,8 @@ void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelin
 	// Add the default backbuffer
 	Super::GatherOutputPassesImpl(ExpectedRenderPasses);
 
-	TArray<FString> RenderPasses = GetCompositionGraphPasses();
-
-	for (UMaterialInterface* Material : AdditionalPostProcessMaterials)
+	TArray<FString> RenderPasses;
+	for (UMaterialInterface* Material : ActivePostProcessMaterials)
 	{
 		if (Material)
 		{
@@ -586,6 +542,24 @@ void UMoviePipelineImagePassBase::SetupImpl(const MoviePipeline::FMoviePipelineR
 	ViewState.Allocate();
 }
 
+UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase() 
+	: UMoviePipelineImagePassBase()
+{
+	PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
+
+	// To help user knowledge we pre-seed the additional post processing materials with an array of potentially common passes.
+	TArray<FString> DefaultPostProcessMaterials;
+	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth"));
+	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors"));
+
+	for (FString& MaterialPath : DefaultPostProcessMaterials)
+	{
+		FMoviePipelinePostProcessPass& NewPass = AdditionalPostProcessMaterials.AddDefaulted_GetRef();
+		NewPass.Material = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(MaterialPath));
+		NewPass.bEnabled = false;
+	}
+}
+
 void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	Super::SetupImpl(InPassInitSettings);
@@ -606,9 +580,26 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	{
 		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
 	}
-	
+
+	for (FMoviePipelinePostProcessPass& AdditionalPass : AdditionalPostProcessMaterials)
+	{
+		if (AdditionalPass.bEnabled)
+		{
+			UMaterialInterface* Material = AdditionalPass.Material.LoadSynchronous();
+			if (Material)
+			{
+				ActivePostProcessMaterials.Add(Material);
+			}
+		}
+	}
+
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
-	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(6);
+
+	// We must have at least enough accumulators to render all of the requested post process materials, because work doesn't begin
+	// until they're actually submitted to the render thread (which happens all at once) but we tie up an accumulator as we get ready to submit.
+	// If there aren't enough accumulators then we block until one is free but since submission hasn't gone through they'll never be free.
+	int32 PoolSize = (ActivePostProcessMaterials.Num() + 1) * 3;
+	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
 
 	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
 	// One Extension per sequence, since each sequence has its own OCIO settings.
@@ -638,6 +629,8 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
 	OutstandingTasks.Reset();
 
+	ActivePostProcessMaterials.Reset();
+	
 	OCIOSceneViewExtension.Reset();
 	OCIOSceneViewExtension = nullptr;
 

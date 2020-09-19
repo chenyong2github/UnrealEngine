@@ -120,16 +120,31 @@ protected:
 	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
 };
 
+USTRUCT(BlueprintType)
+struct MOVIERENDERPIPELINERENDERPASSES_API FMoviePipelinePostProcessPass
+{
+	GENERATED_BODY()
+
+public:
+	/** Additional passes add a significant amount of render time. May produce multiple output files if using Screen Percentage. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	bool bEnabled;
+
+	/** 
+	* Material should be set to Post Process domain, and Blendable Location = After Tonemapping. 
+	* This will need bDisableMultisampleEffects enabled for pixels to line up(ie : no DoF, MotionBlur, TAA)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	TSoftObjectPtr<UMaterialInterface> Material;
+};
+
 UCLASS(BlueprintType)
 class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineDeferredPassBase : public UMoviePipelineImagePassBase
 {
 	GENERATED_BODY()
 
 public:
-	UMoviePipelineDeferredPassBase() : UMoviePipelineImagePassBase()
-	{
-		PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
-	}
+	UMoviePipelineDeferredPassBase();
 	
 protected:
 	// UMoviePipelineRenderPass API
@@ -148,7 +163,6 @@ protected:
 	// ~UMoviePipelineRenderPass
 
 	TFunction<void(TUniquePtr<FImagePixelData>&&)> MakeForwardingEndpoint(const FMoviePipelinePassIdentifier InPassIdentifier, const FMoviePipelineRenderPassMetrics& InSampleState);
-	TArray<FString> GetCompositionGraphPasses() const;
 
 public:
 	/**
@@ -171,34 +185,16 @@ public:
 	bool bDisableMultisampleEffects;
 
 	/**
-	* Should we write a depth pass (in world units) when we render the image? This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
-	* Adds significant render time.
+	* An array of additional post-processing materials to run after the frame is rendered. Using this feature may add a notable amount of render time.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
-	bool bWriteWorldDepth;
-	
-	/**
-	* Should we write the motion vectors? Combined object + camera motion blur in screenspace. This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
-	* Adds significant render time.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
-	bool bWriteMotionVectors;
-
-	/**
-	* Should we write the ambient occlusion data used during rendering when we render the image? This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
-	* Adds significant render time.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
-	bool bWriteAmbientOcclusion;
-
-	/**
-	* An array of additional post-processing materials to run. Material should be set to Post Process domain, and Blendable Location = Before Tonemapping. This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
-	* Adds significant render time.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
-	TArray<UMaterialInterface*> AdditionalPostProcessMaterials;
+	TArray<FMoviePipelinePostProcessPass> AdditionalPostProcessMaterials;
 
 protected:
+	/** While rendering, store an array of the non-null valid materials loaded from AdditionalPostProcessMaterials. Cleared on teardown. */
+	UPROPERTY(Transient, DuplicateTransient)
+	TArray<UMaterialInterface*> ActivePostProcessMaterials;
+
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
 };
 
