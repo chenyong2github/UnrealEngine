@@ -84,7 +84,7 @@ private:
 	UDatasmithScene* DatasmithScene;
 
 	UPROPERTY( Transient, DuplicateTransient )
-	UPackage* TransientPackage;
+	UPackage* TransientPackage = nullptr;
 
 	TArray< TWeakObjectPtr< UObject > > Assets;
 
