@@ -2217,7 +2217,7 @@ void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Tran
 		// Reset the transaction tracking system.
 		ResetTransaction( TransReset );
 
-		// Invalidate hit proxies as they can retain references to objects over a few frames
+		// Notify any handlers of the cleanse.
 		FEditorSupportDelegates::CleanseEditor.Broadcast();
 
 		// Redraw the levels.
