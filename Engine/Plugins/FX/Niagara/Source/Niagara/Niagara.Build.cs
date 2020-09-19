@@ -15,6 +15,7 @@ public class Niagara : ModuleRules
                 "Core",
                 "Engine",
                 "TimeManagement",
+                "TraceLog",
                 "Renderer",
                 "JsonUtilities",
 				"Landscape",
