@@ -1762,14 +1762,46 @@ FText SDMXEntityList::CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) c
 {
 	const TArray<UDMXEntityController*> Controllers = GetDMXLibrary()->GetEntitiesTypeCast<UDMXEntityController>();
 
+	if (FixturePatch->ParentFixtureTypeTemplate->Modes.Num() == 0)
+	{
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch's fixture type has no modes.");
+	}
+	
+	const bool bHasAnyFunctions = [FixturePatch]()
+	{
+		for(const FDMXFixtureMode& Mode : FixturePatch->ParentFixtureTypeTemplate->Modes)
+		{
+			if(Mode.Functions.Num() > 0)
+			{
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (!bHasAnyFunctions)
+	{
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch's fixture type has no functions.");
+	}
+	
+	if (FixturePatch->GetChannelSpan() == 0)
+	{
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch has a channel span of 0.");
+	}
+
+
+	
 	if (FixturePatch->GetChannelSpan() > DMX_UNIVERSE_SIZE)
 	{
 		return LOCTEXT("DMXEntityList.ChannelSpanExceedsUniverseSize", "Patch uses more than 512 channels.");
 	}
+
+
+	
 	if (Controllers.Num() == 0)
 	{
 		return LOCTEXT("DMXEntityList.PatchMissingController", "No controller available. See 'Controllers' tab to create one.");
 	}
+	
 	if (!FixturePatch->IsInControllersRange(Controllers))
 	{
 		return LOCTEXT("DMXEntityList.PatchNotInControllersRange", "The Universe of the patch is smaller than 0 or not reachable by any Controller in the Library.");
