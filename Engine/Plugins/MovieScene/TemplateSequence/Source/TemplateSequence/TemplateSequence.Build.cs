@@ -14,14 +14,9 @@ public class TemplateSequence : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"MovieScene",
+				"MovieSceneTracks",
 				"TimeManagement",
 				"LevelSequence"
-				}
-		);
-
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"MovieSceneTracks"
 				}
 		);
 	}
