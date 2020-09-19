@@ -34,10 +34,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
 	bool bCopyBoundsButton;
 
-	/** Function used by the VirtualTexture delegate to retrieve our HidePrimitives flags. */
-	UFUNCTION()
-	void GatherHideFlags(bool& InOutHidePrimitivesInEditor, bool& InOutHidePrimitivesInGame) const;
-
 	/** Texture object containing minimum and maximum height values. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Texture"))
 	UHeightfieldMinMaxTexture* MinMaxTexture = nullptr;
@@ -107,12 +103,18 @@ public:
 	void InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData);
 #endif
 
+	UMaterialInterface* GetMaterial() const { return Material; }
 	float GetLod0ScreenSize() const { return Lod0ScreenSize; }
 	float GetLod0Distribution() const { return Lod0Distribution; }
 	float GetLodDistribution() const { return LodDistribution; }
 	int32 GetNumSubdivisionLods() const { return NumSubdivisionLods; }
 	int32 GetNumTailLods() const { return NumTailLods; }
 	int32 GetNumOcclusionLods() const { return NumOcclusionLods; }
+
+protected:
+	/** Function used by the VirtualTexture delegate to retrieve our HidePrimitives flags. */
+	UFUNCTION()
+	void GatherHideFlags(bool& InOutHidePrimitivesInEditor, bool& InOutHidePrimitivesInGame) const;
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
