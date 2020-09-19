@@ -3586,7 +3586,11 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 			.VAlign(VAlign_Fill)
 			.FillHeight(1.0f)
 			[
-				ActorListView.ToSharedRef()
+				SNew(SBox)
+				.MinDesiredHeight(30.0f)
+				[
+					ActorListView.ToSharedRef()
+				]
 			]
 		]
 
@@ -3782,11 +3786,15 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 		.VAlign(VAlign_Top)
 		.AutoHeight()
 		[
-			SAssignNew(DependenciesList, SListView<FVariantDependencyModelPtr>)
-			.SelectionMode(ESelectionMode::None)
-			.ListItemsSource(&DisplayedDependencies)
-			.OnGenerateRow(this, &SVariantManager::GenerateDependencyRow, true)
-			.Visibility(EVisibility::Visible)
+			SNew( SBox )
+			.MinDesiredHeight( 30.0f )
+			[
+				SAssignNew(DependenciesList, SListView<FVariantDependencyModelPtr>)
+				.SelectionMode(ESelectionMode::None)
+				.ListItemsSource(&DisplayedDependencies)
+				.OnGenerateRow(this, &SVariantManager::GenerateDependencyRow, true)
+				.Visibility(EVisibility::Visible)
+			]
 		]
 
 		// Separator
