@@ -99,42 +99,30 @@ namespace DatasmithRhino
 			return TargetName;
 		}
 
+		/// <summary>
+		/// Generate a unique name from the given component, the returned name won't be generated again.
+		/// </summary>
+		/// <param name="InModelComponent"></param>
+		/// <returns></returns>
 		public string GenerateUniqueName(ModelComponent InModelComponent)
 		{
 			string TargetName = GetTargetName(InModelComponent);
 			return GenerateUniqueNameFromBaseName(TargetName);
 		}
 
+		/// <summary>
+		/// Generate a unique name from the given string BaseName, the returned name won't be generated again.
+		/// </summary>
+		/// <param name="BaseName"></param>
+		/// <returns></returns>
 		public string GenerateUniqueNameFromBaseName(string BaseName)
 		{
-			int UniqueNameIndex = GetFirstUniqueNameIndexFromBaseName(BaseName);
-			UniqueNameIndexDictionary[BaseName] = UniqueNameIndex;
-
-			string UniqueName;
-			if (UniqueNameIndex == 1)
-			{
-				UniqueName = BaseName;
-			}
-			else
-			{
-				UniqueName = string.Format("{0}_{1}", BaseName, UniqueNameIndex);
-			}
+			string UniqueName = FacadeNameProvider.GenerateUniqueName(BaseName);
+			FacadeNameProvider.AddExistingName(UniqueName);
 
 			return UniqueName;
 		}
 
-		private int GetFirstUniqueNameIndexFromBaseName(string BaseName)
-		{
-			if (UniqueNameIndexDictionary.TryGetValue(BaseName, out int NameIndex))
-			{
-				return NameIndex + 1;
-			}
-			else
-			{
-				return 1;
-			}
-		}
-
-		private Dictionary<string, int> UniqueNameIndexDictionary = new Dictionary<string, int>();
+		private FDatasmithFacadeUniqueNameProvider FacadeNameProvider = new FDatasmithFacadeUniqueNameProvider();
 	}
 }
