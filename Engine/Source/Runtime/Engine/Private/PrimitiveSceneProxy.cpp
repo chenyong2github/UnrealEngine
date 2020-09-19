@@ -238,16 +238,17 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		}
 	}
 
-	const bool bUseVirtualTexture = RuntimeVirtualTextures.Num() > 0;
-
 	// Conditionally remove from the main passes based on the runtime virtual texture setup
-	if (bUseVirtualTexture)
+	const bool bRequestVirtualTexture = InComponent->GetRuntimeVirtualTextures().Num() > 0;
+	if (bRequestVirtualTexture)
 	{
 		ERuntimeVirtualTextureMainPassType MainPassType = InComponent->GetVirtualTextureRenderPassType();
 		bVirtualTextureMainPassDrawNever = MainPassType == ERuntimeVirtualTextureMainPassType::Never;
 		bVirtualTextureMainPassDrawAlways = MainPassType == ERuntimeVirtualTextureMainPassType::Always;
 	}
+
 	// Modify max draw distance for main pass if we are using virtual texturing
+	const bool bUseVirtualTexture = RuntimeVirtualTextures.Num() > 0;
 	if (bUseVirtualTexture && InComponent->GetVirtualTextureMainPassMaxDrawDistance() > 0.f)
 	{
 		MaxDrawDistance = FMath::Min(MaxDrawDistance, InComponent->GetVirtualTextureMainPassMaxDrawDistance());
