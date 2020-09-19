@@ -94,6 +94,7 @@ public:
 
 	virtual bool GetIsTracked(int32 DeviceId);
 	virtual bool GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVector& CurrentPosition) override;
+	virtual bool GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& CurrentOrientation, FVector& CurrentPosition, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec);
 	virtual void SetBaseRotation(const FRotator& BaseRot) override;
 	virtual FRotator GetBaseRotation() const override;
 
