@@ -12,559 +12,559 @@
 namespace
 {
 
-	const int32 GTemporalAATileSizeX = 8;
-	const int32 GTemporalAATileSizeY = 8;
+const int32 GTemporalAATileSizeX = 8;
+const int32 GTemporalAATileSizeY = 8;
 
-	constexpr int32 kHistoryTextures = 3;
+constexpr int32 kHistoryTextures = 3;
 
-	TAutoConsoleVariable<int32> CVarTAAAlgorithm(
-		TEXT("r.TemporalAA.Algorithm"), 0,
-		TEXT("Algorithm to use for Temporal AA\n")
-		TEXT(" 0: Gen 4 TAAU (default)\n")
-		TEXT(" 1: Gen 5 TAAU (experimental)"),
-		ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarTAAAlgorithm(
+	TEXT("r.TemporalAA.Algorithm"), 0,
+	TEXT("Algorithm to use for Temporal AA\n")
+	TEXT(" 0: Gen 4 TAAU (default)\n")
+	TEXT(" 1: Gen 5 TAAU (experimental)"),
+	ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<float> CVarTemporalAAFilterSize(
-		TEXT("r.TemporalAAFilterSize"),
-		1.0f,
-		TEXT("Size of the filter kernel. (1.0 = smoother, 0.0 = sharper but aliased)."),
-		ECVF_Scalability | ECVF_RenderThreadSafe);
+TAutoConsoleVariable<float> CVarTemporalAAFilterSize(
+	TEXT("r.TemporalAAFilterSize"),
+	1.0f,
+	TEXT("Size of the filter kernel. (1.0 = smoother, 0.0 = sharper but aliased)."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<int32> CVarTemporalAACatmullRom(
-		TEXT("r.TemporalAACatmullRom"),
-		0,
-		TEXT("Whether to use a Catmull-Rom filter kernel. Should be a bit sharper than Gaussian."),
-		ECVF_Scalability | ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarTemporalAACatmullRom(
+	TEXT("r.TemporalAACatmullRom"),
+	0,
+	TEXT("Whether to use a Catmull-Rom filter kernel. Should be a bit sharper than Gaussian."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<int32> CVarTemporalAAPauseCorrect(
-		TEXT("r.TemporalAAPauseCorrect"),
-		1,
-		TEXT("Correct temporal AA in pause. This holds onto render targets longer preventing reuse and consumes more memory."),
-		ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarTemporalAAPauseCorrect(
+	TEXT("r.TemporalAAPauseCorrect"),
+	1,
+	TEXT("Correct temporal AA in pause. This holds onto render targets longer preventing reuse and consumes more memory."),
+	ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<float> CVarTemporalAACurrentFrameWeight(
-		TEXT("r.TemporalAACurrentFrameWeight"),
-		.04f,
-		TEXT("Weight of current frame's contribution to the history.  Low values cause blurriness and ghosting, high values fail to hide jittering."),
-		ECVF_Scalability | ECVF_RenderThreadSafe);
+TAutoConsoleVariable<float> CVarTemporalAACurrentFrameWeight(
+	TEXT("r.TemporalAACurrentFrameWeight"),
+	.04f,
+	TEXT("Weight of current frame's contribution to the history.  Low values cause blurriness and ghosting, high values fail to hide jittering."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<int32> CVarTemporalAAUpsampleFiltered(
-		TEXT("r.TemporalAAUpsampleFiltered"),
-		1,
-		TEXT("Use filtering to fetch color history during TamporalAA upsampling (see AA_FILTERED define in TAA shader). Disabling this makes TAAU faster, but lower quality. "),
-		ECVF_Scalability | ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarTemporalAAUpsampleFiltered(
+	TEXT("r.TemporalAAUpsampleFiltered"),
+	1,
+	TEXT("Use filtering to fetch color history during TamporalAA upsampling (see AA_FILTERED define in TAA shader). Disabling this makes TAAU faster, but lower quality. "),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
-		TEXT("r.TemporalAA.HistoryScreenPercentage"),
-		100.0f,
-		TEXT("Size of temporal AA's history."),
-		ECVF_RenderThreadSafe);
+TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
+	TEXT("r.TemporalAA.HistoryScreenPercentage"),
+	100.0f,
+	TEXT("Size of temporal AA's history."),
+	ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<int32> CVarTemporalAAAllowDownsampling(
-		TEXT("r.TemporalAA.AllowDownsampling"),
-		1,
-		TEXT("Allows half-resolution color buffer to be produced during TAA. Only possible when motion blur is off and when using compute shaders for post processing."),
-		ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarTemporalAAAllowDownsampling(
+	TEXT("r.TemporalAA.AllowDownsampling"),
+	1,
+	TEXT("Allows half-resolution color buffer to be produced during TAA. Only possible when motion blur is off and when using compute shaders for post processing."),
+	ECVF_RenderThreadSafe);
 
-	static TAutoConsoleVariable<int32> CVarUseTemporalAAUpscaler(
-		TEXT("r.TemporalAA.Upscaler"),
-		1,
-		TEXT("Choose the upscaling algorithm.\n")
-		TEXT(" 0: Forces the default temporal upscaler of the renderer;\n")
-		TEXT(" 1: GTemporalUpscaler which may be overridden by a third party plugin (default)."),
-		ECVF_RenderThreadSafe);
+static TAutoConsoleVariable<int32> CVarUseTemporalAAUpscaler(
+	TEXT("r.TemporalAA.Upscaler"),
+	1,
+	TEXT("Choose the upscaling algorithm.\n")
+	TEXT(" 0: Forces the default temporal upscaler of the renderer;\n")
+	TEXT(" 1: GTemporalUpscaler which may be overridden by a third party plugin (default)."),
+	ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<int32> CVarTAAR11G11B10History(
-		TEXT("r.TemporalAA.R11G11B10History"), 0,
-		TEXT("Select the bitdepth of the history."),
-		ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarTAAR11G11B10History(
+	TEXT("r.TemporalAA.R11G11B10History"), 0,
+	TEXT("Select the bitdepth of the history."),
+	ECVF_RenderThreadSafe);
 
-	inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
+inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
+{
+	return (IsPCPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsTemporalHistoryUpscale(Platform))
+		&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+}
+
+inline bool DoesPlatformSupportGen5TAA(EShaderPlatform Platform)
+{
+	return (
+		(IsPCPlatform(Platform) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)) ||
+		FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform));
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FTAACommonParameters, )
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InputInfo)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, LowFrequencyInfo)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, RejectionInfo)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, HistoryInfo)
+
+	SHADER_PARAMETER(FVector2D, InputJitter)
+
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, )
+	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [kHistoryTextures])
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, Textures, [kHistoryTextures])
+END_SHADER_PARAMETER_STRUCT()
+
+FTAAHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTAAHistoryTextures& Textures)
+{
+	FTAAHistoryUAVs UAVs;
+	for (int32 i = 0; i < kHistoryTextures; i++)
 	{
-		return (IsPCPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsTemporalHistoryUpscale(Platform))
-			&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+		UAVs.Textures[i] = GraphBuilder.CreateUAV(Textures.Textures[i]);
+	}
+	return UAVs;
+}
+
+class FTAAGen5Shader : public FGlobalShader
+{
+public:
+	FTAAGen5Shader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{ }
+
+	FTAAGen5Shader()
+	{ }
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportGen5TAA(Parameters.Platform);
 	}
 
-	inline bool DoesPlatformSupportGen5TAA(EShaderPlatform Platform)
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		return (
-			(IsPCPlatform(Platform) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)) ||
-			FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform));
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowRealTypes);
 	}
+}; // class FTAAGen5Shader
 
-	BEGIN_SHADER_PARAMETER_STRUCT(FTAACommonParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InputInfo)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, LowFrequencyInfo)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, RejectionInfo)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, HistoryInfo)
+class FTAAStandaloneCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FTAAStandaloneCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAAStandaloneCS, FGlobalShader);
 
-		SHADER_PARAMETER(FVector2D, InputJitter)
+	class FTAAPassConfigDim : SHADER_PERMUTATION_ENUM_CLASS("TAA_PASS_CONFIG", ETAAPassConfig);
+	class FTAAFastDim : SHADER_PERMUTATION_BOOL("TAA_FAST");
+	class FTAAResponsiveDim : SHADER_PERMUTATION_BOOL("TAA_RESPONSIVE");
+	class FTAAScreenPercentageDim : SHADER_PERMUTATION_INT("TAA_SCREEN_PERCENTAGE_RANGE", 4);
+	class FTAAUpsampleFilteredDim : SHADER_PERMUTATION_BOOL("TAA_UPSAMPLE_FILTERED");
+	class FTAADownsampleDim : SHADER_PERMUTATION_BOOL("TAA_DOWNSAMPLE");
+
+	using FPermutationDomain = TShaderPermutationDomain<
+		FTAAPassConfigDim,
+		FTAAFastDim,
+		FTAAScreenPercentageDim,
+		FTAAUpsampleFilteredDim,
+		FTAADownsampleDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector4, ViewportUVToInputBufferUV)
+		SHADER_PARAMETER(FVector4, MaxViewportUVAndSvPositionToViewportUV)
+		SHADER_PARAMETER(FVector2D, ScreenPosAbsMax)
+		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
+		SHADER_PARAMETER(float, CurrentFrameWeight)
+		SHADER_PARAMETER(int32, bCameraCut)
+
+		SHADER_PARAMETER_ARRAY(float, SampleWeights, [9])
+		SHADER_PARAMETER_ARRAY(float, PlusWeights, [5])
+
+		SHADER_PARAMETER(FVector4, InputSceneColorSize)
+		SHADER_PARAMETER(FIntPoint, InputMinPixelCoord)
+		SHADER_PARAMETER(FIntPoint, InputMaxPixelCoord)
+		SHADER_PARAMETER(FVector4, OutputViewportSize)
+		SHADER_PARAMETER(FVector4, OutputViewportRect)
+		SHADER_PARAMETER(FVector, OutputQuantizationError)
+
+		// History parameters
+		SHADER_PARAMETER(FVector4, HistoryBufferSize)
+		SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
+		SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+
+		// Inputs
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColor)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputSceneColorSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneMetadata)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputSceneMetadataSampler)
+
+		// History resources
+		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, HistoryBuffer, [FTemporalAAHistory::kRenderTargetCount])
+		SHADER_PARAMETER_SAMPLER_ARRAY(SamplerState, HistoryBufferSampler, [FTemporalAAHistory::kRenderTargetCount])
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthTextureSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferVelocityTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, GBufferVelocityTextureSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, StencilTexture)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		END_SHADER_PARAMETER_STRUCT()
 
-		BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, )
-		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [kHistoryTextures])
-		END_SHADER_PARAMETER_STRUCT()
+		// Temporal upsample specific parameters.
+		SHADER_PARAMETER(FVector4, InputViewSize)
+		SHADER_PARAMETER(FVector2D, InputViewMin)
+		SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
+		SHADER_PARAMETER(float, ScreenPercentage)
+		SHADER_PARAMETER(float, UpscaleFactor)
 
-		BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, Textures, [kHistoryTextures])
-		END_SHADER_PARAMETER_STRUCT()
+		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(Texture2D, OutComputeTex, [FTemporalAAHistory::kRenderTargetCount])
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutComputeTexDownsampled)
 
-		FTAAHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTAAHistoryTextures& Textures)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		FTAAHistoryUAVs UAVs;
-		for (int32 i = 0; i < kHistoryTextures; i++)
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		// Screen percentage dimension is only for upsampling permutation.
+		if (!IsTAAUpsamplingConfig(PermutationVector.Get<FTAAPassConfigDim>()) &&
+			PermutationVector.Get<FTAAScreenPercentageDim>() != 0)
 		{
-			UAVs.Textures[i] = GraphBuilder.CreateUAV(Textures.Textures[i]);
+			return false;
 		}
-		return UAVs;
+
+		if (PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::MainSuperSampling)
+		{
+			// Super sampling is only available in certain configurations.
+			if (!DoesPlatformSupportTemporalHistoryUpscale(Parameters.Platform))
+			{
+				return false;
+			}
+
+			// No point disabling filtering.
+			if (!PermutationVector.Get<FTAAUpsampleFilteredDim>())
+			{
+				return false;
+			}
+
+			// No point doing a fast permutation since it is PC only.
+			if (PermutationVector.Get<FTAAFastDim>())
+			{
+				return false;
+			}
+		}
+
+		// No point disabling filtering if not using the fast permutation already.
+		if (!PermutationVector.Get<FTAAUpsampleFilteredDim>() &&
+			!PermutationVector.Get<FTAAFastDim>())
+		{
+			return false;
+		}
+
+		// No point downsampling if not using the fast permutation already.
+		if (PermutationVector.Get<FTAADownsampleDim>() &&
+			!PermutationVector.Get<FTAAFastDim>())
+		{
+			return false;
+		}
+
+		// Screen percentage range 3 is only for super sampling.
+		if (PermutationVector.Get<FTAAPassConfigDim>() != ETAAPassConfig::MainSuperSampling &&
+			PermutationVector.Get<FTAAScreenPercentageDim>() == 3)
+		{
+			return false;
+		}
+
+		// Fast dimensions is only for Main and Diaphragm DOF.
+		if (PermutationVector.Get<FTAAFastDim>() &&
+			!IsMainTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()) &&
+			!IsDOFTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
+		{
+			return false;
+		}
+
+		// Non filtering option is only for upsampling.
+		if (!PermutationVector.Get<FTAAUpsampleFilteredDim>() &&
+			PermutationVector.Get<FTAAPassConfigDim>() != ETAAPassConfig::MainUpsampling)
+		{
+			return false;
+		}
+
+		// TAA_DOWNSAMPLE is only only for Main and MainUpsampling configs.
+		if (PermutationVector.Get<FTAADownsampleDim>() &&
+			!IsMainTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
+		{
+			return false;
+		}
+
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	class FTAAGen5Shader : public FGlobalShader
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-	public:
-		FTAAGen5Shader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
-		{ }
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GTemporalAATileSizeX);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GTemporalAATileSizeY);
+	}
+}; // class FTAAStandaloneCS
 
-		FTAAGen5Shader()
-		{ }
+class FTAAClearPrevTexturesCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAAClearPrevTexturesCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAAClearPrevTexturesCS, FTAAGen5Shader);
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return DoesPlatformSupportGen5TAA(Parameters.Platform);
-		}
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			OutEnvironment.CompilerFlags.Add(CFLAG_AllowRealTypes);
-		}
-	}; // class FTAAGen5Shader
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevUseCountOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevClosestDepthOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAAClearPrevTexturesCS
 
-	class FTAAStandaloneCS : public FGlobalShader
+class FTAADilateVelocityCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAADilateVelocityCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAADilateVelocityCS, FTAAGen5Shader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityTexture)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DilatedVelocityOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ClosestDepthOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevUseCountOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevClosestDepthOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAADilateVelocityCS
+
+class FTAADecimateHistoryCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAADecimateHistoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAADecimateHistoryCS, FTAAGen5Shader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+		SHADER_PARAMETER(FVector, OutputQuantizationError)
+		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
+		SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
+		SHADER_PARAMETER(int32, bCameraCut)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClosestDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevUseCountTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevClosestDepthTexture)
+
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
+		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PredictionSceneColorOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ParallaxRejectionMaskOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAADecimateHistoryCS
+
+class FTAAFilterFrequenciesCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAAFilterFrequenciesCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAAFilterFrequenciesCS, FTAAGen5Shader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+		SHADER_PARAMETER(FVector, OutputQuantizationError)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionSceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredInputOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredPredictionSceneColorOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAAFilterFrequenciesCS
+
+class FTAACompareHistoryCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAACompareHistoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAACompareHistoryCS, FTAAGen5Shader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredInputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredPredictionSceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HistoryRejectionOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAACompareHistoryCS
+
+class FTAADilateRejectionCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAADilateRejectionCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAADilateRejectionCS, FTAAGen5Shader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DilatedHistoryRejectionOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAADilateRejectionCS
+
+class FTAAUpdateHistoryCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAAUpdateHistoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAAUpdateHistoryCS, FTAAGen5Shader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputSceneStencilTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
+
+		SHADER_PARAMETER(FVector, HistoryQuantizationError)
+		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
+		SHADER_PARAMETER(int32, bCameraCut)
+
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
+		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
+
+		SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, HistoryOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAAUpdateHistoryCS
+
+IMPLEMENT_GLOBAL_SHADER(FTAAStandaloneCS, "/Engine/Private/TemporalAA/TAAStandalone.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAAClearPrevTexturesCS, "/Engine/Private/TemporalAA/TAAClearPrevTextures.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAADilateVelocityCS, "/Engine/Private/TemporalAA/TAADilateVelocity.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAADecimateHistoryCS, "/Engine/Private/TemporalAA/TAADecimateHistory.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAAFilterFrequenciesCS, "/Engine/Private/TemporalAA/TAAFilterFrequencies.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAACompareHistoryCS, "/Engine/Private/TemporalAA/TAACompareHistory.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAADilateRejectionCS, "/Engine/Private/TemporalAA/TAADilateRejection.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAAUpdateHistoryCS, "/Engine/Private/TemporalAA/TAAUpdateHistory.usf", "MainCS", SF_Compute);
+
+float CatmullRom(float x)
+{
+	float ax = FMath::Abs(x);
+	if (ax > 1.0f)
+		return ((-0.5f * ax + 2.5f) * ax - 4.0f) *ax + 2.0f;
+	else
+		return (1.5f * ax - 2.5f) * ax*ax + 1.0f;
+}
+
+FVector ComputePixelFormatQuantizationError(EPixelFormat PixelFormat)
+{
+	FVector Error;
+	if (PixelFormat == PF_FloatRGBA || PixelFormat == PF_FloatR11G11B10)
 	{
-		DECLARE_GLOBAL_SHADER(FTAAStandaloneCS);
-		SHADER_USE_PARAMETER_STRUCT(FTAAStandaloneCS, FGlobalShader);
+		FIntVector HistoryColorMantissaBits = PixelFormat == PF_FloatR11G11B10 ? FIntVector(6, 6, 5) : FIntVector(10, 10, 10);
 
-		class FTAAPassConfigDim : SHADER_PERMUTATION_ENUM_CLASS("TAA_PASS_CONFIG", ETAAPassConfig);
-		class FTAAFastDim : SHADER_PERMUTATION_BOOL("TAA_FAST");
-		class FTAAResponsiveDim : SHADER_PERMUTATION_BOOL("TAA_RESPONSIVE");
-		class FTAAScreenPercentageDim : SHADER_PERMUTATION_INT("TAA_SCREEN_PERCENTAGE_RANGE", 4);
-		class FTAAUpsampleFilteredDim : SHADER_PERMUTATION_BOOL("TAA_UPSAMPLE_FILTERED");
-		class FTAADownsampleDim : SHADER_PERMUTATION_BOOL("TAA_DOWNSAMPLE");
-
-		using FPermutationDomain = TShaderPermutationDomain<
-			FTAAPassConfigDim,
-			FTAAFastDim,
-			FTAAScreenPercentageDim,
-			FTAAUpsampleFilteredDim,
-			FTAADownsampleDim>;
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER(FVector4, ViewportUVToInputBufferUV)
-			SHADER_PARAMETER(FVector4, MaxViewportUVAndSvPositionToViewportUV)
-			SHADER_PARAMETER(FVector2D, ScreenPosAbsMax)
-			SHADER_PARAMETER(float, HistoryPreExposureCorrection)
-			SHADER_PARAMETER(float, CurrentFrameWeight)
-			SHADER_PARAMETER(int32, bCameraCut)
-
-			SHADER_PARAMETER_ARRAY(float, SampleWeights, [9])
-			SHADER_PARAMETER_ARRAY(float, PlusWeights, [5])
-
-			SHADER_PARAMETER(FVector4, InputSceneColorSize)
-			SHADER_PARAMETER(FIntPoint, InputMinPixelCoord)
-			SHADER_PARAMETER(FIntPoint, InputMaxPixelCoord)
-			SHADER_PARAMETER(FVector4, OutputViewportSize)
-			SHADER_PARAMETER(FVector4, OutputViewportRect)
-			SHADER_PARAMETER(FVector, OutputQuantizationError)
-
-			// History parameters
-			SHADER_PARAMETER(FVector4, HistoryBufferSize)
-			SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
-			SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
-
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
-
-			// Inputs
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColor)
-			SHADER_PARAMETER_SAMPLER(SamplerState, InputSceneColorSampler)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneMetadata)
-			SHADER_PARAMETER_SAMPLER(SamplerState, InputSceneMetadataSampler)
-
-			// History resources
-			SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, HistoryBuffer, [FTemporalAAHistory::kRenderTargetCount])
-			SHADER_PARAMETER_SAMPLER_ARRAY(SamplerState, HistoryBufferSampler, [FTemporalAAHistory::kRenderTargetCount])
-
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
-			SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthTextureSampler)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferVelocityTexture)
-			SHADER_PARAMETER_SAMPLER(SamplerState, GBufferVelocityTextureSampler)
-
-			SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, StencilTexture)
-
-			SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-
-			// Temporal upsample specific parameters.
-			SHADER_PARAMETER(FVector4, InputViewSize)
-			SHADER_PARAMETER(FVector2D, InputViewMin)
-			SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
-			SHADER_PARAMETER(float, ScreenPercentage)
-			SHADER_PARAMETER(float, UpscaleFactor)
-
-			SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(Texture2D, OutComputeTex, [FTemporalAAHistory::kRenderTargetCount])
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutComputeTexDownsampled)
-
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-			END_SHADER_PARAMETER_STRUCT()
-
-			static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			FPermutationDomain PermutationVector(Parameters.PermutationId);
-
-			// Screen percentage dimension is only for upsampling permutation.
-			if (!IsTAAUpsamplingConfig(PermutationVector.Get<FTAAPassConfigDim>()) &&
-				PermutationVector.Get<FTAAScreenPercentageDim>() != 0)
-			{
-				return false;
-			}
-
-			if (PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::MainSuperSampling)
-			{
-				// Super sampling is only available in certain configurations.
-				if (!DoesPlatformSupportTemporalHistoryUpscale(Parameters.Platform))
-				{
-					return false;
-				}
-
-				// No point disabling filtering.
-				if (!PermutationVector.Get<FTAAUpsampleFilteredDim>())
-				{
-					return false;
-				}
-
-				// No point doing a fast permutation since it is PC only.
-				if (PermutationVector.Get<FTAAFastDim>())
-				{
-					return false;
-				}
-			}
-
-			// No point disabling filtering if not using the fast permutation already.
-			if (!PermutationVector.Get<FTAAUpsampleFilteredDim>() &&
-				!PermutationVector.Get<FTAAFastDim>())
-			{
-				return false;
-			}
-
-			// No point downsampling if not using the fast permutation already.
-			if (PermutationVector.Get<FTAADownsampleDim>() &&
-				!PermutationVector.Get<FTAAFastDim>())
-			{
-				return false;
-			}
-
-			// Screen percentage range 3 is only for super sampling.
-			if (PermutationVector.Get<FTAAPassConfigDim>() != ETAAPassConfig::MainSuperSampling &&
-				PermutationVector.Get<FTAAScreenPercentageDim>() == 3)
-			{
-				return false;
-			}
-
-			// Fast dimensions is only for Main and Diaphragm DOF.
-			if (PermutationVector.Get<FTAAFastDim>() &&
-				!IsMainTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()) &&
-				!IsDOFTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
-			{
-				return false;
-			}
-
-			// Non filtering option is only for upsampling.
-			if (!PermutationVector.Get<FTAAUpsampleFilteredDim>() &&
-				PermutationVector.Get<FTAAPassConfigDim>() != ETAAPassConfig::MainUpsampling)
-			{
-				return false;
-			}
-
-			// TAA_DOWNSAMPLE is only only for Main and MainUpsampling configs.
-			if (PermutationVector.Get<FTAADownsampleDim>() &&
-				!IsMainTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
-			{
-				return false;
-			}
-
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-		}
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GTemporalAATileSizeX);
-			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GTemporalAATileSizeY);
-		}
-	}; // class FTAAStandaloneCS
-
-	class FTAAClearPrevTexturesCS : public FTAAGen5Shader
+		Error.X = FMath::Pow(0.5f, HistoryColorMantissaBits.X);
+		Error.Y = FMath::Pow(0.5f, HistoryColorMantissaBits.Y);
+		Error.Z = FMath::Pow(0.5f, HistoryColorMantissaBits.Z);
+	}
+	else
 	{
-		DECLARE_GLOBAL_SHADER(FTAAClearPrevTexturesCS);
-		SHADER_USE_PARAMETER_STRUCT(FTAAClearPrevTexturesCS, FTAAGen5Shader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
-
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevUseCountOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevClosestDepthOutput)
-			END_SHADER_PARAMETER_STRUCT()
-	}; // class FTAAClearPrevTexturesCS
-
-	class FTAADilateVelocityCS : public FTAAGen5Shader
-	{
-		DECLARE_GLOBAL_SHADER(FTAADilateVelocityCS);
-		SHADER_USE_PARAMETER_STRUCT(FTAADilateVelocityCS, FTAAGen5Shader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
-
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityTexture)
-
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DilatedVelocityOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ClosestDepthOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevUseCountOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevClosestDepthOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-			END_SHADER_PARAMETER_STRUCT()
-	}; // class FTAADilateVelocityCS
-
-	class FTAADecimateHistoryCS : public FTAAGen5Shader
-	{
-		DECLARE_GLOBAL_SHADER(FTAADecimateHistoryCS);
-		SHADER_USE_PARAMETER_STRUCT(FTAADecimateHistoryCS, FTAAGen5Shader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
-			SHADER_PARAMETER(FVector, OutputQuantizationError)
-			SHADER_PARAMETER(float, HistoryPreExposureCorrection)
-			SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
-			SHADER_PARAMETER(int32, bCameraCut)
-
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClosestDepthTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevUseCountTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevClosestDepthTexture)
-
-			SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
-			SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
-
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PredictionSceneColorOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ParallaxRejectionMaskOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-			END_SHADER_PARAMETER_STRUCT()
-	}; // class FTAADecimateHistoryCS
-
-	class FTAAFilterFrequenciesCS : public FTAAGen5Shader
-	{
-		DECLARE_GLOBAL_SHADER(FTAAFilterFrequenciesCS);
-		SHADER_USE_PARAMETER_STRUCT(FTAAFilterFrequenciesCS, FTAAGen5Shader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
-			SHADER_PARAMETER(FVector, OutputQuantizationError)
-
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionSceneColorTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
-
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredInputOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredPredictionSceneColorOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-			END_SHADER_PARAMETER_STRUCT()
-	}; // class FTAAFilterFrequenciesCS
-
-	class FTAACompareHistoryCS : public FTAAGen5Shader
-	{
-		DECLARE_GLOBAL_SHADER(FTAACompareHistoryCS);
-		SHADER_USE_PARAMETER_STRUCT(FTAACompareHistoryCS, FTAAGen5Shader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredInputTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredPredictionSceneColorTexture)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HistoryRejectionOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-			END_SHADER_PARAMETER_STRUCT()
-	}; // class FTAACompareHistoryCS
-
-	class FTAADilateRejectionCS : public FTAAGen5Shader
-	{
-		DECLARE_GLOBAL_SHADER(FTAADilateRejectionCS);
-		SHADER_USE_PARAMETER_STRUCT(FTAADilateRejectionCS, FTAAGen5Shader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DilatedHistoryRejectionOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-			END_SHADER_PARAMETER_STRUCT()
-	}; // class FTAADilateRejectionCS
-
-	class FTAAUpdateHistoryCS : public FTAAGen5Shader
-	{
-		DECLARE_GLOBAL_SHADER(FTAAUpdateHistoryCS);
-		SHADER_USE_PARAMETER_STRUCT(FTAAUpdateHistoryCS, FTAAGen5Shader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
-			SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputSceneStencilTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
-
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
-			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
-
-			SHADER_PARAMETER(FVector, HistoryQuantizationError)
-			SHADER_PARAMETER(float, HistoryPreExposureCorrection)
-			SHADER_PARAMETER(int32, bCameraCut)
-
-			SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
-			SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
-
-			SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, HistoryOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutput)
-			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-			END_SHADER_PARAMETER_STRUCT()
-	}; // class FTAAUpdateHistoryCS
-
-	IMPLEMENT_GLOBAL_SHADER(FTAAStandaloneCS, "/Engine/Private/TemporalAA/TAAStandalone.usf", "MainCS", SF_Compute);
-	IMPLEMENT_GLOBAL_SHADER(FTAAClearPrevTexturesCS, "/Engine/Private/TemporalAA/TAAClearPrevTextures.usf", "MainCS", SF_Compute);
-	IMPLEMENT_GLOBAL_SHADER(FTAADilateVelocityCS, "/Engine/Private/TemporalAA/TAADilateVelocity.usf", "MainCS", SF_Compute);
-	IMPLEMENT_GLOBAL_SHADER(FTAADecimateHistoryCS, "/Engine/Private/TemporalAA/TAADecimateHistory.usf", "MainCS", SF_Compute);
-	IMPLEMENT_GLOBAL_SHADER(FTAAFilterFrequenciesCS, "/Engine/Private/TemporalAA/TAAFilterFrequencies.usf", "MainCS", SF_Compute);
-	IMPLEMENT_GLOBAL_SHADER(FTAACompareHistoryCS, "/Engine/Private/TemporalAA/TAACompareHistory.usf", "MainCS", SF_Compute);
-	IMPLEMENT_GLOBAL_SHADER(FTAADilateRejectionCS, "/Engine/Private/TemporalAA/TAADilateRejection.usf", "MainCS", SF_Compute);
-	IMPLEMENT_GLOBAL_SHADER(FTAAUpdateHistoryCS, "/Engine/Private/TemporalAA/TAAUpdateHistory.usf", "MainCS", SF_Compute);
-
-	float CatmullRom(float x)
-	{
-		float ax = FMath::Abs(x);
-		if (ax > 1.0f)
-			return ((-0.5f * ax + 2.5f) * ax - 4.0f) * ax + 2.0f;
-		else
-			return (1.5f * ax - 2.5f) * ax * ax + 1.0f;
+		check(0);
 	}
 
-	FVector ComputePixelFormatQuantizationError(EPixelFormat PixelFormat)
+	return Error;
+}
+
+void SetupSampleWeightParameters(FTAAStandaloneCS::FParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2D TemporalJitterPixels)
+{
+	float JitterX = TemporalJitterPixels.X;
+	float JitterY = TemporalJitterPixels.Y;
+	float ResDivisorInv = 1.0f / float(PassParameters.ResolutionDivisor);
+
+	static const float SampleOffsets[9][2] =
 	{
-		FVector Error;
-		if (PixelFormat == PF_FloatRGBA || PixelFormat == PF_FloatR11G11B10)
-		{
-			FIntVector HistoryColorMantissaBits = PixelFormat == PF_FloatR11G11B10 ? FIntVector(6, 6, 5) : FIntVector(10, 10, 10);
-
-			Error.X = FMath::Pow(0.5f, HistoryColorMantissaBits.X);
-			Error.Y = FMath::Pow(0.5f, HistoryColorMantissaBits.Y);
-			Error.Z = FMath::Pow(0.5f, HistoryColorMantissaBits.Z);
-		}
-		else
-		{
-			check(0);
-		}
-
-		return Error;
-	}
-
-	void SetupSampleWeightParameters(FTAAStandaloneCS::FParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2D TemporalJitterPixels)
-	{
-		float JitterX = TemporalJitterPixels.X;
-		float JitterY = TemporalJitterPixels.Y;
-		float ResDivisorInv = 1.0f / float(PassParameters.ResolutionDivisor);
-
-		static const float SampleOffsets[9][2] =
-		{
-			{ -1.0f, -1.0f },
-			{  0.0f, -1.0f },
-			{  1.0f, -1.0f },
-			{ -1.0f,  0.0f },
-			{  0.0f,  0.0f },
-			{  1.0f,  0.0f },
-			{ -1.0f,  1.0f },
-			{  0.0f,  1.0f },
-			{  1.0f,  1.0f },
-		};
-
-		float FilterSize = CVarTemporalAAFilterSize.GetValueOnRenderThread();
-		int32 bCatmullRom = CVarTemporalAACatmullRom.GetValueOnRenderThread();
-
-		// Compute 3x3 weights
-		{
-			float TotalWeight = 0.0f;
-			for (int32 i = 0; i < 9; i++)
-			{
-				float PixelOffsetX = SampleOffsets[i][0] - JitterX * ResDivisorInv;
-				float PixelOffsetY = SampleOffsets[i][1] - JitterY * ResDivisorInv;
-
-				PixelOffsetX /= FilterSize;
-				PixelOffsetY /= FilterSize;
-
-				if (bCatmullRom)
-				{
-					OutTAAParameters->SampleWeights[i] = CatmullRom(PixelOffsetX) * CatmullRom(PixelOffsetY);
-					TotalWeight += OutTAAParameters->SampleWeights[i];
-				}
-				else
-				{
-					// Normal distribution, Sigma = 0.47
-					OutTAAParameters->SampleWeights[i] = FMath::Exp(-2.29f * (PixelOffsetX * PixelOffsetX + PixelOffsetY * PixelOffsetY));
-					TotalWeight += OutTAAParameters->SampleWeights[i];
-				}
-			}
-
-			for (int32 i = 0; i < 9; i++)
-				OutTAAParameters->SampleWeights[i] /= TotalWeight;
-		}
-
-		// Compute 3x3 + weights.
-		{
-			OutTAAParameters->PlusWeights[0] = OutTAAParameters->SampleWeights[1];
-			OutTAAParameters->PlusWeights[1] = OutTAAParameters->SampleWeights[3];
-			OutTAAParameters->PlusWeights[2] = OutTAAParameters->SampleWeights[4];
-			OutTAAParameters->PlusWeights[3] = OutTAAParameters->SampleWeights[5];
-			OutTAAParameters->PlusWeights[4] = OutTAAParameters->SampleWeights[7];
-			float TotalWeightPlus = (
-				OutTAAParameters->SampleWeights[1] +
-				OutTAAParameters->SampleWeights[3] +
-				OutTAAParameters->SampleWeights[4] +
-				OutTAAParameters->SampleWeights[5] +
-				OutTAAParameters->SampleWeights[7]);
-
-			for (int32 i = 0; i < 5; i++)
-				OutTAAParameters->PlusWeights[i] /= TotalWeightPlus;
-		}
-	}
-
-	DECLARE_GPU_STAT(TAA)
-
-	const TCHAR* const kTAAOutputNames[] = {
-		TEXT("TemporalAA"),
-		TEXT("TemporalAA"),
-		TEXT("TemporalAA"),
-		TEXT("SSRTemporalAA"),
-		TEXT("LightShaftTemporalAA"),
-		TEXT("DOFTemporalAA"),
-		TEXT("DOFTemporalAA"),
+		{ -1.0f, -1.0f },
+		{  0.0f, -1.0f },
+		{  1.0f, -1.0f },
+		{ -1.0f,  0.0f },
+		{  0.0f,  0.0f },
+		{  1.0f,  0.0f },
+		{ -1.0f,  1.0f },
+		{  0.0f,  1.0f },
+		{  1.0f,  1.0f },
 	};
 
-	const TCHAR* const kTAAPassNames[] = {
-		TEXT("Main"),
-		TEXT("MainUpsampling"),
-		TEXT("MainSuperSampling"),
-		TEXT("ScreenSpaceReflections"),
-		TEXT("LightShaft"),
-		TEXT("DOF"),
-		TEXT("DOFUpsampling"),
-	};
+	float FilterSize = CVarTemporalAAFilterSize.GetValueOnRenderThread();
+	int32 bCatmullRom = CVarTemporalAACatmullRom.GetValueOnRenderThread();
 
-	static_assert(UE_ARRAY_COUNT(kTAAOutputNames) == int32(ETAAPassConfig::MAX), "Missing TAA output name.");
-	static_assert(UE_ARRAY_COUNT(kTAAPassNames) == int32(ETAAPassConfig::MAX), "Missing TAA pass name.");
+	// Compute 3x3 weights
+	{
+		float TotalWeight = 0.0f;
+		for (int32 i = 0; i < 9; i++)
+		{
+			float PixelOffsetX = SampleOffsets[i][0] - JitterX * ResDivisorInv;
+			float PixelOffsetY = SampleOffsets[i][1] - JitterY * ResDivisorInv;
+
+			PixelOffsetX /= FilterSize;
+			PixelOffsetY /= FilterSize;
+
+			if (bCatmullRom)
+			{
+				OutTAAParameters->SampleWeights[i] = CatmullRom(PixelOffsetX) * CatmullRom(PixelOffsetY);
+				TotalWeight += OutTAAParameters->SampleWeights[i];
+			}
+			else
+			{
+				// Normal distribution, Sigma = 0.47
+				OutTAAParameters->SampleWeights[i] = FMath::Exp(-2.29f * (PixelOffsetX * PixelOffsetX + PixelOffsetY * PixelOffsetY));
+				TotalWeight += OutTAAParameters->SampleWeights[i];
+			}
+		}
+	
+		for (int32 i = 0; i < 9; i++)
+			OutTAAParameters->SampleWeights[i] /= TotalWeight;
+	}
+
+	// Compute 3x3 + weights.
+	{
+		OutTAAParameters->PlusWeights[0] = OutTAAParameters->SampleWeights[1];
+		OutTAAParameters->PlusWeights[1] = OutTAAParameters->SampleWeights[3];
+		OutTAAParameters->PlusWeights[2] = OutTAAParameters->SampleWeights[4];
+		OutTAAParameters->PlusWeights[3] = OutTAAParameters->SampleWeights[5];
+		OutTAAParameters->PlusWeights[4] = OutTAAParameters->SampleWeights[7];
+		float TotalWeightPlus = (
+			OutTAAParameters->SampleWeights[1] +
+			OutTAAParameters->SampleWeights[3] +
+			OutTAAParameters->SampleWeights[4] +
+			OutTAAParameters->SampleWeights[5] +
+			OutTAAParameters->SampleWeights[7]);
+	
+		for (int32 i = 0; i < 5; i++)
+			OutTAAParameters->PlusWeights[i] /= TotalWeightPlus;
+	}
+}
+
+DECLARE_GPU_STAT(TAA)
+
+const TCHAR* const kTAAOutputNames[] = {
+	TEXT("TemporalAA"),
+	TEXT("TemporalAA"),
+	TEXT("TemporalAA"),
+	TEXT("SSRTemporalAA"),
+	TEXT("LightShaftTemporalAA"),
+	TEXT("DOFTemporalAA"),
+	TEXT("DOFTemporalAA"),
+};
+
+const TCHAR* const kTAAPassNames[] = {
+	TEXT("Main"),
+	TEXT("MainUpsampling"),
+	TEXT("MainSuperSampling"),
+	TEXT("ScreenSpaceReflections"),
+	TEXT("LightShaft"),
+	TEXT("DOF"),
+	TEXT("DOFUpsampling"),
+};
+
+static_assert(UE_ARRAY_COUNT(kTAAOutputNames) == int32(ETAAPassConfig::MAX), "Missing TAA output name.");
+static_assert(UE_ARRAY_COUNT(kTAAPassNames) == int32(ETAAPassConfig::MAX), "Missing TAA pass name.");
 } //! namespace
 
 bool IsTemporalAASceneDownsampleAllowed(const FViewInfo& View)
