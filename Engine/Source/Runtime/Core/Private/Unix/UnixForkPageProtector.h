@@ -36,7 +36,7 @@ public:
 		// MMap most likely failed in the ctor, cant do much with out memory
 		if (Elements == nullptr)
 		{
-			return nullptr;
+			return;
 		}
 
 		if (Size + 1 > Capacity)
@@ -48,7 +48,7 @@ public:
 			T* OldElements = Elements;
 
 			// MMap has failed
-			if (NewElement == nullptr)
+			if (NewElements == nullptr)
 			{
 				return;
 			}
