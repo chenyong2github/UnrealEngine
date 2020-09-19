@@ -301,11 +301,11 @@ void FNiagaraSystemViewportClient::DrawEmitterExecutionOrder(UNiagaraComponent* 
 	Canvas->DrawShadowedString(CurrentX, CurrentY, TEXT("Emitter Execution Order"), Font, FLinearColor::White);
 	CurrentY += FontHeight;
 
-	TConstArrayView<int32> ExecutionOrder = NiagaraSystem->GetEmitterExecutionOrder();
+	TConstArrayView<FNiagaraEmitterExecutionIndex> ExecutionOrder = NiagaraSystem->GetEmitterExecutionOrder();
 	int32 DisplayIndex = 0;
-	for (int32 EmitterIndex : ExecutionOrder)
+	for (const FNiagaraEmitterExecutionIndex& EmitterExecIndex : ExecutionOrder)
 	{
-		const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(EmitterIndex);
+		const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(EmitterExecIndex.EmitterIndex);
 		if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
 		{
 			Canvas->DrawShadowedString(CurrentX, CurrentY, *FString::Printf(TEXT("%d - %s"), ++DisplayIndex, NiagaraEmitter->GetDebugSimName()), Font, FLinearColor::White);
