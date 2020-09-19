@@ -222,9 +222,17 @@ public:
 	bool GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap);
 
 	/**  Get DMX Pixel Channel using matrix coordinates. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
+	UE_DEPRECATED(4.26, "This function is deprecated, please use GetMatrixPixelChannelsRelative instead.")
 	bool GetMatrixPixelChannels(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
+
+	/**  Get DMX Pixel Channel using matrix coordinates. Returns the Starting Channel relative to the Starting Channel of the patch. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetMatrixPixelChannelsRelative(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
 	
+	/**  Get DMX Pixel Channel using matrix coordinates. Returns the absolute Starting Channel. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetMatrixPixelChannelsAbsolute(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
+
 	/**  Get Matrix Fixture properties. */
 	UFUNCTION(BlueprintPure, Category = "DMX")
 	bool GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXPixelMatrix& MatrixProperties);
