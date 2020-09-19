@@ -681,6 +681,10 @@ public:
 
 	EProfileSweepQuadSplit QuadSplitMethod = EProfileSweepQuadSplit::ShortestDiagonal;
 
+	// When QuadSplitMode is ShortestDiagonal, biases one of the diagonals so that symmetric
+	// quads are split uniformly. The tolerance is a proportion allowable difference.
+	double DiagonalTolerance = 0.01;
+
 	EProfileSweepPolygonGrouping PolygonGroupingMode = EProfileSweepPolygonGrouping::PerFace;
 
 	// If not null, this pointer is intermittently used to check whether the current operation should stop early

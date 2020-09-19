@@ -67,6 +67,10 @@ public:
 
 	EProfileSweepQuadSplit QuadSplitMode = EProfileSweepQuadSplit::ShortestDiagonal;
 
+	// When QuadSplitMode is ShortestDiagonal, biases one of the diagonals so that symmetric
+	// quads are split uniformly. The tolerance is a proportion allowable difference.
+	double DiagonalTolerance = 0.01;
+
 	//
 	// FDynamicMeshOperator implementation
 	// 
