@@ -376,7 +376,7 @@ private:
 
 /** A read only, non owning (ref counting) view to an actor replication list: essentially a raw pointer and the category of the list. These are only created *from* FActorRepListRefView */
 
-struct UE_DEPRECATED(4.27, "Replace this struct with the new FActorRepListConstView struct.") FActorRepListRawView : public TActorRepListViewBase<FActorRepList*>
+struct UE_DEPRECATED(4.27, "Replace this struct with the new FActorRepListConstView struct.")  FActorRepListRawView : public TActorRepListViewBase<FActorRepList*>
 {
 	/** Standard ctor: make raw view from ref view */
 	REPLICATIONGRAPH_API FActorRepListRawView(const FActorRepListRefView& Source) { RepList = Source.RepList.GetReference(); }
