@@ -17,6 +17,7 @@
 #include "NDISkeletalMeshCommon.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "ShaderParameterUtils.h"
+#include "NiagaraStats.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSkeletalMesh"
 
@@ -638,6 +639,10 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 
 	uint32 SectionCount = LODRenderData->RenderSections.Num();
 
+#if STATS
+	ensure(GPUMemoryUsage == 0);
+#endif
+
 	if (bUseGpuUniformlyDistributedSampling)
 	{
 		const FSkeletalMeshAreaWeightedTriangleSampler& triangleSampler = SkeletalMeshSamplingLODBuiltData->AreaWeightedTriangleSampler;
@@ -652,11 +657,17 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 		FMemory::Memcpy(BufferData, Prob.GetData(), SizeByte);
 		RHIUnlockVertexBuffer(BufferTriangleUniformSamplerProbaRHI);
 		BufferTriangleUniformSamplerProbaSRV = RHICreateShaderResourceView(BufferTriangleUniformSamplerProbaRHI, sizeof(float), PF_R32_FLOAT);
+#if STATS
+		GPUMemoryUsage += SizeByte;
+#endif
 
 		BufferTriangleUniformSamplerAliasRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
 		FMemory::Memcpy(BufferData, Alias.GetData(), SizeByte);
 		RHIUnlockVertexBuffer(BufferTriangleUniformSamplerAliasRHI);
 		BufferTriangleUniformSamplerAliasSRV = RHICreateShaderResourceView(BufferTriangleUniformSamplerAliasRHI, sizeof(uint32), PF_R32_UINT);
+#if STATS
+		GPUMemoryUsage += SizeByte;
+#endif
 	}
 
 	// Prepare sampling regions (if we have any)
@@ -668,18 +679,30 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 			CreateInfo.ResourceArray = &SampleRegionsProb;
 			SampleRegionsProbBuffer = RHICreateVertexBuffer(SampleRegionsProb.Num() * SampleRegionsProb.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			SampleRegionsProbSRV = RHICreateShaderResourceView(SampleRegionsProbBuffer, sizeof(float), PF_R32_FLOAT);
+#if STATS
+			GPUMemoryUsage += SampleRegionsAlias.Num() * SampleRegionsAlias.GetTypeSize();
+#endif
 
 			CreateInfo.ResourceArray = &SampleRegionsAlias;
 			SampleRegionsAliasBuffer = RHICreateVertexBuffer(SampleRegionsAlias.Num() * SampleRegionsAlias.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			SampleRegionsAliasSRV = RHICreateShaderResourceView(SampleRegionsAliasBuffer, sizeof(float), PF_R32_UINT);
+#if STATS
+			GPUMemoryUsage += SampleRegionsAlias.Num() * SampleRegionsAlias.GetTypeSize();
+#endif
 		}
 		CreateInfo.ResourceArray = &SampleRegionsTriangleIndicies;
 		SampleRegionsTriangleIndicesBuffer = RHICreateVertexBuffer(SampleRegionsTriangleIndicies.Num() * SampleRegionsTriangleIndicies.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 		SampleRegionsTriangleIndicesSRV = RHICreateShaderResourceView(SampleRegionsTriangleIndicesBuffer, sizeof(int32), PF_R32_UINT);
+#if STATS
+		GPUMemoryUsage += SampleRegionsTriangleIndicies.Num() * SampleRegionsTriangleIndicies.GetTypeSize();
+#endif
 
 		CreateInfo.ResourceArray = &SampleRegionsVertices;
 		SampleRegionsVerticesBuffer = RHICreateVertexBuffer(SampleRegionsVertices.Num() * SampleRegionsVertices.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 		SampleRegionsVerticesSRV = RHICreateShaderResourceView(SampleRegionsVerticesBuffer, sizeof(int32), PF_R32_UINT);
+#if STATS
+		GPUMemoryUsage += SampleRegionsVertices.Num() * SampleRegionsVertices.GetTypeSize();
+#endif
 	}
 
 	// Prepare the vertex matrix lookup offset for each of the sections. This is needed because per vertex BlendIndicies are stored relatively to each Section used matrices.
@@ -704,6 +727,9 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 		}
 		RHIUnlockVertexBuffer(BufferTriangleMatricesOffsetRHI);
 		BufferTriangleMatricesOffsetSRV = RHICreateShaderResourceView(BufferTriangleMatricesOffsetRHI, sizeof(uint32), PF_R32_UINT);
+#if STATS
+		GPUMemoryUsage += VertexCount * sizeof(uint32);
+#endif
 	}
 
 	// Create arrays for filtered bones / sockets
@@ -715,10 +741,22 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 		FilteredAndUnfilteredBonesBuffer = RHICreateVertexBuffer(FilteredAndUnfilteredBonesArray.Num() * FilteredAndUnfilteredBonesArray.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 		FilteredAndUnfilteredBonesSRV = RHICreateShaderResourceView(FilteredAndUnfilteredBonesBuffer, sizeof(uint16), PF_R16_UINT);
 	}
+#if STATS
+	GPUMemoryUsage += FilteredAndUnfilteredBonesArray.Num() * FilteredAndUnfilteredBonesArray.GetTypeSize();
+#endif
+
+#if STATS
+	INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemoryUsage);
+#endif
 }
 
 void FSkeletalMeshGpuSpawnStaticBuffers::ReleaseRHI()
 {
+#if STATS
+	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemoryUsage);
+	GPUMemoryUsage = 0;
+#endif
+
 	FilteredAndUnfilteredBonesBuffer.SafeRelease();
 	FilteredAndUnfilteredBonesSRV.SafeRelease();
 
@@ -770,6 +808,9 @@ void FSkeletalMeshGpuDynamicBufferProxy::Initialise(const FReferenceSkeleton& Re
 
 void FSkeletalMeshGpuDynamicBufferProxy::InitRHI()
 {
+#if STATS
+	ensure(GPUMemoryUsage == 0);
+#endif
 	for (FSkeletalBuffer& Buffer : RWBufferBones)
 	{
 		FRHIResourceCreateInfo CreateInfo;
@@ -779,11 +820,23 @@ void FSkeletalMeshGpuDynamicBufferProxy::InitRHI()
 
 		Buffer.SamplingBuffer = RHICreateVertexBuffer(sizeof(FVector4) * 2 * (SamplingBoneCount + SamplingSocketCount), BUF_ShaderResource | BUF_Dynamic, CreateInfo);
 		Buffer.SamplingSRV = RHICreateShaderResourceView(Buffer.SamplingBuffer, sizeof(FVector4), PF_A32B32G32R32F);
+
+#if STATS
+		GPUMemoryUsage += sizeof(FVector4) * 3 * SectionBoneCount;
+		GPUMemoryUsage += sizeof(FVector4) * 2 * (SamplingBoneCount + SamplingSocketCount);
+#endif
 	}
+#if STATS
+	INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemoryUsage);
+#endif
 }
 
 void FSkeletalMeshGpuDynamicBufferProxy::ReleaseRHI()
 {
+#if STATS
+	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemoryUsage);
+	GPUMemoryUsage = 0;
+#endif
 	for (FSkeletalBuffer& Buffer : RWBufferBones)
 	{
 		Buffer.SectionBuffer.SafeRelease();
@@ -1802,8 +1855,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			}
 		}
 
-		//-TODO: We should find out if this DI is connected to a GPU emitter or not rather than a blanket across the system
-		if (SystemInstance->HasGPUEmitters())
+		if (Interface->IsUsedWithGPUEmitter(SystemInstance))
 		{
 			GPUSkinBoneInfluenceType BoneInfluenceType = SkinWeightBuffer->GetBoneInfluenceType();
 			bUnlimitedBoneInfluences = (BoneInfluenceType == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence);

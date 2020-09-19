@@ -68,6 +68,12 @@ bool UNiagaraDataInterface::Equals(const UNiagaraDataInterface* Other) const
 	return true;
 }
 
+bool UNiagaraDataInterface::IsUsedWithGPUEmitter(FNiagaraSystemInstance* SystemInstance) const
+{
+	//-TODO: We should find out if this DI is connected to a GPU emitter or not rather than a blanket across the system
+	return SystemInstance->HasGPUEmitters();
+}
+
 bool UNiagaraDataInterface::IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef)
 {
 	const UClass* Class = TypeDef.GetClass();
