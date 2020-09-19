@@ -11,8 +11,8 @@
 
 #include <malloc.h>
 
-#ifndef ENABLE_FORK_PAGE_PROTECTOR
-	#define ENABLE_FORK_PAGE_PROTECTOR 0
+#ifndef COMPILE_FORK_PAGE_PROTECTOR
+	#define COMPILE_FORK_PAGE_PROTECTOR 0
 #endif
 
 /**

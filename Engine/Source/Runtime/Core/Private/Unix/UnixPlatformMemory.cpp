@@ -105,7 +105,7 @@ void FUnixPlatformMemory::Init()
 
 bool FUnixPlatformMemory::HasForkPageProtectorEnabled()
 {
-	return ENABLE_FORK_PAGE_PROTECTOR && GEnableProtectForkedPages;
+	return COMPILE_FORK_PAGE_PROTECTOR && GEnableProtectForkedPages;
 }
 
 class FMalloc* FUnixPlatformMemory::BaseAllocator()

@@ -5,14 +5,13 @@
 #include "CoreTypes.h"
 #include "HAL/PlatformMemory.h"
 
-#if ENABLE_FORK_PAGE_PROTECTOR
+#if COMPILE_FORK_PAGE_PROTECTOR
 #include "Containers/Map.h"
 
 #include <sys/mman.h>
 
 namespace UE
 {
-
 /*
  * Simple dynamic array that can only grow, avoids allocation code
  * directly calls mmap this is to avoid recursive calls when collecting memory address
@@ -198,7 +197,6 @@ private:
 #else
 namespace UE
 {
-
 class FForkPageProtector
 {
 public:
@@ -216,5 +214,5 @@ public:
 
 	static void OverrideGMalloc() {}
 };
-#endif
+#endif // COMPILE_FORK_PAGE_PROTECTOR
 } // namespace UE
