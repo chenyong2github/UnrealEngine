@@ -546,7 +546,8 @@ void FRigBoneHierarchy::RefreshParentNames()
 
 void FRigBoneHierarchy::RefreshMapping()
 {
-	RefreshParentNames();
+	// sort doesn't rely on the name map,
+	// since it uses GetIndexSlow.
 	Sort();
 
 	NameToIndexMapping.Empty();
@@ -554,6 +555,14 @@ void FRigBoneHierarchy::RefreshMapping()
 	{
 		Bones[Index].Index = Index;
 		NameToIndexMapping.Add(Bones[Index].Name, Index);
+	}
+
+	RefreshParentNames();
+
+	// update the dependents
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
+	{
+		GetChildren(Index, Bones[Index].Dependents, false);
 	}
 }
 
