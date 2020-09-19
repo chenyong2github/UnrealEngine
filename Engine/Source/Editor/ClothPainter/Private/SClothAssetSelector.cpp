@@ -2,10 +2,14 @@
 
 #include "SClothAssetSelector.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SBoxPanel.h"
 #include "EditorStyleSet.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SSlider.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Images/SImage.h"
 #include "ClothingAsset.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -949,11 +953,183 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 				]
 			]
 		]
+		+ SVerticalBox::Slot()					// Mesh to mesh skinning
+		.Padding(0.0f, 0.0f, 0.0f, 2.0f)
+		.AutoHeight()
+		[
+			SNew(SExpandableArea)
+			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f))
+			.BodyBorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle"))
+			.BodyBorderBackgroundColor(FLinearColor(1.0f, 1.0f, 1.0f))
+			.HeaderContent()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("MeshSkinning_Title", "Mesh Skinning"))
+					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.ShadowOffset(FVector2D(1.0f, 1.0f))
+				]
+			]
+			.BodyContent()
+			[	
+				// TODO: Replace this with a table view or something more suitable. UETOOL-2341 
+
+				SNew(SSplitter)
+				.Orientation(EOrientation::Orient_Horizontal)
+
+				+ SSplitter::Slot()
+				.Value(.3f)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+					.AutoHeight()
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+						.Text(LOCTEXT("MultipleInfluences", "Use Multiple Influences"))
+						.ShadowOffset(FVector2D(1, 1))
+					]
+
+					+ SVerticalBox::Slot()
+					.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+					.AutoHeight()
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+						.Text(LOCTEXT("CurrentRadius", "Kernel Radius"))
+						.ShadowOffset(FVector2D(1, 1))
+					]
+				]
+
+				+ SSplitter::Slot()
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+					.AutoHeight()
+					[
+						SNew(SCheckBox)
+						.IsChecked(this, &SClothAssetSelector::GetCurrentUseMultipleInfluences)
+						.OnCheckStateChanged(this, &SClothAssetSelector::OnCurrentUseMultipleInfluencesChanged)
+						.IsEnabled(this, &SClothAssetSelector::CurrentUseMultipleInfluencesIsEnabled)
+					]
+
+					+ SVerticalBox::Slot()
+					.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+					.AutoHeight()
+					[
+						SNew(SNumericEntryBox<float>)
+						.AllowSpin(true)
+						.MinSliderValue(0)
+						.MinValue(0)
+						.MaxSliderValue(TOptional<float>(1000.0f))
+						.IsEnabled(this, &SClothAssetSelector::CurrentKernelRadiusIsEnabled)
+						.UndeterminedString(FText::FromString("????"))
+						.Value(this, &SClothAssetSelector::GetCurrentKernelRadius)
+						.OnValueCommitted(this, &SClothAssetSelector::OnCurrentKernelRadiusCommitted)
+						.OnValueChanged(this, &SClothAssetSelector::OnCurrentKernelRadiusChanged)
+						.LabelPadding(0)
+					]
+				]
+
+			]
+		]
+		
 	];
 
 	RefreshAssetList();
 	RefreshMaskList();
 }
+
+
+TOptional<float> SClothAssetSelector::GetCurrentKernelRadius() const
+{
+	UClothingAssetCommon* Asset = SelectedAsset.Get();
+	if (Asset && Asset->IsValidLod(SelectedLod))
+	{
+		const FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+		return LodData.SkinningKernelRadius;
+	}
+
+	return TOptional<float>();
+}
+
+void SClothAssetSelector::OnCurrentKernelRadiusChanged(float InValue)
+{
+	UClothingAssetCommon* Asset = SelectedAsset.Get();
+	if (Asset && Asset->IsValidLod(SelectedLod))
+	{
+		FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+		LodData.SkinningKernelRadius = InValue;
+	}
+}
+
+void SClothAssetSelector::OnCurrentKernelRadiusCommitted(float InValue, ETextCommit::Type CommitType)
+{
+	UClothingAssetCommon* Asset = SelectedAsset.Get();
+	if (Asset && Asset->IsValidLod(SelectedLod))
+	{
+		FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+		LodData.SkinningKernelRadius = InValue;
+
+		// Recompute weights
+		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset->GetOuter()))
+		{
+			FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(SkeletalMesh);
+			SkeletalMesh->InvalidateDeriveDataCacheGUID();
+		}
+	}
+}
+
+bool SClothAssetSelector::CurrentKernelRadiusIsEnabled() const
+{
+	return (this->GetCurrentUseMultipleInfluences() == ECheckBoxState::Checked);
+}
+
+ECheckBoxState SClothAssetSelector::GetCurrentUseMultipleInfluences() const
+{
+	UClothingAssetCommon* Asset = SelectedAsset.Get();
+	if (Asset && Asset->IsValidLod(SelectedLod))
+	{
+		const FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+		return LodData.bUseMultipleInfluences ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	return ECheckBoxState::Undetermined;
+}
+
+void SClothAssetSelector::OnCurrentUseMultipleInfluencesChanged(ECheckBoxState InValue) 
+{
+	if (InValue == ECheckBoxState::Undetermined)
+	{
+		return;
+	}
+
+	UClothingAssetCommon* Asset = SelectedAsset.Get();
+	if (Asset && Asset->IsValidLod(SelectedLod))
+	{
+		FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+		LodData.bUseMultipleInfluences = (InValue == ECheckBoxState::Checked);
+
+		// Recompute weights
+		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset->GetOuter()))
+		{
+			FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(SkeletalMesh);
+			SkeletalMesh->InvalidateDeriveDataCacheGUID();
+		}
+	}
+}
+
+bool SClothAssetSelector::CurrentUseMultipleInfluencesIsEnabled() const
+{
+	UClothingAssetCommon* Asset = SelectedAsset.Get();
+	return (Asset && Asset->IsValidLod(SelectedLod));
+}
+
 
 TWeakObjectPtr<UClothingAssetCommon> SClothAssetSelector::GetSelectedAsset() const
 {

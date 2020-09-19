@@ -217,6 +217,36 @@ const FGuid FOverlappingVerticesCustomVersion::GUID(0x612FBE52, 0xDA53400B, 0x91
 // Register the custom version with core
 FCustomVersionRegistration GRegisterOverlappingVerticesCustomVersion(FOverlappingVerticesCustomVersion::GUID, FOverlappingVerticesCustomVersion::LatestVersion, TEXT("OverlappingVerticeDetectionVer"));
 
+
+FArchive& operator<<(FArchive& Ar, FMeshToMeshVertData& V)
+{
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+	Ar << V.PositionBaryCoordsAndDist
+		<< V.NormalBaryCoordsAndDist
+		<< V.TangentBaryCoordsAndDist
+		<< V.SourceMeshVertIndices[0]
+		<< V.SourceMeshVertIndices[1]
+		<< V.SourceMeshVertIndices[2]
+		<< V.SourceMeshVertIndices[3];
+
+	if (Ar.IsLoading() && 
+		Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::WeightFMeshToMeshVertData)
+	{
+		// Old version had "uint32 Padding[2]"
+		uint32 Discard;
+		Ar << Discard << V.Padding;
+	}
+	else
+	{
+		// New version has "float Weight and "uint32 Padding"
+		Ar << V.Weight << V.Padding;
+	}
+
+	return Ar;
+}
+
+
 /*-----------------------------------------------------------------------------
 FreeSkeletalMeshBuffersSinkCallback
 -----------------------------------------------------------------------------*/
