@@ -2,6 +2,7 @@
 
 #include "Commandlets/AssetRegistryGenerator.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
