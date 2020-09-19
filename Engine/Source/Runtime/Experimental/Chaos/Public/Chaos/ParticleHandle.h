@@ -782,6 +782,7 @@ public:
 		SetCollisionGroup(DynamicMisc.CollisionGroup());
 		SetGravityEnabled(DynamicMisc.GravityEnabled());
 		SetResimType(DynamicMisc.ResimType());
+		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
 	}
 
 	const PMatrix<T, d, d>& I() const { return PBDRigidParticles->I(ParticleIdx); }
@@ -837,6 +838,10 @@ public:
 	bool GravityEnabled() const { return PBDRigidParticles->GravityEnabled(ParticleIdx); }
 
 	void SetGravityEnabled(bool bEnabled){ PBDRigidParticles->GravityEnabled(ParticleIdx) = bEnabled; }
+
+	bool OneWayInteraction() const { return PBDRigidParticles->OneWayInteraction(ParticleIdx); }
+
+	void SetOneWayInteraction(bool bInOneWayInteraction) { PBDRigidParticles->OneWayInteraction(ParticleIdx) = bInOneWayInteraction; }
 
 	EResimType ResimType() const { return PBDRigidParticles->ResimType(ParticleIdx);}
 
@@ -2143,6 +2148,12 @@ public:
 		MMiscData.Modify(true,MDirtyFlags,Proxy,[InGravityEnabled](auto& Data){ Data.SetGravityEnabled (InGravityEnabled);});
 	}
 	
+	bool OneWayInteraction() const { return MMiscData.Read().OneWayInteraction(); }
+	void SetOneWayInteraction(const bool InOneWayInteraction)
+	{
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [InOneWayInteraction](auto& Data) { Data.SetOneWayInteraction(InOneWayInteraction); });
+	}
+
 	//todo: remove this
 	bool IsInitialized() const { return MInitialized; }
 	void SetInitialized(const bool InInitialized)
