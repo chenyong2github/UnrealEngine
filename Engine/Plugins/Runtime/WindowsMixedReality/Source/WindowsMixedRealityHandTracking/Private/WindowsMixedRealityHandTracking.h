@@ -85,7 +85,6 @@ public:
 private:
 	void UpdateTrackerData();
 	void AddKeys();
-	void ConditionallyEnable();
 	
 	void SetupLiveLinkData();
 	void UpdateLiveLink();
