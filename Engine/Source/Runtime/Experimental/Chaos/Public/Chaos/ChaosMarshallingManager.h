@@ -6,14 +6,10 @@
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "Chaos/ParallelFor.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
-
-class FGeometryCollectionResults;
 
 namespace Chaos
 {
 class FDirtyPropertiesManager;
-class FPullPhysicsData;
 
 struct FDirtyProxy
 {
@@ -263,7 +259,6 @@ class CHAOS_API FChaosMarshallingManager
 {
 public:
 	FChaosMarshallingManager();
-	~FChaosMarshallingManager();
 
 	/** Grabs the producer data to write into. Should only be called by external thread */
 	FPushPhysicsData* GetProducerData_External()
@@ -305,9 +300,6 @@ public:
 	/** Frees the push data back into the pool. Internal thread should call this when finished processing data*/
 	void FreeData_Internal(FPushPhysicsData* PushData);
 
-	/** Frees the pull data back into the pool. External thread should call this when finished processing data*/
-	void FreePullData_External(FPullPhysicsData* PullData);
-
 	/** Frees the callback push data back into the pool. Internal thread should call this when callback will no longer be used with this specific data*/
 	void FreeCallbackData_Internal(FSimCallbackHandlePT* Callback);
 
@@ -322,28 +314,12 @@ public:
 
 	/** Used to delay marshalled data. This is mainly used for testing at the moment */
 	void SetTickDelay_External(int32 InDelay) { Delay = InDelay; }
-
-	/** Returns the current pull data being written to. This holds the results of dirty data to be read later by external thread*/
-	FPullPhysicsData* GetCurrentPullData_Internal() { return CurPullData; }
-
-	/** Hands pull data off to external thread */
-	void FinalizePullData_Internal();
-
-	/** Pops and returns the earliest pull data available. nullptr means results are not ready or no work is pending */
-	FPullPhysicsData* PopPullData_External()
-	{
-		FPullPhysicsData* Result = nullptr;
-		PullDataQueue.Dequeue(Result);
-		return Result;
-	}
-		
+	
 private:
 	FReal ExternalTime;	//the global time external thread is currently at
 	int32 ExternalTimestamp; //the global timestamp external thread is currently at (1 per frame)
 	FReal SimTime;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
 	int32 InternalTimestamp;	//the global timestamp the sim is at (consumes 1 or more frames per internal tick)
-	
-	//push
 	FPushPhysicsData* ProducerData;
 	TArray<FPushPhysicsData*> ExternalQueue;	//the data pushed from external thread with a time stamp
 	TQueue<FPushPhysicsData*,EQueueMode::Spsc> PushDataPool;	//pool to grab more push data from to avoid expensive reallocs
@@ -351,16 +327,9 @@ private:
 	TQueue<FSimCallbackData*,EQueueMode::Spsc> CallbackDataPool;	//pool to grab more callback data to avoid expensive reallocs
 	TArray<TUniquePtr<FSimCallbackData>> CallbackDataBacking;	//callback data actually backed by this
 
-	//pull
-	FPullPhysicsData* CurPullData;	//the current pull data sim is writing to
-	TQueue<FPullPhysicsData*,EQueueMode::Spsc> PullDataQueue;	//the results the simulation has written to. Consumed by external thread
-	TQueue<FPullPhysicsData*,EQueueMode::Spsc> PullDataPool;	//the pull data pool to avoid reallocs. Pushed by external thread, popped by internal
-	TArray<TUniquePtr<FPullPhysicsData>> BackingPullBuffer;		//all pull data is cleaned up by this
-
 	int32 Delay;
 
 	void PrepareExternalQueue();
-	void PreparePullData();
 
 	FSimCallbackData* CreateCallbackData_External()
 	{

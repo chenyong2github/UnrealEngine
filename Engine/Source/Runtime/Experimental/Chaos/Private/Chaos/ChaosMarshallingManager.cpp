@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosMarshallingManager.h"
-#include "Chaos/PullPhysicsDataImp.h"
 
 namespace Chaos
 {
@@ -15,29 +14,9 @@ FChaosMarshallingManager::FChaosMarshallingManager()
 , SimTime(0)
 , InternalTimestamp(-1)
 , ProducerData(nullptr)
-, CurPullData(nullptr)
 , Delay(SimDelay)
 {
 	PrepareExternalQueue();
-	PreparePullData();
-}
-
-FChaosMarshallingManager::~FChaosMarshallingManager() = default;
-
-void FChaosMarshallingManager::FinalizePullData_Internal()
-{
-	CurPullData->SolverTimestamp = InternalTimestamp;
-	PullDataQueue.Enqueue(CurPullData);
-	PreparePullData();
-}
-
-void FChaosMarshallingManager::PreparePullData()
-{
-	if(!PullDataPool.Dequeue(CurPullData))
-	{
-		const int32 Idx = BackingPullBuffer.Add(MakeUnique<FPullPhysicsData>());
-		CurPullData = BackingPullBuffer[Idx].Get();
-	}
 }
 
 void FChaosMarshallingManager::PrepareExternalQueue()
@@ -106,12 +85,6 @@ void FChaosMarshallingManager::FreeData_Internal(FPushPhysicsData* PushData)
 {
 	PushData->Reset();
 	PushDataPool.Enqueue(PushData);
-}
-
-void FChaosMarshallingManager::FreePullData_External(FPullPhysicsData* PullData)
-{
-	PullData->Reset();
-	PullDataPool.Enqueue(PullData);
 }
 
 void FChaosMarshallingManager::FreeCallbackData_Internal(FSimCallbackHandlePT* Callback)

@@ -530,6 +530,8 @@ void UNetworkPredictionWorldManager::InitPhysicsCapture()
 void UNetworkPredictionWorldManager::AdvancePhysicsResimFrame(int32& PhysicsFrame)
 {
 	Physics.Solver->AdvanceAndDispatch_External(FixedTickState.PhysicsRewindData->GetDeltaTimeForFrame(PhysicsFrame));
+	Physics.Solver->BufferPhysicsResults();
+	Physics.Solver->FlipBuffers();
 	Physics.Solver->UpdateGameThreadStructures();
 	PhysicsFrame++;
 }
