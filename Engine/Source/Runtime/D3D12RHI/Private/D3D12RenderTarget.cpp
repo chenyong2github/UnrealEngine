@@ -1270,6 +1270,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 	const uint32 GPUIndex = InFlags.GetGPUIndex();
 	TArray<uint8> OutDataRaw;
 
+	FD3D12CommandContext& CommandContext = GetRHIDevice(GPUIndex)->GetDefaultCommandContext();
 	// Could be back buffer reference texture, so get the correct D3D12 texture here
 	// We know already that it's a FD3D12Texture2D so cast is safe
 	if (InRHITexture->GetFlags() & TexCreate_Presentable)
