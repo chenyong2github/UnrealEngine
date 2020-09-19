@@ -7,6 +7,7 @@
 #include "Sequencer/ComposureExportTrackEditor.h"
 #include "ComposureBlueprintLibrary.h"
 #include "ComposureActorLayerPropertyTypeCustomization.h"
+#include "PropertyEditorModule.h"
 
 DEFINE_LOG_CATEGORY(LogComposureEditor);
 
