@@ -286,26 +286,6 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
-		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
-		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
-		if (bFirstSample)
-		{
-			// Each frame can be processed independently, so we can start processing the second frame's tasks
-			// even if the accumulation for the first frame is still happening.
-			this->TaskPrereq = nullptr;
-		}
-		FGraphEventRef* LastTask = nullptr;
-		if (this->TaskPrereq)
-		{
-			LastTask = &this->TaskPrereq;
-		}
-
-		FMoviePipelineBackgroundAccumulateTask Task;
-		if (LastTask)
-		{
-			Task.LastCompletionEvent = *LastTask;
-		}
-
 		// Transfer the framePayload to the returned data
 		TUniquePtr<FImagePixelData> PixelDataWithPayload = nullptr;
 		switch (InPixelData->GetType())
@@ -332,6 +312,13 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 			checkNoEntry();
 		}
 
+		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
+		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
+
+		FMoviePipelineBackgroundAccumulateTask Task;
+		// There may be other accumulations for this accumulator which need to be processed first
+		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
+
 		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(PixelDataWithPayload), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
 		{
 			// Enqueue a encode for this frame onto our worker thread.
@@ -339,12 +326,11 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 			if (bFinalSample)
 			{
 				SampleAccumulator->bIsActive = false;
+				SampleAccumulator->TaskPrereq = nullptr;
 			}
 		});
 
 		this->OutstandingTasks.Add(Event);
-		this->TaskPrereq = Event;
-
 	};
 
 	return Callback;
@@ -441,23 +427,11 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	{
 		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
 		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
-		if (bFirstSample)
-		{
-			// Each frame can be processed independently, so we can start processing the second frame's tasks
-			// even if the accumulation for the first frame is still happening.
-			this->TaskPrereq = nullptr;
-		}
-		FGraphEventRef* LastTask = nullptr;
-		if (this->TaskPrereq)
-		{
-			LastTask = &this->TaskPrereq;
-		}
 
 		FMoviePipelineBackgroundAccumulateTask Task;
-		if (LastTask)
-		{
-			Task.LastCompletionEvent = *LastTask;
-		}
+		// There may be other accumulations for this accumulator which need to be processed first
+		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
+
 		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
 		{
 			// Enqueue a encode for this frame onto our worker thread.
@@ -465,12 +439,11 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 			if (bFinalSample)
 			{
 				SampleAccumulator->bIsActive = false;
+				SampleAccumulator->TaskPrereq = nullptr;
 			}
 		});
 
 		this->OutstandingTasks.Add(Event);
-		this->TaskPrereq = Event;
-
 	};
 
 	FRenderTarget* RenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
@@ -1071,6 +1044,7 @@ TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumul
 					Accumulators[Index]->ActiveFrameNumber = InFrameNumber;
 					Accumulators[Index]->ActivePassIdentifier = InPassIdentifier;
 					Accumulators[Index]->bIsActive = true;
+					Accumulators[Index]->TaskPrereq = nullptr;
 					AvailableIndex = Index;
 					break;
 				}
