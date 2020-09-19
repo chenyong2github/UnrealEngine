@@ -35,7 +35,7 @@ FName FParameterStore::GetParameterName(int32 Index) const
 	return Parameters[Index].Name;
 }
 
-FParameterStoreSnapshot FParameterStore::Snapshot()
+FParameterStoreSnapshot FParameterStore::Snapshot() const
 {
 	FParameterStoreSnapshot Snap;
 	Snap.ReserveParamCount(GetParameterCount());

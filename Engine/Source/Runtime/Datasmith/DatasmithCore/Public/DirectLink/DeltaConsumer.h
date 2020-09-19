@@ -50,6 +50,7 @@ public:
 	struct FSetElementArg
 	{
 		TSharedPtr<FElementSnapshot> Snapshot;
+		int32 ElementIndexHint = -1;
 	};
 	virtual void OnSetElement(FSetElementArg& SetElementArg) = 0;
 

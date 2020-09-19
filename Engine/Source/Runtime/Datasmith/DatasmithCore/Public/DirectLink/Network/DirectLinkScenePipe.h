@@ -4,6 +4,7 @@
 
 #include "DirectLink/DeltaConsumer.h"
 #include "DirectLink/Network/DirectLinkMessages.h"
+#include "DirectLink/Network/DirectLinkStreamCommunicationInterface.h"
 
 #include "CoreTypes.h"
 #include "IMessageContext.h"
@@ -16,14 +17,11 @@ namespace DirectLink
 {
 class FEndpoint;
 
-/**
- * Responsibility: delegate DeltaConsumer/DeltaProducer link over network, including message ordering and acknowledgments.
- */
-class FScenePipeToNetwork
-	: public IDeltaConsumer
+
+class FPipeBase
 {
-public:
-	FScenePipeToNetwork(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint, const FMessageAddress& RemoteAddress, FStreamPort RemoteStreamPort)
+protected:
+	FPipeBase(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint, const FMessageAddress& RemoteAddress, FStreamPort RemoteStreamPort)
 		: ThisEndpoint(ThisEndpoint)
 		, RemoteAddress(RemoteAddress)
 		, RemoteStreamPort(RemoteStreamPort)
@@ -31,26 +29,57 @@ public:
 		check(ThisEndpoint);
 	}
 
+	template<typename MessageType>
+	void SendInternal(MessageType* Message, int32 ByteSizeHint=0);
+
+	// connectivity
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint;
+	FMessageAddress RemoteAddress;
+	FStreamPort RemoteStreamPort;
+};
+
+
+
+/**
+ * Responsibility: delegate DeltaConsumer/DeltaProducer link over network, including message ordering and acknowledgments.
+ */
+class FScenePipeToNetwork
+	: public FPipeBase
+	, public IDeltaConsumer
+{
+public:
+	FScenePipeToNetwork(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint, const FMessageAddress& RemoteAddress, FStreamPort RemoteStreamPort)
+		: FPipeBase(ThisEndpoint, RemoteAddress, RemoteStreamPort)
+	{
+		check(ThisEndpoint);
+		InitSetElementBuffer();
+	}
+
+public: // IDeltaConsumer API
 	virtual void SetDeltaProducer(IDeltaProducer* Producer) override;
 	virtual void SetupScene(FSetupSceneArg& SetupSceneArg) override;
 	virtual void OpenDelta(FOpenDeltaArg& OpenDeltaArg) override;
 	virtual void OnSetElement(FSetElementArg& SetElementArg) override;
 	virtual void RemoveElements(FRemoveElementsArg& RemoveElementsArg) override;
 	virtual void OnCloseDelta(FCloseDeltaArg& CloseDeltaArg) override;
+
+public:
 	void HandleHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message);
+	int32 GetSentDeltaMessageCount() const { return NextMessageNumber; }
 
 private:
+	void Send(FDirectLinkMsg_DeltaMessage* Message);
+
+	void InitSetElementBuffer();
+	void SendSetElementBuffer();
+
 	void DelegateHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message);
 
 private:
-	// connectivity
-	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint;
-	FMessageAddress RemoteAddress;
-	FStreamPort RemoteStreamPort;
-
 	// sent message ordering
 	int8 BatchNumber = 0;
 	int32 NextMessageNumber;
+	TArray<uint8> SetElementBuffer;
 
 	// received message ordering
 	TMap<int32, FDirectLinkMsg_HaveListMessage> MessageBuffer;
@@ -61,13 +90,13 @@ private:
 
 
 class FScenePipeFromNetwork
-	: public IDeltaProducer
+	: public FPipeBase
+	, public IDeltaProducer
+	, public IStreamCommunicationInterface
 {
 public:
 	FScenePipeFromNetwork(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> Sender, const FMessageAddress& RemoteAddress, FStreamPort RemoteStreamPort, const TSharedRef<IDeltaConsumer> Consumer)
-		: ThisEndpoint(Sender)
-		, RemoteAddress(RemoteAddress)
-		, RemoteStreamPort(RemoteStreamPort)
+		: FPipeBase(Sender, RemoteAddress, RemoteStreamPort)
 		, Consumer(Consumer)
 	{
 		Consumer->SetDeltaProducer(this);
@@ -81,16 +110,15 @@ public:
 	void SendHaveElements();
 	virtual void OnCloseHaveList() override;
 
+public: // IStreamCommunicationInterface API
+	virtual FCommunicationStatus GetCommunicationStatus() const override { return CurrentCommunicationStatus; }
+
 private:
 	// transmits messages to the actual delta consumer, reordered
 	void DelegateDeltaMessage(const FDirectLinkMsg_DeltaMessage& Message);
+	void Send(FDirectLinkMsg_HaveListMessage* Message);
 
 private:
-	// connectivity
-	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint;
-	FMessageAddress RemoteAddress;
-	FStreamPort RemoteStreamPort;
-
 	// sent message ordering
 	int32 BatchNumber = 0;
 	int32 NextMessageNumber;
@@ -103,6 +131,9 @@ private:
 	int32 CurrentBatchCode = 0;
 
 	TSharedPtr<IDeltaConsumer> Consumer;
+
+	// reporting
+	FCommunicationStatus CurrentCommunicationStatus;
 };
 
 

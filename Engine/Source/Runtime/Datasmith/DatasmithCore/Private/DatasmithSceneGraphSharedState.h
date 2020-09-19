@@ -44,7 +44,7 @@ public:
 		{
 			if (NodeIds.Num() > 1)
 			{
-				UE_LOG(LogDirectLinkIndexer, Error, TEXT("Bad argument type: several references provided in a simple ref"));
+				UE_LOG(LogDirectLink, Error, TEXT("Bad argument type: several references provided in a simple ref"));
 				return;
 			}
 
