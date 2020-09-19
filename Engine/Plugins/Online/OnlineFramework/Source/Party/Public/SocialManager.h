@@ -37,6 +37,7 @@ public:
 
 	static bool IsSocialSubsystemEnabled(ESocialSubsystem SubsystemType);
 	static FName GetSocialOssName(ESocialSubsystem SubsystemType);
+	static FText GetSocialOssPlatformName(ESocialSubsystem SubsystemType);
 	static IOnlineSubsystem* GetSocialOss(UWorld* World, ESocialSubsystem SubsystemType);
 	static FUserPlatform GetLocalUserPlatform();
 	static const TArray<ESocialSubsystem>& GetDefaultSubsystems() { return DefaultSubsystems; }
