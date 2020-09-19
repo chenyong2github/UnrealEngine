@@ -167,7 +167,7 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	FColor OcclusionTint;
 
 	/**
-	 * Whether the cloud should contribute to ambiant occlusion onto the atmosphere and other scene elements.
+	 * Whether the cloud should occlude sky contribution within the atmosphere (progressively fading multiple scattering out) or not.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
 	uint32 bCloudAmbientOcclusion : 1;
