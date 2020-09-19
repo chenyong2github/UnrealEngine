@@ -1151,58 +1151,70 @@ FGPUFenceRHIRef FOpenGLDynamicRHI::RHICreateGPUFence(const FName &Name)
 
 FOpenGLGPUFence::~FOpenGLGPUFence()
 {
-	if (bValidSync)
-	{
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		RHITHREAD_GLCOMMAND_PROLOGUE();
-		VERIFY_GL_SCOPE();
-		FOpenGL::DeleteSync(Fence);
-		RHITHREAD_GLCOMMAND_EPILOGUE_NORETURN();
-	}
+	RunOnGLRenderContextThread([&]()
+		{
+			VERIFY_GL_SCOPE();
+			if (bValidSync)
+			{
+				FOpenGL::DeleteSync(Fence);
+				bValidSync = false;
+				bIsSignaled = false;
+			}
+		});
 }
 
 void FOpenGLGPUFence::Clear()
 {
-	if (bValidSync)
-	{
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		RHITHREAD_GLCOMMAND_PROLOGUE();
-		VERIFY_GL_SCOPE();
-		FOpenGL::DeleteSync(Fence);
-		bValidSync = false;
-		RHITHREAD_GLCOMMAND_EPILOGUE();
-	}
+	int ValueClearIssued = ++ClearIssued;
+	RunOnGLRenderContextThread([&, ValueClearIssued]()
+		{
+			VERIFY_GL_SCOPE();
+			if (bValidSync)
+			{
+				FOpenGL::DeleteSync(Fence);
+				bValidSync = false;
+				bIsSignaled = false;
+			}
+			ClearProcessed = ValueClearIssued;
+		});
 }
 bool FOpenGLGPUFence::Poll() const
 {
-	if (!bValidSync)
+	if (!bIsSignaled || (ClearProcessed != ClearIssued))
 	{
-		return false;
+		RunOnGLRenderContextThread([&]() 
+			{
+				VERIFY_GL_SCOPE();
+				if (!bValidSync)
+				{
+					bIsSignaled = false;
+				}
+				else
+				{
+					FOpenGLBase::EFenceResult Result = (FOpenGL::ClientWaitSync(Fence, 0, 0));
+					bIsSignaled = (Result == FOpenGLBase::FR_AlreadySignaled || Result == FOpenGLBase::FR_ConditionSatisfied);
+				}
+			});
 	}
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	RHITHREAD_GLCOMMAND_PROLOGUE();
-	VERIFY_GL_SCOPE();
+	return bIsSignaled && (ClearProcessed == ClearIssued);
 
-	FOpenGLBase::EFenceResult Result = FOpenGL::ClientWaitSync(Fence, 0, 0);
-	return (Result == FOpenGLBase::FR_AlreadySignaled || Result == FOpenGLBase::FR_ConditionSatisfied);
 
-	RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(bool);
 }
 
 void FOpenGLGPUFence::WriteInternal()
 {
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	RHITHREAD_GLCOMMAND_PROLOGUE();
-	VERIFY_GL_SCOPE();
+	RunOnGLRenderContextThread([&]()
+		{
+			VERIFY_GL_SCOPE();
 
-	if (bValidSync)
-	{
-		FOpenGL::DeleteSync(Fence);
-		bValidSync = false;
-	}
+			if (bValidSync)
+			{
+				FOpenGL::DeleteSync(Fence);
+				bValidSync = false;
+			}
 
-	Fence = FOpenGL::FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-	bValidSync = true;
-	RHITHREAD_GLCOMMAND_EPILOGUE();
+			Fence = FOpenGL::FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+			bValidSync = true;
+		});
 }

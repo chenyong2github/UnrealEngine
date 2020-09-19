@@ -2115,6 +2115,9 @@ public:
 	FOpenGLGPUFence(FName InName)
 		: FRHIGPUFence(InName)
 		, bValidSync(false)
+		, bIsSignaled(false)
+		, ClearIssued(0)
+		, ClearProcessed(0)
 	{}
 
 	~FOpenGLGPUFence() override;
@@ -2127,6 +2130,9 @@ private:
 	UGLsync Fence;
 	// We shadow the sync state to know if/when we need to destroy it.
 	bool bValidSync;
+	mutable bool bIsSignaled;
+	uint32 ClearIssued;
+	uint32 ClearProcessed;
 };
 
 class FOpenGLStagingBuffer final : public FRHIStagingBuffer
@@ -2150,6 +2156,7 @@ private:
 
 	GLuint ShadowBuffer;
 	uint32 ShadowSize;
+	void* Mapping;
 };
 
 template<class T>
