@@ -2467,7 +2467,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPack
 		FText FailReason;
 		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterial>( AssetsContext.MaterialsFinalPackage.Get(), FixedMaterialName, FailReason ))
 		{
-			AssetsContext.ParentContext.LogError(FailReason);
+			AssetsContext.GetParentContext().LogError(FailReason);
 			return nullptr;
 		}
 
@@ -2536,7 +2536,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPack
 		FText FailReason;
 		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInterface>( AssetsContext.MaterialsFinalPackage.Get(), FixedMaterialName, FailReason ))
 		{
-			AssetsContext.ParentContext.LogError(FailReason);
+			AssetsContext.GetParentContext().LogError(FailReason);
 			return nullptr;
 		}
 
@@ -3073,7 +3073,7 @@ UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UP
 	FText FailReason;
 	if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialFunction>(Package, MaterialFunctionName, FailReason))
 	{
-		AssetsContext.ParentContext.LogError(FailReason);
+		AssetsContext.GetParentContext().LogError(FailReason);
 		return nullptr;
 	}
 	
@@ -3131,7 +3131,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 	FText FailReason;
 	if (!FDatasmithImporterUtils::CanCreateAsset<UMaterial>(Package, MaterialName, FailReason))
 	{
-		AssetsContext.ParentContext.LogError(FailReason);
+		AssetsContext.GetParentContext().LogError(FailReason);
 		return nullptr;
 	}
 
@@ -3188,7 +3188,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 	FText FailReason;
 	if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInstanceConstant>(AssetsContext.MaterialsFinalPackage.Get(), MaterialName, FailReason))
 	{
-		AssetsContext.ParentContext.LogError(FailReason);
+		AssetsContext.GetParentContext().LogError(FailReason);
 		return nullptr;
 	}
 

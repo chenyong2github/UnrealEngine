@@ -40,6 +40,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportFactoryCreateFileResult
 
 	UPROPERTY(BlueprintReadWrite, Transient, Category = Result)
 	bool bImportSucceed;
+
+	UPROPERTY(BlueprintReadWrite, Transient, Category = Result)
+	UDatasmithScene* Scene;
 };
 
 
@@ -56,6 +59,14 @@ public:
 	 **/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Datasmith")
 	static UDatasmithSceneElement* ConstructDatasmithSceneFromFile(const FString& FilePath);
+
+	/**
+	 * Open set of CAD files as actors in a single datasmith scene
+	 * Importing set of files into single DatasmithScene asset(with ImportScene) is supported only for CAD files
+	 * @return	The opened DatasmithScene, that can be modified and can be imported.
+	 **/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Datasmith")
+	static UDatasmithSceneElement* ConstructDatasmithSceneFromCADFiles(const TArray<FString>& FilePaths);
 
 	/**
 	 * Open an existing DatasmithScene asset file from disk.
@@ -79,6 +90,14 @@ public:
 	 **/
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene")
 	FDatasmithImportFactoryCreateFileResult ImportScene(const FString& DestinationFolder);
+
+	/**
+	 * Import a Datasmith Scene created with ConstructDatasmithSceneFromFiles into an array of scenes.
+	 * @param	DestinationFolder	Destination of where you want the asset to be imported. ie: /Game/MyFolder1
+	 * @return	An array of import results corresponding to array of input files
+	 **/
+	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene")
+	TArray<FDatasmithImportFactoryCreateFileResult> ImportScenes(const FString& DestinationFolder);
 
 	/**
 	 * Reimport a scene opened with GetExistingDatasmithScene
@@ -117,6 +136,9 @@ private:
 	TUniquePtr<FDatasmithTranslatableSceneSource> SourcePtr; // #ueent_todo move to context
 	TUniquePtr<FDatasmithImportContext> ImportContextPtr;
 	bool bTranslated = false;
+
+	bool bMultifile = false;
+	TArray<FString> FilePaths;
 };
 
 
