@@ -110,9 +110,14 @@ void UTexture::ReleaseResource()
 	if (Resource)
 	{
 		UnlinkStreaming();
+
 		// When using PlatformData, the resource shouldn't be released before it is initialized to prevent threading issues
 		// where the platform data could be updated at the same time InitRHI is reading it on the renderthread.
-		check(!GetRunningPlatformData() || !HasPendingInitOrStreaming());
+		if (GetRunningPlatformData())
+		{
+			WaitForPendingInitOrStreaming();
+		}
+
 		CachedSRRState.Clear();
 
 		// Free the resource.
