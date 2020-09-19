@@ -892,7 +892,7 @@ const TCHAR* UNiagaraDataInterfaceGrid2DCollection::TypeDefinitionToHLSLTypeStri
 		return TEXT("float2");
 	if (InDef == FNiagaraTypeDefinition::GetVec3Def())
 		return TEXT("float3");
-	if (InDef == FNiagaraTypeDefinition::GetVec4Def())
+	if (InDef == FNiagaraTypeDefinition::GetVec4Def() || InDef == FNiagaraTypeDefinition::GetColorDef())
 		return TEXT("float4");
 	return nullptr;
 }
@@ -904,7 +904,7 @@ FName UNiagaraDataInterfaceGrid2DCollection::TypeDefinitionToGetFunctionName(con
 		return GetVector2ValueFunctionName;
 	if (InDef == FNiagaraTypeDefinition::GetVec3Def())
 		return GetVector3ValueFunctionName;
-	if (InDef == FNiagaraTypeDefinition::GetVec4Def())
+	if (InDef == FNiagaraTypeDefinition::GetVec4Def() || InDef == FNiagaraTypeDefinition::GetColorDef())
 		return GetVector4ValueFunctionName;
 	return NAME_None;;
 }
@@ -916,7 +916,7 @@ FName UNiagaraDataInterfaceGrid2DCollection::TypeDefinitionToSetFunctionName(con
 		return SetVector2ValueFunctionName;
 	if (InDef == FNiagaraTypeDefinition::GetVec3Def())
 		return SetVector3ValueFunctionName;
-	if (InDef == FNiagaraTypeDefinition::GetVec4Def())
+	if (InDef == FNiagaraTypeDefinition::GetVec4Def() || InDef == FNiagaraTypeDefinition::GetColorDef())
 		return SetVector4ValueFunctionName;
 	return NAME_None;;
 }
