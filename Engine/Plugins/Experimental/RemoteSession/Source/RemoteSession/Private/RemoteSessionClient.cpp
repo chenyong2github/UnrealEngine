@@ -227,7 +227,7 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 			LexFromString(ChannelMode, *ChannelModeStr);
 		}
 		
-		if (ChannelName.Len() && ChannelMode < ERemoteSessionChannelMode::Unknown)
+		if (ChannelName.Len() && ChannelMode > ERemoteSessionChannelMode::Unknown)
 		{
 			UE_LOG(LogRemoteSession, Log, TEXT("Remote host supports channel %s with mode %s"), *ChannelName, ::LexToString((ERemoteSessionChannelMode)ChannelMode));
 			AvailableChannels.Emplace(MoveTemp(ChannelName), ChannelMode);
@@ -251,7 +251,7 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 	{
 		// hard code these for now
 		FRemoteSessionChannelInfo Info;
-		Info.Type = TEXT("FRemoteSessionFrameBufferChannel");
+		Info.Type = TEXT("FRemoteSessionImageChannel");
 		Info.Mode = ERemoteSessionChannelMode::Read;
 		RequestChannel(Info);
 
