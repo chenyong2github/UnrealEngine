@@ -1090,6 +1090,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	MobileWholeSceneShadowAtlasSize(0, 0)
 ,	GPUSkinCache(nullptr)
 ,	SceneLODHierarchy(this)
+,	RuntimeVirtualTexturePrimitiveHideMaskEditor(0)
+,	RuntimeVirtualTexturePrimitiveHideMaskGame(0)
 ,	DefaultMaxDistanceFieldOcclusionDistance(InWorld->GetWorldSettings()->DefaultMaxDistanceFieldOcclusionDistance)
 ,	GlobalDistanceFieldViewDistance(InWorld->GetWorldSettings()->GlobalDistanceFieldViewDistance)
 ,	DynamicIndirectShadowsSelfShadowingIntensity(FMath::Clamp(InWorld->GetWorldSettings()->DynamicIndirectShadowsSelfShadowingIntensity, 0.0f, 1.0f))
@@ -2469,10 +2471,22 @@ void FScene::RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* 
 void FScene::AddRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy)
 {
 	SceneProxy->SceneIndex = RuntimeVirtualTextures.Add(SceneProxy);
+
+	const uint8 HideFlagBit = 1 << SceneProxy->SceneIndex;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor |= (SceneProxy->bHidePrimitivesInEditor ? HideFlagBit : 0);
+	RuntimeVirtualTexturePrimitiveHideMaskGame &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskGame |= (SceneProxy->bHidePrimitivesInGame ? HideFlagBit : 0);
 }
 
 void FScene::UpdateRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy, FRuntimeVirtualTextureSceneProxy* SceneProxyToReplace)
 {
+	const uint8 HideFlagBit = 1 << SceneProxy->SceneIndex;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor |= (SceneProxy->bHidePrimitivesInEditor ? HideFlagBit : 0);
+	RuntimeVirtualTexturePrimitiveHideMaskGame &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskGame |= (SceneProxy->bHidePrimitivesInGame ? HideFlagBit : 0);
+
 	for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TIterator It(RuntimeVirtualTextures); It; ++It)
 	{
 		if (*It == SceneProxyToReplace)
@@ -2489,6 +2503,10 @@ void FScene::UpdateRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureScen
 
 void FScene::RemoveRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy)
 {
+	const uint8 HideFlagBit = 1 << SceneProxy->SceneIndex;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskGame &= ~HideFlagBit;
+
 	RuntimeVirtualTextures.RemoveAt(SceneProxy->SceneIndex);
 	delete SceneProxy;
 }
@@ -2518,6 +2536,12 @@ uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
 	// Should not get here
 	check(false);
 	return 0;
+}
+
+void FScene::GetRuntimeVirtualTextureHidePrimitiveMask(uint8& bHideMaskEditor, uint8& bHideMaskGame) const
+{
+	bHideMaskEditor = RuntimeVirtualTexturePrimitiveHideMaskEditor;
+	bHideMaskGame = RuntimeVirtualTexturePrimitiveHideMaskGame;
 }
 
 void FScene::InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds)

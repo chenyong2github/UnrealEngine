@@ -192,6 +192,9 @@ public:
 	/** Removes a runtime virtual texture object from the scene. */
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) {}
 
+	/* Get the bitmasks describing which virtual texture objects will hide the associated primitives. */
+	virtual void GetRuntimeVirtualTextureHidePrimitiveMask(uint8& bHideMaskEditor, uint8& bHideMaskGame) const {}
+
 	/** Invalidates pages in a runtime virtual texture object. */
 	virtual void InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds) {}
 
