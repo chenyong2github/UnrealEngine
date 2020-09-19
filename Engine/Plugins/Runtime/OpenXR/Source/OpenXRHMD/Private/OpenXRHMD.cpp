@@ -943,12 +943,8 @@ bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orien
 
 	const FDeviceSpace& DeviceSpace = DeviceSpaces[DeviceId];
 
-	XrSpaceVelocity DeviceVelocity;
-	DeviceVelocity.type = XR_TYPE_SPACE_VELOCITY;
-	DeviceVelocity.next = nullptr;
-	XrSpaceLocation DeviceLocation;
-	DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
-	DeviceLocation.next = &DeviceVelocity;
+	XrSpaceVelocity DeviceVelocity { XR_TYPE_SPACE_VELOCITY };
+	XrSpaceLocation DeviceLocation { XR_TYPE_SPACE_LOCATION, &DeviceVelocity };
 
 	XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, TargetTime, &DeviceLocation));
 
