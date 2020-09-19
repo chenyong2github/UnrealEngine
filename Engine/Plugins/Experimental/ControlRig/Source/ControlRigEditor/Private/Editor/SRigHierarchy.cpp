@@ -540,6 +540,9 @@ void SRigHierarchy::RefreshTreeView()
 		ExpansionState.FindOrAdd(Pair.Key) = TreeView->IsItemExpanded(Pair.Value);
 	}
 
+	// internally save expansion states before rebuilding the tree, so the states can be restored later
+	TreeView->SaveAndClearSparseItemInfos();
+
 	RootElements.Reset();
 	ElementMap.Reset();
 	ParentMap.Reset();
@@ -564,26 +567,17 @@ void SRigHierarchy::RefreshTreeView()
 			AddSpaceElement(Element);
 		}
 
+		for (const auto& Pair : ElementMap)
+		{
+			TreeView->RestoreSparseItemInfos(Pair.Value);
+		}
+
+		// expand all elements upon the initial construction of the tree
 		if (ExpansionState.Num() == 0)
 		{
 			for (TSharedPtr<FRigTreeElement> RootElement : RootElements)
 			{
 				SetExpansionRecursive(RootElement, false);
-			}
-		}
-		else
-		{
-			for (TPair<FRigElementKey, bool> Pair : ExpansionState)
-			{
-				if (!Pair.Value)
-				{
-					continue;
-				}
-
-				if (TSharedPtr<FRigTreeElement>* ItemPtr = ElementMap.Find(Pair.Key))
-				{
-					TreeView->SetItemExpansion(*ItemPtr, true);
-				}
 			}
 		}
 
