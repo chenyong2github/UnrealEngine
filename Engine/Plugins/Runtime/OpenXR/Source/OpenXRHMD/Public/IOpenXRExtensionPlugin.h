@@ -111,6 +111,10 @@ public:
 		return InNext;
 	}
 
+	virtual void PostGetSystem(XrInstance InInstance, XrSystemId InSystem)
+	{
+	}
+
 	virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext)
 	{
 		return InNext;
