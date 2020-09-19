@@ -1663,6 +1663,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 			const integration = await targetEdge.performMerge(info, target, this.branch.convertIntegratesToEdits)
 
+			// wake up target nodebot, so look for further merges or conflict resolutions
+			const targetNodebot = target.branch.bot as NodeBot
+			if (targetNodebot) {
+				targetNodebot.ticksSinceLastNewP4Commit = 0
+				targetNodebot.skipTickCounter = 0
+			}
+
 			// If the target edge is now blocked after the merge attempt, remove it from future merges this tick
 			if (targetEdge.isBlocked) {
 				this.nodeBotLogger.info(`${targetEdge.displayName} is blocked after attempting to merge ${info.cl}, removing edge from merges this tick.`)
