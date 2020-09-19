@@ -171,7 +171,7 @@ int32 UEditorSkeletalMeshLibrary::ImportLOD(USkeletalMesh* BaseMesh, const int32
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		UE_LOG(LogEditorScripting, Error, TEXT("SkeletalMesh ImportLOD: Cannot import or re-import when editor PIE is active."));
 		return INDEX_NONE;
@@ -240,7 +240,7 @@ bool UEditorSkeletalMeshLibrary::ReimportAllCustomLODs(USkeletalMesh* SkeletalMe
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		UE_LOG(LogEditorScripting, Error, TEXT("SkeletalMesh ReimportAllCustomLODs: Cannot import or re-import when editor PIE is active."));
 		return false;
@@ -280,7 +280,7 @@ void UEditorSkeletalMeshLibrary::GetLodBuildSettings(const USkeletalMesh* Skelet
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -310,7 +310,7 @@ void UEditorSkeletalMeshLibrary::SetLodBuildSettings(USkeletalMesh* SkeletalMesh
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
