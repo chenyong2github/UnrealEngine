@@ -67,14 +67,6 @@ static TAutoConsoleVariable<int32> CVarD3D12GPUCrashDebuggingMode(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
-int32 GMinimumWindowsBuildVersionForRayTracing = 0;
-static FAutoConsoleVariableRef CVarMinBuildVersionForRayTracing(
-	TEXT("r.D3D12.DXR.MinimumWindowsBuildVersion"),
-	GMinimumWindowsBuildVersionForRayTracing,
-	TEXT("Sets the minimum Windows build version required to enable ray tracing."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe
-);
-
 static bool CheckD3DStoredMessages()
 {
 	bool bResult = false;
@@ -823,17 +815,6 @@ void FD3D12Adapter::InitializeDevices()
 						GRHISupportsRayTracingPSOAdditions = true;
 					}
 				}
-			}
-
-			// Post conditions required for ray tracing
-
-			if (GRHISupportsRayTracing 
-				&& GMinimumWindowsBuildVersionForRayTracing > 0 
-				&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
-			{
-				GRHISupportsRayTracing = false;
-
-				UE_LOG(LogD3D12RHI, Log, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
 			}
 #endif // D3D12_RHI_RAYTRACING
 		}
