@@ -1646,47 +1646,57 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 		}
 	}
 
-	// Populate landscape clipping geometry
-	for (FMeshDescription* RawMesh : CullingRawMeshes)
+	if (MergeDataEntries.Num() != 0)
 	{
-		FMeshMergeData ClipData;
-		ClipData.bIsClippingMesh = true;
-		ClipData.RawMesh = RawMesh;
-		MergeDataEntries.Add(ClipData);
-	}
-
-	SlowTask.EnterProgressFrame(50.0f, LOCTEXT("CreateProxyMesh_GenerateProxy", "Generating Proxy Mesh"));
-
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ProxyGeneration)
-
-		// Choose Simplygon Swarm (if available) or local proxy lod method
-		if (ReductionModule.GetDistributedMeshMergingInterface() != nullptr && GetDefault<UEditorPerProjectUserSettings>()->bUseSimplygonSwarm && bAllowAsync)
+		// Populate landscape clipping geometry
+		for (FMeshDescription* RawMesh : CullingRawMeshes)
 		{
-			MaterialFlattenLambda(FlattenedMaterials);
-
-			ReductionModule.GetDistributedMeshMergingInterface()->ProxyLOD(MergeDataEntries, Data->InProxySettings, FlattenedMaterials, InGuid);
+			FMeshMergeData ClipData;
+			ClipData.bIsClippingMesh = true;
+			ClipData.RawMesh = RawMesh;
+			MergeDataEntries.Add(ClipData);
 		}
-		else
+
+		SlowTask.EnterProgressFrame(50.0f, LOCTEXT("CreateProxyMesh_GenerateProxy", "Generating Proxy Mesh"));
+
 		{
-			IMeshMerging* MeshMerging = ReductionModule.GetMeshMergingInterface();
+			TRACE_CPUPROFILER_EVENT_SCOPE(ProxyGeneration)
 
-			// Register the Material Flattening code if parallel execution is supported, otherwise directly run it.
-
-			if (MeshMerging->bSupportsParallelMaterialBake())
+			// Choose Simplygon Swarm (if available) or local proxy lod method
+			if (ReductionModule.GetDistributedMeshMergingInterface() != nullptr && GetDefault<UEditorPerProjectUserSettings>()->bUseSimplygonSwarm && bAllowAsync)
 			{
-				MeshMerging->BakeMaterialsDelegate.BindLambda(MaterialFlattenLambda);
+				MaterialFlattenLambda(FlattenedMaterials);
+
+				ReductionModule.GetDistributedMeshMergingInterface()->ProxyLOD(MergeDataEntries, Data->InProxySettings, FlattenedMaterials, InGuid);
 			}
 			else
 			{
-				MaterialFlattenLambda(FlattenedMaterials);
+				IMeshMerging* MeshMerging = ReductionModule.GetMeshMergingInterface();
+
+				// Register the Material Flattening code if parallel execution is supported, otherwise directly run it.
+
+				if (MeshMerging->bSupportsParallelMaterialBake())
+				{
+					MeshMerging->BakeMaterialsDelegate.BindLambda(MaterialFlattenLambda);
+				}
+				else
+				{
+					MaterialFlattenLambda(FlattenedMaterials);
+				}
+
+				MeshMerging->ProxyLOD(MergeDataEntries, Data->InProxySettings, FlattenedMaterials, InGuid);
+
+
+				Processor->Tick(0); // make sure caller gets merging results
 			}
-
-			MeshMerging->ProxyLOD(MergeDataEntries, Data->InProxySettings, FlattenedMaterials, InGuid);
-
-
-			Processor->Tick(0); // make sure caller gets merging results
 		}
+	}
+	else
+	{
+		FMeshDescription MeshDescription;
+		FStaticMeshAttributes(MeshDescription).Register();
+		FFlattenMaterial FlattenMaterial;
+		Processor->ProxyGenerationComplete(MeshDescription, FlattenMaterial, InGuid);
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(Cleanup)
