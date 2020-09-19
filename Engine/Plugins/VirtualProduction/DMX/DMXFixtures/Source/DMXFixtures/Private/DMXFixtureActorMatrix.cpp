@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXFixtureActorMatrix.h"
+#include "Components/StaticMeshComponent.h"
 
 void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)//, TFunction<void(uint8* SrcData)> DataCleanupFunc = [](uint8*) {})
 {
@@ -56,12 +57,14 @@ ADMXFixtureActorMatrix::~ADMXFixtureActorMatrix()
 		delete MatrixData;
 }
 
+#if WITH_EDITOR
 // Support in-editor and PIE
 void ADMXFixtureActorMatrix::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	FeedFixtureData();
 }
+#endif
 
 void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 {
