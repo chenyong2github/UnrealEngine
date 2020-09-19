@@ -1051,13 +1051,13 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 
 	if (Selection.SelectedCornerIDs.Num() > 0)
 	{
-		OutHit.FaceIndex   = Selection.SelectedCornerIDs[0];
+		OutHit.FaceIndex   = Selection.GetASelectedCornerID();
 		OutHit.Distance    = LocalRay.Project(LocalPosition);
 		OutHit.ImpactPoint = (FVector)Transform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
 	else if (Selection.SelectedEdgeIDs.Num() > 0)
 	{
-		OutHit.FaceIndex   = Selection.SelectedEdgeIDs[0];
+		OutHit.FaceIndex   = Selection.GetASelectedEdgeID();
 		OutHit.Distance    = LocalRay.Project(LocalPosition);
 		OutHit.ImpactPoint = (FVector)Transform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
@@ -1131,16 +1131,16 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 		if (Selection.SelectedCornerIDs.Num() > 0)
 		{
 			//Add all the the Corner's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-			LaplacianDeformer->SetActiveHandleCorners(Selection.SelectedCornerIDs);
+			LaplacianDeformer->SetActiveHandleCorners(Selection.SelectedCornerIDs.Array());
 		}
 		else if (Selection.SelectedEdgeIDs.Num() > 0)
 		{
 			//Add all the the edge's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-			LaplacianDeformer->SetActiveHandleEdges(Selection.SelectedEdgeIDs);
+			LaplacianDeformer->SetActiveHandleEdges(Selection.SelectedEdgeIDs.Array());
 		}
 		else if (Selection.SelectedGroupIDs.Num() > 0)
 		{
-			LaplacianDeformer->SetActiveHandleFaces(Selection.SelectedGroupIDs);
+			LaplacianDeformer->SetActiveHandleFaces(Selection.SelectedGroupIDs.Array());
 		}
 
 
@@ -1172,16 +1172,16 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 		if (Selection.SelectedCornerIDs.Num() > 0)
 		{
 			//Add all the the Corner's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-			LinearDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs);
+			LinearDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs.Array());
 		}
 		else if (Selection.SelectedEdgeIDs.Num() > 0)
 		{
 			//Add all the the edge's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-			LinearDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs);
+			LinearDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs.Array());
 		}
 		else if (Selection.SelectedGroupIDs.Num() > 0)
 		{
-			LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs);
+			LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs.Array());
 		}
 	}
 
@@ -1205,7 +1205,7 @@ void UDeformMeshPolygonsTool::UpdateActiveSurfaceFrame(FGroupTopologySelection& 
 		if (HilightSelection.SelectedEdgeIDs.Num() == 1)
 		{
 			FVector3d Tangent;
-			if (Topology.GetGroupEdgeTangent(HilightSelection.SelectedEdgeIDs[0], Tangent))
+			if (Topology.GetGroupEdgeTangent(HilightSelection.GetASelectedEdgeID(), Tangent))
 			{
 				Tangent = Transform.TransformVector(Tangent);
 				ActiveSurfaceFrame.ConstrainedAlignAxis(0, Tangent, ActiveSurfaceFrame.Z());
