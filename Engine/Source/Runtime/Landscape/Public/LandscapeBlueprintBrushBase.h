@@ -72,5 +72,7 @@ public:
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void Destroyed() override;
+
+	virtual void PushDeferredLayersContentUpdate();
 #endif
 };
