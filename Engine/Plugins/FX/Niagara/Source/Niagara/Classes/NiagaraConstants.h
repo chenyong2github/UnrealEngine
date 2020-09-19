@@ -27,6 +27,7 @@
 #define PARAM_MAP_INTERMEDIATE_STR TEXT("Intermedate.")
 #define PARAM_MAP_LOCAL_STR TEXT("Local.")
 #define PARAM_MAP_OUTPUT_STR TEXT("Output.")
+#define PARAM_MAP_TRANSIENT_STR TEXT("Transient.")
 
 #define TRANSLATOR_SET_VARIABLES_STR TEXT("SetVariables")
 #define TRANSLATOR_SET_VARIABLES_UNDERSCORE_STR TEXT("SetVariables_")
