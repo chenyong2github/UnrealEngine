@@ -149,7 +149,7 @@ struct FGatherParameters
 		return TRange<FFrameNumber>::Intersection(RootClampRange, InRootRange);
 	}
 
-	/**  */
+	/** The ID of the sequence being compiled */
 	FMovieSceneSequenceID SequenceID;
 
 	/** A range to clamp compilation to in the root's time-space */
@@ -968,6 +968,9 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 	{
 		return;
 	}
+
+	// Some tracks could want to do some custom pre-compilation things.
+	Track->PreCompile();
 
 	const FMovieSceneTrackEvaluationField& EvaluationField = Track->GetEvaluationField();
 
