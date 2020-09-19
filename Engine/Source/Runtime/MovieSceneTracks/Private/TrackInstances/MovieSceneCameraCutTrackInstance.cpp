@@ -24,15 +24,13 @@ namespace MovieScene
 	/** Information about a camera cut's easing (in or out) */
 	struct FBlendedCameraCutEasingInfo
 	{
-		float BlendTime = -1.f;
+		float RootBlendTime = -1.f;
 		TOptional<EMovieSceneBuiltInEasing> BlendType;
 
 		FBlendedCameraCutEasingInfo() {}
-		FBlendedCameraCutEasingInfo(const TRange<FFrameNumber> EasingRange, const TScriptInterface<IMovieSceneEasingFunction>& EasingFunction, const FFrameRate FrameRate)
+		FBlendedCameraCutEasingInfo(float InRootBlendTime, const TScriptInterface<IMovieSceneEasingFunction>& EasingFunction)
 		{
-			// Get the blend time in seconds.
-			int32 EaseInTime = UE::MovieScene::DiscreteSize(EasingRange);
-			BlendTime = FrameRate.AsSeconds(FFrameTime(EaseInTime));
+			RootBlendTime = InRootBlendTime;
 
 			// If it's a built-in easing function, get the curve type. We'll try to convert it to what the
 			// player controller knows later, in the movie scene player.
@@ -54,7 +52,7 @@ namespace MovieScene
 
 		FBlendedCameraCutEasingInfo EaseIn;
 		FBlendedCameraCutEasingInfo EaseOut;
-		bool bIsFinalCut = false;
+		bool bIsFinalBlendOut = false;
 
 		FMovieSceneObjectBindingID PreviousCameraBindingID;
 		FMovieSceneSequenceID PreviousOperandSequenceID;
@@ -145,7 +143,7 @@ namespace MovieScene
 
 			EMovieSceneCameraCutParams CameraCutParams;
 			CameraCutParams.bJumpCut = Context.HasJumped();
-			CameraCutParams.BlendTime = Params.EaseIn.BlendTime;
+			CameraCutParams.BlendTime = Params.EaseIn.RootBlendTime;
 			CameraCutParams.BlendType = Params.EaseIn.BlendType;
 
 #if WITH_EDITOR
@@ -216,31 +214,36 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 			const TArray<UMovieSceneSection*>& AllSections = Track->GetAllSections();
 			const bool bIsFinalSection = (AllSections.Num() > 0 && AllSections.Last() == Section);
 
+			const FMovieSceneTimeTransform SequenceToRootTransform = Context.GetSequenceToRootTransform();
+
 			FBlendedCameraCut Params(Input.InstanceHandle, CameraBindingID, SequenceInstance.GetSequenceID());
-			Params.bIsFinalCut = bIsFinalSection;
 
 			// Get ease-in/out info.
-			const TRange<FFrameNumber> EaseInRange = Section->GetEaseInRange();
-			if (!EaseInRange.IsEmpty())
+			if (Section->HasStartFrame() && Section->Easing.GetEaseInDuration() > 0)
 			{
-				Params.EaseIn = FBlendedCameraCutEasingInfo(EaseInRange, Section->Easing.EaseIn, Context.GetFrameRate());
+				const float RootEaseInTime = SequenceToRootTransform.TimeScale * Context.GetFrameRate().AsSeconds(FFrameNumber(Section->Easing.GetEaseInDuration()));
+				Params.EaseIn = FBlendedCameraCutEasingInfo(RootEaseInTime, Section->Easing.EaseIn);
 			}
-			const TRange<FFrameNumber> EaseOutRange = Section->GetEaseOutRange();
-			if (!EaseOutRange.IsEmpty())
+			if (Section->HasEndFrame() && Section->Easing.GetEaseOutDuration() > 0)
 			{
-				Params.EaseOut = FBlendedCameraCutEasingInfo(EaseOutRange, Section->Easing.EaseOut, Context.GetFrameRate());
+				const float RootEaseOutTime = SequenceToRootTransform.TimeScale * Context.GetFrameRate().AsSeconds(FFrameNumber(Section->Easing.GetEaseOutDuration()));
+				Params.EaseOut = FBlendedCameraCutEasingInfo(RootEaseOutTime, Section->Easing.EaseOut);
 			}
 
 			// Get preview blending.
 			const float Weight = Section->EvaluateEasing(Context.GetTime());
 			Params.PreviewBlendFactor = Weight;
 
-			if (bIsFinalSection && Params.EaseOut.BlendTime > 0.f)
+			// If this camera cut is blending away from the sequence (it's the final camera cut section), then
+			// we reverse the blend: we make it blend into a null camera.
+			if (bIsFinalSection && Params.EaseOut.RootBlendTime > 0.f)
 			{
 				const TRange<FFrameNumber> SourceSectionRange = Section->GetTrueRange();
-				const FFrameTime OutBlendTime = Context.GetFrameRate().AsFrameTime(Params.EaseOut.BlendTime);
+				const FFrameNumber OutBlendTime = Section->Easing.GetEaseOutDuration();
 				if (Context.GetTime() >= SourceSectionRange.GetUpperBoundValue() - OutBlendTime)
 				{
+					Params.bIsFinalBlendOut = true;
+					Params.PreviewBlendFactor = 1.0f - Params.PreviewBlendFactor;
 					Params.EaseIn = Params.EaseOut;
 					Params.EaseOut = FBlendedCameraCutEasingInfo();
 					Params.PreviousCameraBindingID = Params.CameraBindingID;
@@ -270,13 +273,44 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 
 	if (CameraCutParams.Num() >= 2)
 	{
-		FBlendedCameraCut PrevCameraCut = CameraCutParams[1];
-		FBlendedCameraCut NextCameraCut = CameraCutParams[0];
+		const FBlendedCameraCut& PrevCameraCut = CameraCutParams[1];
+		const FBlendedCameraCut& NextCameraCut = CameraCutParams[0];
 		
-		// Blending 2 camera cuts: just keep track of what the previous shot is supposed to be.
+		// Blending 2 camera cuts: keep track of what the previous shot is supposed to be,
+		// if both cuts are next to each other.
 		FinalCameraCut = NextCameraCut;
 		FinalCameraCut.PreviousCameraBindingID = PrevCameraCut.CameraBindingID;
 		FinalCameraCut.PreviousOperandSequenceID = PrevCameraCut.OperandSequenceID;
+
+		if (NextCameraCut.bIsFinalBlendOut)
+		{
+			// bIsFinalBlendOut is only true if we are in the final blend out *right now*. But if we are
+			// here, it also means we have at least 2 active camera cuts, which means we're blending out
+			// from a sequence into a different sequence (most likely a parent sequence where a camera cut
+			// is extending past the child sequence in which the 1st camera cut section is).
+			check(PrevCameraCut.InstanceHandle != NextCameraCut.InstanceHandle);
+
+			// NextCameraCut is the child cut.
+			// PrevCameraCut is the parent cut.
+			//
+			// We are blending *out* from the child cut (the last cut of its sequence) to the parent cut,
+			// so the variable names are misleading in this case.
+			const FBlendedCameraCut& PrevChildCameraCut = CameraCutParams[0];
+			const FBlendedCameraCut& NextParentCameraCut = CameraCutParams[1];
+			// Let's now correctly use the proper next/previous information. However, because the previous
+			// (child) cut has been "reversed" (it was expressed as blending into gameplay, with it as the
+			// "previous" camera), we need to take that cut's "previous" info.
+			FinalCameraCut = NextParentCameraCut;
+			FinalCameraCut.PreviousCameraBindingID = PrevChildCameraCut.PreviousCameraBindingID;
+			FinalCameraCut.PreviousOperandSequenceID = PrevChildCameraCut.PreviousOperandSequenceID;
+			// We need to use the child blend out information (blend type, time, and preview factor), because
+			// this is the blend we're using to go to the next/ (parent) cut.
+			// Because the child cut was the final blend out, the easing info and the preview blend factor
+			// have both already been "reversed" (ease-out has been transferred to ease-in, blend factor has
+			// been subtracted from 1.f). So we grab those for the blend info.
+			FinalCameraCut.EaseIn = PrevChildCameraCut.EaseIn;
+			FinalCameraCut.PreviewBlendFactor = PrevChildCameraCut.PreviewBlendFactor;
+		}
 	}
 	else if (CameraCutParams.Num() == 1)
 	{
