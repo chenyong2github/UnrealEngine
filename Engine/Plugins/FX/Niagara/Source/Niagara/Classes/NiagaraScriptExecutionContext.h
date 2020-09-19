@@ -278,6 +278,22 @@ struct FNiagaraGpuSpawnInfo
 	uint32 MaxParticleCount = 0;
 	int32 SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS];
 	FNiagaraGpuSpawnInfoParams SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
+
+	void Reset()
+	{
+		EventSpawnTotal = 0;
+		SpawnRateInstances = 0;
+		MaxParticleCount = 0;
+		for (int32 i = 0; i < NIAGARA_MAX_GPU_SPAWN_INFOS; ++i)
+		{
+			SpawnInfoStartOffsets[i] = 0;
+
+			SpawnInfoParams[i].IntervalDt = 0;
+			SpawnInfoParams[i].InterpStartDt = 0;
+			SpawnInfoParams[i].SpawnGroup = 0;
+			SpawnInfoParams[i].GroupSpawnStartIndex = 0;
+		}		
+	}
 };
 
 class FNiagaraRHIUniformBufferLayout : public FRHIResource

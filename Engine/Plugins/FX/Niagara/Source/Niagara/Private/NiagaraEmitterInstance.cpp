@@ -1187,6 +1187,10 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	if (ExecutionState == ENiagaraExecutionState::InactiveClear)
 	{
+		if (GPUExecContext)
+		{
+			GPUExecContext->Reset(Batcher);
+		}
 		Data.ResetBuffers();
 		ExecutionState = ENiagaraExecutionState::Inactive;
 		return;

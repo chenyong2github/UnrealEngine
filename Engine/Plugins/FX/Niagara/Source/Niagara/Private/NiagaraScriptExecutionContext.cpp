@@ -1157,6 +1157,8 @@ void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatche
 	GPUDebugDataReadbackCounts.Reset();
 #endif
 
+	GpuSpawnInfo_GT.Reset();
+
 	SetDataToRender(nullptr);
 }
 
