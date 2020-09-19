@@ -255,12 +255,19 @@ namespace Audio
 
 	int32 FMixerDevice::GetChannelMapCacheId(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly)
 	{
-		int32 Index = (NumSourceChannels - 1) + AUDIO_MIXER_MAX_OUTPUT_CHANNELS * (NumOutputChannels - 1);
-		if (bIsCenterChannelOnly)
+		if (ensure(NumSourceChannels > 0) && 
+			ensure(NumOutputChannels > 0) &&
+			ensure(NumSourceChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS) &&
+			ensure(NumOutputChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS) )
 		{
-			Index += AUDIO_MIXER_MAX_OUTPUT_CHANNELS * AUDIO_MIXER_MAX_OUTPUT_CHANNELS;
-		}
-		return Index;
+			int32 Index = (NumSourceChannels - 1) + AUDIO_MIXER_MAX_OUTPUT_CHANNELS * (NumOutputChannels - 1);
+			if (bIsCenterChannelOnly)
+			{
+				Index += AUDIO_MIXER_MAX_OUTPUT_CHANNELS * AUDIO_MIXER_MAX_OUTPUT_CHANNELS;
+			}			
+			return Index;
+		}			   		 
+		return 0;	
 	}
 
 	void FMixerDevice::Get2DChannelMap(bool bIsVorbis, const int32 NumSourceChannels, const bool bIsCenterChannelOnly, Audio::AlignedFloatBuffer& OutChannelMap) const
@@ -270,11 +277,29 @@ namespace Audio
 
 	void FMixerDevice::Get2DChannelMap(bool bIsVorbis, const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly, Audio::AlignedFloatBuffer& OutChannelMap)
 	{
-		if (NumSourceChannels > 8 || NumOutputChannels > 8)
+		if (NumSourceChannels <= 0 ||
+			NumOutputChannels <= 0 ||
+			NumSourceChannels > AUDIO_MIXER_MAX_OUTPUT_CHANNELS || 
+			NumOutputChannels > AUDIO_MIXER_MAX_OUTPUT_CHANNELS
+			)
 		{
 			// Return a zero'd channel map buffer in the case of an unsupported channel configuration
-			OutChannelMap.AddZeroed(NumSourceChannels * NumOutputChannels);
-			UE_LOG(LogAudioMixer, Warning, TEXT("Unsupported source channel (%d) count or output channels (%d)"), NumSourceChannels, NumOutputChannels);
+			OutChannelMap.AddZeroed(AUDIO_MIXER_MAX_OUTPUT_CHANNELS * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+
+#if !NO_LOGGING			
+			// Anti-Spam warning.
+			static uint64 TimeOfLastLogMsgInCycles = 0;
+			constexpr double MinTimeBetweenWarningsInMs = 5000.f; // 5 Secs.
+			double ElapsedTimeInMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - TimeOfLastLogMsgInCycles);
+
+			if (ElapsedTimeInMs > MinTimeBetweenWarningsInMs)
+			{
+				TimeOfLastLogMsgInCycles = FPlatformTime::Cycles64();
+				UE_LOG(LogAudioMixer, Warning, TEXT("Unsupported source channel (%d) count or output channels (%d)"), NumSourceChannels, NumOutputChannels);
+			}	
+#endif //!NO_LOGGING
+			
+			// Bail.
 			return;
 		}
 
@@ -421,6 +446,14 @@ namespace Audio
 
 	void FMixerDevice::CacheChannelMap(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly)
 	{
+		if (NumSourceChannels <= 0 ||
+			NumOutputChannels <= 0 ||
+			NumSourceChannels > AUDIO_MIXER_MAX_OUTPUT_CHANNELS || 
+			NumOutputChannels > AUDIO_MIXER_MAX_OUTPUT_CHANNELS
+			)
+		{
+			return;
+		}
 		// Generate the unique cache ID for the channel count configuration
 		const int32 CacheID = GetChannelMapCacheId(NumSourceChannels, NumOutputChannels, bIsCenterChannelOnly);
 		Get2DChannelMapInternal(NumSourceChannels, NumOutputChannels, bIsCenterChannelOnly, ChannelMapCache[CacheID]);
