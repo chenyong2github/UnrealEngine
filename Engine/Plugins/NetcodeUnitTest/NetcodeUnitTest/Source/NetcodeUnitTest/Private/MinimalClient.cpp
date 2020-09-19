@@ -650,6 +650,15 @@ bool UMinimalClient::ConnectMinimalClient()
 		{
 			UnitNetDriver->SendRPCDel.BindUObject(this, &UMinimalClient::NotifySendRPC);
 		}
+
+		if (!EnumHasAnyFlags(MinClientFlags, EMinClientFlags::AcceptRepNotifies))
+		{
+			UnitNetDriver->SkipRepNotifiesDel.BindLambda(
+				[]()
+				{
+					return true;
+				});
+		}
 #endif
 
 		bool bBeaconConnect = !!(MinClientFlags & EMinClientFlags::BeaconConnect);
