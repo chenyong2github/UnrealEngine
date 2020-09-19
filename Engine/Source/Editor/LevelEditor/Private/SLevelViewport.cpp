@@ -76,6 +76,7 @@
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "ToolMenus.h"
 #include "Bookmarks/IBookmarkTypeTools.h"
+#include "Editor/EditorPerformanceSettings.h"
 
 static const FName LevelEditorName("LevelEditor");
 
@@ -538,11 +539,37 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 	// Always set to true initially
 	bShowToolbarAndControls = true; 
 
-	// Disable realtime viewports by default for remote sessions
 	if (FPlatformMisc::IsRemoteSession())
 	{
-		bool bShouldBeRealtime = false;
-		LevelViewportClient->AddRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_RDP", "Remote Desktop"));
+		// Bind to the change delegate of performance settings and call our handler with a dummy event to set current defaults
+		UEditorPerformanceSettings* PerformanceSettings = GetMutableDefault< UEditorPerformanceSettings>();
+		PerformanceSettings->OnSettingChanged().AddSP(this, &SLevelViewport::OnPerformanceSettingsChanged);
+		FPropertyChangedEvent DummyEvent(nullptr);
+		OnPerformanceSettingsChanged(PerformanceSettings, DummyEvent);
+	}
+}
+
+/** Updates the real-time overrride applied to the viewport */
+void SLevelViewport::OnPerformanceSettingsChanged(UObject* Obj, FPropertyChangedEvent& ChangeEvent)
+{
+	if (FPlatformMisc::IsRemoteSession())
+	{
+		const FText RDPRealtimeOverrideName = LOCTEXT("RealtimeOverrideMessage_RDP", "Remote Desktop");
+		UEditorPerformanceSettings* PerformanceSettings = GetMutableDefault< UEditorPerformanceSettings>();
+
+		if (Obj == PerformanceSettings && ensure(LevelViewportClient))
+		{
+			// Respond to settings changes by adding or removing the realtime override as appropriate
+			if (PerformanceSettings->bDisableRealtimeViewportsInRemoteSessions && !LevelViewportClient->HasRealtimeOverride(RDPRealtimeOverrideName))
+			{
+				bool bShouldBeRealtime = false;
+				LevelViewportClient->AddRealtimeOverride(bShouldBeRealtime, RDPRealtimeOverrideName);
+			}
+			else if (!PerformanceSettings->bDisableRealtimeViewportsInRemoteSessions && LevelViewportClient->HasRealtimeOverride(RDPRealtimeOverrideName))
+			{
+				LevelViewportClient->RemoveRealtimeOverride(RDPRealtimeOverrideName, false);
+			}
+		}
 	}
 }
 
