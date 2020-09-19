@@ -5,6 +5,7 @@
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "Engine/World.h"
 #include "HeightfieldMinMaxTexture.h"
+#include "VirtualHeightfieldMeshEnable.h"
 #include "VirtualHeightfieldMeshSceneProxy.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
@@ -16,7 +17,6 @@ UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObject
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = false;
 #endif // WITH_EDITORONLY_DATA
-
 	Mobility = EComponentMobility::Static;
 }
 
@@ -37,31 +37,46 @@ FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
 	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
 }
 
+void UVirtualHeightfieldMeshComponent::OnRegister()
+{
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
+	if (RuntimeVirtualTextureComponent)
+	{
+		// Bind to delegate so that RuntimeVirtualTextureComponent will pull hide flags from this object.
+		HideFlagDelegateHandle = RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().AddUObject(this, &UVirtualHeightfieldMeshComponent::GatherHideFlags);
+		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+	}
+	Super::OnRegister();
+}
+
+void UVirtualHeightfieldMeshComponent::OnUnregister()
+{
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
+	if (RuntimeVirtualTextureComponent)
+	{
+		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().Remove(HideFlagDelegateHandle);
+		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+	}
+	Super::OnUnregister();
+}
+
 bool UVirtualHeightfieldMeshComponent::IsVisible() const
 {
 	return
 		Super::IsVisible() &&
 		GetVirtualTexture() != nullptr &&
 		GetVirtualTexture()->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight &&
-		UseVirtualTexturing(GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5);
-}
-
-FPrimitiveSceneProxy* UVirtualHeightfieldMeshComponent::CreateSceneProxy()
-{
-	//hack[vhm]: No scene representation when disabled for now.
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VHM.Enable"));
-	bool bVHMEnable = CVar != nullptr && CVar->GetValueOnAnyThread() != 0;
-	if (!bVHMEnable)
-	{
-		return nullptr;
-	}
-
-	return new FVirtualHeightfieldMeshSceneProxy(this);
+		VirtualHeightfieldMesh::IsEnabled(GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5);
 }
 
 FBoxSphereBounds UVirtualHeightfieldMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
 	return FBoxSphereBounds(FBox(FVector(0.f, 0.f, 0.f), FVector(1.f, 1.f, 1.f))).TransformBy(LocalToWorld);
+}
+
+FPrimitiveSceneProxy* UVirtualHeightfieldMeshComponent::CreateSceneProxy()
+{
+	return new FVirtualHeightfieldMeshSceneProxy(this);
 }
 
 void UVirtualHeightfieldMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
@@ -71,6 +86,36 @@ void UVirtualHeightfieldMeshComponent::GetUsedMaterials(TArray<UMaterialInterfac
 		OutMaterials.Add(Material);
 	}
 }
+
+void UVirtualHeightfieldMeshComponent::GatherHideFlags(bool& InOutHidePrimitivesInEditor, bool& InOutHidePrimitivesInGame) const
+{
+	const FStaticFeatureLevel FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5;
+	const bool bIsEnabled = VirtualHeightfieldMesh::IsEnabled(FeatureLevel);
+	InOutHidePrimitivesInEditor |= (bIsEnabled && !bHiddenInEditor);
+	InOutHidePrimitivesInGame |= bIsEnabled;
+}
+
+#if WITH_EDITOR
+
+void UVirtualHeightfieldMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	static const FName HideInEditorName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, bHiddenInEditor);
+
+	const FName PropertyName = PropertyChangedEvent.Property->GetFName();
+	if (PropertyName == HideInEditorName)
+	{
+		// Force RuntimeVirtualTextureComponent to poll the HidePrimitives settings.
+		URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
+		if (RuntimeVirtualTextureComponent != nullptr)
+		{
+			RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+#endif
 
 bool UVirtualHeightfieldMeshComponent::IsMinMaxTextureEnabled() const
 {
