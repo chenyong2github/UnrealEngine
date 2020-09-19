@@ -81,6 +81,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
 			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
 			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
+			.OnSetExpansionRecursive(this, &SControlRigGraphNode::HandleExpandRecursively, &ExecutionTree)
 			.ExternalScrollbar(ScrollBar)
 			.ItemHeight(20.0f)
 		];
@@ -95,6 +96,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
 			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
 			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
+			.OnSetExpansionRecursive(this, &SControlRigGraphNode::HandleExpandRecursively, &InputTree)
 			.ExternalScrollbar(ScrollBar)
 			.ItemHeight(20.0f)
 		];
@@ -109,6 +111,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
 			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
 			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
+			.OnSetExpansionRecursive(this, &SControlRigGraphNode::HandleExpandRecursively, &InputOutputTree)
 			.ExternalScrollbar(ScrollBar)
 			.ItemHeight(20.0f)
 		];
@@ -123,6 +126,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
 			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
 			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
+			.OnSetExpansionRecursive(this, &SControlRigGraphNode::HandleExpandRecursively, &OutputTree)
 			.ExternalScrollbar(ScrollBar)
 			.ItemHeight(20.0f)
 		];
@@ -744,6 +748,45 @@ void SControlRigGraphNode::HandleExpansionChanged(URigVMPin* InItem, bool bExpan
 		if (ControlRigBlueprint)
 		{
 			ControlRigBlueprint->Controller->SetPinExpansion(InItem->GetPinPath(), bExpanded, true);
+		}
+	}
+}
+
+void SControlRigGraphNode::HandleExpandRecursively(URigVMPin* InItem, bool bExpanded, TSharedPtr<STreeView<URigVMPin*>>* TreeWidgetPtr)
+{
+	TSharedPtr<STreeView<URigVMPin*>>& TreeWidget = *TreeWidgetPtr;
+
+	if (GraphNode)
+	{
+		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(GraphNode->GetGraph()->GetOuter());
+		if (ControlRigBlueprint)
+		{
+			ControlRigBlueprint->Controller->OpenUndoBracket(TEXT("Expand pin recursively"));
+
+			TArray<URigVMPin*> ModelPins;
+			ModelPins.Add(InItem);
+
+			for (int32 PinIndex = 0; PinIndex < ModelPins.Num(); PinIndex++)
+			{
+				URigVMPin* ModelPin = ModelPins[PinIndex];
+				ModelPins.Append(ModelPin->GetSubPins());
+			}
+
+			if (!bExpanded)
+			{
+				Algo::Reverse(ModelPins);
+			}
+
+			for (int32 PinIndex = 0; PinIndex < ModelPins.Num(); PinIndex++)
+			{
+				URigVMPin* ModelPin = ModelPins[PinIndex];
+				if (ModelPin->IsExpanded() != bExpanded && ModelPin->GetSubPins().Num() > 0)
+				{
+					TreeWidget->SetItemExpansion(ModelPin, bExpanded);
+				}
+			}
+
+			ControlRigBlueprint->Controller->CloseUndoBracket();
 		}
 	}
 }
