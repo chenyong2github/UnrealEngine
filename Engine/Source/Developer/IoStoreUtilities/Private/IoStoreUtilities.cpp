@@ -43,6 +43,9 @@
 #include "RSA.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "AssetRegistryState.h"
+#include "Misc/OutputDeviceFile.h"
+#include "Misc/FeedbackContext.h"
+#include "Serialization/LargeMemoryReader.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -4513,6 +4516,484 @@ int32 ListContainer(
 	return 0;
 }
 
+int32 Describe(
+	const FString& GlobalContainerPath,
+	const FKeyChain& KeyChain,
+	const FString& PackageFilterWildcard,
+	const FString& OutPath)
+{
+
+	struct FPackageDesc;
+
+	struct FPackageLocation
+	{
+		FName ContainerName;
+		uint64 Offset = -1;
+	};
+
+	struct FExportDesc
+	{
+		FPackageDesc* Package = nullptr;
+		FName Name;
+		FName FullName;
+		FPackageObjectIndex OuterIndex;
+		FPackageObjectIndex ClassIndex;
+		FPackageObjectIndex SuperIndex;
+		FPackageObjectIndex TemplateIndex;
+		FPackageObjectIndex GlobalImportIndex;
+	};
+
+	struct FImportDesc
+	{
+		FName Name;
+		FPackageObjectIndex GlobalImportIndex;
+		FExportDesc* Export = nullptr;
+	};
+
+	struct FScriptObjectDesc
+	{
+		FName Name;
+		FName FullName;
+		FPackageObjectIndex GlobalImportIndex;
+		FPackageObjectIndex OuterIndex;
+	};
+
+	struct FPackageDesc
+	{
+		FPackageId PackageId;
+		FName PackageName;
+		uint64 Size = 0;
+		uint32 LoadOrder = uint32(-1);
+		uint32 PackageFlags = 0;
+		int32 NameCount = -1;
+		int32 ExportBundleCount = -1;
+		TArray<FPackageLocation> Locations;
+		TArray<FImportDesc> Imports;
+		TArray<FExportDesc> Exports;
+	};
+
+	if (!IFileManager::Get().FileExists(*GlobalContainerPath))
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Global container '%s' doesn't exist."), *GlobalContainerPath);
+		return -1;
+	}
+
+	TUniquePtr<FIoStoreReader> GlobalReader = CreateIoStoreReader(*GlobalContainerPath, KeyChain);
+	if (!GlobalReader.IsValid())
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Failed reading global container '%s'"), *GlobalContainerPath);
+		return -1;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Loading global name map..."));
+
+	TIoStatusOr<FIoBuffer> GlobalNamesIoBuffer = GlobalReader->Read(CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNames), FIoReadOptions());
+	if (!GlobalNamesIoBuffer.IsOk())
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Failed reading names chunk from global container '%s'"), *GlobalContainerPath);
+		return -1;
+	}
+
+	TIoStatusOr<FIoBuffer> GlobalNameHashesIoBuffer = GlobalReader->Read(CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalNameHashes), FIoReadOptions());
+	if (!GlobalNameHashesIoBuffer.IsOk())
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Failed reading name hashes chunk from global container '%s'"), *GlobalContainerPath);
+		return -1;
+	}
+
+	TArray<FNameEntryId> GlobalNameMap;
+	LoadNameBatch(
+		GlobalNameMap,
+		TArrayView<const uint8>(GlobalNamesIoBuffer.ValueOrDie().Data(), GlobalNamesIoBuffer.ValueOrDie().DataSize()),
+		TArrayView<const uint8>(GlobalNameHashesIoBuffer.ValueOrDie().Data(), GlobalNameHashesIoBuffer.ValueOrDie().DataSize()));
+
+	UE_LOG(LogIoStore, Display, TEXT("Loading script imports..."));
+
+	TIoStatusOr<FIoBuffer> InitialLoadIoBuffer = GlobalReader->Read(CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta), FIoReadOptions());
+	if (!InitialLoadIoBuffer.IsOk())
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Failed reading initial load meta chunk from global container '%s'"), *GlobalContainerPath);
+		return -1;
+	}
+
+	TMap<FPackageObjectIndex, FScriptObjectDesc> ScriptObjectByGlobalIdMap;
+	FLargeMemoryReader InitialLoadArchive(InitialLoadIoBuffer.ValueOrDie().Data(), InitialLoadIoBuffer.ValueOrDie().DataSize());
+	int32 NumScriptObjects = 0;
+	InitialLoadArchive << NumScriptObjects;
+	const FScriptObjectEntry* ScriptObjectEntries = reinterpret_cast<const FScriptObjectEntry*>(InitialLoadIoBuffer.ValueOrDie().Data() + InitialLoadArchive.Tell());
+	for (int32 ScriptObjectIndex = 0; ScriptObjectIndex < NumScriptObjects; ++ScriptObjectIndex)
+	{
+		const FScriptObjectEntry& ScriptObjectEntry = ScriptObjectEntries[ScriptObjectIndex];
+		const FMappedName& MappedName = FMappedName::FromMinimalName(ScriptObjectEntry.ObjectName);
+		check(MappedName.IsGlobal());
+		FScriptObjectDesc& ScriptObjectDesc = ScriptObjectByGlobalIdMap.Add(ScriptObjectEntry.GlobalIndex);
+		ScriptObjectDesc.Name = FName::CreateFromDisplayId(GlobalNameMap[MappedName.GetIndex()], MappedName.GetNumber());
+		ScriptObjectDesc.GlobalImportIndex = ScriptObjectEntry.GlobalIndex;
+		ScriptObjectDesc.OuterIndex = ScriptObjectEntry.OuterIndex;
+	}
+	for (auto& KV : ScriptObjectByGlobalIdMap)
+	{
+		FScriptObjectDesc& ScriptObjectDesc = KV.Get<1>();
+		if (ScriptObjectDesc.FullName.IsNone())
+		{
+			TArray<FScriptObjectDesc*> ScriptObjectStack;
+			FScriptObjectDesc* Current = &ScriptObjectDesc;
+			FString FullName;
+			while (Current)
+			{
+				if (!Current->FullName.IsNone())
+				{
+					FullName = Current->FullName.ToString();
+					break;
+				}
+				ScriptObjectStack.Push(Current);
+				Current = ScriptObjectByGlobalIdMap.Find(Current->OuterIndex);
+			}
+			while (ScriptObjectStack.Num() > 0)
+			{
+				Current = ScriptObjectStack.Pop();
+				FullName /= Current->Name.ToString();
+				Current->FullName = FName(FullName);
+			}
+		}
+	}
+
+	FString Directory = FPaths::GetPath(GlobalContainerPath);
+	FPaths::NormalizeDirectoryName(Directory);
+
+	TArray<FString> FoundContainerFiles;
+	IFileManager::Get().FindFiles(FoundContainerFiles, *(Directory / TEXT("*.utoc")), true, false);
+	TArray<FString> ContainerFilePaths;
+	for (const FString& Filename : FoundContainerFiles)
+	{
+		ContainerFilePaths.Emplace(Directory / Filename);
+	}
+
+	TArray<FPackageDesc*> Packages;
+	TMap<FPackageId, FPackageDesc*> PackageByPackageIdMap;
+	TMap<FPackageObjectIndex, FExportDesc*> ExportByGlobalIdMap;
+
+	for (const FString& ContainerFilePath : ContainerFilePaths)
+	{
+		TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*ContainerFilePath, KeyChain);
+		if (!Reader.IsValid())
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("Failed to read container '%s'"), *ContainerFilePath);
+			continue;
+		}
+
+		FName ContainerName = FName(FPaths::GetBaseFilename(ContainerFilePath));
+
+		TIoStatusOr<FIoBuffer> IoBuffer = Reader->Read(CreateIoChunkId(Reader->GetContainerId().Value(), 0, EIoChunkType::ContainerHeader), FIoReadOptions());
+		if (IoBuffer.IsOk())
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Loading container '%s'"), *ContainerFilePath);
+
+			FMemoryReaderView Ar(MakeArrayView(IoBuffer.ValueOrDie().Data(), IoBuffer.ValueOrDie().DataSize()));
+			FContainerHeader ContainerHeader;
+			Ar << ContainerHeader;
+
+			TArrayView<FPackageStoreEntry> StoreEntries(reinterpret_cast<FPackageStoreEntry*>(ContainerHeader.StoreEntries.GetData()), ContainerHeader.PackageCount);
+
+			TArray<FPackageDesc*> ContainerPackages;
+
+			int32 Index = 0;
+			for (FPackageStoreEntry& ContainerEntry : StoreEntries)
+			{
+				const FPackageId& PackageId = ContainerHeader.PackageIds[Index++];
+				FPackageDesc*& PackageDesc = PackageByPackageIdMap.FindOrAdd(PackageId);
+				if (!PackageDesc)
+				{
+					PackageDesc = new FPackageDesc();
+					PackageDesc->PackageId = PackageId;
+					PackageDesc->Size = ContainerEntry.ExportBundlesSize;
+					PackageDesc->Exports.SetNum(ContainerEntry.ExportCount);
+					PackageDesc->ExportBundleCount = ContainerEntry.ExportBundleCount;
+					PackageDesc->LoadOrder = ContainerEntry.LoadOrder;
+					Packages.Add(PackageDesc);
+				}
+				ContainerPackages.Add(PackageDesc);
+			}
+			FIoReadOptions ReadOptions(0, 64 << 10);
+			for (FPackageDesc* PackageDesc : ContainerPackages)
+			{
+				FIoChunkId PackageChunkId = CreateIoChunkId(PackageDesc->PackageId.Value(), 0, EIoChunkType::ExportBundleData);
+				TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = Reader->GetChunkInfo(PackageChunkId);
+				check(ChunkInfo.IsOk());
+				FPackageLocation& Location = PackageDesc->Locations.AddDefaulted_GetRef();
+				Location.ContainerName = ContainerName;
+				Location.Offset = ChunkInfo.ValueOrDie().Offset;
+				IoBuffer = Reader->Read(PackageChunkId, ReadOptions);
+				check(IoBuffer.IsOk());
+				const uint8* PackageSummaryData = IoBuffer.ValueOrDie().Data();
+				const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
+				const uint64 PackageSummarySize = PackageSummary->GraphDataOffset + PackageSummary->GraphDataSize;
+				if (PackageSummarySize > 64 << 10)
+				{
+					IoBuffer = Reader->Read(PackageChunkId, FIoReadOptions());
+					PackageSummaryData = IoBuffer.ValueOrDie().Data();
+					PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
+				}
+
+				TArray<FNameEntryId> PackageNameMap;
+				if (PackageSummary->NameMapNamesSize)
+				{
+					const uint8* NameMapNamesData = PackageSummaryData + PackageSummary->NameMapNamesOffset;
+					const uint8* NameMapHashesData = PackageSummaryData + PackageSummary->NameMapHashesOffset;
+					LoadNameBatch(
+						PackageNameMap,
+						TArrayView<const uint8>(NameMapNamesData, PackageSummary->NameMapNamesSize),
+						TArrayView<const uint8>(NameMapHashesData, PackageSummary->NameMapHashesSize));
+				}
+
+				PackageDesc->PackageName = FName::CreateFromDisplayId(PackageNameMap[PackageSummary->Name.GetIndex()], PackageSummary->Name.GetNumber());
+				PackageDesc->PackageFlags = PackageSummary->PackageFlags;
+				PackageDesc->NameCount = PackageNameMap.Num();
+
+				const FPackageObjectIndex* ImportMap = reinterpret_cast<const FPackageObjectIndex*>(PackageSummaryData + PackageSummary->ImportMapOffset);
+				PackageDesc->Imports.SetNum((PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(FPackageObjectIndex));
+				for (int32 ImportIndex = 0; ImportIndex < PackageDesc->Imports.Num(); ++ImportIndex)
+				{
+					FImportDesc& ImportDesc = PackageDesc->Imports[ImportIndex];
+					ImportDesc.GlobalImportIndex = ImportMap[ImportIndex];
+				}
+
+				const FExportMapEntry* ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
+				for (int32 ExportIndex = 0; ExportIndex < PackageDesc->Exports.Num(); ++ExportIndex)
+				{
+					const FExportMapEntry& ExportMapEntry = ExportMap[ExportIndex];
+					FExportDesc& ExportDesc = PackageDesc->Exports[ExportIndex];
+					ExportDesc.Package = PackageDesc;
+					ExportDesc.Name = FName::CreateFromDisplayId(PackageNameMap[ExportMapEntry.ObjectName.GetIndex()], ExportMapEntry.ObjectName.GetNumber());
+					ExportDesc.OuterIndex = ExportMapEntry.OuterIndex;
+					ExportDesc.ClassIndex = ExportMapEntry.ClassIndex;
+					ExportDesc.SuperIndex = ExportMapEntry.SuperIndex;
+					ExportDesc.TemplateIndex = ExportMapEntry.TemplateIndex;
+					ExportDesc.GlobalImportIndex = ExportMapEntry.GlobalImportIndex;
+					if (!ExportMapEntry.GlobalImportIndex.IsNull())
+					{
+						ExportByGlobalIdMap.Add(ExportMapEntry.GlobalImportIndex, &ExportDesc);
+					}
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Connecting imports and exports..."));
+
+	for (FPackageDesc* PackageDesc : Packages)
+	{
+		for (FExportDesc& ExportDesc : PackageDesc->Exports)
+		{
+			if (ExportDesc.FullName.IsNone())
+			{
+				TArray<FExportDesc*> ExportStack;
+				FExportDesc* Current = &ExportDesc;
+				FString FullName;
+				for (;;)
+				{
+					if (!Current->FullName.IsNone())
+					{
+						FullName = Current->FullName.ToString();
+						break;
+					}
+					ExportStack.Push(Current);
+					if (Current->OuterIndex.IsNull())
+					{
+						FullName = PackageDesc->PackageName.ToString();
+						break;
+					}
+					Current = &PackageDesc->Exports[Current->OuterIndex.Value()];
+				}
+				while (ExportStack.Num() > 0)
+				{
+					Current = ExportStack.Pop();
+					FullName /= Current->Name.ToString();
+					Current->FullName = FName(FullName);
+				}
+			}
+		}
+	}
+
+	for (FPackageDesc* PackageDesc : Packages)
+	{
+		for (FImportDesc& Import : PackageDesc->Imports)
+		{
+			if (!Import.GlobalImportIndex.IsNull())
+			{
+				if (Import.GlobalImportIndex.IsPackageImport())
+				{
+					Import.Export = ExportByGlobalIdMap.FindRef(Import.GlobalImportIndex);
+					check(Import.Export);
+					Import.Name = Import.Export->FullName;
+				}
+				else
+				{
+					FScriptObjectDesc* ScriptObjectDesc = ScriptObjectByGlobalIdMap.Find(Import.GlobalImportIndex);
+					check(ScriptObjectDesc);
+					Import.Name = ScriptObjectDesc->FullName;
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Collecting output packages..."));
+
+	TArray<const FPackageDesc*> OutputPackages;
+	if (PackageFilterWildcard.IsEmpty())
+	{
+		OutputPackages.Append(Packages);
+	}
+	else
+	{
+		TArray<const FPackageDesc*> PackageStack;
+		for (const FPackageDesc* PackageDesc : Packages)
+		{
+			if (PackageFilterWildcard.IsEmpty() || PackageDesc->PackageName.ToString().MatchesWildcard(PackageFilterWildcard))
+			{
+				PackageStack.Push(PackageDesc);
+			}
+		}
+		TSet<const FPackageDesc*> Visited;
+		while (PackageStack.Num() > 0)
+		{
+			const FPackageDesc* PackageDesc = PackageStack.Pop();
+			if (!Visited.Contains(PackageDesc))
+			{
+				Visited.Add(PackageDesc);
+				OutputPackages.Add(PackageDesc);
+				for (const FImportDesc& Import : PackageDesc->Imports)
+				{
+					if (Import.Export && Import.Export->Package)
+					{
+						PackageStack.Push(Import.Export->Package);
+					}
+				}
+			}
+		}
+	}
+	Algo::Sort(OutputPackages, [](const FPackageDesc* A, const FPackageDesc* B)
+		{
+			return A->LoadOrder < B->LoadOrder;
+		});
+
+	UE_LOG(LogIoStore, Display, TEXT("Generating report..."));
+
+	FOutputDevice* OutputOverride = GWarn;
+	FString OutputFilename;
+	TUniquePtr<FOutputDeviceFile> OutputBuffer;
+	if (!OutPath.IsEmpty())
+	{
+		OutputBuffer = MakeUnique<FOutputDeviceFile>(*OutPath, true);
+		OutputBuffer->SetSuppressEventTag(true);
+		OutputOverride = OutputBuffer.Get();
+	}
+	{
+		TGuardValue<ELogTimes::Type> GuardPrintLogTimes(GPrintLogTimes, ELogTimes::None);
+		TGuardValue<bool> GuardPrintLogCategory(GPrintLogCategory, false);
+		TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
+
+		auto PackageObjectIndexToString = [&ScriptObjectByGlobalIdMap, &ExportByGlobalIdMap](const FPackageObjectIndex& PackageObjectIndex, bool bIncludeName) -> FString
+		{
+			if (PackageObjectIndex.IsNull())
+			{
+				return TEXT("<null>");
+			}
+			else if (PackageObjectIndex.IsPackageImport())
+			{
+				FExportDesc* ExportDesc = ExportByGlobalIdMap.FindRef(PackageObjectIndex);
+				if (ExportDesc && bIncludeName)
+				{
+					return FString::Printf(TEXT("0x%llX '%s'"), PackageObjectIndex.Value(), *ExportDesc->FullName.ToString());
+				}
+				else
+				{
+					return FString::Printf(TEXT("0x%llX"), PackageObjectIndex.Value());
+				}
+			}
+			else if (PackageObjectIndex.IsScriptImport())
+			{
+				FScriptObjectDesc* ScriptObjectDesc = ScriptObjectByGlobalIdMap.Find(PackageObjectIndex);
+				if (ScriptObjectDesc && bIncludeName)
+				{
+					return FString::Printf(TEXT("0x%llX '%s'"), PackageObjectIndex.Value(), *ScriptObjectDesc->FullName.ToString());
+				}
+				else
+				{
+					return FString::Printf(TEXT("0x%llX"), PackageObjectIndex.Value());
+				}
+			}
+			else if (PackageObjectIndex.IsExport())
+			{
+				return FString::Printf(TEXT("%d"), PackageObjectIndex.Value());
+			}
+			else
+			{
+				return FString::Printf(TEXT("0x%llX"), PackageObjectIndex.Value());
+			}
+		};
+
+		for (const FPackageDesc* PackageDesc : OutputPackages)
+		{
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("********************************************"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("Package '%s' Summary"), *PackageDesc->PackageName.ToString());
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
+
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t        PackageId: 0x%llX"), PackageDesc->PackageId.ValueForDebugging());
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t             Size: %lld"), PackageDesc->Size);
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t        LoadOrder: %d"), PackageDesc->LoadOrder);
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t     PackageFlags: %X"), PackageDesc->PackageFlags);
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t        NameCount: %d"), PackageDesc->NameCount);
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t      ImportCount: %d"), PackageDesc->Imports.Num());
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t      ExportCount: %d"), PackageDesc->Exports.Num());
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tExportBundleCount: %d"), PackageDesc->ExportBundleCount);
+
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("Locations"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("=========="));
+			int32 Index = 0;
+			for (const FPackageLocation& Location : PackageDesc->Locations)
+			{
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\tLocation %d: '%s'"), Index++, *Location.ContainerName.ToString());
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Offset: %lld"), Location.Offset);
+			}
+
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("Imports"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("=========="));
+			Index = 0;
+			for (const FImportDesc& Import : PackageDesc->Imports)
+			{
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\tImport %d: '%s'"), Index++, *Import.Name.ToString());
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tGlobalImportIndex: %s"), *PackageObjectIndexToString(Import.GlobalImportIndex, false));
+			}
+
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("Exports"));
+			OutputOverride->Logf(ELogVerbosity::Display, TEXT("=========="));
+			Index = 0;
+			for (const FExportDesc& Export : PackageDesc->Exports)
+			{
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\tExport %d: '%s'"), Index++, *Export.Name.ToString());
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       OuterIndex: %s"), *PackageObjectIndexToString(Export.OuterIndex, true));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       ClassIndex: %s"), *PackageObjectIndexToString(Export.ClassIndex, true));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       SuperIndex: %s"), *PackageObjectIndexToString(Export.SuperIndex, true));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t    TemplateIndex: %s"), *PackageObjectIndexToString(Export.TemplateIndex, true));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tGlobalImportIndex: %s"), *PackageObjectIndexToString(Export.GlobalImportIndex, false));
+			}
+		}
+	}
+	for (FPackageDesc* PackageDesc : Packages)
+	{
+		delete PackageDesc;
+	}
+
+	return 0;
+}
+
 static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceFile>& OutFiles)
 {
 	TArray<FString> ResponseFileContents;
@@ -5027,6 +5508,14 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			}
 
 			return ListContainer(Arguments, ContainerPathOrWildcard, CsvPath);
+		}
+		else if (FParse::Value(FCommandLine::Get(), TEXT("Describe="), ContainerPathOrWildcard))
+		{
+			FString PackageFilterWildcard;
+			FParse::Value(FCommandLine::Get(), TEXT("PackageFilter="), PackageFilterWildcard);
+			FString OutPath;
+			FParse::Value(FCommandLine::Get(), TEXT("DumpToFile="), OutPath);
+			return Describe(ContainerPathOrWildcard, Arguments.KeyChain, PackageFilterWildcard, OutPath);
 		}
 
 		UE_LOG(LogIoStore, Error, TEXT("Nothing to do!"));
