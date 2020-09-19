@@ -127,7 +127,7 @@ public:
 
 protected:
 
-	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
+	Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* SolverAccelerationStructure;
 
 	// Control module for Chaos - cached to avoid constantly hitting the module manager
 	FChaosSolversModule* ChaosModule;
