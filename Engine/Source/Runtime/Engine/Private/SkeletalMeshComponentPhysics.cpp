@@ -3137,7 +3137,7 @@ void USkeletalMeshComponent::EndPhysicsTickComponent(FSkeletalMeshComponentEndPh
 	{
 		if (IsRegistered())
 		{
-			BlendInPhysics(ThisTickFunction);
+			BlendInPhysicsInternal(ThisTickFunction);
 		}
 	}
 }
