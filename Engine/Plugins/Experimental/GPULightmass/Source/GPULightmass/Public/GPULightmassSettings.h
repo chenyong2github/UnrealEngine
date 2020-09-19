@@ -83,7 +83,7 @@ public:
 #endif // WITH_EDITOR
 };
 
-UCLASS()
+UCLASS(NotPlaceable)
 class GPULIGHTMASS_API AGPULightmassSettingsActor : public AInfo
 {
 	GENERATED_UCLASS_BODY()
