@@ -53,6 +53,38 @@ private:
 	bool HandleComplete(float DeltaTime);
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAsyncEditorWaitForGameWorldEvent, UWorld*, World);
+
+UCLASS()
+class BLUTILITY_API UAsyncEditorWaitForGameWorld : public UEditorUtilityBlueprintAsyncActionBase
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+#if WITH_EDITOR
+
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
+	static UAsyncEditorWaitForGameWorld* AsyncWaitForGameWorld(int32 Index = 0, bool Server = false);
+
+#endif
+
+public:
+
+	UPROPERTY(BlueprintAssignable)
+	FAsyncEditorWaitForGameWorldEvent Complete;
+
+public:
+
+	void Start(int32 Index, bool Server);
+
+private:
+
+	bool OnTick(float DeltaTime);
+
+	int32 Index;
+	bool Server;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDownloadImageDelegate, UTexture2DDynamic*, Texture);
 
 // Expose editor utility functions to Blutilities 
