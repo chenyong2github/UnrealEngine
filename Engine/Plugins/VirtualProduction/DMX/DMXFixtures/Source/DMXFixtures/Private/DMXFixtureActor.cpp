@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXFixtureActor.h"
+#include "Components/StaticMeshComponent.h"
 
 ADMXFixtureActor::ADMXFixtureActor()
 {
 	// tick
 	PrimaryActorTick.bCanEverTick = true;
+
+#if WITH_EDITORONLY_DATA
 	bRunConstructionScriptOnDrag = 0;
+#endif
 
 	Base = CreateDefaultSubobject<USceneComponent>(TEXT("Base"));
 	RootComponent = Base;
@@ -46,12 +50,14 @@ ADMXFixtureActor::ADMXFixtureActor()
 	QualityLevel = EDMXFixtureQualityLevel::HighQuality;
 }
 
+#if WITH_EDITOR
 // Support in-editor and PIE
 void ADMXFixtureActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	FeedFixtureData();
 }
+#endif
 
 void ADMXFixtureActor::InitializeFixture(TMap<FDMXAttributeName, int32> AttributesMap, UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam)
 {
