@@ -405,7 +405,7 @@ void RenderMeshDecalsMobile(FRHICommandList& RHICmdList, const FViewInfo& View)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, MeshDecals);
 
-	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode = IsMobileDeferredShading() ? 
+	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode = IsMobileDeferredShadingEnabled(View.GetShaderPlatform()) ? 
 		FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal : 
 		FDecalRenderingCommon::RTM_SceneColor;
 

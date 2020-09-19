@@ -330,6 +330,7 @@ namespace MobileBasePass
 		const FLightSceneInfo* MobileDirectionalLight, 
 		FMaterialShadingModelField ShadingModels, 
 		bool bPrimReceivesCSM, 
+		bool bUsedDeferredShading,
 		ERHIFeatureLevel::Type FeatureLevel,
 		EBlendMode BlendMode);
 
@@ -347,7 +348,7 @@ namespace MobileBasePass
 
 	bool StaticCanReceiveCSM(const FLightSceneInfo* LightSceneInfo, const FPrimitiveSceneProxy* PrimitiveSceneProxy);
 
-	void SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial& Material, bool bEnableReceiveDecalOutput);
+	void SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial& Material, bool bEnableReceiveDecalOutput, bool bUsesDeferredShading);
 	void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FMaterial& Material);
 };
 
@@ -477,6 +478,7 @@ private:
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const EFlags Flags;
 	const bool bTranslucentBasePass;
+	const bool bUsesDeferredShading;
 };
 
 ENUM_CLASS_FLAGS(FMobileBasePassMeshProcessor::EFlags);

@@ -957,15 +957,22 @@ RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform)
 	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
 }
 
-RENDERCORE_API bool IsMobileDeferredShading()
+RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform Platform)
 {
+	if (IsOpenGLPlatform(Platform))
+	{
+		// needs MRT framebuffer fetch or PLS
+		return false;
+	}
 	static auto* MobileShadingPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ShadingPath"));
 	return MobileShadingPathCvar->GetValueOnAnyThread() == 1;
 }
 
 RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel)
 {
-	return FeatureLevel == ERHIFeatureLevel::SM5 || IsMobileDeferredShading();
+	return FeatureLevel == ERHIFeatureLevel::SM5 
+		// mobile deferred requries ES3.2 feature set
+		|| IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
 }
 
 RENDERCORE_API bool GPUSceneUseTexture2D(const FStaticShaderPlatform Platform)
