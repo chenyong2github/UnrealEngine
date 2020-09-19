@@ -637,6 +637,7 @@ void FFbxImporter::ReleaseScene()
 	ImportedMaterialData.Clear();
 
 	// reset
+	NodeUniqueNameToOriginalNameMap.Empty();
 	CollisionModels.Clear();
 	CreatedObjects.Empty();
 	CurPhase = NOTSTARTED;
@@ -1160,7 +1161,7 @@ void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 			}
 		}
 		// Do not allow node to be named same as filename as this creates problems later on (reimport)
-		if (AllNodeName.Contains(NodeName) || 0 == NodeName.Compare(BaseFilename, ESearchCase::IgnoreCase))
+		if (AllNodeName.Contains(NodeName) || (ImportOptions->bImportScene && 0 == NodeName.Compare(BaseFilename, ESearchCase::IgnoreCase)))
 		{
 			FString UniqueNodeName;
 			do
