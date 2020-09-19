@@ -24,19 +24,6 @@ bool URemoteControlPresetActorFactory::CanCreateActorFrom( const FAssetData& Ass
 		return false;
 	}
 
-	if (IRemoteControlModule::Get().ResolvePreset(AssetData.AssetName))
-	{
-		OutErrorMsg = NSLOCTEXT("CanCreateActor", "PresetAlreadyExists", "An actor already linked with this preset already exists in the level.");
-
-		if (!ActiveNotification.IsValid())
-		{
-			FNotificationInfo NotificationInfo(OutErrorMsg);
-			NotificationInfo.ExpireDuration = 5.0f;
-			//ActiveNotification = FSlateNotificationManager::Get().AddNotification(NotificationInfo);
-		}
-		return false;
-	}
-
 	return true;
 }
 
