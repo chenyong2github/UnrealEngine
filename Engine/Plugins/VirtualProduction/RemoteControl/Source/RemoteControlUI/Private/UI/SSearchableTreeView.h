@@ -7,7 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Misc/TextFilter.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STreeView.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Algo/Transform.h"
 #include "EditorStyleSet.h"
@@ -17,18 +17,22 @@
 #include "SSearchableComboBox.h"
 
 /**
- * Widget that displays a searchable dropdown list.
+ * Widget that displays a searchable tree view.
  */
 template <typename ItemType>
-class SSearchableItemList : public SCompoundWidget
+class SSearchableTreeView : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnItemSelected, ItemType /*Item*/)
-	DECLARE_DELEGATE_RetVal_OneParam(FString, FOnGetDisplayName, ItemType /*Item*/)
-
-	SLATE_BEGIN_ARGS(SSearchableItemList) {}
+	DECLARE_DELEGATE_OneParam(FOnItemSelected, ItemType /* Item */)
+	DECLARE_DELEGATE_RetVal_OneParam(FString, FOnGetDisplayName, ItemType /* Item */)
+	DECLARE_DELEGATE_TwoParams(FOnGetChildren, ItemType /* Item */, TArray<ItemType>& /* OutChildren */)
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FIsSelectable, ItemType /* Item */)
+	
+	SLATE_BEGIN_ARGS(SSearchableTreeView) {}
 		SLATE_EVENT(FOnGetDisplayName, OnGetDisplayName)
 		SLATE_EVENT(FOnItemSelected, OnItemSelected)
+		SLATE_EVENT(FOnGetChildren, OnGetChildren)
+		SLATE_EVENT(FIsSelectable, IsSelectable)
 		SLATE_ARGUMENT(TArray<ItemType>, Items)
 	SLATE_END_ARGS()
 	
@@ -40,14 +44,16 @@ public:
 
 		OnItemSelected = InArgs._OnItemSelected;
 		OnGetDisplayName = InArgs._OnGetDisplayName;
-		ListView = SNew(SListView<ItemType>)
+		IsSelectable = InArgs._IsSelectable;
+		
+		TreeView = SNew(STreeView<ItemType>)
 			.ItemHeight(24)
-			.ListItemsSource(&FilteredItems)
-			.OnGenerateRow(this, &SSearchableItemList::OnGenerateRow)
-			.OnSelectionChanged(this, &SSearchableItemList::OnSelectionChanged)
-			.SelectionMode(ESelectionMode::Single);
-
-		SearchBoxFilter = MakeShared<TTextFilter<ItemType>>(TTextFilter<ItemType>::FItemToStringArray::CreateSP(this, &SSearchableItemList::TransformElementToString));
+			.TreeItemsSource(&FilteredItems)
+			.OnGenerateRow(this, &SSearchableTreeView::OnGenerateRow)
+			.OnGetChildren(InArgs._OnGetChildren)
+			.OnSelectionChanged(this, &SSearchableTreeView::OnSelectionChanged);
+			
+		SearchBoxFilter = MakeShared<TTextFilter<ItemType>>(TTextFilter<ItemType>::FItemToStringArray::CreateSP(this, &SSearchableTreeView::TransformElementToString));
 
 		ChildSlot
 		[
@@ -57,13 +63,13 @@ public:
 			.AutoHeight()
 			[
 				SAssignNew(SearchBox, SSearchBox)
-				.OnTextChanged(this, &SSearchableItemList::OnFilterTextChanged)
-				.OnKeyDownHandler(this, &SSearchableItemList::OnKeyDown)
+				.OnTextChanged(this, &SSearchableTreeView::OnFilterTextChanged)
+				.OnKeyDownHandler(this, &SSearchableTreeView::OnKeyDown)
 			]
 
 			+ SVerticalBox::Slot()
 			[
-				ListView.ToSharedRef()
+				TreeView.ToSharedRef()
 			]
 		];
 	}
@@ -99,7 +105,7 @@ private:
 		{
 			ConstructRow(Object);
 		}
-		ListView->RequestListRefresh();
+		TreeView->RequestListRefresh();
 	}
 
 	/** Generates the rows. */
@@ -121,7 +127,7 @@ private:
 			.Padding(4.0f)
 			[
 				SNew(STextBlock)
-				.HighlightText(this, &SSearchableItemList::GetFilterHighlightText)
+				.HighlightText(this, &SSearchableTreeView::GetFilterHighlightText)
 				.Text(FText::FromString(OnGetDisplayName.Execute(MoveTemp(InObject))))
 			]
 		];
@@ -146,10 +152,17 @@ private:
 	/** Handle selection item selection changed. */
 	void OnSelectionChanged(ItemType SelectedObject, ESelectInfo::Type SelectInfo)
 	{
-		if (SelectInfo != ESelectInfo::OnNavigation && SelectInfo != ESelectInfo::Direct)
+		if (SelectInfo != ESelectInfo::OnNavigation && SelectedObject)
 		{
-			OnItemSelected.ExecuteIfBound(SelectedObject);
-			ListView->ClearSelection();
+			if (IsSelectable.IsBound() && IsSelectable.Execute(SelectedObject))
+			{
+				OnItemSelected.ExecuteIfBound(SelectedObject);
+				TreeView->ClearSelection();
+			}
+			else
+			{
+				TreeView->SetItemExpansion(SelectedObject, !TreeView->IsItemExpanded(SelectedObject));
+			}
 		}
 	}
 
@@ -177,7 +190,7 @@ private:
 		{
 			if (FilteredItems.Num() > 0)
 			{
-				OnSelectionChanged(FilteredItems[0], ESelectInfo::Type::Direct);
+				OnSelectionChanged(FilteredItems[0], ESelectInfo::Type::OnNavigation);
 			}
 			return FReply::Handled();
 		}
@@ -188,6 +201,9 @@ private:
 private:
 	/** Item selected delegate. */
 	FOnItemSelected OnItemSelected;
+	
+	/** Checks if an item is selectable. */
+	FIsSelectable IsSelectable;
 
 	/** Display name generator delegate. */
 	FOnGetDisplayName OnGetDisplayName;
@@ -196,7 +212,7 @@ private:
 	TSharedPtr<TTextFilter<ItemType>> SearchBoxFilter;
 
 	/** Holds the list view widget. */
-	TSharedPtr<SListView<ItemType>> ListView;
+	TSharedPtr<STreeView<ItemType>> TreeView;
 
 	/** Holds the search box widget. */
 	TSharedPtr<SSearchBox> SearchBox;

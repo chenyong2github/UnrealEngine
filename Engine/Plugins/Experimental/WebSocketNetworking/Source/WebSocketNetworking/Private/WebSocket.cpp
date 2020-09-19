@@ -140,7 +140,7 @@ FWebSocket::FWebSocket(WebSocketInternalContext* InContext, WebSocketInternal* I
 }
 #endif
 
-bool FWebSocket::Send(uint8* Data, uint32 Size)
+bool FWebSocket::Send(const uint8* Data, uint32 Size)
 {
 	TArray<uint8> Buffer;
 
