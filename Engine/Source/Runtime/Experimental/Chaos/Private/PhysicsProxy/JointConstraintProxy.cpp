@@ -51,6 +51,13 @@ void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults(Chaos::FDirtyJ
 
 /**/
 template< class CONSTRAINT_TYPE>
+bool TJointConstraintProxy<CONSTRAINT_TYPE>::HasActiveConnections() const
+{
+	return false;
+}
+
+/**/
+template< class CONSTRAINT_TYPE>
 bool TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
 {
 }
@@ -63,17 +70,40 @@ EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
 }
 
 /**/
+template < >
+bool TJointConstraintProxy<Chaos::FJointConstraint>::HasActiveConnections() const
+{
+	if (Constraint != nullptr)
+	{
+		auto Particles = Constraint->GetParticles();
+		if (Particles[0] && Particles[0]->Handle())
+		{
+			if (Particles[1] && Particles[1]->Handle())
+			{
+				return Particles[0]->Handle()->ObjectState() == Chaos::EObjectStateType::Dynamic && Particles[1]->Handle()->ObjectState() == Chaos::EObjectStateType::Dynamic;
+			}
+		}
+
+	}
+	return false;
+}
+
+
+/**/
 template<>
 void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer)
 {
 	Buffer.SetProxy(*this);
 	if (Constraint != nullptr)
 	{
-		if (Handle != nullptr)
+		if (HasActiveConnections())
 		{
-			Buffer.OutputData.bIsBroken = Handle->IsConstraintEnabled();
-			Buffer.OutputData.Force = Handle->GetLinearImpulse();
-			Buffer.OutputData.Torque = Handle->GetAngularImpulse();
+			if (Handle != nullptr)
+			{
+				Buffer.OutputData.bIsBroken = Handle->IsConstraintEnabled();
+				Buffer.OutputData.Force = Handle->GetLinearImpulse();
+				Buffer.OutputData.Torque = Handle->GetAngularImpulse();
+			}
 		}
 	}
 }
@@ -84,11 +114,14 @@ bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const 
 {
 	if (Constraint != nullptr)
 	{
-		if (Handle != nullptr)
+		if (HasActiveConnections())
 		{
-			Constraint->GetOutputData().bIsBroken = Buffer.OutputData.bIsBroken;
-			Constraint->GetOutputData().Force = Buffer.OutputData.Force;
-			Constraint->GetOutputData().Torque = Buffer.OutputData.Torque;
+			if (Handle != nullptr)
+			{
+				Constraint->GetOutputData().bIsBroken = Buffer.OutputData.bIsBroken;
+				Constraint->GetOutputData().Force = Buffer.OutputData.Force;
+				Constraint->GetOutputData().Torque = Buffer.OutputData.Torque;
+			}
 		}
 	}
 
