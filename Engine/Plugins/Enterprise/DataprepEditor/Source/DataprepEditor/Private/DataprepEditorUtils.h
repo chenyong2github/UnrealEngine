@@ -57,4 +57,10 @@ public:
 	 * @param InActors	Actors to check for assets
 	 */
 	static TSet<UObject*> GetReferencedAssets(const TSet<AActor*>& InActors);
+
+	/**
+	 * Get all actors that reference any asset in the input assets list
+	 * @param InAssets The set of referenced assets to follow
+	 */
+	static TSet<TWeakObjectPtr<UObject>> GetActorsReferencingAssets(UWorld* InWorld, const TSet<UObject*>& InAssets);
 };
