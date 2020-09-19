@@ -5,10 +5,10 @@
 
 struct FHttpRouteHandleInternal
 {
-	FHttpRouteHandleInternal(const FString& InPath, const EHttpServerRequestVerbs& InVerbs, const FHttpRequestHandler& InHandler)
-		: Path(InPath)
+	FHttpRouteHandleInternal(FString InPath, EHttpServerRequestVerbs InVerbs, FHttpRequestHandler InHandler)
+		: Path(MoveTemp(InPath))
 		, Verbs(InVerbs)
-		, Handler(InHandler)
+		, Handler(MoveTemp(InHandler))
 	{ };
 
 	/** The respective bound http path */

@@ -40,6 +40,9 @@ public:
 	/** The query parameters */
 	TMap<FString, FString> QueryParams;
 
+	/** The path parameters */
+	TMap<FString, FString> PathParams;
+
 	/** The raw body contents */
 	TArray<uint8> Body;
 
