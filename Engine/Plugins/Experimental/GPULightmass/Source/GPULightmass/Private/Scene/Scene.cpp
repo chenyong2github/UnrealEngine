@@ -1682,7 +1682,7 @@ void FScene::BackgroundTick()
 
 	if (GPULightmass->LightBuildNotification.IsValid())
 	{
-		bool bLastFewFramesIdle = !GCurrentLevelEditingViewportClient || !GCurrentLevelEditingViewportClient->IsRealtime();
+		bool bLastFewFramesIdle = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
 		if (bLastFewFramesIdle)
 		{
 			if (!GPULightmass->bOnlyBakeWhatYouSee)
