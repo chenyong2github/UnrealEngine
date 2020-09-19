@@ -3,6 +3,7 @@
 #include "Widgets/SSlateOptions.h"
 
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateGlobals.h"
 #include "SlateReflectorModule.h"
 #include "Styling/CoreStyle.h"
@@ -116,7 +117,6 @@ void SSlateOptions::Construct( const FArguments& InArgs )
 			.FillWidth(1)
 			.Padding(FMargin(5.0f, 0.0f))
 			[
-
 				ToolbarBuilder.MakeWidget()
 			]
 		]
