@@ -245,7 +245,7 @@ void UEditorStaticMeshLibrary::GetLodReductionSettings(const UStaticMesh* Static
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -273,7 +273,7 @@ void UEditorStaticMeshLibrary::SetLodReductionSettings(UStaticMesh* StaticMesh, 
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -321,7 +321,7 @@ void UEditorStaticMeshLibrary::GetLodBuildSettings(const UStaticMesh* StaticMesh
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -349,7 +349,7 @@ void UEditorStaticMeshLibrary::SetLodBuildSettings(UStaticMesh* StaticMesh, cons
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -397,7 +397,7 @@ int32 UEditorStaticMeshLibrary::ImportLOD(UStaticMesh* BaseStaticMesh, const int
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ImportLOD: Cannot import or re-import when editor PIE is active."));
 		return INDEX_NONE;
@@ -451,7 +451,7 @@ bool UEditorStaticMeshLibrary::ReimportAllCustomLODs(UStaticMesh* StaticMesh)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		UE_LOG(LogEditorScripting, Error, TEXT("StaticMesh ReimportAllCustomLODs: Cannot import or re-import when editor PIE is active."));
 		return false;
