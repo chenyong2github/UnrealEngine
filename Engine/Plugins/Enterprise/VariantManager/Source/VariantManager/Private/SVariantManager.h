@@ -46,28 +46,15 @@ struct FSplitterValues
 	FString ToString();
 };
 
-// Replica of FDetailColumnSizeData used by DetailViews
-struct FPropertyColumnSizeData
+struct FColumnSizeData
 {
 	TAttribute<float> LeftColumnWidth;
+	TAttribute<float> MiddleColumnWidth;
 	TAttribute<float> RightColumnWidth;
-	SSplitter::FOnSlotResized OnWidthChanged;
 
-	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
-};
-
-// Allows sharing splitter values for the Dependencies panel. Columns are oriented like so:
-//		Variant Set | Variant | Controls
-struct FDependenciesColumnSizeData
-{
-	TAttribute<float> VariantSetColumnWidth;
-	TAttribute<float> VariantColumnWidth;
-	TAttribute<float> ControlColumnWidth;
-	SSplitter::FOnSlotResized OnVariantWidthChanged;
-	SSplitter::FOnSlotResized OnControlWidthChanged;
-
-	void SetVariantColumnWidth(float InWidth) { OnVariantWidthChanged.ExecuteIfBound(InWidth); }
-	void SetControlColumnWidth(float InWidth) { OnControlWidthChanged.ExecuteIfBound(InWidth); }
+	// There are three columns, but only two splitters
+	SSplitter::FOnSlotResized OnFirstSplitterChanged;
+	SSplitter::FOnSlotResized OnSecondSplitterChanged;
 };
 
 class SVariantManager
@@ -184,11 +171,11 @@ public:
 	void SortDisplayNodes(TArray<TSharedRef<FVariantManagerDisplayNode>>& DisplayNodes);
 
 	TSharedRef<SWidget> MakeAddButton();
-	FPropertyColumnSizeData& GetPropertyColumnSizeData()
+	FColumnSizeData& GetPropertiesColumnSizeData()
 	{
 		return PropertiesColumnSizeData;
 	}
-	FDependenciesColumnSizeData& GetDependenciesColumnSizeData()
+	FColumnSizeData& GetDependenciesColumnSizeData()
 	{
 		return DependenciesColumnSizeData;
 	}
@@ -229,16 +216,18 @@ public:
 	FReply OnAddDependencyClicked();
 
 	// Callbacks for property ColumnSizeData
-	float OnGetPropertiesLeftColumnWidth() const { return 1.0f - RightPropertiesColumnWidth; }
-	float OnGetPropertiesRightColumnWidth() const { return RightPropertiesColumnWidth; }
-	void OnSetPropertiesColumnWidth(float InWidth) { RightPropertiesColumnWidth = InWidth; }
+	float OnGetPropertiesActorColumnWidth() const { return 1.0f - PropertiesNameColumnWidth - PropertiesValueColumnWidth; }
+	float OnGetPropertiesNameColumnWidth() const { return PropertiesNameColumnWidth; }
+	float OnGetPropertiesValueColumnWidth() const { return PropertiesValueColumnWidth; }
+	void OnSetPropertiesNameColumnWidth( float InWidth ) { PropertiesNameColumnWidth = InWidth; }
+	void OnSetPropertiesValueColumnWidth( float InWidth ) { PropertiesValueColumnWidth = InWidth; }
 
 	// Callbacks for dependencies ColumnSizeData
-	float OnGetDependenciesVariantSetColumnWidth() const { return 1.0f - VariantColumnWidth - ControlsColumnWidth; }
-	float OnGetDependenciesVariantColumnWidth() const { return VariantColumnWidth;}
-	float OnGetDependenciesControlColumnWidth() const { return ControlsColumnWidth; }
-	void OnSetDependenciesVariantColumnWidth( float InWidth ) { VariantColumnWidth = InWidth; }
-	void OnSetDependenciesControlColumnWidth( float InWidth ) { ControlsColumnWidth = InWidth; }
+	float OnGetDependenciesVariantSetColumnWidth() const { return 1.0f - DependenciesVariantColumnWidth - DependenciesControlColumnWidth; }
+	float OnGetDependenciesVariantColumnWidth() const { return DependenciesVariantColumnWidth; }
+	float OnGetDependenciesControlColumnWidth() const { return DependenciesControlColumnWidth; }
+	void OnSetDependenciesVariantColumnWidth( float InWidth ) { DependenciesVariantColumnWidth = InWidth; }
+	void OnSetDependenciesControlColumnWidth( float InWidth ) { DependenciesControlColumnWidth = InWidth; }
 
 	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event);
 	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
@@ -297,12 +286,13 @@ private:
 
 	bool bAutoCaptureProperties = false;
 
-	FPropertyColumnSizeData PropertiesColumnSizeData;
-	float RightPropertiesColumnWidth;
+	FColumnSizeData PropertiesColumnSizeData;
+	float PropertiesNameColumnWidth;
+	float PropertiesValueColumnWidth;
 
-	FDependenciesColumnSizeData DependenciesColumnSizeData;
-	float VariantColumnWidth;
-	float ControlsColumnWidth;
+	FColumnSizeData DependenciesColumnSizeData;
+	float DependenciesVariantColumnWidth;
+	float DependenciesControlColumnWidth;
 
 	FSplitterValues SplitterValues;
 
