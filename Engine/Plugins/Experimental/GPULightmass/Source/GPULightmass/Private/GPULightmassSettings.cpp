@@ -7,6 +7,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "LandscapeComponent.h"
 #include "GPULightmass.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
