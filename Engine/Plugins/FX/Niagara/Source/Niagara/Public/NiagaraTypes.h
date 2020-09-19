@@ -992,6 +992,7 @@ public:
 	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
 	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
 	static const FNiagaraTypeDefinition& GetUTextureDef() { return UTextureDef; }
+	static const FNiagaraTypeDefinition& GetUTextureRenderTargetDef() { return UTextureRenderTargetDef; }
 
 	static const FNiagaraTypeDefinition& GetHalfDef() { return HalfDef; }
 	static const FNiagaraTypeDefinition& GetHalfVec2Def() { return HalfVec2Def; }
@@ -1065,6 +1066,7 @@ private:
 	static FNiagaraTypeDefinition UObjectDef;
 	static FNiagaraTypeDefinition UMaterialDef;
 	static FNiagaraTypeDefinition UTextureDef;
+	static FNiagaraTypeDefinition UTextureRenderTargetDef;
 
 	static FNiagaraTypeDefinition HalfDef;
 	static FNiagaraTypeDefinition HalfVec2Def;
@@ -1090,6 +1092,7 @@ private:
 	static UClass* UObjectClass;
 	static UClass* UMaterialClass;
 	static UClass* UTextureClass;
+	static UClass* UTextureRenderTargetClass;
 
 	static UEnum* SimulationTargetEnum;
 	static UEnum* ScriptUsageEnum;
