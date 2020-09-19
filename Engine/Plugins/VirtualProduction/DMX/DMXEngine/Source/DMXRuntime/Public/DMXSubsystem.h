@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/NoExportTypes.h"
 #include "DMXProtocolTypes.h"
 #include "DMXTypes.h"
 #include "Library/DMXEntityReference.h"
@@ -13,8 +14,6 @@
 class UDMXLibrary;
 class IDMXProtocol;
 class UDMXEntityFixturePatch;
-
-struct FAssetData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FProtocolReceivedDelegate, FDMXProtocolName, Protocol, int32, RemoteUniverse, const TArray<uint8>&, DMXBuffer);
 
