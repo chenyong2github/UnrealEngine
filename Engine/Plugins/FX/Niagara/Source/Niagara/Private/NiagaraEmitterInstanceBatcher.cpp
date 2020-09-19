@@ -12,8 +12,8 @@
 #include "NiagaraRenderer.h"
 #include "ShaderParameterUtils.h"
 #include "SceneUtils.h"
-#include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
+#include "Async/Async.h"
 #include "GPUSort.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Dispatch Setup"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
@@ -700,7 +700,26 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FDispatchInstanceList& 
 	// Run all the simulation compute shaders.
 	for (FDispatchInstance& DispatchInstance : DispatchInstances)
 	{
+#if STATS
+		FString StageName = "SpawnUpdate";
+		if (StageIndex > 0)
+		{
+			for (FSimulationStageMetaData& MetaData : DispatchInstance.InstanceData->Context->SimStageInfo)
+			{
+				if (DispatchInstance.StageIndex >= MetaData.MinStage && DispatchInstance.StageIndex < MetaData.MaxStage)
+				{
+					StageName = MetaData.SimulationStageName.ToString();
+				}
+			}
+		}
+		TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>("GPU_Stage_" + StageName);
+
+		int32 TimerHandle = GPUProfiler.StartTimer((uint64)DispatchInstance.InstanceData->Context, StatId, RHICmdList);
 		DispatchStage(DispatchInstance, DispatchInstance.StageIndex, RHICmdList, ViewUniformBuffer);
+		GPUProfiler.EndTimer(TimerHandle, RHICmdList);
+#else
+		DispatchStage(DispatchInstance, DispatchInstance.StageIndex, RHICmdList, ViewUniformBuffer);
+#endif
 	}
 
 	// Run all the PostStage functions in bulk.
@@ -1165,7 +1184,6 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 	if (SimPasses.Num() > 0)
 	{
 		FEmitterInstanceList InstancesWithPersistentIDs;
-
 		for (int32 SimPassIdx = 0; SimPassIdx < SimPasses.Num(); ++SimPassIdx)
 		{
 			FOverlappableTicks& SimPass = SimPasses[SimPassIdx];
@@ -1259,6 +1277,43 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 		return;
 	}
 
+#if STATS
+	// check if we can process profiling results from previous frames
+	if (GPUProfiler.IsProfilingEnabled())
+	{
+		TArray<FNiagaraGPUTimingResult, TInlineAllocator<16>> ProfilingResults;
+		GPUProfiler.QueryTimingResults(RHICmdList, ProfilingResults);
+		TMap<TWeakObjectPtr<UNiagaraEmitter>, TMap<TStatIdData const*, float>> CapturedStats;
+		for (const FNiagaraGPUTimingResult& Result : ProfilingResults)
+		{
+			// map the individual timings to the emitters and source scripts
+			if (Result.ReporterHandle)
+			{
+				FNiagaraComputeExecutionContext* Context = (FNiagaraComputeExecutionContext*)Result.ReporterHandle;
+				if (Context->EmitterPtr.IsValid())
+				{
+					CapturedStats.FindOrAdd(Context->EmitterPtr).FindOrAdd(Result.StatId.GetRawPointer()) += Result.ElapsedMicroseconds;
+				}
+			}
+		}
+		if (CapturedStats.Num() > 0)
+		{
+			// report the captured gpu stats on the game thread
+			uint64 ReporterHandle = (uint64)this;
+			AsyncTask(ENamedThreads::GameThread, [LocalCapturedStats = MoveTemp(CapturedStats), ReporterHandle]
+            {
+                for (auto& Entry : LocalCapturedStats)
+                {
+                    if (Entry.Key.IsValid())
+                    {
+                        Entry.Key->GetStatData().AddStatCapture(TTuple<uint64, ENiagaraScriptUsage>(ReporterHandle, ENiagaraScriptUsage::ParticleGPUComputeScript), Entry.Value);
+                    }
+                }
+            });
+		}
+	}
+#endif
+	
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	// Reset the list of GPUSort tasks and release any resources they hold on to.

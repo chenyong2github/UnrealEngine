@@ -22,6 +22,7 @@ the same VectorVM byte code / compute shader code
 #include "NiagaraGPUSortInfo.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraGPUInstanceCountManager.h"
+#include "NiagaraGPUProfiler.h"
 
 class FGPUSortManager;
 
@@ -239,6 +240,10 @@ private:
 
 	// GPU emitter instance count buffer. Contains the actual particle / instance count generate in the GPU tick.
 	FNiagaraGPUInstanceCountManager GPUInstanceCounterManager;
+
+#if STATS
+	FNiagaraGPUProfiler GPUProfiler;
+#endif
 
 	// persistent layouts used to create the constant buffers for the compute sim shader
 	TRefCountPtr<FNiagaraRHIUniformBufferLayout> GlobalCBufferLayout;

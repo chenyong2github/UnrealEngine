@@ -82,6 +82,8 @@ protected:
 	void ClearStatPerformance();
 	void ToggleStatPerformance();
 	bool IsStatPerformanceChecked();
+	void ToggleStatPerformanceGPU();
+	bool IsStatPerformanceGPUChecked();
 	void ToggleStatPerformanceTypeAvg();
 	void ToggleStatPerformanceTypeMax();
 	bool IsStatPerformanceTypeAvg();
