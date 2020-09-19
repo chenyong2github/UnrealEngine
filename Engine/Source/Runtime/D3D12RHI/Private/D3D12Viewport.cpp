@@ -516,6 +516,10 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		PreferredPixelFormat = PixelFormat;
 	}
 
+	// Reset the full screen lost because we are resizing and handling fullscreen state change and full recreation of back buffers already
+	// We don't want to call resize again, which could happen during ConditionalResetSwapChain otherwise
+	bFullscreenLost = false;
+
 	if (SizeX != InSizeX || SizeY != InSizeY || PixelFormat != PreferredPixelFormat)
 	{
 		SizeX = InSizeX;
