@@ -202,9 +202,8 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 		const UMovieSceneCameraCutSection* Section = Cast<const UMovieSceneCameraCutSection>(Input.Section);
 		const FMovieSceneObjectBindingID CameraBindingID = Section->GetCameraBindingID();
 
-		FTransform CutTransform;
-		const bool bHasCutTransform = false;
-		// TODO-ludovic: get cut transform (interrogation)
+		FTransform CutTransform = Section->InitialCameraCutTransform;
+		const bool bHasCutTransform = Section->bHasInitialCameraCutTransform;
 
 		if (Context.IsPreRoll())
 		{
