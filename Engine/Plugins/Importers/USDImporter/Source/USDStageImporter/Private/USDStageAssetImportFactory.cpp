@@ -55,9 +55,10 @@ UObject* UUsdStageAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject
 {
 	UObject* ImportedObject = nullptr;
 
+	const FString InitialPackagePath = InParent ? InParent->GetName() : TEXT( "/Game/" );
 	const bool bIsReimport = false;
 	const bool bAllowActorImport = false;
-	if (ImportContext.Init(InName.ToString(), Filename, Flags, IsAutomatedImport(), bIsReimport, bAllowActorImport))
+	if (ImportContext.Init(InName.ToString(), Filename, InitialPackagePath, Flags, IsAutomatedImport(), bIsReimport, bAllowActorImport))
 	{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport( this, InClass, InParent, InName, Parms );
 
@@ -139,7 +140,9 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 		return EReimportResult::Failed;
 	}
 
-	if (!ImportContext.Init(Obj->GetName(), ImportData->GetFirstFilename(), Obj->GetFlags(), IsAutomatedImport(), true))
+	const bool bIsReimport = true;
+	const bool bAllowActorImport = false;
+	if (!ImportContext.Init(Obj->GetName(), ImportData->GetFirstFilename(), Obj->GetName(), Obj->GetFlags(), IsAutomatedImport(), bIsReimport, bAllowActorImport))
 	{
 		ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("ReimportErrorNoContext", "Failed to initialize reimport context for asset '{0}'!"), FText::FromName(Obj->GetFName())));
 		return EReimportResult::Failed;

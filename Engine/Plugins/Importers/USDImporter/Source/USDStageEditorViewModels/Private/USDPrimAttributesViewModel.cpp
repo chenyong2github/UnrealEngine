@@ -75,14 +75,15 @@ TArray< TSharedPtr< FString > > FUsdPrimAttributeViewModel::GetDropdownOptions()
 
 void FUsdPrimAttributeViewModel::SetAttributeValue( const FString& InValue )
 {
-	Owner->SetPrimAttribute( Label, Value );
+	Owner->SetPrimAttribute( Label, InValue );
+	Value = InValue;
 }
 
-void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName, const FString& Value )
+void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName, const FString& InValue )
 {
 	FScopedTransaction Transaction( FText::Format(
 		LOCTEXT( "SetPrimAttribute", "Set value '{0}' for attribute '{1}' of prim '{2}'"),
-		FText::FromString( Value ),
+		FText::FromString( InValue ),
 		FText::FromString( AttributeName ),
 		FText::FromString( PrimPath )
 	));
@@ -101,12 +102,12 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 		{
 			if ( AttributeName == TEXT("Kind") )
 			{
-				bSuccess = IUsdPrim::SetKind( UsdPrim, UnrealToUsd::ConvertToken( *Value ).Get() );
+				bSuccess = IUsdPrim::SetKind( UsdPrim, UnrealToUsd::ConvertToken( *InValue ).Get() );
 			}
 			else if ( AttributeNameToken == pxr::UsdGeomTokens->purpose )
 			{
 				pxr::UsdAttribute Attribute = pxr::UsdPrim( UsdPrim ).GetAttribute( AttributeNameToken );
-				bSuccess = Attribute.Set( UnrealToUsd::ConvertToken( *Value ).Get() );
+				bSuccess = Attribute.Set( UnrealToUsd::ConvertToken( *InValue ).Get() );
 			}
 		}
 	}
@@ -115,7 +116,7 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 
 	if ( !bSuccess )
 	{
-		UE_LOG( LogUsd, Error, TEXT("Failed to set value '%s' for attribute '%s' of prim '%s'"), *Value, *AttributeName, *PrimPath );
+		UE_LOG( LogUsd, Error, TEXT("Failed to set value '%s' for attribute '%s' of prim '%s'"), *InValue, *AttributeName, *PrimPath );
 	}
 }
 

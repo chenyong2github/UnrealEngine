@@ -23,6 +23,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 	class UsdSkelSkeleton;
 	class UsdSkelSkeletonQuery;
 	class UsdSkelSkinningQuery;
+	template<typename T> class VtArray;
 PXR_NAMESPACE_CLOSE_SCOPE
 
 class FSkeletalMeshImportData;
@@ -140,11 +141,12 @@ namespace UsdToUnreal
 	 * Will extract animation data from the animation source of InUsdSkeletonQuery's skeleton, and populate OutSkeletalAnimationAsset with the data.
 	 * Warning: UAnimSequence must be previously set with a USkeleton generated from the skeletal data of the same InUsdSkeletonQuery.
 	 * @param InUsdSkeletonQuery - SkinningQuery with the data to convert
+	 * @param InSkinningTargets - Skinned meshes that use the skeleton of InUsdSkeletonQuery. Required to fetch the blend shape ordering of each mesh. Optional (can be nullptr to ignore)
 	 * @param InBlendShapes - Converted blend shape data that will be used to interpret blend shape weights as morph target weight float curves. Optional (can be nullptr to ignore)
 	 * @param OutSkeletalAnimationAsset - Output parameter that will be filled with the converted data
 	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const UsdUtils::FBlendShapeMap* InBlendShapes, UAnimSequence* OutSkeletalAnimationAsset );
+	USDUTILITIES_API bool ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, UAnimSequence* OutSkeletalAnimationAsset );
 
 	/**
 	 * Builds a USkeletalMesh and USkeleton from the imported data in SkelMeshImportData

@@ -243,7 +243,7 @@ FUsdLevelSequenceHelperImpl::~FUsdLevelSequenceHelperImpl()
 		StageActor->GetUsdListener().GetOnStageEditTargetChanged().Remove(OnStageEditTargetChangedHandle);
 		OnStageEditTargetChangedHandle.Reset();
 	}
-	
+
 	FCoreUObjectDelegates::OnObjectTransacted.Remove(OnObjectTransactedHandle);
 	OnObjectTransactedHandle.Reset();
 }
@@ -251,6 +251,13 @@ FUsdLevelSequenceHelperImpl::~FUsdLevelSequenceHelperImpl()
 void FUsdLevelSequenceHelperImpl::CreateLocalLayersSequences()
 {
 	LocalLayersSequences.Empty();
+	LayerIdentifierByLevelSequenceName.Empty();
+	LayerTimeInfosByLayerIdentifier.Empty();
+	PrimPathByLevelSequenceName.Empty();
+	StageActorBinding = FGuid::NewGuid();
+	SequencesID.Empty();
+	SceneComponentsBindings.Empty();
+	SequenceHierarchyCache = FMovieSceneSequenceHierarchy();
 
 	AUsdStageActor* ValidStageActor = StageActor.Get();
 	if (!ValidStageActor)
@@ -413,9 +420,12 @@ ULevelSequence* FUsdLevelSequenceHelperImpl::FindOrAddSequenceForLayer( const UE
 			return nullptr;
 		}
 
-		FName SequenceName = FName( *ObjectTools::SanitizeObjectName( SequenceDisplayName ) );
+		// This needs to be unique, or else when we reload the stage we will end up with a new ULevelSequence with the same class, outer and name as the
+		// previous one. Also note that the previous level sequence, even though unreferenced by the stage actor, is likely still alive and valid due to references
+		// from the transaction buffer, so we would basically end up creating a identical new object on top of an existing one (the new object has the same address as the existing one)
+		FName UniqueSequenceName = MakeUniqueObjectName( GetTransientPackage(), ULevelSequence::StaticClass(), *ObjectTools::SanitizeObjectName( SequenceDisplayName ) );
 
-		Sequence = NewObject< ULevelSequence >( GetTransientPackage(), SequenceName, FUsdLevelSequenceHelperImpl::DefaultObjFlags );
+		Sequence = NewObject< ULevelSequence >( GetTransientPackage(), UniqueSequenceName, FUsdLevelSequenceHelperImpl::DefaultObjFlags );
 		Sequence->Initialize();
 
 		UMovieScene* MovieScene = Sequence->MovieScene;
@@ -666,7 +676,7 @@ void FUsdLevelSequenceHelperImpl::CreateTimeTrack(const FLayerTimeInfo& Info)
 		TRange< FFrameNumber > PlaybackRange( StartFrame, EndFrame );
 
 		bool bSectionAdded = false;
-		
+
 		if ( UMovieSceneFloatSection* TimeSection = Cast<UMovieSceneFloatSection>(TimeTrack->FindOrAddSection(0, bSectionAdded)) )
 		{
 			TimeSection->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
@@ -799,7 +809,7 @@ void FUsdLevelSequenceHelperImpl::AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelS
 	{
 		SequenceTransform = SubSequenceData->RootToSequenceTransform;
 	}
-	
+
 	UsdToUnreal::ConvertXformable( Xformable, *XformTrack, SequenceTransform );
 }
 
@@ -1069,7 +1079,7 @@ void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const clas
 {
 	AUsdStageActor* ValidStageActor = StageActor.Get();
 
-	if ( !ValidStageActor || !ValidStageActor->LevelSequence )
+	if ( !ValidStageActor || !ValidStageActor->LevelSequence || !bMonitorChanges )
 	{
 		return;
 	}
@@ -1169,6 +1179,7 @@ void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange( UMovieScene& MovieScen
 	const FFrameTime StartTime = FFrameRate::TransformTime(UE::MovieScene::DiscreteInclusiveLower( PlaybackRange ).Value, MovieScene.GetTickResolution(), LayerTimeCodesPerSecond );
 	const FFrameTime EndTime = FFrameRate::TransformTime(UE::MovieScene::DiscreteExclusiveUpper( PlaybackRange ).Value, MovieScene.GetTickResolution(), LayerTimeCodesPerSecond );
 
+	UE::FSdfChangeBlock ChangeBlock;
 	if ( !FMath::IsNearlyEqual( DisplayRate.AsDecimal(), GetFramesPerSecond() ) )
 	{
 		StageActor->GetUsdStage().SetFramesPerSecond( DisplayRate.AsDecimal() );
@@ -1185,7 +1196,7 @@ void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange( UMovieScene& MovieScen
 			}
 		}
 	}
-	
+
 	Layer.SetStartTimeCode( StartTime.RoundToFrame().Value );
 	Layer.SetEndTimeCode( EndTime.RoundToFrame().Value );
 
@@ -1217,7 +1228,6 @@ void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange( UMovieScene& MovieScen
 
 						const TSet< double > TimeSamples = Layer.ListTimeSamplesForPath( TransformPath );
 
-						UE::FSdfChangeBlock ChangeBlock;
 						for ( double TimeSample : TimeSamples )
 						{
 							Layer.EraseTimeSample( TransformPath, TimeSample );

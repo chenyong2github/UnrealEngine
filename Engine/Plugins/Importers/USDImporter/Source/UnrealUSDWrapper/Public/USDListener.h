@@ -37,15 +37,16 @@ public:
 	void Unblock();
 	bool IsBlocked() const;
 
-	DECLARE_EVENT( FUsdListener, FOnStageChanged );
-	FOnStageChanged& GetOnStageChanged();
-
 	DECLARE_EVENT( FUsdListener, FOnStageEditTargetChanged );
 	FOnStageEditTargetChanged& GetOnStageEditTargetChanged();
 
 	using FPrimsChangedList = TMap< FString, bool >;
 	DECLARE_EVENT_OneParam( FUsdListener, FOnPrimsChanged, const FPrimsChangedList& );
 	FOnPrimsChanged& GetOnPrimsChanged();
+
+	using FStageChangedFields = TArray< FString >;
+	DECLARE_EVENT_OneParam( FUsdListener, FOnStageInfoChanged, const FStageChangedFields& );
+	FOnStageInfoChanged& GetOnStageInfoChanged();
 
 	DECLARE_EVENT_OneParam( FUsdListener, FOnLayersChanged, const TArray< FString >& );
 	FOnLayersChanged& GetOnLayersChanged();
