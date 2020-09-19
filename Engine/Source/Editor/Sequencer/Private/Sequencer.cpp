@@ -5810,6 +5810,15 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 			ViewModifierInfo.ViewModifierLocation = BlendedLocation;
 			ViewModifierInfo.ViewModifierRotation = BlendedRotation;
 		}
+		else
+		{
+			// Cutting back to editor camera.
+			if (bHasPreAnimatedInfo)
+			{
+				InViewportClient.SetViewLocation(PreAnimatedViewportLocation);
+				InViewportClient.SetViewRotation(PreAnimatedViewportRotation);
+			}
+		}
 	}
 
 	if (bCameraHasBeenCut)
