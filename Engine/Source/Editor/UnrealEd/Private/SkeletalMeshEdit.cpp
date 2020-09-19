@@ -1699,21 +1699,10 @@ void UnFbx::FFbxImporter::ImportAnimationCustomAttribute(FAnimCurveImportSetting
 		FbxAnimUtils::ExtractNodeAttributes(Node, ImportOptions->bDoNotImportCurveWithZero, bImportAllAttributesOnBone,
 			[this, &OutKeyCount, &DestSeq, &AnimImportSettings, &BoneName](FbxProperty& InProperty, FbxAnimCurve* InCurve, const FString& InCurveName)
 		{
-			if (InCurve)
+			if (ImportCustomAttributeToBone(DestSeq, InProperty, BoneName, InCurveName, InCurve, AnimImportSettings.AnimTimeSpan))
 			{
-				if (ImportCustomAttributeToBone(DestSeq, InProperty, BoneName, InCurveName, InCurve, AnimImportSettings.AnimTimeSpan))
-				{
-					OutKeyCount = FMath::Max(OutKeyCount, InCurve->KeyGetCount());
-				}
+				OutKeyCount = FMath::Max(OutKeyCount, InCurve ? InCurve->KeyGetCount() : 1);
 			}
-			else
-			{
-				if (ImportCustomAttributeToBone(DestSeq, InProperty, BoneName, InCurveName, InCurve, AnimImportSettings.AnimTimeSpan))
-				{
-					OutKeyCount = FMath::Max(OutKeyCount, 1);
-				}
-			}
-			return;
 		});
 	}
 }
