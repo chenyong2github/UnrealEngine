@@ -5,6 +5,17 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "TickableEditorObject.h"
+#include "Input/Reply.h"
+
+class FExtender;
+class FMenuBuilder;
+class FSpawnTabArgs;
+class FUICommandList;
+class IDetailsView;
+class SDockTab;
+class STextBlock;
+
+enum class EMapChangeType : uint8;
 
 class FGPULightmassEditorModule : public IModuleInterface, public FTickableEditorObject
 {
