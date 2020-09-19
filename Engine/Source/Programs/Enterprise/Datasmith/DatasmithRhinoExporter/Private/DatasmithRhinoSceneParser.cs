@@ -330,7 +330,7 @@ namespace DatasmithRhino
 				RhinoSceneHierarchyNodeInfo ObjectNodeInfo = GenerateNodeInfo(CurrentObject, ParentNode.bIsInstanceDefinition, MaterialIndex, ParentNode.Info.WorldTransform);
 				RhinoSceneHierarchyNode ObjectNode = ParentNode.AddChild(ObjectNodeInfo);
 				GuidToHierarchyNodeDictionary.Add(CurrentObject.Id, ObjectNode);
-				AddObjectMaterialReference(CurrentObject);
+				AddObjectMaterialReference(CurrentObject, MaterialIndex);
 
 				if (DefinitionRootNode != null)
 				{
@@ -463,9 +463,9 @@ namespace DatasmithRhino
 			}
 		}
 
-		private void AddObjectMaterialReference(RhinoObject InObject)
+		private void AddObjectMaterialReference(RhinoObject InObject, int  MaterialIndex)
 		{
-			if(InObject.ObjectType == ObjectType.Brep)
+			if (InObject.ObjectType == ObjectType.Brep)
 			{
 				BrepObject InBrepObject = InObject as BrepObject;
 				if(InBrepObject.HasSubobjectMaterials)
@@ -473,13 +473,13 @@ namespace DatasmithRhino
 					RhinoObject[] SubObjects = InBrepObject.GetSubObjects();
 					foreach (ComponentIndex CurrentIndex in InBrepObject.SubobjectMaterialComponents)
 					{
-						int MaterialIndex = SubObjects[CurrentIndex.Index].Attributes.MaterialIndex;
-						AddMaterialIndexMapping(MaterialIndex);
+						int SubObjectMaterialIndex = SubObjects[CurrentIndex.Index].Attributes.MaterialIndex;
+						AddMaterialIndexMapping(SubObjectMaterialIndex);
 					}
 				}
 			}
 
-			AddMaterialIndexMapping(InObject.Attributes.MaterialIndex);
+			AddMaterialIndexMapping(MaterialIndex);
 		}
 
 		private void AddMaterialIndexMapping(int MaterialIndex)
