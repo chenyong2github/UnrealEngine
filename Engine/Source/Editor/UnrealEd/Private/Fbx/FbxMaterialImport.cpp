@@ -46,9 +46,16 @@ UTexture* UnFbx::FFbxImporter::ImportTexture(FbxFileTexture* FbxTexture, bool bS
 	FString AbsoluteFilename = UTF8_TO_TCHAR(FbxTexture->GetFileName());
 	FString Extension = FPaths::GetExtension(AbsoluteFilename).ToLower();
 	// name the texture with file name
-	FString TextureName = FPaths::GetBaseFilename(AbsoluteFilename);
-
-	TextureName = ObjectTools::SanitizeObjectName(TextureName);
+	FString TextureName;
+	if (FString* UniqueName = FbxTextureToUniqueNameMap.Find(FbxTexture))
+	{
+		TextureName = *UniqueName;
+	}
+	else
+	{
+		TextureName = FPaths::GetBaseFilename(AbsoluteFilename);
+		TextureName = ObjectTools::SanitizeObjectName(TextureName);
+	}
 
 	// set where to place the textures
 	FString BasePackageName = FPackageName::GetLongPackagePath(Parent->GetOutermost()->GetName()) / TextureName;

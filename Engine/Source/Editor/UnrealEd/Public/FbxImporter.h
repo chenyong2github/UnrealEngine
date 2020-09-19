@@ -1356,6 +1356,12 @@ protected:
 	TMap<FbxString, FbxString> NodeUniqueNameToOriginalNameMap;
 
 	/**
+	 * A map holding pairs of fbx texture that needs to be renamed with the
+	 * associated string to avoid name conflicts.
+	 */
+	TMap<FbxFileTexture*, FString> FbxTextureToUniqueNameMap;
+
+	/**
 	 * Collision model list. The key is fbx node name
 	 * If there is an collision model with old name format, the key is empty string("").
 	 */
