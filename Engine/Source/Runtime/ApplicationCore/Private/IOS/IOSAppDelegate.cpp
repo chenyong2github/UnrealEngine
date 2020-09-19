@@ -973,29 +973,8 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 #endif
 	
 #if !PLATFORM_TVOS
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
 	UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
 	Center.delegate = self;
-#else
-	// Save launch local notification so the app can check for it when it is ready
-	UILocalNotification *notification = [launchOptions objectForKey:UIApplicationLaunchOptionsLocalNotificationKey];
-	if ( notification != nullptr )
-	{
-		NSDictionary*	userInfo = [notification userInfo];
-		if(userInfo != nullptr)
-		{
-			NSString*	activationEvent = (NSString*)[notification.userInfo objectForKey: @"ActivationEvent"];
-			
-			if(activationEvent != nullptr)
-			{
-				FAppEntry::gAppLaunchedWithLocalNotification = true;
-				FAppEntry::gLaunchLocalNotificationActivationEvent = FString(activationEvent);
-				FAppEntry::gLaunchLocalNotificationFireDate = [notification.fireDate timeIntervalSince1970];
-			}
-		}
-	}
-#endif
-
 	// Register for device orientation changes
 	[[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didRotate:) name:UIApplicationDidChangeStatusBarOrientationNotification object:nil];
