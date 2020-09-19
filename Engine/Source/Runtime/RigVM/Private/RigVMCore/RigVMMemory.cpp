@@ -1586,16 +1586,12 @@ void FRigVMMemoryContainer::SetRegisterValueFromString(const FRigVMOperand& InOp
 	{
 		FString DefaultValue = InDefaultValues[Index];
 
-		if (Register.ScriptStructIndex != INDEX_NONE)
+		if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
 		{
-			UScriptStruct* ScriptStruct = GetScriptStruct(Register);
-			if (ScriptStruct == InCPPTypeObject)
-			{
-				uint8* DataPtr = (uint8*)GetData(Register);
-				DataPtr += Index * ScriptStruct->GetStructureSize();
-				FRigVMMemoryContainerImportErrorContext ErrorPipe;
-				ScriptStruct->ImportText(*DefaultValue, DataPtr, nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName());
-			}
+			uint8* DataPtr = (uint8*)GetData(Register);
+			DataPtr += Index * ScriptStruct->GetStructureSize();
+			FRigVMMemoryContainerImportErrorContext ErrorPipe;
+			((UScriptStruct*)ScriptStruct)->ImportText(*DefaultValue, DataPtr, nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName());
 		}
 		else if (const UEnum* Enum = Cast<const UEnum>(InCPPTypeObject))
 		{
