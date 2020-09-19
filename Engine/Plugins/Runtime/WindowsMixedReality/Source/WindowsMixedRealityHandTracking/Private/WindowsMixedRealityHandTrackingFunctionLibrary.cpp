@@ -3,7 +3,6 @@
 #include "WindowsMixedRealityHandTrackingFunctionLibrary.h"
 #include "IWindowsMixedRealityHandTrackingPlugin.h"
 #include "WindowsMixedRealityHandTracking.h"
-#include "Engine/World.h"
 
 bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius)
 {
