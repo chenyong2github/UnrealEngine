@@ -25,6 +25,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdGeomXformable.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -185,6 +186,26 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		// Don't add components to the AUsdStageActor or the USDStageImport 'scene actor'
 		UE::FUsdPrim ParentPrim = Prim.GetParent();
 		bool bIsTopLevelPrim = ParentPrim.IsValid() && ParentPrim.IsPseudoRoot();
+
+		// If we don't have any parent prim with a type that generates a component, we are still technically a top-level prim
+		if ( !bIsTopLevelPrim )
+		{
+			bool bHasParentComponent = false;
+			while ( ParentPrim.IsValid() )
+			{
+				if ( UE::FUsdGeomXformable( ParentPrim ) )
+				{
+					bHasParentComponent = true;
+					break;
+				}
+
+				ParentPrim = ParentPrim.GetParent();
+			}
+			if ( !bHasParentComponent )
+			{
+				bIsTopLevelPrim = true;
+			}
+		}
 
 		auto PrimNeedsActor = []( const UE::FUsdPrim& UsdPrim ) -> bool
 		{
