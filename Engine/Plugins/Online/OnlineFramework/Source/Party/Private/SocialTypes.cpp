@@ -7,63 +7,72 @@
 // FUserPlatform
 //////////////////////////////////////////////////////////////////////////
 
-#define PLATFORM_NAME_PC		TEXT("PC")
-#define PLATFORM_NAME_CONSOLE	TEXT("CONSOLE")
 #define PLATFORM_NAME_MOBILE	TEXT("MOBILE")
+#define PLATFORM_NAME_DESKTOP	TEXT("DESKTOP")
+#define PLATFORM_NAME_CONSOLE	TEXT("CONSOLE")
+
+FUserPlatform::FUserPlatform()
+{
+
+}
+
+FUserPlatform::FUserPlatform(const FString& InPlatform)
+{
+	const TArray<FSocialPlatformDescription>& SocialPlatformDescriptions = USocialSettings::GetSocialPlatformDescriptions();
+	for (const FSocialPlatformDescription& Entry : SocialPlatformDescriptions)
+	{
+		if (Entry.SocialPlatformName == InPlatform)
+		{
+			PlatformDescription = Entry;
+			break;
+		}
+	}
+
+	if (!ensure(IsValid()))
+	{
+		UE_LOG(LogParty, Warning, TEXT("[FUserPlatform] PlatformStr [%s] is not valid."), *InPlatform);
+	}
+}
 
 bool FUserPlatform::operator==(const FString& OtherStr) const
 {
-	return PlatformStr == OtherStr;
+	return PlatformDescription.SocialPlatformName == OtherStr;
 }
 
 bool FUserPlatform::operator==(const FUserPlatform& Other) const
 {
-	return PlatformStr == Other.PlatformStr;
+	return PlatformDescription.SocialPlatformName == Other.PlatformDescription.SocialPlatformName;
 }
 
 const FString FUserPlatform::GetTypeName() const
 {
-	if (IsDesktop())
-	{
-		return PLATFORM_NAME_PC;
-	}
+	return PlatformDescription.SocialPlatformTypeName;
 
-	if (IsMobile())
-	{
-		return PLATFORM_NAME_MOBILE;
-	}
-
-	FUserPlatform LocalPlatform = FUserPlatform(IOnlineSubsystem::GetLocalPlatformName());
+	/*FUserPlatform LocalPlatform = FUserPlatform(IOnlineSubsystem::GetLocalPlatformName());
 	if (IsConsole() && LocalPlatform.IsConsole() && PlatformStr != LocalPlatform)
 	{
 		return PLATFORM_NAME_CONSOLE;
-	}
-	return PlatformStr;
+	}*/
 }
 
 bool FUserPlatform::IsValid() const
 {
-	return !PlatformStr.IsEmpty();
+	return !PlatformDescription.SocialPlatformName.IsEmpty();
 }
 
 bool FUserPlatform::IsDesktop() const
 {
-	return PlatformStr == OSS_PLATFORM_NAME_WINDOWS || PlatformStr == OSS_PLATFORM_NAME_MAC || PlatformStr == OSS_PLATFORM_NAME_LINUX;
+	return PlatformDescription.SocialPlatformTypeName == PLATFORM_NAME_DESKTOP;
 }
 
 bool FUserPlatform::IsMobile() const
 {
-	return PlatformStr == OSS_PLATFORM_NAME_ANDROID || PlatformStr == OSS_PLATFORM_NAME_IOS;
+	return PlatformDescription.SocialPlatformTypeName == PLATFORM_NAME_MOBILE;
 }
 
 bool FUserPlatform::IsConsole() const
 {
-	return PlatformStr == OSS_PLATFORM_NAME_XBOX || PlatformStr == OSS_PLATFORM_NAME_PS4 || PlatformStr == OSS_PLATFORM_NAME_SWITCH;
-}
-
-bool FUserPlatform::RequiresCrossplayOptIn() const
-{
-	return PlatformStr == OSS_PLATFORM_NAME_XBOX || PlatformStr == OSS_PLATFORM_NAME_PS4;
+	return PlatformDescription.SocialPlatformTypeName == PLATFORM_NAME_CONSOLE;
 }
 
 bool FUserPlatform::IsCrossplayWith(const FUserPlatform& OtherPlatform) const
