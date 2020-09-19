@@ -82,7 +82,7 @@ struct FCameraShakeSourceShakeStartExecutionToken : IMovieSceneExecutionToken
 					static FMovieSceneAnimTypeID ShakeTypeID = TMovieSceneAnimTypeID<FCameraShakeSourceShakeStartExecutionToken, 0>();
 					Player.SavePreAnimatedState(ShakeTypeID, FPreAnimatedCameraShakeSourceShakeTokenProducer(Operand));
 
-					TSubclassOf<UCameraShake> ShakeClass = SourceData.ShakeClass;
+					TSubclassOf<UCameraShakeBase> ShakeClass = SourceData.ShakeClass;
 					if (ShakeClass.Get() == nullptr)
 					{
 						ShakeClass = ShakeSourceComponent->CameraShake;
@@ -91,23 +91,23 @@ struct FCameraShakeSourceShakeStartExecutionToken : IMovieSceneExecutionToken
 					if (ShakeClass.Get() != nullptr)
 					{
 						// Get the duration of the shake and store it in the instance data.
-						float Duration = -1.f;
-						UCameraShake::GetCameraShakeDuration(ShakeClass, Duration);
-						if (Duration > SMALL_NUMBER)
+						FCameraShakeDuration ShakeDuration;
+						UCameraShakeBase::GetCameraShakeDuration(ShakeClass, ShakeDuration);
+						if (ShakeDuration.IsFixed())
 						{
-							InstanceData.Duration = Context.GetFrameRate().AsFrameTime(Duration);
+							InstanceData.Duration = Context.GetFrameRate().AsFrameTime(ShakeDuration.Get());
 						}
 
 						// Get the blend out duration and also store it in the instance data.
 						float BlendIn = 0.f, BlendOut = 0.f;
-						UCameraShake::GetCameraShakeBlendTimes(ShakeClass, BlendIn, BlendOut);
+						UCameraShakeBase::GetCameraShakeBlendTimes(ShakeClass, BlendIn, BlendOut);
 						if (BlendOut > SMALL_NUMBER)
 						{
 							InstanceData.BlendOutTime = Context.GetFrameRate().AsFrameTime(BlendOut);
 						}
 
 						// Start playing the shake.
-						ShakeSourceComponent->PlayCameraShake(ShakeClass, SourceData.PlayScale, SourceData.PlaySpace, SourceData.UserDefinedPlaySpace);
+						ShakeSourceComponent->StartCameraShake(ShakeClass, SourceData.PlayScale, SourceData.PlaySpace, SourceData.UserDefinedPlaySpace);
 
 #if WITH_EDITOR
 						// Also start playing the shake in our editor preview.
@@ -149,7 +149,7 @@ struct FCameraShakeSourceShakeBlendOutExecutionToken : IMovieSceneExecutionToken
 			{
 				if (UCameraShakeSourceComponent* ShakeSourceComponent = CastChecked<UCameraShakeSourceComponent>(BoundObject.Get()))
 				{
-					TSubclassOf<UCameraShake> ShakeClass = SourceData.ShakeClass;
+					TSubclassOf<UCameraShakeBase> ShakeClass = SourceData.ShakeClass;
 					if (ShakeClass.Get() == nullptr)
 					{
 						ShakeClass = ShakeSourceComponent->CameraShake;

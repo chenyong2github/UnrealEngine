@@ -898,7 +898,7 @@ public:
 	 * @param CustomPlaySpace - Matrix used when Space = CAPS_UserDefined
 	 */
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientPlayCameraAnim(class UCameraAnim* AnimToPlay, float Scale=1.f, float Rate=1.f, float BlendInTime=0.f, float BlendOutTime=0.f, bool bLoop=false, bool bRandomStartTime=false, ECameraAnimPlaySpace::Type Space=ECameraAnimPlaySpace::CameraLocal, FRotator CustomPlaySpace=FRotator::ZeroRotator);
+	void ClientPlayCameraAnim(class UCameraAnim* AnimToPlay, float Scale=1.f, float Rate=1.f, float BlendInTime=0.f, float BlendOutTime=0.f, bool bLoop=false, bool bRandomStartTime=false, ECameraShakePlaySpace Space=ECameraShakePlaySpace::CameraLocal, FRotator CustomPlaySpace=FRotator::ZeroRotator);
 
 	/** 
 	 * Play Camera Shake 
@@ -908,7 +908,7 @@ public:
 	 * @param UserPlaySpaceRot - Matrix used when PlaySpace = CAPS_UserDefined
 	 */
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientPlayCameraShake(TSubclassOf<class UCameraShake> Shake, float Scale = 1.f, ECameraAnimPlaySpace::Type PlaySpace = ECameraAnimPlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	void ClientStartCameraShake(TSubclassOf<class UCameraShakeBase> Shake, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** 
 	 * Play Camera Shake localized to a given source
@@ -916,7 +916,7 @@ public:
 	 * @param SourceComponent - The source from which the camera shakes originates
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent);
+	void ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent);
 
 	/**
 	 * Play sound client-side (so only the client will hear it)
@@ -1054,7 +1054,7 @@ public:
 
 	/** Stop camera shake on client.  */
 	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientStopCameraShake(TSubclassOf<class UCameraShake> Shake, bool bImmediately = true);
+	void ClientStopCameraShake(TSubclassOf<class UCameraShakeBase> Shake, bool bImmediately = true);
 
 	/** Stop camera shake on client.  */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")

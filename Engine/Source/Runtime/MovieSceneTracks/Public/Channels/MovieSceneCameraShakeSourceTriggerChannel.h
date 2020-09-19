@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "CoreTypes.h"
 #include "Curves/KeyHandle.h"
 #include "Channels/MovieSceneChannel.h"
@@ -18,27 +18,27 @@ struct FMovieSceneCameraShakeSourceTrigger
 	FMovieSceneCameraShakeSourceTrigger()
 		: ShakeClass(nullptr)
 		, PlayScale(1.f)
-		, PlaySpace(ECameraAnimPlaySpace::CameraLocal)
+		, PlaySpace(ECameraShakePlaySpace::CameraLocal)
 		, UserDefinedPlaySpace(ForceInitToZero)
 	{}
 
-	FMovieSceneCameraShakeSourceTrigger(TSubclassOf<UCameraShake> InShakeClass)
+	FMovieSceneCameraShakeSourceTrigger(TSubclassOf<UCameraShakeBase> InShakeClass)
 		: ShakeClass(InShakeClass)
 		, PlayScale(1.f)
-		, PlaySpace(ECameraAnimPlaySpace::CameraLocal)
+		, PlaySpace(ECameraShakePlaySpace::CameraLocal)
 		, UserDefinedPlaySpace(ForceInitToZero)
 	{}
 
 	/** Class of the camera shake to play */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera Shake")
-	TSubclassOf<UCameraShake> ShakeClass;
+	TSubclassOf<UCameraShakeBase> ShakeClass;
 
 	/** Scalar that affects shake intensity */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera Shake")
 	float PlayScale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera Shake")
-	TEnumAsByte<ECameraAnimPlaySpace::Type> PlaySpace;
+	ECameraShakePlaySpace PlaySpace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Camera Shake")
 	FRotator UserDefinedPlaySpace;

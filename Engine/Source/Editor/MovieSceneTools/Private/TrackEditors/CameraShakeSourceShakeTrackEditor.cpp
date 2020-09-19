@@ -41,12 +41,12 @@ public:
 
 	virtual FText GetSectionTitle() const override
 	{
-		const TSubclassOf<UCameraShake> ShakeClass = GetCameraShakeClass();
+		const TSubclassOf<UCameraShakeBase> ShakeClass = GetCameraShakeClass();
 		if (const UClass* ShakeClassPtr = ShakeClass.Get())
 		{
-			float ShakeDuration = -1.f;
-			const bool bHasDuration = UCameraShake::GetCameraShakeDuration(ShakeClass, ShakeDuration);
-			if (bHasDuration && ShakeDuration != 0.f)
+			FCameraShakeDuration ShakeDuration;
+			const bool bHasDuration = UCameraShakeBase::GetCameraShakeDuration(ShakeClass, ShakeDuration);
+			if (bHasDuration && ShakeDuration.IsFixed())
 			{
 				return FText::FromString(ShakeClassPtr->GetName());
 			}
@@ -100,20 +100,19 @@ public:
 		const float SectionEndTime = SectionObject->GetExclusiveEndFrame() / TickResolution;
 		const float SectionEndTimeInPixels = TimeConverter.SecondsToPixel(SectionEndTime);
 
-		const TSubclassOf<UCameraShake> CameraShakeClass = GetCameraShakeClass();
+		const TSubclassOf<UCameraShakeBase> CameraShakeClass = GetCameraShakeClass();
 		const bool bHasValidCameraShake = (CameraShakeClass.Get() != nullptr);
 		if (bHasValidCameraShake)
 		{
-			float ShakeDuration = -1.f;
-			UCameraShake::GetCameraShakeDuration(CameraShakeClass, ShakeDuration);
+			FCameraShakeDuration ShakeDuration;
+			UCameraShakeBase::GetCameraShakeDuration(CameraShakeClass, ShakeDuration);
 
-			const float ShakeEndInPixels = (ShakeDuration > 0.f) ? 
-				TimeConverter.SecondsToPixel(FMath::Min(SectionStartTime + ShakeDuration, SectionEndTime)) :
+			const float ShakeEndInPixels = (ShakeDuration.IsFixed()) ? 
+				TimeConverter.SecondsToPixel(FMath::Min(SectionStartTime + ShakeDuration.Get(), SectionEndTime)) :
 				SectionEndTimeInPixels;
-			const bool bShakeHasNoDuration = (ShakeDuration == 0.f);
-			const bool bSectionContainsEntireShake = (ShakeDuration > 0.f && SectionDuration > ShakeDuration);
+			const bool bSectionContainsEntireShake = (ShakeDuration.IsFixed() && SectionDuration > ShakeDuration.Get());
 
-			if (!bShakeHasNoDuration)
+			if (ShakeDuration.IsFixed())
 			{
 				if (bSectionContainsEntireShake && SectionRange.HasLowerBound())
 				{
@@ -148,7 +147,7 @@ public:
 				}
 
 				float ShakeBlendIn = 0.f, ShakeBlendOut = 0.f;
-				UCameraShake::GetCameraShakeBlendTimes(CameraShakeClass, ShakeBlendIn, ShakeBlendOut);
+				UCameraShakeBase::GetCameraShakeBlendTimes(CameraShakeClass, ShakeBlendIn, ShakeBlendOut);
 				{
 					// Draw the shake "intensity" as a line that goes up and down according to
 					// blend in and out times.
@@ -234,7 +233,7 @@ public:
 	}
 
 private:
-	TSubclassOf<UCameraShake> GetCameraShakeClass() const
+	TSubclassOf<UCameraShakeBase> GetCameraShakeClass() const
 	{
 		if (const UMovieSceneCameraShakeSourceShakeSection* SectionObject = SectionPtr.Get())
 		{
@@ -254,15 +253,15 @@ private:
 			}
 		}
 
-		return TSubclassOf<UCameraShake>();
+		return TSubclassOf<UCameraShakeBase>();
 	}
 
-	const UCameraShake* GetCameraShakeDefaultObject() const
+	const UCameraShakeBase* GetCameraShakeDefaultObject() const
 	{
-		const TSubclassOf<UCameraShake> ShakeClass = GetCameraShakeClass();
+		const TSubclassOf<UCameraShakeBase> ShakeClass = GetCameraShakeClass();
 		if (const UClass* ShakeClassPtr = ShakeClass.Get())
 		{
-			return ShakeClassPtr->GetDefaultObject<UCameraShake>();
+			return ShakeClassPtr->GetDefaultObject<UCameraShakeBase>();
 		}
 		return nullptr;
 	}
@@ -288,7 +287,7 @@ private:
 	virtual int32 OnPaintSection(FSequencerSectionPainter& Painter) const override;
 
 	bool IsTrackSelected() const;
-	void PaintShakeName(FSequencerSectionPainter& Painter, int32 LayerId, TSubclassOf<UCameraShake> ShakeClass, float PixelPos) const;
+	void PaintShakeName(FSequencerSectionPainter& Painter, int32 LayerId, TSubclassOf<UCameraShakeBase> ShakeClass, float PixelPos) const;
 
 	TWeakPtr<ISequencer> Sequencer;
 };
@@ -305,7 +304,7 @@ bool FCameraShakeSourceTriggerSection::IsTrackSelected() const
 	return Track && SelectedTracks.Contains(Track);
 }
 
-void FCameraShakeSourceTriggerSection::PaintShakeName(FSequencerSectionPainter& Painter, int32 LayerId, TSubclassOf<UCameraShake> ShakeClass, float PixelPos) const
+void FCameraShakeSourceTriggerSection::PaintShakeName(FSequencerSectionPainter& Painter, int32 LayerId, TSubclassOf<UCameraShakeBase> ShakeClass, float PixelPos) const
 {
 	static const int32   FontSize      = 10;
 	static const float   BoxOffsetPx   = 10.f;
@@ -523,10 +522,10 @@ TSharedPtr<SWidget> FCameraShakeSourceShakeTrackEditor::BuildOutlinerEditWidget(
 
 FKeyPropertyResult FCameraShakeSourceShakeTrackEditor::AddCameraShakeSectionKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, bool bSelect)
 {
-	return AddCameraShakeSectionKeyInternal(KeyTime, Objects, TSubclassOf<UCameraShake>(), bSelect);
+	return AddCameraShakeSectionKeyInternal(KeyTime, Objects, TSubclassOf<UCameraShakeBase>(), bSelect);
 }
 
-FKeyPropertyResult FCameraShakeSourceShakeTrackEditor::AddCameraShakeSectionKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShake> CameraShake, bool bSelect)
+FKeyPropertyResult FCameraShakeSourceShakeTrackEditor::AddCameraShakeSectionKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShakeBase> CameraShake, bool bSelect)
 {
 	FKeyPropertyResult KeyPropertyResult;
 
@@ -662,9 +661,9 @@ void FCameraShakeSourceShakeTrackEditor::OnCameraShakeAssetSelected(const FAsset
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 	UBlueprint* SelectedObject = Cast<UBlueprint>(AssetData.GetAsset());
 
-	if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShake::StaticClass()))
+	if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShakeBase::StaticClass()))
 	{
-		TSubclassOf<UCameraShake> CameraShakeClass = *(SelectedObject->GeneratedClass);
+		TSubclassOf<UCameraShakeBase> CameraShakeClass = *(SelectedObject->GeneratedClass);
 
 		TArray<TWeakObjectPtr<>> OutObjects;
 		for (FGuid ObjectBinding : ObjectBindings)
@@ -710,10 +709,10 @@ void FCameraShakeSourceShakeTrackEditor::OnAutoCameraShakeSelected(TArray<FGuid>
 bool FCameraShakeSourceShakeTrackEditor::OnShouldFilterCameraShake(const FAssetData& AssetData)
 {
 	const UBlueprint* SelectedObject = Cast<UBlueprint>(AssetData.GetAsset());
-	if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShake::StaticClass()))
+	if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShakeBase::StaticClass()))
 	{
-		TSubclassOf<UCameraShake> CameraShakeClass = *(SelectedObject->GeneratedClass);
-		if (const UCameraShake* CameraShakeCDO = Cast<UCameraShake>(CameraShakeClass->ClassDefaultObject))
+		TSubclassOf<UCameraShakeBase> CameraShakeClass = *(SelectedObject->GeneratedClass);
+		if (const UCameraShakeBase* CameraShakeCDO = Cast<UCameraShakeBase>(CameraShakeClass->ClassDefaultObject))
 		{
 			return CameraShakeCDO->bSingleInstance;
 		}
@@ -721,7 +720,7 @@ bool FCameraShakeSourceShakeTrackEditor::OnShouldFilterCameraShake(const FAssetD
 	return true;
 }
 
-FKeyPropertyResult FCameraShakeSourceShakeTrackEditor::AddCameraShakeTriggerTrackInternal(FFrameNumber Time, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShake> CameraShake)
+FKeyPropertyResult FCameraShakeSourceShakeTrackEditor::AddCameraShakeTriggerTrackInternal(FFrameNumber Time, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShakeBase> CameraShake)
 {
 	FKeyPropertyResult KeyPropertyResult;
 
