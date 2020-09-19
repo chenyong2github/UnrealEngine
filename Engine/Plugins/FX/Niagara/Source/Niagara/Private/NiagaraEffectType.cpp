@@ -52,6 +52,8 @@ void UNiagaraEffectType::PostLoad()
 {
 	Super::PostLoad();
 
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+
 	/** Init signficance handlers to match previous behavior. */
 	if (NiagaraVer < FNiagaraCustomVersion::SignificanceHandlers)
 	{
