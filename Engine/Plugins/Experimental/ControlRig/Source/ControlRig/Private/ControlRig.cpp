@@ -426,6 +426,9 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.Hierarchy = &Hierarchy;
 
 	Context.ToWorldSpaceTransform = FTransform::Identity;
+	Context.OwningComponent = nullptr;
+	Context.OwningActor = nullptr;
+	Context.World = nullptr;
 
 	if (!OuterSceneComponent.IsValid())
 	{
@@ -455,6 +458,33 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	if (OuterSceneComponent.IsValid())
 	{
 		Context.ToWorldSpaceTransform = OuterSceneComponent->GetComponentToWorld();
+		Context.OwningComponent = OuterSceneComponent.Get();
+		Context.OwningActor = Context.OwningComponent->GetOwner();
+		Context.World = Context.OwningActor->GetWorld();
+	}
+	else
+	{
+		if (ObjectBinding.IsValid())
+		{
+			AActor* HostingActor = ObjectBinding->GetHostingActor();
+			if (HostingActor)
+			{
+				Context.OwningActor = HostingActor;
+				Context.World = HostingActor->GetWorld();
+			}
+			else if (UObject* Owner = ObjectBinding->GetBoundObject())
+			{
+				Context.World = Owner->GetWorld();
+			}
+		}
+
+		if (Context.World == nullptr)
+		{
+			if (UObject* Outer = GetOuter())
+			{
+				Context.World = Outer->GetWorld();
+			}
+		}
 	}
 
 #if WITH_EDITOR
