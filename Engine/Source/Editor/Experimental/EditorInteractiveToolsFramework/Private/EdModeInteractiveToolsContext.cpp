@@ -871,6 +871,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 				{
 					return false;
 				}
+				// TODO: This should no longer be necessary: test and remove.
 				// This is a special-case hack for UMultiClickSequenceInputBehavior, because it holds capture across multiple
 				// mouse clicks, which prevents alt+mouse navigation from working between clicks (very annoying in draw polygon).
 				// Remove this special-case once that tool is fixed to use CollectSurfacePathMechanic instead
@@ -982,6 +983,7 @@ bool UEdModeInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportCl
 
 	if (InputRouter->HasActiveMouseCapture())
 	{
+		// TODO: This should no longer be necessary: test and remove.
 		// This state occurs if InputBehavior did not release capture on mouse release.
 		// UMultiClickSequenceInputBehavior does this, eg for multi-click draw-polygon sequences.
 		// It's not ideal though and maybe would be better done via multiple captures + hover...?
