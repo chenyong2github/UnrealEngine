@@ -1063,7 +1063,7 @@ void USkeleton::HandleSkeletonHierarchyChange()
 			ReferenceSkeleton.FindBoneIndex(VB.TargetBoneName) == INDEX_NONE)
 		{
 			//Virtual Bone no longer valid
-			VirtualBones.RemoveAtSwap(i, 1, false);
+			VirtualBones.RemoveAt(i);
 		}
 	}
 
