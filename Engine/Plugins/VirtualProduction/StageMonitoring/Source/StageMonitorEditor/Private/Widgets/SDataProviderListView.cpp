@@ -4,11 +4,9 @@
 
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
-#include "IStageDataCollection.h"
-#include "IStageMonitor.h"
-#include "IStageMonitorModule.h"
+#include "IStageMonitorSession.h"
 #include "Misc/App.h"
-#include "StageMessages.h"
+#include "StageMonitorUtils.h"
 #include "StageMonitorEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "SDataProviderListView"
@@ -32,21 +30,21 @@ namespace DataProviderListView
  */
 struct FDataProviderTableRowData : TSharedFromThis<FDataProviderTableRowData>
 {
-	FDataProviderTableRowData(const FGuid& InIdentifier, const FStageInstanceDescriptor& InDescriptor, TWeakPtr<IStageDataCollection> InCollection)
+	FDataProviderTableRowData(const FGuid& InIdentifier, const FStageInstanceDescriptor& InDescriptor, TWeakPtr<IStageMonitorSession> InSession)
 		: Identifier(InIdentifier)
 		, Descriptor(InDescriptor)
-		, Collection(InCollection)
+		, Session(InSession)
 	{
 	}
 
 	/** Fetch latest information for the associated data provider */
 	void UpdateCachedValues()
 	{
-		if (TSharedPtr<IStageDataCollection> CollectionPtr = Collection.Pin())
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 		{
-			CachedState = CollectionPtr->GetProviderState(Identifier);
+			CachedState = SessionPtr->GetProviderState(Identifier);
 
-			TSharedPtr<FStageDataEntry> LatestData = CollectionPtr->GetLatest(Identifier, FFramePerformanceProviderMessage::StaticStruct());
+			TSharedPtr<FStageDataEntry> LatestData = SessionPtr->GetLatest(Identifier, FFramePerformanceProviderMessage::StaticStruct());
 			if (LatestData.IsValid() && LatestData->Data.IsValid())
 			{
 				//Copy over this message data
@@ -64,8 +62,8 @@ public:
 	FStageInstanceDescriptor Descriptor;
 
 
-	/** Weak pointer to the collection of data */
-	TWeakPtr<IStageDataCollection> Collection;
+	/** Weak pointer to the session data */
+	TWeakPtr<IStageMonitorSession> Session;
 
 	/** Cached data for the frame performance of this provider */
 	FFramePerformanceProviderMessage CachedPerformanceData;
@@ -264,13 +262,9 @@ FText SDataProviderTableRow::GetGPUTiming() const
 /**
  * SDataProviderListView
  */
-void SDataProviderListView::Construct(const FArguments& InArgs, TWeakPtr<IStageDataCollection> InCollection)
+void SDataProviderListView::Construct(const FArguments& InArgs, const TWeakPtr<IStageMonitorSession>& InSession)
 {
-	Collection = InCollection;
-	if (TSharedPtr<IStageDataCollection> CollectionPtr = InCollection.Pin())
-	{
-		CollectionPtr->OnStageDataProviderListChanged().AddSP(this, &SDataProviderListView::OnStageMonitoringMachineListChanged);
-	}
+	AttachToMonitorSession(InSession);
 
 	Super::Construct
 	(
@@ -325,11 +319,17 @@ void SDataProviderListView::Construct(const FArguments& InArgs, TWeakPtr<IStageD
 	RebuildDataProviderList();
 }
 
+void SDataProviderListView::RefreshMonitorSession(TWeakPtr<IStageMonitorSession> NewSession)
+{
+	AttachToMonitorSession(NewSession);
+	bRebuildListRequested = true;
+}
+
 SDataProviderListView::~SDataProviderListView()
 {
-	if (TSharedPtr<IStageDataCollection> CollectionPtr = Collection.Pin())
+	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
-		CollectionPtr->OnStageDataProviderListChanged().RemoveAll(this);
+		SessionPtr->OnStageDataProviderListChanged().RemoveAll(this);
 	}
 }
 
@@ -375,13 +375,13 @@ void SDataProviderListView::RebuildDataProviderList()
 {
 	ListItemsSource.Reset();
 
-	if (TSharedPtr<IStageDataCollection> CollectionPtr = Collection.Pin())
+	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
-		const TArray<FCollectionProviderEntry> Providers = CollectionPtr->GetProviders();
+		const TArray<FStageSessionProviderEntry> Providers = SessionPtr->GetProviders();
 
-		for (const FCollectionProviderEntry& Provider : Providers)
+		for (const FStageSessionProviderEntry& Provider : Providers)
 		{
-			TSharedRef<FDataProviderTableRowData> RowData = MakeShared<FDataProviderTableRowData>(Provider.Identifier, Provider.Descriptor, Collection);
+			TSharedRef<FDataProviderTableRowData> RowData = MakeShared<FDataProviderTableRowData>(Provider.Identifier, Provider.Descriptor, Session);
 			ListItemsSource.Add(RowData);
 		}
 
@@ -392,6 +392,24 @@ void SDataProviderListView::RebuildDataProviderList()
 	}
 
 	RequestListRefresh();
+}
+
+void SDataProviderListView::AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
+{
+	if (NewSession != Session)
+	{
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			SessionPtr->OnStageDataProviderListChanged().RemoveAll(this);
+		}
+
+		Session = NewSession;
+
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			SessionPtr->OnStageDataProviderListChanged().AddSP(this, &SDataProviderListView::OnStageMonitoringMachineListChanged);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

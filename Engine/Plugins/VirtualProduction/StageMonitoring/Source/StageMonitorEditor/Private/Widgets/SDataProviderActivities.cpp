@@ -6,12 +6,11 @@
 #include "EditorStyleSet.h"
 #include "IDetailsView.h"
 #include "IStructureDetailsView.h"
-#include "IStageDataCollection.h"
-#include "IStageMonitor.h"
-#include "IStageMonitorModule.h"
+#include "IStageMonitorSession.h"
 #include "Misc/App.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "Misc/Timecode.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "SDataProviderActivityFilter.h"
 #include "StageMessages.h"
@@ -53,16 +52,11 @@ public:
 /**
  * SDataProviderActivities
  */
-void SDataProviderActivities::Construct(const FArguments& InArgs, TSharedPtr<SStageMonitorPanel> InOwnerPanel, const TWeakPtr<IStageDataCollection>& Collection)
+void SDataProviderActivities::Construct(const FArguments& InArgs, TSharedPtr<SStageMonitorPanel> InOwnerPanel, const TWeakPtr<IStageMonitorSession>& InSession)
 {
 	OwnerPanel = InOwnerPanel;
-	DataCollection = Collection;
 
-	if (TSharedPtr<IStageDataCollection> CollectionPtr = DataCollection.Pin())
-	{
-		CollectionPtr->OnStageDataCollectionNewDataReceived().AddSP(this, &SDataProviderActivities::OnNewStageActivity);
-		CollectionPtr->OnStageDataCollectionCleared().AddSP(this, &SDataProviderActivities::OnStageDataCleared);
-	}
+	AttachToMonitorSession(InSession);
 
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bUpdatesFromSelection = true;
@@ -94,7 +88,7 @@ void SDataProviderActivities::Construct(const FArguments& InArgs, TSharedPtr<SSt
 			.AutoHeight()
 			.Padding(1.f, 1.f, 1.f, 1.f)
 			[
-				SAssignNew(ActivityFilter, SDataProviderActivityFilter)	
+				SAssignNew(ActivityFilter, SDataProviderActivityFilter, Session)	
 				.OnActivityFilterChanged(FSimpleDelegate::CreateSP(this, &SDataProviderActivities::OnActivityFilterChanged))
 			]
 			// Activities
@@ -165,9 +159,16 @@ void SDataProviderActivities::RequestRebuild()
 	bRebuildRequested = true;
 }
 
+void SDataProviderActivities::RefreshMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
+{
+	ActivityFilter->RefreshMonitorSession(NewSession);
+	AttachToMonitorSession(NewSession);
+	RequestRebuild();
+}
+
 TSharedRef<ITableRow> SDataProviderActivities::OnGenerateActivityRowWidget(FDataProviderActivityPtr InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	TSharedRef<SDataProviderActivitiesTableRow> Row = SNew(SDataProviderActivitiesTableRow, OwnerTable)
+	TSharedRef<SDataProviderActivitiesTableRow> Row = SNew(SDataProviderActivitiesTableRow, OwnerTable, Session)
 		.Item(InItem);
 	return Row;
 }
@@ -184,8 +185,6 @@ void SDataProviderActivities::OnListViewSelectionChanged(FDataProviderActivityPt
 	}
 }
 
-
-#include "StageMessages.h"
 void SDataProviderActivities::OnNewStageActivity(TSharedPtr<FStageDataEntry> NewActivity)
 {
 	//Make new row data
@@ -222,10 +221,10 @@ void SDataProviderActivities::ReloadActivityHistory()
 {
 	FilteredActivities.Reset();
 
-	if (TSharedPtr<IStageDataCollection> CollectionPtr = DataCollection.Pin())
+	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
 		TArray<TSharedPtr<FStageDataEntry>> CurrentActivities;
-		CollectionPtr->GetAllEntries(CurrentActivities);
+		SessionPtr->GetAllEntries(CurrentActivities);
 
 		for (const TSharedPtr<FStageDataEntry>& Entry : CurrentActivities)
 		{
@@ -241,26 +240,51 @@ void SDataProviderActivities::OnStageDataCleared()
 	RequestRebuild();
 }
 
+void SDataProviderActivities::AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
+{
+	if (NewSession != Session)
+	{
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			SessionPtr->OnStageSessionNewDataReceived().RemoveAll(this);
+			SessionPtr->OnStageSessionDataCleared().RemoveAll(this);
+		}
+
+		Session = NewSession;
+
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			SessionPtr->OnStageSessionNewDataReceived().AddSP(this, &SDataProviderActivities::OnNewStageActivity);
+			SessionPtr->OnStageSessionDataCleared().AddSP(this, &SDataProviderActivities::OnStageDataCleared);
+		}
+	}
+}
+
 /**
  * SDataProviderActivitiesTableRow
  */
-void SDataProviderActivitiesTableRow::Construct(const FArguments & InArgs, const TSharedRef<STableViewBase> & InOwerTableView)
+void SDataProviderActivitiesTableRow::Construct(const FArguments & InArgs, const TSharedRef<STableViewBase> & InOwerTableView, TWeakPtr<IStageMonitorSession> InSession)
 {
+	Session = InSession;
 	Item = InArgs._Item;
 	check(Item.IsValid());
 
 	Super::FArguments Arg;
-	if (Item->ActivityPayload.IsValid())
+	
+	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
-		FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->ActivityPayload->Data->GetStructMemory());
-
-		FCollectionProviderEntry Provider;
-		if (IStageMonitorModule::Get().GetStageMonitor().GetDataCollection()->GetProvider(Data->Identifier, Provider))
+		if (Item->ActivityPayload.IsValid())
 		{
-			Descriptor = Provider.Descriptor;
-			if (IStageMonitorModule::Get().GetStageMonitor().IsTimePartOfCriticalState(Data->FrameTime.AsSeconds()))
+			FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->ActivityPayload->Data->GetStructMemory());
+
+			FStageSessionProviderEntry Provider;
+			if (SessionPtr->GetProvider(Data->Identifier, Provider))
 			{
-				Arg.Style(FStageMonitorEditorStyle::Get(), "TableView.CriticalStateRow");
+				Descriptor = Provider.Descriptor;
+				if (SessionPtr->IsTimePartOfCriticalState(Data->FrameTime.AsSeconds()))
+				{
+					Arg.Style(FStageMonitorEditorStyle::Get(), "TableView.CriticalStateRow");
+				}
 			}
 		}
 	}

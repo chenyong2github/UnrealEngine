@@ -44,6 +44,8 @@ private:
 
 	/** Verify if we haven't received any message from monitors for a while */
 	void VerifyTimeoutedMonitors();
+
+
 private:
 
 	/** Holds information about monitors that discovered us */

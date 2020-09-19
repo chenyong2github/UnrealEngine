@@ -18,7 +18,8 @@
 
 
 
-FDataProviderActivityFilter::FDataProviderActivityFilter()
+FDataProviderActivityFilter::FDataProviderActivityFilter(TWeakPtr<IStageMonitorSession> InSession)
+	: Session(MoveTemp(InSession))
 {
 	//Default to filter out period message types
 	for (TObjectIterator<UScriptStruct> It; It; ++It)
@@ -35,7 +36,8 @@ FDataProviderActivityFilter::FDataProviderActivityFilter()
 
 bool FDataProviderActivityFilter::DoesItPass(TSharedPtr<FStageDataEntry>& Entry) const
 {
-	if (!Entry.IsValid() || !Entry->Data.IsValid() || Entry->Data->GetStructMemory() == nullptr)
+	TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin();
+	if (!SessionPtr.IsValid() || !Entry.IsValid() || !Entry->Data.IsValid() || Entry->Data->GetStructMemory() == nullptr)
 	{
 		return false;
 	}
@@ -47,7 +49,7 @@ bool FDataProviderActivityFilter::DoesItPass(TSharedPtr<FStageDataEntry>& Entry)
 
 	const FStageDataBaseMessage* Message = reinterpret_cast<const FStageDataBaseMessage*>(Entry->Data->GetStructMemory());
 	const FGuid ProviderIdentifier = Message->Identifier;
-	if (RestrictedProviders.ContainsByPredicate([ProviderIdentifier](const FCollectionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; }))
+	if (RestrictedProviders.ContainsByPredicate([ProviderIdentifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; }))
 	{
 		return false;
 	}
@@ -59,7 +61,7 @@ bool FDataProviderActivityFilter::DoesItPass(TSharedPtr<FStageDataEntry>& Entry)
 	}
 
 	const FStageProviderMessage* ProviderMessage = reinterpret_cast<const FStageProviderMessage*>(Entry->Data->GetStructMemory());
-	const TArray<FName> Sources = IStageMonitorModule::Get().GetStageMonitor().GetCriticalStateSources(ProviderMessage->FrameTime.AsSeconds());
+	const TArray<FName> Sources = SessionPtr->GetCriticalStateSources(ProviderMessage->FrameTime.AsSeconds());
 	for (const FName& Source : Sources)
 	{
 		if (RestrictedSources.Contains(Source))
@@ -72,9 +74,11 @@ bool FDataProviderActivityFilter::DoesItPass(TSharedPtr<FStageDataEntry>& Entry)
 }
 
 
-void SDataProviderActivityFilter::Construct(const FArguments& InArgs)
+void SDataProviderActivityFilter::Construct(const FArguments& InArgs, const TWeakPtr<IStageMonitorSession>& InSession)
 {
-	IStageMonitorModule::Get().GetStageMonitor().GetDataCollection()->OnStageDataProviderListChanged().AddSP(this, &SDataProviderActivityFilter::OnDataProviderListChanged);
+	AttachToMonitorSession(InSession);
+
+	CurrentFilter = MakeUnique<FDataProviderActivityFilter>(Session);
 
 	OnActivityFilterChanged = InArgs._OnActivityFilterChanged;
 	
@@ -126,35 +130,40 @@ void SDataProviderActivityFilter::Construct(const FArguments& InArgs)
 	];
 }
 
-void SDataProviderActivityFilter::ToggleProviderFilter(FCollectionProviderEntry Provider)
+void SDataProviderActivityFilter::RefreshMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
 {
-	if (CurrentFilter.RestrictedProviders.Contains(Provider))
+	AttachToMonitorSession(NewSession);
+}
+
+void SDataProviderActivityFilter::ToggleProviderFilter(FStageSessionProviderEntry Provider)
+{
+	if (CurrentFilter->RestrictedProviders.Contains(Provider))
 	{
-		CurrentFilter.RestrictedProviders.RemoveSingle(Provider);
+		CurrentFilter->RestrictedProviders.RemoveSingle(Provider);
 	}
 	else
 	{
-		CurrentFilter.RestrictedProviders.AddUnique(Provider);
+		CurrentFilter->RestrictedProviders.AddUnique(Provider);
 	}
 
 	OnActivityFilterChanged.ExecuteIfBound();
 }
 
-bool SDataProviderActivityFilter::IsProviderFiltered(FCollectionProviderEntry Provider) const
+bool SDataProviderActivityFilter::IsProviderFiltered(FStageSessionProviderEntry Provider) const
 {
 	// The list contains types to filter. Inverse return value to display a more natural way of looking at filter choices
-	return !CurrentFilter.RestrictedProviders.Contains(Provider);
+	return !CurrentFilter->RestrictedProviders.Contains(Provider);
 }
 
 void SDataProviderActivityFilter::ToggleDataTypeFilter(UScriptStruct* Type)
 {
-	if(CurrentFilter.RestrictedTypes.Contains(Type))
+	if(CurrentFilter->RestrictedTypes.Contains(Type))
 	{
-		CurrentFilter.RestrictedTypes.RemoveSingle(Type);
+		CurrentFilter->RestrictedTypes.RemoveSingle(Type);
 	}
 	else
 	{
-		CurrentFilter.RestrictedTypes.AddUnique(Type);
+		CurrentFilter->RestrictedTypes.AddUnique(Type);
 	}
 
 	OnActivityFilterChanged.ExecuteIfBound();
@@ -163,27 +172,30 @@ void SDataProviderActivityFilter::ToggleDataTypeFilter(UScriptStruct* Type)
 bool SDataProviderActivityFilter::IsDataTypeFiltered(UScriptStruct* Type) const
 {
 	// The list contains types to filter. Inverse return value to display a more natural way of looking at filter choices
-	return !CurrentFilter.RestrictedTypes.Contains(Type);
+	return !CurrentFilter->RestrictedTypes.Contains(Type);
 }
 
 void SDataProviderActivityFilter::OnDataProviderListChanged()
 {
-	const TArray<FCollectionProviderEntry>& Providers = IStageMonitorModule::Get().GetStageMonitor().GetDataCollection()->GetProviders();
-	for (const FCollectionProviderEntry& Provider : Providers)
+	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
-		AllStageIdentifier.AddUnique(Provider);
+		const TArray<FStageSessionProviderEntry> Providers = SessionPtr->GetProviders();
+		for (const FStageSessionProviderEntry& Provider : Providers)
+		{
+			AllStageIdentifier.AddUnique(Provider);
+		}
 	}
 }
 
 void SDataProviderActivityFilter::ToggleCriticalStateSourceFilter(FName Source)
 {
-	if (CurrentFilter.RestrictedSources.Contains(Source))
+	if (CurrentFilter->RestrictedSources.Contains(Source))
 	{
-		CurrentFilter.RestrictedSources.RemoveSingle(Source);
+		CurrentFilter->RestrictedSources.RemoveSingle(Source);
 	}
 	else
 	{
-		CurrentFilter.RestrictedSources.AddUnique(Source);
+		CurrentFilter->RestrictedSources.AddUnique(Source);
 	}
 
 	OnActivityFilterChanged.ExecuteIfBound();
@@ -192,19 +204,19 @@ void SDataProviderActivityFilter::ToggleCriticalStateSourceFilter(FName Source)
 bool SDataProviderActivityFilter::IsCriticalStateSourceFiltered(FName Source) const
 {
 	// The list contains sources to passing the filter.
-	return CurrentFilter.RestrictedSources.Contains(Source);
+	return CurrentFilter->RestrictedSources.Contains(Source);
 }
 
 void SDataProviderActivityFilter::ToggleCriticalSourceEnabledFilter()
 {
-	CurrentFilter.bEnableCriticalStateFilter = !CurrentFilter.bEnableCriticalStateFilter;
+	CurrentFilter->bEnableCriticalStateFilter = !CurrentFilter->bEnableCriticalStateFilter;
 
 	OnActivityFilterChanged.ExecuteIfBound();
 }
 
 bool SDataProviderActivityFilter::IsCriticalSourceFilteringEnabled() const
 {
-	return CurrentFilter.bEnableCriticalStateFilter;
+	return CurrentFilter->bEnableCriticalStateFilter;
 }
 
 TSharedRef<SWidget> SDataProviderActivityFilter::MakeAddFilterMenu()
@@ -290,7 +302,7 @@ void SDataProviderActivityFilter::CreateProviderFilterMenu(FMenuBuilder& MenuBui
 {
 	MenuBuilder.BeginSection("AvailableProviders", LOCTEXT("AvailableProviders", "Providers"));
 	{
-		for (const FCollectionProviderEntry& Provider : AllStageIdentifier)
+		for (const FStageSessionProviderEntry& Provider : AllStageIdentifier)
 		{
 			const FString ProviderName = FString::Printf(TEXT("%s"), *Provider.Descriptor.FriendlyName.ToString());
 			MenuBuilder.AddMenuEntry
@@ -316,28 +328,53 @@ void SDataProviderActivityFilter::CreateCriticalStateSourceFilterMenu(FMenuBuild
 {
 	MenuBuilder.BeginSection("CriticalStateSources", LOCTEXT("CriticalStateSources", "Critical state sources"));
 	{
-		TArray<FName> Sources = IStageMonitorModule::Get().GetStageMonitor().GetCriticalStateHistorySources();
-
-		for (const FName& Source : Sources)
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 		{
-			MenuBuilder.AddMenuEntry
-			(
-				FText::FromName(Source), //Label
-				FText::GetEmpty(), //Tooltip
-				FSlateIcon(),
-				FUIAction
+			TArray<FName> Sources = SessionPtr->GetCriticalStateHistorySources();
+
+			for (const FName& Source : Sources)
+			{
+				MenuBuilder.AddMenuEntry
 				(
-					FExecuteAction::CreateSP(this, &SDataProviderActivityFilter::ToggleCriticalStateSourceFilter, Source)
-					, FCanExecuteAction::CreateLambda([this]() { return CurrentFilter.bEnableCriticalStateFilter; })
-					, FIsActionChecked::CreateSP(this, &SDataProviderActivityFilter::IsCriticalStateSourceFiltered, Source)
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
+					FText::FromName(Source), //Label
+					FText::GetEmpty(), //Tooltip
+					FSlateIcon(),
+					FUIAction
+					(
+						FExecuteAction::CreateSP(this, &SDataProviderActivityFilter::ToggleCriticalStateSourceFilter, Source)
+						, FCanExecuteAction::CreateLambda([this]() { return CurrentFilter->bEnableCriticalStateFilter; })
+						, FIsActionChecked::CreateSP(this, &SDataProviderActivityFilter::IsCriticalStateSourceFiltered, Source)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+			}
 		}
-	}
+
+			}
 	MenuBuilder.EndSection();
 }
 
+
+void SDataProviderActivityFilter::AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
+{
+	if (NewSession != Session)
+	{
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			SessionPtr->OnStageDataProviderListChanged().RemoveAll(this);
+		}
+
+		Session = NewSession;
+		CurrentFilter->Session = Session;
+		AllStageIdentifier.Empty();
+
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			SessionPtr->OnStageDataProviderListChanged().AddSP(this, &SDataProviderActivityFilter::OnDataProviderListChanged);
+			OnDataProviderListChanged();
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

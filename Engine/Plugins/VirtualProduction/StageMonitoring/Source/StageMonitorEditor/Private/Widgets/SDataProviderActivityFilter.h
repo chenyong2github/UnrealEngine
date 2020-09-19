@@ -6,7 +6,7 @@
 
 
 #include "CoreMinimal.h"
-#include "IStageDataCollection.h"
+#include "IStageMonitorSession.h"
 #include "SlateFwd.h"
 #include "StageMessages.h"
 #include "Templates/SharedPointer.h"
@@ -16,6 +16,7 @@
 
 class FStructOnScope;
 class FMenuBuilder;
+class IStageMonitorSession;
 
 /**
  *
@@ -23,16 +24,17 @@ class FMenuBuilder;
 class FDataProviderActivityFilter
 {
 public:
-	FDataProviderActivityFilter();
+	FDataProviderActivityFilter(TWeakPtr<IStageMonitorSession> InSession);
 
 	/** Returns true if the entry passes the current filter */
 	bool DoesItPass(TSharedPtr<FStageDataEntry>& Entry) const;
 
 public:
 	TArray<UScriptStruct*> RestrictedTypes;
-	TArray<FCollectionProviderEntry> RestrictedProviders;
+	TArray<FStageSessionProviderEntry> RestrictedProviders;
 	TArray<FName> RestrictedSources;
 	bool bEnableCriticalStateFilter = false;
+	TWeakPtr<IStageMonitorSession> Session;
 };
 
 
@@ -48,18 +50,21 @@ public:
 		SLATE_EVENT(FSimpleDelegate, OnActivityFilterChanged)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TWeakPtr<IStageMonitorSession>& InSession);
 
 	/** Returns the activity filter */
-	const FDataProviderActivityFilter& GetActivityFilter() const { return CurrentFilter; }
+	const FDataProviderActivityFilter& GetActivityFilter() const { return *CurrentFilter; }
+
+	/** Refreshes session used to fetch data and update UI */
+	void RefreshMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession);
 
 private:
 
 	/** Toggles state of provider filter */
-	void ToggleProviderFilter(FCollectionProviderEntry Provider);
+	void ToggleProviderFilter(FStageSessionProviderEntry Provider);
 
 	/** Returns true if provider is currently filtered out */
-	bool IsProviderFiltered(FCollectionProviderEntry Provider) const;
+	bool IsProviderFiltered(FStageSessionProviderEntry Provider) const;
 
 	/** Toggles state of data type filter */
 	void ToggleDataTypeFilter(UScriptStruct* Type);
@@ -94,10 +99,13 @@ private:
 	/** Create the menu listing all critical state sources */
 	void CreateCriticalStateSourceFilterMenu(FMenuBuilder& MenuBuilder);
 
+	/** Binds this widget to some session callbacks */
+	void AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession);
+
 private:
 
 	/** Current state of the provider data filter */
-	FDataProviderActivityFilter CurrentFilter;
+	TUniquePtr<FDataProviderActivityFilter> CurrentFilter;
 
 	/** Delegate fired when filter changed */
 	FSimpleDelegate OnActivityFilterChanged;
@@ -106,6 +114,9 @@ private:
 	 * All provider identifiers to have existed. 
 	 * Activities could have events from disconnected providers, need to be able to filter them 
 	 */
-	TArray<FCollectionProviderEntry> AllStageIdentifier;
+	TArray<FStageSessionProviderEntry> AllStageIdentifier;
+
+	/** Weakptr to the current session we're sourcing info from */
+	TWeakPtr<IStageMonitorSession> Session;
 };
 
