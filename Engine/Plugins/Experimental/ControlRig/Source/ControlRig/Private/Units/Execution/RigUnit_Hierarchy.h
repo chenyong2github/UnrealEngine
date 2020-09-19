@@ -88,7 +88,7 @@ struct FRigUnit_HierarchyGetParents : public FRigUnit_HierarchyBase
 /**
  * Returns the item's children
  */
-USTRUCT(meta=(DisplayName="Get Children", Keywords="Chain,Children,Hierarchy", Varying))
+USTRUCT(meta=(DisplayName="Get Children", Keywords="Chain,Children,Hierarchy", Deprecated = "4.25.0", Varying))
 struct FRigUnit_HierarchyGetChildren : public FRigUnit_HierarchyBase
 {
 	GENERATED_BODY()
