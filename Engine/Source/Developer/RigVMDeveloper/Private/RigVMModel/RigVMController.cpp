@@ -4241,6 +4241,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors)
 {
 	check(Graph);
 	TGuardValue<bool> SuspendNotifs(bSuspendNotifications, true);
+	FScopeLock Lock(&PinPathCoreRedirectorsLock);
 
 	TMap<FString, FString> RedirectedPinPaths;
 	if (bFollowCoreRedirectors)
@@ -4507,6 +4508,8 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 	}
 
 	TGuardValue<bool> SuspendNotifs(bSuspendNotifications, true);
+	FScopeLock Lock(&PinPathCoreRedirectorsLock);
+
 	check(Graph);
 
 	// step 1/3: keep a record of the current state of the node's pins
