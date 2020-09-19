@@ -145,7 +145,7 @@ namespace UnrealBuildTool
 		}
 
 
-		void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		protected virtual void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// Suppress generation of object code for unreferenced inline functions. Enabling this option is more standards compliant, and causes a big reduction
 			// in object file sizes (and link times) due to the amount of stuff we inline.
