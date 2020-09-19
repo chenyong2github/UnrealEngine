@@ -20,44 +20,58 @@ UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObject
 	Mobility = EComponentMobility::Static;
 }
 
-ARuntimeVirtualTextureVolume* UVirtualHeightfieldMeshComponent::GetVirtualTextureVolume() const
-{
-	return VirtualTexture.Get();
-}
-
-URuntimeVirtualTexture* UVirtualHeightfieldMeshComponent::GetVirtualTexture() const
-{
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetVirtualTexture() : nullptr;
-}
-
-FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
-{
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
-}
-
 void UVirtualHeightfieldMeshComponent::OnRegister()
 {
-// 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-// 	if (RuntimeVirtualTextureComponent)
-// 	{
-// 		// Bind to delegate so that RuntimeVirtualTextureComponent will pull hide flags from this object.
-// 		HideFlagDelegateHandle = RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().AddUObject(this, &UVirtualHeightfieldMeshComponent::GatherHideFlags);
-// 		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
-// 	}
+	VirtualTextureRef = VirtualTexture.Get();
+
+#if WITH_EDITOR
+
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	if (RuntimeVirtualTextureComponent)
+	{
+		// Bind to delegate so that RuntimeVirtualTextureComponent will pull hide flags from this object.
+		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().AddUObject(this, &UVirtualHeightfieldMeshComponent::GatherHideFlags);
+		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+	}
+
+#endif
+
 	Super::OnRegister();
 }
 
 void UVirtualHeightfieldMeshComponent::OnUnregister()
 {
-// 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-// 	if (RuntimeVirtualTextureComponent)
-// 	{
-// 		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().Remove(HideFlagDelegateHandle);
-// 		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
-// 	}
+#if WITH_EDITOR
+
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	if (RuntimeVirtualTextureComponent)
+	{
+		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().RemoveAll(this);
+		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
+	}
+
+#endif
+
+	VirtualTextureRef = nullptr;
+
 	Super::OnUnregister();
+}
+
+ARuntimeVirtualTextureVolume* UVirtualHeightfieldMeshComponent::GetVirtualTextureVolume() const
+{
+	return VirtualTextureRef;
+}
+
+URuntimeVirtualTexture* UVirtualHeightfieldMeshComponent::GetVirtualTexture() const
+{
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetVirtualTexture() : nullptr;
+}
+
+FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
+{
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
 }
 
 bool UVirtualHeightfieldMeshComponent::IsVisible() const
@@ -105,7 +119,7 @@ void UVirtualHeightfieldMeshComponent::PostEditChangeProperty(FPropertyChangedEv
 	if (PropertyName == HideInEditorName)
 	{
 		// Force RuntimeVirtualTextureComponent to poll the HidePrimitives settings.
-		URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
+		URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
 		if (RuntimeVirtualTextureComponent != nullptr)
 		{
 			RuntimeVirtualTextureComponent->MarkRenderStateDirty();
