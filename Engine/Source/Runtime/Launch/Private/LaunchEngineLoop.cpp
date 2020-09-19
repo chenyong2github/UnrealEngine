@@ -2588,19 +2588,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
 
-	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
+	if (!FPlatformProperties::RequiresCookedData())
 	{
-		check(!GShaderCompilerStats);
-		GShaderCompilerStats = new FShaderCompilerStats();
-
-		check(!GShaderCompilingManager);
-		GShaderCompilingManager = new FShaderCompilingManager();
-
 		check(!GDistanceFieldAsyncQueue);
 		GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
 
-		// Shader hash cache is required only for shader compilation.
-		InitializeShaderHashCache();
+		if (bEnableShaderCompile)
+		{
+			check(!GShaderCompilerStats);
+			GShaderCompilerStats = new FShaderCompilerStats();
+
+			check(!GShaderCompilingManager);
+			GShaderCompilingManager = new FShaderCompilingManager();
+
+			// Shader hash cache is required only for shader compilation.
+			InitializeShaderHashCache();
+		}
 	}
 
 	{
