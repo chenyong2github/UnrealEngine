@@ -228,15 +228,11 @@ bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const class ITargetP
 
 void UNiagaraRendererProperties::PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode)
 {
-	
 	for (int32 i = 0; i < AttributeBindings.Num(); i++)
 	{
 		FNiagaraVariableAttributeBinding* Binding = const_cast<FNiagaraVariableAttributeBinding*>(AttributeBindings[i]);
 		Binding->PostLoad(InSourceMode);
 	}
-
-	UpdateSourceModeDerivates(InSourceMode);
-
 }
 
 void UNiagaraRendererProperties::PostInitProperties()
