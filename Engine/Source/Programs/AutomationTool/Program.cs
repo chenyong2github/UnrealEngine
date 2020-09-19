@@ -59,10 +59,6 @@ namespace AutomationTool
 				AssemblyUtils.InstallAssemblyResolver(PathToBinariesDotNET);
 				AssemblyUtils.InstallRecursiveAssemblyResolver(PathToBinariesDotNET);
 
-				// Ensure that any third-party libraries marked as CopyLocal=false have their folders added as well.
-				string PathToThirdPartyBinaries = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().GetOriginalLocation()), "..", "ThirdParty");
-				AssemblyUtils.InstallRecursiveAssemblyResolver(Path.Combine(PathToThirdPartyBinaries, "AWSSDK"));
-
 				// Initialize the host platform layer
 				HostPlatform.Initialize();
 
