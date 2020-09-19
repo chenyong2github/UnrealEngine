@@ -17,6 +17,9 @@
 #include "AssetGenerationUtil.h"
 #include "Selection/ToolSelectionUtil.h"
 
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+
 #if WITH_EDITOR
 #include "Misc/ScopedSlowTask.h"
 #endif
@@ -252,6 +255,16 @@ void UCombineMeshesTool::UpdateAssets()
 			AllMaterials);
 		if (NewActor != nullptr)
 		{
+			// copy the component materials onto the new static mesh asset too
+			// (note: GenerateStaticMeshActor defaults to just putting blank slots on the asset)
+			UStaticMeshComponent* NewMeshComponent = NewActor->FindComponentByClass<UStaticMeshComponent>();
+			UStaticMesh* NewMesh = NewMeshComponent->GetStaticMesh();
+			for (int32 MatIdx = 0; MatIdx < AllMaterials.Num(); MatIdx++)
+			{
+				NewMesh->SetMaterial(MatIdx, AllMaterials[MatIdx]);
+			}
+
+			// select the new actor
 			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
 		}
 	}
