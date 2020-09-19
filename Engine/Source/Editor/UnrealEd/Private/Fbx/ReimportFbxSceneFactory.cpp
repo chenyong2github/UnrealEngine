@@ -1220,6 +1220,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ImportStaticMesh(void* VoidFbxIm
 	{
 		if (Pkg != nullptr)
 		{
+			Pkg->SetDirtyFlag(false);
 			Pkg->RemoveFromRoot();
 			Pkg->ConditionalBeginDestroy();
 		}
