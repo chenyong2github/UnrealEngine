@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Interfaces/IPv4/Ipv4Endpoint.h"
+#include "Interfaces/IPv4/IPv4Endpoint.h"
 
 struct FSwitchboardTask;
 
