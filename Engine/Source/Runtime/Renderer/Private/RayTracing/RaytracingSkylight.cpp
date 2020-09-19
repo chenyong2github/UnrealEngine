@@ -358,6 +358,11 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingSkyLightRGS, "/Engine/Private/Raytracing/Rayt
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingSkyLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	if (!GRayTracingSkyLight)
+	{
+		return;
+	}
+
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	FRayTracingSkyLightRGS::FPermutationDomain PermutationVector;
 	for (uint32 TwoSidedGeometryIndex = 0; TwoSidedGeometryIndex < 2; ++TwoSidedGeometryIndex)

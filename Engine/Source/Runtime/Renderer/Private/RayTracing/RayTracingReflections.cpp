@@ -418,6 +418,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
+	if (!GRayTracingReflections)
+	{
+		return;
+	}
+
 	if (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread())
 	{
 		// If deferred reflections technique is used, then we only need to gather its shaders and skip the rest.
