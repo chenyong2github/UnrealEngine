@@ -586,7 +586,12 @@ UPackage* FindPackage( UObject* InOuter, const TCHAR* PackageName )
 	return Result;
 }
 
-UPackage* CreatePackage( UObject* InOuter, const TCHAR* PackageName )
+UPackage* CreatePackage(UObject* InOuter, const TCHAR* PackageName)
+{
+	return CreatePackage(PackageName);
+}
+
+UPackage* CreatePackage(const TCHAR* PackageName )
 {
 	FString InName;
 
@@ -609,10 +614,11 @@ UPackage* CreatePackage( UObject* InOuter, const TCHAR* PackageName )
 
 	if(InName.Len() == 0)
 	{
-		InName = MakeUniqueObjectName( InOuter, UPackage::StaticClass() ).ToString();
+		InName = MakeUniqueObjectName( nullptr, UPackage::StaticClass() ).ToString();
 	}
 
-	ResolveName( InOuter, InName, true, false );
+	UObject* Outer = nullptr;
+	ResolveName(Outer, InName, true, false );
 
 
 	UPackage* Result = NULL;
@@ -623,17 +629,17 @@ UPackage* CreatePackage( UObject* InOuter, const TCHAR* PackageName )
 
 	if ( InName != TEXT("None") )
 	{
-		Result = FindObject<UPackage>( InOuter, *InName );
+		Result = FindObject<UPackage>( nullptr, *InName );
 		if( Result == NULL )
 		{
 			FName NewPackageName(*InName, FNAME_Add);
 			if (FPackageName::IsShortPackageName(NewPackageName))
 			{
-				UE_LOG(LogUObjectGlobals, Warning, TEXT("Attempted to create a package with a short package name: %s Outer: %s"), PackageName, InOuter ? *InOuter->GetFullName() : TEXT("NullOuter"));
+				UE_LOG(LogUObjectGlobals, Warning, TEXT("Attempted to create a package with a short package name: %s Outer: %s"), PackageName, Outer ? *Outer->GetFullName() : TEXT("NullOuter"));
 			}
 			else
 			{
-				Result = NewObject<UPackage>(InOuter, NewPackageName, RF_Public);
+				Result = NewObject<UPackage>(nullptr, NewPackageName, RF_Public);
 			}
 		}
 	}
@@ -782,7 +788,7 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 			}
 			if (!InPackage)
 			{
-				InPackage = CreatePackage(InPackage, *PartialName);
+				InPackage = CreatePackage(*PartialName);
 			}
 
 			check(InPackage);
@@ -1216,7 +1222,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 			// Create the package with the provided long package name.
 			if (!InOuter)
 			{
-				InOuter = CreatePackage(nullptr, *FileToLoad);
+				InOuter = CreatePackage(*FileToLoad);
 			}
 			
 			new FUnsafeLinkerLoad(InOuter, *FileToLoad, *DiffFileToLoad, LOAD_ForDiff);
@@ -2320,6 +2326,7 @@ UObject* StaticAllocateObject
 	check(InClass);
 	check(GIsEditor || bCreatingCDO || !InClass->HasAnyClassFlags(CLASS_Abstract)); // this is a warning in the editor, otherwise it is illegal to create an abstract class, except the CDO
 	check(InOuter || (InClass == UPackage::StaticClass() && InName != NAME_None)); // only packages can not have an outer, and they must be named explicitly
+	checkf(InClass != UPackage::StaticClass() || !InOuter || bCreatingCDO, TEXT("Creating nested packages is not allowed: Outer=%s, Package=%s"), *GetNameSafe(InOuter), *InName.ToString());
 	check(bCreatingCDO || !InOuter || InOuter->IsA(InClass->ClassWithin));
 	checkf(!IsGarbageCollecting(), TEXT("Unable to create new object: %s %s.%s. Creating UObjects while Collecting Garbage is not allowed!"),
 		*GetNameSafe(InClass), *GetPathNameSafe(InOuter), *InName.ToString());
@@ -4567,7 +4574,7 @@ namespace UE4CodeGen_Private
 		{
 			UE_LOG(LogUObjectGlobals, Log, TEXT("Creating package on the fly %s"), UTF8_TO_TCHAR(Params.NameUTF8));
 			ProcessNewlyLoadedUObjects(FName(UTF8_TO_TCHAR(Params.NameUTF8)), false);
-			FoundPackage = CreatePackage(nullptr, UTF8_TO_TCHAR(Params.NameUTF8));
+			FoundPackage = CreatePackage(UTF8_TO_TCHAR(Params.NameUTF8));
 		}
 #endif
 

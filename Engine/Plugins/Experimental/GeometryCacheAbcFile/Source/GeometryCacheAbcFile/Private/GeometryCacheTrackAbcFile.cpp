@@ -239,7 +239,7 @@ void UGeometryCacheTrackAbcFile::SetupGeometryCacheMaterials(UGeometryCache* Geo
 		FString Name = FPaths::GetBaseFilename(SourceFile);
 		FString PackageName = UPackageTools::SanitizePackageName(FPaths::Combine(*DestinationPath, *Name, *Name));
 
-		UPackage* Package = CreatePackage(nullptr, *PackageName);
+		UPackage* Package = CreatePackage(*PackageName);
 		Package->FullyLoad();
 
 		FAbcUtilities::SetupGeometryCacheMaterials(*AbcFile, GeometryCache, Package);

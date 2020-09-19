@@ -570,7 +570,7 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture( UTexture* U
 	FString MaterialFullName = TextureShortName + "_Mat";
 	FString NewPackageName = FPackageName::GetLongPackagePath( UnrealTexture->GetOutermost()->GetName() ) + TEXT( "/" ) + MaterialFullName;
 	NewPackageName = UPackageTools::SanitizePackageName( NewPackageName );
-	UPackage* Package = CreatePackage( NULL, *NewPackageName );
+	UPackage* Package = CreatePackage( *NewPackageName );
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
 

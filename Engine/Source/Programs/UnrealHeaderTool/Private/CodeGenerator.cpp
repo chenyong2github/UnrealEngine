@@ -6670,7 +6670,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 		UPackage* Package = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), NULL, FName(*Module.LongPackageName), false, false));
 		if (Package == NULL)
 		{
-			Package = CreatePackage(NULL, *Module.LongPackageName);
+			Package = CreatePackage(*Module.LongPackageName);
 		}
 		// Set some package flags for indicating that this package contains script
 		// NOTE: We do this even if we didn't have to create the package, because CoreUObject is compiled into UnrealHeaderTool and we still

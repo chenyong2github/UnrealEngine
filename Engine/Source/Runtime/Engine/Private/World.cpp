@@ -1807,7 +1807,7 @@ UWorld* UWorld::CreateWorld(const EWorldType::Type InWorldType, bool bInformEngi
 	UPackage* WorldPackage = InWorldPackage;
 	if ( !WorldPackage )
 	{
-		WorldPackage = CreatePackage( NULL, NULL );
+		WorldPackage = CreatePackage(nullptr);
 	}
 
 	if (InWorldType == EWorldType::PIE)
@@ -3158,7 +3158,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	FSoftObjectPath::AddPIEPackageName(PrefixedLevelFName);
 
 	UWorld::WorldTypePreLoadMap.FindOrAdd(PrefixedLevelFName) = EWorldType::PIE;
-	UPackage* PIELevelPackage = CreatePackage(nullptr,*PrefixedLevelName);
+	UPackage* PIELevelPackage = CreatePackage(*PrefixedLevelName);
 	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
 	PIELevelPackage->PIEInstanceID = PIEInstanceID;
 	PIELevelPackage->FileName = PackageFName;
@@ -7425,7 +7425,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	const FString PrefixedPackageName = UWorld::ConvertToPIEPackageName( OriginalPackageName, InstanceID );
 
 	// Create a package for duplicated level
-	UPackage* NewPackage = CreatePackage( nullptr, *PrefixedPackageName );
+	UPackage* NewPackage = CreatePackage( *PrefixedPackageName );
 	NewPackage->SetPackageFlags( PKG_PlayInEditor );
 	NewPackage->PIEInstanceID = InstanceID;
 	NewPackage->FileName = OriginalPackage->FileName;

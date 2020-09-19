@@ -582,7 +582,7 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 		FString UniqueAssetName;
 		AssetToolsModule.Get().CreateUniqueAssetName(PackagePath / SequenceName, TEXT(""), UniquePackageName, UniqueAssetName);
 
-		UPackage* Package = CreatePackage(nullptr, *UniquePackageName);
+		UPackage* Package = CreatePackage(*UniquePackageName);
 		ULevelSequence* LevelSequence = NewObject<ULevelSequence>(Package, *UniqueAssetName, RF_Public | RF_Standalone);
 
 		LevelSequence->Initialize(); //creates movie scene

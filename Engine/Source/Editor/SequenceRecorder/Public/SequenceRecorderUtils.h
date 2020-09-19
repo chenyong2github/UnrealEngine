@@ -54,7 +54,7 @@ static AssetType* MakeNewAsset(const FString& BaseAssetPath, const FString& Base
 	FString FileName;
 	if(FPackageName::TryConvertLongPackageNameToFilename(AssetPath, FileName))
 	{
-		UObject* Package = CreatePackage(nullptr, *AssetPath);
+		UObject* Package = CreatePackage( *AssetPath);
 		return NewObject<AssetType>(Package, *AssetName, RF_Public | RF_Standalone);	
 	}
 

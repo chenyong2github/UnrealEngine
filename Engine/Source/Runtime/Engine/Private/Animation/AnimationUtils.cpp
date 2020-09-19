@@ -445,7 +445,7 @@ UObject* FAnimationUtils::GetDefaultAnimSequenceOuter(UAnimSet* InAnimSet, bool 
 
 		// Try to create a new package with Group named <AnimSetName>_Group.
 		FString NewPackageString = FString::Printf(TEXT("%s.%s_Group"), *AnimSetPackage->GetFName().ToString(), *InAnimSet->GetFName().ToString());
-		UPackage* NewPackage = CreatePackage( NULL, *NewPackageString );
+		UPackage* NewPackage = CreatePackage( *NewPackageString );
 
 		// New Outer to use
 		return NewPackage;

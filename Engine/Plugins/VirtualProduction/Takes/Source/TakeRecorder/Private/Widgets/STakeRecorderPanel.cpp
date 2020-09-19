@@ -516,7 +516,7 @@ UTakePreset* STakeRecorderPanel::AllocateTransientPreset()
 
 	static FName DesiredName = "PendingTake";
 
-	UPackage* NewPackage = CreatePackage(nullptr, PackageName);
+	UPackage* NewPackage = CreatePackage(PackageName);
 	NewPackage->SetFlags(RF_Transient);
 	NewPackage->AddToRoot();
 
@@ -712,7 +712,7 @@ void STakeRecorderPanel::OnSaveAsPreset()
 
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
-	UPackage*     NewPackage   = CreatePackage(nullptr, *PackageName);
+	UPackage*     NewPackage   = CreatePackage(*PackageName);
 	UTakePreset*  NewPreset    = NewObject<UTakePreset>(NewPackage, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional);
 
 	if (NewPreset)

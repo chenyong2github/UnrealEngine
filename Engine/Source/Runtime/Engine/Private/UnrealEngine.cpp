@@ -938,7 +938,7 @@ namespace
 		FSoftObjectPath::AddPIEPackageName(PIEPackageFName);
 
 		uint32 LoadFlags = LOAD_None;
-		UPackage* NewPackage = CreatePackage(NULL, *PIEPackageName);
+		UPackage* NewPackage = CreatePackage( *PIEPackageName);
 		if (NewPackage != nullptr && WorldContext.WorldType == EWorldType::PIE)
 		{
 			NewPackage->SetPackageFlags(PKG_PlayInEditor);

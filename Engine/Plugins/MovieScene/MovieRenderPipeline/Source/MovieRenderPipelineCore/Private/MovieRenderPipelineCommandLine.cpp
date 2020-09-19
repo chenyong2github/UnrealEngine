@@ -250,7 +250,7 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 				ConfigAssetPath = FPaths::Combine(FPaths::ProjectSavedDir(), InConfigAssetPath);
 			}
 
-			UPackage* OuterPackage = CreatePackage(nullptr, *NewPackageName);
+			UPackage* OuterPackage = CreatePackage(*NewPackageName);
 			UPackage* QueuePackage = LoadPackage(OuterPackage, *ConfigAssetPath, LOAD_None);
 			if (QueuePackage)
 			{

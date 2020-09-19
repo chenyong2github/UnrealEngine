@@ -634,11 +634,19 @@ COREUOBJECT_API UPackage* FindPackage(UObject* InOuter, const TCHAR* PackageName
 
 /**
  * Find an existing package by name or create it if it doesn't exist
- * @param InOuter		The Outer object to search inside
+ * @param InOuter		The Outer object to search inside (unused)
  * @return The existing package or a newly created one
  *
  */
+UE_DEPRECATED(4.26, "Use CreatePackage overload that does not take the first Outer parameter. Specifying non-null outers for UPackages is no longer supported.")
 COREUOBJECT_API UPackage* CreatePackage( UObject* InOuter, const TCHAR* PackageName );
+
+/**
+ * Find an existing package by name or create it if it doesn't exist
+ * @return The existing package or a newly created one
+ *
+ */
+COREUOBJECT_API UPackage* CreatePackage(const TCHAR* PackageName);
 
 /** Internal function used to set a specific property value from debug/console code */
 void GlobalSetProperty( const TCHAR* Value, UClass* Class, FProperty* Property, bool bNotifyObjectOfChange );

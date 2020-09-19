@@ -105,7 +105,7 @@ public:
 								}
 							}
 
-							UPackage* Package = CreatePackage(NULL, *PackageName);
+							UPackage* Package = CreatePackage(*PackageName);
 							check(Package);
 
 							// Create DataTable object

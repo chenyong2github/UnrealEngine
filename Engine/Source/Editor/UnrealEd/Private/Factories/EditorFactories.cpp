@@ -1419,7 +1419,7 @@ UObject* UPackageFactory::FactoryCreateText( UClass* Class, UObject* InParent, F
 					UE_LOG(LogEditorFactories, Warning, TEXT("Package factory can only handle the map package or new packages!"));
 					return nullptr;
 				}
-				TopLevelPackage = CreatePackage(nullptr, *(PackageName.ToString()));
+				TopLevelPackage = CreatePackage( *(PackageName.ToString()));
 				TopLevelPackage->SetFlags(RF_Standalone|RF_Public);
 				MapPackages.Add(TopLevelPackage->GetName(), TopLevelPackage);
 
@@ -4657,7 +4657,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 		// Create the package for the material
 		const FString MaterialName = FString::Printf( TEXT("%s_Mat"), *TextureName.ToString() );
 		const FString MaterialPackageName = FPackageName::GetLongPackagePath(InParent->GetName()) + TEXT("/") + MaterialName;
-		UPackage* MaterialPackage = CreatePackage(nullptr, *MaterialPackageName);
+		UPackage* MaterialPackage = CreatePackage( *MaterialPackageName);
 
 		// Create the material
 		UMaterialFactoryNew* Factory = NewObject<UMaterialFactoryNew>();
@@ -5437,7 +5437,7 @@ UObject* UFontFileImportFactory::FactoryCreateBinary(UClass* InClass, UObject* I
 		UFontFactory* FontFactory = NewObject<UFontFactory>();
 		FontFactory->bEditAfterNew = false;
 
-		UPackage* FontPackage = CreatePackage(nullptr, *FontPackageName);
+		UPackage* FontPackage = CreatePackage( *FontPackageName);
 		UFont* Font = Cast<UFont>(FontFactory->FactoryCreateNew(UFont::StaticClass(), FontPackage, *FontAssetName, InFlags, InContext, InWarn));
 		if (Font)
 		{

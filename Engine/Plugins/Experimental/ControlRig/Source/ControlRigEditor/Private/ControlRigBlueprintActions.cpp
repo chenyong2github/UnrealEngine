@@ -254,7 +254,7 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 		FString UniqueAssetName;
 		AssetToolsModule.Get().CreateUniqueAssetName(PackagePath / SequenceName, TEXT(""), UniquePackageName, UniqueAssetName);
 
-		UPackage* Package = CreatePackage(nullptr, *UniquePackageName);
+		UPackage* Package = CreatePackage(*UniquePackageName);
 		ULevelSequence* Sequence = NewObject<ULevelSequence>(Package, *UniqueAssetName, RF_Public | RF_Standalone);
 		Sequence->Initialize(); //creates movie scene
 		Sequence->MarkPackageDirty();

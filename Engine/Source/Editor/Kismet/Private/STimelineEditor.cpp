@@ -645,7 +645,7 @@ UCurveBase* STimelineEdTrack::CreateCurveAsset()
 			FString PackageName = NewLayerDlg->GetFullAssetPath().ToString();
 			FName AssetName = FName(*NewLayerDlg->GetAssetName().ToString());
 
-			UPackage* Package = CreatePackage(NULL, *PackageName);
+			UPackage* Package = CreatePackage( *PackageName);
 			
 			//Get the curve class type
 			TSubclassOf<UCurveBase> CurveType;

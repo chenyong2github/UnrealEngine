@@ -589,7 +589,7 @@ namespace UsdStageImporterImpl
 			bAssetWasOpen = true;
 		}
 
-		UPackage* Package = ExistingPackage ? ExistingPackage : CreatePackage(nullptr, *TargetPackagePath);
+		UPackage* Package = ExistingPackage ? ExistingPackage : CreatePackage(*TargetPackagePath);
 		if (!Package)
 		{
 			ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("PublishFailure", "Failed to get destination package at '{0}' for imported asset '{1}'!"), FText::FromString(TargetPackagePath), FText::FromName(Asset->GetFName())));
@@ -1084,7 +1084,7 @@ namespace UsdStageImporterImpl
 
 		if ( !ImportedPackage )
 		{
-			ImportedPackage = CreatePackage( nullptr, *PackagePath );
+			ImportedPackage = CreatePackage( *PackagePath );
 		}
 
 		ImportContext.ImportedPackage = ImportedPackage;

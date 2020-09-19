@@ -4099,8 +4099,10 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					TCHAR Temp[MAX_SPRINTF]=TEXT("");
 					FCString::Sprintf( Temp, TEXT("EXCLUDE%i="), i );
 					FName F;
-					if( FParse::Value(Str,Temp,F) )
-						Exclude.Add( CreatePackage(NULL,*F.ToString()) );
+					if (FParse::Value(Str, Temp, F))
+					{
+						Exclude.Add(CreatePackage(*F.ToString()));
+					}
 				}
 				Ar.Logf( TEXT("Dependencies of %s:"), *Pkg->GetPathName() );
 

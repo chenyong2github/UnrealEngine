@@ -5775,7 +5775,7 @@ AActor* UEditorEngine::ConvertBrushesToStaticMesh(const FString& InStaticMeshPac
 	FName ObjName = *FPackageName::GetLongPackageAssetName(InStaticMeshPackageName);
 
 
-	UPackage* Pkg = CreatePackage(NULL, *InStaticMeshPackageName);
+	UPackage* Pkg = CreatePackage( *InStaticMeshPackageName);
 	check(Pkg != nullptr);
 
 	FVector Location(0.0f, 0.0f, 0.0f);

@@ -55,7 +55,7 @@ namespace DatasmithRuntime
 #ifdef ASSET_DEBUG
 			FString MeshName = FString(MeshElement->GetLabel()) + TEXT("_LU_") + FString::FromInt(MeshData.ElementId);
 			MeshName = FDatasmithUtils::SanitizeObjectName(MeshName);
-			UPackage* Package = CreatePackage(nullptr, *FPaths::Combine(TEXT("/Engine/Transient/LU"), MeshName));
+			UPackage* Package = CreatePackage(*FPaths::Combine(TEXT("/Engine/Transient/LU"), MeshName));
 			StaticMesh = NewObject< UStaticMesh >(Package, *MeshName, RF_Public);
 #else
 			FString MeshName = TEXT("SM_") + FString(SceneElement->GetName()) + TEXT("_") + FString::FromInt(MeshData.ElementId);

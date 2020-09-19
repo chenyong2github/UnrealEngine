@@ -1743,7 +1743,7 @@ void FBehaviorTreeEditor::HandleNewNodeClassPicked(UClass* InClass) const
 		FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 		AssetToolsModule.Get().CreateUniqueAssetName(PathName, TEXT("_New"), PackageName, Name);
 
-		UPackage* Package = CreatePackage(NULL, *PackageName);
+		UPackage* Package = CreatePackage( *PackageName);
 		if (ensure(Package))
 		{
 			// Create and init a new Blueprint

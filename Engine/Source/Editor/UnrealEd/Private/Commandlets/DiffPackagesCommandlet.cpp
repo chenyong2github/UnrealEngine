@@ -351,7 +351,7 @@ UObject* CopyObjectToPackage(UPackage* Package, UObject* Object)
 		
 		// cretate the new pathname from package name and everything after the original package name
 		FString NewPathName = FString(*Package->GetName()) + OrigPathName.Right(OrigPathName.Len() - Dot);
-		NewOuter = CreatePackage(NULL, *NewPathName);
+		NewOuter = CreatePackage( *NewPathName);
 	}
 	else
 	{
@@ -566,7 +566,7 @@ bool UDEPRECATED_DiffPackagesCommandlet::Initialize( const TCHAR* Parms )
 					break;
 				}
 
-				MergePackage = CreatePackage(NULL, TEXT("MergePackage"));
+				MergePackage = CreatePackage( TEXT("MergePackage"));
 				// diff all properties if we are merging ?
 				// todo: ??
 				//		bDiffAllProps = true;
@@ -598,7 +598,7 @@ bool UDEPRECATED_DiffPackagesCommandlet::Initialize( const TCHAR* Parms )
 
 					// to avoid conflicts when loading packages from different locations that have the same name, create a dummy package to contain
 					// the file we're about the load - this will prevent the second/third versions of the file from replacing the first version when loaded.
-					Package = CreatePackage(NULL, TEXT("Package_A"));
+					Package = CreatePackage( TEXT("Package_A"));
 					Packages[0] = LoadPackage(Package, *Filename, LOAD_None);
 					PackageFilenames[0] = FPaths::GetBaseFilename(Filename);
 					NumPackages++;
@@ -609,7 +609,7 @@ bool UDEPRECATED_DiffPackagesCommandlet::Initialize( const TCHAR* Parms )
 
 					// to avoid conflicts when loading packages from different locations that have the same name, create a dummy package to contain
 					// the file we're about the load - this will prevent the second/third versions of the file from replacing the first version when loaded.
-					Package = CreatePackage(NULL, TEXT("Package_B"));
+					Package = CreatePackage( TEXT("Package_B"));
 					Packages[1] = LoadPackage(Package, *Filename, LOAD_None);
 					PackageFilenames[1] = FPaths::GetBaseFilename(Filename);
 					NumPackages++;
@@ -620,7 +620,7 @@ bool UDEPRECATED_DiffPackagesCommandlet::Initialize( const TCHAR* Parms )
 
 					// to avoid conflicts when loading packages from different locations that have the same name, create a dummy package to contain
 					// the file we're about the load - this will prevent the second/third versions of the file from replacing the first version when loaded.
-					Package = CreatePackage(NULL, TEXT("Package_C"));
+					Package = CreatePackage( TEXT("Package_C"));
 					Packages[2] = LoadPackage(Package, *Filename, LOAD_None);
 					PackageFilenames[2] = FPaths::GetBaseFilename(Filename);
 					NumPackages++;
