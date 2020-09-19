@@ -47,11 +47,11 @@ struct FMinimalViewInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
 	FRotator Rotation;
 
-	/** The field of view (in degrees) in perspective mode (ignored in Orthographic mode) */
+	/** The horizontal field of view (in degrees) in perspective mode (ignored in orthographic mode). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
 	float FOV;
 
-	/** This is the originally desired field of view before any adjustments to account for different aspect ratios */
+	/** The originally desired horizontal field of view before any adjustments to account for different aspect ratios */
 	UPROPERTY(Transient)
 	float DesiredFOV;
 
