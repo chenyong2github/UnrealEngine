@@ -272,6 +272,9 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 	}
 	BackBuffer.SafeRelease();
 
+	// Make sure we use a format the current device supports.
+	PreferredPixelFormat = D3DRHI->GetDisplayFormat(PreferredPixelFormat);
+
 	const FD3D11ResizeViewportState OldState{ SizeX, SizeY, GetRenderTargetFormat(PixelFormat), bIsFullscreen };
 	const FD3D11ResizeViewportState NewState{ InSizeX, InSizeY, GetRenderTargetFormat(PreferredPixelFormat), bInIsFullscreen };
 
