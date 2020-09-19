@@ -69,6 +69,8 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 			{
 				if (Texture->IsStreamable())
 				{
+					const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, ParameterIndex);
+					AnalysisIndex = Parameter.TextureIndex;
 					TextureResolution = 1 << (Texture->Resource->GetCurrentMipCount() - 1);
 				}
 				else
