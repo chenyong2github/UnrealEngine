@@ -160,6 +160,18 @@ public:
 	float GetStatusProgress() const;
 
 	/**
+	* Abort the currently executing job.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void CancelCurrentJob();
+
+	/**
+	* Abort the currently executing job and skip all other jobs.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
+	void CancelAllJobs();
+
+	/**
 	* Specify which MoviePipeline class type should be created by this executor when processing jobs.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
@@ -228,6 +240,8 @@ protected:
 	virtual void SetStatusProgress_Implementation(const float InProgress) { StatusProgress = InProgress; }
 	virtual FString GetStatusMessage_Implementation() const { return StatusMessage; }
 	virtual float GetStatusProgress_Implementation() const { return StatusProgress; }
+	virtual void CancelCurrentJob_Implementation() PURE_VIRTUAL(UMoviePipelineExecutorBase::CancelCurrentJobImpl, );
+	virtual void CancelAllJobs_Implementation() PURE_VIRTUAL(UMoviePipelineExecutorBase::CancelAllJobsImpl, );
 	// ~UMoviePipelineExecutorBase
 private:
 	/** 

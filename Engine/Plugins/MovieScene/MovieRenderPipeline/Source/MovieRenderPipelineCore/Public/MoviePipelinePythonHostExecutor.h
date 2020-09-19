@@ -26,6 +26,12 @@ public:
 
 	// UMoviePipelineExecutorBase Interface
 	virtual void Execute_Implementation(UMoviePipelineQueue* InPipelineQueue) override;
+	
+	/** You should override this method to implement canceling jobs. */
+	virtual void CancelAllJobs_Implementation() override;
+	/** You only need to override this methond if your executor supports multiple queued jobs. */
+	virtual void CancelCurrentJob_Implementation() override { CancelAllJobs_Implementation(); };
+
 	// ~UMoviePipelineExecutorBase Interface
 
 	// Python/Blueprint API

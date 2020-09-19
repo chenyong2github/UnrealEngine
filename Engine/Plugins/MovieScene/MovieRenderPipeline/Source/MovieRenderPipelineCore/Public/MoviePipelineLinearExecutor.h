@@ -23,6 +23,7 @@ public:
 	UMoviePipelineLinearExecutorBase()
 		: UMoviePipelineExecutorBase()
 		, CurrentPipelineIndex(0)
+		, JobsStarted(0)
 		, bIsRendering(false)
 	{
 	}
@@ -41,6 +42,9 @@ public:
 	virtual void OnExecutorFinishedImpl();
 	virtual void OnPipelineErrored(UMoviePipeline* InPipeline, bool bIsFatal, FText ErrorText);
 
+	virtual void CancelCurrentJob_Implementation();
+	virtual void CancelAllJobs_Implementation();
+
 protected:
 	
 	/** List of Pipeline Configs we've been asked to execute. */
@@ -54,8 +58,15 @@ protected:
 	/** Which Pipeline Config are we currently working on. */
 	int32 CurrentPipelineIndex;
 
+	/** The number of jobs started by this executor during this execution. */
+	int32 JobsStarted;
+
 	/** Have we actually successfully started a render? */
 	bool bIsRendering;
+
+	/** Are we in the process of canceling all execution of the queue? Will stop new jobs from being started. */
+	bool bIsCanceling;
+
 private:
 	/** Used to track total processing duration. */
 	FDateTime InitializationTime;

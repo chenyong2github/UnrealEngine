@@ -3,6 +3,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineBlueprintLibrary.h"
+#include "MoviePipeline.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineLinearExecutorBase"
 
@@ -23,6 +24,7 @@ void UMoviePipelineLinearExecutorBase::Execute_Implementation(UMoviePipelineQueu
 	// sessions, or multiple external processes) but ideally one render would maximize resource usage anyways...
 	Queue = InPipelineQueue;
 	InitializationTime = FDateTime::UtcNow();
+	JobsStarted = 0;
 
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase starting %d jobs."), InPipelineQueue->GetJobs().Num());
 
@@ -57,7 +59,7 @@ void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineInde
 
 void UMoviePipelineLinearExecutorBase::OnIndividualPipelineFinished(UMoviePipeline* /* FinishedPipeline */)
 {
-	if (CurrentPipelineIndex == Queue->GetJobs().Num() - 1)
+	if (CurrentPipelineIndex == Queue->GetJobs().Num() - 1 || bIsCanceling)
 	{
 		OnExecutorFinishedImpl();
 	}
@@ -75,12 +77,12 @@ void UMoviePipelineLinearExecutorBase::OnPipelineErrored(UMoviePipeline* InPipel
 
 void UMoviePipelineLinearExecutorBase::OnExecutorFinishedImpl()
 {
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase finished %d jobs in %s."), Queue->GetJobs().Num(), *(FDateTime::UtcNow() - InitializationTime).ToString());
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase finished %d jobs in %s."), JobsStarted, *(FDateTime::UtcNow() - InitializationTime).ToString());
+
 	// Only say that we're no longer rendering once we've finished all jobs in the executor so the UI doesn't flicker while switching over between jobs.
 	bIsRendering = false;
 	Super::OnExecutorFinishedImpl();
 }
-
 
 FText UMoviePipelineLinearExecutorBase::GetWindowTitle()
 {
@@ -99,5 +101,27 @@ FText UMoviePipelineLinearExecutorBase::GetWindowTitle()
 	FText TitleFormatString = LOCTEXT("MoviePreviewWindowTitleFormat", "Movie Pipeline Render (Preview) [Job {CurrentCount}/{TotalCount} Total] Current Job: {PercentComplete}% Completed.");
 	return FText::FormatNamed(TitleFormatString, TEXT("CurrentCount"), FText::AsNumber(CurrentPipelineIndex + 1), TEXT("TotalCount"), FText::AsNumber(Queue->GetJobs().Num()), TEXT("PercentComplete"), FText::AsNumber(CompletionPercentage, &PercentFormatOptions));
 }
+
+
+
+void UMoviePipelineLinearExecutorBase::CancelCurrentJob_Implementation()
+{
+	OnExecutorErroredImpl(nullptr, true, LOCTEXT("CancelingExecutorJob", "Executor canceling current job."));
+	if (ActiveMoviePipeline)
+	{
+		ActiveMoviePipeline->RequestShutdown(true);
+	}	
+}
+
+void UMoviePipelineLinearExecutorBase::CancelAllJobs_Implementation()
+{
+	bIsCanceling = true;
+	OnExecutorErroredImpl(nullptr, true, LOCTEXT("CancelingExecutorQueue", "Executor asked to cancel all jobs."));
+	if (ActiveMoviePipeline)
+	{
+		ActiveMoviePipeline->RequestShutdown(true);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelineLinearExecutorBase"
