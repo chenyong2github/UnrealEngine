@@ -4,6 +4,7 @@
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Matrix.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ScopedEvent.h"
 #include "ChaosLog.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "Chaos/ParticleDirtyFlags.h"
@@ -153,11 +154,19 @@ namespace Chaos
 		}
 
 		//Ensures that any running tasks finish.
-		void WaitOnPendingTasks_External()
+		void WaitOnPendingTasks_External(bool bBlock = false)
 		{
 			if(PendingTasks && !PendingTasks->IsComplete())
 			{
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(PendingTasks);
+				if (bBlock)
+				{
+					FScopedEvent Event;
+					FTaskGraphInterface::Get().TriggerEventWhenTaskCompletes(Event.Get(), PendingTasks, ENamedThreads::GameThread);
+				}
+				else 
+				{
+					FTaskGraphInterface::Get().WaitUntilTaskCompletes(PendingTasks);
+				}
 			}
 		}
 
@@ -306,21 +315,7 @@ namespace Chaos
 		/** Only allow construction with valid parameters as well as restricting to module construction */
 		virtual ~FPhysicsSolverBase();
 
-		static void DestroySolver(FPhysicsSolverBase& InSolver)
-		{
-			//block on any pending tasks
-			InSolver.WaitOnPendingTasks_External();
-
-			//make sure any pending commands are executed
-			//we don't have a flush function because of dt concerns (don't want people flushing because commands end up in wrong dt)
-			//but in this case we just need to ensure all resources are freed
-			for(const auto& Command : InSolver.CommandQueue)
-			{
-				Command();
-			}
-
-			delete &InSolver;
-		}
+		static void DestroySolver(FPhysicsSolverBase& InSolver);
 
 		FPhysicsSolverBase() = delete;
 		FPhysicsSolverBase(const FPhysicsSolverBase& InCopy) = delete;
