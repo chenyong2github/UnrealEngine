@@ -99,10 +99,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FShiftToNextUniverseTest, "VirtualProduction.DM
 bool FShiftToNextUniverseTest::RunTest(const FString& Parameters)
 {
 	FFixtureTestSetup TestSetup(4);
-	// Intentionally keep FirstManualFixture at channels 1-4 to test that FirstManualFixture is ignored when assigning to universe 2
-	TestSetup.SecondManualFixture->ManualStartingAddress = DMX_UNIVERSE_SIZE - 10; 
+	TestSetup.FirstManualFixture->ManualStartingAddress = DMX_UNIVERSE_SIZE - 10;
+	// The following is to test for regression bug: If patch A needed to be moved to universe 2, in which patch B resided, patch A's universe would not be updated to 2.
+	TestSetup.SecondManualFixture->UniverseID = 2;
+	TestSetup.SecondManualFixture->ManualStartingAddress = 5;
 
-	FDMXEditorUtils::AutoAssignedAddresses({ TestSetup.FirstAutoFixture, TestSetup.SecondAutoFixture }, TestSetup.SecondManualFixture->GetStartingChannel(), true);
+	FDMXEditorUtils::AutoAssignedAddresses({ TestSetup.FirstAutoFixture, TestSetup.SecondAutoFixture }, TestSetup.FirstManualFixture->GetStartingChannel(), true);
 	TestEqual("Starting channel of first auto patch", TestSetup.FirstAutoFixture->GetStartingChannel(), DMX_UNIVERSE_SIZE - 6); 
 	TestEqual("Starting channel of second auto patch", TestSetup.SecondAutoFixture->GetStartingChannel(), 1);
 
@@ -123,3 +125,4 @@ bool FFindsGapAtUniverseStart::RunTest(const FString& Parameters)
 	
 	return true;
 }
+
