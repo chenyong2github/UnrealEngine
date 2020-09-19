@@ -333,6 +333,8 @@ public:
 		return SystemInstanceIndex;
 	}
 
+	void OnSimulationDestroyed();
+
 private:
 	void DestroyDataInterfaceInstanceData();
 
