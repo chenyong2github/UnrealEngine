@@ -128,8 +128,12 @@ namespace WindowsMixedReality
 			IHeadMountedDisplayModule::StartupModule();
 
 			// Set the shader directory even if we won't be able to load the interop so shader compliation does not fail.
-			FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir(), TEXT("Shaders"));
-			AddShaderSourceDirectoryMapping(TEXT("/Plugin/WindowsMixedReality"), PluginShaderDir);
+			const FString VirtualShaderDir = TEXT("/Plugin/WindowsMixedReality");
+			if (!AllShaderSourceDirectoryMappings().Contains(VirtualShaderDir))  // Two modules try to map this, so we have to check if its already set.
+			{
+				FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir(), TEXT("Shaders"));
+				AddShaderSourceDirectoryMapping(VirtualShaderDir, PluginShaderDir);
+			}
 
 			HMD = LoadInteropLibrary();
 			if (!HMD)
