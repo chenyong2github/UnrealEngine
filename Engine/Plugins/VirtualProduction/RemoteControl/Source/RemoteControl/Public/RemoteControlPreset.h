@@ -459,8 +459,13 @@ public:
 	void NotifyExposedPropertyChanged(FName PropertyLabel);
 
 public:
+	/** The visual layout for this preset. */
 	UPROPERTY()
 	FRemoteControlPresetLayout Layout;
+
+	/** This preset's metadata. */
+	UPROPERTY()
+	TMap<FString, FString> Metadata;
 
 private:
 	/** Generate a unique alias for this target. */
