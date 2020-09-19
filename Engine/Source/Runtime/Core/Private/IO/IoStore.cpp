@@ -439,6 +439,11 @@ public:
 		return Toc;
 	}
 
+	const int32* GetTocEntryIndex(const FIoChunkId& ChunkId) const
+	{
+		return ChunkIdToIndex.Find(ChunkId);
+	}
+
 	const FIoOffsetAndLength* GetOffsetAndLength(const FIoChunkId& ChunkId) const
 	{
 		if (const int32* Index = ChunkIdToIndex.Find(ChunkId))
@@ -977,6 +982,19 @@ public:
 		}
 	}
 
+	TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const FIoChunkId& ChunkId) const
+	{
+		const int32* TocEntryIndex = Toc.GetTocEntryIndex(ChunkId);
+		if (TocEntryIndex)
+		{
+			return GetTocChunkInfo(*TocEntryIndex);
+		}
+		else
+		{
+			return FIoStatus(EIoErrorCode::NotFound, TEXT("Not found"));
+		}
+	}
+
 	TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const uint32 TocEntryIndex) const
 	{
 		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
@@ -1118,6 +1136,11 @@ FGuid FIoStoreReader::GetEncryptionKeyGuid() const
 void FIoStoreReader::EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
 {
 	Impl->EnumerateChunks(MoveTemp(Callback));
+}
+
+TIoStatusOr<FIoStoreTocChunkInfo> FIoStoreReader::GetChunkInfo(const FIoChunkId& Chunk) const
+{
+	return Impl->GetChunkInfo(Chunk);
 }
 
 TIoStatusOr<FIoStoreTocChunkInfo> FIoStoreReader::GetChunkInfo(const uint32 TocEntryIndex) const
