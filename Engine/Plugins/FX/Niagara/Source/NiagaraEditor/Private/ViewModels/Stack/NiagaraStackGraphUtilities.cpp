@@ -2667,6 +2667,7 @@ void FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(EStackEditC
 	}
 
 	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
+	OutNamespacesForNewParameters.Add(FNiagaraConstants::StackContextNamespace);
 }
 
 bool FNiagaraStackGraphUtilities::TryRenameAssignmentTarget(UNiagaraNodeAssignment& OwningAssignmentNode, FNiagaraVariable CurrentAssignmentTarget, FName NewAssignmentTargetName)
