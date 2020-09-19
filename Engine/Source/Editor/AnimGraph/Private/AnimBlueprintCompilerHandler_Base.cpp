@@ -906,7 +906,7 @@ bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForSplit
 		{
 			// Idea here is to account for split pins, so we want to narrow the scope to not also include user-placed makes
 			UObject* SourceObject = Context.MessageLog.FindSourceObject(MakeStructNode);
-			if(SourceObject->IsA<UAnimGraphNode_Base>())
+			if(SourceObject && SourceObject->IsA<UAnimGraphNode_Base>())
 			{
 				return ForEachInputPin(MakeStructNode, [this, &Context, &OriginalRecord](UEdGraphPin* InputPin)
 				{
@@ -933,7 +933,7 @@ bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForSplit
 			{
 				// Idea here is to account for split pins, so we want to narrow the scope to not also include user-placed makes
 				UObject* SourceObject = Context.MessageLog.FindSourceObject(MakeStructNode);
-				if(SourceObject->IsA<UAnimGraphNode_Base>())
+				if(SourceObject && SourceObject->IsA<UAnimGraphNode_Base>())
 				{
 					return ForEachInputPin(NativeMakeNode, [this, &Context, &OriginalRecord](UEdGraphPin* InputPin)
 					{
