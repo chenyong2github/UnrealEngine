@@ -335,7 +335,6 @@ SWIGEXPORT void SWIGSTDCALL SWIGRegisterWStringCallback_DatasmithFacadeCSharp(SW
 #include "DatasmithFacadeActorMesh.h"
 #include "DatasmithFacadeScene.h"
 #include "DatasmithFacadeLog.h"
-#include "DatasmithFacadeUtils.h"
 
 #include "IDatasmithExporterUIModule.h"
 #include "IDirectLinkUI.h"
@@ -4741,11 +4740,25 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeLog(void * jarg1) {
 }
 
 
-SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_Init() {
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_Init__SWIG_0() {
   unsigned int jresult ;
   bool result;
   
   result = (bool)FDatasmithFacadeDirectLink::Init();
+  jresult = result; 
+  return jresult;
+}
+
+
+SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_Init__SWIG_1(unsigned int jarg1, wchar_t * jarg2) {
+  unsigned int jresult ;
+  bool arg1 ;
+  TCHAR *arg2 = (TCHAR *) 0 ;
+  bool result;
+  
+  arg1 = jarg1 ? true : false; 
+  arg2 = (TCHAR *)jarg2; 
+  result = (bool)FDatasmithFacadeDirectLink::Init(arg1,(wchar_t const *)arg2);
   jresult = result; 
   return jresult;
 }
@@ -4813,68 +4826,6 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeDirectLink(void * jarg
   FDatasmithFacadeDirectLink *arg1 = (FDatasmithFacadeDirectLink *) 0 ;
   
   arg1 = (FDatasmithFacadeDirectLink *)jarg1; 
-  delete arg1;
-}
-
-
-SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeUniqueNameProvider_GenerateUniqueName(void * jarg1, wchar_t * jarg2) {
-  wchar_t * jresult ;
-  FDatasmithFacadeUniqueNameProvider *arg1 = (FDatasmithFacadeUniqueNameProvider *) 0 ;
-  TCHAR *arg2 = (TCHAR *) 0 ;
-  TCHAR *result = 0 ;
-  
-  arg1 = (FDatasmithFacadeUniqueNameProvider *)jarg1; 
-  arg2 = (TCHAR *)jarg2; 
-  result = (TCHAR *)(arg1)->GenerateUniqueName((TCHAR const *)arg2);
-  jresult = (wchar_t *)result; 
-  return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUniqueNameProvider_Reserve(void * jarg1, int jarg2) {
-  FDatasmithFacadeUniqueNameProvider *arg1 = (FDatasmithFacadeUniqueNameProvider *) 0 ;
-  int32 arg2 ;
-  
-  arg1 = (FDatasmithFacadeUniqueNameProvider *)jarg1; 
-  arg2 = (int32)jarg2; 
-  (arg1)->Reserve(arg2);
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUniqueNameProvider_AddExistingName(void * jarg1, wchar_t * jarg2) {
-  FDatasmithFacadeUniqueNameProvider *arg1 = (FDatasmithFacadeUniqueNameProvider *) 0 ;
-  TCHAR *arg2 = (TCHAR *) 0 ;
-  
-  arg1 = (FDatasmithFacadeUniqueNameProvider *)jarg1; 
-  arg2 = (TCHAR *)jarg2; 
-  (arg1)->AddExistingName((TCHAR const *)arg2);
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUniqueNameProvider_RemoveExistingName(void * jarg1, wchar_t * jarg2) {
-  FDatasmithFacadeUniqueNameProvider *arg1 = (FDatasmithFacadeUniqueNameProvider *) 0 ;
-  TCHAR *arg2 = (TCHAR *) 0 ;
-  
-  arg1 = (FDatasmithFacadeUniqueNameProvider *)jarg1; 
-  arg2 = (TCHAR *)jarg2; 
-  (arg1)->RemoveExistingName((TCHAR const *)arg2);
-}
-
-
-SWIGEXPORT void * SWIGSTDCALL CSharp_new_FDatasmithFacadeUniqueNameProvider() {
-  void * jresult ;
-  FDatasmithFacadeUniqueNameProvider *result = 0 ;
-  
-  result = (FDatasmithFacadeUniqueNameProvider *)new FDatasmithFacadeUniqueNameProvider();
-  jresult = (void *)result; 
-  return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeUniqueNameProvider(void * jarg1) {
-  FDatasmithFacadeUniqueNameProvider *arg1 = (FDatasmithFacadeUniqueNameProvider *) 0 ;
-  
-  arg1 = (FDatasmithFacadeUniqueNameProvider *)jarg1; 
   delete arg1;
 }
 
