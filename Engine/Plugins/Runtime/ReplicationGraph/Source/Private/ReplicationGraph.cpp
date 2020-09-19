@@ -2097,14 +2097,18 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 					if (ShouldOpenChannel)
 					{
 						// We are within range, we will open a channel now for this actor and call the RPC on it
-						ConnectionActorInfo.Channel = (UActorChannel *)NetConnection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
-						ConnectionActorInfo.Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
+						ConnectionActorInfo.Channel = (UActorChannel*)NetConnection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
 
-						// Update timeout frame name. We would run into problems if we open the channel, queue a bunch, and then it timeouts before RepGraph replicates properties.
-						UpdateActorChannelCloseFrameNum(Actor, ConnectionActorInfo, GlobalInfo, ReplicationGraphFrame+1 /** Plus one to error on safe side. RepFrame num will be incremented in the next tick */, NetConnection );
+						if (ConnectionActorInfo.Channel)
+						{
+							ConnectionActorInfo.Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 
-						// If this actor is dormant on the connection, we will force a flushnetdormancy call.
-						ForceFlushNetDormancy |= ConnectionActorInfo.bDormantOnConnection;
+							// Update timeout frame name. We would run into problems if we open the channel, queue a bunch, and then it timeouts before RepGraph replicates properties.
+							UpdateActorChannelCloseFrameNum(Actor, ConnectionActorInfo, GlobalInfo, ReplicationGraphFrame+1 /** Plus one to error on safe side. RepFrame num will be incremented in the next tick */, NetConnection );
+
+							// If this actor is dormant on the connection, we will force a flushnetdormancy call.
+							ForceFlushNetDormancy |= ConnectionActorInfo.bDormantOnConnection;
+						}
 					}
 				}
 			}
