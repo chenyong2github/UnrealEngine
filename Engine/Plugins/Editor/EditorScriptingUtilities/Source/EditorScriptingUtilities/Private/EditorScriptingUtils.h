@@ -11,6 +11,9 @@ namespace EditorScriptingUtils
 	/*
 	 * Check if the editor is in a valid state to run a command.
 	 */
+	bool IsInEditorAndNotPlaying();
+
+	UE_DEPRECATED(4.27, "Use EditorScriptingUtils::IsInEditorAndNotPlaying()")
 	bool CheckIfInEditorAndPIE();
 
 	/*
