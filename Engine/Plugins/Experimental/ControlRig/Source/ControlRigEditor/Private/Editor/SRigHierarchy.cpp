@@ -359,6 +359,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 				.OnContextMenuOpening(this, &SRigHierarchy::CreateContextMenu)
 				.OnMouseButtonClick(this, &SRigHierarchy::OnItemClicked)
 				.OnMouseButtonDoubleClick(this, &SRigHierarchy::OnItemDoubleClicked)
+				.OnSetExpansionRecursive(this, &SRigHierarchy::OnSetExpansionRecursive)
 				.HighlightParentNodesForSelection(true)
 				.ItemHeight(24)
 			]
@@ -577,7 +578,7 @@ void SRigHierarchy::RefreshTreeView()
 		{
 			for (TSharedPtr<FRigTreeElement> RootElement : RootElements)
 			{
-				SetExpansionRecursive(RootElement, false);
+				SetExpansionRecursive(RootElement, false, true);
 			}
 		}
 
@@ -596,9 +597,9 @@ void SRigHierarchy::RefreshTreeView()
 	}
 }
 
-void SRigHierarchy::SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement, bool bTowardsParent)
+void SRigHierarchy::SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement, bool bTowardsParent, bool bShouldBeExpanded)
 {
-	TreeView->SetItemExpansion(InElement, true);
+	TreeView->SetItemExpansion(InElement, bShouldBeExpanded);
 
 	if (bTowardsParent)
 	{
@@ -606,7 +607,7 @@ void SRigHierarchy::SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement,
 		{
 			if (TSharedPtr<FRigTreeElement>* ParentItem = ElementMap.Find(*ParentKey))
 			{
-				SetExpansionRecursive(*ParentItem, bTowardsParent);
+				SetExpansionRecursive(*ParentItem, bTowardsParent, bShouldBeExpanded);
 			}
 		}
 	}
@@ -614,7 +615,7 @@ void SRigHierarchy::SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement,
 	{
 		for (int32 ChildIndex = 0; ChildIndex < InElement->Children.Num(); ++ChildIndex)
 		{
-			SetExpansionRecursive(InElement->Children[ChildIndex], bTowardsParent);
+			SetExpansionRecursive(InElement->Children[ChildIndex], bTowardsParent, bShouldBeExpanded);
 		}
 	}
 }
@@ -1083,8 +1084,13 @@ void SRigHierarchy::OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem)
 	}
 	else
 	{
-		SetExpansionRecursive(InItem, false);
+		SetExpansionRecursive(InItem, false, true);
 	}
+}
+
+void SRigHierarchy::OnSetExpansionRecursive(TSharedPtr<FRigTreeElement> InItem, bool bShouldBeExpanded)
+{
+	SetExpansionRecursive(InItem, false, bShouldBeExpanded);
 }
 
 void SRigHierarchy::FillContextMenu(class FMenuBuilder& MenuBuilder)
@@ -2425,7 +2431,7 @@ void SRigHierarchy::HandleFrameSelection()
 	TArray<TSharedPtr<FRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 	for (TSharedPtr<FRigTreeElement> SelectedItem : SelectedItems)
 	{
-		SetExpansionRecursive(SelectedItem, true);
+		SetExpansionRecursive(SelectedItem, true, true);
 	}
 
 	if (SelectedItems.Num() > 0)
