@@ -8,6 +8,7 @@
 #include "HttpResultCallback.h"
 #include "HttpServerConstants.h"
 #include "HttpServerHttpVersion.h"
+#include "Misc/Timespan.h"
 
 class FSocket;
 class ISocketSubsystem;
@@ -27,8 +28,7 @@ public:
 	 * 
 	 * @param InSocket The underlying file descriptor
 	 */
-	FHttpConnection(FSocket* Socket, TSharedPtr<FHttpRouter> Router, uint32 OriginPort, uint32 ConnectionId);
-
+	FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId, FTimespan InSelectWaitTime);
 	/**
 	 * Destructor
 	 */
@@ -208,5 +208,8 @@ private:
 
 	/** The duration (seconds) at which idle keep-alive connections are forcefully timed out */
 	static constexpr float ConnectionKeepAliveTimeout = 15.0f;
+
+	/** The maximum time spent waiting for a client to accept reading its data. */
+	FTimespan SelectWaitTime;
 };
 
