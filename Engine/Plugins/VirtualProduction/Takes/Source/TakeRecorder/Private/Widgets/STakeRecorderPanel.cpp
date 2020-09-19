@@ -125,6 +125,9 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 		SuppliedLevelSequence  = InArgs._SequenceToView;
 	}
 
+	/** Clear the dirty flag since the preset was just initialized. */
+	TransientPreset->GetOutermost()->SetDirtyFlag(false);
+
 	// Create the child widgets that need to know about our level sequence
 	CockpitWidget = SNew(STakeRecorderCockpit)
 	.LevelSequence(this, &STakeRecorderPanel::GetLevelSequence);
@@ -258,15 +261,15 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 
 TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 {
-
 	int ButtonBoxSize = 28;
-	return SNew(SBorder)
+	TSharedPtr<SHorizontalBox> ButtonHolder;
 
+	TSharedRef<SBorder> Border = SNew(SBorder)
 	.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 	.Padding(FMargin(3.f, 3.f))
 	[
 
-		SNew(SHorizontalBox)
+		SAssignNew(ButtonHolder, SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
 		.Padding(TakeRecorder::ButtonOffset)
@@ -388,6 +391,7 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 		]
 
 		+ SHorizontalBox::Slot()
+		.Padding(TakeRecorder::ButtonOffset)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
@@ -401,6 +405,7 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 		]
 
 		+ SHorizontalBox::Slot()
+		.Padding(TakeRecorder::ButtonOffset)
 		.VAlign(VAlign_Fill)
 		.AutoWidth()
 		[
@@ -424,6 +429,27 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 			]
 		]
 	];
+
+	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	TArray<TSharedRef<SWidget>> OutExtensions;
+	TakeRecorderModule.GetToolbarExtensionGenerators().Broadcast(OutExtensions);
+
+	for (const TSharedRef<SWidget>& Widget : OutExtensions)
+	{
+		ButtonHolder->AddSlot()
+		.Padding(TakeRecorder::ButtonOffset)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SBox)
+			.HeightOverride(ButtonBoxSize)
+			[
+				Widget
+			]
+		];
+	}
+
+	return Border;
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
@@ -584,6 +610,7 @@ void STakeRecorderPanel::OnImportPreset(const FAssetData& InPreset)
 
 		TransientPreset->Modify();
 		TransientPreset->CopyFrom(Take);
+		TransientPreset->GetOutermost()->SetDirtyFlag(false);
 
 		CockpitWidget->GetMetaData()->SetPresetOrigin(Take);
 	}
@@ -698,6 +725,8 @@ void STakeRecorderPanel::OnSaveAsPreset()
 		}
 
 		NewPreset->MarkPackageDirty();
+		// Clear the package dirty flag on the transient preset since it was saved.
+		TransientPreset->GetOutermost()->SetDirtyFlag(false);
 		FAssetRegistryModule::AssetCreated(NewPreset);
 
 		FEditorFileUtils::PromptForCheckoutAndSave({ NewPackage }, false, false);
@@ -759,6 +788,7 @@ FReply STakeRecorderPanel::OnRevertChanges()
 
 	TransientPreset->Modify();
 	TransientPreset->CopyFrom(PresetOrigin);
+	TransientPreset->GetOutermost()->SetDirtyFlag(false);
 
 	return FReply::Handled();
 }

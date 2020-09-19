@@ -72,6 +72,11 @@ public:
 	virtual TArray<TSharedRef<IConcertSyncClient>> GetClients() const = 0;
 
 	/**
+	 * Find a concert sync client.
+	 */
+	virtual TSharedPtr<IConcertSyncClient> GetClient(const FString& InRole) const = 0;
+
+	/**
 	 * Delegate invoked when a new concert sync client is created.
 	 */
 	virtual FOnConcertClientCreated& OnClientCreated() = 0;
