@@ -5984,14 +5984,20 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(SaveManifests);
 					// Always try to save the manifests, this is required to make the asset registry work, but doesn't necessarily write a file
-					Generator.SaveManifests(SandboxFile.Get());
+					if (!Generator.SaveManifests(SandboxFile.Get()))
+					{
+						UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
+					}
 
 					int64 ExtraFlavorChunkSize;
 					if (FParse::Value(FCommandLine::Get(), TEXT("ExtraFlavorChunkSize="), ExtraFlavorChunkSize))
 					{
 						if (ExtraFlavorChunkSize > 0)
 						{
-							Generator.SaveManifests(SandboxFile.Get(), ExtraFlavorChunkSize);
+							if (!Generator.SaveManifests(SandboxFile.Get(), ExtraFlavorChunkSize))
+							{
+								UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
+							}
 						}
 					}
 				}
