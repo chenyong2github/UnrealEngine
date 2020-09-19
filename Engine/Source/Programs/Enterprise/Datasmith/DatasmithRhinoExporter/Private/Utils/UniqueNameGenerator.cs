@@ -26,7 +26,16 @@ namespace DatasmithRhino
 						DefaultName = "block definition";
 						break;
 					case ObjectType.InstanceReference:
-						DefaultName = "block instance";
+						// The default name for instances should be the name of the definition.
+						InstanceDefinition Definition = (InRhinoObject as InstanceObject).InstanceDefinition;
+						if (Definition != null && !string.IsNullOrEmpty(Definition.Name))
+						{
+							DefaultName = Definition.Name;
+						}
+						else
+						{
+							DefaultName = "block instance";
+						}
 						break;
 					case ObjectType.Point:
 						DefaultName = "point";
@@ -92,7 +101,7 @@ namespace DatasmithRhino
 		/// <returns></returns>
 		public static string GetTargetName(ModelComponent InModelComponent)
 		{
-			string TargetName = (InModelComponent.Name != null && InModelComponent.Name != "")
+			string TargetName = !string.IsNullOrEmpty(InModelComponent.Name)
 				? InModelComponent.Name
 				: GetDefaultTypeName(InModelComponent);
 
