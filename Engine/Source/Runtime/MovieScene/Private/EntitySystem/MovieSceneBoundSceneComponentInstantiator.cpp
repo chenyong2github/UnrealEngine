@@ -56,6 +56,11 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 						// Make a child entity for this resolved binding
 						Add(InEntityIndex, SceneComponent);
 					}
+					else if (Object->Implements<UMovieSceneSceneComponentImpersonator>())
+					{
+						// Objects meant explicitly to be impersonators are also allowed.
+						Add(InEntityIndex, Object);
+					}
 				}
 			}
 		}
