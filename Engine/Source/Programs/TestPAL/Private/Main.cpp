@@ -14,9 +14,7 @@
 #include "HAL/MallocPoisonProxy.h"
 #include "HAL/ThreadSafeCounter64.h"
 
-#if PLATFORM_LINUX
 #include "Misc/Fork.h"
-#endif
 
 DEFINE_LOG_CATEGORY(LogTestPAL);
 
