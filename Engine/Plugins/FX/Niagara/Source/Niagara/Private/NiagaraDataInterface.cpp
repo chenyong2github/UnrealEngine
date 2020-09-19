@@ -13,6 +13,8 @@
 
 UNiagaraDataInterface::UNiagaraDataInterface(FObjectInitializer const& ObjectInitializer)
 {
+	bRenderDataDirty = false;
+	bUsedByGPUEmitter = false;
 }
 
 UNiagaraDataInterface::~UNiagaraDataInterface()
@@ -70,8 +72,7 @@ bool UNiagaraDataInterface::Equals(const UNiagaraDataInterface* Other) const
 
 bool UNiagaraDataInterface::IsUsedWithGPUEmitter(FNiagaraSystemInstance* SystemInstance) const
 {
-	//-TODO: We should find out if this DI is connected to a GPU emitter or not rather than a blanket across the system
-	return SystemInstance->HasGPUEmitters();
+	return bUsedByGPUEmitter;
 }
 
 bool UNiagaraDataInterface::IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef)

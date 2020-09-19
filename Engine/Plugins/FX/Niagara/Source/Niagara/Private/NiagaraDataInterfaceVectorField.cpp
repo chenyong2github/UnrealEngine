@@ -51,7 +51,7 @@ UNiagaraDataInterfaceVectorField::UNiagaraDataInterfaceVectorField(FObjectInitia
 	, bTileZ(false)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyVectorField());
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
@@ -71,7 +71,7 @@ void UNiagaraDataInterfaceVectorField::PreEditChange(FProperty* PropertyAboutToC
 void UNiagaraDataInterfaceVectorField::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 #endif //WITH_EDITOR
 
@@ -84,7 +84,7 @@ void UNiagaraDataInterfaceVectorField::PostLoad()
 		Field->ConditionalPostLoad();
 	}
 
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceVectorField::PostInitProperties()
@@ -626,11 +626,11 @@ bool UNiagaraDataInterfaceVectorField::CopyToInternal(UNiagaraDataInterface* Des
 	OtherTyped->bTileY = bTileY;
 	OtherTyped->bTileZ = bTileZ;
 
-	OtherTyped->PushToRenderThread();
+	OtherTyped->MarkRenderDataDirty();
 	return true;
 }
 
-void UNiagaraDataInterfaceVectorField::PushToRenderThread()
+void UNiagaraDataInterfaceVectorField::PushToRenderThreadImpl()
 {
 	FNiagaraDataInterfaceProxyVectorField* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyVectorField>();
 

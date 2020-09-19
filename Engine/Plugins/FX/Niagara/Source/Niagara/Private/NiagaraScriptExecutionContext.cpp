@@ -587,7 +587,10 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 		uint8* InstanceDataBase = (uint8*) DIInstanceData->PerInstanceDataForRT;
 		uint32 RunningOffset = 0;
-		for (auto& Pair : InSystemInstance->DataInterfaceInstanceDataOffsets)
+
+		DIInstanceData->InterfaceProxiesToOffsets.Reserve(InSystemInstance->GPUDataInterfaces.Num());
+
+		for (const auto& Pair : InSystemInstance->GPUDataInterfaces)
 		{
 			UNiagaraDataInterface* Interface = Pair.Key.Get();
 			if (Interface == nullptr)
@@ -596,22 +599,21 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			}
 
 			FNiagaraDataInterfaceProxy* Proxy = Interface->GetProxy();
-			int32 Offset = Pair.Value;
+			const int32 Offset = Pair.Value;
 
 			const int32 RTDataSize = Interface->PerInstanceDataPassedToRenderThreadSize();
-			if (RTDataSize > 0)
-			{
-				check(Proxy);
-				void* PerInstanceData = &InSystemInstance->DataInterfaceInstanceData[Offset];
+			ensure(RTDataSize > 0);
+			check(Proxy);
 
-				Interface->ProvidePerInstanceDataForRenderThread(InstanceDataBase, PerInstanceData, SystemInstanceID);
+			void* PerInstanceData = &InSystemInstance->DataInterfaceInstanceData[Offset];
 
-				// @todo rethink this. So ugly.
-				DIInstanceData->InterfaceProxiesToOffsets.Add(Proxy, RunningOffset);
+			Interface->ProvidePerInstanceDataForRenderThread(InstanceDataBase, PerInstanceData, SystemInstanceID);
 
-				InstanceDataBase += RTDataSize;
-				RunningOffset += RTDataSize;
-			}
+			// @todo rethink this. So ugly.
+			DIInstanceData->InterfaceProxiesToOffsets.Add(Proxy, RunningOffset);
+
+			InstanceDataBase += RTDataSize;
+			RunningOffset += RTDataSize;
 		}
 	}
 

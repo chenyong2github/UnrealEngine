@@ -327,7 +327,7 @@ void UNiagaraDataInterfaceCurlNoise::PostLoad()
 	Super::PostLoad();
 	OffsetFromSeed = FNiagaraUIntVectorToFVector(Rand3DPCG16(FIntVector(Seed, Seed, Seed))) / 100.0;
 
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 #if WITH_EDITOR
@@ -351,7 +351,7 @@ void UNiagaraDataInterfaceCurlNoise::PostEditChangeProperty(struct FPropertyChan
 		OffsetFromSeed = FNiagaraUIntVectorToFVector(Rand3DPCG16(FIntVector(Seed, Seed, Seed))) / 100.0;
 	}
 
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 #endif
@@ -365,7 +365,7 @@ bool UNiagaraDataInterfaceCurlNoise::CopyToInternal(UNiagaraDataInterface* Desti
 	UNiagaraDataInterfaceCurlNoise* DestinationCurlNoise = CastChecked<UNiagaraDataInterfaceCurlNoise>(Destination);
 	DestinationCurlNoise->Seed = Seed;
 	DestinationCurlNoise->OffsetFromSeed = OffsetFromSeed;
-	DestinationCurlNoise->PushToRenderThread();
+	DestinationCurlNoise->MarkRenderDataDirty();
 
 	return true;
 }
@@ -451,7 +451,7 @@ void UNiagaraDataInterfaceCurlNoise::GetParameterDefinitionHLSL(const FNiagaraDa
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
-void UNiagaraDataInterfaceCurlNoise::PushToRenderThread()
+void UNiagaraDataInterfaceCurlNoise::PushToRenderThreadImpl()
 {
 	FNiagaraDataInterfaceProxyCurlNoise* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyCurlNoise>();
 
