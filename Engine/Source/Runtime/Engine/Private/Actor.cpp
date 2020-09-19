@@ -48,7 +48,6 @@
 
 DEFINE_LOG_CATEGORY(LogActor);
 
-DEFINE_STAT(STAT_GetComponentsTime);
 DECLARE_CYCLE_STAT(TEXT("PostActorConstruction"), STAT_PostActorConstruction, STATGROUP_Engine);
 
 #if UE_BUILD_SHIPPING
