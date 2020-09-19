@@ -206,9 +206,8 @@ namespace ObjectTools
 			// it does make an exception with very specific package metadata case.
 			for (UObject* ObjectToDelete : ObjectsToDelete)
 			{
-				if ((ObjectToDelete->HasAnyFlags(GARBAGE_COLLECTION_KEEPFLAGS) ||
-					ObjectToDelete->HasAnyInternalFlags(EInternalObjectFlags::GarbageCollectionKeepFlags)) &&
-					(bIsGatheringPackageRef && !ObjectToDelete->IsA<UMetaData>()))
+				if ((ObjectToDelete->HasAnyFlags(GARBAGE_COLLECTION_KEEPFLAGS) || ObjectToDelete->HasAnyInternalFlags(EInternalObjectFlags::GarbageCollectionKeepFlags)) &&
+					(!bIsGatheringPackageRef || !ObjectToDelete->IsA<UMetaData>()))
 				{
 					InternalReferences.Add(ObjectToDelete);
 					bOutIsReferenced = true;
