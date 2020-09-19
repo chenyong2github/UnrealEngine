@@ -60,6 +60,22 @@ static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
 int32 GDX12NVAfterMathMarkers = 0;
 #endif
 
+int32 GMinimumWindowsBuildVersionForRayTracing = 0;
+static FAutoConsoleVariableRef CVarMinBuildVersionForRayTracing(
+	TEXT("r.D3D12.DXR.MinimumWindowsBuildVersion"),
+	GMinimumWindowsBuildVersionForRayTracing,
+	TEXT("Sets the minimum Windows build version required to enable ray tracing."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
+int32 GMinimumDriverVersionForRayTracingNVIDIA = 0;
+static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingNVIDIA(
+	TEXT("r.D3D12.DXR.MinimumDriverVersionNVIDIA"),
+	GMinimumDriverVersionForRayTracingNVIDIA,
+	TEXT("Sets the minimum driver version required to enable ray tracing."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 static inline int D3D12RHI_PreferAdapterVendor()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("preferAMD")))
@@ -783,6 +799,39 @@ void FD3D12DynamicRHI::PostInit()
 
 		GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
 	}
+
+	// Before initializing the ray tracing device, check post conditions required for ray tracing
+
+	// Disable old Windows build versions
+	if (GRHISupportsRayTracing
+		&& GMinimumWindowsBuildVersionForRayTracing > 0
+		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
+	{
+		GRHISupportsRayTracing = false;
+
+		UE_LOG(LogD3D12RHI, Log, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
+	}
+
+	// Disable ray tracing for old Nvidia drivers
+#if NV_API_ENABLE
+	if (GRHISupportsRayTracing
+		&& GMinimumDriverVersionForRayTracingNVIDIA > 0
+		&& IsRHIDeviceNVIDIA()
+		&& bAllowVendorDevice)
+	{
+		NvU32 DriverVersion = UINT32_MAX;
+		NvAPI_ShortString BranchString("");
+		if (NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BranchString) == NVAPI_OK)
+		{
+			if (DriverVersion < (uint32)GMinimumDriverVersionForRayTracingNVIDIA)
+			{
+				GRHISupportsRayTracing = false;
+
+				UE_LOG(LogD3D12RHI, Log, TEXT("Ray tracing is disabled because the driver is too old"));
+			}
+		}
+	}
+#endif	
 
 	if (GRHISupportsRayTracing)
 	{
