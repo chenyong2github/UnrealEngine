@@ -88,28 +88,28 @@ namespace VirtualTextureScalability
 		GTileCountBiases[0],
 		TEXT("Bias to apply to Runtime Virtual Texture size.\n")
 		TEXT(" Group 0"),
-		ECVF_RenderThreadSafe | ECVF_Scalability
+		ECVF_Scalability
 	);
 	static FAutoConsoleVariableRef CVarVTTileCountBias0(
 		TEXT("r.VT.RVT.TileCountBias.Group0"),
 		GTileCountBiases[0],
 		TEXT("Bias to apply to Runtime Virtual Texture size.\n")
 		TEXT(" Group 0"),
-		ECVF_RenderThreadSafe | ECVF_Scalability
+		ECVF_Scalability
 	);
 	static FAutoConsoleVariableRef CVarVTTileCountBias1(
 		TEXT("r.VT.RVT.TileCountBias.Group1"),
 		GTileCountBiases[1],
 		TEXT("Bias to apply to Runtime Virtual Texture size.\n")
 		TEXT(" Group 1"),
-		ECVF_RenderThreadSafe | ECVF_Scalability
+		ECVF_Scalability
 	);
 	static FAutoConsoleVariableRef CVarVTTileCountBias2(
 		TEXT("r.VT.RVT.TileCountBias.Group2"),
 		GTileCountBiases[2],
 		TEXT("Bias to apply to Runtime Virtual Texture size.\n")
 		TEXT(" Group 2"),
-		ECVF_RenderThreadSafe | ECVF_Scalability
+		ECVF_Scalability
 	);
 
 
