@@ -15,6 +15,7 @@
 #include "Application/ActiveTimerHandle.h"
 #include "Input/HittestGrid.h"
 #include "Debugging/SlateDebugging.h"
+#include "Debugging/WidgetList.h"
 #include "Widgets/SWindow.h"
 #include "Trace/SlateTrace.h"
 #include "Types/ReflectionMetadata.h"
@@ -30,9 +31,11 @@
 #endif
 
 // Enabled to assign FindWidgetMetaData::FoundWidget to the widget that has the matching reflection data 
-#define WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA 0
+#ifndef UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
+	#define UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA 0
+#endif
 
-#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
+#if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
 namespace FindWidgetMetaData
 {
 	SWidget* FoundWidget = nullptr;
@@ -238,12 +241,13 @@ SWidget::SWidget()
 		INC_DWORD_STAT(STAT_SlateTotalWidgetsPerFrame);
 	}
 
+	UE_SLATE_DEBUG_WIDGETLIST_ADD_WIDGET(this);
 	UE_TRACE_SLATE_WIDGET_ADDED(this);
 }
 
 SWidget::~SWidget()
 {
-#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
+#if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
 	if (FindWidgetMetaData::FoundWidget == this)
 	{
 		FindWidgetMetaData::FoundWidget = nullptr;
@@ -287,6 +291,7 @@ SWidget::~SWidget()
 	StatIDStringStorage = nullptr;
 #endif
 
+	UE_SLATE_DEBUG_WIDGETLIST_REMOVE_WIDGET(this);
 	UE_TRACE_SLATE_WIDGET_REMOVED(this);
 	DEC_DWORD_STAT(STAT_SlateTotalWidgets);
 	DEC_MEMORY_STAT_BY(STAT_SlateSWidgetAllocSize, AllocSize);
@@ -1659,11 +1664,10 @@ void SWidget::AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe)
 {
 	MetaData.Add(AddMe);
 
-
-#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA || UE_SLATE_TRACE_ENABLED
+#if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA || UE_SLATE_TRACE_ENABLED
 	if (AddMe->IsOfType<FReflectionMetaData>())
 	{
-#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
+#if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
 		TSharedRef<FReflectionMetaData> Reflection = StaticCastSharedRef<FReflectionMetaData>(AddMe);
 		if (Reflection->Name == FindWidgetMetaData::WidgeName && Reflection->Asset.Get() && Reflection->Asset.Get()->GetFName() == FindWidgetMetaData::AssetName)
 		{
@@ -1866,4 +1870,5 @@ bool SWidget::IsChildWidgetCulled(const FSlateRect& MyCullingRect, const FArrang
 }
 
 #endif
-#undef WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
+
+#undef UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
