@@ -3772,7 +3772,7 @@ namespace WindowsMixedReality
 				m_onDisconnectedEventRevoker =
 					m_remoteContext.OnDisconnected(winrt::auto_revoke, [this](winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason failureReason)
 				{
-					const wchar_t ConnectFailureReasonString[static_cast<int32>(winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::DisconnectRequest) + 1][32] =
+					const wchar_t ConnectFailureReasonString[static_cast<int32>(winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::PeerDisconnectTimeout) + 1][32] =
 					{
 						L"None",
 						L"Unknown",
@@ -3793,7 +3793,12 @@ namespace WindowsMixedReality
 						L"Canceled",
 						L"ConnectionLost",
 						L"DeviceLost",
-						L"DisconnectRequest"
+						L"DisconnectRequest",
+						L"HandshakeNetworkUnreachable",
+						L"HandshakeConnectionRefused",
+						L"VideoFormatNotAvailable",
+						L"PeerDisconnectRequest",
+						L"PeerDisconnectTimeout"
 					}; 
 
 					//copy reason for future retrieval
@@ -3923,6 +3928,9 @@ namespace WindowsMixedReality
 
 	void MixedRealityInterop::DisconnectFromDevice()
 	{
+		//make sure to set to empty
+		wcsncpy_s(failureString, L"", std::size(failureString));
+
 #if HOLO_STREAMING_RENDERING
 		if (m_isHL1Remoting)
 		{
