@@ -19,6 +19,7 @@
 #include "Misc/CString.h"
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
@@ -387,6 +388,12 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	Trace::Initialize(Desc);
 
 	FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
+	FModuleManager::Get().OnModulesChanged().AddLambda([](FName Name, EModuleChangeReason Reason){
+		if (Reason == EModuleChangeReason::ModuleLoaded)
+		{
+			EnableChannels();
+		}
+	});
 
 	// Extract an explicit channel set from the command line.
 	FString Parameter;

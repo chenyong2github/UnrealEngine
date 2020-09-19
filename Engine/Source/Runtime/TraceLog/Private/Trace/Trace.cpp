@@ -43,7 +43,7 @@ static uint32 ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
 void Initialize(const FInitializeDesc& Desc)
 {
 	Private::Writer_Initialize(Desc);
-	FChannel::ToggleAll(false);
+	FChannel::Initialize();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
