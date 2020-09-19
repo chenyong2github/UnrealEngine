@@ -8,6 +8,20 @@
 
 enum class ESocialSubsystem : uint8;
 
+USTRUCT()
+struct FSocialPlatformDescription
+{
+	GENERATED_BODY()
+
+	FSocialPlatformDescription() { };
+
+	UPROPERTY()
+	FString SocialPlatformTypeName;
+
+	UPROPERTY()
+	FString SocialPlatformName;
+};
+
 /**
  * Config-driven settings object for the social framework.
  * Only the CDO is ever expected to be used, no instance is ever expected to be created.
@@ -29,6 +43,7 @@ public:
 	static float GetUserListAutoUpdateRate();
 	static int32 GetMinNicknameLength();
 	static int32 GetMaxNicknameLength();
+	static const TArray<FSocialPlatformDescription>& GetSocialPlatformDescriptions();
 
 private:
 	/**
@@ -71,4 +86,7 @@ private:
 	/** Longest possible player nickname */
 	UPROPERTY(Config)
 	int32 MaxNicknameLength = 16;
+
+	UPROPERTY(Config)
+	TArray<FSocialPlatformDescription> SocialPlatformDescriptions;
 };
