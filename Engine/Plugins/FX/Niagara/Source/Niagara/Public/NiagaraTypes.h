@@ -1634,6 +1634,7 @@ inline void FNiagaraVariable::SetValue<bool>(const bool& Data)
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
+// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
 struct alignas(16) FNiagaraGlobalParameters
 {
 #if WITH_EDITOR
@@ -1644,10 +1645,16 @@ struct alignas(16) FNiagaraGlobalParameters
 	float EngineInvDeltaTime = 0.0f;
 	float EngineTime = 0.0f;
 	float EngineRealTime = 0.0f;
+	int32 QualityLevel = 0;
+
+	int32 _Pad0;
+	int32 _Pad1;
+	int32 _Pad2;
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
+// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
 struct alignas(16) FNiagaraSystemParameters
 {
 #if WITH_EDITOR
@@ -1662,10 +1669,16 @@ struct alignas(16) FNiagaraSystemParameters
 	int32 EngineTickCount = 0;
 	int32 EngineEmitterCount = 0;
 	int32 EngineAliveEmitterCount = 0;
+	int32 SignificanceIndex = 0;
+
+	int32 _Pad0;
+	int32 _Pad1;
+	int32 _Pad2;
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
+// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
 struct alignas(16) FNiagaraOwnerParameters
 {
 #if WITH_EDITOR
@@ -1689,6 +1702,7 @@ struct alignas(16) FNiagaraOwnerParameters
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
+// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
 struct alignas(16) FNiagaraEmitterParameters
 {
 #if WITH_EDITOR

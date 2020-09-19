@@ -1513,95 +1513,117 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 
 	Super::SendRenderDynamicData_Concurrent();
 
-	if (SystemInstance.IsValid() && SceneProxy)
+	if (SceneProxy)
 	{
-		FNiagaraCrashReporterScope CRScope(SystemInstance.Get());
-
-#if STATS
-		TStatId SystemStatID = GetAsset() ? GetAsset()->GetStatID(true, true) : TStatId();
-		FScopeCycleCounter SystemStatCounter(SystemStatID);
-#endif
-
-		FNiagaraScopedRuntimeCycleCounter RuntimeScope(GetAsset(), true, false);
-
 		FNiagaraSceneProxy* NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy);
-		const TArray<FNiagaraRenderer*>& EmitterRenderers = NiagaraProxy->GetEmitterRenderers();
-		const int32 NumEmitterRenderers = EmitterRenderers.Num();
-
-		if (NumEmitterRenderers == 0)
+		if (SystemInstance.IsValid())
 		{
-			// Early out if we have no renderers
-			return;
-		}
+			FNiagaraCrashReporterScope CRScope(SystemInstance.Get());
 
-		typedef TArray<FNiagaraDynamicDataBase*, TInlineAllocator<8>> TDynamicDataArray;
-		TDynamicDataArray NewDynamicData;
-		NewDynamicData.Reserve(NumEmitterRenderers);
+	#if STATS
+			TStatId SystemStatID = GetAsset() ? GetAsset()->GetStatID(true, true) : TStatId();
+			FScopeCycleCounter SystemStatCounter(SystemStatID);
+	#endif
 
-		int32 RendererIndex = 0;
-		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
-		{
-			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
-			UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
+			FNiagaraScopedRuntimeCycleCounter RuntimeScope(GetAsset(), true, false);
 
-			if(Emitter == nullptr)
+			const TArray<FNiagaraRenderer*>& EmitterRenderers = NiagaraProxy->GetEmitterRenderers();
+			const int32 NumEmitterRenderers = EmitterRenderers.Num();
+
+			if (NumEmitterRenderers == 0)
 			{
-				continue;
+				// Early out if we have no renderers
+				return;
 			}
 
-#if STATS
-			TStatId EmitterStatID = Emitter->GetStatID(true, true);
-			FScopeCycleCounter EmitterStatCounter(EmitterStatID);
-#endif
+			typedef TArray<FNiagaraDynamicDataBase*, TInlineAllocator<8>> TDynamicDataArray;
+			TDynamicDataArray NewDynamicData;
+			NewDynamicData.SetNumUninitialized(NumEmitterRenderers);
 
-			Emitter->ForEachEnabledRenderer(
-				[&](UNiagaraRendererProperties* Properties)
+			int32 RendererIndex = 0;
+			for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+			{
+				FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
+				UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter();
+
+				if(Emitter == nullptr)
 				{
-					FNiagaraRenderer* Renderer = EmitterRenderers[RendererIndex++];
-					FNiagaraDynamicDataBase* NewData = nullptr;
-				
-					if (Renderer && Properties->GetIsActive())
+					continue;
+				}
+
+	#if STATS
+				TStatId EmitterStatID = Emitter->GetStatID(true, true);
+				FScopeCycleCounter EmitterStatCounter(EmitterStatID);
+	#endif
+
+				Emitter->ForEachEnabledRenderer(
+					[&](UNiagaraRendererProperties* Properties)
 					{
-						bool bRendererEditorEnabled = true;
-#if WITH_EDITORONLY_DATA
-						const FNiagaraEmitterHandle& Handle = Asset->GetEmitterHandle(i);
-						bRendererEditorEnabled = (!SystemInstance->GetIsolateEnabled() || Handle.IsIsolated());
-#endif
-						if (bRendererEditorEnabled && !EmitterInst->IsComplete() && !SystemInstance->IsComplete())
+						FNiagaraRenderer* Renderer = EmitterRenderers[RendererIndex];
+						FNiagaraDynamicDataBase* NewData = nullptr;
+				
+						if (Renderer && Properties->GetIsActive())
 						{
-							NewData = Renderer->GenerateDynamicData(NiagaraProxy, Properties, EmitterInst);
+							bool bRendererEditorEnabled = true;
+	#if WITH_EDITORONLY_DATA
+							const FNiagaraEmitterHandle& Handle = Asset->GetEmitterHandle(i);
+							bRendererEditorEnabled = (!SystemInstance->GetIsolateEnabled() || Handle.IsIsolated());
+	#endif
+							if (bRendererEditorEnabled && !EmitterInst->IsComplete() && !SystemInstance->IsComplete())
+							{
+								NewData = Renderer->GenerateDynamicData(NiagaraProxy, Properties, EmitterInst);
+							}
 						}
+
+						NewDynamicData[RendererIndex] = NewData;
+						++RendererIndex;
 					}
-
-					NewDynamicData.Add(NewData);
-				}
-			);
-		}
-
-#if WITH_EDITOR
-		if (NumEmitterRenderers != NewDynamicData.Num())
-		{
-			// This can happen in the editor when modifying the number or renderers while the system is running and the render thread is already processing the data.
-			// in this case we just skip drawing this frame since the system will be reinitialized.
-			return;
-		}
-#endif
-		
-		ENQUEUE_RENDER_COMMAND(NiagaraSetDynamicData)(
-			[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfAsset=Asset](FRHICommandListImmediate& RHICmdList)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-			PARTICLE_PERF_STAT_CYCLES(PerfAsset, RenderUpdate);
-
-			const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
-			for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)
-			{
-				if (FNiagaraRenderer* Renderer = EmitterRenderers_RT[i])
-				{
-					Renderer->SetDynamicData_RenderThread(DynamicData[i]);
-				}
+				);
 			}
-		});
+
+	#if WITH_EDITOR
+			if(ensure(RendererIndex == NumEmitterRenderers) == false)
+			{
+				// This can happen in the editor when modifying the number or renderers while the system is running and the render thread is already processing the data.
+				// in this case we just skip drawing this frame since the system will be reinitialized.
+				return;
+			}
+	#endif
+		
+			ENQUEUE_RENDER_COMMAND(NiagaraSetDynamicData)(
+				[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfAsset=Asset](FRHICommandListImmediate& RHICmdList)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
+				PARTICLE_PERF_STAT_CYCLES(PerfAsset, RenderUpdate);
+
+				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
+				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)
+				{
+					if (FNiagaraRenderer* Renderer = EmitterRenderers_RT[i])
+					{
+						Renderer->SetDynamicData_RenderThread(DynamicData[i]);
+					}
+				}
+			});
+		}
+		else
+		{
+			ENQUEUE_RENDER_COMMAND(NiagaraClearDynamicData)(
+				[NiagaraProxy, PerfAsset = Asset](FRHICommandListImmediate& RHICmdList)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
+				PARTICLE_PERF_STAT_CYCLES(PerfAsset, RenderUpdate);
+
+				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
+				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)
+				{
+					if (FNiagaraRenderer* Renderer = EmitterRenderers_RT[i])
+					{
+						Renderer->SetDynamicData_RenderThread(nullptr);
+					}
+				}
+			});
+		}
 	}
 }
 

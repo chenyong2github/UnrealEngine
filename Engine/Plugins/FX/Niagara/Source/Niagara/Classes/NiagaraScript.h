@@ -354,6 +354,9 @@ public:
 	TArray<FNiagaraCompileEvent> LastCompileEvents;
 #endif
 
+	UPROPERTY()
+	uint32 bReadsSignificanceIndex : 1;
+
 	void SerializeData(FArchive& Ar, bool bDDCData);
 	
 	bool IsValid() const;

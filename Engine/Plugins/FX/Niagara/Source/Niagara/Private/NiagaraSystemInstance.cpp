@@ -97,6 +97,7 @@ static FAutoConsoleVariableRef CVarNiagaraAllowDeferredReset(
 FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& InAsset, FNiagaraUserRedirectionParameterStore* InOverrideParameters,
 	USceneComponent* InAttachComponent, ENiagaraTickBehavior InTickBehavior, bool bInPooled)
 	: SystemInstanceIndex(INDEX_NONE)
+	, SignificanceIndex(INDEX_NONE)
 	, World(&InWorld)
 	, Asset(&InAsset)
 	, OverrideParameters(InOverrideParameters)
@@ -1710,6 +1711,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	CurrentSystemParameters.EngineExecutionState = static_cast<uint32>(RequestedExecutionState);
 	CurrentSystemParameters.EngineLodDistance = GetLODDistance();
 	CurrentSystemParameters.EngineLodDistanceFraction = CurrentSystemParameters.EngineLodDistance / MaxLODDistance;
+	CurrentSystemParameters.SignificanceIndex = SignificanceIndex;
 
 	if (OverrideParameters)
 	{
@@ -1748,12 +1750,14 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 
 	CurrentSystemParameters.EngineEmitterCount = GatheredInstanceParameters.EmitterCount;
 	CurrentSystemParameters.EngineAliveEmitterCount = GatheredInstanceParameters.NumAlive;
+	CurrentSystemParameters.SignificanceIndex = SignificanceIndex;
 
 	FNiagaraGlobalParameters& CurrentGlobalParameter = GlobalParameters[ParameterIndex];
 	CurrentGlobalParameter.EngineDeltaTime = GatheredInstanceParameters.DeltaSeconds;
 	CurrentGlobalParameter.EngineInvDeltaTime = 1.0f / GatheredInstanceParameters.DeltaSeconds;
 	CurrentGlobalParameter.EngineRealTime = GatheredInstanceParameters.RealTimeSeconds;
 	CurrentGlobalParameter.EngineTime = GatheredInstanceParameters.TimeSeconds;
+	CurrentGlobalParameter.QualityLevel = FNiagaraPlatformSet::GetQualityLevel();
 
 	InstanceParameters.Tick();
 	InstanceParameters.MarkParametersDirty();

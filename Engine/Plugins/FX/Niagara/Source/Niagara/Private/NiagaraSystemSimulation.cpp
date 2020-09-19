@@ -1858,6 +1858,7 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 	if (EffectType)
 	{
 		++EffectType->NumInstances;
+		EffectType->bNewSystemsSinceLastScalabilityUpdate = true;
 	}
 
 	check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
