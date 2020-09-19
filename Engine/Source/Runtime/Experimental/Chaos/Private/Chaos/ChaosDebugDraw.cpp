@@ -313,11 +313,11 @@ namespace Chaos
 
 			if ((VelScale > 0.0f) && (Particle->V().Size() > KINDA_SMALL_NUMBER))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + Particle->V() * VelScale, Red, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + SpaceTransform.TransformVector(Particle->V()) * VelScale, Red, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 			}
 			if ((AngVelScale > 0.0f) && (Particle->W().Size() > KINDA_SMALL_NUMBER))
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + Particle->W() * AngVelScale, Green, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(PCOM, PCOM + SpaceTransform.TransformVector(Particle->W()) * AngVelScale, Green, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 			}
 		}
 
