@@ -47,9 +47,7 @@ namespace DatasmithRhino
 		/// <returns>A value that defines success or a specific failure.</returns>
 		protected override Rhino.PlugIns.WriteFileResult WriteFile(string filename, int index, RhinoDoc doc, Rhino.FileIO.FileWriteOptions options)
 		{
-			bool bSuccess = DatasmithRhinoSceneExporter.Export(filename, doc, options);
-
-			return bSuccess ? Rhino.PlugIns.WriteFileResult.Success : Rhino.PlugIns.WriteFileResult.Failure;
+			return DatasmithRhinoSceneExporter.Export(filename, doc, options);
 		}
 	}
 }
