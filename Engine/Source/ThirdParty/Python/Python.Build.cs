@@ -32,51 +32,7 @@ public class Python : ModuleRules
 		// Perform auto-detection to try and find the Python SDK
 		if (PythonSDK == null)
 		{
-			var PythonBinaryTPSDir = Path.Combine(EngineDir, "Binaries", "ThirdParty", "Python");
-			var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python");
-
-			var PotentialSDKs = new List<PythonSDKPaths>();
-
-			// todo: This isn't correct for cross-compilation, we need to consider the host platform too
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				var PlatformDir = Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64";
-
-				PotentialSDKs.AddRange(
-					new PythonSDKPaths[] {
-						new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, PlatformDir), new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "include") }, new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "libs", "python27.lib") }),
-						//DiscoverPythonSDK("C:/Program Files/Python37"),
-						DiscoverPythonSDK("C:/Python27"),
-					}
-				);
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Mac)
-			{
-				PotentialSDKs.AddRange(
-					new PythonSDKPaths[] {
-						new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, "Mac"), new List<string>() { Path.Combine(PythonSourceTPSDir, "Mac", "include") }, new List<string>() { Path.Combine(PythonBinaryTPSDir, "Mac", "libpython2.7.dylib") }),
-					}
-				);
-			}
-			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-			{
-				if (Target.Architecture.StartsWith("x86_64"))
-				{
-					var PlatformDir = Target.Platform.ToString();
-
-					PotentialSDKs.AddRange(
-						new PythonSDKPaths[] {
-							new PythonSDKPaths(
-								Path.Combine(PythonBinaryTPSDir, PlatformDir),
-								new List<string>() {
-									Path.Combine(PythonSourceTPSDir, PlatformDir, "include", "python2.7"),
-									Path.Combine(PythonSourceTPSDir, PlatformDir, "include", Target.Architecture)
-								},
-								new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "lib", "libpython2.7.a") }),
-					});
-					PublicSystemLibraries.Add("util");	// part of libc
-				}
-			}
+			var PotentialSDKs = GetPotentialPythonSDKs(Target);
 
 			foreach (var PotentialSDK in PotentialSDKs)
 			{
@@ -141,14 +97,72 @@ public class Python : ModuleRules
 
 			PublicSystemIncludePaths.AddRange(PythonSDK.PythonIncludePaths);
 			PublicAdditionalLibraries.AddRange(PythonSDK.PythonLibs);
-			if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
-			{
-				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python/Linux/lib/libpython2.7.so.1.0");
-			}
+			AppendPythonRuntimeDependencies(Target, IsEnginePython);
 		}
 	}
 
-	private string InvokePython(string InPythonRoot, string InPythonArgs)
+	protected virtual List<PythonSDKPaths> GetPotentialPythonSDKs(ReadOnlyTargetRules Target)
+	{
+		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+		
+		var PythonBinaryTPSDir = Path.Combine(EngineDir, "Binaries", "ThirdParty", "Python");
+		var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python");
+
+		var PotentialSDKs = new List<PythonSDKPaths>();
+
+		// todo: This isn't correct for cross-compilation, we need to consider the host platform too
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			var PlatformDir = Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64";
+
+			PotentialSDKs.AddRange(
+				new PythonSDKPaths[] {
+					new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, PlatformDir), new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "include") }, new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "libs", "python27.lib") }),
+					//DiscoverPythonSDK("C:/Program Files/Python37"),
+					DiscoverPythonSDK("C:/Python27"),
+				}
+			);
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			PotentialSDKs.AddRange(
+				new PythonSDKPaths[] {
+					new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, "Mac"), new List<string>() { Path.Combine(PythonSourceTPSDir, "Mac", "include") }, new List<string>() { Path.Combine(PythonBinaryTPSDir, "Mac", "libpython2.7.dylib") }),
+				}
+			);
+		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			if (Target.Architecture.StartsWith("x86_64"))
+			{
+				var PlatformDir = Target.Platform.ToString();
+
+				PotentialSDKs.AddRange(
+					new PythonSDKPaths[] {
+						new PythonSDKPaths(
+							Path.Combine(PythonBinaryTPSDir, PlatformDir),
+							new List<string>() {
+								Path.Combine(PythonSourceTPSDir, PlatformDir, "include", "python2.7"),
+								Path.Combine(PythonSourceTPSDir, PlatformDir, "include", Target.Architecture)
+							},
+							new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "lib", "libpython2.7.a") }),
+				});
+				PublicSystemLibraries.Add("util");	// part of libc
+			}
+		}
+		
+		return PotentialSDKs;
+	}
+
+	protected virtual void AppendPythonRuntimeDependencies(ReadOnlyTargetRules Target, bool IsEnginePython)
+	{
+		if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
+		{
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python/Linux/lib/libpython2.7.so.1.0");
+		}
+	}
+
+	protected string InvokePython(string InPythonRoot, string InPythonArgs)
 	{
 		ProcessStartInfo ProcStartInfo = new ProcessStartInfo();
 		ProcStartInfo.FileName = Path.Combine(InPythonRoot, "python");
@@ -173,7 +187,7 @@ public class Python : ModuleRules
 		}
 	}
 
-	private PythonSDKPaths DiscoverPythonSDK(string InPythonRoot)
+	protected PythonSDKPaths DiscoverPythonSDK(string InPythonRoot)
 	{
 		string PythonRoot = InPythonRoot;
 		List<string> PythonIncludePaths = null;
@@ -253,7 +267,7 @@ public class Python : ModuleRules
 		return new PythonSDKPaths(PythonRoot, PythonIncludePaths, PythonLibs);
 	}
 
-	private class PythonSDKPaths
+	protected class PythonSDKPaths
 	{
 		public PythonSDKPaths(string InPythonRoot, List<string> InPythonIncludePaths, List<string> InPythonLibs)
 		{
