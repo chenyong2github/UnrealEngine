@@ -873,7 +873,10 @@ bool FDynamicMeshUVPacker::StandardPack()
 
 
 	bool bPackingFound = Packer.FindBestPacking(AllCharts);
-	check(bPackingFound);
+	if (ensure(bPackingFound) == false)
+	{
+		return false;
+	}
 
 
 	// Commit chart UVs
