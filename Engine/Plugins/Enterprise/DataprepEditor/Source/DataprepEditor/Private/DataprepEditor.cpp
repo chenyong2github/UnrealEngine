@@ -1027,16 +1027,16 @@ void FDataprepEditor::RegisterSelectReferencingActorsMenu()
 			return;
 		}
 
-		TSet<UObject*> Assets(Context->SelectedObjects);
+		TSet<UObject*> ReferencedAssets(Context->SelectedObjects);
 
 		InSection.AddMenuEntry(
 			"SelectReferencingActors",
 			LOCTEXT("SelectReferencingActorsLabel", "Select Referencing Actors"),
-			LOCTEXT("SelectReferencingActorsTooltip", "Select actors that referene the selected assets"),
+			LOCTEXT("SelectReferencingActorsTooltip", "Select actors that reference the selected assets"),
 			FSlateIcon(),
-			FExecuteAction::CreateLambda([this, Assets]()
+			FExecuteAction::CreateLambda([this, ReferencedAssets]()
 			{
-				TSet<TWeakObjectPtr<UObject>> Actors = FDataprepEditorUtils::GetActorsReferencingAssets(PreviewWorld.Get(), Assets);
+				TSet<TWeakObjectPtr<UObject>> Actors = FDataprepEditorUtils::GetActorsReferencingAssets(PreviewWorld.Get(), ReferencedAssets);
 				if (Actors.Num() > 0)
 				{
 					SetWorldObjectsSelection(MoveTemp(Actors));
