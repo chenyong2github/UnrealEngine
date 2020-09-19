@@ -117,6 +117,13 @@ enum class ENiagaraStatEvaluationType : uint8
 };
 
 UENUM()
+enum class ENiagaraStatDisplayMode : uint8
+{
+	Percent,
+    Absolute,
+};
+
+UENUM()
 enum class ENiagaraDataSetType : uint8
 {
 	ParticleData,
