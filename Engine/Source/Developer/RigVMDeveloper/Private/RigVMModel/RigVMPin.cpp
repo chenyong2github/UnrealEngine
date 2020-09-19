@@ -266,16 +266,25 @@ bool URigVMPin::IsExecuteContext() const
 	return false;
 }
 
-
 FString URigVMPin::GetDefaultValue() const
+{
+	return GetDefaultValue(FDefaultValueOverride());
+}
+
+FString URigVMPin::GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride) const
 {
 	/*
 	URigVMPin* PinForDefaultValue = URigVMCompiler::FollowPinForDefaultValue((URigVMPin*)this);
 	if (PinForDefaultValue != this)
 	{
-		return PinForDefaultValue->GetDefaultValue();
+		return PinForDefaultValue->GetDefaultValue(InDefaultValueOverride);
 	}
 	*/
+
+	if (const FString* Override = InDefaultValueOverride.Find(this))
+	{
+		return *Override;
+	}
 
 	if (IsArray())
 	{
@@ -284,7 +293,7 @@ FString URigVMPin::GetDefaultValue() const
 			TArray<FString> ElementDefaultValues;
 			for (URigVMPin* SubPin : SubPins)
 			{
-				FString ElementDefaultValue = SubPin->GetDefaultValue();
+				FString ElementDefaultValue = SubPin->GetDefaultValue(InDefaultValueOverride);
 				if (SubPin->IsStringType())
 				{
 					ElementDefaultValue = TEXT("\"") + ElementDefaultValue + TEXT("\"");
@@ -311,7 +320,7 @@ FString URigVMPin::GetDefaultValue() const
 			TArray<FString> MemberDefaultValues;
 			for (URigVMPin* SubPin : SubPins)
 			{
-				FString MemberDefaultValue = SubPin->GetDefaultValue();
+				FString MemberDefaultValue = SubPin->GetDefaultValue(InDefaultValueOverride);
 				if (SubPin->IsStringType())
 				{
 					MemberDefaultValue = TEXT("\"") + MemberDefaultValue + TEXT("\"");
