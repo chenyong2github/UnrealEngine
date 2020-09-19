@@ -590,18 +590,18 @@ void UMovieSceneDMXLibrarySection::SendDefaultFunctionValueToDMX(const FDMXFixtu
 
 			int32 DefaultValue = PixelFunction.DefaultValue;
 
-			uint8 ValueBytes[4] = { 0 };
-			UDMXEntityFixtureType::IntToBytes(PixelFunction.DataType, PixelFunction.bUseLSBMode, DefaultValue, ValueBytes);
+			TArray<uint8> Bytes;
+			DMXSubsystem->IntValueToBytes(DefaultValue, PixelFunction.DataType, Bytes, PixelFunction.bUseLSBMode);
 
 			IDMXFragmentMap FragmentMap;
 			int32 ByteIndex = 0;
 			for (int32 ChannelIndex = FirstRelativeChannelAddress; ChannelIndex <= LastRelativeChannelAddress && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
 			{
-				FragmentMap.Add(ChannelIndex, ValueBytes[ByteIndex]);
+				FragmentMap.Add(ChannelIndex, Bytes[ByteIndex]);
 			}
 
 			// Send the fragment map through each controller affecting the Fixture Patch
-			const TArray<UDMXEntityController*>&& Controllers = FixturePatch->GetRelevantControllers();
+			const TArray<UDMXEntityController*> Controllers = FixturePatch->GetRelevantControllers();
 			for (const UDMXEntityController* Controller : Controllers)
 			{
 				if (Controller == nullptr || !Controller->IsValidLowLevelFast() || !Controller->DeviceProtocol.IsValid())
