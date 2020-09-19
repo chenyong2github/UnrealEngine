@@ -26,6 +26,7 @@
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "ScopedTransaction.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "SplineComponentDetails"
 
