@@ -12,6 +12,7 @@
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "PhysicsSolver.h"
+#include "Chaos/PullPhysicsData.h"
 
 
 template< class CONSTRAINT_TYPE >
@@ -24,7 +25,6 @@ TJointConstraintProxy<CONSTRAINT_TYPE>::TJointConstraintProxy(CONSTRAINT_TYPE* I
 	check(Constraint!=nullptr);
 	Constraint->SetProxy(this);
 	JointSettingsBuffer = Constraint->GetJointSettings();
-	OutputBuffer = Chaos::FMultiBufferFactory< FOutputData >::CreateBuffer(Chaos::EMultiBufferMode::Double);
 
 }
 
@@ -45,13 +45,13 @@ EPhysicsProxyType TJointConstraintProxy<CONSTRAINT_TYPE>::ConcreteType()
 
 /**/
 template< class CONSTRAINT_TYPE>
-void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults()
+void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer)
 {
 }
 
 /**/
 template< class CONSTRAINT_TYPE>
-bool TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
+bool TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
 {
 }
 
@@ -64,32 +64,31 @@ EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
 
 /**/
 template<>
-void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults()
+void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer)
 {
+	Buffer.Proxy = this;
 	if (Constraint != nullptr)
 	{
 		if (Handle != nullptr)
 		{
-			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
-			Buffer->bIsBroken = Handle->IsConstraintEnabled();
-			Buffer->Force = Handle->GetLinearImpulse();
-			Buffer->Torque = Handle->GetAngularImpulse();
+			Buffer.OutputData.bIsBroken = Handle->IsConstraintEnabled();
+			Buffer.OutputData.Force = Handle->GetLinearImpulse();
+			Buffer.OutputData.Torque = Handle->GetAngularImpulse();
 		}
 	}
 }
 
 /**/
 template<>
-bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
+bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
 {
 	if (Constraint != nullptr)
 	{
 		if (Handle != nullptr)
 		{
-			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
-			Constraint->GetOutputData().bIsBroken = Buffer->bIsBroken;
-			Constraint->GetOutputData().Force = Buffer->Force;
-			Constraint->GetOutputData().Torque = Buffer->Torque;
+			Constraint->GetOutputData().bIsBroken = Buffer.OutputData.bIsBroken;
+			Constraint->GetOutputData().Force = Buffer.OutputData.Force;
+			Constraint->GetOutputData().Torque = Buffer.OutputData.Torque;
 		}
 	}
 

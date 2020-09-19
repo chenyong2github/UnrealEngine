@@ -12,6 +12,8 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "PhysicsSolver.h"
+#include "Chaos/ChaosMarshallingManager.h"
+#include "Chaos/PullPhysicsData.h"
 
 template< class PARTICLE_TYPE >
 FSingleParticlePhysicsProxy<PARTICLE_TYPE>::FSingleParticlePhysicsProxy(PARTICLE_TYPE* InParticle, FParticleHandle* InHandle, UObject* InOwner, FInitialState InInitialState)
@@ -142,14 +144,14 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::ClearAccum
 
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults()
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float,3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData& PullData)
 {
 	// Move simulation results into the double buffer.
 }
 
 
 template< >
-bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
+bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp)
 {
 	// Move buffered data into the TGeometryParticle
 	return true;
@@ -196,13 +198,13 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::C
 }
 
 template< >
-CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults()
+CHAOS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float,3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData& PullData)
 {
 	// Move simulation results into the double buffer.
 }
 
 template< >
-bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
+bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp)
 {
 	// Move buffered data into the TKinematicGeometryParticle
 	return true;
@@ -254,38 +256,38 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccum
 }
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults()
+void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float,3>>::BufferPhysicsResults(Chaos::FDirtyRigidParticleData& PullData)
 {
+	using namespace Chaos;
 	// Move simulation results into the double buffer.
-	if (Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = static_cast<Chaos::TPBDRigidParticleHandle<float, 3>*>(Handle))
+	if(TPBDRigidParticleHandle<float,3>* RigidHandle = static_cast<TPBDRigidParticleHandle<float,3>*>(Handle))
 	{
-		Chaos::TPBDRigidParticleData<float, 3>* Buffer = BufferedData->AccessProducerBuffer();
-		Buffer->X = RigidHandle->X();
-		Buffer->R = RigidHandle->R();
-		Buffer->MV = RigidHandle->V();
-		Buffer->MW = RigidHandle->W();
-		Buffer->MObjectState = RigidHandle->ObjectState();
+		PullData.Proxy = this;
+		PullData.X = RigidHandle->X();
+		PullData.R = RigidHandle->R();
+		PullData.V = RigidHandle->V();
+		PullData.W = RigidHandle->W();
+		PullData.ObjectState = RigidHandle->ObjectState();
 	}
 }
 
 template< >
-bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
+bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float,3>>::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp)
 {
 	// Move buffered data into the TPBDRigidParticle without triggering invalidation of the physics state.
 	const bool bSync = SyncTimestamp <= SolverSyncTimestamp;
-	if (bSync && Particle)
+	if(bSync && Particle)
 	{
-		const Chaos::TPBDRigidParticleData<float, 3>* Buffer = BufferedData->GetConsumerBuffer();
-		Particle->SetX(Buffer->X, false);
-		Particle->SetR(Buffer->R, false);
-		Particle->SetV(Buffer->MV, false);
-		Particle->SetW(Buffer->MW, false);
+		Particle->SetX(PullData.X,false);
+		Particle->SetR(PullData.R,false);
+		Particle->SetV(PullData.V,false);
+		Particle->SetW(PullData.W,false);
 		Particle->UpdateShapeBounds();
 		//if (!Particle->IsDirty(Chaos::EParticleFlags::ObjectState))
 		//question: is it ok to call this when it was one of the other properties that changed?
-		if (!Particle->IsDirty(Chaos::EParticleFlags::DynamicMisc))
+		if(!Particle->IsDirty(Chaos::EParticleFlags::DynamicMisc))
 		{
-			Particle->SetObjectState(Buffer->MObjectState, true, /*bInvalidate=*/false);
+			Particle->SetObjectState(PullData.ObjectState,true, /*bInvalidate=*/false);
 		}
 	}
 	return bSync;
