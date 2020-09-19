@@ -359,6 +359,18 @@ void FRemoteSessionRole::OnReceiveHello(IBackChannelPacket& Message)
 	}
 }
 
+void FRemoteSessionRole::RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate)
+{
+	ChangeDelegates.Add(InDelegate);
+}
+
+void FRemoteSessionRole::UnregisterChannelChangeDelegate(void* UserObject)
+{
+	ChangeDelegates.RemoveAll([UserObject](FOnRemoteSessionChannelChange& Delegate) {
+		return Delegate.IsBoundToObject(UserObject);
+	});
+}
+
 
 void FRemoteSessionRole::CreateChannel(const FRemoteSessionChannelInfo& InChannel)
 {
@@ -371,7 +383,11 @@ void FRemoteSessionRole::CreateChannel(const FRemoteSessionChannelInfo& InChanne
 	{
 		UE_LOG(LogRemoteSession, Log, TEXT("Created Channel %s with mode %d"), *InChannel.Type, (int32)InChannel.Mode);
 		Channels.Add(NewChannel);
-		InChannel.OnCreated.ExecuteIfBound(NewChannel, InChannel.Type, InChannel.Mode);
+
+		for (auto& Delegate : ChangeDelegates)
+		{
+			Delegate.ExecuteIfBound(this, NewChannel, ERemoteSessionChannelChange::Created);
+		}
 	}
 	else
 	{

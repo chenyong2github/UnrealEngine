@@ -77,10 +77,12 @@ void UVCamOutputRemoteSession::CreateRemoteSession()
 		if (IRemoteSessionModule* RemoteSession = FModuleManager::LoadModulePtr<IRemoteSessionModule>("RemoteSession"))
 		{
 			TArray<FRemoteSessionChannelInfo> SupportedChannels;
-			SupportedChannels.Emplace(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read, FOnRemoteSessionChannelCreated::CreateUObject(this, &UVCamOutputRemoteSession::OnInputChannelCreated));
-			SupportedChannels.Emplace(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write, FOnRemoteSessionChannelCreated::CreateUObject(this, &UVCamOutputRemoteSession::OnImageChannelCreated));
+			SupportedChannels.Emplace(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read);
+			SupportedChannels.Emplace(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write);
 
 			RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), PortNumber);
+
+			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::CreateUObject(this, &UVCamOutputRemoteSession::OnRemoteSessionChannelChange));
 			if (RemoteSessionHost.IsValid())
 			{
 				RemoteSessionHost->Tick(0.0f);
@@ -213,7 +215,23 @@ void UVCamOutputRemoteSession::FindSceneViewport(TWeakPtr<SWindow>& OutInputWind
 	}
 }
 
-void UVCamOutputRemoteSession::OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode)
+void UVCamOutputRemoteSession::OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change)
+{
+	TSharedPtr<IRemoteSessionChannel> PinnedChannel = Channel.Pin();
+	if (PinnedChannel && Change == ERemoteSessionChannelChange::Created)
+	{
+		if (PinnedChannel->GetType() == FRemoteSessionImageChannel::StaticType())
+		{
+			OnImageChannelCreated(Channel);
+		}
+		else if (PinnedChannel->GetType() == FRemoteSessionInputChannel::StaticType())
+		{
+			OnInputChannelCreated(Channel);
+		}
+	}
+}
+
+void UVCamOutputRemoteSession::OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance)
 {
 	TSharedPtr<FRemoteSessionImageChannel> ImageChannel = StaticCastSharedPtr<FRemoteSessionImageChannel>(Instance.Pin());
 	if (ImageChannel)
@@ -251,7 +269,7 @@ void UVCamOutputRemoteSession::OnImageChannelCreated(TWeakPtr<IRemoteSessionChan
 	}
 }
 
-void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode)
+void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance)
 {
 	TSharedPtr<FRemoteSessionInputChannel> InputChannel = StaticCastSharedPtr<FRemoteSessionInputChannel>(Instance.Pin());
 	if (InputChannel)

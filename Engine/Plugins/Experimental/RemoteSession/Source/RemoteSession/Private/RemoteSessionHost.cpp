@@ -161,7 +161,7 @@ void FRemoteSessionHost::SendChannelListToConnection()
 			Packet->Write(TEXT("ChannelMode"), ::LexToString(ClientMode));
 		}
 
-		UE_LOG(LogRemoteSession, Log, TEXT("Enabling channel %s with mode %d"), *Channel.Type, ClientMode);
+		UE_LOG(LogRemoteSession, Log, TEXT("Offering channel %s with mode %d"), *Channel.Type, ClientMode);
 	}
 	
 	OSCConnection->SendPacket(Packet);

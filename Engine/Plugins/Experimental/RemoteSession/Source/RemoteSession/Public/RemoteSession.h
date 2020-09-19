@@ -35,6 +35,7 @@ public:
 	/** Unregister a channel factory */
 	virtual void RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker) = 0;
 
+
 public:
 	/** Client implementation */
 	
@@ -62,9 +63,6 @@ public:
 
 	/** Stops the server, after this InitHost() must be called if a new connection is desired */
 	virtual void StopHost() = 0;
-
-	/** Programatically add the desired channels. Defaults are Input=Receive and Framebuffer=Send. Unioned with values from ini file */
-	virtual void AddSupportedChannel(FString Type, ERemoteSessionChannelMode Mode, FOnRemoteSessionChannelCreated OnCreated = FOnRemoteSessionChannelCreated()) = 0;
 
 	/** Returns a reference to the server role (if any) */
 	virtual TSharedPtr<IRemoteSessionRole> GetHost() const = 0;

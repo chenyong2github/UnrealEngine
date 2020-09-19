@@ -230,7 +230,7 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 		if (ChannelName.Len() && ChannelMode < ERemoteSessionChannelMode::Unknown)
 		{
 			UE_LOG(LogRemoteSession, Log, TEXT("Remote host supports channel %s with mode %s"), *ChannelName, ::LexToString((ERemoteSessionChannelMode)ChannelMode));
-			AvailableChannels.Emplace(MoveTemp(ChannelName), ChannelMode, FOnRemoteSessionChannelCreated());
+			AvailableChannels.Emplace(MoveTemp(ChannelName), ChannelMode);
 		}
 		else
 		{
