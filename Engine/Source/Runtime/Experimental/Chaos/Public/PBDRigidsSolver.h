@@ -182,7 +182,7 @@ namespace Chaos
 			{
 				InCallable(Obj);
 			}
-			for (FGeometryCollectionPhysicsProxy<Traits>* Obj : GeometryCollectionPhysicsProxies)
+			for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies)
 			{
 				InCallable(Obj);
 			}
@@ -222,7 +222,7 @@ namespace Chaos
 			});
 			Chaos::PhysicsParallelFor(GeometryCollectionPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
 			{
-				FGeometryCollectionPhysicsProxy<Traits>* Obj = GeometryCollectionPhysicsProxies[Index];
+				FGeometryCollectionPhysicsProxy* Obj = GeometryCollectionPhysicsProxies[Index];
 				InCallable(Obj);
 			});
 			Chaos::PhysicsParallelFor(JointConstraintPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
