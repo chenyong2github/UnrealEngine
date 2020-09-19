@@ -417,7 +417,7 @@ void FNiagaraRenderer::ProcessMaterialParameterBindings(TConstArrayView< FNiagar
 		{
 			for (UMaterialInterface* Mat : InMaterials)
 			{
-				UMaterialInstanceDynamic* MatDyn = Cast< UMaterialInstanceDynamic>(Mat);
+				UMaterialInstanceDynamic* MatDyn = Cast<UMaterialInstanceDynamic>(Mat);
 				if (MatDyn)
 				{
 					for (const FNiagaraMaterialAttributeBinding& Binding : InMaterialParameterBindings)
@@ -473,9 +473,7 @@ void FNiagaraRenderer::ProcessMaterialParameterBindings(TConstArrayView< FNiagar
 								if (Tex && Tex->Resource != nullptr)
 								{
 									MatDyn->SetTextureParameterValue(Binding.MaterialParameterName, Tex);
-									continue;
 								}
-
 							}
 						}
 					}
