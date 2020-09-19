@@ -51,4 +51,10 @@ public:
 	static void RegisterBlueprintCallbacks(void* InModule);
 	static void CreateUserDefinedFilter();
 	static void CreateUserDefinedOperation();
+
+	/**
+	 * Get assets referenced by a set of actors.
+	 * @param InActors	Actors to check for assets
+	 */
+	static TSet<UObject*> GetReferencedAssets(const TSet<AActor*>& InActors);
 };

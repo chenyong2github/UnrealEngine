@@ -14,6 +14,7 @@
 #include "DataprepEditorModule.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepEditorMenu.h"
+#include "DataprepEditorUtils.h"
 #include "PreviewSystem/DataprepPreviewAssetColumn.h"
 #include "PreviewSystem/DataprepPreviewSceneOutlinerColumn.h"
 #include "PreviewSystem/DataprepPreviewSystem.h"
@@ -407,7 +408,9 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	CreateTabs();
 	
-	RegisterMenus();
+	// Register outliner context menus
+	RegisterCopyNameAndLabelMenu();
+	RegisterSelectReferencedAssetsMenu();
 
 	const TSharedRef<FTabManager::FLayout> Layout = bIsDataprepInstance ? CreateDataprepInstanceLayout() : CreateDataprepLayout();
 
@@ -901,9 +904,9 @@ void FDataprepEditor::CreateAssetPreviewTab()
 		});
 }
 
-void FDataprepEditor::RegisterMenus()
+void FDataprepEditor::RegisterCopyNameAndLabelMenu()
 {
-	TFunction<void(const FName&, const FName&)> RegisterCopyNameAndLabelMenu = [](const FName& MenuNameToExtend, const FName& MenuSection)
+	TFunction<void(const FName&, const FName&)> RegisterMenu = [](const FName& MenuNameToExtend, const FName& MenuSection)
 	{
 		UToolMenus* ToolMenus = UToolMenus::Get();
 
@@ -951,8 +954,56 @@ void FDataprepEditor::RegisterMenus()
 		}));
 	};
 
-	RegisterCopyNameAndLabelMenu("DataprepEditor.AssetContextMenu", "AssetActions");
-	RegisterCopyNameAndLabelMenu("DataprepEditor.SceneOutlinerContextMenu", "SceneOutlinerActions");
+	RegisterMenu("DataprepEditor.AssetContextMenu", "AssetActions");
+	RegisterMenu("DataprepEditor.SceneOutlinerContextMenu", "SceneOutlinerActions");
+}
+
+void FDataprepEditor::RegisterSelectReferencedAssetsMenu()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* Menu = ToolMenus->ExtendMenu("DataprepEditor.SceneOutlinerContextMenu");
+
+	if (!Menu)
+	{
+		return;
+	}
+
+	FToolMenuSection& Section = Menu->FindOrAddSection("SceneOutlinerActions");
+
+	Section.AddDynamicEntry("SelectAssets", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
+	{
+		UDataprepEditorContextMenuContext* Context = InSection.FindContext<UDataprepEditorContextMenuContext>();
+		if (!Context)
+		{
+			return;
+		}
+
+		TSet<AActor*> SelectedActors;
+		for (UObject* Obj : Context->SelectedObjects)
+		{
+			if (AActor* Actor = Cast<AActor>(Obj))
+			{
+				SelectedActors.Add(Actor);
+			}
+		}
+
+		if (SelectedActors.Num() == 0)
+		{
+			return;
+		}
+
+		TSet<UObject*> AssetSelection = FDataprepEditorUtils::GetReferencedAssets(SelectedActors);
+
+		InSection.AddMenuEntry(
+			"CopyLabel",
+			LOCTEXT("SelectReferencedAssetsLabel", "Select Referenced Assets"),
+			LOCTEXT("SelectReferencedAssetsTooltip", "Select assets referenced by the selected actors"),
+			FSlateIcon(),
+			FExecuteAction::CreateLambda([this, AssetSelection]()
+			{
+				AssetPreviewView->SelectMatchingItems(AssetSelection);
+			}));
+	}));
 }
 
 TSharedRef<SDockTab> FDataprepEditor::SpawnTabPalette(const FSpawnTabArgs & Args)
