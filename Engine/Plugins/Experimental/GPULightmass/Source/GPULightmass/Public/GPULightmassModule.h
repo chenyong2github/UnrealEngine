@@ -49,6 +49,7 @@ public:
 	virtual bool SupportsRealtimePreview() override { return true; }
 
 	virtual IStaticLightingSystem* AllocateStaticLightingSystemForWorld(UWorld* InWorld) override;
+	virtual IStaticLightingSystem* AllocateStaticLightingSystemForWorldWithSettings(UWorld* InWorld, class UGPULightmassSettings* Settings);
 	virtual void RemoveStaticLightingSystemForWorld(UWorld* InWorld) override;
 	virtual IStaticLightingSystem* GetStaticLightingSystemForWorld(UWorld* InWorld) override;
 	virtual void EditorTick() override;
@@ -57,6 +58,8 @@ public:
 	// Due to limitations in our TMap implementation I cannot use TUniquePtr here
 	// But the GPULightmassModule is the only owner of all static lighting systems, and all worlds weak refer to the systems
 	TMap<UWorld*, class FGPULightmass*> StaticLightingSystems;
+
+	FSimpleMulticastDelegate OnStaticLightingSystemsChanged;
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGPULightmass, Log, All);
