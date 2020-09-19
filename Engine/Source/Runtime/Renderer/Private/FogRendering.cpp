@@ -556,7 +556,6 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(
 				GraphBuilder.AddPass({}, PassParameters, ERDGPassFlags::Raster, [this, &View, bShouldRenderVolumetricFog, Parameters, LinearDepthTexture, FogUniformBuffer](FRHICommandList& RHICmdList)
 				{
 					FHeightFogRenderingParameters LocalParameters = Parameters;
-					LocalParameters.ViewRect = LocalParameters.ViewRect;
 					LocalParameters.LinearDepthTextureRHI = LinearDepthTexture->GetRHI();
 					RenderViewFog(RHICmdList, View, bShouldRenderVolumetricFog, LocalParameters, FogUniformBuffer->GetRHI());
 				});
