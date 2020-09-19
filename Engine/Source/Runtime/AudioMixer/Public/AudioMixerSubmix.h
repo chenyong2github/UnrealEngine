@@ -521,7 +521,7 @@ namespace Audio
 			{
 			}
 
-			FSpectrumAnalysisDelegateInfo(FSpectrumAnalysisDelegateInfo& Other)
+			FSpectrumAnalysisDelegateInfo(FSpectrumAnalysisDelegateInfo&& Other)
 			{
 				OnSubmixSpectralAnalysis = Other.OnSubmixSpectralAnalysis;
 				SpectrumBandExtractor.Reset(Other.SpectrumBandExtractor.Release());
