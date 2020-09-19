@@ -325,13 +325,12 @@ void FMeshDecalMeshProcessor::Process(
 void DrawDecalMeshCommands(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FDeferredDecalPassTextures& DecalPassTextures,
-	ERenderTargetLoadAction DecalPassLoadAction,
+	FDeferredDecalPassTextures& DecalPassTextures,
 	EDecalRenderStage DecalRenderStage,
 	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
 {
 	auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
-	GetDeferredDecalPassParameters(View, DecalPassTextures, DecalPassLoadAction, RenderTargetMode, *PassParameters);
+	GetDeferredDecalPassParameters(View, DecalPassTextures, RenderTargetMode, *PassParameters);
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("MeshDecals"),
 		PassParameters,
@@ -366,7 +365,6 @@ void RenderMeshDecals(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FDeferredDecalPassTextures& DecalPassTextures,
-	ERenderTargetLoadAction DecalPassLoadAction,
 	EDecalRenderStage DecalRenderStage)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderMeshDecals);
@@ -374,29 +372,29 @@ void RenderMeshDecals(
 	switch (DecalRenderStage)
 	{
 	case DRS_BeforeBasePass:
-		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalPassLoadAction, DecalRenderStage, FDecalRenderingCommon::RTM_DBuffer);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_DBuffer);
 		break;
 
 	case DRS_AfterBasePass:
-		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalPassLoadAction, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal);
 		break;
 
 	case DRS_BeforeLighting:
-		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalPassLoadAction, DecalRenderStage, FDecalRenderingCommon::RTM_GBufferNormal);
-		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalPassLoadAction, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal);
-		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalPassLoadAction, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_GBufferNormal);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal);
 		break;
 
 	case DRS_Mobile:
-		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalPassLoadAction, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColor);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColor);
 		break;
 
 	case DRS_AmbientOcclusion:
-		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalPassLoadAction, DecalRenderStage, FDecalRenderingCommon::RTM_AmbientOcclusion);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_AmbientOcclusion);
 		break;
 
 	case DRS_Emissive:
-		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalPassLoadAction, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColor);
+		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, FDecalRenderingCommon::RTM_SceneColor);
 		break;
 	}
 }
