@@ -353,6 +353,34 @@ static FAutoConsoleCommandWithWorldAndArgs GBaseRHISetGPUCaptureOptions(
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&BaseRHISetGPUCaptureOptions)
 	);
 
+void FDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, FReadSurfaceDataFlags InFlags)
+{
+#if WITH_MGPU
+	if (InFlags.GetGPUIndex() != 0)
+	{
+		unimplemented();
+	}
+	else
+#endif
+	{
+		RHIReadSurfaceFloatData(Texture, Rect, OutData, InFlags.GetCubeFace(), InFlags.GetArrayIndex(), InFlags.GetMip());
+	}
+}
+
+void FDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* Texture, FIntRect Rect, FIntPoint ZMinMax, TArray<FFloat16Color>& OutData, FReadSurfaceDataFlags InFlags)
+{
+#if WITH_MGPU
+	if (InFlags.GetGPUIndex() != 0)
+	{
+		unimplemented();
+	}
+	else
+#endif
+	{
+		RHIRead3DSurfaceFloatData(Texture, Rect, ZMinMax, OutData);
+	}
+}
+
 void FDynamicRHI::EnableIdealGPUCaptureOptions(bool bEnabled)
 {
 	static IConsoleVariable* RHICmdBypassVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.rhicmdbypass"));
