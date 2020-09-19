@@ -121,7 +121,7 @@ void FMorphVertexBuffer::InitDynamicRHI()
 
 		uint32 NormalizationBufferSize = LodData.GetNumVertices() * sizeof(int);
 		NormalizationBufferRHI = RHICreateVertexBuffer(NormalizationBufferSize, Flags, CreateInfo);
-		NormalizationBufferUAV = RHICreateUnorderedAccessView(NormalizationBufferRHI, PF_R32_UINT);
+		NormalizationBufferUAV = RHICreateUnorderedAccessView(NormalizationBufferRHI, PF_R32_SINT);
 	}
 
 	// hasn't been updated yet
