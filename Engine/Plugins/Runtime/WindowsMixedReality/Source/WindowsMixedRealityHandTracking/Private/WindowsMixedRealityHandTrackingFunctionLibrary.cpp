@@ -6,8 +6,6 @@
 #include "IWindowsMixedRealityHMDPlugin.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Engine/World.h"
-#include "ILiveLinkClient.h"
-#include "ILiveLinkSource.h"
 
 bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius)
 {
