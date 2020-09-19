@@ -838,7 +838,6 @@ private:
 		}
 
 		void SwapBuffers(bool bUpdateLastExposure);
-
 	private:
 		const TRefCountPtr<IPooledRenderTarget>& GetTexture(uint32 TextureIndex) const;
 		const TRefCountPtr<IPooledRenderTarget>& GetOrCreateTexture(FRHICommandList& RHICmdList, uint32 TextureIndex);
