@@ -402,6 +402,7 @@ void UDMXPixelMappingMatrixComponent::SetPosition(const FVector2D& InPosition)
 	PositionYCached = PositionY;
 }
 
+#if WITH_EDITOR
 void UDMXPixelMappingMatrixComponent::SetZOrder(int32 NewZOrder)
 {
 	// Adjust ZOrder on childs relatively. Alike childs always remain ordered above their parent
@@ -417,6 +418,7 @@ void UDMXPixelMappingMatrixComponent::SetZOrder(int32 NewZOrder)
 	// Adjust ZOrder on self
 	ZOrder = NewZOrder;
 }
+#endif //WITH_EDITOR
 
 void UDMXPixelMappingMatrixComponent::SetSizeInternal(const FVector2D& InSize)
 {
