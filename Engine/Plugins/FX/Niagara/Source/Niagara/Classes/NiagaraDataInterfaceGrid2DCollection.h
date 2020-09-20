@@ -5,7 +5,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
-#include "NiagaraStats.h"
+#include "Niagara/Private/NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid2DCollection.generated.h"
 
@@ -38,6 +38,10 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
+#if WITH_EDITOR
+	bool bPreviewGrid = false;
+	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+#endif
 
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
@@ -47,8 +51,6 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 	TArray<uint32> Offsets;
 
 	bool NeedsRealloc = false;
-
-	static void FindAttributes(FNiagaraSystemInstance* SystemInstance, UNiagaraDataInterfaceGrid2DCollection* Collection, uint32 NumUnnamedAttributes, TArray<FNiagaraVariableBase>& OutVars, TArray<uint32>& OutOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr);
 
 	int32 FindAttributeIndexByName(const FName& InName, int32 NumChannels);
 };
@@ -70,6 +72,11 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	TArray<FName> Vars;
 	TArray<int32> VarComponents;
 	TArray<uint32> Offsets;
+
+#if WITH_EDITOR
+	bool bPreviewGrid = false;
+	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+#endif
 
 	void BeginSimulate(FRHICommandList& RHICmdList);
 	void EndSimulate(FRHICommandList& RHICmdList);
@@ -110,6 +117,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (ToolTip = "Changes the format used to store data inside the grid, low bit formats save memory and performance."))
 	ENiagaraGpuBufferFormat BufferFormat;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, Category = "Grid2DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bPreviewGrid : 1;
+
+	UPROPERTY(Transient, EditAnywhere, Category = "Grid2DCollection", meta = (EditCondition = "bPreviewGrid", ToolTip = "When enabled allows you to preview the grid in a debug display") )
+	FName PreviewAttribute = NAME_None;
+#endif
+
 	virtual void PostInitProperties() override;
 	
 	//~ UNiagaraDataInterface interface
@@ -135,8 +150,15 @@ public:
 	virtual bool CanExposeVariables() const override { return true;}
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
-
 	//~ UNiagaraDataInterface interface END
+
+private:
+	static void CollectAttributesForScript(UNiagaraScript* Script, FName VariableName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& TotalAttributes, TArray<FText>* OutWarnings = nullptr);
+public:
+	/** Finds all attributes by locating the variable name inside the parameter stores. */
+	void FindAttributesByName(FName DataInterfaceName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr) const;
+	/** Finds all attributes by locating the data interface amongst the parameter stores. */
+	void FindAttributes(TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr) const;
 
 	// Fills a texture render target 2d with the current data from the simulation
 	// #todo(dmp): this will eventually go away when we formalize how data makes it out of Niagara
@@ -196,6 +218,8 @@ public:
 	static const FName GetVector3AttributeIndexFunctionName;
 	static const FName GetVector2AttributeIndexFunctionName;
 	static const FName GetFloatAttributeIndexFunctionName;
+
+	static const FString AnonymousAttributeString;
 
 #if WITH_EDITOR
 	virtual bool SupportsSetupAndTeardownHLSL() const { return true; }

@@ -433,11 +433,13 @@ void SNiagaraSystemViewport::SetPreviewComponent(UNiagaraComponent* NiagaraCompo
 	if (PreviewComponent != nullptr)
 	{
 		AdvancedPreviewScene->RemoveComponent(PreviewComponent);
+		PreviewComponent->SetGpuComputeDebug(false);
 	}
 	PreviewComponent = NiagaraComponent;
 
 	if (PreviewComponent != nullptr)
 	{
+		PreviewComponent->SetGpuComputeDebug(true);
 		AdvancedPreviewScene->AddComponent(PreviewComponent, PreviewComponent->GetRelativeTransform());
 	}
 }

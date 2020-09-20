@@ -109,6 +109,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	uint32 bForceSolo : 1;
 
+	/** When true the GPU simulation debug display will enabled, allowing information used during simulation to be visualized. */
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	uint32 bEnableGpuComputeDebug : 1;
+
 	TUniquePtr<FNiagaraSystemInstance> SystemInstance;
 
 	/** Defines the mode use when updating the System age. */
@@ -249,6 +253,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Is In Forced Solo Mode"))
 	bool GetForceSolo()const { return bForceSolo; }
+
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	void SetGpuComputeDebug(bool bEnableDebug);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Age Update Mode"))
 	ENiagaraAgeUpdateMode GetAgeUpdateMode() const;

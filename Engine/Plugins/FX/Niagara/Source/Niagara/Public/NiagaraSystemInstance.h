@@ -73,6 +73,8 @@ public:
 
 	void SetSolo(bool bInSolo);
 
+	void SetGpuComputeDebug(bool bEnableDebug);
+
 	void UpdatePrereqs();
 
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
