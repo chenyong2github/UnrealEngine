@@ -1168,6 +1168,11 @@ static void GameThreadWaitForTask(const FGraphEventRef& Task, ENamedThreads::Typ
 
 			static bool bDisabled = FParse::Param(FCommandLine::Get(), TEXT("nothreadtimeout"));
 
+			if (TriggerThreadIndex == ENamedThreads::ActualRenderingThread && !bEmptyGameThreadTasks && GRenderThreadPollingOn)
+			{
+				FTaskGraphInterface::Get().WakeNamedThread(ENamedThreads::GetRenderThread());
+			}
+
 			do
 			{
 				CheckRenderingThreadHealth();
