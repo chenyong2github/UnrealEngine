@@ -801,15 +801,18 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(InitializePackageStore);
 
-		CurrentCulture = FInternationalization::Get().GetCurrentCulture()->GetName();
-		FParse::Value(FCommandLine::Get(), TEXT("CULTURE="), CurrentCulture);
-
 		FPackageName::DoesPackageExistOverride().BindLambda([this](FName PackageName)
 		{
 			FPackageId PackageId = FPackageId::FromName(PackageName);
 			FScopeLock Lock(&PackageNameMapsCritical);
 			return StoreEntriesMap.Contains(PackageId);
 		});
+	}
+
+	void SetupCulture()
+	{
+		CurrentCulture = FInternationalization::Get().GetCurrentCulture()->GetName();
+		FParse::Value(FCommandLine::Get(), TEXT("CULTURE="), CurrentCulture);
 	}
 
 	void SetupInitialLoadData()
@@ -4652,6 +4655,7 @@ void FAsyncLoadingThread2::LazyInitializeFromLoadPackage()
 	{
 		GlobalPackageStore.SetupInitialLoadData();
 	}
+	GlobalPackageStore.SetupCulture();
 	GlobalPackageStore.LoadContainers(IoDispatcher.GetMountedContainers());
 	IoDispatcher.OnContainerMounted().AddRaw(&GlobalPackageStore, &FPackageStore::OnContainerMounted);
 }
