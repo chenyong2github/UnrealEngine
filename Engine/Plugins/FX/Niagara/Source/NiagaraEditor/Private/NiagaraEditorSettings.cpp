@@ -120,7 +120,10 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetSortId(80)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
-			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
+		//.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier),
+			.AddOptionalNamespaceModifier(FNiagaraConstants::ModuleNamespace)
+			.AddOptionalNamespaceModifier(FNiagaraConstants::InitialNamespace)
+			.AddOptionalNamespaceModifier(FNiagaraConstants::PreviousNamespace),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::EngineNamespace})
 			.SetDisplayName(LOCTEXT("EngineDisplayName", "Engine"))
 			.SetDisplayNameLong(LOCTEXT("EngineDisplayNameLong", "Engine Provided"))
