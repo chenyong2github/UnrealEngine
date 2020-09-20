@@ -3,6 +3,8 @@
 #pragma once
 
 #include "UObject/Interface.h"
+#include "MovieSceneSequenceID.h"
+#include "Misc/Guid.h"
 #include "IMovieSceneEvaluationHook.generated.h"
 
 class IMovieScenePlayer;
