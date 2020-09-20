@@ -23,25 +23,32 @@ namespace UnrealBuildTool
 		class DependencyInfo
 		{
 			public long LastWriteTimeUtc;
+			public string ProducedModule;
+			public List<string> ImportedModules;
 			public List<FileItem> Files;
 
-			public DependencyInfo(long LastWriteTimeUtc, List<FileItem> Files)
+			public DependencyInfo(long LastWriteTimeUtc, string ProducedModule, List<string> ImportedModules, List<FileItem> Files)
 			{
 				this.LastWriteTimeUtc = LastWriteTimeUtc;
+				this.ProducedModule = ProducedModule;
+				this.ImportedModules = ImportedModules;
 				this.Files = Files;
 			}
 
 			public static DependencyInfo Read(BinaryArchiveReader Reader)
 			{
 				long LastWriteTimeUtc = Reader.ReadLong();
+				string ProducedModule = Reader.ReadString();
+				List<string> ImportedModules = Reader.ReadList(() => Reader.ReadString());
 				List<FileItem> Files = Reader.ReadList(() => Reader.ReadCompactFileItem());
-
-				return new DependencyInfo(LastWriteTimeUtc, Files);
+				return new DependencyInfo(LastWriteTimeUtc, ProducedModule, ImportedModules, Files);
 			}
 
 			public void Write(BinaryArchiveWriter Writer)
 			{
 				Writer.WriteLong(LastWriteTimeUtc);
+				Writer.WriteString(ProducedModule);
+				Writer.WriteList(ImportedModules, Module => Writer.WriteString(Module));
 				Writer.WriteList<FileItem>(Files, File => Writer.WriteCompactFileItem(File));
 			}
 		}
@@ -49,7 +56,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The current file version
 		/// </summary>
-		public const int CurrentVersion = 2;
+		public const int CurrentVersion = 3;
 
 		/// <summary>
 		/// Location of this dependency cache
@@ -100,6 +107,48 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets the produced module from a dependencies file
+		/// </summary>
+		/// <param name="InputFile">The dependencies file</param>
+		/// <param name="OutModule">The produced module name</param>
+		/// <returns>True if a produced module was found</returns>
+		public bool TryGetProducedModule(FileItem InputFile, out string OutModule)
+		{
+			DependencyInfo Info;
+			if (TryGetDependencyInfo(InputFile, out Info) && Info.ProducedModule != null)
+			{
+				OutModule = Info.ProducedModule;
+				return true;
+			}
+			else
+			{
+				OutModule = null;
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Attempts to get a list of imported modules for the given file
+		/// </summary>
+		/// <param name="InputFile">The dependency file to query</param>
+		/// <param name="OutImportedModules">List of imported modules</param>
+		/// <returns>True if a list of imported modules was obtained</returns>
+		public bool TryGetImportedModules(FileItem InputFile, out List<string> OutImportedModules)
+		{
+			DependencyInfo Info;
+			if (TryGetDependencyInfo(InputFile, out Info))
+			{
+				OutImportedModules = Info.ImportedModules;
+				return true;
+			}
+			else
+			{
+				OutImportedModules = null;
+				return false;
+			}
+		}
+
+		/// <summary>
 		/// Attempts to read the dependencies from the given input file
 		/// </summary>
 		/// <param name="InputFile">File to be read</param>
@@ -107,20 +156,41 @@ namespace UnrealBuildTool
 		/// <returns>True if the input file exists and the dependencies were read</returns>
 		public bool TryGetDependencies(FileItem InputFile, out List<FileItem> OutDependencyItems)
 		{
-			if (!InputFile.Exists)
+			DependencyInfo Info;
+			if (TryGetDependencyInfo(InputFile, out Info))
+			{
+				OutDependencyItems = Info.Files;
+				return true;
+			}
+			else
 			{
 				OutDependencyItems = null;
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Attempts to read the dependencies from the given input file
+		/// </summary>
+		/// <param name="InputFile">File to be read</param>
+		/// <param name="OutInfo">The dependency info</param>
+		/// <returns>True if the input file exists and the dependencies were read</returns>
+		private bool TryGetDependencyInfo(FileItem InputFile, out DependencyInfo OutInfo)
+		{
+			if (!InputFile.Exists)
+			{
+				OutInfo = null;
 				return false;
 			}
 
 			try
 			{
-				return TryGetDependenciesInternal(InputFile, out OutDependencyItems);
+				return TryGetDependencyInfoInternal(InputFile, out OutInfo);
 			}
 			catch (Exception Ex)
 			{
 				Log.TraceLog("Unable to read {0}:\n{1}", InputFile, ExceptionUtils.FormatExceptionDetails(Ex));
-				OutDependencyItems = null;
+				OutInfo = null;
 				return false;
 			}
 		}
@@ -129,28 +199,25 @@ namespace UnrealBuildTool
 		/// Attempts to read dependencies from the given file.
 		/// </summary>
 		/// <param name="InputFile">File to be read</param>
-		/// <param name="OutDependencyItems">Receives a list of output items</param>
+		/// <param name="OutInfo">The dependency info</param>
 		/// <returns>True if the input file exists and the dependencies were read</returns>
-		private bool TryGetDependenciesInternal(FileItem InputFile, out List<FileItem> OutDependencyItems)
+		private bool TryGetDependencyInfoInternal(FileItem InputFile, out DependencyInfo OutInfo)
 		{
 			if (Parent != null && !InputFile.Location.IsUnderDirectory(BaseDir))
 			{
-				return Parent.TryGetDependencies(InputFile, out OutDependencyItems);
+				return Parent.TryGetDependencyInfoInternal(InputFile, out OutInfo);
 			}
 			else
 			{
 				DependencyInfo Info;
-				if (DependencyFileToInfo.TryGetValue(InputFile, out Info) && InputFile.LastWriteTimeUtc.Ticks <= Info.LastWriteTimeUtc)
+				if (!DependencyFileToInfo.TryGetValue(InputFile, out Info) || InputFile.LastWriteTimeUtc.Ticks > Info.LastWriteTimeUtc)
 				{
-					OutDependencyItems = Info.Files;
-					return true;
+					Info = ReadDependencyInfo(InputFile);
+					DependencyFileToInfo.TryAdd(InputFile, Info);
+					bModified = true;
 				}
 
-				List<FileItem> DependencyItems = ReadDependenciesFile(InputFile.Location);
-				DependencyFileToInfo.TryAdd(InputFile, new DependencyInfo(InputFile.LastWriteTimeUtc.Ticks, DependencyItems));
-				bModified = true;
-
-				OutDependencyItems = DependencyItems;
+				OutInfo = Info;
 				return true;
 			}
 		}
@@ -287,11 +354,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InputFile">The file to read from</param>
 		/// <returns>List of included dependencies</returns>
-		static List<FileItem> ReadDependenciesFile(FileReference InputFile)
+		static DependencyInfo ReadDependencyInfo(FileItem InputFile)
 		{
 			if (InputFile.HasExtension(".d"))
 			{
-				string Text = FileReference.ReadAllText(InputFile);
+				string Text = FileReference.ReadAllText(InputFile.Location);
 
 				List<string> Tokens = new List<string>();
 
@@ -330,11 +397,11 @@ namespace UnrealBuildTool
 					throw new BuildException("Unable to parse dependency file");
 				}
 
-				return NewDependencyFiles;
+				return new DependencyInfo(InputFile.LastWriteTimeUtc.Ticks, null, null, NewDependencyFiles);
 			}
 			else if (InputFile.HasExtension(".txt"))
 			{
-				string[] Lines = FileReference.ReadAllLines(InputFile);
+				string[] Lines = FileReference.ReadAllLines(InputFile.Location);
 
 				HashSet<FileItem> DependencyItems = new HashSet<FileItem>();
 				foreach (string Line in Lines)
@@ -349,7 +416,37 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-				return DependencyItems.ToList();
+				return new DependencyInfo(InputFile.LastWriteTimeUtc.Ticks, null, null, DependencyItems.ToList());
+			}
+			else if (InputFile.HasExtension(".json"))
+			{
+				JsonObject Object = JsonObject.Read(InputFile.Location);
+
+				JsonObject Data;
+				if (!Object.TryGetObjectField("Data", out Data))
+				{
+					throw new BuildException("Missing 'Data' field in {0}", InputFile);
+				}
+
+				string ProducedModule;
+				Data.TryGetStringField("ProvidedModule", out ProducedModule);
+
+				string[] ImportedModules;
+				Data.TryGetStringArrayField("ImportedModules", out ImportedModules);
+
+				string[] Includes;
+				Data.TryGetStringArrayField("Includes", out Includes);
+
+				List<FileItem> Files = new List<FileItem>();
+				if (Includes != null)
+				{
+					foreach (string Include in Includes)
+					{
+						Files.Add(FileItem.GetItemByPath(Include));
+					}
+				}
+
+				return new DependencyInfo(InputFile.LastWriteTimeUtc.Ticks, ProducedModule, ImportedModules.ToList(), Files);
 			}
 			else
 			{

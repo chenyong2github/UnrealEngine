@@ -981,6 +981,15 @@ namespace UnrealBuildTool
 				AddDefinition(SharedArguments, DefinitionArgument);
 			}
 
+			// Module interface paths.
+			if (Target.bEnableCppModules)
+			{
+				foreach (DirectoryReference ModuleInterfacePath in CompileEnvironment.ModuleInterfacePaths)
+				{
+					SharedArguments.Add(String.Format("/ifcSearchDir \"{0}\"", ModuleInterfacePath));
+				}
+			}
+
 			// Create a compile action for each source file.
 			CPPOutput Result = new CPPOutput();
 			foreach (FileItem SourceFile in InputFiles)
@@ -1190,7 +1199,32 @@ namespace UnrealBuildTool
 					CompileAction.CommandArguments = String.Join(" ", SharedArguments.Concat(FileArguments).Concat(AdditionalArguments));
 				}
 
-				if(CompileEnvironment.bGenerateDependenciesFile)
+				if (SourceFile.HasExtension(".ixx"))
+				{
+					FileItem IfcDepsFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".md.json"));
+
+					Action CompileDepsAction = Graph.CreateAction(ActionType.GatherModuleDependencies);
+					CompileDepsAction.StatusDescription = SourceFile.Location.GetFileName();
+					CompileDepsAction.WorkingDirectory = CompileAction.WorkingDirectory;
+					CompileDepsAction.CommandPath = CompileAction.CommandPath;
+					CompileDepsAction.CommandArguments = String.Format("{0} /sourceDependencies:directives \"{1}\"", CompileAction.CommandArguments, IfcDepsFile.Location);
+					CompileDepsAction.PrerequisiteItems.Add(SourceFile);
+					CompileDepsAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
+					CompileDepsAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
+					CompileDepsAction.ProducedItems.Add(IfcDepsFile);
+					CompileDepsAction.bShouldOutputStatusDescription = false;
+
+					FileItem IfcFile = FileItem.GetItemByFileReference(FileReference.Combine(GetModuleInterfaceDir(OutputDir), SourceFile.Location.ChangeExtension(".ifc").GetFileName()));
+					CompileAction.ActionType = ActionType.CompileModuleInterface;
+					CompileAction.CommandArguments += String.Format(" /interface /ifcOutput \"{0}\"", IfcFile.Location);
+					CompileAction.PrerequisiteItems.Add(IfcDepsFile); // Force the dependencies file into the action graph
+					CompileAction.ProducedItems.Add(IfcFile);
+					CompileAction.DependencyListFile = IfcDepsFile;
+					CompileAction.CompiledModuleInterfaceFile = IfcFile;
+
+					Result.CompiledModuleInterfaces.Add(IfcFile);
+				}
+				else if (CompileEnvironment.bGenerateDependenciesFile)
 				{
 					GenerateDependenciesFile(Target, OutputDir, Result, SourceFile, CompileAction, Graph);
 				}

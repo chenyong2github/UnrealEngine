@@ -24,6 +24,7 @@ namespace UnrealBuildTool
 			public readonly List<FileItem> HeaderFiles = new List<FileItem>();
 			public readonly List<FileItem> ISPCHeaderFiles = new List<FileItem>();
 
+			public readonly List<FileItem> IXXFiles = new List<FileItem>();
 			public readonly List<FileItem> CPPFiles = new List<FileItem>();
 			public readonly List<FileItem> CFiles = new List<FileItem>();
 			public readonly List<FileItem> CCFiles = new List<FileItem>();
@@ -285,6 +286,7 @@ namespace UnrealBuildTool
 			UEBuildBinary SourceBinary,
 			HashSet<DirectoryReference> IncludePaths,
 			HashSet<DirectoryReference> SystemIncludePaths,
+			HashSet<DirectoryReference> ModuleInterfacePaths,
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
 			List<FileItem> AdditionalPrerequisites,
@@ -309,7 +311,9 @@ namespace UnrealBuildTool
 				}
 			}
 
-			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bLegacyPublicIncludePaths);
+			ModuleInterfacePaths.Add(UEToolChain.GetModuleInterfaceDir(IntermediateDirectory));
+
+			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, ModuleInterfacePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bLegacyPublicIncludePaths);
 		}
 
 		// UEBuildModule interface.
@@ -446,6 +450,13 @@ namespace UnrealBuildTool
 			if (InputFiles.ISPCFiles.Count > 0)
 			{
 				CreateHeadersForISPC(ToolChain, CompileEnvironment, InputFiles.ISPCFiles, IntermediateDirectory, Graph);
+			}
+
+			// Compile any module interfaces
+			if (InputFiles.IXXFiles.Count > 0 && Target.bEnableCppModules)
+			{
+				CPPOutput ModuleOutput = ToolChain.CompileCPPFiles(CompileEnvironment, InputFiles.IXXFiles, IntermediateDirectory, Name, Graph);
+				LinkInputFiles.AddRange(ModuleOutput.ObjectFiles);
 			}
 
 			// Configure the precompiled headers for this module
@@ -1306,9 +1317,13 @@ namespace UnrealBuildTool
 			Result.bEnableUndefinedIdentifierWarnings = Rules.bEnableUndefinedIdentifierWarnings;
 
 			// If the module overrides the C++ language version, override it on the compile environment
-			if(Rules.CppStandard != CppStandardVersion.Default)
+			if (Rules.CppStandard != CppStandardVersion.Default)
 			{
 				Result.CppStandard = Rules.CppStandard;
+			}
+			if (Target.bEnableCppModules && Result.CppStandard == CppStandardVersion.Default)
+			{
+				Result.CppStandard = CppStandardVersion.Cpp20;
 			}
 
 			// Set the macro used to check whether monolithic headers can be used
@@ -1350,7 +1365,7 @@ namespace UnrealBuildTool
 			}
 
 			// Setup the compile environment for the module.
-			SetupPrivateCompileEnvironment(Result.UserIncludePaths, Result.SystemIncludePaths, Result.Definitions, Result.AdditionalFrameworks, Result.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
+			SetupPrivateCompileEnvironment(Result.UserIncludePaths, Result.SystemIncludePaths, Result.ModuleInterfacePaths, Result.Definitions, Result.AdditionalFrameworks, Result.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
 
 			return Result;
 		}
@@ -1392,7 +1407,7 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, CompileEnvironment.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
+				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.ModuleInterfacePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, CompileEnvironment.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
 			}
 			return CompileEnvironment;
 		}
@@ -1496,10 +1511,15 @@ namespace UnrealBuildTool
 				{
 					InputFiles.ISPCHeaderFiles.Add(InputFile);
 				}
-				if (InputFile.HasExtension(".cpp"))
+				else if (InputFile.HasExtension(".cpp"))
 				{
 					SourceFiles.Add(InputFile);
 					InputFiles.CPPFiles.Add(InputFile);
+				}
+				else if (InputFile.HasExtension(".ixx"))
+				{
+					SourceFiles.Add(InputFile);
+					InputFiles.IXXFiles.Add(InputFile);
 				}
 				else if (InputFile.HasExtension(".c"))
 				{

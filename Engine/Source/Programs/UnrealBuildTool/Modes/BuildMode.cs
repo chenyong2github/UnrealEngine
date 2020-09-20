@@ -352,6 +352,26 @@ namespace UnrealBuildTool
 					}
 				}
 
+				// Pre-process module interfaces to generate dependency files
+				List<Action> ModuleDependencyActions = PrerequisiteActions.Where(x => x.ActionType == ActionType.GatherModuleDependencies).ToList();
+				if (ModuleDependencyActions.Count > 0)
+				{
+					Dictionary<Action, bool> PreprocessActionToOutdatedFlag = new Dictionary<Action, bool>();
+					ActionGraph.GatherAllOutdatedActions(ModuleDependencyActions, History, PreprocessActionToOutdatedFlag, null, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+
+					List<Action> PreprocessActions = PreprocessActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
+					if (PreprocessActions.Count > 0)
+					{
+						Log.TraceInformation("Updating module dependencies...");
+						ActionGraph.ExecuteActions(BuildConfiguration, PreprocessActions);
+
+						foreach (FileItem ProducedItem in PreprocessActions.SelectMany(x => x.ProducedItems))
+						{
+							ProducedItem.ResetCachedInfo();
+						}
+					}
+				}
+
 				// Figure out which actions need to be built
 				Dictionary<Action, bool> ActionToOutdatedFlag = new Dictionary<Action, bool>();
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
@@ -363,6 +383,54 @@ namespace UnrealBuildTool
 					using (Timeline.ScopeEvent("Reading dependency cache"))
 					{
 						CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
+					}
+
+					// Update the module dependencies
+					Dictionary<string, FileItem> ModuleOutputs = new Dictionary<string, FileItem>(StringComparer.Ordinal);
+					if (ModuleDependencyActions.Count > 0)
+					{
+						List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
+						foreach(Action PrerequisiteAction in PrerequisiteActions)
+						{
+							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface && PrerequisiteAction.CompiledModuleInterfaceFile != null)
+							{
+								string ProducedModule;
+								if (CppDependencies.TryGetProducedModule(PrerequisiteAction.DependencyListFile, out ProducedModule))
+								{
+									ModuleOutputs[ProducedModule] = PrerequisiteAction.CompiledModuleInterfaceFile;
+								}
+								CompiledModuleInterfaces.Add(PrerequisiteAction.CompiledModuleInterfaceFile);
+							}
+						}
+						foreach (Action PrerequisiteAction in PrerequisiteActions)
+						{
+							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface)
+							{
+								List<string> ImportedModules;
+								if(CppDependencies.TryGetImportedModules(PrerequisiteAction.DependencyListFile, out ImportedModules))
+								{
+									foreach (string ImportedModule in ImportedModules)
+									{
+										FileItem ModuleOutput;
+										if (ModuleOutputs.TryGetValue(ImportedModule, out ModuleOutput))
+										{
+											PrerequisiteAction.PrerequisiteItems.Add(ModuleOutput);
+										}
+										else
+										{
+											throw new BuildException("Unable to find interface for module '{0}'", ImportedModule);
+										}
+									}
+								}
+							}
+							else
+							{
+								if (PrerequisiteAction.ActionType != ActionType.GatherModuleDependencies)
+								{
+									PrerequisiteAction.PrerequisiteItems.AddRange(CompiledModuleInterfaces);
+								}
+							}
+						}
 					}
 
 					// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.

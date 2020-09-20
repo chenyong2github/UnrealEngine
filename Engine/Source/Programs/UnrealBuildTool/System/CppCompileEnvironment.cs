@@ -43,6 +43,11 @@ namespace UnrealBuildTool
 		Cpp17,
 
 		/// <summary>
+		/// Supports C++20
+		/// </summary>
+		Cpp20,
+
+		/// <summary>
 		/// Latest standard supported by the compiler
 		/// </summary>
 		Latest,
@@ -74,6 +79,7 @@ namespace UnrealBuildTool
 	{
 		public List<FileItem> ObjectFiles = new List<FileItem>();
 		public List<FileItem> DebugDataFiles = new List<FileItem>();
+		public List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
 		public List<FileItem> GeneratedHeaderFiles = new List<FileItem>();
 		public FileItem PrecompiledHeaderFile = null;
 	}
@@ -318,6 +324,11 @@ namespace UnrealBuildTool
 		public HashSet<DirectoryReference> SystemIncludePaths;
 
 		/// <summary>
+		/// List of paths to search for compiled module interface (*.ifc) files
+		/// </summary>
+		public HashSet<DirectoryReference> ModuleInterfacePaths;
+
+		/// <summary>
 		/// Whether headers in system paths should be checked for modification when determining outdated actions.
 		/// </summary>
 		public bool bCheckSystemHeadersForModification;
@@ -379,6 +390,7 @@ namespace UnrealBuildTool
 			this.SharedPCHs = new List<PrecompiledHeaderTemplate>();
 			this.UserIncludePaths = new HashSet<DirectoryReference>();
 			this.SystemIncludePaths = new HashSet<DirectoryReference>();
+			this.ModuleInterfacePaths = new HashSet<DirectoryReference>();
 		}
 
 		/// <summary>
@@ -432,6 +444,7 @@ namespace UnrealBuildTool
 			bAllowRemotelyCompiledPCHs = Other.bAllowRemotelyCompiledPCHs;
 			UserIncludePaths = new HashSet<DirectoryReference>(Other.UserIncludePaths);
 			SystemIncludePaths = new HashSet<DirectoryReference>(Other.SystemIncludePaths);
+			ModuleInterfacePaths = new HashSet<DirectoryReference>(Other.ModuleInterfacePaths);
 			bCheckSystemHeadersForModification = Other.bCheckSystemHeadersForModification;
 			ForceIncludeFiles.AddRange(Other.ForceIncludeFiles);
 			AdditionalPrerequisites.AddRange(Other.AdditionalPrerequisites);

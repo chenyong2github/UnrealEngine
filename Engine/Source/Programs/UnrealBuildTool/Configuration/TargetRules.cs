@@ -1078,6 +1078,11 @@ namespace UnrealBuildTool
 		public bool bOmitFramePointers = true;
 
 		/// <summary>
+		/// Whether to enable support for C++20 modules
+		/// </summary>
+		public bool bEnableCppModules = false;
+
+		/// <summary>
 		/// Whether to strip iOS symbols or not (implied by bGeneratedSYMFile).
 		/// </summary>
 		[Obsolete("bStripSymbolsOnIOS has been deprecated. Use IOSPlatform.bStripSymbols instead.")]
@@ -2449,6 +2454,11 @@ namespace UnrealBuildTool
 		public bool bOmitFramePointers
 		{
 			get { return Inner.bOmitFramePointers; }
+		}
+
+		public bool bEnableCppModules
+		{
+			get { return Inner.bEnableCppModules; }
 		}
 
 		[Obsolete("bStripSymbolsOnIOS has been deprecated. Use IOSPlatform.bStripSymbols instead.")]

@@ -18,6 +18,10 @@ namespace UnrealBuildTool
 	{
 		BuildProject,
 
+		GatherModuleDependencies,
+
+		CompileModuleInterface,
+
 		Compile,
 
 		CreateAppBundle,
@@ -45,7 +49,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The type of this action (for debugging purposes).
 		/// </summary>
-		public readonly ActionType ActionType;
+		public ActionType ActionType;
 
 		/// <summary>
 		/// Every file this action depends on.  These files need to exist and be up to date in order for this action to even be considered
@@ -66,6 +70,11 @@ namespace UnrealBuildTool
 		/// For C++ source files, specifies a dependency list file used to check changes to header files
 		/// </summary>
 		public FileItem DependencyListFile;
+
+		/// <summary>
+		/// The compiled C++ module interface (IFC) file produced by this action
+		/// </summary>
+		public FileItem CompiledModuleInterfaceFile;
 
 		/// <summary>
 		/// For C++ source files, specifies a timing file used to track timing information.
@@ -194,6 +203,7 @@ namespace UnrealBuildTool
 			ProducedItems = Reader.ReadList(() => Reader.ReadFileItem());
 			DeleteItems = Reader.ReadList(() => Reader.ReadFileItem());
 			DependencyListFile = Reader.ReadFileItem();
+			CompiledModuleInterfaceFile = Reader.ReadFileItem();
 		}
 
 		/// <summary>
@@ -217,6 +227,7 @@ namespace UnrealBuildTool
 			Writer.WriteList(ProducedItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteList(DeleteItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteFileItem(DependencyListFile);
+			Writer.WriteFileItem(CompiledModuleInterfaceFile);
 		}
 
 		/// <summary>

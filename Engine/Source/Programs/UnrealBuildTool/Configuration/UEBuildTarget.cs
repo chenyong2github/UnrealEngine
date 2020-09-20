@@ -2231,7 +2231,7 @@ namespace UnrealBuildTool
 			List<string> Definitions = new List<string>(GlobalCompileEnvironment.Definitions);
 			foreach(UEBuildModule Module in Binary.Modules)
 			{
-				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), new List<FileItem>(), false);
+				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), new List<FileItem>(), false);
 			}
 
 			// Write the header
@@ -3721,6 +3721,16 @@ namespace UnrealBuildTool
 			else
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_XGE_CONTROLLER=0");
+			}
+
+			// Whether C++20 modules are enabled
+			if (Rules.bEnableCppModules)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_CPP_MODULES=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_CPP_MODULES=0");
 			}
 
 			// Compile in the names of the module manifests
