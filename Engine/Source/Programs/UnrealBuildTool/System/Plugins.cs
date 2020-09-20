@@ -36,11 +36,6 @@ namespace UnrealBuildTool
 		Engine,
 
 		/// <summary>
-		/// Enterprise plugin
-		/// </summary>
-		Enterprise,
-
-		/// <summary>
 		/// Project-specific plugin, stored within a game project directory
 		/// </summary>
 		Project,
@@ -135,7 +130,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(Type == PluginType.Engine || Type == PluginType.Enterprise)
+				if(Type == PluginType.Engine)
 				{
 					return PluginLoadedFrom.Engine;
 				}
@@ -246,12 +241,6 @@ namespace UnrealBuildTool
 				yield return PluginFile;
 			}
 
-			DirectoryReference EnterprisePluginsDir = DirectoryReference.Combine(UnrealBuildTool.EnterpriseDirectory, "Plugins");
-			foreach(FileReference PluginFile in EnumeratePlugins(EnterprisePluginsDir))
-			{
-				yield return PluginFile;
-			}
-
 			if(ProjectFile != null)
 			{
 				DirectoryReference ProjectPluginsDir = DirectoryReference.Combine(ProjectFile.Directory, "Plugins");
@@ -276,16 +265,6 @@ namespace UnrealBuildTool
 		public static IReadOnlyList<PluginInfo> ReadEnginePlugins(DirectoryReference EngineDirectory)
 		{
 			return ReadPluginsFromDirectory(EngineDirectory, "Plugins", PluginType.Engine);
-		}
-
-		/// <summary>
-		/// Read all the plugin descriptors under the given enterprise directory
-		/// </summary>
-		/// <param name="EnterpriseDirectory">The parent directory to look in.</param>
-		/// <returns>Sequence of the found PluginInfo object.</returns>
-		public static IReadOnlyList<PluginInfo> ReadEnterprisePlugins(DirectoryReference EnterpriseDirectory)
-		{
-			return ReadPluginsFromDirectory(EnterpriseDirectory, "Plugins", PluginType.Enterprise);
 		}
 
 		/// <summary>

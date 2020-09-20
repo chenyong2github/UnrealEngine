@@ -653,7 +653,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Descriptor">Information about the target</param>
 		/// <param name="bSkipRulesCompile">Whether to skip compiling any rules assemblies</param>
-		/// <param name="bUsePrecompiled">Whether to use a precompiled engine/enterprise build</param>
+		/// <param name="bUsePrecompiled">Whether to use a precompiled engine build</param>
 		/// <returns>The build target object for the specified build rules source file</returns>
 		public static UEBuildTarget Create(TargetDescriptor Descriptor, bool bSkipRulesCompile, bool bUsePrecompiled)
 		{
@@ -1084,10 +1084,6 @@ namespace UnrealBuildTool
 			if (ProjectFile != null)
 			{
 				ProjectDirectory = ProjectFile.Directory;
-			}
-			else if (Rules.File.IsUnderDirectory(UnrealBuildTool.EnterpriseDirectory))
-			{
-				ProjectDirectory = UnrealBuildTool.EnterpriseDirectory;
 			}
 			else
 			{
@@ -2496,7 +2492,6 @@ namespace UnrealBuildTool
 			Dictionary<string, string> Variables = new Dictionary<string,string>();
 			Variables.Add("RootDir", UnrealBuildTool.RootDirectory.FullName);
 			Variables.Add("EngineDir", UnrealBuildTool.EngineDirectory.FullName);
-			Variables.Add("EnterpriseDir", UnrealBuildTool.EnterpriseDirectory.FullName);
 			Variables.Add("ProjectDir", ProjectDirectory.FullName);
 			Variables.Add("TargetName", TargetName);
 			Variables.Add("TargetPlatform", Platform.ToString());
@@ -2700,7 +2695,6 @@ namespace UnrealBuildTool
 				if(Rules.bBuildDeveloperTools)
 				{
 					Directories.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Source/Developer"));
-					Directories.Add(DirectoryReference.Combine(UnrealBuildTool.EnterpriseSourceDirectory, "Developer"));
 				}
 
 				// Find all the modules that are not part of the standard set

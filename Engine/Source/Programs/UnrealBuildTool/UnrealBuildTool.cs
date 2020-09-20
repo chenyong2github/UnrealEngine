@@ -31,11 +31,6 @@ namespace UnrealBuildTool
 		static private bool? bIsEngineInstalled;
 
 		/// <summary>
-		/// Whether we're running with enterprise installed
-		/// </summary>
-		static private bool? bIsEnterpriseInstalled;
-
-		/// <summary>
 		/// Whether we're running with an installed project
 		/// </summary>
 		static private bool? bIsProjectInstalled;
@@ -99,26 +94,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, \"Source/ThirdParty\") instead.")]
 		public static readonly DirectoryReference EngineSourceThirdPartyDirectory = DirectoryReference.Combine(EngineSourceDirectory, "ThirdParty");
-
-		/// <summary>
-		/// The full name of the Enterprise directory
-		/// </summary>
-		public static readonly DirectoryReference EnterpriseDirectory = DirectoryReference.Combine(RootDirectory, "Enterprise");
-
-		/// <summary>
-		/// The full name of the Enterprise/Source directory
-		/// </summary>
-		public static readonly DirectoryReference EnterpriseSourceDirectory = DirectoryReference.Combine(EnterpriseDirectory, "Source");
-
-		/// <summary>
-		/// The full name of the Enterprise/Plugins directory
-		/// </summary>
-		public static readonly DirectoryReference EnterprisePluginsDirectory = DirectoryReference.Combine(EnterpriseDirectory, "Plugins");
-
-		/// <summary>
-		/// The full name of the Enterprise/Intermediate directory
-		/// </summary>
-		public static readonly DirectoryReference EnterpriseIntermediateDirectory = DirectoryReference.Combine(EnterpriseDirectory, "Intermediate");
 
 		/// <summary>
 		/// The engine programs directory
@@ -236,19 +211,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns true if UnrealBuildTool is running using installed Enterprise components
-		/// </summary>
-		/// <returns>True if running using installed Enterprise components</returns>
-		static public bool IsEnterpriseInstalled()
-		{
-			if (!bIsEnterpriseInstalled.HasValue)
-			{
-				bIsEnterpriseInstalled = FileReference.Exists(FileReference.Combine(EnterpriseDirectory, "Build", "InstalledBuild.txt"));
-			}
-			return bIsEnterpriseInstalled.Value;
-		}
-
-		/// <summary>
 		/// Returns true if UnrealBuildTool is running using an installed project (ie. a mod kit)
 		/// </summary>
 		/// <returns>True if running using an installed project</returns>
@@ -295,10 +257,6 @@ namespace UnrealBuildTool
 		static public bool IsFileInstalled(FileReference File)
 		{
 			if(IsEngineInstalled() && File.IsUnderDirectory(EngineDirectory))
-			{
-				return true;
-			}
-			if(IsEnterpriseInstalled() && File.IsUnderDirectory(EnterpriseDirectory))
 			{
 				return true;
 			}

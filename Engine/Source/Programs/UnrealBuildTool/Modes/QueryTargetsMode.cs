@@ -53,10 +53,6 @@ namespace UnrealBuildTool
 			{
 				Assembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
 			}
-			else if(DirectoryReference.Exists(UnrealBuildTool.EnterpriseDirectory))
-			{
-				Assembly = RulesCompiler.CreateEnterpriseRulesAssembly(BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
-			}
 			else
 			{
 				Assembly = RulesCompiler.CreateEngineRulesAssembly(BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
