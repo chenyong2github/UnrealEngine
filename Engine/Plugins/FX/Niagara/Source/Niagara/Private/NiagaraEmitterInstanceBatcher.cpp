@@ -10,11 +10,16 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraShaderParticleID.h"
 #include "NiagaraRenderer.h"
+#if WITH_EDITOR
+#include "NiagaraGpuComputeDebug.h"
+#endif
 #include "ShaderParameterUtils.h"
 #include "SceneUtils.h"
 #include "ClearQuad.h"
 #include "Async/Async.h"
 #include "GPUSort.h"
+#include "CanvasTypes.h"
+#include "Engine/Canvas.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Dispatch Setup"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);
@@ -167,6 +172,10 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 	EmitterCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Emitter CBuffer"));
 	EmitterCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraEmitterParameters);
 	EmitterCBufferLayout->UBLayout.ComputeHash();
+
+#if WITH_EDITOR
+	GpuComputeDebugPtr.Reset(new FNiagaraGpuComputeDebug(FeatureLevel));
+#endif
 }
 
 NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
@@ -181,6 +190,13 @@ NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
 
 void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiagaraSystemInstanceID InstanceID)
 {
+#if WITH_EDITOR
+	if (FNiagaraGpuComputeDebug* GpuComputeDebug = GpuComputeDebugPtr.Get())
+	{
+		GpuComputeDebug->OnSystemDeallocated(InstanceID);
+	}
+#endif
+
 	int iTick = 0;
 	while ( iTick < Ticks_RT.Num() )
 	{
@@ -1978,4 +1994,25 @@ void NiagaraEmitterInstanceBatcher::ResetEmptyUAVPools(FRHICommandList& RHICmdLi
 {
 	ResetEmptyUAVPool(DummyBufferPool);
 	ResetEmptyUAVPool(DummyTexturePool);
+}
+
+bool NiagaraEmitterInstanceBatcher::ShouldDebugDraw_RenderThread() const
+{
+#if WITH_EDITOR
+	if (FNiagaraGpuComputeDebug* GpuComputeDebug = GpuComputeDebugPtr.Get())
+	{
+		return GpuComputeDebug->ShouldDrawDebug();
+	}
+#endif
+	return false;
+}
+
+void NiagaraEmitterInstanceBatcher::DrawDebug_RenderThread(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas)
+{
+#if WITH_EDITOR
+	if (FNiagaraGpuComputeDebug* GpuComputeDebug = GpuComputeDebugPtr.Get())
+	{
+		GpuComputeDebug->DrawDebug(RHICmdList, Canvas);
+	}
+#endif
 }
