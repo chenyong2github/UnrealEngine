@@ -195,7 +195,11 @@ private:
 	uint8 bHidden:1;
 
 	UPROPERTY(Replicated)
-	uint8 bTearOff:1; 
+	uint8 bTearOff:1;
+
+	/** When set, indicates that external guarantees ensure that this actor's name is deterministic between server and client, and as such can be addressed by its full path */
+	UPROPERTY()
+	uint8 bForceNetAddressable:1;
 
 public:
 
@@ -484,6 +488,12 @@ public:
 	/** Returns how much control the remote machine has over this actor. */
 	UFUNCTION(BlueprintCallable, Category=Replication)
 	ENetRole GetRemoteRole() const;
+
+	/**
+	 * Allows this actor to be net-addressable by full path name, even if the actor was spawned after map load.
+	 * @note: The caller is required to ensure that this actor's name is stable between server/client. Must be called before FinishSpawning
+	 */
+	void SetNetAddressable();
 
 private:
 	/** Used for replication of our RootComponent's position and velocity */
