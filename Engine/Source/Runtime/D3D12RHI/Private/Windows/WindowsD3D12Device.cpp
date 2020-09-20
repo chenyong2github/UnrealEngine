@@ -803,6 +803,7 @@ void FD3D12DynamicRHI::PostInit()
 	// Before initializing the ray tracing device, check post conditions required for ray tracing
 
 	// Disable old Windows build versions
+#if !PLATFORM_HOLOLENS
 	if (GRHISupportsRayTracing
 		&& GMinimumWindowsBuildVersionForRayTracing > 0
 		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
@@ -811,6 +812,7 @@ void FD3D12DynamicRHI::PostInit()
 
 		UE_LOG(LogD3D12RHI, Log, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
 	}
+#endif	
 
 	// Disable ray tracing for old Nvidia drivers
 #if NV_API_ENABLE
