@@ -495,10 +495,11 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 					struct FFilePaths
 					{
-						FFilePaths(const FString& InFilename, FString&& InRelativeFilename) : Filename(InFilename), RelativeFilename(MoveTemp(InRelativeFilename))
+						FFilePaths(const FString& InFilename, FString&& InRelativeFilename, uint64 InFileOpenOrder) : Filename(InFilename), RelativeFilename(MoveTemp(InRelativeFilename)), FileOpenOrder(InFileOpenOrder)
 						{ }
 						FString Filename;
 						FString RelativeFilename;
+						uint64 FileOpenOrder;
 					};
 
 					TArray<FFilePaths> SortedFiles;
@@ -513,12 +514,31 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 							RelativeFilename = FPaths::SetExtension(RelativeFilename, TEXT("uasset")); // only use the uassets to decide which pak file these guys should live in
 						}
 						RelativeFilename.ToLowerInline();
-						SortedFiles.Add(FFilePaths(ChunkFilename, MoveTemp(RelativeFilename)));
+						uint64 FileOpenOrder = OrderMap.GetFileOrder(RelativeFilename, true);
+						if (FileOpenOrder != MAX_uint64)
+						{
+							UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found file open order for %s, %ll"), *RelativeFilename, FileOpenOrder);
+						}
+						else
+						{
+							UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Didn't find openorder for %s"), *RelativeFilename, FileOpenOrder);
+						}
+						SortedFiles.Add(FFilePaths(ChunkFilename, MoveTemp(RelativeFilename), FileOpenOrder));
 					}
 
 					SortedFiles.Sort([&OrderMap, &CookedDirectory, &RelativePath](const FFilePaths& A, const FFilePaths& B)
 					{
-						return OrderMap.GetFileOrder(A.RelativeFilename, true) < OrderMap.GetFileOrder(B.RelativeFilename, true);
+						uint64 AOrder = A.FileOpenOrder;
+						uint64 BOrder = B.FileOpenOrder;
+
+						if (AOrder == MAX_uint64 && BOrder == MAX_uint64)
+						{
+							return A.RelativeFilename.Compare(B.RelativeFilename) < 0;
+						}
+						else 
+						{
+							return AOrder < BOrder;
+						}
 					});
 
 					ChunkFilenames.Empty(SortedFiles.Num());
