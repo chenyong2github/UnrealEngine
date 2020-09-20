@@ -651,6 +651,10 @@ namespace UnrealBuildTool
 					// Use the override
 					return PCHUsagePrivate.Value;
 				}
+				else if(Target.bEnableCppModules)
+				{
+					return PCHUsageMode.NoPCHs;
+				}
 				else if(Target.bIWYU || DefaultBuildSettings >= BuildSettingsVersion.V2)
 				{
 					// Use shared or explicit PCHs, and enable IWYU

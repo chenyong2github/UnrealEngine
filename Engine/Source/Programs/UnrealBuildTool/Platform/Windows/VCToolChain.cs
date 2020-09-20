@@ -596,7 +596,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				if(CompileEnvironment.CppStandard >= CppStandardVersion.Latest)
+				if(CompileEnvironment.CppStandard >= CppStandardVersion.Cpp20)
 				{
 					Arguments.Add("/std:c++latest");
 				}

@@ -845,9 +845,15 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to unify C++ code into larger files for faster compilation.
 		/// </summary>
+		public bool bUseUnityBuild
+		{
+			get { return bUseUnityBuildOverride ?? !bEnableCppModules; }
+			set { bUseUnityBuildOverride = value; }
+		}
+
 		[CommandLine("-DisableUnity", Value = "false")]
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bUseUnityBuild = true;
+		[XmlConfigFile(Category = "BuildConfiguration", Name = nameof(bUseUnityBuild))]
+		bool? bUseUnityBuildOverride = null;
 
 		/// <summary>
 		/// Whether to force C++ source files to be combined into larger files for faster compilation.
