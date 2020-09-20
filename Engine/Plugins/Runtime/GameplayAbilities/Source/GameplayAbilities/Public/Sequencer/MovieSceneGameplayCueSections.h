@@ -23,6 +23,7 @@ struct FMovieSceneGameplayCueKey
 		: NormalizedMagnitude(0.0f)
 		, Location(ForceInitToZero)
 		, Normal(ForceInitToZero)
+		, PhysicalMaterial(nullptr)
 		, GameplayEffectLevel(1)
 		, AbilityLevel(1)
 		, bAttachToBinding(true)
