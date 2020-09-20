@@ -279,6 +279,8 @@ private:
  */
 struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 {
+	static constexpr uint32 InvalidEntityID = ~0u;
+
 	/**
 	 * Construction from a field to populate
 	 */
