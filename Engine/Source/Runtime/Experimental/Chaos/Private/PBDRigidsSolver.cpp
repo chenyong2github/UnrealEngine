@@ -83,7 +83,7 @@ namespace Chaos
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 			MSolver->StartingSceneSimulation();
 
-			MSolver->ApplyCallbacks_Internal();
+			MSolver->ApplyCallbacks_Internal(MDeltaTime);
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
 
 			{

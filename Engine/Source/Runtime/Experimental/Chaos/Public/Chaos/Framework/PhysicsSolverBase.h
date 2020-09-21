@@ -123,14 +123,13 @@ namespace Chaos
 		template <typename Lambda>
 		void RegisterSimOneShotCallback(const Lambda& Func)
 		{
-			FSimCallbackHandle& Callback = MarshallingManager.RegisterSimCallback([Func](const TArray<FSimCallbackData*>&){ Func();});
+			FSimCallbackHandle& Callback = MarshallingManager.RegisterSimCallback([Func](const FReal InDt, const TArray<FSimCallbackData*>&) { Func(); }, [](const auto&) {});
 			MarshallingManager.UnregisterSimCallback(Callback,true);
 		}
 
-		template <typename Lambda>
-		FSimCallbackHandle& RegisterSimCallback(const Lambda& Func)
+		FSimCallbackHandle& RegisterSimCallback(const TFunction<void(const FReal Dt, const TArray<FSimCallbackData*>&)>& Func, const TFunction<void(const TArray<FSimCallbackData*>&)>& Deleter = [](const auto&) {})
 		{
-			return MarshallingManager.RegisterSimCallback(Func);
+			return MarshallingManager.RegisterSimCallback(Func, Deleter);
 		}
 
 		void UnregisterSimCallback(FSimCallbackHandle& Handle)
@@ -243,13 +242,13 @@ namespace Chaos
 		}
 #endif
 
-		void ApplyCallbacks_Internal()
+		void ApplyCallbacks_Internal(const FReal Dt)
 		{
 			for(FSimCallbackHandlePT* Callback : SimCallbacks)
 			{
 				if(!Callback->bPendingDelete)
 				{
-					Callback->Handle->Func(Callback->IntervalData);
+					Callback->Handle->Func(Dt, Callback->IntervalData);
 					MarshallingManager.FreeCallbackData_Internal(Callback);	//todo: split out for different sim phases, also wait for resim
 
 					if(Callback->Handle->bRunOnceMore)

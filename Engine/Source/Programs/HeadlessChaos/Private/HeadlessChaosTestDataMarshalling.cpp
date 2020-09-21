@@ -98,15 +98,17 @@ namespace ChaosTest
 		
 		int Count = 0;
 		float Time = 0;
-		FSimCallbackHandle* Callback = &Solver->RegisterSimCallback([&Count, &Time](const TArray<FSimCallbackData*>& Data)
+		const float Dt = 1 / 30.f;
+
+		FSimCallbackHandle* Callback = &Solver->RegisterSimCallback([&Count, &Time, Dt](const float InDt, const TArray<FSimCallbackData*>& Data)
 		{
+			EXPECT_EQ(Dt, InDt);
 			EXPECT_EQ(Data.Num(),1);
 			EXPECT_EQ(Data[0]->Data.Int, Count);
 			++Count;
 			EXPECT_EQ(Time,Data[0]->GetStartTime());
 		});
 
-		const float Dt = 1/30.f;
 
 		for(int Step = 0; Step < 10; ++Step)
 		{
