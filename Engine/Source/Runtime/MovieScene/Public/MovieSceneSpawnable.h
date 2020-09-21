@@ -7,6 +7,7 @@
 #include "Misc/Guid.h"
 #include "MovieSceneSpawnable.generated.h"
 
+class IMovieScenePlayer;
 class UMovieSceneSequence;
 
 UENUM()
@@ -221,6 +222,11 @@ public:
 		LevelName = InLevelName;
 	}
 
+	/**
+	 * Get the name to use for spawning this object into a networked level
+	 */
+	MOVIESCENE_API FName GetNetAddressableName(IMovieScenePlayer& Player) const;
+
 	/** Array of tags that can be used for grouping and categorizing. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Actor)
 	TArray<FName> Tags;
@@ -245,7 +251,7 @@ private:
 	// @todo sequencer: Should be editor-only probably
 	UPROPERTY()
 	FString Name;
-	
+
 	UPROPERTY()
 	UObject* ObjectTemplate;
 
