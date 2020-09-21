@@ -852,6 +852,11 @@ bool UNiagaraComponent::InitializeSystem()
 		SystemInstance->Init(bForceSolo);
 		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		SystemInstance->SetOnComplete(FNiagaraSystemInstance::FOnComplete::CreateUObject(this, &UNiagaraComponent::OnSystemComplete));
+		if (bEnableGpuComputeDebug)
+		{
+			SystemInstance->SetGpuComputeDebug(bEnableGpuComputeDebug);
+		}
+
 		UpdateEmitterMaterials(true); // On system reset we want to always reinit materials for now. Hopefully we can recycle the already created Mids.
 		MarkRenderStateDirty();
 		return true;
@@ -2936,6 +2941,18 @@ void UNiagaraComponent::SetForceSolo(bool bInForceSolo)
 		bForceSolo = bInForceSolo;
 		DestroyInstance();
 		SetComponentTickEnabled(bInForceSolo);
+	}
+}
+
+void UNiagaraComponent::SetGpuComputeDebug(bool bEnableDebug)
+{
+	if (bEnableGpuComputeDebug != bEnableDebug)
+	{
+		bEnableGpuComputeDebug = bEnableDebug;
+		if (SystemInstance != nullptr)
+		{
+			SystemInstance->SetGpuComputeDebug(bEnableGpuComputeDebug);
+		}
 	}
 }
 

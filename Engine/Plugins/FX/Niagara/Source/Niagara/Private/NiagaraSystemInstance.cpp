@@ -10,6 +10,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraGpuComputeDebug.h"
 #include "Templates/AlignmentTemplates.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "GameFramework/PlayerController.h"
@@ -501,6 +502,58 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 
 	// Execute any pending finalize
 	FinalizeTick_GameThread();
+}
+
+void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
+{
+#if WITH_EDITOR
+	UNiagaraSystem* System  = GetSystem();
+	if (Batcher == nullptr || System == nullptr)
+	{
+		return;
+	}
+
+	if (bEnableDebug)
+	{
+		FString SystemName = System->GetName();
+		if (USceneComponent* Owner = AttachComponent.Get())
+		{
+			SystemName.Append(TEXT("/"));
+			if (AActor* Actor = Owner->GetTypedOuter<AActor>())
+			{
+				SystemName.Append(GetNameSafe(Actor));
+			}
+			else
+			{
+				SystemName.Append(GetNameSafe(Owner));
+			}
+		}
+
+		ENQUEUE_RENDER_COMMAND(NiagaraAddGPUSystemDebug)
+		(
+			[RT_Batcher=Batcher, RT_InstanceID=GetId(), RT_SystemName=SystemName](FRHICommandListImmediate& RHICmdList)
+			{
+				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_Batcher->GetGpuComputeDebug())
+				{
+					GpuComputeDebug->AddSystemInstance(RT_InstanceID, RT_SystemName);
+				}
+			}
+		);
+	}
+	else
+	{
+		ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystemDebug)
+		(
+			[RT_Batcher=Batcher, RT_InstanceID=GetId()](FRHICommandListImmediate& RHICmdList)
+			{
+				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_Batcher->GetGpuComputeDebug())
+				{
+					GpuComputeDebug->RemoveSystemInstance(RT_InstanceID);
+				}
+			}
+		);
+	}
+#endif
 }
 
 void FNiagaraSystemInstance::UpdatePrereqs()

@@ -32,6 +32,8 @@ public:
 #endif // #if WITH_EDITOR
 
 	virtual void DrawDebug(FCanvas* Canvas) override;
+	virtual bool ShouldDebugDraw_RenderThread() const override;
+	virtual void DrawDebug_RenderThread(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas) override;
 	virtual void AddVectorField(UVectorFieldComponent* VectorFieldComponent) override;
 	virtual void RemoveVectorField(UVectorFieldComponent* VectorFieldComponent) override;
 	virtual void UpdateVectorField(UVectorFieldComponent* VectorFieldComponent) override;

@@ -25,6 +25,7 @@ the same VectorVM byte code / compute shader code
 #include "NiagaraGPUProfiler.h"
 
 class FGPUSortManager;
+class FNiagaraGpuComputeDebug;
 
 enum class ETickStage
 {
@@ -63,6 +64,8 @@ public:
 #endif // #if WITH_EDITOR
 
 	virtual void DrawDebug(FCanvas* Canvas) override {}
+	virtual bool ShouldDebugDraw_RenderThread() const override;
+	virtual void DrawDebug_RenderThread(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas) override;
 	virtual void AddVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void RemoveVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void UpdateVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
@@ -153,6 +156,11 @@ public:
 
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;
+
+#if WITH_EDITOR
+	/** Get the Gpu Compute Debug class, useful for visualizing textures, etc. */
+	FNiagaraGpuComputeDebug* GetGpuComputeDebug() const { return GpuComputeDebugPtr.Get(); }
+#endif
 
 private:
 	using FEmitterInstanceList = TArray<FNiagaraComputeInstanceData*>;
@@ -296,4 +304,8 @@ private:
 	TArray<FNiagaraGPUSystemTick*> TicksPerStage[(int)ETickStage::Max];
 
 	TArray<uint32> CountsToRelease[(int)ETickStage::Max];
+
+#if WITH_EDITOR
+	TUniquePtr<FNiagaraGpuComputeDebug> GpuComputeDebugPtr;
+#endif
 };
