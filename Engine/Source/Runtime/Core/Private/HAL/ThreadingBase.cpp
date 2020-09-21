@@ -15,6 +15,10 @@
 
 #include <atomic>
 
+#ifndef IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD
+#define IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD 0
+#endif
+
 DEFINE_STAT( STAT_EventWaitWithId );
 DEFINE_STAT( STAT_EventTriggerWithId );
 

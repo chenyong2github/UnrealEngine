@@ -221,10 +221,6 @@ public class Core : ModuleRules
 		{
 			PublicDefinitions.Add("IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD=1");
 		}
-		else
-		{
-			PublicDefinitions.Add("IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD=0");
-		}
 
 		// Set a macro to allow FApp::GetBuildTargetType() to detect client targts
 		if (Target.Type == TargetRules.TargetType.Client)
