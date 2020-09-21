@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
 
-// Custom serialization version for all packages containing Niagara asset types
+// Custom serialization version for all packages containing Niagara asset types 
 struct FNiagaraCustomVersion
 {
 	enum Type
