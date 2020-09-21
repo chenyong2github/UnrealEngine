@@ -1049,7 +1049,17 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 *
 	 * @return	true if the pin types and directions are compatible.
 	 */
-	virtual bool ArePinsCompatible(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UClass* CallingContext = NULL, bool bIgnoreArray = false) const { return true; }
+	virtual bool ArePinsCompatible(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UClass* CallingContext = nullptr, bool bIgnoreArray = false) const { return true; }
+
+	/**
+	 * Returns true if the types are schema Equivalent. 
+	 *
+	 * @param	PinA		  	The type of Pin A.
+	 * @param	PinB		  	The type of Pin B.
+	 *
+	 * @return	true if the pin types and directions are compatible.
+	 */
+	virtual bool ArePinTypesEquivalent(const FEdGraphPinType& PinA, const FEdGraphPinType& PinB) const { return true; }
 
 	/**
 	 * Returns true if the schema wants to overdrive the behaviour of dirtying the blueprint on new node creation.

@@ -4400,6 +4400,16 @@ bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, con
 	return false;
 }
 
+bool UEdGraphSchema_K2::ArePinTypesEquivalent(const FEdGraphPinType& PinA, const FEdGraphPinType& PinB) const
+{
+	return 
+		PinA.PinCategory == PinB.PinCategory &&
+		PinA.PinSubCategory == PinB.PinSubCategory &&
+		PinA.PinSubCategoryObject == PinB.PinSubCategoryObject &&
+		PinA.ContainerType == PinB.ContainerType &&
+		PinA.bIsWeakPointer == PinB.bIsWeakPointer;
+}
+
 void UEdGraphSchema_K2::BreakNodeLinks(UEdGraphNode& TargetNode) const
 {
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(&TargetNode);
