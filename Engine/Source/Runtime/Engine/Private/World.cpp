@@ -992,7 +992,7 @@ bool UWorld::IsReadyForFinishDestroy()
 #if WITH_CHAOS
 	if (PhysicsScene != nullptr)
 	{
-		if (PhysicsScene->AreAnyTasksPending())
+		if (PhysicsScene->IsCompletionEventComplete() == false)
 		{
 			return false;
 		}
