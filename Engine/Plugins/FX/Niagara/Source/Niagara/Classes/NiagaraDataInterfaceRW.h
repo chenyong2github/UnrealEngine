@@ -64,10 +64,10 @@ class NIAGARA_API UNiagaraDataInterfaceRWBase : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "RW")
+	UPROPERTY(EditAnywhere, Category = "Deprecated")
 	TSet<int> OutputShaderStages;
 
-	UPROPERTY(EditAnywhere, Category = "RW")
+	UPROPERTY(EditAnywhere, Category = "Deprecated")
 	TSet<int> IterationShaderStages;
 
 public:
@@ -199,15 +199,15 @@ class NIAGARA_API UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBa
 
 public:
 	// Number of cells in X
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
+	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumCellsX;
 
 	// Number of cells in Y
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
+	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumCellsY;
 	
 	// Number of cells on the longest axis
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromMaxAxis"))
+	UPROPERTY(EditAnywhere, Category = "Deprecated")
 	int32 NumCellsMaxAxis;
 
 	// Number of Attributes
@@ -215,11 +215,11 @@ public:
 	int32 NumAttributes;
 
 	// Set grid resolution according to longest axis
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated")
 	bool SetGridFromMaxAxis;	
 
 	// World size of the grid
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated")
 	FVector2D WorldBBoxSize;
 
 
@@ -234,6 +234,10 @@ public:
 	// GPU sim functionality
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+
+#if WITH_EDITOR		
+	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
+#endif
 	//~ UNiagaraDataInterface interface END
 
 
