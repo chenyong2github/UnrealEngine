@@ -394,7 +394,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 		}
 	}
 
-	if (!RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+	if (!FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled())
 	{
 		FGraphicsMinimalPipelineStateId::InitializePersistentIds();
 	}
