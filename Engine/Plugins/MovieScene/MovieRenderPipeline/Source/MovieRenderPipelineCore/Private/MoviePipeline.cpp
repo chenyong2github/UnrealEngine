@@ -43,6 +43,9 @@
 #include "MovieSceneExportMetadata.h"
 #endif
 
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
 static TAutoConsoleVariable<int32> CVarMovieRenderPipelineFrameStepper(
@@ -1229,8 +1232,21 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(InShot);
 	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
 
-	// (CameraShutterAngle/360) gives us the fraction-of-the-output-frame the accumulation frames should cover.
-	Output.ShutterAnglePercentage = FMath::Max(CameraSettings->CameraShutterAngle / 360.0, 1 / 360.0);
+	Output.ShutterAnglePercentage = 0.0;
+
+	if (GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+	{
+		// This only works if you use a Cine Camera (which is almost guranteed with Sequencer)
+		ACameraActor* CameraActor = Cast<ACameraActor>(GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetViewTarget());
+		if (CameraActor)
+		{
+			UCameraComponent* CameraComponent = CameraActor->GetCameraComponent();
+			if (CameraComponent)
+			{
+				Output.ShutterAnglePercentage = CameraComponent->PostProcessSettings.MotionBlurAmount;
+			}
+		}
+	}
 
 	{
 		/*
@@ -1245,15 +1261,24 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 		* we accumulate the sub-tick and choose when to apply it.
 		*/
 
-		// Now we take the amount of time the shutter is open.
-		Output.TicksWhileShutterOpen = Output.TicksPerOutputFrame * Output.ShutterAnglePercentage;
+		// If the shutter angle is effectively zero, lie about how long a frame is to prevent divide by zero
+		if (Output.ShutterAnglePercentage < 1.0 / 360.0)
+		{
+			Output.TicksWhileShutterOpen = Output.TicksPerOutputFrame * (1.0 / 360.0);
+		}
+		else
+		{
+			// Otherwise, calculate the amount of time the shutter is open.
+			Output.TicksWhileShutterOpen = Output.TicksPerOutputFrame * Output.ShutterAnglePercentage;
+		}
 
 		// Divide that amongst all of our accumulation sample frames.
 		Output.TicksPerSample = Output.TicksWhileShutterOpen / AntiAliasingSettings->TemporalSampleCount;
+
 	}
 
-	Output.ShutterClosedFraction = (360 - CameraSettings->CameraShutterAngle) / 360.0;
-	Output.TicksWhileShutterClosed = Output.TicksPerOutputFrame * Output.ShutterClosedFraction;
+	Output.ShutterClosedFraction = 1.0 - Output.ShutterAnglePercentage;
+	Output.TicksWhileShutterClosed = Output.TicksPerOutputFrame - Output.TicksWhileShutterOpen;
 
 	// Shutter Offset
 	switch (CameraSettings->ShutterTiming)
