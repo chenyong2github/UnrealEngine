@@ -4663,11 +4663,11 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 			{
 				ReportErrorf(
 					TEXT("Control Rig '%s', Node '%s' has no struct assigned. Do you have a broken redirect?"),
-					*StructNode->GetOutermost()->GetPathName(),
-					*StructNode->GetName()
+					*RerouteNode->GetOutermost()->GetPathName(),
+					*RerouteNode->GetName()
 				);
 
-				RemoveNode(StructNode, false, true);
+				RemoveNode(RerouteNode, false, true);
 				return;
 			}
 
