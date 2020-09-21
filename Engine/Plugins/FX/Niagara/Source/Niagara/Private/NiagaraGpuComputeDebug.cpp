@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGpuComputeDebug.h"
+#include "NiagaraDebugShaders.h"
 
 #include "RHI.h"
 #include "ScreenRendering.h"
@@ -16,106 +17,6 @@ static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MaxTextureHeight(
 	TEXT("The maximum height we will visualize a texture at, this is to avoid things becoming too large on screen."),
 	ECVF_Default
 );
-
-int GNiagaraGpuComputeDebug_ShowNaNInf = 1;
-static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_ShowNaNInf(
-	TEXT("fx.Niagara.GpuComputeDebug.ShowNaNInf"),
-	GNiagaraGpuComputeDebug_ShowNaNInf,
-	TEXT("When enabled will show NaNs as flashing colors."),
-	ECVF_Default
-);
-
-int GNiagaraGpuComputeDebug_FourComponentMode = 0;
-static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_FourComponentMode(
-	TEXT("fx.Niagara.GpuComputeDebug.FourComponentMode"),
-	GNiagaraGpuComputeDebug_FourComponentMode,
-	TEXT("Adjust how we visualize four component types\n")
-	TEXT("0 = Visualize RGB (defaut)\n")
-	TEXT("1 = Visualize A\n"),
-	ECVF_Default
-);
-
-//////////////////////////////////////////////////////////////////////////
-
-class FNiagaraVisualizeTexture2DPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FNiagaraVisualizeTexture2DPS, Global);
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
-
-	FNiagaraVisualizeTexture2DPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		Texture2DParam.Bind(Initializer.ParameterMap, TEXT("Texture2DObject"), SPF_Mandatory);
-		TextureSamplerParam.Bind(Initializer.ParameterMap, TEXT("TextureSampler"));
-		NumTextureAttributesParam.Bind(Initializer.ParameterMap, TEXT("NumTextureAttributes"));
-		NumAttributesToVisualizeParam.Bind(Initializer.ParameterMap, TEXT("NumAttributesToVisualize"));
-		AttributesToVisualizeParam.Bind(Initializer.ParameterMap, TEXT("AttributesToVisualize"));
-		DebugParamsParam.Bind(Initializer.ParameterMap, TEXT("DebugParams"));
-	}
-	FNiagaraVisualizeTexture2DPS() {}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FNiagaraGpuComputeDebug::FNiagaraVisualizeTexture* VisualizeTexture, uint32 TickCounter)
-	{
-		uint32 DebugParamsValue[2];
-		DebugParamsValue[0] = GNiagaraGpuComputeDebug_ShowNaNInf != 0 ? 1 : 0;
-		DebugParamsValue[1] = TickCounter;
-
-		FIntVector4 AttributesToVisualize = VisualizeTexture->AttributesToVisualize;
-
-		int32 NumAttributesToVisualizeValue = 0;
-		for (NumAttributesToVisualizeValue=0; NumAttributesToVisualizeValue < 4; ++NumAttributesToVisualizeValue)
-		{
-			if (AttributesToVisualize[NumAttributesToVisualizeValue] == INDEX_NONE)
-			{
-				break;
-			}
-		}
-
-		if (NumAttributesToVisualizeValue == 4)
-		{
-			switch (GNiagaraGpuComputeDebug_FourComponentMode)
-			{
-				// RGB only
-				default:
-				case 0:
-					AttributesToVisualize[3] = INDEX_NONE;
-					NumAttributesToVisualizeValue = 3;
-					break;
-
-				// Alpha only
-				case 1:
-					AttributesToVisualize[0] = AttributesToVisualize[3];
-					AttributesToVisualize[1] = INDEX_NONE;
-					AttributesToVisualize[2] = INDEX_NONE;
-					AttributesToVisualize[3] = INDEX_NONE;
-					NumAttributesToVisualizeValue = 1;
-					break;
-			}
-		}
-
-		FRHIPixelShader* PixelShader = RHICmdList.GetBoundPixelShader();
-		SetTextureParameter(RHICmdList, PixelShader, Texture2DParam, TextureSamplerParam, TStaticSamplerState<SF_Point>::GetRHI(), VisualizeTexture->Texture);
-		SetShaderValue(RHICmdList, PixelShader, NumTextureAttributesParam, VisualizeTexture->NumTextureAttributes);
-		SetShaderValue(RHICmdList, PixelShader, NumAttributesToVisualizeParam, NumAttributesToVisualizeValue);
-		SetShaderValue(RHICmdList, PixelShader, AttributesToVisualizeParam, AttributesToVisualize);
-		SetShaderValue(RHICmdList, PixelShader, DebugParamsParam, DebugParamsValue);
-	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, Texture2DParam);
-	LAYOUT_FIELD(FShaderResourceParameter, TextureSamplerParam);
-	LAYOUT_FIELD(FShaderParameter, NumTextureAttributesParam);
-	LAYOUT_FIELD(FShaderParameter, NumAttributesToVisualizeParam);
-	LAYOUT_FIELD(FShaderParameter, AttributesToVisualizeParam);
-	LAYOUT_FIELD(FShaderParameter, DebugParamsParam);
-};
-
-IMPLEMENT_GLOBAL_SHADER(FNiagaraVisualizeTexture2DPS, "/Plugin/FX/Niagara/Private/NiagaraVisualizeTexture.usf", "Main2D", SF_Pixel);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -263,7 +164,7 @@ void FNiagaraGpuComputeDebug::DrawDebug(FRHICommandListImmediate& RHICmdList, FC
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			PixelShader2D->SetParameters(RHICmdList, &VisualizeEntry, TickCounter);
+			PixelShader2D->SetParameters(RHICmdList, VisualizeEntry.AttributesToVisualize, VisualizeEntry.Texture, VisualizeEntry.NumTextureAttributes, TickCounter);
 
 			Y -= DisplaySize.Y;
 
