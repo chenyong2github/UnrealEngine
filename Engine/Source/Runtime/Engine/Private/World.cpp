@@ -880,6 +880,13 @@ void UWorld::BeginDestroy()
 		}
 	}
 
+	if (PhysicsScene != nullptr)
+	{
+		// Tell PhysicsScene to stop kicking off async work so we can cleanup after pending work is complete.
+		PhysicsScene->BeginDestroy();
+	}
+
+
 	if (Scene)
 	{
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
@@ -990,11 +997,18 @@ void UWorld::FinishDestroy()
 bool UWorld::IsReadyForFinishDestroy()
 {
 #if WITH_CHAOS
-	if (PhysicsScene != nullptr)
+
+	// In single threaded, task will never complete unless we wait on it, allow FinishDestroy so we can wait on task, otherwise this will hang GC.
+	// In multi threaded, we cannot wait in FinishDestroy, as this may schedule another task that is unsafe during GC.
+	const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
+	if (bIsSingleThreadEnvironment == false)
 	{
-		if (PhysicsScene->IsCompletionEventComplete() == false)
+		if (PhysicsScene != nullptr)
 		{
-			return false;
+			if (PhysicsScene->AreAnyTasksPending())
+			{
+				return false;
+			}
 		}
 	}
 #endif
