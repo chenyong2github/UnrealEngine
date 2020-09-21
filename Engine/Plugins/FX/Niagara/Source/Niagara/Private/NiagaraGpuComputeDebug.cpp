@@ -88,13 +88,25 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 	}
 
 	// Copy texture
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, Texture2D);
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, Destination);
+	{
+		FRHITransitionInfo TransitionsBefore[] =
+		{
+			FRHITransitionInfo(Texture2D, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
+			FRHITransitionInfo(Destination, ERHIAccess::SRVMask, ERHIAccess::CopyDest)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
+	}
 
 	FRHICopyTextureInfo CopyInfo;
 	RHICmdList.CopyTexture(Texture2D, Destination, CopyInfo);
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, Destination);
+	{
+		FRHITransitionInfo TransitionsAfter[] =
+		{
+			FRHITransitionInfo(Destination, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
+	}
 }
 
 bool FNiagaraGpuComputeDebug::ShouldDrawDebug() const
