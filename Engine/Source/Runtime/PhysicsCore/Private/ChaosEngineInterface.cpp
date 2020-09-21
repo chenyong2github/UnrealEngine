@@ -21,7 +21,7 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "Chaos/Collision/CollisionConstraintFlags.h"
 #include "PBDRigidsSolver.h"
 
-bool bEnableChaosJointConstraints = true;
+bool bEnableChaosJointConstraints = false;
 FAutoConsoleVariableRef CVarEnableChaosJointConstraints(TEXT("p.ChaosSolverEnableJointConstraints"), bEnableChaosJointConstraints, TEXT("Enable Joint Constraints defined within the Physics Asset Editor"));
 
 bool FPhysicsConstraintReference_Chaos::IsValid() const
