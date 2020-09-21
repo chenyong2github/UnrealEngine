@@ -12,16 +12,15 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
 
-const FString UNiagaraDataInterfaceRenderTarget2D::SizeName(TEXT("Size_"));
-
+const FString UNiagaraDataInterfaceRenderTarget2D::SizeName(TEXT("RWSize_"));
+const FString UNiagaraDataInterfaceRenderTarget2D::RWOutputName(TEXT("RWOutput_"));
 const FString UNiagaraDataInterfaceRenderTarget2D::OutputName(TEXT("Output_"));
-
 
 // Global VM function names, also used by the shaders code generation methods.
 const FName UNiagaraDataInterfaceRenderTarget2D::SetValueFunctionName("SetRenderTargetValue");
-const FName UNiagaraDataInterfaceRenderTarget2D::GetValueFunctionName("GetRenderTargetValue");
 const FName UNiagaraDataInterfaceRenderTarget2D::SetSizeFunctionName("SetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTarget2D::GetSizeFunctionName("GetRenderTargetSize");
+const FName UNiagaraDataInterfaceRenderTarget2D::LinearToIndexName("LinearToIndex");
 
 
 FNiagaraVariableBase UNiagaraDataInterfaceRenderTarget2D::ExposedRTVar;
@@ -35,9 +34,7 @@ public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{			
 		SizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::SizeName + ParameterInfo.DataInterfaceHLSLSymbol));
-
 		OutputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::OutputName + ParameterInfo.DataInterfaceHLSLSymbol));
-
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -51,12 +48,8 @@ public:
 		FRenderTarget2DRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		check(ProxyData);
 
-		int SizeTmp[2];
-		SizeTmp[0] = ProxyData->Size.X;
-		SizeTmp[1] = ProxyData->Size.Y;
-		SetShaderValue(RHICmdList, ComputeShaderRHI, SizeParam, SizeTmp);	
+		SetShaderValue(RHICmdList, ComputeShaderRHI, SizeParam, ProxyData->Size);
 	
-		
 		if ( OutputParam.IsUAVBound())
 		{
 
@@ -93,7 +86,6 @@ public:
 	}
 
 private:
-
 	LAYOUT_FIELD(FShaderParameter, SizeParam);
 	LAYOUT_FIELD(FRWShaderParameter, OutputParam);
 };
@@ -131,22 +123,21 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 	Super::GetFunctions(OutFunctions);
 
 	const int32 EmitterSystemOnlyBitmask = ENiagaraScriptUsageMask::Emitter | ENiagaraScriptUsageMask::System;
+	OutFunctions.Reserve(OutFunctions.Num() + 4);
 
 	{
-		FNiagaraFunctionSignature Sig;
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = GetSizeFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Width")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Height")));
-
 		Sig.bExperimental = true;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
-		OutFunctions.Add(Sig);
 	}
 
 	{
-		FNiagaraFunctionSignature Sig;
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = SetSizeFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Width")));
@@ -160,11 +151,10 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = true;
 		Sig.bSupportsGPU = false;
-		OutFunctions.Add(Sig);
 	}
 
 	{
-		FNiagaraFunctionSignature Sig;
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = SetValueFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
@@ -178,10 +168,23 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
-		OutFunctions.Add(Sig);
 	}
 
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = LinearToIndexName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Linear")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+	}
 }
 
 
@@ -238,11 +241,14 @@ void UNiagaraDataInterfaceRenderTarget2D::GetParameterDefinitionHLSL(const FNiag
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
-	static const TCHAR *FormatDeclarations = TEXT(R"(				
-		RWTexture2D<float4> RW{OutputName};
+	static const TCHAR *FormatDeclarations = TEXT(R"(
+		RWTexture2D<float4> {OutputName};
+		int2 {SizeName};
 	)");
-	TMap<FString, FStringFormatArg> ArgsDeclarations = {				
-		{ TEXT("OutputName"),    OutputName + ParamInfo.DataInterfaceHLSLSymbol },
+	TMap<FString, FStringFormatArg> ArgsDeclarations =
+	{
+		{ TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
@@ -254,38 +260,46 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInte
 	{
 		return true;
 	} 
+
+	const TMap<FString, FStringFormatArg> ArgsBounds =
+	{
+		{TEXT("FunctionName"),	FunctionInfo.InstanceName},
+		{TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol},
+		{TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol },
+	};
+
 	if (FunctionInfo.DefinitionName == SetValueFunctionName)
 	{
 		static const TCHAR* FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, float4 In_Value)
 			{			
-				RW{Output}[int2(In_IndexX, In_IndexY)] = In_Value;
+				{OutputName}[int2(In_IndexX, In_IndexY)] = In_Value;
 			}
 		)");
-		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("Output"), OutputName + ParamInfo.DataInterfaceHLSLSymbol},
-		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	if (FunctionInfo.DefinitionName == GetSizeFunctionName)
+	else if (FunctionInfo.DefinitionName == LinearToIndexName)
+	{
+		static const TCHAR* FormatBounds = TEXT(R"(
+			void {FunctionName}(int Linear, out int OutIndexX, out int OutIndexY)
+			{
+				OutIndexX = Linear % {SizeName}.x;
+				OutIndexY = Linear / {SizeName}.x;
+			}
+		)");
+		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetSizeFunctionName)
 	{
 		static const TCHAR* FormatBounds = TEXT(R"(
 			void {FunctionName}(out int Out_Width, out int Out_Height)
 			{			
-				uint BufferWidth = 0U;
-				uint BufferHeight = 0U;
-				RW{Output}.GetDimensions(BufferWidth, BufferHeight);
-
-				Out_Width = (int) BufferWidth;
-				Out_Height = (int) BufferHeight;
+				Out_Width = {SizeName}.x;
+				Out_Height = {SizeName}.y;
 			}
 		)");
-		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), FunctionInfo.InstanceName},
-			{TEXT("Output"), OutputName + ParamInfo.DataInterfaceHLSLSymbol},
-		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
