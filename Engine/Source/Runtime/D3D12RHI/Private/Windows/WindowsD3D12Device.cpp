@@ -629,6 +629,16 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
+	// Disable ray tracing for Windows build versions
+	if (GRHISupportsRayTracing
+		&& GMinimumWindowsBuildVersionForRayTracing > 0
+		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
+	{
+		GRHISupportsRayTracing = false;
+
+		UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
+	}
+
 #if NV_API_ENABLE
 	if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 	{
@@ -645,6 +655,24 @@ void FD3D12DynamicRHI::Init()
 		else
 		{
 			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to initialize NVAPI"));
+		}
+
+		// Disable ray tracing for old Nvidia drivers
+		if (GRHISupportsRayTracing
+			&& GMinimumDriverVersionForRayTracingNVIDIA > 0
+			&& NvStatus == NVAPI_OK)
+		{
+			NvU32 DriverVersion = UINT32_MAX;
+			NvAPI_ShortString BranchString("");
+			if (NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BranchString) == NVAPI_OK)
+			{
+				if (DriverVersion < (uint32)GMinimumDriverVersionForRayTracingNVIDIA)
+				{
+					GRHISupportsRayTracing = false;
+
+					UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
+				}
+			}
 		}
 	}
 #endif
@@ -799,39 +827,6 @@ void FD3D12DynamicRHI::PostInit()
 
 		GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
 	}
-
-	// Before initializing the ray tracing device, check post conditions required for ray tracing
-
-	// Disable old Windows build versions
-	if (GRHISupportsRayTracing
-		&& GMinimumWindowsBuildVersionForRayTracing > 0
-		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
-	{
-		GRHISupportsRayTracing = false;
-
-		UE_LOG(LogD3D12RHI, Log, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
-	}
-
-	// Disable ray tracing for old Nvidia drivers
-#if NV_API_ENABLE
-	if (GRHISupportsRayTracing
-		&& GMinimumDriverVersionForRayTracingNVIDIA > 0
-		&& IsRHIDeviceNVIDIA()
-		&& bAllowVendorDevice)
-	{
-		NvU32 DriverVersion = UINT32_MAX;
-		NvAPI_ShortString BranchString("");
-		if (NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BranchString) == NVAPI_OK)
-		{
-			if (DriverVersion < (uint32)GMinimumDriverVersionForRayTracingNVIDIA)
-			{
-				GRHISupportsRayTracing = false;
-
-				UE_LOG(LogD3D12RHI, Log, TEXT("Ray tracing is disabled because the driver is too old"));
-			}
-		}
-	}
-#endif	
 
 	if (GRHISupportsRayTracing)
 	{
