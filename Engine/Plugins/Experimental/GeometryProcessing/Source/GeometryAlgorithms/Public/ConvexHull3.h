@@ -96,7 +96,7 @@ public:
 	void Empty()
 	{
 		Dimension = 0;
-		NumUniquePoints = 0;
+		NumHullPoints = 0;
 		Hull.Empty();
 	}
 
@@ -118,21 +118,19 @@ public:
 		return Plane;
 	}
 
-	/** @return Number of unique points considered by convex hull construction (excludes exact duplicate points and filtered-out points) */
-	int GetNumUniquePoints() const
+	/** @return Number of points on the output hull */
+	int GetNumHullPoints() const
 	{
-		return NumUniquePoints;
+		return NumHullPoints;
 	}
 
 protected:
-	// Incrementally insert ith point
-	void Insert(TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, int Idx);
 
 	int32 Dimension;
 	TLine3<RealType> Line;
 	TPlane3<RealType> Plane;
 
-	int NumUniquePoints = 0;
+	int NumHullPoints = 0;
 	TArray<FIndex3i> Hull;
 	
 };
