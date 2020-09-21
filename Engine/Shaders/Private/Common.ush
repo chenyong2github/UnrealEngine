@@ -1692,6 +1692,11 @@ bool GetShadowReplaceState()
 #endif
 }
 
+bool GetReflectionCapturePassSwitchState()
+{
+	return View.RenderingReflectionCaptureMask > 0.0f;
+}
+
 float IsShadowDepthShader()
 {
 	return GetShadowReplaceState() ? 1.0f : 0.0f;

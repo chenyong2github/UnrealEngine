@@ -238,6 +238,7 @@
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
+#include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
@@ -18053,6 +18054,61 @@ int32 UMaterialExpressionVolumetricAdvancedMaterialInput::Compile(class FMateria
 void UMaterialExpressionVolumetricAdvancedMaterialInput::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Volumetric Advanced Input"));
+}
+#endif // WITH_EDITOR
+
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionReflectionCapturePassSwitch
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionReflectionCapturePassSwitch::UMaterialExpressionReflectionCapturePassSwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionReflectionCapturePassSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Default.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input Default"));
+	}
+	else if (!Reflection.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input Reflection"));
+	}
+	else
+	{
+		const int32 Arg1 = Default.Compile(Compiler);
+		const int32 Arg2 = Reflection.Compile(Compiler);
+
+		return Compiler->ReflectionCapturePassSwitch(Arg1, Arg2);
+	}
+}
+
+void UMaterialExpressionReflectionCapturePassSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Reflection Capture Pass Switch"));
+}
+
+void UMaterialExpressionReflectionCapturePassSwitch::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior when being rendered into reflection capture views."), 40, OutToolTip);
 }
 #endif // WITH_EDITOR
 
