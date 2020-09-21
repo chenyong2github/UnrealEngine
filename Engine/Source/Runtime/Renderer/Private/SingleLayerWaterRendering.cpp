@@ -663,7 +663,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SingleLayerWater);
 
 	// Copy the texture to be available for the water surface to refract
-	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, Views, SceneColorTexture.Resolve, SceneDepthTexture.Resolve);
+	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, Views, SceneColorTexture.Target, SceneDepthTexture.Target);
 
 	// Render height fog over the color buffer if it is allocated, e.g. SingleLayerWaterUsesSimpleShading is true which is not the case on Switch.
 	if (SceneWithoutWaterTextures.ColorTexture && ShouldRenderFog(ViewFamily))
@@ -675,14 +675,14 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 		// This path is only taken when rendering the clouds in a render target that can be composited
 		ComposeVolumetricRenderTargetOverSceneUnderWater(GraphBuilder, SceneWithoutWaterTextures);
 	}
-
+	
 	RenderSingleLayerWaterInner(GraphBuilder, SceneColorTexture, SceneDepthTexture, SceneWithoutWaterTextures);
 
 	// No SSR or composite needed in Forward. Reflections are applied in the WaterGBuffer pass.
 	if (!IsAnyForwardShadingEnabled(ShaderPlatform))
 	{
 		// If supported render SSR, the composite pass in non deferred and/or under water effect.
-		RenderSingleLayerWaterReflections(GraphBuilder, SceneColorTexture.Resolve, SceneWithoutWaterTextures);
+		RenderSingleLayerWaterReflections(GraphBuilder, SceneColorTexture.Target, SceneWithoutWaterTextures);
 	}
 }
 
