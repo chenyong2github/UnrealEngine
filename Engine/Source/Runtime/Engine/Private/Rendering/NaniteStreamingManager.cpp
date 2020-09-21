@@ -299,6 +299,15 @@ FStreamingManager::FStreamingManager() :
 	,PrevUpdateTick(0)
 #endif
 {
+}
+
+void FStreamingManager::InitRHI()
+{
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Nanite);
 
 	check( MaxStreamingPages <= MAX_GPU_PAGES );
@@ -350,24 +359,19 @@ FStreamingManager::FStreamingManager() :
 
 	RequestsHashTable	= new FRequestsHashTable();
 	PageUploader		= new FStreamingPageUploader();
-}
 
-FStreamingManager::~FStreamingManager()
-{
-	delete RequestsHashTable;
-	delete PageUploader;
-}
-
-void FStreamingManager::InitRHI()
-{
-	LLM_SCOPE(ELLMTag::Nanite);
-	ClusterPageData.DataBuffer.Initialize( sizeof(uint32), 0, TEXT("FStreamingManagerClusterPageDataInitial") );
-	ClusterPageHeaders.DataBuffer.Initialize( sizeof(uint32), 0, TEXT("FStreamingManagerClusterPageHeadersInitial") );
-	Hierarchy.DataBuffer.Initialize( sizeof(uint32), 0, TEXT("FStreamingManagerHierarchyInitial") );	// Dummy allocation to make sure it is a valid resource
+	ClusterPageData.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerClusterPageDataInitial"));
+	ClusterPageHeaders.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerClusterPageHeadersInitial"));
+	Hierarchy.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerHierarchyInitial"));	// Dummy allocation to make sure it is a valid resource
 }
 
 void FStreamingManager::ReleaseRHI()
 {
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Nanite);
 	for (uint32 BufferIndex = 0; BufferIndex < MaxStreamingReadbackBuffers; ++BufferIndex)
 	{
@@ -383,10 +387,18 @@ void FStreamingManager::ReleaseRHI()
 	Hierarchy.Release();
 	ClusterFixupUploadBuffer.Release();
 	StreamingRequestsBuffer.SafeRelease();
+
+	delete RequestsHashTable;
+	delete PageUploader;
 }
 
 void FStreamingManager::Add( FResources* Resources )
 {
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Nanite);
 	if (Resources->RuntimeResourceID == INVALID_RUNTIME_RESOURCE_ID)
 	{
@@ -407,6 +419,11 @@ void FStreamingManager::Add( FResources* Resources )
 
 void FStreamingManager::Remove( FResources* Resources )
 {
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Nanite);
 	if (Resources->RuntimeResourceID != INVALID_RUNTIME_RESOURCE_ID)
 	{
@@ -1005,7 +1022,6 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 		return false;
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::ProcessNewResources);
-	SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
 
 	// Upload hierarchy for pending resources
 	ResizeResourceIfNeeded( RHICmdList, Hierarchy.DataBuffer, FMath::RoundUpToPowerOfTwo( Hierarchy.Allocator.GetMaxSize() ) * sizeof( FPackedHierarchyNode ), TEXT("FStreamingManagerHierarchy") );
@@ -1184,8 +1200,15 @@ uint32 FStreamingManager::DetermineReadyPages()
 
 void FStreamingManager::BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 {
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::BeginAsyncUpdate);
+	SCOPED_DRAW_EVENT(RHICmdList, NaniteStreaming);
+	SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
 	
 	check(!AsyncState.bUpdateActive);
 	AsyncState = FAsyncState {};
@@ -1587,8 +1610,15 @@ void FStreamingManager::AsyncUpdate()
 
 void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 {
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::EndAsyncUpdate);
+	SCOPED_DRAW_EVENT(RHICmdList, NaniteStreaming);
+	SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
 	
 	check(AsyncState.bUpdateActive);
 
@@ -1611,7 +1641,6 @@ void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 	if(AsyncState.NumReadyPages > 0)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UploadPages);
-		SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
 
 		{
 			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV, Hierarchy.DataBuffer.UAV };
@@ -1652,6 +1681,11 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 {
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	LLM_SCOPE(ELLMTag::Nanite);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
 	RDG_EVENT_SCOPE(GraphBuilder, "NaniteStreaming");

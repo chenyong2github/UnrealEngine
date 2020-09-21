@@ -109,8 +109,7 @@ class FStreamingManager : public FRenderResource
 {
 public:
 	FStreamingManager();
-	virtual ~FStreamingManager();
-
+	
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 
@@ -191,8 +190,8 @@ private:
 #endif
 	TArray< uint8 >							PendingPageStagingMemoryLZ;
 
-	FRequestsHashTable*						RequestsHashTable;
-	FStreamingPageUploader*					PageUploader;
+	FRequestsHashTable*						RequestsHashTable = nullptr;
+	FStreamingPageUploader*					PageUploader = nullptr;
 
 	FGraphEventArray						AsyncTaskEvents;
 	FAsyncState								AsyncState;
