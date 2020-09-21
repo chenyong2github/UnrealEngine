@@ -2325,6 +2325,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderCustomDepthPassAtLocation(RHICmdList, 0);
 	}
 
+	UpdateLumenScene(RHICmdList);
+
 	if (bOcclusionBeforeBasePass)
 	{
 		{
@@ -2591,8 +2593,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// BASE PASS ENDS HERE.
-
-	UpdateLumenScene(RHICmdList);
 
 	if (ViewFamily.EngineShowFlags.VisualizeLightCulling)
 	{
