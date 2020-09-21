@@ -22,6 +22,7 @@ public class AudioEditor : ModuleRules
 			{
 				"AudioMixer",
 				"EditorSubsystem",
+				"GameProjectGeneration",
 				"ToolMenus",
 				"UMG",
 				"UMGEditor",
