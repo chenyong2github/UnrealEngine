@@ -3992,6 +3992,11 @@ void FRendererModule::ReleaseVirtualTextureProducer(const FVirtualTextureProduce
 	FVirtualTextureSystem::Get().ReleaseProducer(Handle);
 }
 
+void FRendererModule::ReleaseVirtualTexturePendingResources()
+{
+	FVirtualTextureSystem::Get().ReleasePendingResources();
+}
+
 void FRendererModule::AddVirtualTextureProducerDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton)
 {
 	FVirtualTextureSystem::Get().AddProducerDestroyedCallback(Handle, Function, Baton);
