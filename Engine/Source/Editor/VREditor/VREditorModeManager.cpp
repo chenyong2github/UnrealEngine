@@ -103,27 +103,6 @@ void FVREditorModeManager::EnableVREditor( const bool bEnable, const bool bForce
 					bUsingDefaultInteractors = (InteractorClassSoft.Get() == UVREditorInteractor::StaticClass());
 				}
 			}
-			if ( bUsingDefaultInteractors && StyleSettings && !StyleSettings->bEnableLegacyEditorModeUI)
-			{
-				FSuppressableWarningDialog::FSetupInfo SetupInfo(LOCTEXT("VRModeLegacyModeUIEntry_Message", "VR Mode currently requires that legacy editor mode UI be enabled.  Without this, modes like mesh paint, landscape, and foliage will not function.  Enable Legacy editor mode UI (Requires restart)?"),
-					LOCTEXT("VRModeEntry_Title", "Entering VR Mode - Experimental"), "Warning_VRModeLegacyModeUIEntry", GEditorSettingsIni);
-
-				SetupInfo.ConfirmText = LOCTEXT("VRModeLegacyModeUIEntry_ConfirmText", "Enable and Restart");
-				SetupInfo.CancelText = LOCTEXT("VRModeLegacyModeUIEntry_CancelText", "Don't Enable");
-				SetupInfo.bDefaultToSuppressInTheFuture = false;
-
-				FSuppressableWarningDialog VRModeVRModeLegacyModeUIWarning(SetupInfo);
-
-				if (VRModeVRModeLegacyModeUIWarning.ShowModal() != FSuppressableWarningDialog::Cancel)
-				{
-					StyleSettings->bEnableLegacyEditorModeUI = true;
-					StyleSettings->SaveConfig();
-					FUnrealEdMisc::Get().RestartEditor(true);
-					return;
-				}
-
-			}
-
 
 			{
 				FSuppressableWarningDialog::FSetupInfo SetupInfo(LOCTEXT("VRModeEntry_Message", "VR Mode enables you to work on your project in virtual reality using motion controllers. This feature is still under development, so you may experience bugs or crashes while using it."),

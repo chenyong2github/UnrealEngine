@@ -210,13 +210,6 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		GLevelEditorModeTools().DeactivateAllModes();
 		GLevelEditorModeTools().ActivateDefaultMode();
 
-		if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-		{
-			// In legacy mode this toolbox should always be open
-			static const FTabId ToolboxTabId("LevelEditorToolBox");
-			LevelEditorTabManager->TryInvokeTab(ToolboxTabId);
-		}
-
 		LevelEditorCreatedEvent.Broadcast(LevelEditorTmp);
 
 		TSharedRef<SProjectBadge> ProjectBadge = SNew(SProjectBadge);

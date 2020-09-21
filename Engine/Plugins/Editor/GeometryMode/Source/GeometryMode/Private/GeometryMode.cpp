@@ -67,9 +67,6 @@ private:
 	/** Creates controls for the modifiers section */
 	TSharedRef<SVerticalBox> CreateTopModifierButtons(TSharedRef<FGeometryModeToolkit>& GeometryMode);
 
-	/** Creates controls for the actions section */
-	TSharedRef<SUniformGridPanel> CreateBottomModifierButtons(TSharedRef<FGeometryModeToolkit>& GeometryMode);
-
 	/** Creates controls for the modifier properties section */
 	TSharedRef<class IDetailsView> CreateModifierProperties(TSharedRef<FGeometryModeToolkit>& GeometryMode);
 
@@ -177,12 +174,6 @@ void SGeometryModeControls::CreateLayout(TSharedRef<FGeometryModeToolkit>& Geome
 				.Visibility(this, &SGeometryModeControls::GetPropertyVisibility)
 				.OnClicked(GeometryMode, &FGeometryModeToolkit::OnApplyClicked)
 			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Center)
-			[
-				CreateBottomModifierButtons(GeometryMode)
-			]
 		]
 	];
 }
@@ -195,24 +186,6 @@ TSharedRef<SVerticalBox> SGeometryModeControls::CreateTopModifierButtons(TShared
 
 	// Loop through all geometry modifiers and create radio buttons for ones with the bPushButton set to false
 	int32 CurrentModifierButtonCount = 0;
-	
-	if(GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-	{
-		for (FModeTool_GeometryModify::TModifierIterator Itor(GeometryModeTool->ModifierIterator()); Itor; ++Itor)
-		{
-			UGeomModifier* Modifier = *Itor;
-			if (!Modifier->bPushButton)
-			{
-				RadioButtonPanel->AddSlot(CurrentModifierButtonCount % 2, CurrentModifierButtonCount / 2)
-					.Padding(FMargin(20.0f, 5.0f))
-					[
-						CreateSingleModifierRadioButton(Modifier, GeometryMode)
-					];
-
-				++CurrentModifierButtonCount;
-			}
-		}
-	}
 
 	// Add the Apply button
 	SAssignNew(Vbox, SVerticalBox)
@@ -223,47 +196,6 @@ TSharedRef<SVerticalBox> SGeometryModeControls::CreateTopModifierButtons(TShared
 	];
 
 	return Vbox.ToSharedRef();
-}
-
-TSharedRef<SUniformGridPanel> SGeometryModeControls::CreateBottomModifierButtons(TSharedRef<FGeometryModeToolkit>& GeometryMode)
-{
-	FModeTool_GeometryModify* GeometryModeTool = GeometryMode->GetGeometryModeTool();
-
-	TSharedRef<SUniformGridPanel> ButtonGrid = SNew(SUniformGridPanel).SlotPadding(5.0f);
-
-	if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-	{
-		// The IDs of the buttons created in this function need to sequentially follow the IDs of the modifier radio buttons
-			// So, this loop simply counts the number of radio buttons so we can use that as an offset
-		int32 CurrentModifierButtonCount = 0;
-		for (FModeTool_GeometryModify::TModifierConstIterator Itor(GeometryModeTool->ModifierConstIterator()); Itor; ++Itor)
-		{
-			const UGeomModifier* Modifier = *Itor;
-			if (!Modifier->bPushButton)
-			{
-				++CurrentModifierButtonCount;
-			}
-		}
-
-		// Loop through all geometry modifiers and create buttons for ones with the bPushButton set to true
-		int32 PushButtonId = 0;
-		for (FModeTool_GeometryModify::TModifierIterator Itor(GeometryModeTool->ModifierIterator()); Itor; ++Itor)
-		{
-			UGeomModifier* Modifier = *Itor;
-			if (Modifier->bPushButton)
-			{
-				ButtonGrid->AddSlot(PushButtonId % 2, PushButtonId / 2)
-					[
-						CreateSingleModifierButton(Modifier, GeometryMode)
-					];
-
-				++CurrentModifierButtonCount;
-				++PushButtonId;
-			}
-		}
-	}
-
-	return ButtonGrid;
 }
 
 TSharedRef<IDetailsView> SGeometryModeControls::CreateModifierProperties(TSharedRef<FGeometryModeToolkit>& GeometryMode)
@@ -438,10 +370,7 @@ TSharedPtr<SWidget> FGeometryModeToolkit::GetInlineContent() const
 
 void FGeometryModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) const
 {
-	if(!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-	{
-		PaletteNames.Add(GeometryModePaletteNames::ToolsPalette);
-	}
+	PaletteNames.Add(GeometryModePaletteNames::ToolsPalette);
 }
 
 FText FGeometryModeToolkit::GetToolPaletteDisplayName(FName Palette) const

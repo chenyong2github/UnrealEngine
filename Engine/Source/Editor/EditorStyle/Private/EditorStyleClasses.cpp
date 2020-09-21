@@ -35,8 +35,6 @@ UEditorStyleSettings::UEditorStyleSettings( const FObjectInitializer& ObjectInit
 
 	bShowFriendlyNames = true;
 	LogTimestampMode = ELogTimes::None;
-	
-	bEnableLegacyEditorModeUI = false;
 }
 
 void UEditorStyleSettings::Init()

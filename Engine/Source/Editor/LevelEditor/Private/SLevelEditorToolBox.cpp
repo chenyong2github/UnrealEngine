@@ -141,14 +141,7 @@ void SLevelEditorToolBox::UpdateModeLegacyToolBar()
 		}
 	}
 
-	if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-	{
-		ModeToolBarContainer->SetContent(EditorModeTools.MakeWidget());
-	}
-	else
-	{
-		ModeToolBarContainer->SetVisibility(EVisibility::Collapsed);
-	}
+	ModeToolBarContainer->SetVisibility(EVisibility::Collapsed);
 
 	const TArray<TSharedPtr<IToolkit>>& HostedToolkits = LevelEditor.Pin()->GetHostedToolkits();
 	for(const TSharedPtr<IToolkit>& HostedToolkitIt : HostedToolkits)

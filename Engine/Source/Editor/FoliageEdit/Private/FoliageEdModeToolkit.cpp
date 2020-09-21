@@ -67,10 +67,7 @@ void FFoliageEdModeToolkit::NotifyFoliageTypeMeshChanged(class UFoliageType* Fol
 
 void FFoliageEdModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
 {
-	if (!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-	{
-		InPaletteName = FoliagePaletteNames;
-	}
+	InPaletteName = FoliagePaletteNames;
 }
 
 FText FFoliageEdModeToolkit::GetToolPaletteDisplayName(FName PaletteName) const

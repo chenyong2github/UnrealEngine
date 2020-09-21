@@ -690,17 +690,14 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if (TabIdentifier == LevelEditorTabIds::PlacementBrowser)
 	{
-		if(!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-		{
-			return
-				SNew(SDockTab)
-				.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.PlacementBrowser"))
-				.Label(NSLOCTEXT("LevelEditor", "PlacementBrowserTitle", "Place Actors"))
-				.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("PlacementBrowser"), TEXT("PlacementBrowser")))
-				[
-					IPlacementModeModule::Get().CreatePlacementModeBrowser()
-				];
-		}
+		return
+			SNew(SDockTab)
+			.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.PlacementBrowser"))
+			.Label(NSLOCTEXT("LevelEditor", "PlacementBrowserTitle", "Place Actors"))
+			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("PlacementBrowser"), TEXT("PlacementBrowser")))
+			[
+				IPlacementModeModule::Get().CreatePlacementModeBrowser()
+			];
 	}
 	else if( TabIdentifier == LevelEditorTabIds::LevelEditorBuildAndSubmit )
 	{
@@ -1490,7 +1487,7 @@ void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, boo
 				ToolboxTab->RequestCloseTab();
 			}
 		}
-		else if (!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+		else
 		{
 			LevelEditorTabManager->TryInvokeTab(LevelEditorTabIds::LevelEditorToolBox);
 		}
@@ -1533,7 +1530,7 @@ void SLevelEditor::RefreshEditorModeCommands()
 				Commands.EditorModeCommands[CommandIndex],
 				FExecuteAction::CreateStatic( &SLevelEditor::ToggleEditorMode, Mode.ID ),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateStatic( &SLevelEditor::IsModeActive, Mode.ID ));
+				FIsActionChecked::CreateSP( GLevelEditorModeTools().AsShared(), &FEditorModeTools::IsModeActive, Mode.ID ));
 		}
 
 		CommandIndex++;
