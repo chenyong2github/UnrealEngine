@@ -41,7 +41,7 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (UIMin = "0", UIMax = "2", EditCondition = bEnableScalability))
 	uint32 ScalabilityGroup = 0;
 
-	/** Hide primitives in the main pass. Hidden primitives will be those that draw to this virtual texture with Virtual Texture Pass Type set to 'From Virtual Texture'. */
+	/** Hide primitives in the main pass. Hidden primitives will be those that draw to this virtual texture with 'Draw in Main Pass' set to 'From Virtual Texture'. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture)
 	bool bHidePrimitives = false;
 
