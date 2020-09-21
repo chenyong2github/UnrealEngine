@@ -325,7 +325,7 @@ namespace Tools.DotNETCommon
 			{
 				return "Win64";
 			}
-			else if (Environment.OSVersion.Platform == PlatformID.MacOSX)
+			else if (IsMac())
 			{
 				return "Mac";
 			}

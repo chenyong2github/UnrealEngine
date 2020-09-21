@@ -64,7 +64,7 @@ namespace Turnkey
 						if (string.Compare(Dir.Name, SDK.GetAutoSDKDirectoryForMasterVersion()) == 0)
 						{
 							// make sure it actually has buits in it
-							if (File.Exists(Path.Combine(Dir.FullName, "setup.bat")))
+							if (File.Exists(Path.Combine(Dir.FullName, "setup.bat")) || File.Exists(Path.Combine(Dir.FullName, "setup.sh")))
 							{
 								bValidVersionFound = true;
 								break;
