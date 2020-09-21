@@ -480,7 +480,7 @@ bool UPartyBeaconState::HasCrossplayOptOutReservation() const
 	return false;
 }
 
-int32 UPartyBeaconState::GetReservationPlatformCount(const FString& InPlatform) const
+int32 UPartyBeaconState::GetReservationPlatformCount(const FString& InPlatform, bool bIncludeMappedPlatforms) const
 {
 	int32 PlayerCount = 0;
 	for (const FPartyReservation& ExistingReservation : Reservations)
@@ -490,6 +490,14 @@ int32 UPartyBeaconState::GetReservationPlatformCount(const FString& InPlatform) 
 			if (ExistingPlayer.Platform == InPlatform)
 			{
 				PlayerCount++;
+			}
+			else if (bIncludeMappedPlatforms)
+			{
+				const FPartyBeaconCrossplayPlatformMapping* const PlatformType = PlatformTypeMapping.FindByKey(ExistingPlayer.Platform);
+				if (PlatformType && PlatformType->PlatformType == InPlatform)
+				{
+					PlayerCount++;
+				}
 			}
 		}
 	}
