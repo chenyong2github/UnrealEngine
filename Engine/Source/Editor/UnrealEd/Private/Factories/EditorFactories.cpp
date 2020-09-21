@@ -3950,13 +3950,10 @@ UObject* UTextureFactory::FactoryCreateBinary
 
 					const FString ShortPackageName = ObjectTools::SanitizeInvalidChars(BaseUDIMName, INVALID_LONGPACKAGE_CHARACTERS);
 
-					if (PackageUDIMIndex == -1)
-					{
-						// If we're re-importing UDIM texture, the package will already be correctly named after the UDIM base name
-						// In this case we'll fail to parse the UDIM name, but the package should already have the proper name
-						check(PackageName.EndsWith(ShortPackageName, ESearchCase::CaseSensitive));
-					}
-					else
+					// If we're re-importing UDIM texture, the package will already be correctly named after the UDIM base name
+					// In this case we'll fail to parse the UDIM name, but the package should already have the proper name
+					// Note that the package name may not match the asset name in this case, if we're reimporting new files
+					if (PackageUDIMIndex != -1)
 					{
 						check(PackageUDIMIndex == BaseUDIMIndex);
 						check(PackageUDIMName.EndsWith(ShortPackageName, ESearchCase::CaseSensitive));

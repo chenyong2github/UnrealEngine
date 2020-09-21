@@ -1429,16 +1429,16 @@ void FAssetFileContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*=
 	//Check if the data is valid
 	if (SourceFileIndex == INDEX_NONE)
 	{
-		check(AssetSourcePaths.Num() <= 1);
-		//Ask for a new file for the index 0
-		SourceFileIndexToReplace = 0;
+		if (AssetSourcePaths.Num() > 1)
+		{
+			//Ask for a new file for the index 0
+			SourceFileIndexToReplace = 0;
+		}
 	}
 	else
 	{
 		check(AssetSourcePaths.IsValidIndex(SourceFileIndex));
 	}
-	check(SourceFileIndexToReplace >= 0);
-	
 
 	FReimportManager::Instance()->ValidateAllSourceFileAndReimport(CopyOfSelectedAssets, true, SourceFileIndexToReplace, true);
 }
