@@ -4,8 +4,10 @@
 
 #include "RHI.h"
 #include "ScreenRendering.h"
+#include "CanvasTypes.h"
 #include "CommonRenderResources.h"
 #include "Engine/Font.h"
+#include "Modules/ModuleManager.h"
 
 float GNiagaraGpuComputeDebug_MaxTextureHeight = 128.0f;
 static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MaxTextureHeight(
