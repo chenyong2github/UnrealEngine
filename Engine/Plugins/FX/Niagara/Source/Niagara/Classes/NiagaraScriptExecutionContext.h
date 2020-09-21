@@ -329,7 +329,6 @@ struct FNiagaraComputeExecutionContext
 	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
 
 	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
-	void BakeVariableNamesForIterationLookup();
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 

@@ -1346,57 +1346,77 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	//Now the interfaces in the simulations are all correct, we can build the per instance data table.
 	int32 InstanceDataSize = 0;
 	DataInterfaceInstanceDataOffsets.Empty();
-	auto CalcInstDataSize = [&](const TArray<UNiagaraDataInterface*>& Interfaces, bool bIsGPUSimulation)
+	auto CalcInstDataSize = [&](const FNiagaraParameterStore& ParamStore, bool bIsGPUSimulation, bool bSearchInstanceParams)
 	{
-		for (UNiagaraDataInterface* Interface : Interfaces)
+		const TArrayView<const FNiagaraVariableWithOffset> Params = ParamStore.ReadParameterVariables();
+		const TArray<UNiagaraDataInterface*>& Interfaces = ParamStore.GetDataInterfaces();
+		for (const FNiagaraVariableWithOffset& Var : Params)
 		{
-			if (!Interface)
+			if (Var.IsDataInterface())
 			{
-				continue;
-			}
-
-			if (int32 Size = Interface->PerInstanceDataSize())
-			{
-				auto* ExistingInstanceDataOffset = DataInterfaceInstanceDataOffsets.FindByPredicate([&](auto& Pair){ return Pair.Key.Get() == Interface; });
-				if (!ExistingInstanceDataOffset)//Don't add instance data for interfaces we've seen before.
+				UNiagaraDataInterface* Interface = Interfaces[Var.Offset];
+				//In scripts that deal with multiple instances we have to manually search for this DI in the instance parameters as it's not going to be in the script's exec param store.
+				//Otherwise we'll end up initializing pointless default DIs that just happen to be in those stores from the script.
+				//They'll never be used as we bind to the per instance functions.
+				if (bSearchInstanceParams)
 				{
-					//UE_LOG(LogNiagara, Log, TEXT("Adding DI %p %s %s"), Interface, *Interface->GetClass()->GetName(), *Interface->GetPathName());
-					auto& NewPair = DataInterfaceInstanceDataOffsets.AddDefaulted_GetRef();
-					NewPair.Key = Interface;
-					NewPair.Value = InstanceDataSize;
-
-					// Assume that some of our data is going to be 16 byte aligned, so enforce that 
-					// all per-instance data is aligned that way.
-					InstanceDataSize += Align(Size, 16);
+					if (UNiagaraDataInterface* InstParamDI = InstanceParameters.GetDataInterface(Var))
+					{
+						Interface = InstParamDI;
+					}
 				}
-			}
 
-			if (bDataInterfacesHaveTickPrereqs == false)
-			{
-				bDataInterfacesHaveTickPrereqs = Interface->HasTickGroupPrereqs();
-			}
+				if (Interface)
+				{
+					if (int32 Size = Interface->PerInstanceDataSize())
+					{
+						auto* ExistingInstanceDataOffset = DataInterfaceInstanceDataOffsets.FindByPredicate([&](auto& Pair) { return Pair.Key.Get() == Interface; });
+						if (!ExistingInstanceDataOffset)//Don't add instance data for interfaces we've seen before.
+						{
+							//UE_LOG(LogNiagara, Log, TEXT("Adding DI %p %s %s"), Interface, *Interface->GetClass()->GetName(), *Interface->GetPathName());
+							auto& NewPair = DataInterfaceInstanceDataOffsets.AddDefaulted_GetRef();
+							NewPair.Key = Interface;
+							NewPair.Value = InstanceDataSize;
 
-			if (bIsGPUSimulation)
-			{
-				Interface->SetUsedByGPUEmitter(true);
+							// Assume that some of our data is going to be 16 byte aligned, so enforce that 
+							// all per-instance data is aligned that way.
+							InstanceDataSize += Align(Size, 16);
+						}
+					}
+
+					if (bDataInterfacesHaveTickPrereqs == false)
+					{
+						bDataInterfacesHaveTickPrereqs = Interface->HasTickGroupPrereqs();
+					}
+
+					if (bIsGPUSimulation)
+					{
+						Interface->SetUsedByGPUEmitter(true);
+						if(FNiagaraDataInterfaceProxy* Proxy = Interface->GetProxy())
+						{
+							// We need to store the name of each DI source variable here so that we can look it up later when looking for the iteration interface.
+							Proxy->SourceDIName = Var.GetName();
+						}
+					}
+				}
 			}
 		}
 	};
 
-	CalcInstDataSize(InstanceParameters.GetDataInterfaces(), false);//This probably should be a proper exec context. 
+	CalcInstDataSize(InstanceParameters, false, false);//This probably should be a proper exec context. 
 
 	if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
 	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->GetDataInterfaces(), false);
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, false, false);
 		SystemSimulation->GetSpawnExecutionContext()->DirtyDataInterfaces();
 
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->GetDataInterfaces(), false);
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, false, false);
 		SystemSimulation->GetUpdateExecutionContext()->DirtyDataInterfaces();
 	}
 	else
 	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->GetDataInterfaces(), false);
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->GetDataInterfaces(), false);
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, false, true);
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, false, true);
 	}
 
 	//Iterate over interfaces to get size for table and clear their interface bindings.
@@ -1410,16 +1430,16 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 
 		const bool bGPUSimulation = Sim.GetCachedEmitter() && (Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim);
 
-		CalcInstDataSize(Sim.GetSpawnExecutionContext().GetDataInterfaces(), bGPUSimulation);
-		CalcInstDataSize(Sim.GetUpdateExecutionContext().GetDataInterfaces(), bGPUSimulation);
+		CalcInstDataSize(Sim.GetSpawnExecutionContext().Parameters, bGPUSimulation, false);
+		CalcInstDataSize(Sim.GetUpdateExecutionContext().Parameters, bGPUSimulation, false);
 		for (int32 i = 0; i < Sim.GetEventExecutionContexts().Num(); i++)
 		{
-			CalcInstDataSize(Sim.GetEventExecutionContexts()[i].GetDataInterfaces(), bGPUSimulation);
+			CalcInstDataSize(Sim.GetEventExecutionContexts()[i].Parameters, bGPUSimulation, false);
 		}
 
 		if (Sim.GetCachedEmitter() && Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetGPUContext())
 		{
-			CalcInstDataSize(Sim.GetGPUContext()->GetDataInterfaces(), bGPUSimulation);
+			CalcInstDataSize(Sim.GetGPUContext()->CombinedParamStore, bGPUSimulation, false);
 		}
 
 		//Also force a rebind while we're here.
@@ -1443,12 +1463,12 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			check(IsAligned(&DataInterfaceInstanceData[Pair.Value], 16));
 
 			if (Interface->HasPreSimulateTick())
-			{
+	{
 				PreTickDataInterfaces.Add(i);
 			}
 
 			if (Interface->HasPostSimulateTick())
-			{
+		{
 				PostTickDataInterfaces.Add(i);
 			}
 

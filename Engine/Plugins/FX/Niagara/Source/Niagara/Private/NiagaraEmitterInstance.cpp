@@ -511,12 +511,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		}
 	}	
 
-	if (GPUExecContext)
-	{
-		GPUExecContext->BakeVariableNamesForIterationLookup();
-	}
-
-
 	MaxInstanceCount = CachedEmitter->GetMaxInstanceCount();
 	ParticleDataSet->SetMaxInstanceCount(MaxInstanceCount);
 
