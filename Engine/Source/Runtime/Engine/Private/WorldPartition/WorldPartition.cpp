@@ -211,17 +211,18 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		{
 			if (!LevelPath.IsNone())
 			{
-				FString LevelPathStr = LevelPath.ToString();
-				IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-	
-				// Do a synchronous scan of the level external actors path.
-				const bool bForceRescan = true;
-				AssetRegistry.ScanPathsSynchronous({ULevel::GetExternalActorsPath(LevelPath.ToString())}, bForceRescan);
+				const FString LevelPathStr = LevelPath.ToString();
+				const FString LevelExternalActorsPath = ULevel::GetExternalActorsPath(LevelPathStr);
 
-				static const FName NAME_LevelPackage(TEXT("LevelPackage"));
+				// Do a synchronous scan of the level external actors path.
+				IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+				AssetRegistry.ScanPathsSynchronous({LevelExternalActorsPath}, /*bForceRescan*/true);
+
 				FARFilter Filter;
-				Filter.TagsAndValues.Add(NAME_LevelPackage, LevelPathStr);
+				Filter.bRecursivePaths = true;
 				Filter.bIncludeOnlyOnDiskAssets = true;
+				Filter.PackagePaths.Add(*LevelExternalActorsPath);
+
 				AssetRegistry.GetAssets(Filter, OutAssets);
 			}
 		};

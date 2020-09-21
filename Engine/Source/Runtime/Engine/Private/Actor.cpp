@@ -522,10 +522,6 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(WorldPartition->GetActorDescFactory(this)->Create());
 			ActorDesc->Init(this);
 
-			const FString LevelPackageName = GetOuter()->GetOutermost()->GetName();
-			static FName NAME_LevelPackage(TEXT("LevelPackage"));
-			OutTags.Add(UObject::FAssetRegistryTag(NAME_LevelPackage, LevelPackageName, UObject::FAssetRegistryTag::TT_Hidden));
-
 			const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetName();
 			static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
 			OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));
