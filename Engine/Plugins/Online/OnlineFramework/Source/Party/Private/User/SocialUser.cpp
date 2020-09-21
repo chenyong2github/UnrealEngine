@@ -1284,19 +1284,29 @@ void USocialUser::SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<F
 			{
 				if (IOnlineSubsystem* MissingOSS = GetOwningToolkit().GetSocialOss(Subsystem))
 				{
-					const FString SubsystemIdKey = FString::Printf(TEXT("%s:id"), *MissingOSS->GetIdentityInterface()->GetAuthType());
-					FString SubsystemIdStr;
-					if (UserInfo->GetUserAttribute(SubsystemIdKey, SubsystemIdStr) && !SubsystemIdStr.IsEmpty())
+					auto FindPlatformDescriptionByOssName = [MissingOSS](const FSocialPlatformDescription& TestPlatformDescription)
 					{
-						const FString IdPrefix = USocialSettings::GetUniqueIdEnvironmentPrefix(Subsystem);
-						if (!IdPrefix.IsEmpty())
+						return TestPlatformDescription.OnlineSubsystem == MissingOSS->GetSubsystemName();
+					};
+					if (const FSocialPlatformDescription* PlatformDescription = USocialSettings::GetSocialPlatformDescriptions().FindByPredicate(FindPlatformDescriptionByOssName))
+					{
+						if (!PlatformDescription->ExternalAccountType.IsEmpty())
 						{
-							// Wipe the environment prefix from the stored ID string before converting it to a proper UniqueId
-							SubsystemIdStr.RemoveFromStart(IdPrefix);
-						}
+							const FString SubsystemIdKey = FString::Printf(TEXT("%s:id"), *PlatformDescription->ExternalAccountType);
+							FString SubsystemIdStr;
+							if (UserInfo->GetUserAttribute(SubsystemIdKey, SubsystemIdStr) && !SubsystemIdStr.IsEmpty())
+							{
+								const FString IdPrefix = USocialSettings::GetUniqueIdEnvironmentPrefix(Subsystem);
+								if (!IdPrefix.IsEmpty())
+								{
+									// Wipe the environment prefix from the stored ID string before converting it to a proper UniqueId
+									SubsystemIdStr.RemoveFromStart(IdPrefix);
+								}
 
-						FUniqueNetIdRepl SubsystemId = MissingOSS->GetIdentityInterface()->CreateUniquePlayerId(SubsystemIdStr);
-						SetSubsystemId(Subsystem, SubsystemId);
+								FUniqueNetIdRepl SubsystemId = MissingOSS->GetIdentityInterface()->CreateUniquePlayerId(SubsystemIdStr);
+								SetSubsystemId(Subsystem, SubsystemId);
+							}
+						}
 					}
 				}
 			}
