@@ -5,6 +5,10 @@
 #include "Sound/SoundNodeRandom.h"
 #include "Sound/SoundCue.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "AudioCompressionSettings.h"
+#include "Sound/AudioSettings.h"
+#include "AudioCompressionSettingsUtils.h"
 
 #define ASYNC_LOAD_RANDOMIZED_SOUNDS 1
 
@@ -12,13 +16,29 @@
 // we may result in dropped sounds due to USoundNodeWavePlayer::LoadAsset nulling out the SoundWave ptr.
 #define MAKE_SOUNDWAVES_HARD_REFERENCES 1
 
-bool USoundNodeAssetReferencer::ShouldHardReferenceAsset() const
-{
+bool USoundNodeAssetReferencer::ShouldHardReferenceAsset(const ITargetPlatform* TargetPlatform) const
+{	
 #if MAKE_SOUNDWAVES_HARD_REFERENCES
 	return true;
 #else
-	bool bShouldHardReference = true;
+	if (TargetPlatform)
+	{
+		if (const FPlatformAudioCookOverrides* CookOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName()))
+		{
+			// If the Quality nodes are cooked, everything is hard refs.
+			if (CookOverrides->SoundCueCookQualityIndex != INDEX_NONE)
+			{
+				UE_LOG(LogAudio, Verbose, TEXT("HARD reffing '%s:%s', as we are cooking using quality '%s'"),
+					*GetNameSafe(GetOuter()),
+					*GetName(),
+					*GetDefault<UAudioSettings>()->FindQualityNameByIndex(CookOverrides->SoundCueCookQualityIndex)
+				)
+				return true;
+			}
+		}
+	}
 
+	bool bShouldHardReference = true;	
 	if (USoundCue* Cue = Cast<USoundCue>(GetOuter()))
 	{
 		TArray<USoundNodeQualityLevel*> QualityNodes;
@@ -55,9 +75,13 @@ bool USoundNodeAssetReferencer::ShouldHardReferenceAsset() const
 			}
 		}
 #endif // ASYNC_LOAD_RANDOMIZED_SOUNDS
-
-		
 	}
+
+	UE_LOG(LogAudio, Verbose, TEXT("%s reffing '%s:%s'."),
+		bShouldHardReference ? TEXT("HARD") : TEXT("SOFT"),
+		*GetNameSafe(GetOuter()),
+		*GetName()
+	);
 
 	return bShouldHardReference;
 #endif // MAKE_SOUNDWAVES_HARD_REFERENCES
