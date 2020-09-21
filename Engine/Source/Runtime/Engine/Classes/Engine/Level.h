@@ -641,10 +641,6 @@ public:
 	int32										CurrentActorIndexForUnregisterComponents;
 
 
-	/** Whether the level is currently pending being made visible.							*/
-	UE_DEPRECATED(4.15, "Use HasVisibilityChangeRequestPending")
-	bool HasVisibilityRequestPending() const;
-
 	/** Whether the level is currently pending being made invisible or visible.				*/
 	ENGINE_API bool HasVisibilityChangeRequestPending() const;
 

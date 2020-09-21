@@ -893,9 +893,6 @@ namespace EWorldType
 		/** An editor world that was loaded but not currently being edited in the level editor */
 		Inactive
 	};
-
-	UE_DEPRECATED(4.14, "EWorldType::Preview is deprecated. Please use either EWorldType::EditorPreview or EWorldType::GamePreview")
-	const EWorldType::Type Preview = EWorldType::EditorPreview;
 }
 
 /** Describes what parts of level streaming should be forcibly handled immediately */

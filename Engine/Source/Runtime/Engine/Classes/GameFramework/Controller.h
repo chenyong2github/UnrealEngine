@@ -188,11 +188,6 @@ public:
 		return Cast<T>(PlayerState);
 	}
 
-	/** DEPRECATED! Use the standard "Cast To" node instead. Casts this Controller to a Player Controller, if possible. */
-	UE_DEPRECATED(4.11, "CastToPlayerController has been replaced by the standard Cast To node.")
-	UFUNCTION(BlueprintCallable, Category=Pawn, meta=(DeprecatedFunction, DeprecationMessage="Use standard Cast To node instead."))
-	class APlayerController* CastToPlayerController();
-
 	/** Replicated function to set the pawn location and rotation, allowing server to force (ex. teleports). */
 	UFUNCTION(Reliable, Client)
 	void ClientSetLocation(FVector NewLocation, FRotator NewRotation);

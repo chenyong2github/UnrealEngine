@@ -2463,16 +2463,6 @@ public:
 	}
 
 	/** 
-	 * This function is deprecated
-	 */
-	UE_DEPRECATED(4.17, "GetWorldFromContextObject(Object) and GetWorldFromContextObject(Object, boolean) are replaced by GetWorldFromContextObject(Object, Enum) or GetWorldFromContextObjectChecked(Object)")
-	UWorld* GetWorldFromContextObject(const UObject* Object, bool bChecked = true) const
-	{
-		// Note: The behavior in 4.16 and before was similar to Assert if bChecked was true, but almost no callers actually wanted to pass in bChecked=true
-		return GetWorldFromContextObject(Object, bChecked ? EGetWorldErrorMode::LogAndReturnNull : EGetWorldErrorMode::ReturnNull);
-	}
-
-	/** 
 	 * mostly done to check if PIE is being set up, go GWorld is going to change, and it's not really _the_G_World_
 	 * NOTE: hope this goes away once PIE and regular game triggering are not that separate code paths
 	 */
@@ -2864,9 +2854,6 @@ public:
 
 #if WITH_SERVER_CODE
 	virtual bool HandleServerTravelCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-
-	UE_DEPRECATED(4.14, "Say Command moved to GameMode as an exec function")
-	virtual bool HandleSayCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
 #endif
 
 	virtual bool HandleDisconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld *InWorld );

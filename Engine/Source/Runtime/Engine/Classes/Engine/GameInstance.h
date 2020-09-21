@@ -248,12 +248,6 @@ public:
 
 	/** Called as soon as the game mode is spawned, to allow additional PIE setting validation prior to creating the local players / etc... (called on pure clients too, in which case the game mode is nullptr) */
 	virtual FGameInstancePIEResult PostCreateGameModeForPIE(const FGameInstancePIEParameters& Params, AGameModeBase* GameMode);
-
-	UE_DEPRECATED(4.15, "Please override InitializeForPIE instead")
-	virtual bool InitializePIE(bool bAnyBlueprintErrors, int32 PIEInstance, bool bRunAsDedicated);
-
-	UE_DEPRECATED(4.15, "Please override StartPlayInEditorGameInstance instead")
-	virtual bool StartPIEGameInstance(ULocalPlayer* LocalPlayer, bool bInSimulateInEditor, bool bAnyBlueprintErrors, bool bStartInSpectatorMode);
 #endif
 
 	class UEngine* GetEngine() const;

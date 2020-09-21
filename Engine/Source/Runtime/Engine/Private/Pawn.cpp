@@ -651,12 +651,6 @@ FVector APawn::GetLastMovementInputVector() const
 	return LastControlInputVector;
 }
 
-// TODO: deprecated, remove
-FVector APawn::K2_GetMovementInputVector() const
-{
-	return GetPendingMovementInputVector();
-}
-
 FVector APawn::ConsumeMovementInputVector()
 {
 	UPawnMovementComponent* MovementComponent = GetMovementComponent();
@@ -1011,16 +1005,6 @@ void APawn::GetMoveGoalReachTest(const AActor* MovingActor, const FVector& MoveO
 {
 	GoalOffset = FVector::ZeroVector;
 	GetSimpleCollisionCylinder(GoalRadius, GoalHalfHeight);
-}
-
-// @TODO: Deprecated, remove me.
-void APawn::LaunchPawn(FVector LaunchVelocity, bool bXYOverride, bool bZOverride)
-{
-	ACharacter* Character = Cast<ACharacter>(this);
-	if (Character)
-	{
-		Character->LaunchCharacter(LaunchVelocity, bXYOverride, bZOverride);
-	}
 }
 
 // REPLICATION

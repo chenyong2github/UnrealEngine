@@ -1685,14 +1685,6 @@ void UCharacterMovementComponent::SimulateRootMotion(float DeltaSeconds, const F
 	RootMotionParams.Clear();
 }
 
-
-// TODO: Deprecated, remove.
-FVector UCharacterMovementComponent::CalcRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const
-{
-	return CalcAnimRootMotionVelocity(RootMotionDeltaMove, DeltaSeconds, CurrentVelocity);
-}
-
-
 FVector UCharacterMovementComponent::CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const
 {
 	if (ensure(DeltaSeconds > 0.f))
@@ -3671,25 +3663,6 @@ float UCharacterMovementComponent::GetMaxJumpHeightWithJumpTime() const
 
 	return MaxJumpHeight;
 }
-
-// TODO: deprecated, remove.
-float UCharacterMovementComponent::GetModifiedMaxAcceleration() const
-{
-	// Allow calling old deprecated function to maintain old behavior until it is removed.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return CharacterOwner ? MaxAcceleration * GetMaxSpeedModifier() : 0.f;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-// TODO: deprecated, remove.
-float UCharacterMovementComponent::K2_GetModifiedMaxAcceleration() const
-{
-	// Allow calling old deprecated function to maintain old behavior until it is removed.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GetModifiedMaxAcceleration();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 
 float UCharacterMovementComponent::GetMaxAcceleration() const
 {
@@ -10968,7 +10941,6 @@ FNetworkPredictionData_Client_Character::FNetworkPredictionData_Client_Character
 	, MaxFreeMoveCount(96)
 	, MaxSavedMoveCount(96)
 	, bUpdatePosition(false)
-	, bSmoothNetUpdates(false) // Deprecated
 	, OriginalMeshTranslationOffset(ForceInitToZero)
 	, MeshTranslationOffset(ForceInitToZero)
 	, OriginalMeshRotationOffset(FQuat::Identity)
@@ -10979,13 +10951,10 @@ FNetworkPredictionData_Client_Character::FNetworkPredictionData_Client_Character
 	, MaxClientSmoothingDeltaTime(0.5f)
 	, SmoothingServerTimeStamp(0.f)
 	, SmoothingClientTimeStamp(0.f)
-	, CurrentSmoothTime(0.f) // Deprecated
-	, bUseLinearSmoothing(false) // Deprecated
 	, MaxSmoothNetUpdateDist(0.f)
 	, NoSmoothNetUpdateDist(0.f)
 	, SmoothNetUpdateTime(0.f)
 	, SmoothNetUpdateRotationTime(0.f)
-	, MaxResponseTime(0.125f) // Deprecated, use MaxMoveDeltaTime instead
 	, MaxMoveDeltaTime(0.125f)
 	, LastSmoothLocation(FVector::ZeroVector)
 	, LastServerLocation(FVector::ZeroVector)
@@ -11005,8 +10974,6 @@ FNetworkPredictionData_Client_Character::FNetworkPredictionData_Client_Character
 		MaxMoveDeltaTime = GameNetworkManager->MaxMoveDeltaTime;
 		MaxClientSmoothingDeltaTime = FMath::Max(GameNetworkManager->MaxClientSmoothingDeltaTime, MaxMoveDeltaTime * 2.0f);
 	}
-
-	MaxResponseTime = MaxMoveDeltaTime; // MaxResponseTime is deprecated, use MaxMoveDeltaTime instead
 
 	if (ClientMovement.GetOwnerRole() == ROLE_AutonomousProxy)
 	{
@@ -11152,7 +11119,6 @@ FNetworkPredictionData_Server_Character::FNetworkPredictionData_Server_Character
 	, ServerAccumulatedClientTimeStamp(0.0)
 	, LastUpdateTime(0.f)
 	, ServerTimeStampLastServerMove(0.f)
-	, MaxResponseTime(0.125f) // Deprecated, use MaxMoveDeltaTime instead
 	, MaxMoveDeltaTime(0.125f)
 	, bForceClientUpdate(false)
 	, LifetimeRawTimeDiscrepancy(0.f)
@@ -11178,8 +11144,6 @@ FNetworkPredictionData_Server_Character::FNetworkPredictionData_Server_Character
 		WorldCreationTime = World->GetTimeSeconds();
 		ServerTimeStamp = World->GetTimeSeconds();
 	}
-
-	MaxResponseTime = MaxMoveDeltaTime; // Deprecated, use MaxMoveDeltaTime instead
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS // For deprecated members of FNetworkPredictionData_Server_Character

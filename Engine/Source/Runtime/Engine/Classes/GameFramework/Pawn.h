@@ -481,16 +481,6 @@ public:
 	/** Remove an Actor to ignore by Pawn's movement collision */
 	void MoveIgnoreActorRemove(AActor* ActorToIgnore);
 
-	// DEPRECATED FUNCTIONS
-
-	/** (Deprecated) Launch Character with LaunchVelocity  */
-	UE_DEPRECATED(4.8, "LaunchPawn is deprecated. For Characters, use LaunchCharacter() instead.")
-	UFUNCTION(BlueprintCallable, Category="Pawn", meta=(DeprecatedFunction, DeprecationMessage="Use Character.LaunchCharacter instead"))
-	void LaunchPawn(FVector LaunchVelocity, bool bXYOverride, bool bZOverride);
-
-	/** (Deprecated) Return the input vector in world space. */
-	UFUNCTION(BlueprintCallable, Category="Pawn|Input", meta=(DeprecatedFunction, DisplayName="GetMovementInputVector", ScriptName="GetMovementInputVector", DeprecationMessage="GetMovementInputVector has been deprecated, use either GetPendingMovementInputVector or GetLastMovementInputVector"))
-	FVector K2_GetMovementInputVector() const;	
 };
 
 

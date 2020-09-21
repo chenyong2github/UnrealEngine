@@ -136,32 +136,6 @@ public:
 
 	// Constructors
 #if !FIND_UNKNOWN_SCENE_QUERIES
-	/** 
-	 *  DEPRECATED!  
-	 *  Please instead provide a FName parameter when constructing a FCollisionQueryParams object which will use the other constructor.
-	 *  Providing a single string literal argument, such as TEXT("foo"), instead of an explicit FNAME
-	 *  can cause this constructor to be invoked instead the the other which was likely the programmers intention. 
-	 *  This constructor will eventually be deprecated to avoid this potentially ambiguous case.
-	 */ 
-	UE_DEPRECATED(4.11, "FCollisionQueryParams, to avoid ambiguity, please use other constructor and explicitly provide an FName parameter (not just a string literal) as the first parameter")
-	FCollisionQueryParams(bool bInTraceComplex)
-	{
-		bTraceComplex = bInTraceComplex;
-		MobilityType = EQueryMobilityType::Any;
-		TraceTag = NAME_None;
-		bFindInitialOverlaps = true;
-		bReturnFaceIndex = false;
-		bReturnPhysicalMaterial = false;
-		bComponentListUnique = true;
-		IgnoreMask = 0;
-		bIgnoreBlocks = false;
-		bIgnoreTouches = false;
-		bSkipNarrowPhase = false;
-		StatId = GetUnknownStatId();
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
-		bDebugQuery = false;
-#endif
-	}
 
 	FCollisionQueryParams()
 	{

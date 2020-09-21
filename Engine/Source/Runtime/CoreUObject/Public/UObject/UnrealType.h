@@ -4782,12 +4782,6 @@ public:
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
 	// End of FProperty interface
 
-	UE_DEPRECATED(4.14, "Use UScriptStruct::ImportText instead")
-	static const TCHAR* ImportText_Static(UScriptStruct* InStruct, const FString& InName, const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText);
-	
-	UE_DEPRECATED(4.14, "Use UScriptStruct::ExportText instead")
-	static void ExportTextItem_Static(class UScriptStruct* InStruct, FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope);
-
 	bool UseBinaryOrNativeSerialization(const FArchive& Ar) const;
 
 private:

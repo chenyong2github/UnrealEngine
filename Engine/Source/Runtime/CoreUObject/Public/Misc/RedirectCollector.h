@@ -102,18 +102,6 @@ public:
 		return SoftObjectPathMap.Num() > 0;
 	}
 
-	UE_DEPRECATED(4.17, "OnStringAssetReferenceSaved is deprecated, call GetAssetPathRedirection")
-	FString OnStringAssetReferenceSaved(const FString& InString);
-
-	UE_DEPRECATED(4.18, "OnStringAssetReferenceLoaded is deprecated, call OnSoftObjectPathLoaded")
-	void OnStringAssetReferenceLoaded(const FString& InString);
-
-	UE_DEPRECATED(4.18, "ResolveStringAssetReference is deprecated, call ResolveAllSoftObjectPaths")
-	void ResolveStringAssetReference(FName FilterPackage = NAME_None, bool bProcessAlreadyResolvedPackages = true)
-	{
-		ResolveAllSoftObjectPaths(FilterPackage);
-	}
-
 private:
 
 	/** A map of assets referenced by soft object paths, with the key being the package with the reference */

@@ -316,26 +316,8 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 
 	Init();
 
-	// Give the deprecated method a chance to fail as well
-	FGameInstancePIEResult InitResult = FGameInstancePIEResult::Success();
-
-	if (InitResult.IsSuccess())
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		InitResult = InitializePIE(Params.bAnyBlueprintErrors, PIEInstanceIndex, Params.bRunAsDedicated) ?
-			FGameInstancePIEResult::Success() :
-			FGameInstancePIEResult::Failure(NSLOCTEXT("UnrealEd", "Error_CouldntInitInstance", "The game instance failed to Play/Simulate In Editor"));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	return InitResult;
-}
-
-
-bool UGameInstance::InitializePIE(bool bAnyBlueprintErrors, int32 PIEInstance, bool bRunAsDedicated)
-{
-	// DEPRECATED VERSION
-	return true;
+	// Games can override this to return failure if PIE is not allowed for some reason
+	return FGameInstancePIEResult::Success();
 }
 
 FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer* LocalPlayer, const FGameInstancePIEParameters& Params)
@@ -483,30 +465,13 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 		PlayWorld->BeginPlay();
 	}
 
-	// Give the deprecated method a chance to fail as well
-	FGameInstancePIEResult StartResult = FGameInstancePIEResult::Success();
-
-	if (StartResult.IsSuccess())
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		StartResult = StartPIEGameInstance(LocalPlayer, Params.bSimulateInEditor, Params.bAnyBlueprintErrors, Params.bStartInSpectatorMode) ?
-			FGameInstancePIEResult::Success() :
-			FGameInstancePIEResult::Failure(NSLOCTEXT("UnrealEd", "Error_CouldntInitInstance", "The game instance failed to Play/Simulate In Editor"));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	return StartResult;
+	// Games can override this to return failure if PIE is not allowed for some reason
+	return FGameInstancePIEResult::Success();
 }
 
 FGameInstancePIEResult UGameInstance::PostCreateGameModeForPIE(const FGameInstancePIEParameters& Params, AGameModeBase* GameMode)
 {
 	return FGameInstancePIEResult::Success();
-}
-
-bool UGameInstance::StartPIEGameInstance(ULocalPlayer* LocalPlayer, bool bInSimulateInEditor, bool bAnyBlueprintErrors, bool bStartInSpectatorMode)
-{
-	// DEPRECATED VERSION
-	return true;
 }
 #endif
 

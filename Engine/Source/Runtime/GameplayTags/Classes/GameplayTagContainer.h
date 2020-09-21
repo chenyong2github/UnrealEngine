@@ -17,15 +17,9 @@ GAMEPLAYTAGS_API DECLARE_LOG_CATEGORY_EXTERN(LogGameplayTags, Log, All);
 
 DECLARE_STATS_GROUP(TEXT("Gameplay Tags"), STATGROUP_GameplayTags, STATCAT_Advanced);
 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("FGameplayTagContainer::HasTag"), STAT_FGameplayTagContainer_HasTag, STATGROUP_GameplayTags, GAMEPLAYTAGS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("FGameplayTagContainer::DoesTagContainerMatch"), STAT_FGameplayTagContainer_DoesTagContainerMatch, STATGROUP_GameplayTags, GAMEPLAYTAGS_API);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("UGameplayTagsManager::GameplayTagsMatch"), STAT_UGameplayTagsManager_GameplayTagsMatch, STATGROUP_GameplayTags, GAMEPLAYTAGS_API);
 
-struct FGameplayTagContainer;
-
-// DEPRECATED ENUMS
-UENUM(BlueprintType)
-namespace EGameplayTagMatchType
+namespace UE_DEPRECATED(5.0, "Deprecated in favor of HasExact and related functions") EGameplayTagMatchType
 {
 	enum Type
 	{
@@ -37,8 +31,11 @@ namespace EGameplayTagMatchType
 UENUM(BlueprintType)
 enum class EGameplayContainerMatchType : uint8
 {
-	Any,	//	Means the filter is populated by any tag matches in this container.
-	All		//	Means the filter is only populated if all of the tags in this container match.
+	//	Means the filter is populated by any tag matches in this container.
+	Any,	
+
+	//	Means the filter is only populated if all of the tags in this container match.
+	All		
 };
 
 typedef uint16 FGameplayTagNetIndex;
@@ -201,47 +198,6 @@ struct GAMEPLAYTAGS_API FGameplayTag
 
 	/** An empty Gameplay Tag */
 	static const FGameplayTag EmptyTag;
-
-	// DEPRECATED
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-	/**
-	 * Check to see if two FGameplayTags match with explicit match types
-	 *
-	 * @param MatchTypeOne	How we compare this tag, Explicitly or a match with any parents as well
-	 * @param Other			The second tag to compare against
-	 * @param MatchTypeTwo	How we compare Other tag, Explicitly or a match with any parents as well
-	 * 
-	 * @return True if there is a match according to the specified match types; false if not
-	 */
-	UE_DEPRECATED(4.15, "Deprecated in favor of MatchesTag")
-	FORCEINLINE_DEBUGGABLE bool Matches(TEnumAsByte<EGameplayTagMatchType::Type> MatchTypeOne, const FGameplayTag& Other, TEnumAsByte<EGameplayTagMatchType::Type> MatchTypeTwo) const
-	{
-		bool bResult = false;
-		if (MatchTypeOne == EGameplayTagMatchType::Explicit && MatchTypeTwo == EGameplayTagMatchType::Explicit)
-		{
-			bResult = TagName == Other.TagName;
-		}
-		else
-		{
-			bResult = ComplexMatches(MatchTypeOne, Other, MatchTypeTwo);
-		}
-		return bResult;
-	}
-	/**
-	 * Check to see if two FGameplayTags match
-	 *
-	 * @param MatchTypeOne	How we compare this tag, Explicitly or a match with any parents as well
-	 * @param Other			The second tag to compare against
-	 * @param MatchTypeTwo	How we compare Other tag, Explicitly or a match with any parents as well
-	 * 
-	 * @return True if there is a match according to the specified match types; false if not
-	 */
-	UE_DEPRECATED(4.15, "Deprecated in favor of MatchesTag")
-	bool ComplexMatches(TEnumAsByte<EGameplayTagMatchType::Type> MatchTypeOne, const FGameplayTag& Other, TEnumAsByte<EGameplayTagMatchType::Type> MatchTypeTwo) const;
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 protected:
 
@@ -628,58 +584,9 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	/** An empty Gameplay Tag Container */
 	static const FGameplayTagContainer EmptyContainer;
 
-	// DEPRECATED FUNCTIONALITY
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-	UE_DEPRECATED(4.15, "Deprecated in favor of Reset")
-		void RemoveAllTags(int32 Slack = 0)
-	{
-		Reset(Slack);
-	}
-
-	UE_DEPRECATED(4.15, "Deprecated in favor of Reset")
-		void RemoveAllTagsKeepSlack()
-	{
-		Reset();
-	}
-
-	/**
-	 * Determine if the container has the specified tag. This forces an explicit match. 
-	 * This function exists for convenience and brevity. We do not wish to use default values for ::HasTag match type parameters, to avoid confusion on what the default behavior is. (E.g., we want people to think and use the right match type).
-	 * 
-	 * @param TagToCheck			Tag to check if it is present in the container
-	 * 
-	 * @return True if the tag is in the container, false if it is not
-	 */
-	UE_DEPRECATED(4.15, "Deprecated in favor of HasTagExact")
-	FORCEINLINE_DEBUGGABLE bool HasTagExplicit(FGameplayTag const& TagToCheck) const
-	{
-		return HasTag(TagToCheck, EGameplayTagMatchType::Explicit, EGameplayTagMatchType::Explicit);
-	}
-
-	/**
-	 * Determine if the container has the specified tag
-	 * 
-	 * @param TagToCheck			Tag to check if it is present in the container
-	 * @param TagMatchType			Type of match to use for the tags in this container
-	 * @param TagToCheckMatchType	Type of match to use for the TagToCheck Param
-	 * 
-	 * @return True if the tag is in the container, false if it is not
-	 */
-	UE_DEPRECATED(4.15, "Deprecated in favor of HasTag with no parameters")
-	FORCEINLINE_DEBUGGABLE bool HasTag(FGameplayTag const& TagToCheck, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> TagToCheckMatchType) const
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_HasTag);
-		if (!TagToCheck.IsValid())
-		{
-			return false;
-		}
-
-		return HasTagFast(TagToCheck, TagMatchType, TagToCheckMatchType);
-	}
-
-	/** Version of above that is called from conditions where you know tag is valid */
+	UE_DEPRECATED(5.0, "Deprecated in favor of HasTag or HasTagExact")
 	FORCEINLINE_DEBUGGABLE bool HasTagFast(FGameplayTag const& TagToCheck, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> TagToCheckMatchType) const
 	{
 		bool bResult;
@@ -701,65 +608,10 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bResult;
 	}
 
-	/**
-	 * Determine if the container has the specified tag
-	 * 
-	 * @param TagToCheck			Tag to check if it is present in the container
-	 * @param TagMatchType			Type of match to use for the tags in this container
-	 * @param TagToCheckMatchType	Type of match to use for the TagToCheck Param
-	 * 
-	 * @return True if the tag is in the container, false if it is not
-	 */
+	UE_DEPRECATED(5.0, "Deprecated in favor of HasTag or HasTagExact")
 	bool ComplexHasTag(FGameplayTag const& TagToCheck, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> TagToCheckMatchType) const;
 
-	/**
-	 * Checks if this container matches ANY of the tags in the specified container. Performs matching by expanding this container out
-	 * to include its parent tags.
-	 *
-	 * @param Other					Container we are checking against
-	 * @param bCountEmptyAsMatch	If true, the parameter tag container will count as matching even if it's empty
-	 *
-	 * @return True if this container has ANY the tags of the passed in container
-	 */
-	UE_DEPRECATED(4.15, "Deprecated in favor of HasAny")
-	FORCEINLINE_DEBUGGABLE bool MatchesAny(const FGameplayTagContainer& Other, bool bCountEmptyAsMatch) const
-	{
-		if (Other.IsEmpty())
-		{
-			return bCountEmptyAsMatch;
-		}
-		return DoesTagContainerMatch(Other, EGameplayTagMatchType::IncludeParentTags, EGameplayTagMatchType::Explicit, EGameplayContainerMatchType::Any);
-	}
-
-	/**
-	 * Checks if this container matches ALL of the tags in the specified container. Performs matching by expanding this container out to
-	 * include its parent tags.
-	 *
-	 * @param Other				Container we are checking against
-	 * @param bCountEmptyAsMatch	If true, the parameter tag container will count as matching even if it's empty
-	 * 
-	 * @return True if this container has ALL the tags of the passed in container
-	 */
-	UE_DEPRECATED(4.15, "Deprecated in favor of HasAll")
-	FORCEINLINE_DEBUGGABLE bool MatchesAll(const FGameplayTagContainer& Other, bool bCountEmptyAsMatch) const
-	{
-		if (Other.IsEmpty())
-		{
-			return bCountEmptyAsMatch;
-		}
-		return DoesTagContainerMatch(Other, EGameplayTagMatchType::IncludeParentTags, EGameplayTagMatchType::Explicit, EGameplayContainerMatchType::All);
-	}
-
-	/**
-	 * Returns true if the tags in this container match the tags in OtherContainer for the specified matching types.
-	 *
-	 * @param OtherContainer		The Container to filter against
-	 * @param TagMatchType			Type of match to use for the tags in this container
-	 * @param OtherTagMatchType		Type of match to use for the tags in the OtherContainer param
-	 * @param ContainerMatchType	Type of match to use for filtering
-	 *
-	 * @return Returns true if ContainerMatchType is Any and any of the tags in OtherContainer match the tags in this or ContainerMatchType is All and all of the tags in OtherContainer match at least one tag in this. Returns false otherwise.
-	 */
+	UE_DEPRECATED(5.0, "Deprecated in favor of HasAll and related functions")
 	FORCEINLINE_DEBUGGABLE bool DoesTagContainerMatch(const FGameplayTagContainer& OtherContainer, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> OtherTagMatchType, EGameplayContainerMatchType ContainerMatchType) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_DoesTagContainerMatch);
@@ -793,33 +645,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bResult;
 	}
 
-	/**
-	 * Returns a filtered version of this container, as if the container were filtered by matches from the parameter container
-	 *
-	 * @param OtherContainer		The Container to filter against
-	 * @param TagMatchType			Type of match to use for the tags in this container
-	 * @param OtherTagMatchType		Type of match to use for the tags in the OtherContainer param
-	 *
-	 * @return A FGameplayTagContainer containing the filtered tags
-	 */
-	UE_DEPRECATED(4.15, "Deprecated in favor of HasAll")
-	FGameplayTagContainer Filter(const FGameplayTagContainer& OtherContainer, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> OtherTagMatchType) const;
-
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 protected:
-
-	/**
-	 * Returns true if the tags in this container match the tags in OtherContainer for the specified matching types.
-	 *
-	 * @param OtherContainer		The Container to filter against
-	 * @param TagMatchType			Type of match to use for the tags in this container
-	 * @param OtherTagMatchType		Type of match to use for the tags in the OtherContainer param
-	 * @param ContainerMatchType	Type of match to use for filtering
-	 *
-	 * @return Returns true if ContainerMatchType is Any and any of the tags in OtherContainer match the tags in this or ContainerMatchType is All and all of the tags in OtherContainer match at least one tag in this. Returns false otherwise.
-	 */
-	bool DoesTagContainerMatchComplex(const FGameplayTagContainer& OtherContainer, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> OtherTagMatchType, EGameplayContainerMatchType ContainerMatchType) const;
 
 	/**
 	 * If a Tag with the specified tag name explicitly exists, it will remove that tag and return true.  Otherwise, it 

@@ -1395,15 +1395,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true"))
 	void FinishAddComponent(UActorComponent* Component, bool bManualAttachment, const FTransform& RelativeTransform);
 
-	UE_DEPRECATED(4.17, "Use UActorComponent::DestroyComponent() instead")
-	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage = "Use Component.DestroyComponent instead", BlueprintProtected = "true", DisplayName = "DestroyComponent", ScriptName = "DestroyComponent"))
-	void K2_DestroyComponent(UActorComponent* Component);
-
-	/** DEPRECATED - Use AttachToComponent() instead */
-	UE_DEPRECATED(4.17, "Use AttachToComponent() instead.")
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "AttachRootComponentTo (Deprecated)", ScriptNoExport, AttachLocationType = "KeepRelativeOffset"), Category = "Utilities|Transformation")
-	void K2_AttachRootComponentTo(USceneComponent* InParent, FName InSocketName = NAME_None, EAttachLocation::Type AttachLocationType = EAttachLocation::KeepRelativeOffset, bool bWeldSimulatedBodies = true);
-
 	/**
 	 * Attaches the RootComponent of this Actor to the supplied component, optionally at a named socket. It is not valid to call this on components that are not Registered.
 	 * @param Parent					Parent to attach to.
@@ -1424,11 +1415,6 @@ public:
 	 */
 	void AttachToComponent(USceneComponent* Parent, const FAttachmentTransformRules& AttachmentRules, FName SocketName = NAME_None);
 
-	/** DEPRECATED - Use AttachToActor() instead */
-	UE_DEPRECATED(4.17, "Use AttachToActor() instead.")
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "AttachRootComponentToActor (Deprecated)", ScriptNoExport, AttachLocationType = "KeepRelativeOffset"), Category = "Utilities|Transformation")
-	void K2_AttachRootComponentToActor(AActor* InParentActor, FName InSocketName = NAME_None, EAttachLocation::Type AttachLocationType = EAttachLocation::KeepRelativeOffset, bool bWeldSimulatedBodies = true);
-
 	/**
 	 * Attaches the RootComponent of this Actor to the RootComponent of the supplied actor, optionally at a named socket.
 	 * @param ParentActor				Actor to attach this actor's RootComponent to
@@ -1448,15 +1434,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "AttachActorToActor", ScriptName = "AttachToActor", bWeldSimulatedBodies=true), Category = "Utilities|Transformation")
 	void K2_AttachToActor(AActor* ParentActor, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies);
-
-	UE_DEPRECATED(4.17, "Use AttachToComponent() with EAttachLocation::SnapToTarget option instead")
-	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage = "Use AttachRootComponentTo with EAttachLocation::SnapToTarget option instead", DisplayName = "SnapActorTo", ScriptNoExport), Category="Utilities|Transformation")
-	void SnapRootComponentTo(AActor* InParentActor, FName InSocketName);
-
-	/** DEPRECATED - Use DetachFromActor() instead */
-	UE_DEPRECATED(4.17, "Use DetachFromActor() instead")
-	UFUNCTION(BlueprintCallable, meta=(DisplayName = "DetachActorFromActor (Deprecated)", ScriptNoExport), Category="Utilities|Transformation")
-	void DetachRootComponentFromParent(bool bMaintainWorldPosition = true);
 
 	/** 
 	 * Detaches the RootComponent of this Actor from any SceneComponent it is currently attached to. 
@@ -1523,10 +1500,6 @@ public:
 	/** Sets whether this actor can tick when paused. */
 	UFUNCTION(BlueprintCallable, Category="Utilities")
 	void SetTickableWhenPaused(bool bTickableWhenPaused);
-
-	UE_DEPRECATED(4.17, "Use UPrimitiveComponent::CreateAndSetMaterialInstanceDynamic() instead.")
-	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PrimitiveComponent.CreateAndSetMaterialInstanceDynamic instead.", BlueprintProtected = "true"), Category="Rendering|Material")
-	class UMaterialInstanceDynamic* MakeMIDForMaterial(class UMaterialInterface* Parent);
 
 	/** The number of seconds (in game time) since this Actor was created, relative to Get Game Time In Seconds. */
 	UFUNCTION(BlueprintPure, Category=Actor)

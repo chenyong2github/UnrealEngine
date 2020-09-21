@@ -88,12 +88,6 @@ void UPawnMovementComponent::RequestPathMove(const FVector& MoveInput)
 	}
 }
 
-// TODO: deprecated, remove
-FVector UPawnMovementComponent::K2_GetInputVector() const
-{
-	return GetPendingInputVector();
-}
-
 void UPawnMovementComponent::OnTeleported()
 {
 	if (PawnOwner && PawnOwner->IsNetMode(NM_Client) && PawnOwner->IsLocallyControlled())

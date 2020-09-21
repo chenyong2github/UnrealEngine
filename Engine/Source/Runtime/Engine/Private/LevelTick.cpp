@@ -1697,37 +1697,6 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	EndTickDrawEvent(TickDrawEvent);
 }
 
-/**
- *  Requests a one frame delay of Garbage Collection
- */
-void UWorld::DelayGarbageCollection()
-{
-	GEngine->DelayGarbageCollection();
-}
-
-void UWorld::ForceGarbageCollection( bool bFullPurge)
-{
-	GEngine->ForceGarbageCollection(bFullPurge);
-}
-
-void UWorld::SetTimeUntilNextGarbageCollection(const float MinTimeUntilNextPass)
-{
-	GEngine->SetTimeUntilNextGarbageCollection(MinTimeUntilNextPass);
-}
-
-float UWorld::GetTimeBetweenGarbageCollectionPasses() const
-{
-	return GEngine->GetTimeBetweenGarbageCollectionPasses();
-}
-
-/**
- *  Interface to allow WorldSettings to request immediate garbage collection
- */
-void UWorld::PerformGarbageCollectionAndCleanupActors()
-{
-	GEngine->PerformGarbageCollectionAndCleanupActors();
-}
-
 void UWorld::CleanupActors()
 {
 	// Remove NULL entries from actor list. Only does so for dynamic actors to avoid resorting; in theory static 

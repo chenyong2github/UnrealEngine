@@ -1425,13 +1425,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement")
 	virtual float GetMinAnalogSpeed() const;
 	
-	UE_DEPRECATED(4.3, "GetModifiedMaxAcceleration() is deprecated, apply your own modifiers to GetMaxAcceleration() if desired.")
-	virtual float GetModifiedMaxAcceleration() const;
-	
-	/** Returns maximum acceleration for the current state, based on MaxAcceleration and any additional modifiers. */
-	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(DeprecatedFunction, DisplayName="GetModifiedMaxAcceleration", ScriptName="GetModifiedMaxAcceleration", DeprecationMessage="GetModifiedMaxAcceleration() is deprecated, apply your own modifiers to GetMaxAcceleration() if desired."))
-	virtual float K2_GetModifiedMaxAcceleration() const;
-
 	/** Returns maximum acceleration for the current state. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
 	virtual float GetMaxAcceleration() const;
@@ -2541,9 +2534,6 @@ public:
 	 */
 	virtual FVector CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const;
 
-	UE_DEPRECATED(4.13, "CalcRootMotionVelocity() has been replaced by CalcAnimRootMotionVelocity() instead, and ConstrainAnimRootMotionVelocity() now handles restricting root motion velocity under different conditions.")
-	virtual FVector CalcRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const;
-
 	/**
 	 * Constrain components of root motion velocity that may not be appropriate given the current movement mode (e.g. when falling Z may be ignored).
 	 */
@@ -2844,10 +2834,7 @@ public:
 
 	// Mesh smoothing variables (for network smoothing)
 	//
-	/** Whether to smoothly interpolate pawn position corrections on clients based on received location updates */
-	UE_DEPRECATED(4.11, "bSmoothNetUpdates will be removed, use UCharacterMovementComponent::NetworkSmoothingMode instead.")
-	uint32 bSmoothNetUpdates:1;
-
+	
 	/** Used for position smoothing in net games */
 	FVector OriginalMeshTranslationOffset;
 
@@ -2878,14 +2865,6 @@ public:
 	/** Used to track the client time as we try to match the server.*/
 	double SmoothingClientTimeStamp;
 
-	/** Used to track how much time has elapsed since last correction. It can be computed as World->TimeSince(LastCorrectionTime). */
-	UE_DEPRECATED(4.11, "CurrentSmoothTime will be removed, use LastCorrectionTime instead.")
-	float CurrentSmoothTime;
-
-	/** Used to signify that linear smoothing is desired */
-	UE_DEPRECATED(4.11, "bUseLinearSmoothing will be removed, use UCharacterMovementComponent::NetworkSmoothingMode instead.")
-	bool bUseLinearSmoothing;
-
 	/**
 	 * Copied value from UCharacterMovementComponent::NetworkMaxSmoothUpdateDistance.
 	 * @see UCharacterMovementComponent::NetworkMaxSmoothUpdateDistance
@@ -2903,10 +2882,6 @@ public:
 
 	/** How long to take to smoothly interpolate from the old pawn rotation on the client to the corrected one sent by the server.  Must be >= 0. Not used for linear smoothing. */
 	float SmoothNetUpdateRotationTime;
-
-	/** (DEPRECATED) How long server will wait for client move update before setting position */
-	UE_DEPRECATED(4.12, "MaxResponseTime has been renamed to MaxMoveDeltaTime for clarity in what it does and will be removed, use MaxMoveDeltaTime instead.")
-	float MaxResponseTime;
 	
 	/** 
 	 * Max delta time for a given move, in real seconds
@@ -2976,10 +2951,6 @@ public:
 
 	/** Server clock time when last server move was received from client (does NOT include forced moves on server) */
 	float ServerTimeStampLastServerMove;
-
-	/** (DEPRECATED) How long server will wait for client move update before setting position */
-	UE_DEPRECATED(4.12, "MaxResponseTime has been renamed to MaxMoveDeltaTime for clarity in what it does and will be removed, use MaxMoveDeltaTime instead.")
-	float MaxResponseTime;
 	
 	/** 
 	 * Max delta time for a given move, in real seconds

@@ -643,13 +643,6 @@ class AActor* UGameplayStatics::BeginSpawningActorFromBlueprint(const UObject* W
 	return nullptr;
 }
 
-// deprecated
-class AActor* UGameplayStatics::BeginSpawningActorFromClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, bool bNoCollisionFail /*= false*/, AActor* Owner /*= nullptr*/)
-{
-	ESpawnActorCollisionHandlingMethod const CollisionHandlingOverride = bNoCollisionFail ? ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding : ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	return BeginDeferredActorSpawnFromClass(WorldContextObject, ActorClass, SpawnTransform, CollisionHandlingOverride, Owner);
-}
-
 class AActor* UGameplayStatics::BeginDeferredActorSpawnFromClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, ESpawnActorCollisionHandlingMethod CollisionHandlingOverride /*= ESpawnActorCollisionHandlingMethod::Undefined*/, AActor* Owner /*= nullptr*/)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SpawnTime);
@@ -675,12 +668,12 @@ class AActor* UGameplayStatics::BeginDeferredActorSpawnFromClass(const UObject* 
 		else
 		{
 			//@TODO: RuntimeErrors: Overlogging
-			UE_LOG(LogScript, Warning, TEXT("UGameplayStatics::BeginSpawningActorFromClass: %s can not be spawned in NULL world"), *Class->GetName());		
+			UE_LOG(LogScript, Warning, TEXT("UGameplayStatics::BeginDeferredActorSpawnFromClass: %s can not be spawned in NULL world"), *Class->GetName());		
 		}
 	}
 	else
 	{
-		UE_LOG(LogScript, Warning, TEXT("UGameplayStatics::BeginSpawningActorFromClass: can not spawn an actor from a NULL class"));
+		UE_LOG(LogScript, Warning, TEXT("UGameplayStatics::BeginDeferredActorSpawnFromClass: can not spawn an actor from a NULL class"));
 	}
 	return nullptr;
 }
@@ -2518,45 +2511,6 @@ bool UGameplayStatics::PredictProjectilePath(const UObject* WorldContextObject, 
 	}
 
 	return bBlockingHit;
-}
-
-
-// TODO: Deprecated, remove
-bool UGameplayStatics::PredictProjectilePath(
-	const UObject* WorldContextObject,
-	FHitResult& OutHit,
-	TArray<FVector>& OutPathPositions,
-	FVector& OutLastTraceDestination,
-	FVector StartPos,
-	FVector LaunchVelocity,
-	bool bTracePath,
-	float ProjectileRadius,
-	const TArray<TEnumAsByte<EObjectTypeQuery> >& ObjectTypes,
-	bool bTraceComplex,
-	const TArray<AActor*>& ActorsToIgnore,
-	EDrawDebugTrace::Type DrawDebugType,
-	float DrawDebugTime,
-	float SimFrequency,
-	float MaxSimTime,
-	float OverrideGravityZ)
-{
-	return Blueprint_PredictProjectilePath_ByObjectType(
-		WorldContextObject,
-		OutHit,
-		OutPathPositions,
-		OutLastTraceDestination,
-		StartPos,
-		LaunchVelocity,
-		bTracePath,
-		ProjectileRadius,
-		ObjectTypes,
-		bTraceComplex,
-		ActorsToIgnore,
-		DrawDebugType,
-		DrawDebugTime,
-		SimFrequency,
-		MaxSimTime,
-		OverrideGravityZ);
 }
 
 bool UGameplayStatics::Blueprint_PredictProjectilePath_Advanced(const UObject* WorldContextObject, const FPredictProjectilePathParams& PredictParams, FPredictProjectilePathResult& PredictResult)

@@ -591,28 +591,6 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 
 #endif //WITH_EDITOR
 
-	UE_DEPRECATED(4.15, "Call MatchesTag on FGameplayTag instead")
-	FORCEINLINE_DEBUGGABLE bool GameplayTagsMatch(const FGameplayTag& GameplayTagOne, TEnumAsByte<EGameplayTagMatchType::Type> MatchTypeOne, const FGameplayTag& GameplayTagTwo, TEnumAsByte<EGameplayTagMatchType::Type> MatchTypeTwo) const
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UGameplayTagsManager_GameplayTagsMatch);
-		bool bResult = false;
-		if (MatchTypeOne == EGameplayTagMatchType::Explicit && MatchTypeTwo == EGameplayTagMatchType::Explicit)
-		{
-			bResult = GameplayTagOne == GameplayTagTwo;
-		}
-		else
-		{
-			// Convert both to their containers and do that match
-			const FGameplayTagContainer* ContainerOne = GetSingleTagContainer(GameplayTagOne);
-			const FGameplayTagContainer* ContainerTwo = GetSingleTagContainer(GameplayTagTwo);
-			if (ContainerOne && ContainerTwo)
-			{
-				bResult = ContainerOne->DoesTagContainerMatch(*ContainerTwo, MatchTypeOne, MatchTypeTwo, EGameplayContainerMatchType::Any);
-			}
-		}
-		return bResult;
-	}
-
 	void PrintReplicationIndices();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

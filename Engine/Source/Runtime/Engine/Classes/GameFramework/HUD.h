@@ -37,16 +37,6 @@ class ENGINE_API AHUD : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-	/** Pre-defined FColors for convenience. */
-	UE_DEPRECATED(4.13, "Use FColor::White instead")
-	static const FColor WhiteColor;
-
-	UE_DEPRECATED(4.13, "Use FColor::Green instead")
-	static const FColor GreenColor;
-
-	UE_DEPRECATED(4.13, "Use FColor::Red instead")
-	static const FColor RedColor;
-
 	/** PlayerController which owns this HUD. */
 	UPROPERTY(BlueprintReadOnly, Category=HUD)
 	APlayerController* PlayerOwner;    

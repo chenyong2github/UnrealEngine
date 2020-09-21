@@ -1914,16 +1914,6 @@ void AActor::SetAutoDestroyWhenFinished(bool bVal)
 	}
 }
 
-void AActor::K2_AttachRootComponentTo(USceneComponent* InParent, FName InSocketName, EAttachLocation::Type AttachLocationType /*= EAttachLocation::KeepRelativeOffset */, bool bWeldSimulatedBodies /*=true*/)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (RootComponent && InParent)
-	{
-		RootComponent->AttachTo(InParent, InSocketName, AttachLocationType, bWeldSimulatedBodies);
-	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 void AActor::K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
 {
 	AttachToComponent(Parent, FAttachmentTransformRules(LocationRule, RotationRule, ScaleRule, bWeldSimulatedBodies), SocketName);
@@ -1982,20 +1972,6 @@ void AActor::OnRep_AttachmentReplication()
 	}
 }
 
-void AActor::K2_AttachRootComponentToActor(AActor* InParentActor, FName InSocketName /*= NAME_None*/, EAttachLocation::Type AttachLocationType /*= EAttachLocation::KeepRelativeOffset */, bool bWeldSimulatedBodies /*=true*/)
-{
-	if (RootComponent && InParentActor)
-	{
-		USceneComponent* ParentDefaultAttachComponent = InParentActor->GetDefaultAttachComponent();
-		if (ParentDefaultAttachComponent)
-		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			RootComponent->AttachTo(ParentDefaultAttachComponent, InSocketName, AttachLocationType, bWeldSimulatedBodies );
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-	}
-}
-
 void AActor::K2_AttachToActor(AActor* ParentActor, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
 {
 	AttachToActor(ParentActor, FAttachmentTransformRules(LocationRule, RotationRule, ScaleRule, bWeldSimulatedBodies), SocketName);
@@ -2010,32 +1986,6 @@ void AActor::AttachToActor(AActor* ParentActor, const FAttachmentTransformRules&
 		{
 			RootComponent->AttachToComponent(ParentDefaultAttachComponent, AttachmentRules, SocketName);
 		}
-	}
-}
-
-void AActor::SnapRootComponentTo(AActor* InParentActor, FName InSocketName/* = NAME_None*/)
-{
-	if (RootComponent && InParentActor)
-	{
-		USceneComponent* ParentDefaultAttachComponent = InParentActor->GetDefaultAttachComponent();
-		if (ParentDefaultAttachComponent)
-		{
-			RootComponent->AttachToComponent(ParentDefaultAttachComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, InSocketName);
-		}
-	}
-}
-
-void AActor::DetachRootComponentFromParent(bool bMaintainWorldPosition)
-{
-	if(RootComponent)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RootComponent->DetachFromParent(bMaintainWorldPosition);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS		
-
-		// Clear AttachmentReplication struct
-		AttachmentReplication = FRepAttachment();
-		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
 	}
 }
 
@@ -4230,15 +4180,6 @@ void AActor::K2_DestroyActor()
 	Destroy();
 }
 
-void AActor::K2_DestroyComponent(UActorComponent* Component)
-{
-	// If its a valid component, and we own it, destroy it
-	if(Component && Component->GetOwner() == this)
-	{
-		Component->DestroyComponent();
-	}
-}
-
 bool AActor::SetRootComponent(class USceneComponent* NewRootComponent)
 {
 	/** Only components owned by this actor can be used as a its root component. */
@@ -5214,16 +5155,6 @@ float AActor::GetActorTimeDilation(const UWorld& ActorWorld) const
 {
 	checkSlow(&ActorWorld == GetWorld());
 	return CustomTimeDilation * ActorWorld.GetWorldSettings()->GetEffectiveTimeDilation();
-}
-
-UMaterialInstanceDynamic* AActor::MakeMIDForMaterial(class UMaterialInterface* Parent)
-{
-	// Deprecating this function. 
-	// Please use PrimitiveComponent->CreateAndSetMaterialInstanceDynamic
-	// OR PrimitiveComponent->CreateAndSetMaterialInstanceDynamicFromMaterial
-	// OR UMaterialInstanceDynamic::Create
-
-	return nullptr;
 }
 
 float AActor::GetDistanceTo(const AActor* OtherActor) const

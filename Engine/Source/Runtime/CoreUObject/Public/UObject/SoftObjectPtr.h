@@ -65,12 +65,6 @@ public:
 		return GetUniqueID();
 	}
 
-	UE_DEPRECATED(4.18, "ToStringReference was renamed to ToSoftObjectPath")
-	FORCEINLINE const FSoftObjectPath& ToStringReference() const
-	{
-		return GetUniqueID();
-	}
-
 	/** Returns string representation of reference, in form /package/path.assetname */
 	FORCEINLINE FString ToString() const
 	{
@@ -344,12 +338,6 @@ public:
 		return SoftObjectPtr.GetUniqueID();
 	}
 
-	UE_DEPRECATED(4.18, "ToStringReference was renamed to ToSoftObjectPath")
-	FORCEINLINE const FSoftObjectPath& ToStringReference() const
-	{
-		return SoftObjectPtr.GetUniqueID();
-	}
-
 	/** Returns string representation of reference, in form /package/path.assetname */
 	FORCEINLINE FString ToString() const
 	{
@@ -559,12 +547,6 @@ public:
 		return SoftObjectPtr.GetUniqueID();
 	}
 
-	UE_DEPRECATED(4.18, "ToStringReference was renamed to ToSoftObjectPath")
-	FORCEINLINE const FSoftObjectPath& ToStringReference() const
-	{
-		return SoftObjectPtr.GetUniqueID();
-	}
-
 	/** Returns string representation of reference, in form /package/path.assetname  */
 	FORCEINLINE FString ToString() const
 	{
@@ -640,15 +622,9 @@ struct FSoftObjectPtrLexicalLess : private FSoftObjectPathLexicalLess
 	}
 };
 
-UE_DEPRECATED(4.18, "FAssetPtr was renamed to FSoftObjectPtr as it is not necessarily an asset")
-typedef FSoftObjectPtr FAssetPtr;
-
-// Not deprecating these yet as it will lead to too many warnings in games
-//UE_DEPRECATED(4.18, "TAssetPtr was renamed to TSoftObjectPtr as it is not necessarily an asset")
 template<class T=UObject>
-using TAssetPtr = TSoftObjectPtr<T>;
+using TAssetPtr UE_DEPRECATED(5.0, "TAssetPtr was renamed to TSoftObjectPtr as it is not necessarily an asset") = TSoftObjectPtr<T>;
 
-//UE_DEPRECATED(4.18, "TAssetSubclassOf was renamed to TSoftClassPtr")
 template<class TClass = UObject>
-using TAssetSubclassOf = TSoftClassPtr<TClass>;
+using TAssetSubclassOf UE_DEPRECATED(5.0, "TAssetSubclassOf was renamed to TSoftClassPtr") = TSoftClassPtr<TClass>;
 

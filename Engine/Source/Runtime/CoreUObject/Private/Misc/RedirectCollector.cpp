@@ -47,25 +47,6 @@ void FRedirectCollector::OnSoftObjectPathLoaded(const FSoftObjectPath& InPath, F
 	SoftObjectPathMap.FindOrAdd(PackageName).Add(SoftObjectPathProperty);
 }
 
-void FRedirectCollector::OnStringAssetReferenceLoaded(const FString& InString)
-{
-	FSoftObjectPath Path(InString);
-	OnSoftObjectPathLoaded(Path, nullptr);
-}
-
-FString FRedirectCollector::OnStringAssetReferenceSaved(const FString& InString)
-{
-	FScopeLock ScopeLock(&CriticalSection);
-
-	FName Found = GetAssetPathRedirection(FName(*InString));
-
-	if (Found != NAME_None)
-	{
-		return Found.ToString();
-	}
-	return InString;
-}
-
 void FRedirectCollector::ResolveAllSoftObjectPaths(FName FilterPackage)
 {	
 	auto LoadSoftObjectPathLambda = [this](const FSoftObjectPathProperty& SoftObjectPathProperty)

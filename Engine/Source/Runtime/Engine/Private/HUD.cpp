@@ -61,10 +61,6 @@ TAutoConsoleVariable<int32> GMaxDebugTextStringsPerActorCVar(
 	128,
 	TEXT("The maximum number of debug strings that can be attached to a given actor (<=0 : no limit)"));
 
-const FColor AHUD::WhiteColor(255, 255, 255, 255);
-const FColor AHUD::GreenColor(0, 255, 0, 255);
-const FColor AHUD::RedColor(255, 0, 0, 255);
-
 AHUD::AHUD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

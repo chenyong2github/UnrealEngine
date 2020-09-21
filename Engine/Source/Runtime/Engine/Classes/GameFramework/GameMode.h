@@ -162,32 +162,12 @@ public:
 	/** Removes the passed in player controller from the correct count for player/spectator/tranistioning **/
 	void RemovePlayerControllerFromPlayerCount(APlayerController* PC);
 
-	UE_DEPRECATED(4.14, "Deprecated in favor of PreloadContentForURL on GameInstance")
-	virtual FString GetDefaultGameClassPath(const FString& MapName, const FString& Options, const FString& Portal) const;
-
-	UE_DEPRECATED(4.14, "Deprecated in favor of OverrideGameModeClass on GameInstance")
-	virtual TSubclassOf<AGameMode> GetGameModeClass(const FString& MapName, const FString& Options, const FString& Portal) const;
-
-	UE_DEPRECATED(4.14, "Deprecated in favor of GetGameModeForName on GameMapsSettings")
-	static FString StaticGetFullGameClassName(FString const& Str);
-
 	/** Return true if we want to travel_absolute, used by RestartGame by default */
 	virtual bool GetTravelType();
-
-	UE_DEPRECATED(4.14, "SendPlayer is not in use, call ClientTravel directly instead")
-	virtual void SendPlayer( APlayerController* aPlayer, const FString& URL );
-	
-	UE_DEPRECATED(4.14, "StartNewPlayer has been split into InitializeHUDForPlayer and HandleStartingNewPlayer")
-	virtual void StartNewPlayer(APlayerController* NewPlayer);
 
 	/** Exec command to broadcast a string to all players */
 	UFUNCTION(Exec, BlueprintCallable, Category = AI)
 	virtual void Say(const FString& Msg);
-
-	/** Alters the synthetic bandwidth limit for a running game. */
-	UE_DEPRECATED(4.17, "AsyncIOBandwidthLimit is no longer configurable")
-	UFUNCTION(exec)	
-	virtual void SetBandwidthLimit(float AsyncIOBandwidthLimit) {}
 
 	/** Broadcast a string to all players. */
 	virtual void Broadcast( AActor* Sender, const FString& Msg, FName Type = NAME_None );

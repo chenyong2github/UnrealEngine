@@ -44,23 +44,6 @@ AGameMode::AGameMode(const FObjectInitializer& ObjectInitializer)
 	MaxInactivePlayers = 16;
 }
 
-FString AGameMode::GetDefaultGameClassPath(const FString& MapName, const FString& Options, const FString& Portal) const
-{
-	// This is called on the CDO
-	return GetClass()->GetPathName();
-}
-
-TSubclassOf<AGameMode> AGameMode::GetGameModeClass(const FString& MapName, const FString& Options, const FString& Portal) const
-{
-	// This is called on the CDO
-	return GetClass();
-}
-
-FString AGameMode::StaticGetFullGameClassName(FString const& Str)
-{
-	return UGameMapsSettings::GetGameModeForName(Str);
-}
-
 FString AGameMode::GetNetworkNumber()
 {
 	UNetDriver* NetDriver = GetWorld()->GetNetDriver();
@@ -537,11 +520,6 @@ int32 AGameMode::GetNumSpectators()
 	return NumSpectators;
 }
 
-void AGameMode::StartNewPlayer(APlayerController* NewPlayer)
-{
-
-}
-
 void AGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
 	// If players should start as spectators, leave them in the spectator state
@@ -572,11 +550,6 @@ bool AGameMode::PlayerCanRestart_Implementation(APlayerController* Player)
 	}
 
 	return Super::PlayerCanRestart_Implementation(Player);
-}
-
-void AGameMode::SendPlayer( APlayerController* aPlayer, const FString& FURL )
-{
-	aPlayer->ClientTravel( FURL, TRAVEL_Relative );
 }
 
 bool AGameMode::GetTravelType()

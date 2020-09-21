@@ -689,12 +689,6 @@ void AController::BeginInactiveState() {}
 
 void AController::EndInactiveState() {}
 
-
-APlayerController* AController::CastToPlayerController()
-{
-	return Cast<APlayerController>(this);
-}
-
 APawn* AController::K2_GetPawn() const
 {
 	return GetPawn();

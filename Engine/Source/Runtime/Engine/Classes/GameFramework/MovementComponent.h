@@ -210,20 +210,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components|Movement")
 	virtual float GetMaxSpeed() const;
 
-	UE_DEPRECATED(4.3, "GetMaxSpeedModifier() is deprecated, apply your own modifiers to GetMaxSpeed() if desired.")
-	virtual float GetMaxSpeedModifier() const;
-	
-	/** Returns a scalar applied to the maximum velocity that the component can currently move. */
-	UFUNCTION(BlueprintCallable, Category="Components|Movement", meta=(DeprecatedFunction, DisplayName="GetMaxSpeedModifier", ScriptName="GetMaxSpeedModifier", DeprecationMessage="GetMaxSpeedModifier() is deprecated, apply your own modifiers to GetMaxSpeed() if desired."))
-	virtual float K2_GetMaxSpeedModifier() const;
-
-	UE_DEPRECATED(4.3, "GetModifiedMaxSpeed() is deprecated, use GetMaxSpeed() instead.")
-	virtual float GetModifiedMaxSpeed() const;
-
-	/** Returns the result of GetMaxSpeed() * GetMaxSpeedModifier(). */
-	UFUNCTION(BlueprintCallable, Category="Components|Movement", meta=(DisplayName="GetModifiedMaxSpeed", ScriptName="GetModifiedMaxSpeed", DeprecationMessage="GetModifiedMaxSpeed() is deprecated, apply your own modifiers to GetMaxSpeed() if desired."))
-	virtual float K2_GetModifiedMaxSpeed() const;
-
 	/**
 	 * Returns true if the current velocity is exceeding the given max speed (usually the result of GetMaxSpeed()), within a small error tolerance.
 	 * Note that under normal circumstances updates cause by acceleration will not cause this to be true, however external forces or changes in the max speed limit

@@ -1214,11 +1214,6 @@ FMatrix UTextRenderComponent::GetRenderMatrix() const
 	return UPrimitiveComponent::GetRenderMatrix();
 }
 
-void UTextRenderComponent::SetText(const FString& Value)
-{
-	K2_SetText(FText::FromString(Value));
-}
-
 void UTextRenderComponent::SetText(const FText& Value)
 {
 	K2_SetText(Value);

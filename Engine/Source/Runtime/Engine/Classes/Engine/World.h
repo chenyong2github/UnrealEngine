@@ -2714,33 +2714,6 @@ public:
 	void MarkObjectsPendingKill();
 
 	/**
-	 *  Interface to allow WorldSettings to request immediate garbage collection
-	 */
-	UE_DEPRECATED(4.18, "Use GEngine->PerformGarbageCollectionAndCleanupActors instead.")
-	void PerformGarbageCollectionAndCleanupActors();
-
-	/**
-	 *  Requests a one frame delay of Garbage Collection
-	 */
-	UE_DEPRECATED(4.18, "Use GEngine->DelayGarbageCollection instead.")
-	void DelayGarbageCollection();
-
-	/**
-	 * Updates the timer (as a one-off) that is used to trigger garbage collection; this should only be used for things
-	 * like performance tests, using it recklessly can dramatically increase memory usage and cost of the eventual GC.
-	 *
-	 * Note: Things that force a GC will still force a GC after using this method (and they will also reset the timer)
-	 */
-	UE_DEPRECATED(4.18, "Use GEngine->SetTimeUntilNextGarbageCollection instead.")
-	void SetTimeUntilNextGarbageCollection(float MinTimeUntilNextPass);
-
-	/**
-	 * Returns the current desired time between garbage collection passes (not the time remaining)
-	 */
-	UE_DEPRECATED(4.18, "Call GEngine->GetTimeBetweenGarbageCollectionPasses instead")
-	float GetTimeBetweenGarbageCollectionPasses() const;
-
-	/**
 	 *	Remove NULL entries from actor list. Only does so for dynamic actors to avoid resorting. 
 	 *	In theory static actors shouldn't be deleted during gameplay.
 	 */
@@ -3523,10 +3496,6 @@ public:
 
 	/** @return the current detail mode, like EDetailMode but can be outside of the range */
 	int32 GetDetailMode();
-
-	/** Updates the timer between garbage collection such that at the next opportunity garbage collection will be run. */
-	UE_DEPRECATED(4.18, "Call GEngine->ForceGarbageCollection instead")
-	void ForceGarbageCollection( bool bFullPurge = false );
 
 	/** asynchronously loads the given levels in preparation for a streaming map transition.
 	 * This codepath is designed for worlds that heavily use level streaming and GameModes where the game state should
