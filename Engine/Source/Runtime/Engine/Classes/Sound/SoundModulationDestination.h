@@ -73,7 +73,7 @@ namespace Audio
 			 */
 			bool ProcessControl(float InValueUnitBase, int32 InNumSamples = 0);
 
-			void UpdateSettings(const FSoundModulationDestinationSettings& InSettings);
+			void UpdateModulator(const USoundModulatorBase* InModulator);
 
 		private:
 			FDeviceId DeviceId = INDEX_NONE;

@@ -216,9 +216,9 @@ namespace Audio
 		return !FMath::IsNearlyEqual(LastTarget, ValueTarget);
 	}
 
-	void FModulationDestination::UpdateSettings(const FSoundModulationDestinationSettings& InSettings)
+	void FModulationDestination::UpdateModulator(const USoundModulatorBase* InModulator)
 	{
-		const TWeakObjectPtr<const USoundModulatorBase> ModPtr(InSettings.Modulator);
+		const TWeakObjectPtr<const USoundModulatorBase> ModPtr(InModulator);
 		auto UpdateHandleLambda = [this, ModPtr]()
 		{
 			if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetAudioDeviceRaw(DeviceId))
