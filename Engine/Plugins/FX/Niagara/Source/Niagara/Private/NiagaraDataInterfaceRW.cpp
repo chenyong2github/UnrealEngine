@@ -502,6 +502,26 @@ UNiagaraDataInterfaceGrid2D::UNiagaraDataInterfaceGrid2D(FObjectInitializer cons
 	Proxy.Reset(new FNiagaraDataInterfaceProxyRW());	
 }
 
+#if WITH_EDITOR
+void UNiagaraDataInterfaceGrid2D::ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors)
+{
+	TArray<FNiagaraFunctionSignature> DIFuncs;
+	GetFunctions(DIFuncs);
+	
+	// All the deprecated grid2d functions
+	TSet<FName> DeprecatedFunctionNames;
+	DeprecatedFunctionNames.Add(WorldBBoxSizeFunctionName);
+	DeprecatedFunctionNames.Add(CellSizeFunctionName);
+
+	if (DIFuncs.Contains(Function) && DeprecatedFunctionNames.Contains(FName(Function.GetName())))
+	{
+		// #TODO(dmp): add validation warnings that aren't as strict as these errors
+		// OutValidationErrors.Add(FText::Format(LOCTEXT("Grid2DDeprecationMsgFmt", "Grid2D DI Function {0} has been deprecated. Specify grid size on your emitter.\n"), FText::FromString(Function.GetName())));	
+	}
+	Super::ValidateFunction(Function, OutValidationErrors);
+}
+
+#endif
 
 void UNiagaraDataInterfaceGrid2D::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {	
