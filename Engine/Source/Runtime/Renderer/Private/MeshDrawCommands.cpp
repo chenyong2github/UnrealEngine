@@ -1099,7 +1099,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 
 		if (bExecuteInParallel)
 		{
-			if (GAllowOnDemandShaderCreation && RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+			if (IsOnDemandShaderCreationEnabled())
 			{
 				TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
 			}
@@ -1115,13 +1115,18 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_MeshPassSetupImmediate);
 			FMeshDrawCommandPassSetupTask Task(TaskContext);
 			Task.AnyThreadTask();
-			if (!GAllowOnDemandShaderCreation || !RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+			if (!IsOnDemandShaderCreationEnabled())
 			{
 				FMeshDrawCommandInitResourcesTask DependentTask(TaskContext);
 				DependentTask.AnyThreadTask();
 			}
 		}
 	}
+}
+
+bool FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled()
+{
+	return GAllowOnDemandShaderCreation && RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform);
 }
 
 void FParallelMeshDrawCommandPass::WaitForMeshPassSetupTask() const
