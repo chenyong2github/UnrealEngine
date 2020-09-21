@@ -14,7 +14,7 @@ namespace AudioModulation
 	/*
 	 * Handle for all ref-counted proxy types, to be used only on the audio thread (not thread safe). 
 	 */
-	template<typename IdType, typename ProxyType, typename ProxiedObject>
+	template<typename IdType, typename ProxyType, typename ProxySettings>
 	class TProxyHandle
 	{
 		IdType Id;
@@ -47,7 +47,7 @@ namespace AudioModulation
 			return ProxyMap->FindChecked(Id);
 		}
 
-		friend FORCEINLINE uint32 GetTypeHash(const TProxyHandle<IdType, ProxyType, ProxiedObject>& InHandle)
+		friend FORCEINLINE uint32 GetTypeHash(const TProxyHandle<IdType, ProxyType, ProxySettings>& InHandle)
 		{
 			return static_cast<uint32>(InHandle.Id);
 		}
@@ -112,56 +112,56 @@ namespace AudioModulation
 		/*
 		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap if it exists, otherwise returns invalid handle.
 		 */
-		static TProxyHandle<IdType, ProxyType, ProxiedObject> Get(const IdType ObjectId, TMap<IdType, ProxyType>& OutProxyMap)
+		static TProxyHandle<IdType, ProxyType, ProxySettings> Get(const IdType ObjectId, TMap<IdType, ProxyType>& OutProxyMap)
 		{
 			if (ProxyType* Proxy = OutProxyMap.Find(ObjectId))
 			{
 				check(Proxy->ModSystem);
-				return TProxyHandle<IdType, ProxyType, ProxiedObject>(ObjectId, OutProxyMap);
+				return TProxyHandle<IdType, ProxyType, ProxySettings>(ObjectId, OutProxyMap);
 			} 
 
-			return TProxyHandle<IdType, ProxyType, ProxiedObject>();
+			return TProxyHandle<IdType, ProxyType, ProxySettings>();
 		}
 
 		/*
 		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap.  Creates new proxy if it doesn't exist.
 		 */
-		static TProxyHandle<IdType, ProxyType, ProxiedObject> Create(const ProxiedObject& InObject, TMap<IdType, ProxyType>& OutProxyMap, FAudioModulationSystem& OutModSystem)
+		static TProxyHandle<IdType, ProxyType, ProxySettings> Create(const ProxySettings& InSettings, TMap<IdType, ProxyType>& OutProxyMap, FAudioModulationSystem& OutModSystem)
 		{
-			const IdType ObjectId = static_cast<IdType>(InObject.GetId());
+			const IdType ObjectId = static_cast<IdType>(InSettings.GetId());
 
-			TProxyHandle<IdType, ProxyType, ProxiedObject> NewHandle = Get(InObject.GetId(), OutProxyMap);
+			TProxyHandle<IdType, ProxyType, ProxySettings> NewHandle = Get(InSettings.GetId(), OutProxyMap);
 			if (!NewHandle.IsValid())
 			{
-				UE_LOG(LogAudioModulation, Verbose, TEXT("Proxy created: Id '%u' for object '%s'."), NewHandle.Id, *InObject.GetName());
-				OutProxyMap.Add(ObjectId, ProxyType(InObject, OutModSystem));
-				NewHandle = TProxyHandle<IdType, ProxyType, ProxiedObject>(ObjectId, OutProxyMap);
+				UE_LOG(LogAudioModulation, Verbose, TEXT("Proxy created: Id '%u' for object '%s'."), NewHandle.Id, *InSettings.GetName());
+				OutProxyMap.Add(ObjectId, ProxyType(InSettings, OutModSystem));
+				NewHandle = TProxyHandle<IdType, ProxyType, ProxySettings>(ObjectId, OutProxyMap);
 			}
 
 			return NewHandle;
 		}
 
-		static TProxyHandle<IdType, ProxyType, ProxiedObject> Create(const ProxiedObject& InObject, TMap<IdType, ProxyType>& InProxyMap, FAudioModulationSystem& OutModSystem, TFunction<void(ProxyType&)> OnCreateProxy)
+		static TProxyHandle<IdType, ProxyType, ProxySettings> Create(const ProxySettings& InSettings, TMap<IdType, ProxyType>& OutProxyMap, FAudioModulationSystem& OutModSystem, TFunction<void(ProxyType&)> OnCreateProxy)
 		{
-			const IdType ObjectId = static_cast<IdType>(InObject.GetId());
-			TProxyHandle<IdType, ProxyType, ProxiedObject> NewHandle = Get(InObject.GetId(), InProxyMap);
+			const IdType ObjectId = static_cast<IdType>(InSettings.GetId());
+			TProxyHandle<IdType, ProxyType, ProxySettings> NewHandle = Get(InSettings.GetId(), OutProxyMap);
 			if (!NewHandle.IsValid())
 			{
-				UE_LOG(LogAudioModulation, Verbose, TEXT("Proxy created: Id '%u' for object '%s'."), NewHandle.Id, *InObject.GetName());
-				InProxyMap.Add(ObjectId, ProxyType(InObject, OutModSystem));
-				NewHandle = TProxyHandle<IdType, ProxyType, ProxiedObject>(ObjectId, InProxyMap);
+				UE_LOG(LogAudioModulation, Verbose, TEXT("Proxy created: Id '%u' for object '%s'."), NewHandle.Id, *InSettings.GetName());
+				OutProxyMap.Add(ObjectId, ProxyType(InSettings, OutModSystem));
+				NewHandle = TProxyHandle<IdType, ProxyType, ProxySettings>(ObjectId, OutProxyMap);
 				OnCreateProxy(NewHandle.FindProxy());
 			}
 
 			return NewHandle;
 		}
 
-		FORCEINLINE bool operator ==(const TProxyHandle<IdType, ProxyType, ProxiedObject>& InHandle) const
+		FORCEINLINE bool operator ==(const TProxyHandle<IdType, ProxyType, ProxySettings>& InHandle) const
 		{
 			return InHandle.Id == Id;
 		}
 
-		FORCEINLINE TProxyHandle<IdType, ProxyType, ProxiedObject>& operator =(const TProxyHandle<IdType, ProxyType, ProxiedObject>& InHandle)
+		FORCEINLINE TProxyHandle<IdType, ProxyType, ProxySettings>& operator =(const TProxyHandle<IdType, ProxyType, ProxySettings>& InHandle)
 		{
 			// 1. If local proxy valid prior to move, cache to DecRef
 			ProxyType* ProxyToDecRef = nullptr;
@@ -190,7 +190,7 @@ namespace AudioModulation
 			return *this;
 		}
 
-		FORCEINLINE TProxyHandle<IdType, ProxyType, ProxiedObject>& operator =(TProxyHandle<IdType, ProxyType, ProxiedObject>&& InHandle)
+		FORCEINLINE TProxyHandle<IdType, ProxyType, ProxySettings>& operator =(TProxyHandle<IdType, ProxyType, ProxySettings>&& InHandle)
 		{
 			// 1. If local proxy valid prior to move, cache to DecRef
 			ProxyType* ProxyToDecRef = nullptr;
@@ -273,7 +273,7 @@ namespace AudioModulation
 		}
 	};
 
-	template<typename IdType, typename ProxyType, typename ProxiedObject>
+	template<typename IdType, typename ProxyType, typename ProxySettings>
 	class TModulatorProxyRefType : public TModulatorBase<IdType>
 	{
 	protected:
@@ -354,6 +354,6 @@ namespace AudioModulation
 		}
 
 	private:
-		friend class TProxyHandle<IdType, ProxyType, ProxiedObject>;
+		friend class TProxyHandle<IdType, ProxyType, ProxySettings>;
 	};
 } // namespace AudioModulation

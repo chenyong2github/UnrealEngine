@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioDeviceManager.h"
 #include "IAudioModulation.h"
 #include "SoundControlBusProxy.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
-#include "SoundModulationGeneratorLFOProxy.h"
 #include "Templates/Function.h"
 
 
@@ -23,8 +23,8 @@ namespace AudioModulation
 		const FSoundModulationTransform Transform;
 		const uint8 bSampleAndHold : 1;
 
-		FModulationInputSettings(const FSoundControlModulationInput& InInput)
-			: BusSettings(FControlBusSettings(InInput.GetBusChecked()))
+		FModulationInputSettings(const FSoundControlModulationInput& InInput, Audio::FDeviceId InDeviceId)
+			: BusSettings(InInput.GetBusChecked(), InDeviceId)
 			, Transform(InInput.Transform)
 			, bSampleAndHold(InInput.bSampleAndHold)
 		{
@@ -75,7 +75,7 @@ namespace AudioModulation
 
 		FModulationPatchSettings() = default;
 
-		FModulationPatchSettings(const FSoundControlModulationPatch& InPatch)
+		FModulationPatchSettings(const FSoundControlModulationPatch& InPatch, Audio::FDeviceId InDeviceId)
 			: bBypass(InPatch.bBypass)
 		{
 			if (InPatch.OutputParameter)
@@ -88,12 +88,12 @@ namespace AudioModulation
 			{
 				if (Input.GetBus())
 				{
-					InputSettings.Emplace(Input);
+					InputSettings.Emplace(Input, InDeviceId);
 				}
 			}
 		}
 
-		FModulationPatchSettings(const USoundModulationPatch& InPatch)
+		FModulationPatchSettings(const USoundModulationPatch& InPatch, Audio::FDeviceId InDeviceId)
 			: TModulatorBase<FPatchId>(InPatch.GetName(), InPatch.GetUniqueID())
 			, bBypass(InPatch.PatchSettings.bBypass)
 		{
@@ -106,7 +106,7 @@ namespace AudioModulation
 			{
 				if (Input.GetBus())
 				{
-					InputSettings.Emplace(Input);
+					InputSettings.Emplace(Input, InDeviceId);
 				}
 			}
 		}

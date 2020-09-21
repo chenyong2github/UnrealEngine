@@ -2,6 +2,11 @@
 #include "AudioModulationSystem.h"
 
 #if WITH_AUDIOMODULATION
+
+#if !UE_BUILD_SHIPPING
+#include "AudioModulationDebugger.h"
+#endif // !UE_BUILD_SHIPPING
+
 #include "Async/Async.h"
 #include "Audio/AudioAddressPattern.h"
 #include "AudioModulationLogging.h"
@@ -10,24 +15,20 @@
 #include "AudioThread.h"
 #include "CoreGlobals.h"
 #include "Engine/Engine.h"
+#include "Generators/SoundModulationLFO.h"
 #include "HAL/PlatformTLS.h"
 #include "IAudioModulation.h"
 #include "Misc/CoreDelegates.h"
 #include "SoundControlBusProxy.h"
 #include "SoundControlBusMixProxy.h"
-#include "SoundModulationGeneratorLFOProxy.h"
+#include "SoundModulationGeneratorProxy.h"
 #include "SoundModulationPatchProxy.h"
 #include "SoundModulationProxy.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/WeakObjectPtr.h"
 
-
-#if !UE_BUILD_SHIPPING
-#include "AudioModulationDebugger.h"
-#endif // !UE_BUILD_SHIPPING
-
 DECLARE_DWORD_COUNTER_STAT(TEXT("Bus Count"),	STAT_AudioModulationBusCount, STATGROUP_AudioModulation)
-DECLARE_DWORD_COUNTER_STAT(TEXT("LFO Count"),	STAT_AudioModulationLFOCount, STATGROUP_AudioModulation)
+DECLARE_DWORD_COUNTER_STAT(TEXT("Generator Count"),	STAT_AudioModulationGeneratorCount, STATGROUP_AudioModulation)
 DECLARE_DWORD_COUNTER_STAT(TEXT("Mix Count"),	STAT_AudioModulationMixCount, STATGROUP_AudioModulation)
 DECLARE_DWORD_COUNTER_STAT(TEXT("Patch Count"), STAT_AudioModulationPatchCount, STATGROUP_AudioModulation)
 DECLARE_DWORD_COUNTER_STAT(TEXT("Render Queue Commands Processed"), STAT_AudioModulationProcQueueCount, STATGROUP_AudioModulation)
@@ -38,26 +39,10 @@ namespace AudioModulation
 	{
 		Patch,
 		Bus,
-		LFO,
+		Generator,
 
 		COUNT
 	};
-
-	struct FProfileStageInfo
-	{
-		USoundControlBus* Bus;
-		FSoundModulationMixValue Value;
-
-		FProfileStageInfo(const FModulatorBusMixStageProxy& InProxy)
-			: Bus(nullptr)
-			, Value(InProxy.Value)
-		{
-		}
-	};
-
-	FAudioModulationSystem::FAudioModulationSystem()
-	{
-	}
 
 	void FAudioModulationSystem::Initialize(const FAudioPluginInitializationParams& InitializationParams)
 	{
@@ -107,7 +92,7 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::ActivateBus(const USoundControlBus& InBus)
 	{
-		RunCommandOnProcessingThread([this, Settings = FControlBusSettings(InBus)]()
+		RunCommandOnProcessingThread([this, Settings = FControlBusSettings(InBus, AudioDeviceId)]()
 		{
 			FBusHandle BusHandle = FBusHandle::Create(Settings, RefProxies.Buses, *this);
 			ManuallyActivatedBuses.Add(MoveTemp(BusHandle));
@@ -134,15 +119,15 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::ActivateBusMix(const USoundControlBusMix& InBusMix)
 	{
-		ActivateBusMix(FModulatorBusMixSettings(InBusMix));
+		ActivateBusMix(FModulatorBusMixSettings(InBusMix, AudioDeviceId));
 	}
 
-	void FAudioModulationSystem::ActivateLFO(const USoundModulationGeneratorLFO& InLFO)
+	void FAudioModulationSystem::ActivateGenerator(const USoundModulationGenerator& InGenerator)
 	{
-		RunCommandOnProcessingThread([this, Settings = FModulatorLFOSettings(InLFO)]()
+		RunCommandOnProcessingThread([this, Settings = FModulationGeneratorSettings(InGenerator, AudioDeviceId)]()
 		{
-			FLFOHandle LFOHandle = FLFOHandle::Create(Settings, RefProxies.LFOs, *this);
-			ManuallyActivatedLFOs.Add(MoveTemp(LFOHandle));
+			FGeneratorHandle GeneratorHandle = FGeneratorHandle::Create(Settings, RefProxies.Generators, *this);
+			ManuallyActivatedGenerators.Add(MoveTemp(GeneratorHandle));
 		});
 	}
 
@@ -196,14 +181,14 @@ namespace AudioModulation
 		});
 	}
 
-	void FAudioModulationSystem::DeactivateLFO(const USoundModulationGeneratorLFO& InLFO)
+	void FAudioModulationSystem::DeactivateGenerator(const USoundModulationGenerator& InGenerator)
 	{
-		RunCommandOnProcessingThread([this, LFOId = static_cast<FLFOId>(InLFO.GetUniqueID())]()
+		RunCommandOnProcessingThread([this, GeneratorId = static_cast<FGeneratorId>(InGenerator.GetUniqueID())]()
 		{
-			FLFOHandle LFOHandle = FLFOHandle::Get(LFOId, RefProxies.LFOs);
-			if (LFOHandle.IsValid())
+			FGeneratorHandle GeneratorHandle = FGeneratorHandle::Get(GeneratorId, RefProxies.Generators);
+			if (GeneratorHandle.IsValid())
 			{
-				ManuallyActivatedLFOs.Remove(LFOHandle);
+				ManuallyActivatedGenerators.Remove(GeneratorHandle);
 			}
 		});
 	}
@@ -242,13 +227,13 @@ namespace AudioModulation
 			}
 			break;
 
-			case EModulatorType::LFO:
+			case EModulatorType::Generator:
 			{
-				if (const FModulatorLFOProxy* LFOProxy = RefProxies.LFOs.Find(static_cast<FLFOId>(InModulatorHandle.GetModulatorId())))
+				if (const FModulatorGeneratorProxy* GeneratorProxy = RefProxies.Generators.Find(static_cast<FGeneratorId>(InModulatorHandle.GetModulatorId())))
 				{
-					if (!LFOProxy->IsBypassed())
+					if (!GeneratorProxy->IsBypassed())
 					{
-						OutValue = LFOProxy->GetValue();
+						OutValue = GeneratorProxy->GetValue();
 						return true;
 					}
 				}
@@ -263,6 +248,11 @@ namespace AudioModulation
 		}
 
 		return false;
+	}
+
+	Audio::FDeviceId FAudioModulationSystem::GetAudioDeviceId() const
+	{
+		return AudioDeviceId;
 	}
 
 	Audio::FModulationParameter FAudioModulationSystem::GetParameter(FName InParamName) const
@@ -317,17 +307,18 @@ namespace AudioModulation
 			++CommandsProcessed;
 		}
 
-		// Update LFOs (prior to bus mixing to avoid single-frame latency)
-		for (TPair<FLFOId, FModulatorLFOProxy>& Pair : RefProxies.LFOs)
+		// Update Generators (prior to bus mixing to avoid single-frame latency)
+		for (TPair<FGeneratorId, FModulatorGeneratorProxy>& Pair : RefProxies.Generators)
 		{
+			Pair.Value.PumpCommands();
 			Pair.Value.Update(InElapsed);
 		}
 
-		// Reset buses & refresh cached LFO
+		// Reset buses & refresh cached Generator
 		for (TPair<FBusId, FControlBusProxy>& Pair : RefProxies.Buses)
 		{
 			Pair.Value.Reset();
-			Pair.Value.MixLFO();
+			Pair.Value.MixGenerators();
 		}
 
 		// Update mix values and apply to prescribed buses.
@@ -392,7 +383,7 @@ namespace AudioModulation
 		// Log stats
 		SET_DWORD_STAT(STAT_AudioModulationBusCount, RefProxies.Buses.Num());
 		SET_DWORD_STAT(STAT_AudioModulationMixCount, RefProxies.BusMixes.Num());
-		SET_DWORD_STAT(STAT_AudioModulationLFOCount, RefProxies.LFOs.Num());
+		SET_DWORD_STAT(STAT_AudioModulationGeneratorCount, RefProxies.Generators.Num());
 		SET_DWORD_STAT(STAT_AudioModulationPatchCount, RefProxies.Patches.Num());
 		SET_DWORD_STAT(STAT_AudioModulationProcQueueCount, CommandsProcessed);
 
@@ -504,22 +495,22 @@ namespace AudioModulation
 			return INDEX_NONE;
 		}
 
-		if (RegisterModulator<FPatchHandle, USoundModulationPatch, FModulationPatchSettings, FPatchProxyMap>(InHandleId, InModulatorBase, RefProxies.Patches, RefModulators.PatchMap, OutParameter))
+		if (RegisterModulator<FPatchHandle, USoundModulationPatch, FModulationPatchSettings, FPatchProxyMap>(InHandleId, InModulatorBase, RefProxies.Patches, RefModulators.PatchMap))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Patch);
 		}
 			
-		if (RegisterModulator<FBusHandle, USoundControlBus, FControlBusSettings, FBusProxyMap>(InHandleId, InModulatorBase, RefProxies.Buses, RefModulators.BusMap, OutParameter))
+		if (RegisterModulator<FBusHandle, USoundControlBus, FControlBusSettings, FBusProxyMap>(InHandleId, InModulatorBase, RefProxies.Buses, RefModulators.BusMap))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Bus);
 		}
 
-		if (RegisterModulator<FLFOHandle, USoundModulationGeneratorLFO, FModulatorLFOSettings, FLFOProxyMap>(InHandleId, InModulatorBase, RefProxies.LFOs, RefModulators.LFOMap, OutParameter))
+		if (RegisterModulator<FGeneratorHandle, USoundModulationGenerator, FModulationGeneratorSettings, FGeneratorProxyMap>(InHandleId, InModulatorBase, RefProxies.Generators, RefModulators.GeneratorMap))
 		{
-			return static_cast<Audio::FModulatorTypeId>(EModulatorType::LFO);
+			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Generator);
 		}
 
-		UE_LOG(LogAudioModulation, Warning, TEXT("Modulator type  of '%s' unsupported by generic control modulation."), *InModulatorBase->GetName());
+		ensureMsgf(false, TEXT("Modulator type of '%s' failed to register: Unsupported type."), *InModulatorBase->GetName());
 		return INDEX_NONE;
 	}
 
@@ -545,10 +536,10 @@ namespace AudioModulation
 				}
 			}
 
-			FLFOHandle LFOHandle = FLFOHandle::Get(static_cast<FLFOId>(InModulatorId), RefProxies.LFOs);
-			if (LFOHandle.IsValid())
+			FGeneratorHandle GeneratorHandle = FGeneratorHandle::Get(static_cast<FGeneratorId>(InModulatorId), RefProxies.Generators);
+			if (GeneratorHandle.IsValid())
 			{
-				if (TArray<uint32>* RefObjectIds = RefModulators.LFOMap.Find(LFOHandle))
+				if (TArray<uint32>* RefObjectIds = RefModulators.GeneratorMap.Find(GeneratorHandle))
 				{
 					RefObjectIds->Add(InHandleId);
 				}
@@ -558,7 +549,7 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::SoloBusMix(const USoundControlBusMix& InBusMix)
 	{
-		RunCommandOnProcessingThread([this, BusMixSettings = FModulatorBusMixSettings(InBusMix)]()
+		RunCommandOnProcessingThread([this, BusMixSettings = FModulatorBusMixSettings(InBusMix, AudioDeviceId)]()
 		{
 			bool bMixActive = false;
 			for (TPair<FBusMixId, FModulatorBusMixProxy>& Pair : RefProxies.BusMixes)
@@ -596,8 +587,8 @@ namespace AudioModulation
 				return;
 			}
 
-			FLFOHandle LFOHandle = FLFOHandle::Get(static_cast<FLFOId>(ModId), RefProxies.LFOs);
-			if (UnregisterModulator<FLFOHandle>(LFOHandle, RefModulators.LFOMap, HandleId))
+			FGeneratorHandle GeneratorHandle = FGeneratorHandle::Get(static_cast<FGeneratorId>(ModId), RefProxies.Generators);
+			if (UnregisterModulator<FGeneratorHandle>(GeneratorHandle, RefModulators.GeneratorMap, HandleId))
 			{
 				return;
 			}
@@ -639,7 +630,7 @@ namespace AudioModulation
 		TArray<FModulatorBusMixStageSettings> StageSettings;
 		for (const FSoundControlBusMixStage& Stage : InStages)
 		{
-			StageSettings.Emplace(Stage);
+			StageSettings.Emplace(Stage, AudioDeviceId);
 		}
 	
 		RunCommandOnProcessingThread([this, MixId, StageSettings, InFadeTime]()
@@ -718,7 +709,7 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::UpdateMix(const USoundControlBusMix& InMix, float InFadeTime)
 	{
-		RunCommandOnProcessingThread([this, MixSettings = FModulatorBusMixSettings(InMix), InFadeTime]()
+		RunCommandOnProcessingThread([this, MixSettings = FModulatorBusMixSettings(InMix, AudioDeviceId), InFadeTime]()
 		{
 			FBusMixHandle BusMixHandle = FBusMixHandle::Get(MixSettings.GetId(), RefProxies.BusMixes);
 			if (BusMixHandle.IsValid())
@@ -744,19 +735,19 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::UpdateModulator(const USoundModulatorBase& InModulator)
 	{
-		if (const USoundModulationGeneratorLFO* InLFO = Cast<USoundModulationGeneratorLFO>(&InModulator))
+		if (const USoundModulationGenerator* InGenerator = Cast<USoundModulationGenerator>(&InModulator))
 		{
-			RunCommandOnProcessingThread([this, LFOSettings = FModulatorLFOSettings(*InLFO)]()
+			RunCommandOnProcessingThread([this, GeneratorSettings = FModulationGeneratorSettings(*InGenerator, AudioDeviceId)]()
 			{
-				FLFOHandle LFOHandle = FLFOHandle::Get(LFOSettings.GetId(), RefProxies.LFOs);
-				if (LFOHandle.IsValid())
+				FGeneratorHandle GeneratorHandle = FGeneratorHandle::Get(GeneratorSettings.GetId(), RefProxies.Generators);
+				if (GeneratorHandle.IsValid())
 				{
-					LFOHandle.FindProxy() = LFOSettings;
+					GeneratorHandle.FindProxy() = GeneratorSettings;
 				}
 #if !UE_BUILD_SHIPPING
 				else
 				{
-					UE_LOG(LogAudioModulation, Verbose, TEXT("Update to '%s' Ignored: LFO is inactive."), *LFOSettings.GetName());
+					UE_LOG(LogAudioModulation, Verbose, TEXT("Update to '%s' Ignored: Generator is inactive."), *GeneratorSettings.GetName());
 				}
 #endif // !UE_BUILD_SHIPPING
 			});
@@ -764,7 +755,7 @@ namespace AudioModulation
 
 		if (const USoundControlBus* InBus = Cast<USoundControlBus>(&InModulator))
 		{
-			RunCommandOnProcessingThread([this, BusSettings = FControlBusSettings(*InBus)]()
+			RunCommandOnProcessingThread([this, BusSettings = FControlBusSettings(*InBus, AudioDeviceId)]()
 			{
 				FBusHandle BusHandle = FBusHandle::Get(BusSettings.GetId(), RefProxies.Buses);
 				if (BusHandle.IsValid())
@@ -782,7 +773,7 @@ namespace AudioModulation
 
 		if (const USoundControlBusMix* InMix = Cast<USoundControlBusMix>(&InModulator))
 		{
-			RunCommandOnProcessingThread([this, BusMixSettings = FModulatorBusMixSettings(*InMix)]()
+			RunCommandOnProcessingThread([this, BusMixSettings = FModulatorBusMixSettings(*InMix, AudioDeviceId)]()
 			{
 				FBusMixHandle BusMixHandle = FBusMixHandle::Get(BusMixSettings.GetId(), RefProxies.BusMixes);
 				if (BusMixHandle.IsValid())
@@ -800,7 +791,7 @@ namespace AudioModulation
 
 		if (const USoundModulationPatch* InPatch = Cast<USoundModulationPatch>(&InModulator))
 		{
-			RunCommandOnProcessingThread([this, PatchSettings = FModulationPatchSettings(*InPatch)]()
+			RunCommandOnProcessingThread([this, PatchSettings = FModulationPatchSettings(*InPatch, AudioDeviceId)]()
 			{
 				FPatchHandle PatchHandle = FPatchHandle::Get(PatchSettings.GetId(), RefProxies.Patches);
 				if (PatchHandle.IsValid())

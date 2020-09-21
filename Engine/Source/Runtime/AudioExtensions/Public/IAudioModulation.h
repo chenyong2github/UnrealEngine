@@ -30,9 +30,9 @@ namespace Audio
 	using FModulatorTypeId = uint32;
 	using FModulatorHandleId = uint32;
 
-	using FModulationUnitConvertFunction		= TFunction<void(float* RESTRICT /* OutValueLinearToUnitBuffer */, int32 /* InNumSamples */)>;
-	using FModulationLinearConversionFunction	= TFunction<void(float* RESTRICT /* OutValueUnitToLinearBuffer */, int32 /* InNumSamples */)>;
-	using FModulationMixFunction				= TFunction<void(float* RESTRICT /* OutBufferLinearA */, const float* RESTRICT /* InBufferLinearB */, int32 /* InNumSamples */)>;
+	using FModulationUnitConvertFunction = TFunction<void(float* RESTRICT /* OutValueLinearToUnitBuffer */, int32 /* InNumSamples */)>;
+	using FModulationLinearConversionFunction = TFunction<void(float* RESTRICT /* OutValueUnitToLinearBuffer */, int32 /* InNumSamples */)>;
+	using FModulationMixFunction = TFunction<void(float* RESTRICT /* OutBufferLinearA */, const float* RESTRICT /* InBufferLinearB */, int32 /* InNumSamples */)>;
 
 	struct AUDIOEXTENSIONS_API FModulationParameter
 	{

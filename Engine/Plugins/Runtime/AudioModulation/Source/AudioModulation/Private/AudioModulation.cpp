@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioModulation.h"
 
-#include "AudioModulationSystem.h"
 #include "AudioModulationLogging.h"
+#include "AudioModulationSystem.h"
 #include "CanvasTypes.h"
 #include "Features/IModularFeatures.h"
 #include "IAudioModulation.h"
@@ -18,13 +18,13 @@ DEFINE_STAT(STAT_AudioModulationProcessModulators);
 namespace AudioModulation
 {
 	FAudioModulation::FAudioModulation()
+		: ModSystem(new FAudioModulationSystem())
 	{
-		ModSystem = MakeUnique<FAudioModulationSystem>();
 	}
 
-	FAudioModulationSystem* FAudioModulation::GetModulationSystem()
+	FAudioModulation::~FAudioModulation()
 	{
-		return ModSystem.Get();
+		delete ModSystem;
 	}
 
 	Audio::FModulationParameter FAudioModulation::GetParameter(FName InParamName)
@@ -40,6 +40,71 @@ namespace AudioModulation
 	void FAudioModulation::OnAuditionEnd()
 	{
 		ModSystem->OnAuditionEnd();
+	}
+
+	void FAudioModulation::ActivateBus(const USoundControlBus& InBus)
+	{
+		ModSystem->ActivateBus(InBus);
+	}
+
+	void FAudioModulation::ActivateBusMix(const USoundControlBusMix& InBusMix)
+	{
+		ModSystem->ActivateBusMix(InBusMix);
+	}
+
+	void FAudioModulation::ActivateGenerator(const USoundModulationGenerator& InGenerator)
+	{
+		ModSystem->ActivateGenerator(InGenerator);
+	}
+
+	void FAudioModulation::DeactivateBus(const USoundControlBus& InBus)
+	{
+		ModSystem->DeactivateBus(InBus);
+	}
+
+	void FAudioModulation::DeactivateBusMix(const USoundControlBusMix& InBusMix)
+	{
+		ModSystem->SoloBusMix(InBusMix);
+	}
+
+	void FAudioModulation::DeactivateAllBusMixes()
+	{
+		ModSystem->DeactivateAllBusMixes();
+	}
+
+	void FAudioModulation::DeactivateGenerator(const USoundModulationGenerator& InGenerator)
+	{
+		ModSystem->DeactivateGenerator(InGenerator);
+	}
+
+	void FAudioModulation::SaveMixToProfile(const USoundControlBusMix& InBusMix, const int32 InProfileIndex)
+	{
+		ModSystem->SaveMixToProfile(InBusMix, InProfileIndex);
+	}
+
+	TArray<FSoundControlBusMixStage> FAudioModulation::LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix)
+	{
+		return ModSystem->LoadMixFromProfile(InProfileIndex, OutBusMix);
+	}
+
+	void FAudioModulation::UpdateMix(const TArray<FSoundControlBusMixStage>& InStages, USoundControlBusMix& InOutMix, bool bInUpdateObject, float InFadeTime)
+	{
+		ModSystem->UpdateMix(InStages, InOutMix, bInUpdateObject, InFadeTime);
+	}
+
+	void FAudioModulation::UpdateMix(const USoundControlBusMix& InMix, float InFadeTime)
+	{
+		ModSystem->UpdateMix(InMix, InFadeTime);
+	}
+
+	void FAudioModulation::UpdateMixByFilter(const FString& InAddressFilter, const TSubclassOf<USoundModulationParameter>& InParamClassFilter, USoundModulationParameter* InParamFilter, float Value, float FadeTime, USoundControlBusMix& InOutMix, bool bInUpdateObject)
+	{
+		ModSystem->UpdateMixByFilter(InAddressFilter, InParamClassFilter, InParamFilter, Value, FadeTime, InOutMix, bInUpdateObject);
+	}
+
+	void FAudioModulation::SoloBusMix(const USoundControlBusMix& InBusMix)
+	{
+		ModSystem->SoloBusMix(InBusMix);
 	}
 
 #if !UE_BUILD_SHIPPING

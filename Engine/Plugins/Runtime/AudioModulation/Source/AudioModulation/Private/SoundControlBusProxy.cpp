@@ -7,7 +7,7 @@
 #include "AudioModulationLogging.h"
 #include "AudioModulationSystem.h"
 #include "Engine/World.h"
-#include "SoundModulationGeneratorLFO.h"
+#include "SoundModulationGenerator.h"
 
 
 namespace AudioModulation
@@ -16,7 +16,7 @@ namespace AudioModulation
 
 	FControlBusProxy::FControlBusProxy()
 		: DefaultValue(0.0f)
-		, LFOValue(1.0f)
+		, GeneratorValue(1.0f)
 		, MixValue(NAN)
 		, bBypass(false)
 	{
@@ -39,14 +39,14 @@ namespace AudioModulation
 		return DefaultValue;
 	}
 
-	const TArray<FLFOHandle>& FControlBusProxy::GetLFOHandles() const
+	const TArray<FGeneratorHandle>& FControlBusProxy::GetGeneratorHandles() const
 	{
-		return LFOHandles;
+		return GeneratorHandles;
 	}
 
-	float FControlBusProxy::GetLFOValue() const
+	float FControlBusProxy::GetGeneratorValue() const
 	{
-		return LFOValue;
+		return GeneratorValue;
 	}
 
 	float FControlBusProxy::GetMixValue() const
@@ -57,29 +57,29 @@ namespace AudioModulation
 	float FControlBusProxy::GetValue() const
 	{
 		const float DefaultMixed = Mix(DefaultValue);
-		return FMath::Clamp(DefaultMixed * LFOValue, 0.0f, 1.0f);
+		return FMath::Clamp(DefaultMixed * GeneratorValue, 0.0f, 1.0f);
 	}
 
 	void FControlBusProxy::Init(const FControlBusSettings& InSettings)
 	{
 		check(ModSystem);
 
-		LFOValue = 1.0f;
+		GeneratorValue = 1.0f;
 		MixValue = NAN;
 		MixFunction = InSettings.MixFunction;
 
 		DefaultValue = FMath::Clamp(InSettings.DefaultValue, 0.0f, 1.0f);
 		bBypass = InSettings.bBypass;
 
-		TArray<FLFOHandle> NewHandles;
-		for (const FModulatorLFOSettings& LFOSettings : InSettings.LFOSettings)
+		TArray<FGeneratorHandle> NewHandles;
+		for (const FModulationGeneratorSettings& GeneratorSettings : InSettings.GeneratorSettings)
 		{
-			NewHandles.Add(FLFOHandle::Create(LFOSettings, ModSystem->RefProxies.LFOs, *ModSystem));
+			NewHandles.Add(FGeneratorHandle::Create(GeneratorSettings, ModSystem->RefProxies.Generators, *ModSystem));
 		}
 
-		// Move vs. reset and adding to original array to avoid potentially clearing handles (and thus current LFO state)
-		// and destroying LFOs if function is called while reinitializing/updating the modulator
-		LFOHandles = MoveTemp(NewHandles);
+		// Move vs. reset and adding to original array to avoid potentially clearing handles (and thus current Generator state)
+		// and destroying generators if function is called while reinitializing/updating the modulator
+		GeneratorHandles = MoveTemp(NewHandles);
 	}
 
 	bool FControlBusProxy::IsBypassed() const
@@ -106,16 +106,16 @@ namespace AudioModulation
 		MixValue = Mix(InValue);
 	}
 
-	void FControlBusProxy::MixLFO()
+	void FControlBusProxy::MixGenerators()
 	{
-		for (const FLFOHandle& Handle: LFOHandles)
+		for (const FGeneratorHandle& Handle: GeneratorHandles)
 		{
 			if (Handle.IsValid())
 			{
-				const FModulatorLFOProxy& LFOProxy = Handle.FindProxy();
-				if (!LFOProxy.IsBypassed())
+				const FModulatorGeneratorProxy& GeneratorProxy = Handle.FindProxy();
+				if (!GeneratorProxy.IsBypassed())
 				{
-					LFOValue *= LFOProxy.GetValue();
+					GeneratorValue *= GeneratorProxy.GetValue();
 				}
 			}
 		}
@@ -123,7 +123,7 @@ namespace AudioModulation
 
 	void FControlBusProxy::Reset()
 	{
-		LFOValue = 1.0f;
+		GeneratorValue = 1.0f;
 		MixValue = NAN;
 	}
 } // namespace AudioModulation
