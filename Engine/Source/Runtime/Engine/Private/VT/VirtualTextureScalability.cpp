@@ -58,28 +58,28 @@ namespace VirtualTextureScalability
 		GPoolSizeScales[0],
 		TEXT("Scale factor for virtual texture physical pool size.\n")
 		TEXT(" Group 0"),
-		ECVF_RenderThreadSafe | ECVF_Scalability
+		ECVF_Scalability
 	);
 	static FAutoConsoleVariableRef CVarVTPoolSizeScale0(
 		TEXT("r.VT.PoolSizeScale.Group0"),
 		GPoolSizeScales[0],
 		TEXT("Scale factor for virtual texture physical pool size.\n")
 		TEXT(" Group 0"),
-		ECVF_RenderThreadSafe | ECVF_Scalability
+		ECVF_Scalability
 	);
 	static FAutoConsoleVariableRef CVarVTPoolSizeScale1(
 		TEXT("r.VT.PoolSizeScale.Group1"),
 		GPoolSizeScales[1],
 		TEXT("Scale factor for virtual texture physical pool sizes.\n")
 		TEXT(" Group 1"),
-		ECVF_RenderThreadSafe | ECVF_Scalability
+		ECVF_Scalability
 	);
 	static FAutoConsoleVariableRef CVarVTPoolSizeScale2(
 		TEXT("r.VT.PoolSizeScale.Group2"),
 		GPoolSizeScales[2],
 		TEXT("Scale factor for virtual texture physical pool sizes.\n")
 		TEXT(" Group 2"),
-		ECVF_RenderThreadSafe | ECVF_Scalability
+		ECVF_Scalability
 	);
 
 	static float GTileCountBiases[NumScalabilityGroups] = { 0 };
@@ -166,7 +166,7 @@ namespace VirtualTextureScalability
 			// Reinit streaming virtual textures
 			for (UTexture2D* Texture : ReleasedVirtualTextures)
 			{
-				BeginReleaseResource(Texture->Resource);
+				BeginInitResource(Texture->Resource);
 			}
 
 			// Reinit runtime virtual textures
@@ -207,6 +207,8 @@ namespace VirtualTextureScalability
 
 	float GetPoolSizeScale(uint32 GroupIndex)
 	{
+		// This is called on render thread but uses non render thread cvar. However it should be safe enough due to the calling pattern.
+		// Using ECVF_RenderThreadSafe would mean that OnUpdate() logic can fail to detect a change due to the cvar ref pointing at the render thread value.
 		return GroupIndex < NumScalabilityGroups ? GPoolSizeScales[GroupIndex] : 1.f;
 	}
 
