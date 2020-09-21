@@ -117,6 +117,30 @@ namespace Chaos
 
 	FPhysicsSolverBase::~FPhysicsSolverBase() = default;
 
+	void FPhysicsSolverBase::DestroySolver(FPhysicsSolverBase& InSolver)
+	{
+		//block on any pending tasks
+		InSolver.WaitOnPendingTasks_External();
+
+		//make sure any pending commands are executed
+		//we don't have a flush function because of dt concerns (don't want people flushing because commands end up in wrong dt)
+		//but in this case we just need to ensure all resources are freed
+		for(const auto& Command : InSolver.CommandQueue)
+		{
+			Command();
+		}
+
+		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		InSolver.AdvanceAndDispatch_External(0);
+
+		// Ensure callbacks actually get cleaned up, only necessary when solver is disabled.
+		InSolver.ApplyCallbacks_Internal();
+
+		// verify callbacks have been processed and we're not leaking.
+		ensure(InSolver.SimCallbacks.Num() == 0);
+
+		delete &InSolver;
+	}
 
 	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete)
 	{
