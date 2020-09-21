@@ -8,71 +8,30 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 
-bool FHLODActorDesc::Init(const AActor* InActor)
+void FHLODActorDesc::InitFrom(const AActor* InActor)
 {
-	if (FWorldPartitionActorDesc::Init(InActor))
-	{
-		const AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(InActor);
-		SubActors = HLODActor->GetSubActors();
-		HLODLayer = HLODActor->GetHLODLayer();
+	FWorldPartitionActorDesc::InitFrom(InActor);
 
-		UpdateHash();
-		return true;
-	}
-
-	return false;
+	const AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(InActor);
+	SubActors = HLODActor->GetSubActors();
+	HLODLayer = HLODActor->GetHLODLayer();
 }
 
-void FHLODActorDesc::SerializeMetaData(FActorMetaDataSerializer* Serializer)
+void FHLODActorDesc::Serialize(FArchive& Ar)
 {
-	FWorldPartitionActorDesc::SerializeMetaData(Serializer);
+	FWorldPartitionActorDesc::Serialize(Ar);
 
-	FString SubActorsGUIDsStr;
-	if (Serializer->IsWriting())
-	{
-		if (SubActors.Num())
-		{
-			for (const FGuid& ActorGUID : SubActors)
-			{
-				SubActorsGUIDsStr += ActorGUID.ToString() + TEXT(";");
-			}
-			SubActorsGUIDsStr.RemoveFromEnd(TEXT(";"));
-		}
-	}
-
-	Serializer->Serialize(TEXT("HLODSubActors"), SubActorsGUIDsStr);
-
-	if (Serializer->IsReading())
-	{
-		TArray<FString> SubActorsStr;
-		if (SubActorsGUIDsStr.ParseIntoArray(SubActorsStr, TEXT(";")))
-		{
-			Algo::Transform(SubActorsStr, SubActors, [](const FString& ActorGuidStr)
-			{
-				FGuid ActorGuid;
-				if (!FGuid::Parse(ActorGuidStr, ActorGuid))
-				{
-					ActorGuid.Invalidate();
-				}
-				return ActorGuid;
-			});
-
-			Algo::RemoveIf(SubActors, [](const FGuid& InGuid)
-			{
-				return !InGuid.IsValid();
-			});
-		}
-	}
+	Ar << SubActors;
 
 	FString HLODLayerStr;
-	if (Serializer->IsWriting())
+	if (Ar.IsSaving())
 	{
 		HLODLayerStr = HLODLayer.ToString();
 	}
 	
-	Serializer->Serialize(TEXT("HLODSubActors"), HLODLayerStr);
+	Ar << HLODLayerStr;
 	
-	if (Serializer->IsReading())
+	if (Ar.IsLoading())
 	{
 		HLODLayer = HLODLayerStr;
 	}

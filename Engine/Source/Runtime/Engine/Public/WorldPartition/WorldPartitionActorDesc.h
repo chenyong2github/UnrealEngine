@@ -9,7 +9,6 @@
 #include "Containers/Set.h"
 #include "Misc/Guid.h"
 #include "Misc/HashBuilder.h"
-#include "WorldPartition/WorldPartitionActorMetaDataSerializer.h"
 #include "WorldPartition/WorldPartitionActorDescFactory.h"
 
 #if WITH_EDITOR
@@ -19,9 +18,8 @@ struct FWorldPartitionActorDescInitData
 	UClass* NativeClass;
 	FName PackageName;
 	FName ActorPath;
-	FAssetData AssetData;
 	FTransform Transform;
-	FActorMetaDataSerializer* Serializer;
+	TArray<uint8> SerializedData;
 };
 #endif
 
@@ -31,8 +29,6 @@ struct FWorldPartitionActorDescInitData
 class ENGINE_API FWorldPartitionActorDesc 
 {
 #if WITH_EDITOR
-	friend class AActor;
-	friend class UWorldPartition;
 	friend class FWorldPartitionActorDescFactory;
 
 public:
@@ -84,15 +80,19 @@ public:
 	AActor* Load(const FLinkerInstancingContext* InstancingContext = nullptr);
 	void Unload();
 
+	void Init(const AActor* InActor);
+	void Init(const FWorldPartitionActorDescInitData& DescData);
+
+	void SerializeTo(TArray<uint8>& OutData);
+
 protected:
 	FWorldPartitionActorDesc();
-	virtual bool Init(const AActor* InActor);
-	bool Init(const FWorldPartitionActorDescInitData& DescData);
-		
+	
 	void UpdateHash();
 	virtual void BuildHash(FHashBuilder& HashBuilder);
 
-	virtual void SerializeMetaData(FActorMetaDataSerializer* Serializer);
+	virtual void InitFrom(const AActor* Actor);
+	virtual void Serialize(FArchive& Ar);
 
 	FGuid						Guid;
 	FName						Class;

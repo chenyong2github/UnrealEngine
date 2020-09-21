@@ -22,7 +22,13 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	, Tag(0)
 {}
 
-bool FWorldPartitionActorDesc::Init(const AActor* InActor)
+void FWorldPartitionActorDesc::Init(const AActor* InActor)
+{
+	InitFrom(InActor);
+	UpdateHash();
+}
+
+void FWorldPartitionActorDesc::InitFrom(const AActor* InActor)
 {	
 	check(InActor->IsPackageExternal());
 
@@ -69,12 +75,9 @@ bool FWorldPartitionActorDesc::Init(const AActor* InActor)
 			References.Add(ActorReference->GetActorGuid());
 		}
 	}
-
-	UpdateHash();
-	return true;
 }
 
-bool FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& DescData)
+void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& DescData)
 {
 	ActorPackage = DescData.PackageName;
 	ActorPath = DescData.ActorPath;
@@ -82,32 +85,52 @@ bool FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 	Class = DescData.NativeClass->GetFName();
 
 	// Serialize actor metadata
-	SerializeMetaData(DescData.Serializer);
+	FMemoryReader MetadataAr(DescData.SerializedData);
 
-	if (!DescData.Serializer->GetHasErrors())
-	{	
-		// Override grid placement by default class value
-		const EActorGridPlacement DefaultGridPlacement = ActorClass->GetDefaultObject<AActor>()->GetDefaultGridPlacement();
-		if (DefaultGridPlacement != EActorGridPlacement::None)
-		{
-			GridPlacement = DefaultGridPlacement;
-		}
+	// Serialize metadata custom versions
+	FCustomVersionContainer CustomVersions;
+	CustomVersions.Serialize(MetadataAr);
+	MetadataAr.SetCustomVersions(CustomVersions);
+	
+	// Serialize metadata payload
+	Serialize(MetadataAr);
 
-		// Transform BoundsLocation and BoundsExtent if necessary
-		if (!DescData.Transform.Equals(FTransform::Identity))
-		{
-			//@todo_ow: This will result in a new BoundsExtent that is larger than it should. To fix this, we would need the Object Oriented BoundingBox of the actor (the BV of the actor without rotation)
-			const FVector BoundsMin = BoundsLocation - BoundsExtent;
-			const FVector BoundsMax = BoundsLocation + BoundsExtent;
-			const FBox NewBounds = FBox(BoundsMin, BoundsMax).TransformBy(DescData.Transform);
-			NewBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
-		}
-
-		UpdateHash();
-		return true;
+	// Override grid placement by default class value
+	const EActorGridPlacement DefaultGridPlacement = ActorClass->GetDefaultObject<AActor>()->GetDefaultGridPlacement();
+	if (DefaultGridPlacement != EActorGridPlacement::None)
+	{
+		GridPlacement = DefaultGridPlacement;
 	}
 
-	return false;
+	// Transform BoundsLocation and BoundsExtent if necessary
+	if (!DescData.Transform.Equals(FTransform::Identity))
+	{
+		//@todo_ow: This will result in a new BoundsExtent that is larger than it should. To fix this, we would need the Object Oriented BoundingBox of the actor (the BV of the actor without rotation)
+		const FVector BoundsMin = BoundsLocation - BoundsExtent;
+		const FVector BoundsMax = BoundsLocation + BoundsExtent;
+		const FBox NewBounds = FBox(BoundsMin, BoundsMax).TransformBy(DescData.Transform);
+		NewBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+	}
+
+	UpdateHash();
+}
+
+void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
+{
+	// Serialize to archive and gather custom versions
+	TArray<uint8> PayloadData;
+	FMemoryWriter PayloadAr(PayloadData);
+	Serialize(PayloadAr);
+
+	// Serialize custom versions
+	TArray<uint8> HeaderData;
+	FMemoryWriter HeaderAr(HeaderData);
+	FCustomVersionContainer CustomVersions = PayloadAr.GetCustomVersions();
+	CustomVersions.Serialize(HeaderAr);
+
+	// Append data
+	OutData = MoveTemp(HeaderData);
+	OutData.Append(PayloadData);
 }
 
 FString FWorldPartitionActorDesc::ToString() const
@@ -127,78 +150,9 @@ void FWorldPartitionActorDesc::BuildHash(FHashBuilder& HashBuilder)
 	HashBuilder << Guid << Class << ActorPackage << ActorPath << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant << Layers << References;
 }
 
-void FWorldPartitionActorDesc::SerializeMetaData(FActorMetaDataSerializer* Serializer)
+void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 {
-	bool bValidSerialization = true;
-
-	bValidSerialization &= Serializer->Serialize(TEXT("ActorClass"), Class);
-	bValidSerialization &= Serializer->Serialize(TEXT("ActorGuid"), Guid);
-	bValidSerialization &= Serializer->Serialize(TEXT("BoundsLocation"), BoundsLocation);
-	bValidSerialization &= Serializer->Serialize(TEXT("BoundsExtent"), BoundsExtent);
-	bValidSerialization &= Serializer->Serialize(TEXT("GridPlacement"), (int8&)GridPlacement);
-	bValidSerialization &= Serializer->Serialize(TEXT("RuntimeGrid"), RuntimeGrid);
-	bValidSerialization &= Serializer->Serialize(TEXT("IsEditorOnly"), bActorIsEditorOnly);
-	bValidSerialization &= Serializer->Serialize(TEXT("IsLevelBoundsRelevant"), bLevelBoundsRelevant);
-
-	if (!bValidSerialization)
-	{
-		Serializer->SetHasErrors();
-	}
-
-	FString LayersStr;
-	FString ActorsRefsStr;
-
-	if (Serializer->IsWriting())
-	{
-		if (Layers.Num())
-		{
-			for(FName Layer: Layers)
-			{
-				LayersStr += Layer.ToString() + TEXT(";");
-			}
-			LayersStr.RemoveFromEnd(TEXT(";"));
-		}
-
-		if (References.Num())
-		{
-			for(const FGuid& ActoGuid: References)
-			{
-				ActorsRefsStr += ActoGuid.ToString() + TEXT(";");
-			}
-			ActorsRefsStr.RemoveFromEnd(TEXT(";"));
-		}
-	}
-
-	Serializer->Serialize(TEXT("Layers"), LayersStr);
-	Serializer->Serialize(TEXT("ActorReferences"), ActorsRefsStr);
-
-	if (Serializer->IsReading())
-	{
-		TArray<FString> NewLayers;
-		if (LayersStr.ParseIntoArray(NewLayers, TEXT(";")))
-		{
-			Algo::Transform(NewLayers, Layers, [&](const FString& Layer) { return FName(*Layer); });
-		}
-
-		TArray<FString> ActorsRefs;
-		if (ActorsRefsStr.ParseIntoArray(ActorsRefs, TEXT(";")))
-		{
-			Algo::Transform(ActorsRefs, References, [](const FString& ActorGuidStr)
-			{
-				FGuid ActorGuid;
-				if (!FGuid::Parse(ActorGuidStr, ActorGuid))
-				{
-					ActorGuid.Invalidate();
-				}
-				return ActorGuid;
-			});
-
-			Algo::RemoveIf(References, [](const FGuid& InGuid)
-			{
-				return !InGuid.IsValid();
-			});
-		}
-	}
+	Ar << Class << Guid << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant << Layers << References;
 }
 
 FBox FWorldPartitionActorDesc::GetBounds() const

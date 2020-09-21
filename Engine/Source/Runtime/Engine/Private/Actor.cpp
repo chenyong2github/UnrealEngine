@@ -522,12 +522,19 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(WorldPartition->GetActorDescFactory(this)->Create());
 			ActorDesc->Init(this);
 
-			FActorMetaDataWriter ActorMetaDataSerializer(OutTags);
+			const FString LevelPackageName = GetOuter()->GetOutermost()->GetName();
+			static FName NAME_LevelPackage(TEXT("LevelPackage"));
+			OutTags.Add(UObject::FAssetRegistryTag(NAME_LevelPackage, LevelPackageName, UObject::FAssetRegistryTag::TT_Hidden));
 
-			FString LevelPackageName = GetOuter()->GetOutermost()->GetName();
-			ActorMetaDataSerializer.Serialize(TEXT("LevelPackage"), LevelPackageName);
+			const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetName();
+			static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
+			OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));
 
-			ActorDesc->SerializeMetaData(&ActorMetaDataSerializer);
+			TArray<uint8> SerializedData;
+			ActorDesc->SerializeTo(SerializedData);
+			const FString ActorMetaData = FBase64::Encode(SerializedData);
+			static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
+			OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaData, ActorMetaData, UObject::FAssetRegistryTag::TT_Hidden));
 		}
 	}
 }

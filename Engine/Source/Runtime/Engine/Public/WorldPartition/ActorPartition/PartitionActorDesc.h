@@ -19,10 +19,9 @@ public:
 	int64 GridIndexZ;
 
 protected:
-	virtual bool Init(const AActor* InActor) override;
-	
 	virtual void BuildHash(FHashBuilder& HashBuilder) override;
 
-	virtual void SerializeMetaData(FActorMetaDataSerializer* Serializer) override;
+	virtual void InitFrom(const AActor* InActor) override;
+	virtual void Serialize(FArchive& Ar) override;
 #endif
 };

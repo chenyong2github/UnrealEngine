@@ -248,18 +248,20 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		for (const FAssetData& Asset : Assets)
 		{
-			FActorMetaDataReader ActorMetaDataSerializer(Asset);
+			FString ActorClass;
+			static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
+			Asset.GetTagValue(NAME_ActorMetaDataClass, ActorClass);
 
-			FName ActorClass;
-			ActorMetaDataSerializer.Serialize(TEXT("ActorClass"), ActorClass);
+			FString ActorMetaDataStr;
+			static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
+			Asset.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr);
 
 			FWorldPartitionActorDescInitData ActorDescInitData;
-			ActorDescInitData.NativeClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ActorClass.ToString(), true);
+			ActorDescInitData.NativeClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ActorClass, true);
 			ActorDescInitData.PackageName = Asset.PackageName;
-			ActorDescInitData.AssetData = Asset;
 			ActorDescInitData.ActorPath = Asset.ObjectPath;
 			ActorDescInitData.Transform = bIsInstanced ? InstanceTransform : FTransform::Identity;
-			ActorDescInitData.Serializer = &ActorMetaDataSerializer;
+			FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);			
 
 			if (bIsInstanced)
 			{
@@ -273,16 +275,14 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			}
 
 			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(GetActorDescFactory(ActorDescInitData.NativeClass)->Create());
+			NewActorDesc->Init(ActorDescInitData);
 
-			if (NewActorDesc->Init(ActorDescInitData))
+			if (bEditorOnly)
 			{
-				if (bEditorOnly)
-				{
-					AllLayersNames.Append(NewActorDesc->GetLayers());
-				}
-
-				Actors.Add(NewActorDesc->GetGuid(), MoveTemp(NewActorDesc));
+				AllLayersNames.Append(NewActorDesc->GetLayers());
 			}
+
+			Actors.Add(NewActorDesc->GetGuid(), MoveTemp(NewActorDesc));
 		}
 
 		if (bEditorOnly)

@@ -6,27 +6,22 @@
 #include "Engine/Level.h"
 #include "LevelInstance/LevelInstanceActor.h"
 
-bool FLevelInstanceActorDesc::Init(const AActor* InActor)
+void FLevelInstanceActorDesc::InitFrom(const AActor* InActor)
 {
-	if (FWorldPartitionActorDesc::Init(InActor))
-	{
-		const ALevelInstance* LevelInstanceActor = CastChecked<ALevelInstance>(InActor);
-		LevelPackage = *LevelInstanceActor->GetWorldAssetPackage();
-		LevelInstanceTransform = FTransform(InActor->GetActorRotation(), InActor->GetActorLocation());
-		UpdateHash();
-		return true;
-	}
-	return false;
+	FWorldPartitionActorDesc::InitFrom(InActor);
+
+	const ALevelInstance* LevelInstanceActor = CastChecked<ALevelInstance>(InActor);
+	LevelPackage = *LevelInstanceActor->GetWorldAssetPackage();
+	LevelInstanceTransform = FTransform(InActor->GetActorRotation(), InActor->GetActorLocation());
 }
 
-void FLevelInstanceActorDesc::SerializeMetaData(FActorMetaDataSerializer* Serializer)
+void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 {
-	FWorldPartitionActorDesc::SerializeMetaData(Serializer);
+	FWorldPartitionActorDesc::Serialize(Ar);
 
-	Serializer->Serialize(TEXT("LevelInstancePackage"), LevelPackage);
-	Serializer->Serialize(TEXT("LevelInstanceTransform"), LevelInstanceTransform);
+	Ar << LevelPackage << LevelInstanceTransform;
 
-	if (Serializer->IsReading())
+	if (Ar.IsLoading())
 	{
 		if (!LevelPackage.IsNone())
 		{
