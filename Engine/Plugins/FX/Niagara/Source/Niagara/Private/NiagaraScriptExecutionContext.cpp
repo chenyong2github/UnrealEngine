@@ -30,6 +30,7 @@ static FAutoConsoleVariableRef CVarNiagaraExecVMScripts(
 
 FNiagaraScriptExecutionContextBase::FNiagaraScriptExecutionContextBase()
 	: Script(nullptr)
+	, bAllowParallel(true)
 {
 
 }
@@ -138,23 +139,26 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 		CreateStatScopeData();
 #endif
 		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
-		VectorVM::Exec(
-			ExecData.ByteCode.GetData(),
-			ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr,
-			ExecData.NumTempRegisters,
-			ConstantBufferTable.Buffers.Num(),
-			ConstantBufferTable.Buffers.GetData(),
-			ConstantBufferTable.BufferSizes.GetData(),
-			DataSetMetaTable,
-			FunctionTable.GetData(),
-			UserPtrTable.GetData(),
-			NumInstances
+
+		VectorVM::FVectorVMExecArgs ExecArgs;
+		ExecArgs.ByteCode = ExecData.ByteCode.GetData();
+		ExecArgs.OptimizedByteCode = ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr;
+		ExecArgs.NumTempRegisters = ExecData.NumTempRegisters;
+		ExecArgs.ConstantTableCount = ConstantBufferTable.Buffers.Num();
+		ExecArgs.ConstantTable = ConstantBufferTable.Buffers.GetData();
+		ExecArgs.ConstantTableSizes = ConstantBufferTable.BufferSizes.GetData();
+		ExecArgs.DataSetMetaTable = DataSetMetaTable;
+		ExecArgs.ExternalFunctionTable = FunctionTable.GetData();
+		ExecArgs.UserPtrTable = UserPtrTable.GetData();
+		ExecArgs.NumInstances = NumInstances;
 #if STATS
-			, MakeArrayView(StatScopeData)
+		ExecArgs.StatScopes = MakeArrayView(StatScopeData);
 #elif ENABLE_STATNAMEDEVENTS
-			, Script->GetStatNamedEvents()
+		ExecArgs.StatNamedEventsScopes = Script->GetStatNamedEvents();
 #endif
-		);
+		
+		ExecArgs.bAllowParallel = bAllowParallel;
+		VectorVM::Exec(ExecArgs);
 	}
 
 	// Tell the datasets we wrote how many instances were actually written.
@@ -401,6 +405,10 @@ void FNiagaraSystemScriptExecutionContext::PerInstanceFunctionHook(FVectorVMCont
 
 bool FNiagaraSystemScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget)
 {
+	//FORT - 314222 - There is a bug currently when system scripts execute in parallel.
+	//This is unlikely for these scripts but we're explicitly disallowing it for safety.
+	bAllowParallel = false;
+
 	return FNiagaraScriptExecutionContextBase::Init(InScript, InTarget);
 }
 

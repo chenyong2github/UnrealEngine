@@ -487,26 +487,30 @@ namespace VectorVM
 
 	VECTORVM_API uint8 CreateSrcOperandMask(EVectorVMOperandLocation Type0, EVectorVMOperandLocation Type1 = EVectorVMOperandLocation::Register, EVectorVMOperandLocation Type2 = EVectorVMOperandLocation::Register);
 
+	struct FVectorVMExecArgs
+	{
+		uint8 const* ByteCode = nullptr;
+		uint8 const* OptimizedByteCode = nullptr;
+		int32 NumTempRegisters = 0;
+		int32 ConstantTableCount = 0;
+		const uint8* const* ConstantTable = nullptr;
+		const int32* ConstantTableSizes = nullptr;
+		TArrayView<FDataSetMeta> DataSetMetaTable;
+		const FVMExternalFunction* const* ExternalFunctionTable = nullptr;
+		void** UserPtrTable = nullptr;
+		int32 NumInstances = 0;
+		bool bAllowParallel = true;
+#if STATS
+		TArrayView<FStatScopeData> StatScopes;
+#elif ENABLE_STATNAMEDEVENTS
+		TArrayView<const FString> StatNamedEventsScopes;
+#endif
+	};
+
 	/**
 	 * Execute VectorVM bytecode.
 	 */
-	VECTORVM_API void Exec(
-		uint8 const* ByteCode,
-		uint8 const* OptimizedByteCode,
-		int32 NumTempRegisters,
-		int32 ConstantTableCount,
-		const uint8* const* ConstantTable,
-		const int32* ConstantTableSizes,
-		TArrayView<FDataSetMeta> DataSetMetaTable,
-		const FVMExternalFunction* const* ExternalFunctionTable,
-		void** UserPtrTable,
-		int32 NumInstances
-#if STATS
-		, TArrayView<FStatScopeData> StatScopes
-#elif ENABLE_STATNAMEDEVENTS
-		, TArrayView<const FString> StatNamedEventsScopes
-#endif
-	);
+	VECTORVM_API void Exec(FVectorVMExecArgs& Args);
 
 	VECTORVM_API void OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedCode, TArrayView<uint8> ExternalFunctionRegisterCounts);
 
