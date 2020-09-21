@@ -2763,6 +2763,25 @@ namespace CrossCompiler
 
 		OutTargetDesc.options = Intermediates.FlagRefs.GetData();
 		OutTargetDesc.numOptions = static_cast<uint32>(Intermediates.FlagRefs.Num());
+
+		// Wrap input function into lambda to convert to ShaderConductor interface
+		if (InTarget.VariableTypeRenameCallback)
+		{
+			OutTargetDesc.variableTypeRenameCallback = [InnerCallback = InTarget.VariableTypeRenameCallback](const char* VariableName, const char* TypeName) -> ShaderConductor::Blob*
+			{
+				// Forward callback to public interface callback
+				FString RenamedTypeName;
+				if (InnerCallback(FAnsiStringView(VariableName), FAnsiStringView(TypeName), RenamedTypeName))
+				{
+					if (!RenamedTypeName.IsEmpty())
+					{
+						// Convert renamed type name from FString to ShaderConductor::Blob
+						return ShaderConductor::CreateBlob(TCHAR_TO_ANSI(*RenamedTypeName), RenamedTypeName.Len() + 1);
+					}
+				}
+				return nullptr;
+			};
+		}
 	}
 
 	static void ConvertScOptions(const FShaderConductorOptions& InOptions, ShaderConductor::Compiler::Options& OutOptions)

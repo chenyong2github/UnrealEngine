@@ -433,6 +433,9 @@ namespace CrossCompiler
 
 		/** Cross compilation flags. This is used for high-level cross compilation (such as Metal output) that is send over to SPIRV-Cross, e.g. { "invariant_float_math", "1" }. */
 		FShaderCompilerDefinitions CompileFlags;
+
+		/** Optional callback to rename certain variable types. */
+		TFunction<bool(const FAnsiStringView& VariableName, const FAnsiStringView& TypeName, FString& OutRenamedTypeName)> VariableTypeRenameCallback;
 	};
 
 	/** Wrapper class to handle interface between UE and ShaderConductor. Use to compile HLSL shaders to SPIR-V or high-level languages such as Metal. */
