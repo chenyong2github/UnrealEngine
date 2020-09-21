@@ -549,7 +549,6 @@ void NiagaraEmitterInstanceBatcher::BuildDispatchGroups(FOverlappableTicks& Over
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUDispatchSetup_RT);
 
 	DispatchGroups.Reserve(8);
-	FDispatchGroup* CurrentGroup = nullptr;
 	FDispatchInstanceList EmittersWithStages;
 	EmittersWithStages.Reserve(16);
 	uint32 MaxStageCountForGroup = 0;
@@ -636,7 +635,7 @@ void NiagaraEmitterInstanceBatcher::BuildDispatchGroups(FOverlappableTicks& Over
 			if (FinalIDToIndexUAV)
 			{
 				InstancesWithPersistentIDs.Add(&InstanceData);
-				CurrentGroup->TransitionsAfter.Add(FRHITransitionInfo(FinalIDToIndexUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+				DispatchGroups.Last().TransitionsAfter.Add(FRHITransitionInfo(FinalIDToIndexUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 			}
 
 			// Final tick, if so enqueue a readback and set the data to render
