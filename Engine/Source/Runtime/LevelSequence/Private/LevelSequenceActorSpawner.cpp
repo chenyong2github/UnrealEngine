@@ -125,6 +125,18 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		NAME_None;
 #endif
 
+	// If there's an object that already exists with the requested name, it needs to be renamed (it's probably pending kill)
+	if (!SpawnName.IsNone())
+	{
+		UObject* ExistingObject = StaticFindObjectFast(nullptr, WorldContext->PersistentLevel, SpawnName);
+		if (ExistingObject)
+		{
+			FName DefunctName = MakeUniqueObjectName(WorldContext->PersistentLevel, ExistingObject->GetClass());
+			UE_LOG(LogMovieScene, Log, TEXT("Found existing object '%s' renaming to '%s'"), *SpawnName.ToString(), *DefunctName.ToString());
+			ExistingObject->Rename(*DefunctName.ToString(), nullptr, REN_ForceNoResetLoaders);
+		}
+	}
+
 	// Spawn the puppet actor
 	FActorSpawnParameters SpawnInfo;
 	{
@@ -246,7 +258,7 @@ void FLevelSequenceActorSpawner::DestroySpawnedObject(UObject& Object)
 #endif
 
 	UWorld* World = Actor->GetWorld();
-	if (ensure(World))
+	if (World)
 	{
 		const bool bNetForce = false;
 		const bool bShouldModifyLevel = false;
