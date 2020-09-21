@@ -122,6 +122,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysScenePostTick,FChaosScene*);
 	FOnPhysScenePostTick OnPhysScenePostTick;
 
+	bool AreAnyTasksPending() const;
 	bool IsCompletionEventComplete() const;
 	FGraphEventArray GetCompletionEvents();
 
