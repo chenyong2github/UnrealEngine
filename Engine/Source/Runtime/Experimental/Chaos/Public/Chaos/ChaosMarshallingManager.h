@@ -183,6 +183,7 @@ struct FSimCallbackData
 	void Init(const FReal InTime)
 	{
 		StartTime = InTime;
+		Data.VoidPtr = nullptr;
 	}
 
 	union FData
@@ -215,16 +216,17 @@ struct FSimCallbackHandlePT
 
 struct FSimCallbackHandle
 {
-	template <typename Lambda>
-	FSimCallbackHandle(const Lambda& InFunc)
+	template <typename Lambda, typename Deleter>
+	FSimCallbackHandle(const Lambda& InFunc, const Deleter& DeleteFunc)
 	: Func(InFunc)
+	, FreeExternal(DeleteFunc)
 	, PTHandle(nullptr)
 	, LatestCallbackData(nullptr)
 	, bRunOnceMore(false)
 	{
 	}
 
-	TFunction<void(const TArray<FSimCallbackData*>& IntervalData)> Func;
+	TFunction<void(const FReal Dt, const TArray<FSimCallbackData*>& IntervalData)> Func;
 	TFunction<void(const TArray<FSimCallbackData*>& IntervalData)> FreeExternal;
 	FSimCallbackHandlePT* PTHandle;	//Should only be used by solver
 
@@ -282,10 +284,10 @@ public:
 		return *Handle.LatestCallbackData;
 	}
 
-	template <typename Lambda>
-	FSimCallbackHandle& RegisterSimCallback(const Lambda& Func)
+	template <typename Lambda, typename Deleter>
+	FSimCallbackHandle& RegisterSimCallback(const Lambda& Func, const Deleter& DeleteFunc)
 	{
-		FSimCallbackHandle* Handle = new FSimCallbackHandle(Func);
+		FSimCallbackHandle* Handle = new FSimCallbackHandle(Func, DeleteFunc);
 		GetProducerData_External()->SimCallbacksToAdd.Add(Handle);
 		return *Handle;
 	}
