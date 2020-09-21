@@ -49,6 +49,11 @@
 #include "GameplayEffectCreationMenu.h"
 #include "ISettingsModule.h"
 
+#include "ISequencerModule.h"
+#include "Sequencer/MovieSceneGameplayCueSections.h"
+#include "Sequencer/GameplayCueTrackEditor.h"
+#include "SequencerChannelInterface.h"
+
 
 class FGameplayAbilitiesEditorModule : public IGameplayAbilitiesEditorModule
 {
@@ -98,6 +103,8 @@ private:
 
 	/** Handle to the registered GameplayTagTreeChanged delegate */
 	FDelegateHandle GameplayTagTreeChangedDelegateHandle;
+
+	FDelegateHandle TrackEditorHandle;
 
 	FGetGameplayCueNotifyClasses GetGameplayCueNotifyClasses;
 
@@ -189,6 +196,10 @@ void FGameplayAbilitiesEditorModule::StartupModule()
 	
 	// Invalidate all internal cacheing of FRichCurve* in FScalableFlaots when a UCurveTable is reimported
 	FReimportManager::Instance()->OnPostReimport().AddLambda([](UObject* InObject, bool b){ UCurveTable::InvalidateAllCachedCurves(); });
+
+	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+	TrackEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(FGameplayCueTrackEditor::CreateTrackEditor));
+	SequencerModule.RegisterChannelInterface<FMovieSceneGameplayCueChannel>();
 }
 
 void FGameplayAbilitiesEditorModule::HandleNotify_OpenAssetInEditor(FString AssetName, int AssetType)
@@ -310,6 +321,11 @@ void FGameplayAbilitiesEditorModule::ShutdownModule()
 	if ( UObjectInitialized() && IGameplayTagsModule::IsAvailable() )
 	{
 		IGameplayTagsModule::OnGameplayTagTreeChanged.Remove(GameplayTagTreeChangedDelegateHandle);
+	}
+
+	if (ISequencerModule* SequencerModulePtr = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer"))
+	{
+		SequencerModulePtr->UnRegisterTrackEditor(TrackEditorHandle);
 	}
 }
 
