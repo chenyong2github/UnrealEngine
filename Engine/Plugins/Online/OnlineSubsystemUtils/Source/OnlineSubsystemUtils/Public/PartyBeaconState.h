@@ -218,6 +218,22 @@ struct ONLINESUBSYSTEMUTILS_API FPartyReservation
 	bool CanPlayerMigrateFromReservation(const FPartyReservation& Other) const;
 };
 
+/** Platform mapping for crossplay checks */
+USTRUCT()
+struct FPartyBeaconCrossplayPlatformMapping
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Platform name (eg WIN) */
+	UPROPERTY()
+	FString PlatformName;
+	/** Platform type the name is mapped to (eg PlatformName=Win, PlatformType=OTHER) */
+	UPROPERTY()
+	FString PlatformType;
+
+	bool operator==(const FString& InPlatformName) { return PlatformName == InPlatformName; }
+};
+
 /**
  * A beacon host used for taking reservations for an existing game session
  */
@@ -558,6 +574,11 @@ protected:
 	/** Are multiple consoles types allowed to play together */
 	UPROPERTY(Config)
 	bool bRestrictCrossConsole;
+	/** Platform crossplay restrictions.  Expected in the format "Plat1=Plat2,Plat3" to indicate Plat1 is considered crossplay with Plat2 and Plat3 */
+	UPROPERTY(Config)
+	TArray<FString> PlatformCrossplayRestrictions;
+	UPROPERTY(Config)
+	TArray<FPartyBeaconCrossplayPlatformMapping> PlatformTypeMapping;
 	/** Process requests from clients to remove players from beacon */
 	UPROPERTY(Transient)
 	bool bEnableRemovalRequests;
