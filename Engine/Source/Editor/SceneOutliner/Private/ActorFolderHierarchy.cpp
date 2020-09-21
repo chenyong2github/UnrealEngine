@@ -44,41 +44,6 @@ FSceneOutlinerTreeItemPtr FActorFolderHierarchy::FindParent(const ISceneOutliner
 	return nullptr;
 }
 
-void FActorFolderHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, TArray<FSceneOutlinerTreeItemPtr>& OutChildren) const
-{
-	if (const FWorldTreeItem* WorldTreeItem = Item.CastTo<FWorldTreeItem>())
-	{
-		// Find folders which are located at the root
-		for (const auto& Pair : FActorFolders::Get().GetFolderPropertiesForWorld(*WorldTreeItem->World))
-		{
-			if (const FSceneOutlinerTreeItemPtr* PotentialChild = Items.Find(Pair.Key))
-			{
-				if (const FFolderTreeItem* FolderItem = (*PotentialChild)->CastTo<FFolderTreeItem>())
-				{
-					if (FEditorFolderUtils::GetParentPath(FolderItem->Path).IsNone())
-					{
-						OutChildren.Add(*PotentialChild);
-					}
-				}
-			}
-		}
-	}
-	else if (const FFolderTreeItem* FolderItem = Item.CastTo<FFolderTreeItem>())
-	{
-		// Search through all items and see if there is an item with a path which is a child of this one
-		for (const auto& Pair : Items)
-		{
-			if (const FFolderTreeItem* PotentialChild = Pair.Value->CastTo<FFolderTreeItem>())
-			{
-				if (FEditorFolderUtils::PathIsChildOf(PotentialChild->Path, FolderItem->Path))
-				{
-					OutChildren.Add(Pair.Value);
-				}
-			}
-		}
-	}
-}
-
 void FActorFolderHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
 {
 	for (const auto& Pair : FActorFolders::Get().GetFolderPropertiesForWorld(*World))

@@ -14,8 +14,6 @@ public:
 	ISceneOutlinerHierarchy(ISceneOutlinerMode* InMode) : Mode(InMode) {}
 	virtual ~ISceneOutlinerHierarchy() {}
 
-	/** Find all direct children of a tree item in an existing item map, if any exist. */
-	virtual void FindChildren(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, TArray<FSceneOutlinerTreeItemPtr>& OutChildItems) const = 0;
 	/** Find the parent of a tree item in an existing item map, it if exists. */
 	virtual FSceneOutlinerTreeItemPtr FindParent(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items) const = 0;
 		
