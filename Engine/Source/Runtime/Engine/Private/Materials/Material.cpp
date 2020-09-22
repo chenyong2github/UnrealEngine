@@ -2417,6 +2417,9 @@ bool UMaterial::GetTextureParameterValue_New(const FHashedMaterialParameterInfo&
 #if WITH_EDITOR
 bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bOveriddenOnly) const
 {
+	// Actual legacy version of this functionality *ignored* the bOveriddenOnly parameter, which as far as I can tell was an oversight
+	// This version has been updated to match other GetXXXParameterValue_Legacy functions, in order to match current behavior
+
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
 	UMaterialExpressionTextureSampleParameter* Parameter = nullptr;
@@ -2430,7 +2433,7 @@ bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterIn
 			{
 				if (ExpressionParameter->IsNamedParameter(ParameterInfo, OutValue))
 				{
-					return true;
+					return !bOveriddenOnly;
 				}
 			}
 			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
@@ -2445,11 +2448,13 @@ bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterIn
 
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
-					if (!ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
+					if (ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
 					{
-						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+						return true;
 					}
-					return true;
+
+					Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					return !bOveriddenOnly;
 				}
 			}
 		}
@@ -2467,11 +2472,13 @@ bool UMaterial::GetTextureParameterValue_Legacy(const FHashedMaterialParameterIn
 
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
-					if (!ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
+					if (ParameterOwner->OverrideNamedTextureParameter(ParameterInfo, OutValue))
 					{
-						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+						return true;
 					}
-					return true;
+
+					Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					return !bOveriddenOnly;
 				}
 			}
 		}
@@ -2515,6 +2522,9 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_New(const FHashedMaterial
 #if WITH_EDITOR
 bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
 {
+	// Actual legacy version of this functionality *ignored* the bOveriddenOnly parameter, which as far as I can tell was an oversight
+	// This version has been updated to match other GetXXXParameterValue_Legacy functions, in order to match current behavior
+
 	// In the case of duplicate parameters with different values, this will return the
 	// first matching expression found, not necessarily the one that's used for rendering
 	UMaterialExpressionRuntimeVirtualTextureSampleParameter* Parameter = nullptr;
@@ -2528,7 +2538,7 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMater
 			{
 				if (ExpressionParameter->IsNamedParameter(ParameterInfo, OutValue))
 				{
-					return true;
+					return !bOveriddenOnly;
 				}
 			}
 			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
@@ -2543,11 +2553,13 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMater
 
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
-					if (!ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+					if (ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
 					{
-						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+						return true;
 					}
-					return true;
+
+					Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					return !bOveriddenOnly;
 				}
 			}
 		}
@@ -2565,11 +2577,13 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_Legacy(const FHashedMater
 
 				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
 				{
-					if (!ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
+					if (ParameterOwner->OverrideNamedRuntimeVirtualTextureParameter(ParameterInfo, OutValue))
 					{
-						Parameter->IsNamedParameter(ParameterInfo, OutValue);
+						return true;
 					}
-					return true;
+
+					Parameter->IsNamedParameter(ParameterInfo, OutValue);
+					return !bOveriddenOnly;
 				}
 			}
 		}
@@ -2642,7 +2656,8 @@ bool UMaterial::GetFontParameterValue_Legacy(const FHashedMaterialParameterInfo&
 			{
 				if (ExpressionParameter->IsNamedParameter(ParameterInfo, OutFontValue, OutFontPage))
 				{
-					return true;
+					// NOTE - actual legacy version returned 'true' here, updating to respect bOveriddenOnly to match other GetXXXParameterValue_Legacy implementations
+					return !bOveriddenOnly;
 				}
 			}
 			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
