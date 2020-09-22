@@ -334,11 +334,13 @@ namespace DatasmithRuntime
 		if (Material)
 		{
 			// Material with displacement or support for PNT requires adjacency and has their TessellationMultiplier set
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 			if (Material->TessellationMultiplier.Expression != nullptr || Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
 #else
 			if (Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
 #endif
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				MaterialRequirement |= EMaterialRequirements::RequiresAdjacency;
 			}

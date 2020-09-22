@@ -1180,12 +1180,16 @@ bool FMaterialResource::IsUsedWithAPEXCloth() const
 
 EMaterialTessellationMode FMaterialResource::GetTessellationMode() const 
 { 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return (EMaterialTessellationMode)Material->D3D11TessellationMode; 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FMaterialResource::IsCrackFreeDisplacementEnabled() const 
 { 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return Material->bEnableCrackFreeDisplacement;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
@@ -1207,7 +1211,9 @@ bool FMaterialResource::IsMobileSeparateTranslucencyEnabled() const
 
 bool FMaterialResource::IsAdaptiveTessellationEnabled() const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return Material->bEnableAdaptiveTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FMaterialResource::IsFullyRough() const
@@ -1353,7 +1359,9 @@ float FMaterialResource::GetTranslucentBackscatteringExponent() const { return M
 FLinearColor FMaterialResource::GetTranslucentMultipleScatteringExtinction() const { return Material->TranslucentMultipleScatteringExtinction; }
 float FMaterialResource::GetTranslucentShadowStartOffset() const { return Material->TranslucentShadowStartOffset; }
 float FMaterialResource::GetRefractionDepthBiasValue() const { return Material->RefractionDepthBias; }
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 float FMaterialResource::GetMaxDisplacement() const { return Material->MaxDisplacement; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 bool FMaterialResource::ShouldApplyFogging() const { return Material->bUseTranslucencyVertexFog; }
 bool FMaterialResource::ShouldApplyCloudFogging() const { return Material->bApplyCloudFogging; }
 bool FMaterialResource::IsSky() const { return Material->bIsSky; }
