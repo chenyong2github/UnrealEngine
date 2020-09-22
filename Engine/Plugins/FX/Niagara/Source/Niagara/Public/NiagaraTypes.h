@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/UnrealType.h"
 #include "Engine/UserDefinedStruct.h"
-#include "Templates/SharedPointer.h"
 #include "Misc/SecureHash.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
+#include "UObject/UnrealType.h"
+
 #include "NiagaraTypes.generated.h"
 
 class UNiagaraDataInterfaceBase;
@@ -1158,7 +1160,7 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
 * Used by UI to provide selection; new uniforms and variables
 * may be instanced using the types provided here
 */
-class NIAGARA_API FNiagaraTypeRegistry
+class NIAGARA_API FNiagaraTypeRegistry : public FGCObject
 {
 public:
 	enum
@@ -1170,43 +1172,45 @@ public:
 
 	static const RegisteredTypesArray& GetRegisteredTypes()
 	{
-		return RegisteredTypes;
+		return Get().RegisteredTypes;
 	}
 
 	static const TArray<FNiagaraTypeDefinition> &GetRegisteredParameterTypes()
 	{
-		return RegisteredParamTypes;
+		return Get().RegisteredParamTypes;
 	}
 
 	static const TArray<FNiagaraTypeDefinition> &GetRegisteredPayloadTypes()
 	{
-		return RegisteredPayloadTypes;
+		return Get().RegisteredPayloadTypes;
 	}
 
 	static const TArray<FNiagaraTypeDefinition>& GetUserDefinedTypes()
 	{
-		return RegisteredUserDefinedTypes;
+		return Get().RegisteredUserDefinedTypes;
 	}
 
 	static const TArray<FNiagaraTypeDefinition>& GetNumericTypes()
 	{ 
-		return RegisteredNumericTypes;
+		return Get().RegisteredNumericTypes;
 	}
 
 	static UNiagaraDataInterfaceBase* GetDefaultDataInterfaceByName(const FString& DIClassName);
 
 	static void ClearUserDefinedRegistry()
 	{
-		FRWScopeLock Lock(RegisteredTypesLock, FRWScopeLockType::SLT_Write);
+		FNiagaraTypeRegistry& Registry = Get();
 
-		for (const FNiagaraTypeDefinition& Def : RegisteredUserDefinedTypes)
+		FRWScopeLock Lock(Registry.RegisteredTypesLock, FRWScopeLockType::SLT_Write);
+
+		for (const FNiagaraTypeDefinition& Def : Registry.RegisteredUserDefinedTypes)
 		{
-			RegisteredPayloadTypes.Remove(Def);
-			RegisteredParamTypes.Remove(Def);
-			RegisteredNumericTypes.Remove(Def);
+			Registry.RegisteredPayloadTypes.Remove(Def);
+			Registry.RegisteredParamTypes.Remove(Def);
+			Registry.RegisteredNumericTypes.Remove(Def);
 		}
 
-		RegisteredUserDefinedTypes.Empty();
+		Registry.RegisteredUserDefinedTypes.Empty();
 
 		// note that we don't worry about cleaning up RegisteredTypes or RegisteredTypeIndexMap because we don't
 		// want to invalidate any indexes that are already stored in FNiagaraTypeDefinitionHandle.  If re-registered
@@ -1215,60 +1219,71 @@ public:
 
 	static void Register(const FNiagaraTypeDefinition &NewType, bool bCanBeParameter, bool bCanBePayload, bool bIsUserDefined)
 	{
-		FRWScopeLock Lock(RegisteredTypesLock, FRWScopeLockType::SLT_Write);
+		FNiagaraTypeRegistry& Registry = Get();
+
+		FRWScopeLock Lock(Registry.RegisteredTypesLock, FRWScopeLockType::SLT_Write);
 
 		//TODO: Make this a map of type to a more verbose set of metadata? Such as the hlsl defs, offset table for conversions etc.
-		RegisteredTypeIndexMap.Add(GetTypeHash(NewType), RegisteredTypes.AddUnique(NewType));
+		Registry.RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Registry.RegisteredTypes.AddUnique(NewType));
 
 		if (bCanBeParameter)
 		{
-			RegisteredParamTypes.AddUnique(NewType);
+			Registry.RegisteredParamTypes.AddUnique(NewType);
 		}
 
 		if (bCanBePayload)
 		{
-			RegisteredPayloadTypes.AddUnique(NewType);
+			Registry.RegisteredPayloadTypes.AddUnique(NewType);
 		}
 
 		if (bIsUserDefined)
 		{
-			RegisteredUserDefinedTypes.AddUnique(NewType);
+			Registry.RegisteredUserDefinedTypes.AddUnique(NewType);
 		}
 
 		if (FNiagaraTypeDefinition::IsValidNumericInput(NewType))
 		{
-			RegisteredNumericTypes.AddUnique(NewType);
+			Registry.RegisteredNumericTypes.AddUnique(NewType);
 		}
 	}
 
 	static int32 RegisterIndexed(const FNiagaraTypeDefinition& NewType)
 	{
+		FNiagaraTypeRegistry& Registry = Get();
+
 		{
-			FReadScopeLock Lock(RegisteredTypesLock);
+			FReadScopeLock Lock(Registry.RegisteredTypesLock);
 			const uint32 TypeHash = GetTypeHash(NewType);
-			if (const int32* ExistingIndex = RegisteredTypeIndexMap.Find(TypeHash))
+			if (const int32* ExistingIndex = Registry.RegisteredTypeIndexMap.Find(TypeHash))
 			{
 				return *ExistingIndex;
 			}
 		}
 
-		FRWScopeLock Lock(RegisteredTypesLock, FRWScopeLockType::SLT_Write);
-		const int32 Index = RegisteredTypes.AddUnique(NewType);
-		RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Index);
+		FRWScopeLock Lock(Registry.RegisteredTypesLock, FRWScopeLockType::SLT_Write);
+		const int32 Index = Registry.RegisteredTypes.AddUnique(NewType);
+		Registry.RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Index);
 		return Index;
 	}
 
+	/** LazySingleton interface */
+	static FNiagaraTypeRegistry& Get();
+	static void TearDown();
+
+	/** FGCObject interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const;
+
 private:
+	RegisteredTypesArray RegisteredTypes;
 
-	static RegisteredTypesArray RegisteredTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredParamTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredPayloadTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredUserDefinedTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredNumericTypes;
 
-	static TArray<FNiagaraTypeDefinition> RegisteredParamTypes;
-	static TArray<FNiagaraTypeDefinition> RegisteredPayloadTypes;
-	static TArray<FNiagaraTypeDefinition> RegisteredUserDefinedTypes;
-	static TArray<FNiagaraTypeDefinition> RegisteredNumericTypes;
-
-	static TMap<uint32, int32> RegisteredTypeIndexMap;
-	static FRWLock RegisteredTypesLock;
+	TMap<uint32, int32> RegisteredTypeIndexMap;
+	FRWLock RegisteredTypesLock;
 };
 
 USTRUCT()
