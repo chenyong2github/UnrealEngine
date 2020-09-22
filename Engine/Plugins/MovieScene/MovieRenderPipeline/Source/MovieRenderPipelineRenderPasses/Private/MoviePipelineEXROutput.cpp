@@ -423,9 +423,10 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 			}
 
 			// This resolves the filename format and gathers metadata from the settings at the same time.
-			
+			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalImageSequenceFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState, -InMergedOutputFrame->FrameOutputState.ShotOutputFrameNumber);
+
 			FString FilePathFormatString = OutputDirectory / FileNameFormatString;
-			GetPipeline()->ResolveFilenameFormatArguments(FilePathFormatString, FormatOverrides, FinalImageSequenceFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState, -InMergedOutputFrame->FrameOutputState.ShotOutputFrameNumber);
+			GetPipeline()->ResolveFilenameFormatArguments(FilePathFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
 
 			// Create a deterministic clipname by removing frame numbers, file extension, and any trailing .'s
 			UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
