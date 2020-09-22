@@ -5,6 +5,10 @@ D3D12Texture.h: Implementation of D3D12 Texture
 =============================================================================*/
 #pragma once
 
+/** If true, guard texture creates with SEH to log more information about a driver crash we are seeing during texture streaming. */
+#define GUARDED_TEXTURE_CREATES (PLATFORM_WINDOWS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
+
+
 void SafeCreateTexture2D(FD3D12Device* pDevice, 
 	FD3D12Adapter* Adapter,
 	const D3D12_RESOURCE_DESC& TextureDesc,
