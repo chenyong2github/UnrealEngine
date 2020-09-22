@@ -40,6 +40,12 @@ struct FSceneOutlinerBuiltInColumnTypes
 		static FName ActorInfo("ActorInfo");
 		return ActorInfo;
 	}
+
+	static FName& SourceControl()
+	{
+		static FName SourceControl("SourceControl");
+		return SourceControl;
+	}
 };
 
 /** Visibility enum for scene outliner columns */

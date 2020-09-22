@@ -224,6 +224,26 @@ FSlateColor FActorBrowsingMode::GetStatusTextColor() const
 
 void FActorBrowsingMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 {
+	MenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowColumnHeading", "Columns"));
+	{
+		// For now hard code this column in.
+		// #todo_Outliner: refactor all info columns out of ActorInfoColumn into toggleable entries of this menu.
+		// could be done with a similar interface to FSceneOutlinerFilterInfo
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SourceControlColumnName", "Source Control"),
+			LOCTEXT("SourceControlColumnTooltip", ""),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FActorBrowsingMode::ToggleActorSCCStatusColumn),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateRaw(this, &FActorBrowsingMode::isActorSCCStatusColumnActive)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+
 	MenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowWorldHeading", "World"));
 	{
 		MenuBuilder.AddSubMenu(
@@ -1394,6 +1414,19 @@ void FActorBrowsingMode::OnDeleteActorsBegin()
 void FActorBrowsingMode::OnDeleteActorsEnd()
 {
 	SceneOutliner->DeleteFoldersEnd();
+}
+
+void FActorBrowsingMode::ToggleActorSCCStatusColumn()
+{
+	if (bActorSCCStatusColumnActive)
+	{
+		SceneOutliner->RemoveColumn(FSceneOutlinerBuiltInColumnTypes::SourceControl());
+	}
+	else
+	{
+		SceneOutliner->AddColumn(FSceneOutlinerBuiltInColumnTypes::SourceControl(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 30));
+	}
+	bActorSCCStatusColumnActive = !bActorSCCStatusColumnActive;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -9,6 +9,7 @@
 #include "SceneOutlinerActorInfoColumn.h"
 #include "SceneOutlinerGutter.h"
 #include "SceneOutlinerItemLabelColumn.h"
+#include "SceneOutlinerActorSCCColumn.h"
 #include "SceneOutlinerPublicTypes.h"
 
 #include "ActorPickingMode.h"
@@ -26,6 +27,7 @@ void FSceneOutlinerModule::StartupModule()
 	// Register builtin column types which are not active by default
 	RegisterColumnType<FSceneOutlinerGutter>();
 	RegisterColumnType<FActorInfoColumn>();
+	RegisterColumnType<FSceneOutlinerActorSCCColumn>();
 }
 
 

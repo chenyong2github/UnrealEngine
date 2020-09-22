@@ -99,9 +99,14 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateIsInCurrentLevelFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideComponentsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
+	
+	void ToggleActorSCCStatusColumn();
+	bool isActorSCCStatusColumnActive() const { return bActorSCCStatusColumnActive; }
 private:
 	/** Number of actors which have passed through the filters */
 	uint32 FilteredActorCount = 0;
 	/** List of actors which passed the regular filters and may or may not have passed the search filter */
 	TSet<TWeakObjectPtr<AActor>> ApplicableActors;
+
+	bool bActorSCCStatusColumnActive = false;
 };

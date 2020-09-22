@@ -24,6 +24,7 @@ public class SceneOutliner : ModuleRules
 				"EditorFramework",
 				"UnrealEd",
 				"ToolMenus",
+				"SourceControl"
             }
 		);
 	}
