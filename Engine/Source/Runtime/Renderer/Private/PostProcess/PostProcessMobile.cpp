@@ -1078,7 +1078,7 @@ FScreenPassTexture AddMobileSunMergePass(FRDGBuilder& GraphBuilder, const FViewI
 {
 	FIntPoint OutputSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), 4);
 	
-	FRDGTextureDesc SunMergeDesc = FRDGTextureDesc::Create2D(OutputSize, GetHDRPixelFormat(), FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+	FRDGTextureDesc SunMergeDesc = FRDGTextureDesc::Create2D(OutputSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
 
 	FScreenPassRenderTarget SunMergeOutput = FScreenPassRenderTarget(GraphBuilder.CreateTexture(SunMergeDesc, TEXT("SunMerge")), ERenderTargetLoadAction::EClear);
 
