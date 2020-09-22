@@ -461,10 +461,15 @@ namespace SkelDataConversionImpl
 			float ResolvedPrimarySample;
 			UsdUtils::ResolveWeightsForBlendShape( PrimaryBlendShape, SourceValue, ResolvedPrimarySample, ResolvedInbetweenWeightsSample );
 
-			Result[ 0 ].AddKey( SourceTime, ResolvedPrimarySample );
+			FRichCurve& PrimaryCurve = Result[ 0 ];
+			FKeyHandle PrimaryHandle = PrimaryCurve.AddKey( SourceTime, ResolvedPrimarySample );
+			PrimaryCurve.SetKeyInterpMode( PrimaryHandle, SourceKey.InterpMode );
+
 			for ( int32 InbetweenIndex = 0; InbetweenIndex < NumInbetweens; ++InbetweenIndex )
 			{
-				Result[ InbetweenIndex + 1 ].AddKey( SourceTime, ResolvedInbetweenWeightsSample[ InbetweenIndex ] );
+				FRichCurve& InbetweenCurve = Result[ InbetweenIndex + 1 ];
+				FKeyHandle InbetweenHandle = InbetweenCurve.AddKey( SourceTime, ResolvedInbetweenWeightsSample[ InbetweenIndex ] );
+				InbetweenCurve.SetKeyInterpMode( InbetweenHandle, SourceKey.InterpMode );
 			}
 		}
 
@@ -1560,6 +1565,8 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 // It also initializes the joint transforms with the rest pose, if available, in case the animation doesn't provide data for all joints.
 bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, UAnimSequence* OutSkeletalAnimationAsset )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertSkelAnim );
+
 	FScopedUnrealAllocs UEAllocs;
 
 	if ( !InUsdSkeletonQuery || !OutSkeletalAnimationAsset )
@@ -1705,6 +1712,7 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 		if ( NumSkelAnimChannels > 0 )
 		{
 			// Create a float curve for each blend shape channel. These will be copied for each blend shape that uses it
+			ERichCurveInterpMode CurveInterpMode = Stage.Get()->GetInterpolationType() == pxr::UsdInterpolationTypeHeld ? ERichCurveInterpMode::RCIM_Constant : ERichCurveInterpMode::RCIM_Linear;
 			TArray<FRichCurve> SkelAnimChannelCurves;
 			SkelAnimChannelCurves.SetNum( NumSkelAnimChannels );
 			pxr::VtArray< float > WeightsForFrame;
@@ -1717,7 +1725,10 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 
 				for ( int32 SkelAnimChannelIndex = 0; SkelAnimChannelIndex < NumSkelAnimChannels; ++SkelAnimChannelIndex )
 				{
-					SkelAnimChannelCurves[ SkelAnimChannelIndex ].AddKey( FrameSeconds, WeightsForFrame[ SkelAnimChannelIndex ] );
+					FRichCurve& Curve = SkelAnimChannelCurves[ SkelAnimChannelIndex ];
+
+					FKeyHandle NewKeyHandle = Curve.AddKey( FrameSeconds, WeightsForFrame[ SkelAnimChannelIndex ] );
+					Curve.SetKeyInterpMode( NewKeyHandle, CurveInterpMode );
 				}
 			}
 			for ( FRichCurve& ChannelCurve : SkelAnimChannelCurves )
@@ -1817,6 +1828,7 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 		}
 	}
 
+	OutSkeletalAnimationAsset->Interpolation = Stage.Get()->GetInterpolationType() == pxr::UsdInterpolationTypeHeld ? EAnimInterpolationType::Step : EAnimInterpolationType::Linear;
 	OutSkeletalAnimationAsset->ImportFileFramerate = Stage.Get()->GetFramesPerSecond();
 	OutSkeletalAnimationAsset->ImportResampleFramerate = FramesPerSecond;
 	OutSkeletalAnimationAsset->SequenceLength = SequenceLengthSeconds;

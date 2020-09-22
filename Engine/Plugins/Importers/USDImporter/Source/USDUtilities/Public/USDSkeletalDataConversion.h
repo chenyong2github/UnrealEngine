@@ -139,7 +139,7 @@ namespace UsdToUnreal
 
 	/**
 	 * Will extract animation data from the animation source of InUsdSkeletonQuery's skeleton, and populate OutSkeletalAnimationAsset with the data.
-	 * Warning: UAnimSequence must be previously set with a USkeleton generated from the skeletal data of the same InUsdSkeletonQuery.
+	 * Warning: UAnimSequence must be previously set with a USkeleton generated from the skeletal data of the same UsdSkelSkeletonQuery.
 	 * @param InUsdSkeletonQuery - SkinningQuery with the data to convert
 	 * @param InSkinningTargets - Skinned meshes that use the skeleton of InUsdSkeletonQuery. Required to fetch the blend shape ordering of each mesh. Optional (can be nullptr to ignore)
 	 * @param InBlendShapes - Converted blend shape data that will be used to interpret blend shape weights as morph target weight float curves. Optional (can be nullptr to ignore)
