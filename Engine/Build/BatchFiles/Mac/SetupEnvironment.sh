@@ -20,7 +20,7 @@ do
     case "$1" in
         -mono) 
             # echo "setting up mono"
-            source $2/SetupMono.sh "$2"
+            source "$2/SetupMono.sh" "$2"
             shift
             ;;
         -*) echo "bad argument $1"
