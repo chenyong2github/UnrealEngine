@@ -12,6 +12,8 @@
 #include "Engine/Texture2D.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
+#include "ImageProviders/RemoteSessionFrameBufferImageProvider.h"
+#include "RemoteSessionUtils.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("RSTextureUpdate"), STAT_TextureUpdate, STATGROUP_Game);
@@ -103,6 +105,7 @@ FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode
 	BackgroundThread = nullptr;
 	ScreenshotEvent = nullptr;
 	ExitRequested = false;
+	HaveConfiguredImageProvider = false;
 
 	
 	if (Role == ERemoteSessionChannelMode::Read)
@@ -171,6 +174,12 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 
 	if (Role == ERemoteSessionChannelMode::Write)
 	{
+		// If an image provider hasn't been configured yet then set a default
+		if (!HaveConfiguredImageProvider && ImageProvider == nullptr)
+		{
+			SetFramebufferAsImageProvider();
+		}
+
 		if (ImageProvider)
 		{
 			ImageProvider->Tick(InDeltaTime);
@@ -242,7 +251,37 @@ void FRemoteSessionImageChannel::SetImageProvider(TSharedPtr<IRemoteSessionImage
 	{
 		ImageProvider = InImageProvider;
 	}
+
+	HaveConfiguredImageProvider = true;
 }
+
+/** Sets up an image provider that mirrors the games framebuffer. Will be the default if no ImageProvider is set. */
+void FRemoteSessionImageChannel::SetFramebufferAsImageProvider()
+{
+	TSharedPtr<FRemoteSessionFrameBufferImageProvider> NewImageProvider = MakeShared<FRemoteSessionFrameBufferImageProvider>(GetImageSender());
+
+	{
+		const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
+
+		NewImageProvider->SetCaptureFrameRate(Settings->ImageQuality);
+		SetCompressQuality(Settings->FrameRate);
+	}
+
+	{
+		TWeakPtr<SWindow> InputWindow;
+		TWeakPtr<FSceneViewport> SceneViewport;
+		FRemoteSessionUtils::FindSceneViewport(InputWindow, SceneViewport);
+
+		if (TSharedPtr<FSceneViewport> SceneViewPortPinned = SceneViewport.Pin())
+		{
+			NewImageProvider->SetCaptureViewport(SceneViewPortPinned.ToSharedRef());
+		}
+	}
+
+	SetImageProvider(NewImageProvider);
+}
+
+
 
 void FRemoteSessionImageChannel::SetCompressQuality(int32 InQuality)
 {

@@ -75,6 +75,9 @@ public:
 	/** Set the ImageProvider that will produce the images that will be sent to the client */
 	void SetImageProvider(TSharedPtr<IRemoteSessionImageProvider> ImageProvider);
 
+	/** Sets up an image provider that mirrors the games framebuffer. WIll be the default if no ImageProvider is set. */
+	void SetFramebufferAsImageProvider();
+
 	/** Set the jpg compression quality */
 	void SetCompressQuality(int32 InQuality);
 
@@ -152,4 +155,6 @@ protected:
 	FEvent *			ScreenshotEvent;
 
 	FThreadSafeBool		ExitRequested;
+
+	bool				HaveConfiguredImageProvider;
 };
