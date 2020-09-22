@@ -154,6 +154,13 @@ struct CORE_API FWindowsPlatformMisc
 	 */
 	static bool HasCPUIDInstruction();
 
+	/**
+	 * Determines if AVX2 instruction set is supported on this platform
+	 *
+	 * @return	Returns true if instruction-set is supported
+	 */
+	static bool HasAVX2InstructionSupport();
+
 	static FString GetCPUVendor();
 	static FString GetCPUBrand();
 	static FString GetPrimaryGPUBrand();

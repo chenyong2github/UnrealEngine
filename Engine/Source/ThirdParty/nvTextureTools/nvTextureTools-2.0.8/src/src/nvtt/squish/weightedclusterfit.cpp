@@ -22,6 +22,12 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+This code includes modifications made by Epic Games to
+improve vectorization on some compilers and also
+target different micro architectures with the goal of improving
+the performance of texture compression. All modifications are
+clearly enclosed inside defines or comments.
+
 -------------------------------------------------------------------------- */
 
 #include "weightedclusterfit.h"
@@ -127,7 +133,309 @@ namespace squish {
 
 	}
 
-#if SQUISH_USE_SIMD
+// START EPIC MOD: Compress3/Compress4 implementation using 256-bit Vec8.
+#if SQUISH_USE_AVX2
+
+	void WeightedClusterFit::Compress3(void* block)
+	{
+		int const count = m_colours->GetCount();
+		Vec8 const one = VEC8_CONST(1.0f);
+		Vec8 const zero = VEC8_CONST(0.0f);
+		Vec8 const half(0.5f, 0.5f, 0.5f, 0.25f, 0.5f, 0.5f, 0.5f, 0.25f);
+		Vec8 const two = VEC8_CONST(2.0);
+		Vec8 const grid(31.0f, 63.0f, 31.0f, 0.0f, 31.0f, 63.0f, 31.0f, 0.0f);
+		Vec8 const gridrcp(1.0f / 31.0f, 1.0f / 63.0f, 1.0f / 31.0f, 0.0f, 1.0f / 31.0f, 1.0f / 63.0f, 1.0f / 31.0f, 0.0f);
+		Vec8 const metricsqr(m_metricSqr, m_metricSqr);
+		Vec8 const xsum_256(m_xsum, m_xsum);
+
+		// declare variables
+		Vec4 beststart = VEC4_CONST(0.0f);
+		Vec4 bestend = VEC4_CONST(0.0f);
+		Vec4 besterror = VEC4_CONST(FLT_MAX);
+
+		Vec4 x0 = VEC4_ZERO();
+
+		int b0 = 0, b1 = 0;
+
+		// check all possible clusters for this total order
+		for (int c0 = 0; c0 <= count; c0++)
+		{
+			Vec4 x1 = VEC4_ZERO();
+
+			Vec8 const x0_256(x0, x0);
+
+			for (int c1 = 0; c1 <= count - c0; c1 += 2)
+			{
+				// Small setup to unroll items 2 at a time. Should provide near 2x speedup.
+				// Compute the next item. We don't care about going out of range here
+				// because the result will be discarded anyway later.
+				Vec4 const x1_next = x1 + m_weighted[c0 + c1];
+
+				// Move both the current and next item inside a 256bit Vec8 to compute them at the same time.
+				Vec8 const x1_256(x1, x1_next);
+				Vec8 const x2_256 = xsum_256 - x1_256 - x0_256;
+				
+				//Vec3 const alphax_sum = x0 + x1 * 0.5f;
+				//float const alpha2_sum = w0 + w1 * 0.25f;
+				Vec8 const alphax_sum = MultiplyAdd(x1_256, half, x0_256); // alphax_sum, alpha2_sum
+				Vec8 const alpha2_sum = alphax_sum.SplatW();
+
+				//Vec3 const betax_sum = x2 + x1 * 0.5f;
+				//float const beta2_sum = w2 + w1 * 0.25f;
+				Vec8 const betax_sum = MultiplyAdd(x1_256, half, x2_256); // betax_sum, beta2_sum
+				Vec8 const beta2_sum = betax_sum.SplatW();
+
+				//float const alphabeta_sum = w1 * 0.25f;
+				Vec8 const alphabeta_sum = (x1_256 * half).SplatW(); // alphabeta_sum
+
+				// float const factor = 1.0f / (alpha2_sum * beta2_sum - alphabeta_sum * alphabeta_sum);
+				Vec8 const factor = Reciprocal( NegativeMultiplySubtract(alphabeta_sum, alphabeta_sum, alpha2_sum*beta2_sum) );
+				Vec8 a = NegativeMultiplySubtract(betax_sum, alphabeta_sum, alphax_sum*beta2_sum) * factor;
+				Vec8 b = NegativeMultiplySubtract(alphax_sum, alphabeta_sum, betax_sum*alpha2_sum) * factor;
+
+				// clamp to the grid
+				a = Min( one, Max( zero, a ) );
+				b = Min( one, Max( zero, b ) );
+				a = Truncate( MultiplyAdd( grid, a, half ) ) * gridrcp;
+				b = Truncate( MultiplyAdd( grid, b, half ) ) * gridrcp;
+
+				// compute the error (we skip the constant xxsum)
+				//Vec3 e1 = a * a * alpha2_sum + b * b * beta2_sum + 2.0f * (a * b * alphabeta_sum - a * alphax_sum - b * betax_sum);
+				Vec8 e1 = MultiplyAdd( a*a, alpha2_sum, b*b*beta2_sum );
+				Vec8 e2 = NegativeMultiplySubtract( a, alphax_sum, a*b*alphabeta_sum );
+				Vec8 e3 = NegativeMultiplySubtract( b, betax_sum, e2 );
+				Vec8 e4 = MultiplyAdd( two, e3, e1 );
+
+				// apply the metric to the error term
+				Vec8 e5 = e4 * metricsqr;
+				Vec8 error = e5.SplatX() + e5.SplatY() + e5.SplatZ();
+
+				Vec4 error_low = error.GetLoPart();
+
+				// keep the solution if it wins
+				if (CompareAnyLessThan(error_low, besterror))
+				{
+					besterror = error_low;
+					beststart = a.GetLoPart();
+					bestend = b.GetLoPart();
+					b0 = c0;
+					b1 = c1;
+				}
+
+				x1 = x1_next;
+
+				if (c1 <= count - c0 - 1)
+				{
+					Vec4 error_high = error.GetHiPart();
+
+					if (CompareAnyLessThan(error_high, besterror))
+					{
+						besterror = error_high;
+						beststart = a.GetHiPart();
+						bestend = b.GetHiPart();
+						b0 = c0;
+						b1 = c1 + 1;
+					}
+
+					x1 += m_weighted[c0 + c1 + 1];
+				}
+			}
+
+			x0 += m_weighted[c0];
+		}
+
+		// save the block if necessary
+		if (CompareAnyLessThan(besterror, m_besterror))
+		{
+			// compute indices from cluster sizes.
+			u8 bestindices[16];
+			{
+				int i = 0;
+				for (; i < b0; i++) {
+					bestindices[i] = 0;
+				}
+				for (; i < b0 + b1; i++) {
+					bestindices[i] = 2;
+				}
+				for (; i < count; i++) {
+					bestindices[i] = 1;
+				}
+			}
+
+			// remap the indices
+			u8 ordered[16];
+			for (int i = 0; i < count; ++i)
+				ordered[m_order[i]] = bestindices[i];
+
+			m_colours->RemapIndices(ordered, bestindices);
+
+
+			// save the block
+			WriteColourBlock3(beststart.GetVec3(), bestend.GetVec3(), bestindices, block);
+
+			// save the error
+			m_besterror = besterror;
+		}
+	}
+
+	void WeightedClusterFit::Compress4(void* block)
+	{
+		int const count = m_colours->GetCount();
+		Vec8 const one = VEC8_CONST(1.0f);
+		Vec8 const zero = VEC8_ZERO();
+		Vec8 const half = VEC8_CONST(0.5f);
+		Vec8 const two = VEC8_CONST(2.0);
+		Vec8 const onethird(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 9.0f, 1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 9.0f);
+		Vec8 const twothirds(2.0f / 3.0f, 2.0f / 3.0f, 2.0f / 3.0f, 4.0f / 9.0f, 2.0f / 3.0f, 2.0f / 3.0f, 2.0f / 3.0f, 4.0f / 9.0f);
+		Vec8 const twonineths = VEC8_CONST(2.0f / 9.0f);
+		Vec8 const grid(31.0f, 63.0f, 31.0f, 0.0f, 31.0f, 63.0f, 31.0f, 0.0f);
+		Vec8 const gridrcp(1.0f / 31.0f, 1.0f / 63.0f, 1.0f / 31.0f, 0.0f, 1.0f / 31.0f, 1.0f / 63.0f, 1.0f / 31.0f, 0.0f);
+		Vec8 const metricsqr(m_metricSqr, m_metricSqr);
+		Vec8 const xsum_256(m_xsum, m_xsum);
+
+		// declare variables
+		Vec4 beststart = VEC4_ZERO();
+		Vec4 bestend = VEC4_ZERO();
+		Vec4 besterror = VEC4_CONST(FLT_MAX);
+
+		Vec4 x0 = VEC4_ZERO();
+		int b0 = 0, b1 = 0, b2 = 0;
+
+		// check all possible clusters for this total order
+		for (int c0 = 0; c0 <= count; c0++)
+		{
+			Vec4 x1 = VEC4_ZERO();
+
+			Vec8 const x0_256(x0, x0);
+
+			for (int c1 = 0; c1 <= count - c0; c1++)
+			{
+				Vec8 const x1_256(x1, x1);
+				Vec8 const x1_twothirds_x0 = MultiplyAdd(x1_256, twothirds, x0_256);
+				Vec4 x2 = VEC4_ZERO();
+
+				for (int c2 = 0; c2 <= count - c0 - c1; c2 += 2)
+				{
+					// Small setup to unroll items 2 at a time. Should provide near 2x speedup.
+					// Compute the next item. We don't care about going out of range here
+					// because the result will be discarded anyway later.
+					Vec4 const x2_next = x2 + m_weighted[c0 + c1 + c2];
+
+					// Move both the current and next item inside a 256bit Vec8 to compute them at the same time.
+					Vec8 const x2_256(x2, x2_next);
+					Vec8 const x3_256 = xsum_256 - x2_256 - x1_256 - x0_256;
+
+					//Vec3 const alphax_sum = x0 + x1 * (2.0f / 3.0f) + x2 * (1.0f / 3.0f);
+					//float const alpha2_sum = w0 + w1 * (4.0f/9.0f) + w2 * (1.0f/9.0f);
+					Vec8 const alphax_sum = MultiplyAdd(x2_256, onethird, x1_twothirds_x0); // alphax_sum, alpha2_sum
+					Vec8 const alpha2_sum = alphax_sum.SplatW();
+
+					//Vec3 const betax_sum = x3 + x2 * (2.0f / 3.0f) + x1 * (1.0f / 3.0f);
+					//float const beta2_sum = w3 + w2 * (4.0f/9.0f) + w1 * (1.0f/9.0f);
+					Vec8 const betax_sum = MultiplyAdd(x2_256, twothirds, MultiplyAdd(x1_256, onethird, x3_256)); // betax_sum, beta2_sum
+					Vec8 const beta2_sum = betax_sum.SplatW();
+
+					//float const alphabeta_sum = (w1 + w2) * (2.0f/9.0f);
+					Vec8 const alphabeta_sum = twonineths * (x1_256 + x2_256).SplatW(); // alphabeta_sum
+
+					// float const factor = 1.0f / (alpha2_sum * beta2_sum - alphabeta_sum * alphabeta_sum);
+					Vec8 const factor = Reciprocal(NegativeMultiplySubtract(alphabeta_sum, alphabeta_sum, alpha2_sum * beta2_sum));
+
+					Vec8 a = NegativeMultiplySubtract(betax_sum, alphabeta_sum, alphax_sum * beta2_sum) * factor;
+					Vec8 b = NegativeMultiplySubtract(alphax_sum, alphabeta_sum, betax_sum * alpha2_sum) * factor;
+
+					// clamp to the grid
+					a = Min(one, Max(zero, a));
+					b = Min(one, Max(zero, b));
+					a = Truncate(MultiplyAdd(grid, a, half)) * gridrcp;
+					b = Truncate(MultiplyAdd(grid, b, half)) * gridrcp;
+
+					// compute the error (we skip the constant xxsum)
+					Vec8 e1 = MultiplyAdd( a*a, alpha2_sum, b*b*beta2_sum );
+					Vec8 e2 = NegativeMultiplySubtract( a, alphax_sum, a*b*alphabeta_sum );
+					Vec8 e3 = NegativeMultiplySubtract( b, betax_sum, e2 );
+					Vec8 e4 = MultiplyAdd( two, e3, e1 );
+
+					// apply the metric to the error term
+					Vec8 e5 = e4 * metricsqr;
+					Vec8 error = e5.SplatX() + e5.SplatY() + e5.SplatZ();
+
+					Vec4 error_low = error.GetLoPart();
+					// keep the solution if it wins
+					if (CompareAnyLessThan(error_low, besterror))
+					{
+						besterror = error_low;
+						beststart = a.GetLoPart();
+						bestend = b.GetLoPart();
+						b0 = c0;
+						b1 = c1;
+						b2 = c2;
+					}
+
+					x2 = x2_next;
+
+					if (c2 <= count - c0 - c1 - 1)
+					{
+						Vec4 error_high = error.GetHiPart();
+
+						if (CompareAnyLessThan(error_high, besterror))
+						{
+							besterror = error_high;
+							beststart = a.GetHiPart();
+							bestend = b.GetHiPart();
+							b0 = c0;
+							b1 = c1;
+							b2 = c2 + 1;
+						}
+
+						x2 += m_weighted[c0 + c1 + c2 + 1];
+					}
+				}
+
+				x1 += m_weighted[c0 + c1];
+			}
+
+			x0 += m_weighted[c0];
+		}
+
+		// save the block if necessary
+		if (CompareAnyLessThan(besterror, m_besterror))
+		{
+			// compute indices from cluster sizes.
+			u8 bestindices[16];
+			{
+				int i = 0;
+				for (; i < b0; i++) {
+					bestindices[i] = 0;
+				}
+				for (; i < b0 + b1; i++) {
+					bestindices[i] = 2;
+				}
+				for (; i < b0 + b1 + b2; i++) {
+					bestindices[i] = 3;
+				}
+				for (; i < count; i++) {
+					bestindices[i] = 1;
+				}
+			}
+
+			// remap the indices
+			u8 ordered[16];
+			for (int i = 0; i < count; ++i)
+				ordered[m_order[i]] = bestindices[i];
+
+			m_colours->RemapIndices(ordered, bestindices);
+
+			// save the block
+			WriteColourBlock4(beststart.GetVec3(), bestend.GetVec3(), bestindices, block);
+
+			// save the error
+			m_besterror = besterror;
+		}
+	}
+
+#elif SQUISH_USE_SIMD
+// END EPIC MOD: Compress3/Compress4 implementation using 256-bit Vec8.
 
 	void WeightedClusterFit::Compress3( void* block )
 	{

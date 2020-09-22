@@ -23,6 +23,7 @@ public class nvTextureTools : ModuleRules
 			PublicDelayLoadDLLs.Add("nvtt_64.dll");
 
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/nvTextureTools/Win64/AVX2/nvtt_64.dll");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{

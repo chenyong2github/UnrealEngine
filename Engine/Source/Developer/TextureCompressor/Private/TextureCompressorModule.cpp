@@ -2032,7 +2032,9 @@ static bool CompressMipChain(
 	int32 MipCount = MipChain.Num();
 	check(MipCount >= (int32)CompressorCaps.NumMipsInTail);
 	const bool bImageHasAlphaChannel = DetectAlphaChannel(MipChain[0]);
-	const int32 MinAsyncCompressionSize = 128;
+	// This number was too small (128) for current hardware and caused too many
+	// context switch for work taking < 1ms. Bump the value for 2020 CPUs.
+	const int32 MinAsyncCompressionSize = 512;
 	const bool bAllowParallelBuild = TextureFormat->AllowParallelBuild();
 	bool bCompressionSucceeded = true;
 	int32 FirstMipTailIndex = MipCount;
@@ -2225,7 +2227,14 @@ public:
 	{
 #if PLATFORM_WINDOWS
 	#if PLATFORM_64BITS
-		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll")));
+		if (FWindowsPlatformMisc::HasAVX2InstructionSupport())
+		{
+			nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/AVX2/nvtt_64.dll")));
+		}
+		else
+		{
+			nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll")));
+		}
 	#else	//32-bit platform
 		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win32/nvtt_.dll")));
 	#endif

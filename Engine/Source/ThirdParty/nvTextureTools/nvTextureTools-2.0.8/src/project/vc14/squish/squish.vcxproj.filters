@@ -61,5 +61,8 @@
     <ClInclude Include="..\..\..\src\nvtt\squish\weightedclusterfit.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\nvtt\squish\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

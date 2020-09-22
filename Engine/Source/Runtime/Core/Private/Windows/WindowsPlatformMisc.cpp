@@ -868,7 +868,7 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 	FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
 	if (Profiler)
 	{
-		Profiler->StartScopedEvent(Color, Text);
+		Profiler->StartScopedEvent(Text);
 	}
 #endif
 #if CPUPROFILERTRACE_ENABLED
@@ -887,7 +887,7 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 	FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
 	if (Profiler)
 	{
-		Profiler->StartScopedEvent(Color, ANSI_TO_TCHAR(Text));
+		Profiler->StartScopedEvent(ANSI_TO_TCHAR(Text));
 	}
 #endif
 #if CPUPROFILERTRACE_ENABLED
@@ -2321,6 +2321,86 @@ FString FWindowsPlatformMisc::GetCPUVendor()
 FString FWindowsPlatformMisc::GetCPUBrand()
 {
 	return FCPUIDQueriedData::GetBrand();
+}
+
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+PRAGMA_DISABLE_OPTIMIZATION
+namespace WindowsPlatformMiscImpl
+{
+	static bool TryAVX2Instruction()
+	{
+		__try
+		{
+			_mm256_set1_ps(1.0f);
+
+			// Avoid state-switch penalties on Intel CPUs since UE is only SSE2 optimized by default.
+			// https://software.intel.com/content/www/us/en/develop/articles/intel-avx-state-transitions-migrating-sse-code-to-avx.html
+			_mm256_zeroupper();
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return false;
+		}
+
+		return true;
+	}
+}
+PRAGMA_ENABLE_OPTIMIZATION
+#endif
+
+bool FWindowsPlatformMisc::HasAVX2InstructionSupport()
+{
+	if (!HasCPUIDInstruction())
+	{
+		return false;
+	}
+
+	int flags[4];
+	/* CPUID.(EAX=01H, ECX=0H):ECX.FMA[bit 12]==1   &&
+	   CPUID.(EAX=01H, ECX=0H):ECX.MOVBE[bit 22]==1 &&
+	   CPUID.(EAX=01H, ECX=0H):ECX.XSAVE[bit 26]==1 &&
+	   CPUID.(EAX=01H, ECX=0H):ECX.OSXSAVE[bit 27]==1 &&
+	   CPUID.(EAX=01H, ECX=0H):ECX.AVX[bit 28]==1 */
+	const int FMA_MOVBE_XSAVE_OSXSAVE_AVX_BITS = (1 << 12) | (1 << 22) | (1 << 26) | (1 << 27) | (1 << 28);
+	__cpuidex(flags, 1, 0);
+	if ((flags[2] & FMA_MOVBE_XSAVE_OSXSAVE_AVX_BITS) != FMA_MOVBE_XSAVE_OSXSAVE_AVX_BITS)
+	{
+		return false;
+	}
+
+	/*  CPUID.(EAX=07H, ECX=0H):EBX.AVX2[bit 5]==1  &&
+		CPUID.(EAX=07H, ECX=0H):EBX.BMI1[bit 3]==1  &&
+		CPUID.(EAX=07H, ECX=0H):EBX.BMI2[bit 8]==1  */
+	const int AVX2_BMI1_BMI2_BITS = (1 << 5) | (1 << 3) | (1 << 8);
+	__cpuidex(flags, 7, 0);
+	if ((flags[1] & AVX2_BMI1_BMI2_BITS) != AVX2_BMI1_BMI2_BITS)
+	{
+		return false;
+	}
+
+	/* CPUID.(EAX=80000001H):ECX.LZCNT[bit 5]==1 */
+	const int LZCNT_BITS = (1 << 5);
+	__cpuidex(flags, 0x80000001, 0);
+	if ((flags[2] & LZCNT_BITS) != LZCNT_BITS)
+	{
+		return false;
+	}
+
+	// OS must save YMM registers between context switch
+	if ((_xgetbv(0) & 6) != 6)
+	{
+		return false;
+	}
+
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	// One last try in case we run inside an hypervisor that's lying to us.
+	if (!WindowsPlatformMiscImpl::TryAVX2Instruction())
+	{
+		return false;
+	}
+#endif
+
+	return true;
 }
 
 #include "Windows/AllowWindowsPlatformTypes.h"
