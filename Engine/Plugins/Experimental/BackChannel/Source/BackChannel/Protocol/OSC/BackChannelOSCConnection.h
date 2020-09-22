@@ -65,6 +65,13 @@ public:
 
 	FString GetDescription();
 
+	/* Sets the timeout for the connection, and optionally when debugging*/
+	void SetConnectionTimeout(const int TimeOut, const int TimeoutWhenDebugging = 30)
+	{
+		ConnectionTimeout = TimeOut;
+		ConnectionTImeoutWhenDebugging = TimeoutWhenDebugging;
+	}
+
 protected:
 	// Begin protected FRunnable overrides
 	virtual uint32 Run() override;
@@ -100,14 +107,30 @@ protected:
 	FCriticalSection	ReceiveMutex;
 	FCriticalSection	SendMutex;
 	FCriticalSection	PacketMutex;
-
-	double				LastReceiveTime;
-	double				LastSendTime;
-	double				PingTime;
-	bool				HasErrorState;
-
-	int32				ReceivedDataSize;
-	int32				ExpectedSizeOfNextPacket;
 	TArray<uint8>		ReceiveBuffer;
+
+	/* Time we last received a packet. Will be set to the current time on initialization*/
+	double				LastReceiveTime = 0;
+
+	/* Time we last received a paket */
+	double				LastSendTime = 0;
+
+	/* Time where we'll send a ping if no packets arrive to check the connection is alive*/
+	double				PingTime = 2;
+
+	/* Is the connection in an error state */
+	bool				HasErrorState = false;
+
+	/* How much data has been received this check? */
+	int32				ReceivedDataSize = 0;
+
+	/* How much data do we expect to receive next time? This is for OSC over TCP where the size of a packet is sent, then the packet*/
+	int32				ExpectedSizeOfNextPacket = 4;
+
+	/* Time until the connection will timeout if no packets are received */
+	int32				ConnectionTimeout = 5;
+
+	/* Time until the connection will tineout when debugging */
+	int32				ConnectionTImeoutWhenDebugging = 30;
 
 };

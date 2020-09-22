@@ -221,10 +221,9 @@ void FRemoteSessionRole::CreateOSCConnection(TSharedRef<IBackChannelSocketConnec
 	OSCConnection = MakeShareable(new FBackChannelOSCConnection(InConnection));
 
 	SetPendingState(ConnectionState::UnversionedConnection);
-	
-	//BindEndpoints(OSCConnection);
-	
-	//SendVersionCheck();
+
+	const URemoteSessionSettings* Settings = GetDefault<URemoteSessionSettings>();
+	OSCConnection->SetConnectionTimeout(Settings->ConnectionTimeout, Settings->ConnectionTimeoutWhenDebugging);
 }
 
 bool FRemoteSessionRole::IsLegacyConnection() const

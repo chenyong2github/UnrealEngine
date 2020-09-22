@@ -18,7 +18,13 @@
 
 #if WITH_EDITOR
 	#include "Editor.h"
+	#include "ISettingsModule.h"
+	#include "ISettingsSection.h"
 #endif
+#include "Modules/ModuleManager.h"
+
+#include "Modules/ModuleManager.h"
+
 
 #define LOCTEXT_NAMESPACE "FRemoteSessionModule"
 
@@ -55,17 +61,6 @@ void FRemoteSessionModule::StartupModule()
 	}
 }
 
-
-void FRemoteSessionModule::AddChannelFactory(const FStringView InChannelName, ERemoteSessionChannelMode InHostMode, TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker)
-{
-	FRemoteSessionChannelRegistry::Get().RegisterChannelFactory(*FString(InChannelName.Len(), InChannelName.GetData()), InHostMode, Worker);
-}
-
-void FRemoteSessionModule::RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker)
-{
-	FRemoteSessionChannelRegistry::Get().RemoveChannelFactory(Worker);
-}
-
 void FRemoteSessionModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
@@ -80,6 +75,14 @@ void FRemoteSessionModule::ShutdownModule()
 	{
 		FEditorDelegates::EndPIE.Remove(EndPieDelegate);
 	}
+
+	// unregister settings
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+	if (SettingsModule != nullptr)
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "RemoteSession");
+	}
 #endif
 
 	if (GameStartDelegate.IsValid())
@@ -90,7 +93,43 @@ void FRemoteSessionModule::ShutdownModule()
 
 void FRemoteSessionModule::OnPostInit()
 {
-	const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
+#if WITH_EDITOR
+	// register settings
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+	if (SettingsModule != nullptr)
+	{
+		ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "RemoteSession",
+			LOCTEXT("RemoteSessionSettingsName", "Remote Session"),
+			LOCTEXT("RemoteSessionSettingsDescription", "Configure the Remote Session plugin."),
+			GetMutableDefault<URemoteSessionSettings>()
+		);
+
+		if (SettingsSection.IsValid())
+		{
+			SettingsSection->OnModified().BindRaw(this, &FRemoteSessionModule::HandleSettingsSaved);
+		}
+	}
+#endif // WITH_EDITOR
+
+	// Call this to trigger set up based on current settings
+	HandleSettingsSaved();
+
+	bool IsHostGame = PLATFORM_DESKTOP
+		&& GIsEditor == false
+		&& IsRunningDedicatedServer() == false
+		&& IsRunningCommandlet() == false;
+
+	if (IsHostGame && bAutoHostWithGame)
+	{
+		InitHost();
+	}
+}
+
+/** Callback for when the settings were saved. */
+bool FRemoteSessionModule::HandleSettingsSaved()
+{
+	URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
 
 	bAutoHostWithPIE = Settings->bAutoHostWithPIE;
 	bAutoHostWithGame = Settings->bAutoHostWithPIE;
@@ -122,16 +161,20 @@ void FRemoteSessionModule::OnPostInit()
 		}
 	}
 
-	bool IsHostGame = PLATFORM_DESKTOP
-		&& GIsEditor == false
-		&& IsRunningDedicatedServer() == false
-		&& IsRunningCommandlet() == false;
-
-	if (IsHostGame && bAutoHostWithGame)
-	{
-		InitHost();
-	}
+	return true;
 }
+
+
+void FRemoteSessionModule::AddChannelFactory(const FStringView InChannelName, ERemoteSessionChannelMode InHostMode, TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker)
+{
+	FRemoteSessionChannelRegistry::Get().RegisterChannelFactory(*FString(InChannelName.Len(), InChannelName.GetData()), InHostMode, Worker);
+}
+
+void FRemoteSessionModule::RemoveChannelFactory(TWeakPtr<IRemoteSessionChannelFactoryWorker> Worker)
+{
+	FRemoteSessionChannelRegistry::Get().RemoveChannelFactory(Worker);
+}
+
 
 void FRemoteSessionModule::OnPIEStarted(bool bSimulating)
 {
