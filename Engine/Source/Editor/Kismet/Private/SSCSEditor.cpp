@@ -3957,15 +3957,6 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		SNew(SVerticalBox)
 
 		+ SVerticalBox::Slot()
-		.Padding(0)
-		.AutoHeight()
-		[
-			SAssignNew(ExtensionPanel, SExtensionPanel)
-			.ExtensionPanelID("SCSEditor")
-			.ExtensionContext(ExtensionContext)
-		]
-
-		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.VAlign(VAlign_Top)
 		.Padding(0)
@@ -3982,7 +3973,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 						.VAlign(VAlign_Top)
 					[
 						SAssignNew(ButtonBox, SHorizontalBox)
-				
+
 						+ SHorizontalBox::Slot()
 						.Padding( 3.0f, 3.0f )
 						.AutoWidth()
@@ -3996,8 +3987,17 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 							.IsEnabled(AllowEditing)
 						]
 
+						+ SHorizontalBox::Slot()
+						.Padding(0)
+						.AutoWidth()
+						[
+							SAssignNew(ExtensionPanel, SExtensionPanel)
+							.ExtensionPanelID("SCSEditor.NextToAddComponentButton")
+							.ExtensionContext(ExtensionContext)
+						]
+
 						//
-						// horizontal slot (index) #1 => reserved for BP-editor search bar (see 'ButtonBox' usage below)
+						// horizontal slot index #2 => reserved for BP-editor search bar (see 'ButtonBox' and 'SearchBarHorizontalSlotIndex' usage below)
 
 						+ SHorizontalBox::Slot()
 						.FillWidth(1.0f)
@@ -4107,7 +4107,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	// insert the search bar, depending on which editor this widget is in (depending on convert/edit button visibility)
 	if (bInlineSearchBarWithButtons)
 	{
-		const int32 SearchBarHorizontalSlotIndex = 1;
+		static const int32 SearchBarHorizontalSlotIndex = 2;
 
 		ButtonBox->InsertSlot(SearchBarHorizontalSlotIndex)
 			.FillWidth(1.0f)
@@ -4119,7 +4119,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	}
 	else
 	{
-		const int32 SearchBarVerticalSlotIndex = 1;
+		static const int32 SearchBarVerticalSlotIndex = 1;
 
 		HeaderBox->InsertSlot(SearchBarVerticalSlotIndex)
 			.VAlign(VAlign_Center)
