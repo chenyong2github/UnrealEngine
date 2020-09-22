@@ -50,7 +50,7 @@ protected:
 	UVirtualTextureBuilder* StreamingTexture = nullptr;
 
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
-	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Streaming Levels"))
+	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "12", DisplayName = "Streaming Levels"))
 	int32 StreamLowMips = 0;
 
 	/** Placeholder for details customization button. */
@@ -105,7 +105,7 @@ public:
 	UVirtualTextureBuilder* GetStreamingTexture() const { return StreamingTexture; }
 
 	/** Public getter for virtual texture streaming low mips */
-	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
+	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 12); }
 
 	/** Get if we want to use any streaming low mips on this component. */
 	bool IsStreamingLowMips() const;
