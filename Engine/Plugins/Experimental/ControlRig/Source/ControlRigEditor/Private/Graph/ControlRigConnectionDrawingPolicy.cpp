@@ -144,6 +144,82 @@ void FControlRigConnectionDrawingPolicy::DetermineLinkGeometry(
 	}
 }
 
+bool FControlRigConnectionDrawingPolicy::ShouldChangeTangentForReouteControlPoint(UControlRigGraphNode* Node)
+{
+	bool bPinReversed = false;
+	int32 InputPin = 0, OutputPin = 0;
+	if (Node->ShouldDrawNodeAsControlPointOnly(InputPin, OutputPin))
+	{
+		if (bool* pResult = RerouteNodeToReversedDirectionMap.Find(Node))
+		{
+			// This case triggers if multiple wires share the same reroute node
+			return *pResult;
+		}
+		else
+		{
+			FVector2D AverageLeftPin;
+			FVector2D AverageRightPin;
+			FVector2D CenterPin;
+
+			const TArray<UEdGraphPin*>& Pins = Node->GetAllPins();
+
+			// InputPin and OutputPin shared the same position, it does not matter which one we use.
+			bool bCenterValid = FindPinCenter(Pins[OutputPin], /*out*/ CenterPin);
+
+			bool bLeftValid = GetAverageConnectedPositionForPin(Pins[InputPin], AverageLeftPin);
+			bool bRightValid = GetAverageConnectedPositionForPin(Pins[OutputPin], AverageRightPin);
+
+			if (bLeftValid && bRightValid)
+			{
+				bPinReversed = AverageRightPin.X < AverageLeftPin.X;
+			}
+			else if (bCenterValid)
+			{
+				if (bLeftValid)
+				{
+					bPinReversed = CenterPin.X < AverageLeftPin.X;
+				}
+				else if (bRightValid)
+				{
+					bPinReversed = AverageRightPin.X < CenterPin.X;
+				}
+			}
+
+			// We don't need to clear the map because Drawing Policy is generated/deleted for each OnPaint()
+			RerouteNodeToReversedDirectionMap.Add(Node, bPinReversed);
+		} 
+	}
+
+	return bPinReversed;
+}
+
+// Average of the positions of all pins connected to InPin
+bool FControlRigConnectionDrawingPolicy::GetAverageConnectedPositionForPin(UEdGraphPin* InPin, FVector2D& OutPos) const
+{
+	FVector2D Result = FVector2D::ZeroVector;
+	int32 ResultCount = 0;
+
+	for (UEdGraphPin* LinkedPin : InPin->LinkedTo)
+	{
+		FVector2D CenterPoint;
+		if (FindPinCenter(LinkedPin, /*out*/ CenterPoint))
+		{
+			Result += CenterPoint;
+			ResultCount++;
+		}
+	}
+
+	if (ResultCount > 0)
+	{
+		OutPos = Result * (1.0f / ResultCount);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params)
 {
 	FKismetConnectionDrawingPolicy::DetermineWiringStyle(OutputPin, InputPin, Params);
@@ -156,6 +232,19 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 	UControlRigGraphNode* InputNode = Cast<UControlRigGraphNode>(InputPin->GetOwningNode());
 	if (OutputNode && InputNode)
 	{
+		// If the output or input connect to a Reroute Node(Node Knot/Control Point) that is going backwards, we will flip the direction on values going into them
+		{
+			if (ShouldChangeTangentForReouteControlPoint(OutputNode))
+			{
+				Params.StartDirection = EGPD_Input;
+			}
+
+			if (ShouldChangeTangentForReouteControlPoint(InputNode))
+			{
+				Params.EndDirection = EGPD_Output;
+			}
+		}
+
 		bool bInjectionIsSelected = false;
 		URigVMPin* OutputModelPin = OutputNode->GetModelPinFromPinPath(OutputPin->GetName());
 		URigVMPin* InputModelPin = InputNode->GetModelPinFromPinPath(InputPin->GetName());
