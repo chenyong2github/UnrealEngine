@@ -641,7 +641,7 @@ USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
 {
 	GENERATED_USTRUCT_BODY()
-public:
+
 	FNiagaraVariableMetaData()
 		: bAdvancedDisplay(false)
 		, EditorSortPriority(0)
@@ -655,7 +655,7 @@ public:
 		, bCreatedInSystemEditor(false)
 		, bUseLegacyNameString(false)
 	{};
-public:
+
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true, SkipForCompileHash = "true"))
 	FText Description;
 
@@ -684,8 +684,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata", SkipForCompileHash = "true"))
 	TMap<FName, FString> PropertyMetaData;
-
-public:
 
 	const FName& GetScopeName() const { return ScopeName; };
 	void SetScopeName(const FName& InScopeName) { ScopeName = InScopeName; };
@@ -719,6 +717,9 @@ public:
 	void SetIsUsingLegacyNameString(bool bInUseLegacyNameString) { bUseLegacyNameString = bInUseLegacyNameString; };
 
 	void CopyPerScriptMetaData(const FNiagaraVariableMetaData& OtherMetaData);
+
+	/** Copies all the properties that are marked as editable for the user (e.g. EditAnywhere). */
+	void CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData);
 
 private:
 	/** Defines the scope of a variable that is an input to a script. Used to lookup registered scope infos and resolve the actual ENiagaraParameterScope and Namespace string to use. */

@@ -803,6 +803,27 @@ void SNiagaraParameterMapView::OnActionDoubleClicked(const TArray< TSharedPtr<FE
 
 }
 
+void SNiagaraParameterMapView::AddMetadataContextMenuEntries(FMenuBuilder MenuBuilder)
+{
+	TAttribute<FText> CopyParameterMetadataToolTip;
+	CopyParameterMetadataToolTip.Bind(this, &SNiagaraParameterMapView::GetCopyParameterMetadataToolTip);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("CopyParameterMetadata", "Copy Metadata"),
+		CopyParameterMetadataToolTip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnCopyParameterMetadata),
+			FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanCopyParameterMetadata)));
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("PasteParameterMetadata", "Paste Metadata"),
+		LOCTEXT("PasteParameterMetadataToolTip", "Paste the parameter metadata from the system clipboard to the selected parameters."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnPasteParameterMetadata),
+			FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanPasteParameterMetadata)));
+}
+
 TSharedPtr<SWidget> SNiagaraParameterMapView::OnContextMenuOpening()
 {
 	// Check if the selected action is valid for a context menu
@@ -812,74 +833,71 @@ TSharedPtr<SWidget> SNiagaraParameterMapView::OnContextMenuOpening()
 		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ToolkitCommands);
 		MenuBuilder.BeginSection("Edit", LOCTEXT("EditMenuHeader", "Edit"));
 		{
-			TAttribute<FText> CopyReferenceToolTip;
-			CopyReferenceToolTip.Bind(this, &SNiagaraParameterMapView::GetCopyParameterReferenceToolTip);
-			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy, NAME_None, LOCTEXT("CopyReference", "Copy Reference"), CopyReferenceToolTip);
-
-			TAttribute<FText> DeleteToolTip;
-			DeleteToolTip.Bind(this, &SNiagaraParameterMapView::GetDeleteEntryToolTip);
-			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, TAttribute<FText>(), DeleteToolTip);
-
-			TAttribute<FText> RenameToolTip;
-			RenameToolTip.Bind(this, &SNiagaraParameterMapView::GetRenameOnActionNodeToolTip);
-			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("Rename", "Rename"), RenameToolTip);
-
-			MenuBuilder.AddMenuSeparator();
-
-			if (IsScriptToolkit())
+			if (HasStaticSwitchSelected())
 			{
-				TAttribute<FText> CopyParameterMetadataToolTip;
-				CopyParameterMetadataToolTip.Bind(this, &SNiagaraParameterMapView::GetCopyParameterMetadataToolTip);
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CopyParameterMetadata", "Copy Metadata"),
-					CopyParameterMetadataToolTip,
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnCopyParameterMetadata),
-						FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanCopyParameterMetadata)));
+				if (IsScriptToolkit())
+				{
+					AddMetadataContextMenuEntries(MenuBuilder);
+				}
+				else
+				{
+					return SNullWidget::NullWidget;
+				}
+			}
+			else
+			{
+				TAttribute<FText> CopyReferenceToolTip;
+				CopyReferenceToolTip.Bind(this, &SNiagaraParameterMapView::GetCopyParameterReferenceToolTip);
+				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy, NAME_None, LOCTEXT("CopyReference", "Copy Reference"), CopyReferenceToolTip);
+			
+				TAttribute<FText> DeleteToolTip;
+				DeleteToolTip.Bind(this, &SNiagaraParameterMapView::GetDeleteEntryToolTip);
+				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, TAttribute<FText>(), DeleteToolTip);
 
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("PasteParameterMetadata", "Paste Metadata"),
-					LOCTEXT("PasteParameterMetadataToolTip", "Paste the parameter metadata from the system clipboard to the selected parameters."),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnPasteParameterMetadata),
-						FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanPasteParameterMetadata)));
+				TAttribute<FText> RenameToolTip;
+				RenameToolTip.Bind(this, &SNiagaraParameterMapView::GetRenameOnActionNodeToolTip);
+				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("Rename", "Rename"), RenameToolTip);
+			
+				MenuBuilder.AddMenuSeparator();
+			
+				if (IsScriptToolkit())
+				{
+					AddMetadataContextMenuEntries(MenuBuilder);
+					MenuBuilder.AddMenuSeparator();
+				}
+
+				MenuBuilder.AddSubMenu(
+                 LOCTEXT("ChangeNamespace", "Change Namespace"),
+                 LOCTEXT("ChangeNamespaceToolTip", "Select a new namespace for the selected parameter."),
+                 FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceSubMenu, false));
+
+				MenuBuilder.AddSubMenu(
+                    LOCTEXT("ChangeNamespaceModifier", "Change Namespace Modifier"),
+                    LOCTEXT("ChangeNamespaceModifierToolTip", "Edit the namespace modifier for the selected parameter."),
+                    FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceModifierSubMenu, false));
 
 				MenuBuilder.AddMenuSeparator();
+
+				TAttribute<FText> DuplicateToolTip;
+				DuplicateToolTip.Bind(this, &SNiagaraParameterMapView::GetDuplicateParameterToolTip);
+				MenuBuilder.AddMenuEntry(
+                    LOCTEXT("DuplicateParameter", "Duplicate"),
+                    DuplicateToolTip,
+                    FSlateIcon(),
+                    FUIAction(
+                        FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnDuplicateParameter),
+                        FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanDuplicateParameter)));
+
+				MenuBuilder.AddSubMenu(
+                    LOCTEXT("DuplicateToNewNamespace", "Duplicate to Namespace"),
+                    LOCTEXT("DuplicateToNewNamespaceToolTip", "Duplicate this parameter to a new namespace."),
+                    FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceSubMenu, true));
+
+				MenuBuilder.AddSubMenu(
+                    LOCTEXT("DuplicateWithNewNamespaceModifier", "Duplicate with Namespace Modifier"),
+                    LOCTEXT("DupilcateWithNewNamespaceModifierToolTip", "Duplicate this parameter with a different namespace modifier."),
+                    FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceModifierSubMenu, true));
 			}
-
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("ChangeNamespace", "Change Namespace"),
-				LOCTEXT("ChangeNamespaceToolTip", "Select a new namespace for the selected parameter."),
-				FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceSubMenu, false));
-
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("ChangeNamespaceModifier", "Change Namespace Modifier"),
-				LOCTEXT("ChangeNamespaceModifierToolTip", "Edit the namespace modifier for the selected parameter."),
-				FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceModifierSubMenu, false));
-
-			MenuBuilder.AddMenuSeparator();
-
-			TAttribute<FText> DuplicateToolTip;
-			DuplicateToolTip.Bind(this, &SNiagaraParameterMapView::GetDuplicateParameterToolTip);
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("DuplicateParameter", "Duplicate"),
-				DuplicateToolTip,
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnDuplicateParameter),
-					FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanDuplicateParameter)));
-
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("DuplicateToNewNamespace", "Duplicate to Namespace"),
-				LOCTEXT("DuplicateToNewNamespaceToolTip", "Duplicate this parameter to a new namespace."),
-				FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceSubMenu, true));
-
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("DuplicateWithNewNamespaceModifier", "Duplicate with Namespace Modifier"),
-				LOCTEXT("DupilcateWithNewNamespaceModifierToolTip", "Duplicate this parameter with a different namespace modifier."),
-				FNewMenuDelegate::CreateSP(this, &SNiagaraParameterMapView::GetChangeNamespaceModifierSubMenu, true));
 		}
 		MenuBuilder.EndSection();
 
@@ -977,15 +995,22 @@ bool SNiagaraParameterMapView::SelectionHasContextMenu() const
 {
 	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
 	GraphActionMenu->GetSelectedActions(SelectedActions);
+	return SelectedActions.Num() > 0;
+}
+
+bool SNiagaraParameterMapView::HasStaticSwitchSelected() const
+{
+	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+	GraphActionMenu->GetSelectedActions(SelectedActions);
 	for (TSharedPtr<FEdGraphSchemaAction> Action : SelectedActions)
 	{
 		TSharedPtr<FNiagaraParameterAction> NiagaraAction = StaticCastSharedPtr<FNiagaraParameterAction>(Action);
 		if (NiagaraAction && IsStaticSwitchParameter(NiagaraAction->GetParameter(), Graphs))
 		{
-			return false;
+			return true;
 		}
 	}
-	return SelectedActions.Num() > 0;
+	return false;
 }
 
 TSharedRef<SWidget> SNiagaraParameterMapView::OnGetParameterMenu(const NiagaraParameterMapSectionID::Type InSection)
@@ -1808,7 +1833,7 @@ void SNiagaraParameterMapView::OnPasteParameterMetadata()
 			for (UNiagaraScriptVariable* TargetScriptVariable : TargetScriptVariables)
 			{
 				TargetScriptVariable->Modify();
-				TargetScriptVariable->Metadata = ClipboardContent->ScriptVariables[0]->Metadata;
+				TargetScriptVariable->Metadata.CopyUserEditableMetaData(ClipboardContent->ScriptVariables[0]->Metadata);
 				TargetScriptVariable->PostEditChange();
 			}
 		}

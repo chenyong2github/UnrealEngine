@@ -120,6 +120,7 @@ private:
 	FReply OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent);
 	void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType);
 	void OnActionDoubleClicked(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions);
+	void AddMetadataContextMenuEntries(FMenuBuilder MenuBuilder);
 	TSharedPtr<SWidget> OnContextMenuOpening();
 	FText OnGetSectionTitle(int32 InSectionID);
 	TSharedPtr<IToolTip> OnGetSectionToolTip(int32 InSectionID);
@@ -131,6 +132,7 @@ private:
 
 	/** Checks if the selected action has context menu */
 	bool SelectionHasContextMenu() const;
+	bool HasStaticSwitchSelected() const;
 	
 	TSharedRef<SWidget> OnGetParameterMenu(const NiagaraParameterMapSectionID::Type InSection = NiagaraParameterMapSectionID::NONE);
 	EVisibility OnAddButtonTextVisibility(TWeakPtr<SWidget> RowWidget, const NiagaraParameterMapSectionID::Type InSection) const;
