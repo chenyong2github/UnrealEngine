@@ -515,14 +515,14 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 						}
 						RelativeFilename.ToLowerInline();
 						uint64 FileOpenOrder = OrderMap.GetFileOrder(RelativeFilename, true);
-						if (FileOpenOrder != MAX_uint64)
+						/*if (FileOpenOrder != MAX_uint64)
 						{
 							UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found file open order for %s, %ll"), *RelativeFilename, FileOpenOrder);
 						}
 						else
 						{
 							UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Didn't find openorder for %s"), *RelativeFilename, FileOpenOrder);
-						}
+						}*/
 						SortedFiles.Add(FFilePaths(ChunkFilename, MoveTemp(RelativeFilename), FileOpenOrder));
 					}
 
