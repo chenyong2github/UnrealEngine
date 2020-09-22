@@ -24,6 +24,7 @@ public:
 		VersionTooOld,
 		VersionTooNew,
 		CustomVersionMissing,
+		CustomVersionInvalid,
 	};
 
 	/** Creates a loader for the filename */
