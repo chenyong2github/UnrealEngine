@@ -129,7 +129,7 @@ void MainCS(
 		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
-	uint2 InputPixelPos = DispatchThreadId;
+	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;
 
 	float2 InputBufferUV = (InputPixelPos + 0.5) * InputInfo_ExtentInverse;
 
@@ -291,14 +291,14 @@ void MainCS(
 	#endif
 
 
-	if (all(OutputPixelPos < InputInfo_ViewportSize))
+	if (all(OutputPixelPos < InputInfo_ViewportMax))
 	{
 		FilteredInputOutput[OutputPixelPos] = FilteredInput; // * (HdrWeight4(FilteredInput) * 10);
 		FilteredPredictionSceneColorOutput[OutputPixelPos] = FilteredHistory; // * (HdrWeight4(FilteredHistory) * 10);
 		
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[OutputPixelPos] = Debug;
+			DebugOutput[OutputPixelPos - InputInfo_ViewportMin] = Debug;
 		}
 		#endif
 	}

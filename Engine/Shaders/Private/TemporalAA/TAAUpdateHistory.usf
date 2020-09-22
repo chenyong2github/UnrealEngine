@@ -105,7 +105,7 @@ void MainCS(
 	// Pixel coordinate of the center of the nearest input pixel K.
 	float2 PPCk = floor(PPCo) + 0.5;
 	
-	uint2 InputPixelPos = PPCk;
+	uint2 InputPixelPos = InputInfo_ViewportMin + uint2(PPCk);
 
 	// Fetch reprojections related informations.
 	float2 PrevScreenPos = ScreenPos;
@@ -195,7 +195,7 @@ void MainCS(
 			//if (i != 4)
 			//	continue;
 
-			float2 SampleInputBufferUV = (PPCk + PixelOffset) * InputInfo_ExtentInverse;
+			float2 SampleInputBufferUV = (InputInfo_ViewportMin + PPCk + PixelOffset) * InputInfo_ExtentInverse;
 			SampleInputBufferUV = clamp(SampleInputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
 
 			taa_half3 InputColor = InputSceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
