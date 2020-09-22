@@ -3813,12 +3813,13 @@ bool FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo& 
 					// In mixed mode, we only want to replicate to the owner of this channel, minimal replication
 					// data will go to everyone else.
 					const AActor* ParentOwner = Owner->GetOwner();
-					if (!ParentOwner->IsOwnedBy(Connection->OwningActor))
+					const UNetConnection* ParentOwnerNetConnection = ParentOwner->GetNetConnection();
+					if (!ParentOwner->IsOwnedBy(Connection->OwningActor) && (ParentOwnerNetConnection != Connection))
 					{
 						bool bIsChildConnection = false;
 						for (UChildConnection* ChildConnection : Connection->Children)
 						{
-							if (ParentOwner->IsOwnedBy(ChildConnection->OwningActor))
+							if (ParentOwner->IsOwnedBy(ChildConnection->OwningActor) || (ChildConnection == ParentOwnerNetConnection))
 							{
 								bIsChildConnection = true;
 								break;
