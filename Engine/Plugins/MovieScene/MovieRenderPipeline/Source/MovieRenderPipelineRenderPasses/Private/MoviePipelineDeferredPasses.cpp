@@ -239,6 +239,7 @@ void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelin
 	Super::GatherOutputPassesImpl(ExpectedRenderPasses);
 
 	TArray<FString> RenderPasses;
+
 	for (UMaterialInterface* Material : ActivePostProcessMaterials)
 	{
 		if (Material)
@@ -281,6 +282,10 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
+			// Each frame can be processed independently, so we can start processing the second frame's tasks
+			// even if the accumulation for the first frame is still happening.
+
+
 		// Transfer the framePayload to the returned data
 		TUniquePtr<FImagePixelData> PixelDataWithPayload = nullptr;
 		switch (InPixelData->GetType())
@@ -309,11 +314,8 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 
 		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
 		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
-
 		FMoviePipelineBackgroundAccumulateTask Task;
-		// There may be other accumulations for this accumulator which need to be processed first
 		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
-
 		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(PixelDataWithPayload), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
 		{
 			// Enqueue a encode for this frame onto our worker thread.
@@ -326,6 +328,7 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 		});
 
 		this->OutstandingTasks.Add(Event);
+
 	};
 
 	return Callback;
@@ -349,8 +352,8 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		
 		const FIntPoint FullOutputSize = OutputSettings->OutputResolution;
 		const FIntPoint ConstrainedFullSize = CameraCache.AspectRatio > 1.0f ?
-			FIntPoint(FullOutputSize.X, (1.0 / CameraCache.AspectRatio) * FullOutputSize.X) :
-			FIntPoint(CameraCache.AspectRatio * FullOutputSize.Y, FullOutputSize.Y);
+			FIntPoint(FullOutputSize.X, FMath::CeilToInt((double)FullOutputSize.X / (double)CameraCache.AspectRatio)) :
+			FIntPoint(FMath::CeilToInt(CameraCache.AspectRatio * FullOutputSize.Y), FullOutputSize.Y);
 
 		const FIntPoint TileViewMin = InSampleState.OverlappedOffset;
 		const FIntPoint TileViewMax = TileViewMin + InSampleState.BackbufferSize;
@@ -422,6 +425,8 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	{
 		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
 		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
+			// Each frame can be processed independently, so we can start processing the second frame's tasks
+			// even if the accumulation for the first frame is still happening.
 
 		FMoviePipelineBackgroundAccumulateTask Task;
 		// There may be other accumulations for this accumulator which need to be processed first
@@ -439,6 +444,7 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		});
 
 		this->OutstandingTasks.Add(Event);
+
 	};
 
 	FRenderTarget* RenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
@@ -514,12 +520,9 @@ UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase()
 	: UMoviePipelineImagePassBase()
 {
 	PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
-
-	// To help user knowledge we pre-seed the additional post processing materials with an array of potentially common passes.
 	TArray<FString> DefaultPostProcessMaterials;
 	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth"));
 	DefaultPostProcessMaterials.Add(TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors"));
-
 	for (FString& MaterialPath : DefaultPostProcessMaterials)
 	{
 		FMoviePipelinePostProcessPass& NewPass = AdditionalPostProcessMaterials.AddDefaulted_GetRef();
@@ -527,7 +530,6 @@ UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase()
 		NewPass.bEnabled = false;
 	}
 }
-
 void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	Super::SetupImpl(InPassInitSettings);
@@ -560,12 +562,7 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 			}
 		}
 	}
-
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
-
-	// We must have at least enough accumulators to render all of the requested post process materials, because work doesn't begin
-	// until they're actually submitted to the render thread (which happens all at once) but we tie up an accumulator as we get ready to submit.
-	// If there aren't enough accumulators then we block until one is free but since submission hasn't gone through they'll never be free.
 	int32 PoolSize = (ActivePostProcessMaterials.Num() + 1) * 3;
 	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
 
@@ -596,7 +593,6 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 	// Stall until the task graph has completed any pending accumulations.
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
 	OutstandingTasks.Reset();
-
 	ActivePostProcessMaterials.Reset();
 	
 	OCIOSceneViewExtension.Reset();
