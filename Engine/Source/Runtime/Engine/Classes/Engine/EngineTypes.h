@@ -2165,6 +2165,12 @@ struct ENGINE_API FHitResult
 		}
 	}
 
+	/** Utility to return the Actor that owns the Component that was hit. */
+	FORCEINLINE AActor* GetActor() const
+	{
+		HitObjectHandle.FetchActor();
+	}
+
 	FORCEINLINE FActorInstanceHandle GetHitObjectHandle() const
 	{
 		return HitObjectHandle;
