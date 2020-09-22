@@ -277,26 +277,19 @@ bool UNiagaraSpriteRendererProperties::PopulateRequiredBindings(FNiagaraParamete
 	return bAnyAdded;
 }
 
-#if WITH_EDITOR
-void UNiagaraSpriteRendererProperties::RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter)
+void UNiagaraSpriteRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
 {
-
-	for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
+	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
+	if (SrcEmitter)
 	{
-		if (Binding)
+		for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameterBindings)
 		{
-			// This is a little ugly, but otherwise GetBindingsArray needs a const/non-const version.
-			const_cast<FNiagaraVariableAttributeBinding*>(Binding)->CacheValues(InRenamedEmitter, SourceMode);
+			MaterialParamBinding.CacheValues(SrcEmitter);
 		}
 	}
 
-	for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameterBindings)
-	{
-		// TODO rename emitter vars
-		MaterialParamBinding.CacheValues(InRenamedEmitter);
-	}
+	Super::UpdateSourceModeDerivates(InSourceMode, bFromPropertyEdit);
 }
-#endif
 
 #if WITH_EDITORONLY_DATA
 

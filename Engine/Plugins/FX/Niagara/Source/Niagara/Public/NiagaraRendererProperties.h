@@ -189,7 +189,7 @@ public:
 	virtual bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const;
 
 	/** Internal handling of any emitter variable renames. Note that this doesn't modify the renderer, the caller will need to do that if it is desired.*/
-	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter) {};
+	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter);
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) { return true; }
 
 	virtual void FixMaterial(UMaterial* Material) { }
