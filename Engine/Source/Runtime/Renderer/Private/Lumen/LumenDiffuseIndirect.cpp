@@ -12,7 +12,6 @@
 #include "LumenSceneUtils.h"
 #include "PixelShaderUtils.h"
 #include "ReflectionEnvironment.h"
-#include "DistanceFieldAmbientOcclusion.h"
 #include "SceneTextureParameters.h"
 #include "IndirectLightRendering.h"
 #include "LumenRadianceCache.h"
@@ -229,18 +228,7 @@ bool ShouldRenderLumenDiffuseGI(EShaderPlatform ShaderPlatform, const FSceneView
 
 bool FDeferredShadingSceneRenderer::ShouldRenderLumenDiffuseGI(const FViewInfo& View) const
 {
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	return ::ShouldRenderLumenDiffuseGI(ShaderPlatform, ViewFamily)
-		&& Views.Num() == 1
-		&& (LumenSceneData.VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, ViewFamily))
-		&& LumenSceneData.AlbedoAtlas
-		&& ViewFamily.EngineShowFlags.GlobalIllumination
-		//@todo - support GI in secondary views without updating the scene
-		&& !View.bIsPlanarReflection 
-		&& !View.bIsSceneCapture
-		&& !View.bIsReflectionCapture
-		&& View.ViewState;
+	return Lumen::ShouldRenderLumenForView(Scene, View) && ViewFamily.EngineShowFlags.GlobalIllumination;
 }
 
 void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutParameters)

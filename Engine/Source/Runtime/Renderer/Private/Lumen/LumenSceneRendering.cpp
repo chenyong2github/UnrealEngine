@@ -18,6 +18,7 @@
 #include "PixelShaderUtils.h"
 #include "LumenCubeMapTree.h"
 #include "LumenSceneUtils.h"
+#include "DistanceFieldAmbientOcclusion.h"
 
 int32 GAllowLumenScene = 0;
 FAutoConsoleVariableRef CVarLumenGILumenScene(
@@ -220,6 +221,31 @@ namespace Lumen
 bool Lumen::ShouldPrepareGlobalDistanceField(EShaderPlatform ShaderPlatform)
 {
 	return GAllowLumenScene && DoesPlatformSupportLumenGI(ShaderPlatform);
+}
+
+bool Lumen::ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View)
+{
+	return Scene 
+		&& Scene->LumenSceneData
+		&& View.Family
+		&& View.Family->Views.Num() == 1
+		&& GAllowLumenScene
+		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform())
+		&& (Scene->LumenSceneData->VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, *View.Family))
+		&& Scene->LumenSceneData->AlbedoAtlas
+		// Don't update scene lighting for secondary views
+		&& !View.bIsPlanarReflection
+		&& !View.bIsSceneCapture
+		&& !View.bIsReflectionCapture
+		&& View.ViewState;
+}
+
+bool Lumen::ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& View)
+{
+	return ShouldRenderLumenForView(Scene, View)
+		&& Scene
+		&& Scene->LumenSceneData
+		&& Scene->LumenSceneData->VisibleCardsIndices.Num() > 0;
 }
 
 int32 Lumen::GetGlobalDFResolution()

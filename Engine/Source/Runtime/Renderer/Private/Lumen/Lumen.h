@@ -21,6 +21,8 @@ namespace Lumen
 	bool AnyLumenHardwareRayTracingPassEnabled();
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();
+	bool ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View);
+	bool ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& View);
 };
 
 extern int32 GLumenFastCameraMode;

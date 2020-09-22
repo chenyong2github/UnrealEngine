@@ -400,16 +400,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	if (DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& GAllowLumenScene
-		&& ViewFamily.EngineShowFlags.Lighting
-		&& LumenSceneData.VisibleCardsIndices.Num() > 0 
-		&& LumenSceneData.AlbedoAtlas
-		// Don't update scene lighting for secondary views
-		&& !View.bIsPlanarReflection 
-		&& !View.bIsSceneCapture
-		&& !View.bIsReflectionCapture
-		&& View.ViewState)
+	if (Lumen::ShouldRenderLumenCardsForView(Scene, Views[0]) && ViewFamily.EngineShowFlags.Lighting)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(RenderLumenSceneLighting);
 		QUICK_SCOPE_CYCLE_COUNTER(RenderLumenSceneLighting);

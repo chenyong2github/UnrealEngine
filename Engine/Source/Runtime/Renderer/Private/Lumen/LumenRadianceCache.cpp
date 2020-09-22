@@ -246,17 +246,9 @@ namespace LumenRadianceCache
 	}
 };
 
-bool ShouldRenderRadianceCache(EShaderPlatform ShaderPlatform, const FSceneViewFamily& ViewFamily, const FScene* Scene)
+bool ShouldRenderRadianceCache(const FScene* Scene, const FViewInfo& View)
 {
-	return GAllowLumenScene
-		&& GLumenRadianceCache
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& ViewFamily.EngineShowFlags.LumenDiffuseIndirect
-		&& ViewFamily.Views.Num() == 1
-		&& !ViewFamily.Views[0]->bIsPlanarReflection
-		&& !ViewFamily.Views[0]->bIsSceneCapture
-		&& !ViewFamily.Views[0]->bIsReflectionCapture
-		&& (Scene->LumenSceneData->VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, ViewFamily));
+	return Lumen::ShouldRenderLumenForView(Scene, View) && GLumenRadianceCache && View.Family->EngineShowFlags.LumenDiffuseIndirect;
 }
 
 class FClearProbeIndirectionCS : public FGlobalShader
@@ -844,7 +836,7 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 	const FScreenProbeParameters* ScreenProbeParameters,
 	LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters)
 {
-	if (ShouldRenderRadianceCache(ShaderPlatform, ViewFamily, Scene) && GRadianceCacheUpdate != 0)
+	if (ShouldRenderRadianceCache(Scene, View) && GRadianceCacheUpdate != 0)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, LumenRadianceCache);
 		RDG_EVENT_SCOPE(GraphBuilder, "RadianceCache");

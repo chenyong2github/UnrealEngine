@@ -293,45 +293,19 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenVoxelsCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeLumenVoxelsCS", SF_Compute);
 
-bool ShouldRenderLumenVisualizations(const FViewInfo& View, const FScene* Scene, EShaderPlatform ShaderPlatform)
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	return GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& LumenSceneData.VisibleCardsIndices.Num() > 0 
-		&& LumenSceneData.AlbedoAtlas
-		&& CVar->GetValueOnRenderThread() != 0;
-}
-
-bool FDeferredShadingSceneRenderer::ShouldRenderLumenSceneVisualization(const FViewInfo& View)
-{
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
-	const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
-
-	return ShouldRenderLumenVisualizations(View, Scene, ShaderPlatform)
-		&& Views.Num() == 1
-		&& (bVisualizeScene || bVisualizeVoxels);
-}
-
 void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandListImmediate& RHICmdList)
 {
 	const FViewInfo& View = Views[0];
+	const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
+	const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
 
-	if (ShouldRenderLumenVisualizations(View, Scene, ShaderPlatform) && Views.Num() == 1)
+	if (Lumen::ShouldRenderLumenCardsForView(Scene, View) && (bVisualizeScene || bVisualizeVoxels))
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, VisualizeLumenScene);
 
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-		const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
-		const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
-
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LumenSceneVisualization"));
 
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 		FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 		FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColor));
@@ -579,11 +553,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		GLumenSceneDumpStats = 0;
 	}
 
-	if (GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& Views.Num() == 1
-		&& LumenSceneData.VisibleCardsIndices.Num() > 0
-		&& GVisualizeLumenCardPlacement != 0)
+	if (Lumen::ShouldRenderLumenCardsForView(Scene, Views[0]) && GVisualizeLumenCardPlacement != 0)
 	{
 		FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveShaderData);
 

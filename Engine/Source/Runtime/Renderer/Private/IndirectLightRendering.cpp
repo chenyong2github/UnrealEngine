@@ -1077,14 +1077,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	if (DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& GAllowLumenScene
-		&& LumenSceneData.VisibleCardsIndices.Num() > 0
-		// Don't update scene lighting for secondary views
-		&& !Views[0].bIsPlanarReflection
-		&& !Views[0].bIsSceneCapture
-		&& !Views[0].bIsReflectionCapture
-		&& Views[0].ViewState)
+	if (Lumen::ShouldRenderLumenCardsForView(Scene, Views[0]))
 	{
 		GVisualizeTexture.SetCheckPoint(RHICmdListImmediate, LumenSceneData.AlbedoAtlas);
 		GVisualizeTexture.SetCheckPoint(RHICmdListImmediate, LumenSceneData.NormalAtlas);

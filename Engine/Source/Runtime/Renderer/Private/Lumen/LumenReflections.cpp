@@ -292,15 +292,7 @@ bool ShouldRenderLumenReflections(const FViewInfo& View)
 	const FScene* Scene = (const FScene*)View.Family->Scene;
 	if (Scene)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-		return GAllowLumenScene
-			&& DoesPlatformSupportLumenGI(View.GetShaderPlatform())
-			&& Scene
-			&& (LumenSceneData.VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, *View.Family))
-			&& LumenSceneData.AlbedoAtlas
-			&& View.Family->EngineShowFlags.LumenReflections
-			&& View.ViewState;
+		return Lumen::ShouldRenderLumenForView(Scene, View) && View.Family->EngineShowFlags.LumenReflections;
 	}
 	
 	return false;

@@ -556,7 +556,6 @@ private:
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		FRDGTextureRef RoughSpecularIndirect);
 
-	bool ShouldRenderLumenSceneVisualization(const FViewInfo& View);
 	void RenderLumenSceneVisualization(FRHICommandListImmediate& RHICmdList);
 	void RenderLumenRadianceCacheVisualization(FRHICommandListImmediate& RHICmdList);
 	void LumenScenePDIVisualization();
