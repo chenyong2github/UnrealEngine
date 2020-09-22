@@ -1420,7 +1420,9 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 			if (FeatureLevel >= ERHIFeatureLevel::SM5)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				HasTessellationEnabled = LandscapeMaterial->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			MaterialHasTessellationEnabled.Add(HasTessellationEnabled);

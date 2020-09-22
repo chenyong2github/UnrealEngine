@@ -898,7 +898,9 @@ void ULandscapeComponent::PostLoad()
 		bool FoundMatchingDisablingMaterial = false;
 
 		// If we have tessellation, find the equivalent with disable tessellation set
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			for (int32 j = i + 1; j < MaterialInstances.Num(); ++j)
 			{
