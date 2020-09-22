@@ -210,8 +210,6 @@ $ bPGOProfile (Boolean): Whether to enable Profile Guided Optimization (PGO) ins
 
 $ bPGOOptimize (Boolean): Whether to optimize this build with Profile Guided Optimization (PGO).
 
-$ bAllowASLRInShipping (Boolean): Whether to allow the use of ASLR (address space layout randomization) if supported. Only applies to shipping builds.
-
 $ bSupportEditAndContinue (Boolean): Whether to support edit and continue.  Only works on Microsoft compilers.
 
 $ bOmitFramePointers (Boolean): Whether to omit frame pointers or not. Disabling is useful for e.g. memory profiling on the PC.
