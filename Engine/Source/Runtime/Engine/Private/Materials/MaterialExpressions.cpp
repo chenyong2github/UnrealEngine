@@ -2371,6 +2371,19 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		}
 	}
 
+	// Convert texture address mode to matching sampler source mode.
+	// Would be better if ESamplerSourceMode had a Mirror enum that we could also use...
+	ESamplerSourceMode SamplerSourceMode = SSM_Clamp_WorldGroupSettings;
+	switch (TextureAddressMode)
+	{
+	case RVTTA_Clamp:
+		SamplerSourceMode = SSM_Clamp_WorldGroupSettings;
+		break;
+	case RVTTA_Wrap:
+		SamplerSourceMode = SSM_Wrap_WorldGroupSettings;
+		break;
+	}
+
 	// Compile the texture sample code
 	int32 SampleCodeIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
 	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
@@ -2379,7 +2392,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			TextureCodeIndex[TexureLayerIndex],
 			CoordinateIndex, 
 			SAMPLERTYPE_VirtualMasks,
-			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SSM_Wrap_WorldGroupSettings,
+			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SamplerSourceMode,
 			TextureReferenceIndex[TexureLayerIndex],
 			true);
 	}
