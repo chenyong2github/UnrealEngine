@@ -2399,11 +2399,13 @@ public partial class Project : CommandUtils
 							ContainerPatchSourcePath = CombinePaths(Params.GetBasedOnReleaseVersionPath(SC, Params.Client), ContainerWildcard);
 						}
 						bool bGenerateDiffPatch = bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName);
+						bool bCompressContainers = PakParams.bCompressed || Params.AdditionalIoStoreOptions.Contains("-compressed");
+
 						IoStoreCommands.Add(GetIoStoreCommandArguments(
 							IoStoreResponseFile,
 							PakParams.PakName,
 							OutputLocation,
-							PakParams.bCompressed,
+							bCompressContainers,
 							CryptoSettings,
 							PakParams.EncryptionKeyGuid,
 							ContainerPatchSourcePath,
