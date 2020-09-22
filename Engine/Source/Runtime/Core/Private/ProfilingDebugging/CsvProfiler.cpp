@@ -2648,11 +2648,7 @@ void FCsvProfiler::BeginFrame()
 					SetMetadata(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB)); 
 #endif
 
-#if PLATFORM_COMPILER_OPTIMIZATION_PG
-					SetMetadata(TEXT("PGOEnabled"), TEXT("1"));
-#else
-					SetMetadata(TEXT("PGOEnabled"), TEXT("0"));
-#endif
+					SetMetadata(TEXT("PGOEnabled"), FPlatformMisc::IsPGOEnabled() ? TEXT("1") : TEXT("0"));
 
 					GCsvStatCounts = !!CVarCsvStatCounts.GetValueOnGameThread();
 
