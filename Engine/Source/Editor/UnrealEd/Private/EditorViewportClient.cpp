@@ -1589,7 +1589,8 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 	}
 
 	// Allow the viewport interaction to override any previously set mouse cursor
-	UViewportWorldInteraction* WorldInteraction = Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld())->FindExtension(UViewportWorldInteraction::StaticClass()));
+	UWorld* World = GetWorld();
+	UViewportWorldInteraction* WorldInteraction = (World ? Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(World)->FindExtension(UViewportWorldInteraction::StaticClass())) : nullptr);
 	if (WorldInteraction != nullptr)
 	{
 		if (WorldInteraction->ShouldForceCursor())
