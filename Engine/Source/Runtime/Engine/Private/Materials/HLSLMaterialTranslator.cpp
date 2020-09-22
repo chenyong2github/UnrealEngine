@@ -6492,6 +6492,17 @@ int32 FHLSLMaterialTranslator::ShadowReplace(int32 Default, int32 Shadow)
 	return AddCodeChunk(ResultType, TEXT("(GetShadowReplaceState() ? (%s) : (%s))"), *GetParameterCode(Shadow), *GetParameterCode(Default));
 }
 
+int32 FHLSLMaterialTranslator::ReflectionCapturePassSwitch(int32 Default, int32 Reflection)
+{
+	if (Default == INDEX_NONE || Reflection == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	EMaterialValueType ResultType = GetArithmeticResultType(Default, Reflection);
+	return AddCodeChunk(ResultType, TEXT("(GetReflectionCapturePassSwitchState() ? (%s) : (%s))"), *GetParameterCode(Reflection), *GetParameterCode(Default));
+}
+
 int32 FHLSLMaterialTranslator::RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced)
 {
 	if (Normal == INDEX_NONE || RayTraced == INDEX_NONE)
