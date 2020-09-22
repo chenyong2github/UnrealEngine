@@ -5534,28 +5534,17 @@ void SSCSEditor::ClearSelection()
 
 void SSCSEditor::SaveSCSCurrentState( USimpleConstructionScript* SCSObj )
 {
-	if( SCSObj )
+	if (SCSObj)
 	{
-		SCSObj->Modify();
-
-		const TArray<USCS_Node*>& SCS_RootNodes = SCSObj->GetRootNodes();
-		for(int32 i = 0; i < SCS_RootNodes.Num(); ++i)
-		{
-			SaveSCSNode( SCS_RootNodes[i] );
-		}
+		SCSObj->SaveToTransactionBuffer();
 	}
 }
 
 void SSCSEditor::SaveSCSNode( USCS_Node* Node )
 {
-	if( Node )
+	if (Node)
 	{
-		Node->Modify();
-
-		for ( USCS_Node* ChildNode : Node->GetChildNodes() )
-		{
-			SaveSCSNode( ChildNode );
-		}
+		Node->SaveToTransactionBuffer();
 	}
 }
 
