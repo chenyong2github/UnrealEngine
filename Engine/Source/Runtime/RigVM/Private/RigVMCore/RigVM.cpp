@@ -827,7 +827,10 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 					{
 						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4].GetData();
 						int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
-						ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+						if (NumStructs > 0 && TargetPtr)
+						{
+							ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+						}
 						break;
 					}
 					default:
@@ -1089,7 +1092,10 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					{
 						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4].GetData();
 						int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
-						ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+						if (NumStructs > 0 && TargetPtr)
+						{
+							ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+						}
 						break;
 					}
 					default:
