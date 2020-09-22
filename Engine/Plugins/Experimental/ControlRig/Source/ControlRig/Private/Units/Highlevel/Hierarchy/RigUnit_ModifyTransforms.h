@@ -97,12 +97,7 @@ struct FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseMutable
 
 			if (ItemToModify.IsValidIndex(Index))
 			{
-				if (Mode == EControlRigModifyBoneMode::AdditiveLocal)
-				{
-					return ItemToModify[Index].Item;
-				}
-
-				if (Mode == EControlRigModifyBoneMode::OverrideLocal)
+				if (Mode == EControlRigModifyBoneMode::AdditiveLocal || Mode == EControlRigModifyBoneMode::OverrideLocal)
 				{
 					if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
 					{
@@ -115,6 +110,38 @@ struct FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseMutable
 			}
 		}
 		return FRigElementKey();
+	}
+
+	virtual FTransform DetermineOffsetTransformForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("ItemToModify")))
+		{
+			int32 Index = INDEX_NONE;
+			FString Left, Middle, Right;
+			if (InPinPath.Replace(TEXT("["), TEXT(".")).Split(TEXT("."), &Left, &Middle))
+			{
+				if (Middle.Replace(TEXT("]"), TEXT(".")).Split(TEXT("."), &Left, &Right))
+				{
+					Index = FCString::Atoi(*Left);
+				}
+			}
+
+			if (ItemToModify.IsValidIndex(Index))
+			{
+				if (Mode == EControlRigModifyBoneMode::AdditiveLocal)
+				{
+					if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+					{
+						if (ItemToModify[Index].Item.IsValid())
+						{
+							return Container->GetLocalTransform(ItemToModify[Index].Item);
+						}
+					}
+				}
+			}
+		}
+
+		return FTransform::Identity;
 	}
 
 	RIGVM_METHOD()
