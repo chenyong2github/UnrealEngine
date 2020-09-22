@@ -73,12 +73,13 @@ public abstract class DatasmithRhinoBaseTarget : TargetRules
 		string Disclaimer = "// Warning. This is an AUTO-GENERATED file used for automatic version management. Please add your changes to GeneratedAssemblyInfo.cs.template.";
 
 		PostBuildSteps.Add(string.Format(@"echo Generating custom AssemblyInfo.cs with assembly version: {0}", VersionString));
-		PostBuildSteps.Add(string.Format("copy /Y {0} {1}", CustomAssemblyTemplatePath, CustomAssemblyInfoPath));
+		PostBuildSteps.Add(string.Format(@"echo ""copy /Y {0} {1}""", CustomAssemblyTemplatePath, CustomAssemblyInfoPath));
+		PostBuildSteps.Add(string.Format(@"copy /Y ""{0}"" ""{1}""", CustomAssemblyTemplatePath, CustomAssemblyInfoPath));
 		// Add a disclaimer on the auto-generated file.
-		PostBuildSteps.Add(string.Format(@"powershell -Command ""(gc {0}) -replace '<AutoGenerationDisclaimer>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, Disclaimer));
+		PostBuildSteps.Add(string.Format(@"powershell -Command ""(Get-Content -Path ""{0}"") -replace '<AutoGenerationDisclaimer>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, Disclaimer));
 		// Update the assembly version of the plugin.
-		PostBuildSteps.Add(string.Format(@"powershell -Command ""(gc {0}) -replace '<AssemblyVersion>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, VersionString));
-		PostBuildSteps.Add(string.Format(@"powershell -Command ""(gc {0}) -replace '<AssemblyFileVersion>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, VersionString));
+		PostBuildSteps.Add(string.Format(@"powershell -Command ""(Get-Content -Path ""{0}"") -replace '<AssemblyVersion>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, VersionString));
+		PostBuildSteps.Add(string.Format(@"powershell -Command ""(Get-Content -Path ""{0}"") -replace '<AssemblyFileVersion>', '{1}' | Out-File -encoding UTF8 {0}""; exit", CustomAssemblyInfoPath, VersionString));
 	}
 
 	public string GetRhinoThirdPartyFolder()
