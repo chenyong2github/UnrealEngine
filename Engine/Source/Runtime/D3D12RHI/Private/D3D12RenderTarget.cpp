@@ -202,6 +202,19 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 		return;
 	}
 
+	// Could be back buffer reference texture, so get the correct D3D12 texture here
+	// We know already that it's a FD3D12Texture2D so cast is safe
+	if (SourceTextureRHI->GetFlags() & TexCreate_Presentable)
+	{
+		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)SourceTextureRHI;
+		SourceTextureRHI = BufferBufferReferenceTexture->GetBackBufferTexture();
+	}
+	if (DestTextureRHI->GetFlags() & TexCreate_Presentable)
+	{
+		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)DestTextureRHI;
+		DestTextureRHI = BufferBufferReferenceTexture->GetBackBufferTexture();
+	}
+
 	FRHICommandList_RecursiveHazardous RHICmdList(this, FRHIGPUMask::FromIndex(GetGPUIndex()));
 
 	FD3D12Texture2D* SourceTexture2D = RetrieveObject<FD3D12Texture2D>(SourceTextureRHI->GetTexture2D());
@@ -216,11 +229,6 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 	if (SourceTexture2D && DestTexture2D)
 	{
 		const D3D_FEATURE_LEVEL FeatureLevel = GetParentDevice()->GetParentAdapter()->GetFeatureLevel();
-
-		// Could be back buffer reference texture, so get the correct D3D12 texture here
-		// We know already that it's a FD3D12Texture2D so cast is safe
-		SourceTexture2D = (FD3D12Texture2D*) GetD3D12TextureFromRHITexture(SourceTextureRHI);
-		DestTexture2D = (FD3D12Texture2D*) GetD3D12TextureFromRHITexture(DestTextureRHI);
 
 		check(!SourceTextureCube && !DestTextureCube);
 		if (SourceTexture2D != DestTexture2D)
