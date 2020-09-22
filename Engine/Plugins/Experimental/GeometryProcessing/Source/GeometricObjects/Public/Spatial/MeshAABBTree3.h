@@ -1403,8 +1403,12 @@ public:
 		if (bFound)
 		{
 			Intr.Find();
+			return Intr.Result == EIntersectionResult::Intersects;
 		}
-		return bFound;
+		else
+		{
+			return false;
+		}
 	}
 
 
