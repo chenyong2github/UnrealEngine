@@ -491,15 +491,11 @@ void D3D12RHI::FD3DGPUProfiler::DoPostProfileGPUWork()
 	constexpr EFlushCmdsAction FlushAction = EFlushCmdsAction::FCEA_EndProfilingGPU;
 
 	TArray<FResolvedCmdListExecTime> CmdListExecTimes;
-	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	for (uint32 GPUIdx : FRHIGPUMask::All())
-	{
-		FD3D12Device* Device = Adapter->GetDevice(GPUIdx);
-		Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
-		TArray<FResolvedCmdListExecTime> TimingPairs;
-		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs);
-		CmdListExecTimes.Append(MoveTemp(TimingPairs));
-	}
+	FD3D12Device* Device = GetParentDevice();
+	Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
+	TArray<FResolvedCmdListExecTime> TimingPairs;
+	Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs);
+	CmdListExecTimes.Append(MoveTemp(TimingPairs));
 
 	const int32 NumTimingPairs = CmdListExecTimes.Num();
 	CmdListStartTimestamps.Empty(NumTimingPairs);
