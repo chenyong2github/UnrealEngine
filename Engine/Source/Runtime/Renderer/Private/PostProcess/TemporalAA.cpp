@@ -303,6 +303,19 @@ class FTAAStandaloneCS : public FGlobalShader
 	}
 }; // class FTAAStandaloneCS
 
+class FTAAClearPrevTexturesCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAAClearPrevTexturesCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAAClearPrevTexturesCS, FTAAGen5Shader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevUseCountOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevClosestDepthOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAAClearPrevTexturesCS
+
 class FTAADilateVelocityCS : public FTAAGen5Shader
 {
 	DECLARE_GLOBAL_SHADER(FTAADilateVelocityCS);
@@ -439,6 +452,7 @@ class FTAAUpdateHistoryCS : public FTAAGen5Shader
 }; // class FTAAUpdateHistoryCS
 
 IMPLEMENT_GLOBAL_SHADER(FTAAStandaloneCS, "/Engine/Private/TemporalAA/TAAStandalone.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAAClearPrevTexturesCS, "/Engine/Private/TemporalAA/TAAClearPrevTextures.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAADilateVelocityCS, "/Engine/Private/TemporalAA/TAADilateVelocity.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAABuildParallaxMaskCS, "/Engine/Private/TemporalAA/TAABuildParallaxMask.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAADecimateHistoryCS, "/Engine/Private/TemporalAA/TAADecimateHistory.usf", "MainCS", SF_Compute);
@@ -1065,12 +1079,40 @@ static void AddGen5MainTemporalAAPasses(
 	FRDGTextureRef DilatedVelocityTexture;
 	FRDGTextureRef ParallaxRejectionMaskTexture;
 	{
-		FRDGTextureRef ClosestDepthTexture;
 		FRDGTextureRef PrevUseCountTexture;
 		FRDGTextureRef PrevClosestDepthTexture;
 		{
 			{
 				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+					InputExtent,
+					PF_R32_UINT,
+					FClearValueBinding::None,
+					/* InFlags = */ TexCreate_None,
+					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+					/* bInForceSeparateTargetAndShaderResource = */ false);
+
+				PrevUseCountTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevUseCountTexture"));
+				PrevClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevClosestDepthTexture"));
+			}
+
+			FTAAClearPrevTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAAClearPrevTexturesCS::FParameters>();
+			PassParameters->CommonParameters = CommonParameters;
+			PassParameters->PrevUseCountOutput = GraphBuilder.CreateUAV(PrevUseCountTexture);
+			PassParameters->PrevClosestDepthOutput = GraphBuilder.CreateUAV(PrevClosestDepthTexture);
+
+			TShaderMapRef<FTAAClearPrevTexturesCS> ComputeShader(View.ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("TAA ClearPrevTextures %dx%d", InputRect.Width(), InputRect.Height()),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
+		}
+
+		FRDGTextureRef ClosestDepthTexture;
+		{
+			{
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
 					InputExtent,
 					PF_G16R16,
 					FClearValueBinding::None,
@@ -1080,10 +1122,6 @@ static void AddGen5MainTemporalAAPasses(
 
 				Desc.Format = PF_R16F;
 				ClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.ClosestDepthTexture"));
-
-				Desc.Format = PF_R32_UINT;
-				PrevUseCountTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevUseCountTexture"));
-				PrevClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevClosestDepthTexture"));
 			}
 
 			FTAADilateVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADilateVelocityCS::FParameters>();
@@ -1095,10 +1133,6 @@ static void AddGen5MainTemporalAAPasses(
 			PassParameters->PrevUseCountOutput = GraphBuilder.CreateUAV(PrevUseCountTexture);
 			PassParameters->PrevClosestDepthOutput = GraphBuilder.CreateUAV(PrevClosestDepthTexture);
 			PassParameters->DebugOutput = CreateDebugUAV(InputExtent, TEXT("Debug.TAA.DilateVelocity"));
-
-			uint32 ClearValues[4] = { 0, 0, 0, 0 };
-			AddClearUAVPass(GraphBuilder, PassParameters->PrevUseCountOutput, ClearValues);
-			AddClearUAVPass(GraphBuilder, PassParameters->PrevClosestDepthOutput, ClearValues);
 
 			TShaderMapRef<FTAADilateVelocityCS> ComputeShader(View.ShaderMap);
 			FComputeShaderUtils::AddPass(
