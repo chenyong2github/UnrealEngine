@@ -1009,7 +1009,7 @@ TSharedRef<SWidget> SParentPlayerTreeRow::GenerateWidgetForColumn(const FName& C
 		AllowedClasses.Add(UAnimationAsset::StaticClass());
 		HorizBox->AddSlot()
 			.VAlign(VAlign_Center)
-			.AutoWidth()
+			.FillWidth(1.f)
 			[
 				SNew(SObjectPropertyEntryBox)
 				.ObjectPath(this, &SParentPlayerTreeRow::GetCurrentAssetPath)
