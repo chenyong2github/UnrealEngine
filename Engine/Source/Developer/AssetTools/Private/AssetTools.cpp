@@ -79,6 +79,7 @@
 #include "AssetTypeActions/AssetTypeActions_MaterialFunction.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialFunctionInstance.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialInstanceConstant.h"
+#include "AssetTypeActions/AssetTypeActions_MaterialInstanceDynamic.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialParameterCollection.h"
 #include "AssetTypeActions/AssetTypeActions_ObjectLibrary.h"
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
@@ -253,6 +254,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionLayerBlendInstance));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionInstance));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInstanceConstant(BlendablesCategoryBit)));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInstanceDynamic));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInterface));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialParameterCollection));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ObjectLibrary));
