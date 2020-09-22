@@ -81,7 +81,7 @@ namespace UsdStageImporterImpl
 
 		if (!Error.IsEmpty())
 		{
-			ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("CouldNotImportUSDFile", "Could not import USD file {0}\n {1}"), FText::FromString(FilePath), FText::FromString(Error)));
+			FUsdLogManager::LogMessage( EMessageSeverity::Error, FText::Format( LOCTEXT( "CouldNotImportUSDFile", "Could not import USD file {0}\n {1}" ), FText::FromString( FilePath ), FText::FromString( Error ) ) );
 		}
 		return Stage;
 	}
@@ -592,7 +592,7 @@ namespace UsdStageImporterImpl
 		UPackage* Package = ExistingPackage ? ExistingPackage : CreatePackage(*TargetPackagePath);
 		if (!Package)
 		{
-			ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("PublishFailure", "Failed to get destination package at '{0}' for imported asset '{1}'!"), FText::FromString(TargetPackagePath), FText::FromName(Asset->GetFName())));
+			FUsdLogManager::LogMessage( EMessageSeverity::Error, FText::Format( LOCTEXT( "PublishFailure", "Failed to get destination package at '{0}' for imported asset '{1}'!" ), FText::FromString( TargetPackagePath ), FText::FromName( Asset->GetFName() ) ) );
 			return nullptr;
 		}
 		Package->FullyLoad();
@@ -925,7 +925,7 @@ namespace UsdStageImporterImpl
 
 		if (!ImportContext.SceneActor)
 		{
-			ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoSceneActor", "Failed to publish actors as there was no scene actor available!"));
+			FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoSceneActor", "Failed to publish actors as there was no scene actor available!" ) );
 			return;
 		}
 
@@ -1129,14 +1129,14 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 #if USE_USD_SDK
 	if (!ImportContext.World)
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoWorldError", "Failed to import USD Stage because the target UWorld is invalid!"));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoWorldError", "Failed to import USD Stage because the target UWorld is invalid!" ) );
 		return;
 	}
 
 	ImportContext.Stage = UsdStageImporterImpl::ReadUsdFile(ImportContext);
 	if (!ImportContext.Stage)
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoStageError", "Failed to open the USD Stage!"));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoStageError", "Failed to open the USD Stage!" ) );
 		return;
 	}
 
@@ -1193,7 +1193,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	ImportContext.Stage = UsdStageImporterImpl::ReadUsdFile(ImportContext);
 	if (!ImportContext.Stage)
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoStageError", "Failed to open the USD Stage!"));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoStageError", "Failed to open the USD Stage!" ) );
 		return bSuccess;
 	}
 
