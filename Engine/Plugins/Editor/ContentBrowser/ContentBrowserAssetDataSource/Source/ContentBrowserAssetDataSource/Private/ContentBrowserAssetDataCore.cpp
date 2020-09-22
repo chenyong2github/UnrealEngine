@@ -230,8 +230,7 @@ bool EditOrPreviewAssetFileItems(TArrayView<const TSharedRef<const FContentBrows
 	const EAssetTypeActivationMethod::Type ActivationMethod = bIsPreview ? EAssetTypeActivationMethod::Previewed : EAssetTypeActivationMethod::Opened;
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 
-	TMap<TSharedRef<IAssetTypeActions>, TArray<UObject*>> TypeActionsToObjects;
-	TArray<UObject*> ObjectsWithoutTypeActions;
+	TMap<TSharedPtr<IAssetTypeActions>, TArray<FAssetData>> TypeActionsToAssetData;
 
 	const FText DefaultText = InAssetPayloads.Num() == 1
 		? FText::Format(LOCTEXT("LoadingAssetName", "Loading {0}..."), FText::FromName(InAssetPayloads[0]->GetAssetData().AssetName))
@@ -244,54 +243,49 @@ bool EditOrPreviewAssetFileItems(TArrayView<const TSharedRef<const FContentBrows
 	for (const TSharedRef<const FContentBrowserAssetFileItemDataPayload>& AssetPayload : InAssetPayloads)
 	{
 		const FAssetData& AssetData = AssetPayload->GetAssetData();
-		if (!AssetData.IsAssetLoaded() && FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString()))
-		{
-			SlowTask.MakeDialog();
-		}
-
-		SlowTask.EnterProgressFrame(75.0f / InAssetPayloads.Num(), FText::Format(LOCTEXT("LoadingAssetName", "Loading {0}..."), FText::FromName(AssetData.AssetName)));
-		
 		TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetPayload->GetAssetTypeActions();
-		bool bShouldLoadAsset = AssetTypeActions.IsValid() ? AssetTypeActions->CanLoadAssetForPreviewOrEdit(AssetData) : true;
-		if (bShouldLoadAsset)
-		{
-			if (UObject* Asset = AssetData.GetAsset())
-			{
-				TArray<UObject*>& ObjList = AssetTypeActions.IsValid() ? TypeActionsToObjects.FindOrAdd(AssetTypeActions.ToSharedRef()) : ObjectsWithoutTypeActions;
-				ObjList.AddUnique(Asset);
-			}
-		}
+		TArray<FAssetData>& AssetList = TypeActionsToAssetData.FindOrAdd(AssetTypeActions);
+		AssetList.AddUnique(AssetData);
 	}
 
-	// Now that we have created our map, activate all the lists of objects for each asset type action.
-	for (const auto& TypeActionToObjectsPair : TypeActionsToObjects)
+	// Now that we have created our map, load and activate all the lists of objects for each asset type action.
+	const bool bHasOpenActivationMethod = (ActivationMethod == EAssetTypeActivationMethod::DoubleClicked || ActivationMethod == EAssetTypeActivationMethod::Opened);
+	for (auto& TypeActionToObjectsPair : TypeActionsToAssetData)
 	{
-		const TSharedRef<IAssetTypeActions>& TypeActions = TypeActionToObjectsPair.Key;
-		const TArray<UObject*>& ObjList = TypeActionToObjectsPair.Value;
+		SlowTask.EnterProgressFrame(25.0f / TypeActionsToAssetData.Num());
 
-		SlowTask.EnterProgressFrame(25.0f / TypeActionsToObjects.Num());
-
-		if (!TypeActions->AssetsActivatedOverride(ObjList, ActivationMethod))
+		const TSharedPtr<IAssetTypeActions> TypeActions = TypeActionToObjectsPair.Key;
+		TArray<FAssetData>& AssetsToLoad = TypeActionToObjectsPair.Value;
+		if (TypeActions.IsValid())
 		{
-			if (ActivationMethod == EAssetTypeActivationMethod::DoubleClicked || ActivationMethod == EAssetTypeActivationMethod::Opened)
-			{
-				if (ObjList.Num() == 1)
-				{
-					AssetEditorSubsystem->OpenEditorForAsset(ObjList[0]);
-				}
-				else if (ObjList.Num() > 1)
-				{
-					AssetEditorSubsystem->OpenEditorForAssets(ObjList);
-				}
-			}
+			AssetsToLoad = TypeActions->GetValidAssetsForPreviewOrEdit(AssetsToLoad, bIsPreview);
 		}
-	}
 
-	// Finally, open a simple asset editor for all assets which do not have asset type actions if activating with enter or double click
-	if (ActivationMethod == EAssetTypeActivationMethod::DoubleClicked || ActivationMethod == EAssetTypeActivationMethod::Opened)
-	{
-		// @todo toolkit minor: Needs world-centric support?
-		AssetEditorSubsystem->OpenEditorForAssets(ObjectsWithoutTypeActions);
+		TArray<UObject*> ObjList;
+		ObjList.Reserve(AssetsToLoad.Num());
+		
+		for (const FAssetData& AssetData : AssetsToLoad)
+		{
+			if (!AssetData.IsAssetLoaded() && FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString()))
+			{
+				SlowTask.MakeDialog();
+			}
+
+			SlowTask.EnterProgressFrame(75.0f / InAssetPayloads.Num(), FText::Format(LOCTEXT("LoadingAssetName", "Loading {0}..."), FText::FromName(AssetData.AssetName)));
+
+			ObjList.Add(AssetData.GetAsset());
+		}
+
+		bool bOpenEditorForAssets = bHasOpenActivationMethod;
+		if (TypeActions.IsValid())
+		{
+			bOpenEditorForAssets = !TypeActions->AssetsActivatedOverride(ObjList, ActivationMethod);
+		}
+
+		if (bOpenEditorForAssets)
+		{
+			AssetEditorSubsystem->OpenEditorForAssets(ObjList);
+		}
 	}
 
 	return true;
