@@ -22,9 +22,7 @@ struct FSocialPlatformDescription
 	UPROPERTY()
 	FString Name;
 
-	/**
-	 * The type of this platform.  For example DESKTOP or MOBILE
-	 */
+	/** The type of this platform.  For example DESKTOP or MOBILE */
 	UPROPERTY()
 	FString PlatformType;
 
@@ -39,6 +37,10 @@ struct FSocialPlatformDescription
 	/** The external association type for this platform */
 	UPROPERTY()
 	FString ExternalAccountType;
+
+	/** The crossplay pool this platform belongs to */
+	UPROPERTY()
+	FString CrossplayPool;
 };
 
 /**
