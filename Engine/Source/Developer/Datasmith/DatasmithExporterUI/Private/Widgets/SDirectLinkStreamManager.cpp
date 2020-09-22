@@ -9,7 +9,9 @@
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDesktopPlatform.h"
+#include "Styling/CoreStyle.h"
 #include "UObject/NoExportTypes.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Layout/SBorder.h"
@@ -21,7 +23,6 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
-
 
 #define LOCTEXT_NAMESPACE "SDirectLinkStreamManager"
 
@@ -196,6 +197,7 @@ public:
 
 void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe>& InEndpoint)
 {
+	bShowingAdavancedSetting = false;
 	SortedColumn = SDirectLinkStreamManagerUtils::SourceColumnId;
 	SortMode = EColumnSortMode::Ascending;
 
@@ -217,21 +219,55 @@ void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TShared
 	ChildSlot
 	[
 		SNew( SVerticalBox )
+		// No connection hint
 		+ SVerticalBox::Slot()
 		.Padding( 2.f )
-		.AutoHeight()
+		.FillHeight( TAttribute<float>( this, &SDirectLinkStreamManager::GetNoConnectionHintFillHeight ) )
+		.VAlign( VAlign_Center )
+		[
+				SNew( STextBlock )
+				.Visibility( this, &SDirectLinkStreamManager::GetNoConnectionHintVisibility )
+				.Text( LOCTEXT("ConnectionHintText", "No connection found.\n\n\
+					Waiting for a Datasmith Direct Link connection to be established.\n\n\
+					Please start an application supporting Datasmith Direct Link such as Twinmotion or Unreal Engine."
+					) )
+				.AutoWrapText( true )
+				.Justification( ETextJustify::Center )
+				.Font( FCoreStyle::GetDefaultFontStyle( "Regular", 13 ) )
+		]
+
+		// Connection view
+		+ SVerticalBox::Slot()
+		.Padding( 2.f )
+		.VAlign( VAlign_Fill )
 		[
 			SAssignNew( ConnectionsView, SListView<TSharedRef<FStreamData>> )
+			.Visibility( this, &SDirectLinkStreamManager::GetConnectionViewVisibility )
 			.ListItemsSource( &Streams )
 			.OnGenerateRow( this, &SDirectLinkStreamManager::OnGenerateRow )
 			.SelectionMode( ESelectionMode::None )
 			.HeaderRow( HeaderRow )
 		]
+
+		// Drop shadow
 		+ SVerticalBox::Slot()
-		.Padding( 2.f)
+		.AutoHeight()
+		.VAlign( VAlign_Bottom )
+		[
+			SNew( SImage )
+			.Visibility( this, &SDirectLinkStreamManager::GetAdavancedSettingVisibility )
+			// Use the drop shadow of a scroll box to add a bit of depth to the setting
+			.Image( &(FCoreStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox").TopShadowBrush) )
+		]
+
+		// Cache directory
+		+ SVerticalBox::Slot()
+		.Padding( 2.f )
+		.AutoHeight()
 		.VAlign( VAlign_Bottom )
 		[
 			SNew( SHorizontalBox )
+			.Visibility( this, &SDirectLinkStreamManager::GetAdavancedSettingVisibility )
 			+ SHorizontalBox::Slot()
 			// More padding to the right to separate the label from the content
 			.Padding( 2.f, 2.f, 4.f, 2.f )
@@ -280,7 +316,26 @@ void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TShared
 				]
 			]
 		]
+		+ SVerticalBox::Slot()
+		.Padding( 2.f )
+		.AutoHeight()
+		.VAlign( VAlign_Bottom )
+		[
+			SAssignNew( ShowAdavancedSettingButton, SButton )
+			.ButtonStyle( &FCoreStyle::Get().GetWidgetStyle<FButtonStyle>( "NoBorder" ) )
+			.HAlign( HAlign_Center )
+			.ContentPadding( 2.f )
+			.OnClicked( this, &SDirectLinkStreamManager::OnShowAdavancedSettingClicked )
+			.ToolTipText( this, &SDirectLinkStreamManager::GetShowAdavancedSettingToolTipText )
+			[
+				SAssignNew( ShowAdavancedSettingImage, SImage )
+				.Image( &(FCoreStyle::Get().GetWidgetStyle<FHeaderRowStyle>("TableView.Header").ColumnStyle.MenuDropdownImage) )
+			]
+		]
 	];
+
+	ShowAdavancedSettingImage->SetRenderTransformPivot( FVector2D(0.5f, 0.5f) );
+
 
 	Endpoint = InEndpoint;
 	Observer = MakeShared<FEndpointObserver>();
@@ -473,5 +528,56 @@ FReply SDirectLinkStreamManager::OnChangeCacheDirectoryClicked()
 	return FReply::Handled();
 }
 
+EVisibility SDirectLinkStreamManager::GetNoConnectionHintVisibility() const
+{
+	return Streams.Num() == 0 ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+float SDirectLinkStreamManager::GetNoConnectionHintFillHeight() const
+{
+	return Streams.Num() == 0 ? 1.f : 0.f;
+}
+
+EVisibility SDirectLinkStreamManager::GetConnectionViewVisibility() const
+{
+	return Streams.Num() != 0 ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SDirectLinkStreamManager::GetAdavancedSettingVisibility() const
+{
+	if ( bShowingAdavancedSetting )
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Collapsed;
+}
+
+FReply SDirectLinkStreamManager::OnShowAdavancedSettingClicked()
+{
+	bShowingAdavancedSetting = !bShowingAdavancedSetting;
+
+	if ( bShowingAdavancedSetting )
+	{
+		ShowAdavancedSettingImage->SetRenderTransform( FSlateRenderTransform( FScale2D(1.f,-1.f) ) );
+
+	}
+	else
+	{
+		ShowAdavancedSettingImage->SetRenderTransform( FSlateRenderTransform( FScale2D(1.f, 1.f) ) );
+	}
+
+	return FReply::Handled();
+}
+
+FText SDirectLinkStreamManager::GetShowAdavancedSettingToolTipText() const
+{
+	if ( bShowingAdavancedSetting )
+	{
+		return LOCTEXT("HideAdavancedSetting", "Hide setting");
+	}
+
+	return LOCTEXT("ShowAdavancedSetting","Show setting");
+}
 
 #undef LOCTEXT_NAMESPACE
