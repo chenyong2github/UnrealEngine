@@ -80,7 +80,10 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
+	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter) override;
+	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter) override;
+
 #endif // WITH_EDITORONLY_DATA
 	//UObject Interface END
 

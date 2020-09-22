@@ -1078,8 +1078,8 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 			{
 				UNiagaraNodeFunctionCall* ModuleToCheck = Cast<UNiagaraNodeFunctionCall>(StackGroups[i].EndNode);
 				FNiagaraParameterMapHistoryBuilder Builder;
-				FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(GetEmitterViewModel()->GetEmitter(), OutputNode, ModuleToCheck, Builder, false);
-
+				UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+				FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(Emitter, OutputNode, ModuleToCheck, Builder, false);
 
 				if (Builder.Histories.Num() == 1)
 				{
@@ -1617,17 +1617,27 @@ bool UNiagaraStackFunctionInput::SupportsRename() const
 void UNiagaraStackFunctionInput::OnRenamed(FText NewNameText)
 {
 	FName NewName(*NewNameText.ToString());
+	FNiagaraVariable OldVar = FNiagaraVariable(InputType, InputParameterHandle.GetName());
+	FNiagaraVariable NewVar = FNiagaraVariable(InputType, NewName);
 	if (InputParameterHandle.GetName() != NewName && OwningAssignmentNode.IsValid() && SourceScript.IsValid())
 	{
+		TSharedRef<FNiagaraSystemViewModel> CachedSysViewModel = GetSystemViewModel();
+		TSharedPtr<FNiagaraEmitterViewModel> CachedEmitterViewModel = GetEmitterViewModel();
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+
 		FScopedTransaction ScopedTransaction(LOCTEXT("RenameInput", "Rename this function's input."));
 		FNiagaraStackGraphUtilities::RenameAssignmentTarget(
-			GetSystemViewModel()->GetSystem(),
-			GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr,
+			System,
+			Emitter,
 			*SourceScript.Get(),
 			*OwningAssignmentNode.Get(),
-			FNiagaraVariable(InputType, InputParameterHandle.GetName()),
+			OldVar,
 			NewName);
 		ensureMsgf(IsFinalized(), TEXT("Input not finalized when renamed."));
+
+		CachedSysViewModel->NotifyParameterRenamedExternally(OldVar, NewVar, Emitter);
+
 	}
 }
 
@@ -1641,14 +1651,18 @@ void UNiagaraStackFunctionInput::DeleteInput()
 	if (UNiagaraNodeAssignment* NodeAssignment = Cast<UNiagaraNodeAssignment>(OwningFunctionCallNode.Get()))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("RemoveInputTransaction", "Remove Input"));
-		
+		TSharedRef<FNiagaraSystemViewModel> CachedSysViewModel = GetSystemViewModel();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+
 		// If there is an override pin and connected nodes, remove them before removing the input since removing
 		// the input will prevent us from finding the override pin.
 		RemoveOverridePin();
-
 		FNiagaraVariable Var = FNiagaraVariable(GetInputType(), GetInputParameterHandle().GetName());
 		NodeAssignment->Modify();
 		NodeAssignment->RemoveParameter(Var);
+
+		CachedSysViewModel->NotifyParameterRemovedExternally(Var, Emitter);
+
 	}
 }
 

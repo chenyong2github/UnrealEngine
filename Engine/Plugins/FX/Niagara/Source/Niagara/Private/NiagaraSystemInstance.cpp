@@ -1066,12 +1066,14 @@ void FNiagaraSystemInstance::ReInitInternal()
 		SystemSimulation = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 	}
 
+	// Make sure that we've gotten propagated instance parameters before calling InitEmitters, as they might bind to them.
+	const FNiagaraSystemCompiledData& SystemCompiledData = System->GetSystemCompiledData();
+	InstanceParameters = SystemCompiledData.InstanceParamStore;
+
+
 	//When re initializing, throw away old emitters and init new ones.
 	Emitters.Reset();
 	InitEmitters();
-	
-	const FNiagaraSystemCompiledData& SystemCompiledData = System->GetSystemCompiledData();
-	InstanceParameters = SystemCompiledData.InstanceParamStore;
 
 	// rebind now after all parameters have been added
 	InstanceParameters.Rebind();

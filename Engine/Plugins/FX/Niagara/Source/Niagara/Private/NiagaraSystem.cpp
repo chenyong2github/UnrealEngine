@@ -151,6 +151,53 @@ void UNiagaraSystem::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 	WaitForCompilationComplete();
 #endif
 }
+
+void UNiagaraSystem::HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts)
+{
+	if (InOldVariable.IsInNameSpace(FNiagaraConstants::UserNamespace))
+	{
+		if (GetExposedParameters().IndexOf(InOldVariable) != INDEX_NONE)
+			GetExposedParameters().RenameParameter(InOldVariable, InNewVariable.GetName());
+		InitSystemCompiledData();
+	}
+
+	for (const FNiagaraEmitterHandle& Handle : GetEmitterHandles())
+	{
+		UNiagaraEmitter* Emitter = Handle.GetInstance();
+		if (Emitter)
+		{
+			Emitter->HandleVariableRenamed(InOldVariable, InNewVariable, false);
+		}
+	}
+
+	if (bUpdateContexts)
+	{
+		FNiagaraSystemUpdateContext UpdateCtx(this, true);
+	}
+}
+
+
+void UNiagaraSystem::HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts)
+{
+	if (InOldVariable.IsInNameSpace(FNiagaraConstants::UserNamespace))
+	{
+		if (GetExposedParameters().IndexOf(InOldVariable) != INDEX_NONE)
+			GetExposedParameters().RemoveParameter(InOldVariable);
+		InitSystemCompiledData();
+	}
+	for (const FNiagaraEmitterHandle& Handle : GetEmitterHandles())
+	{
+		UNiagaraEmitter* Emitter = Handle.GetInstance();
+		if (Emitter)
+		{
+			Emitter->HandleVariableRemoved(InOldVariable, false);
+		}
+	}
+	if (bUpdateContexts)
+	{
+		FNiagaraSystemUpdateContext UpdateCtx(this, true);
+	}
+}
 #endif
 
 void UNiagaraSystem::PostInitProperties()
