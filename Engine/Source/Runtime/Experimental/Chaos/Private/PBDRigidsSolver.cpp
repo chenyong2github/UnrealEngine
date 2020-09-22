@@ -1044,6 +1044,12 @@ namespace Chaos
 		EventPostSolve.Broadcast(MLastDt);
 
 	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::BeginDestroy()
+	{
+		MEvolution->SetCanStartAsyncTasks(false);
+	}
 	
 	// This function is not called during normal Engine execution.  
 	// FPhysScene_ChaosInterface::EndFrame() calls 

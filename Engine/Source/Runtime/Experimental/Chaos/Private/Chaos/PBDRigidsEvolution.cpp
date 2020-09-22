@@ -177,6 +177,7 @@ namespace Chaos
 		, AsyncInternalAcceleration(nullptr)
 		, AsyncExternalAcceleration(nullptr)
 		, bIsSingleThreaded(InIsSingleThreaded)
+		, bCanStartAsyncTasks(true)
 		, LatestExternalTimestampConsumed(-1)
 		, NumIterations(InNumIterations)
 		, NumPushOutIterations(InNumPushOutIterations)
@@ -595,9 +596,11 @@ namespace Chaos
 				FlushInternalAccelerationQueue();
 			}
 			
-			// we run the task for both starting a new accel structure as well as for the time-slicing
-			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded);
-
+			if (bCanStartAsyncTasks)
+			{
+				// we run the task for both starting a new accel structure as well as for the time-slicing
+				AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded);
+			}
 		}
 		else
 		{
