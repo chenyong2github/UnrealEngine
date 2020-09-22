@@ -32,6 +32,8 @@ void FOpenXRARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMod
 		TrackingSystem = static_cast<FOpenXRHMD*>(InTrackingSystem.Get());
 	}
 
+	check(TrackingSystem != nullptr);
+
 	for (auto Plugin : TrackingSystem->GetExtensionPlugins())
 	{
 		CustomAnchorSupport = Plugin->GetCustomAnchorSupport();
@@ -152,8 +154,9 @@ UARPin* FOpenXRARSystem::OnPinComponent(USceneComponent* ComponentToPin, const F
 			XrTime DisplayTime = TrackingSystem->GetDisplayTime();
 			XrSpace TrackingSpace = TrackingSystem->GetTrackingSpace();
 			float WorldToMetersScale = TrackingSystem->GetWorldToMetersScale();
-			if (CustomAnchorSupport->OnPinComponent(NewPin, Session, TrackingSpace, DisplayTime, WorldToMetersScale))
+			if (!CustomAnchorSupport->OnPinComponent(NewPin, Session, TrackingSpace, DisplayTime, WorldToMetersScale))
 			{
+				UE_LOG(LogOpenXRAR, Error, TEXT("Component %s failed to pin."), *ComponentToPin->GetReadableName());
 			}
 		}
 	}
@@ -198,6 +201,67 @@ void FOpenXRARSystem::UpdateAnchors()
 		}
 	}
 }
+
+bool FOpenXRARSystem::IsLocalPinSaveSupported() const
+{
+	return CustomAnchorSupport != nullptr && CustomAnchorSupport->IsLocalPinSaveSupported();
+}
+
+bool FOpenXRARSystem::ArePinsReadyToLoad()
+{
+	if (!IsLocalPinSaveSupported()) { return false; }
+
+	return CustomAnchorSupport->ArePinsReadyToLoad();
+}
+
+void FOpenXRARSystem::LoadARPins(TMap<FName, UARPin*>& LoadedPins)
+{
+	if (!IsLocalPinSaveSupported()) { return; }
+
+	CustomAnchorSupport->LoadARPins(TrackingSystem->GetSession(),
+		[&, this](FName Name)
+		{
+			check(IsInGameThread());
+			for (auto Pin: Pins)
+			{
+				if (Pin->GetFName().ToString().ToLower() == Name.ToString().ToLower())
+				{
+					LoadedPins.Add(Name, Pin);
+					return (UARPin*)nullptr;
+				}
+			}
+			TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface = TrackingSystem->GetARCompositionComponent();
+
+			UARPin* NewPin = NewObject<UARPin>();
+			NewPin->InitARPin(ARSupportInterface.ToSharedRef(), nullptr, FTransform::Identity, nullptr, Name);
+
+			Pins.Add(NewPin);
+			LoadedPins.Add(Name, NewPin);
+			return NewPin;
+		});
+}
+
+bool FOpenXRARSystem::SaveARPin(FName InName, UARPin* InPin)
+{
+	if (!IsLocalPinSaveSupported()) { return false; }
+
+	return CustomAnchorSupport->SaveARPin(TrackingSystem->GetSession(), InName, InPin);
+}
+
+void FOpenXRARSystem::RemoveSavedARPin(FName InName)
+{
+	if (!IsLocalPinSaveSupported()) { return; }
+
+	CustomAnchorSupport->RemoveSavedARPin(TrackingSystem->GetSession(), InName);
+}
+
+void FOpenXRARSystem::RemoveAllSavedARPins()
+{
+	if (!IsLocalPinSaveSupported()) { return; }
+
+	CustomAnchorSupport->RemoveAllSavedARPins(TrackingSystem->GetSession());
+}
+
 
 //=========== End of Pins =============================================
 

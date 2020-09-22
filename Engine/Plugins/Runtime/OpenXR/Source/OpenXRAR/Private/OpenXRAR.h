@@ -143,6 +143,21 @@ public:
 	/** @return the AR texture for the specified type */
 	virtual UARTexture* OnGetARTexture(EARTextureType TextureType) const { return nullptr; }
 
+	// ARPin Local Store support.
+	// Some Platforms/Devices have the ability to persist AR Anchors (real world positiosn) to the device or user account.
+	// They are saved and loaded with a string identifier.
+
+	virtual bool IsLocalPinSaveSupported() const;
+
+	virtual bool ArePinsReadyToLoad();
+
+	virtual void LoadARPins(TMap<FName, UARPin*>& LoadedPins);
+
+	virtual bool SaveARPin(FName InName, UARPin* InPin);
+
+	virtual void RemoveSavedARPin(FName InName);
+
+	virtual void RemoveAllSavedARPins();
 
 	/**
  * Pure virtual that must be overloaded by the inheriting class. Use this
