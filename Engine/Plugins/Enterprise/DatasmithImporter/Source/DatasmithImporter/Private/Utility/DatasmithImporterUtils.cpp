@@ -360,6 +360,11 @@ void FDatasmithImporterUtils::DeleteActor( AActor& Actor )
 			}
 		}
 
+		// Make sure actor is deselected before deletion 
+		if (GEditor && Actor.IsSelected())
+		{
+			GEditor->SelectActor( &Actor, false, true );
+		}
 		// Actually delete the actor
 		ActorWorld->EditorDestroyActor( &Actor, true );
 
