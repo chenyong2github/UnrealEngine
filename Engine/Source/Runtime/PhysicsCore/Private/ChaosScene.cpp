@@ -347,22 +347,6 @@ void FChaosScene::OnSyncBodies()
 	GetSolver()->PullPhysicsStateForEachDirtyProxy_External([](auto){});
 }
 
-bool FChaosScene::AreAnyTasksPending() const
-{
-	if (!IsCompletionEventComplete())
-	{
-		return true;
-	}
-
-	const Chaos::FPBDRigidsSolver* Solver = GetSolver();
-	if (Solver && Solver->AreAnyTasksPending())
-	{
-		return true;
-	}
-	
-	return false;
-}
-
 bool FChaosScene::IsCompletionEventComplete() const
 {
 	for (FGraphEventRef Event : CompletionEvents)
