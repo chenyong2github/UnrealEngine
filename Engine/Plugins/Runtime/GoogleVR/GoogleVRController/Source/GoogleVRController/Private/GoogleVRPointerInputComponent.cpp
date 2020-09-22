@@ -45,7 +45,7 @@ bool UGoogleVRPointerInputComponent::IsBlockingHit() const
 
 AActor* UGoogleVRPointerInputComponent::GetHitActor() const
 {
-	return LatestHitResult.GetActor();
+	return LatestHitResult.GetHitObjectHandle().FetchActor();
 }
 
 UPrimitiveComponent* UGoogleVRPointerInputComponent::GetHitComponent() const

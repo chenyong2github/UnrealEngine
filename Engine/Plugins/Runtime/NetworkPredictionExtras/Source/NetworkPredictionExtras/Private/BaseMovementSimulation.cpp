@@ -88,7 +88,7 @@ bool FBaseMovementSimulation::ResolvePenetration(const FVector& ProposedAdjustme
 			*ActorOwner->GetName(),
 			*UpdatedComponent->GetName(),
 			*UpdatedComponent->GetComponentLocation().ToString(),
-			*GetNameSafe(Hit.GetActor()),
+			*Hit.GetHitObjectHandle().GetName(),
 			*GetNameSafe(Hit.GetComponent()),
 			Hit.Component.IsValid() ? *Hit.GetComponent()->GetComponentLocation().ToString() : TEXT("<unknown>"),
 			Hit.PenetrationDepth,

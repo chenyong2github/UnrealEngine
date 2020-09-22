@@ -131,10 +131,11 @@ protected:
 	// handy way to check indices quickly so we don't need to iterate through the free indices list
 	UPROPERTY(Replicated)
 	TArray<bool> ValidIndices;
-
+#if WITH_EDITOR
 	//
 	// Editor functions
 	//
 protected:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
+#endif
 };

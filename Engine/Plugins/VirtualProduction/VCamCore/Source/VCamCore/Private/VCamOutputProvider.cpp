@@ -423,7 +423,7 @@ void UVCamOutputProvider::OnTouchEventOutsideUMG(const FVector2D& InViewportPosi
 				else
 #endif
 				{
-					LastViewportTouchResult.GetActor()->NotifyActorOnClicked();
+					LastViewportTouchResult.GetHitObjectHandle().FetchActor()->NotifyActorOnClicked();
 				}
 			}
 		}

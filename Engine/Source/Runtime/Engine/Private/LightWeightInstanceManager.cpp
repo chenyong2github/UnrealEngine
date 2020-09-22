@@ -220,7 +220,7 @@ void ALightWeightInstanceManager::OnRep_Transforms()
 {
 	// do nothing
 }
-
+#if WITH_EDITOR
 void ALightWeightInstanceManager::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -232,3 +232,4 @@ void ALightWeightInstanceManager::PostEditChangeProperty(struct FPropertyChanged
 		SetRepresentedClass(RepresentedClass);
 	}
 }
+#endif
