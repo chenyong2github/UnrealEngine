@@ -526,10 +526,11 @@ class ONLINESUBSYSTEMUTILS_API UPartyBeaconState : public UObject
 	 * Get a count of all players for a given platform
 	 * 
 	 * @param InPlatform platform to get a count for
+	 * @param bIncludeMappedPlatforms true if we should include platforms that map to InPlatform (See FPartyBeaconCrossplayPlatformMapping)
 	 * 
 	 * @return number of players for a given platform
 	 */
-	virtual int32 GetReservationPlatformCount(const FString& InPlatform) const;
+	virtual int32 GetReservationPlatformCount(const FString& InPlatform, bool bIncludeMappedPlatforms) const;
 
 	/**
 	* Determine the team number for the given party reservation request.
