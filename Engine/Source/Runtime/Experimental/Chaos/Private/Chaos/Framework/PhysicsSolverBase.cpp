@@ -119,8 +119,12 @@ namespace Chaos
 
 	void FPhysicsSolverBase::DestroySolver(FPhysicsSolverBase& InSolver)
 	{
-		//block on any pending tasks
-		InSolver.WaitOnPendingTasks_External();
+		// DestroySolver should only be called if we are not waiting on async work.
+		// This should be called when World/Scene are cleaning up, World implements IsReadyForFinishDestroy() and returns false when async work is still going.
+		// This means that garbage collection should not cleanup world and this solver until this async work is complete.
+		// We do it this way because it is unsafe for us to block on async task in this function, as it is unsafe to block on a task during GC, as this may schedule
+		// another task that may be unsafe during GC, and cause crashes.
+		ensure(InSolver.IsPendingTasksComplete());
 
 		//make sure any pending commands are executed
 		//we don't have a flush function because of dt concerns (don't want people flushing because commands end up in wrong dt)
@@ -130,6 +134,7 @@ namespace Chaos
 			Command();
 		}
 
+		// Advance in single threaded because we cannot block on an async task here, see above comments.
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 		InSolver.AdvanceAndDispatch_External(0);
 

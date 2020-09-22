@@ -2520,6 +2520,7 @@ public:
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
+	virtual bool IsReadyForFinishDestroy() override;
 	virtual void PostLoad() override;
 	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
 	virtual bool PreSaveRoot(const TCHAR* Filename) override;
