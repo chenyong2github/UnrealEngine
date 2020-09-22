@@ -771,7 +771,14 @@ void CopyTextureData2D(const void* Source,void* Dest,uint32 SizeY,EPixelFormat F
 	if(SourceStride == DestStride || DestStride == 0)
 	{
 		// If the source and destination have the same stride, copy the data in one block.
-		FMemory::Memcpy(Dest,Source,NumBlocksY * SourceStride);
+		if (ensure(Source))
+		{
+			FMemory::Memcpy(Dest,Source,NumBlocksY * SourceStride);
+		}
+		else
+		{
+			FMemory::Memzero(Dest,NumBlocksY * SourceStride);
+		}
 	}
 	else
 	{
@@ -779,11 +786,18 @@ void CopyTextureData2D(const void* Source,void* Dest,uint32 SizeY,EPixelFormat F
 		const uint32 NumBytesPerRow = FMath::Min<uint32>(SourceStride, DestStride);
 		for(uint32 BlockY = 0;BlockY < NumBlocksY;++BlockY)
 		{
-			FMemory::Memcpy(
-				(uint8*)Dest   + DestStride   * BlockY,
-				(uint8*)Source + SourceStride * BlockY,
-				NumBytesPerRow
-				);
+			if (ensure(Source))
+			{
+				FMemory::Memcpy(
+					(uint8*)Dest   + DestStride   * BlockY,
+					(uint8*)Source + SourceStride * BlockY,
+					NumBytesPerRow
+					);
+			}
+			else
+			{
+				FMemory::Memzero((uint8*)Dest + DestStride * BlockY, NumBytesPerRow);
+			}
 		}
 	}
 }
