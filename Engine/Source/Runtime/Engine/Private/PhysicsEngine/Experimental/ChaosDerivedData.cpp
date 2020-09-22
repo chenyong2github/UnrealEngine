@@ -4,6 +4,7 @@
 
 #if WITH_CHAOS
 
+#include "CoreMinimal.h"
 #include "Chaos/Core.h"
 #include "Chaos/CollisionConvexMesh.h"
 #include "Chaos/ChaosArchive.h"
@@ -91,6 +92,128 @@ FChaosDerivedDataCooker::FChaosDerivedDataCooker(UBodySetup* InSetup, FName InFo
 	, RequestedFormat(InFormat)
 {
 
+}
+
+TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSingleTrimesh(const FTriMeshCollisionData& Desc, TArray<int32>& OutFaceRemap)
+{
+	if(Desc.Vertices.Num() == 0)
+	{
+		return nullptr;
+	}
+
+	TArray<FVector> FinalVerts = Desc.Vertices;
+
+	// Push indices into one flat array
+	TArray<int32> FinalIndices;
+	FinalIndices.Reserve(Desc.Indices.Num() * 3);
+	for(const FTriIndices& Tri : Desc.Indices)
+	{
+		//question: It seems like unreal triangles are CW, but couldn't find confirmation for this
+		FinalIndices.Add(Tri.v1);
+		FinalIndices.Add(Tri.v0);
+		FinalIndices.Add(Tri.v2);
+	}
+
+	if(EnableMeshClean)
+	{
+		Chaos::CleanTrimesh(FinalVerts, FinalIndices, nullptr);
+	}
+
+	// Build particle list #BG Maybe allow TParticles to copy vectors?
+	Chaos::TParticles<Chaos::FReal, 3> TriMeshParticles;
+	TriMeshParticles.AddParticles(FinalVerts.Num());
+
+	const int32 NumVerts = FinalVerts.Num();
+	for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+	{
+		TriMeshParticles.X(VertIndex) = FinalVerts[VertIndex];
+	}
+
+	// Build chaos triangle list. #BGTODO Just make the clean function take these types instead of double copying
+	auto LambdaHelper = [&Desc, &FinalVerts, &FinalIndices, &TriMeshParticles, &OutFaceRemap](auto& Triangles) -> TUniquePtr<Chaos::FTriangleMeshImplicitObject>
+	{
+		const int32 NumTriangles = FinalIndices.Num() / 3;
+		bool bHasMaterials = Desc.MaterialIndices.Num() > 0;
+		TArray<uint16> MaterialIndices;
+
+		if(bHasMaterials)
+		{
+			MaterialIndices.Reserve(NumTriangles);
+		}
+
+		Triangles.Reserve(NumTriangles);
+		for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
+		{
+			// Only add this triangle if it is valid
+			const int32 BaseIndex = TriangleIndex * 3;
+			const bool bIsValidTriangle = Chaos::FConvexBuilder::IsValidTriangle(
+				FinalVerts[FinalIndices[BaseIndex]],
+				FinalVerts[FinalIndices[BaseIndex + 1]],
+				FinalVerts[FinalIndices[BaseIndex + 2]]);
+
+			// TODO: Figure out a proper way to handle this. Could these edges get sewn together? Is this important?
+			//if (ensureMsgf(bIsValidTriangle, TEXT("FChaosDerivedDataCooker::BuildTriangleMeshes(): Trimesh attempted cooked with invalid triangle!")));
+			if(bIsValidTriangle)
+			{
+				Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+
+				if(bHasMaterials)
+				{
+					if(EnableMeshClean)
+					{
+						if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
+						{
+							MaterialIndices.Empty();
+							bHasMaterials = false;
+						}
+						else
+						{
+							const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+
+							if(ensure(Desc.MaterialIndices.IsValidIndex(OriginalIndex)))
+							{
+								MaterialIndices.Add(Desc.MaterialIndices[OriginalIndex]);
+							}
+							else
+							{
+								MaterialIndices.Empty();
+								bHasMaterials = false;
+							}
+						}
+					}
+					else
+					{
+						if(ensure(Desc.MaterialIndices.IsValidIndex(TriangleIndex)))
+						{
+							MaterialIndices.Add(Desc.MaterialIndices[TriangleIndex]);
+						}
+						else
+						{
+							MaterialIndices.Empty();
+							bHasMaterials = false;
+						}
+					}
+
+				}
+			}
+		}
+
+		TUniquePtr<TArray<int32>> OutFaceRemapPtr = MakeUnique<TArray<int32>>(OutFaceRemap);
+		return MakeUnique<Chaos::FTriangleMeshImplicitObject>(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices), MoveTemp(OutFaceRemapPtr));
+	};
+
+	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
+	{
+		TArray<Chaos::TVector<uint16, 3>> TrianglesSmallIdx;
+		return LambdaHelper(TrianglesSmallIdx);
+	}
+	else
+	{
+		TArray<Chaos::TVector<int32, 3>> TrianglesLargeIdx;
+		return LambdaHelper(TrianglesLargeIdx);
+	}
+
+	return nullptr;
 }
 
 void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTriangleMeshImplicitObject>>& OutTriangleMeshes, TArray<int32>& OutFaceRemap, const FCookBodySetupInfo& InParams)
