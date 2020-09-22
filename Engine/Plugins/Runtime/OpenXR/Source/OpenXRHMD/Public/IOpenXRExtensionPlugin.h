@@ -21,6 +21,37 @@ public:
 	virtual void OnRemovePin(class UARPin* Pin) = 0;
 
 	virtual void OnUpdatePin(class UARPin* Pin, XrSession InSession, XrSpace TrackingSpace, XrTime DisplayTime, float worldToMeterScale) = 0;
+
+	// ARPin Local Store support.
+	// Some Platforms/Devices have the ability to persist AR Anchors (real world positions) to the device or user account.
+	// They are saved and loaded with a string identifier.
+
+	virtual bool IsLocalPinSaveSupported() const
+	{
+		return false;
+	}
+
+	virtual bool ArePinsReadyToLoad()
+	{
+		return false;
+	}
+
+	virtual void LoadARPins(XrSession InSession, TFunction<UARPin*(FName)> OnCreatePin)
+	{
+	}
+
+	virtual bool SaveARPin(XrSession InSession, FName InName, UARPin* InPin)
+	{
+		return false;
+	}
+
+	virtual void RemoveSavedARPin(XrSession InSession, FName InName)
+	{
+	}
+
+	virtual void RemoveAllSavedARPins(XrSession InSession)
+	{
+	}
 };
 
 class IOpenXRExtensionPlugin : public IModularFeature
