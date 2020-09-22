@@ -22,9 +22,10 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigVariableNodeSpawner"
 
-UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromExternalVariable(const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
+UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromExternalVariable(UControlRigBlueprint* InBlueprint, const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
 {
 	UControlRigVariableNodeSpawner* NodeSpawner = NewObject<UControlRigVariableNodeSpawner>(GetTransientPackage());
+	NodeSpawner->Blueprint = InBlueprint;
 	NodeSpawner->ExternalVariable = InExternalVariable;
 	NodeSpawner->bIsGetter = bInIsGetter;
 	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
@@ -46,6 +47,18 @@ void UControlRigVariableNodeSpawner::Prime()
 {
 	// we expect that you don't need a node template to construct menu entries
 	// from this, so we choose not to pre-cache one here
+}
+
+bool UControlRigVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
+{
+	if (Blueprint.IsValid())
+	{
+		if (!Filter.Context.Blueprints.Contains(Blueprint.Get()))
+		{
+			return true;
+		}
+	}
+	return Super::IsTemplateNodeFilteredOut(Filter);
 }
 
 FBlueprintNodeSignature UControlRigVariableNodeSpawner::GetSpawnerSignature() const
