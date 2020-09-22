@@ -68,7 +68,8 @@ public:
 	*	@unreal.ufunction(override=True)
 	*	def execute(self):
 	*
-	* @param InPipelineQueue The queue that this should process all jobs for.
+	* @param InPipelineQueue The queue that this should process all jobs for. This can be null
+							 when using certain combination of command line render flags/scripting.
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Movie Render Pipeline")
 	void Execute(UMoviePipelineQueue* InPipelineQueue);
@@ -219,6 +220,8 @@ protected:
 		OnExecutorFinishedDelegateNative.Broadcast(this, bFatal);
 		OnExecutorFinishedDelegate.Broadcast(this, bFatal);
 	}
+
+	bool IsAnyJobErrored() const { return bAnyJobHadFatalError; }
 
 	// UMoviePipelineExecutorBase Interface
 	virtual void Execute_Implementation(UMoviePipelineQueue* InPipelineQueue) PURE_VIRTUAL(UMoviePipelineExecutorBase::ExecuteImpl, );
