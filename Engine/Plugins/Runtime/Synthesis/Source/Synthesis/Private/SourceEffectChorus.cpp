@@ -72,96 +72,159 @@ void FSourceEffectChorus::ProcessAudio(const FSoundEffectSourceInputData& InData
 	}
 }
 
-void FSourceEffectChorus::SetDepthModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void FSourceEffectChorus::SetDepthModulator(const USoundModulatorBase* InModulator)
 {
-	DepthMod.UpdateSettings(InModulatorSettings);
+	DepthMod.UpdateModulator(InModulator);
 }
 
-void FSourceEffectChorus::SetFeedbackModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void FSourceEffectChorus::SetFeedbackModulator(const USoundModulatorBase* InModulator)
 {
-	FeedbackMod.UpdateSettings(InModulatorSettings);
+	FeedbackMod.UpdateModulator(InModulator);
 }
 
-void FSourceEffectChorus::SetSpreadModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void FSourceEffectChorus::SetSpreadModulator(const USoundModulatorBase* InModulator)
 {
-	SpreadMod.UpdateSettings(InModulatorSettings);
+	SpreadMod.UpdateModulator(InModulator);
 }
 
-void FSourceEffectChorus::SetDryModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void FSourceEffectChorus::SetDryModulator(const USoundModulatorBase* InModulator)
 {
-	DryMod.UpdateSettings(InModulatorSettings);
+	DryMod.UpdateModulator(InModulator);
 }
 
-void FSourceEffectChorus::SetWetModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void FSourceEffectChorus::SetWetModulator(const USoundModulatorBase* InModulator)
 {
-	WetMod.UpdateSettings(InModulatorSettings);
+	WetMod.UpdateModulator(InModulator);
 }
 
-void FSourceEffectChorus::SetFrequencyModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void FSourceEffectChorus::SetFrequencyModulator(const USoundModulatorBase* InModulator)
 {
-	FrequencyMod.UpdateSettings(InModulatorSettings);
+	FrequencyMod.UpdateModulator(InModulator);
 }
 
 void USourceEffectChorusPreset::OnInit()
 {
-	SetDepthModulator(Settings.SpreadModulation);
-	SetDryModulator(Settings.DryModulation);
-	SetWetModulator(Settings.WetModulation);
-	SetFeedbackModulator(Settings.FeedbackModulation);
-	SetFrequencyModulator(Settings.FrequencyModulation);
-	SetSpreadModulator(Settings.SpreadModulation);
+	SetDepthModulator(Settings.SpreadModulation.Modulator);
+	SetDryModulator(Settings.DryModulation.Modulator);
+	SetWetModulator(Settings.WetModulation.Modulator);
+	SetFeedbackModulator(Settings.FeedbackModulation.Modulator);
+	SetFrequencyModulator(Settings.FrequencyModulation.Modulator);
+	SetSpreadModulator(Settings.SpreadModulation.Modulator);
 }
 
-void USourceEffectChorusPreset::SetDepthModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetDepth(float InDepth)
 {
-	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
+	UpdateSettings([NewDepth = InDepth](FSourceEffectChorusSettings& OutSettings)
 	{
-		InDelay.SetDepthModulator(InModulatorSettings);
+		OutSettings.DepthModulation.Value = NewDepth;
 	});
 }
 
-void USourceEffectChorusPreset::SetFeedbackModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetDepthModulator(const USoundModulatorBase* InModulator)
 {
-	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
+	IterateEffects<FSourceEffectChorus>([InModulator](FSourceEffectChorus& InDelay)
 	{
-		InDelay.SetFeedbackModulator(InModulatorSettings);
+		InDelay.SetDepthModulator(InModulator);
 	});
 }
 
-void USourceEffectChorusPreset::SetFrequencyModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetFeedback(float InFeedback)
 {
-	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
+	UpdateSettings([NewFeedback = InFeedback](FSourceEffectChorusSettings& OutSettings)
 	{
-		InDelay.SetFrequencyModulator(InModulatorSettings);
+		OutSettings.FeedbackModulation.Value = NewFeedback;
 	});
 }
 
-void USourceEffectChorusPreset::SetWetModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetFeedbackModulator(const USoundModulatorBase* InModulator)
 {
-	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
+	IterateEffects<FSourceEffectChorus>([InModulator](FSourceEffectChorus& InDelay)
 	{
-		InDelay.SetWetModulator(InModulatorSettings);
+		InDelay.SetFeedbackModulator(InModulator);
 	});
 }
 
-void USourceEffectChorusPreset::SetDryModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetFrequency(float InFrequency)
 {
-	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
+	UpdateSettings([NewFrequency = InFrequency](FSourceEffectChorusSettings& OutSettings)
 	{
-		InDelay.SetDryModulator(InModulatorSettings);
+		OutSettings.FrequencyModulation.Value = NewFrequency;
 	});
 }
 
-void USourceEffectChorusPreset::SetSpreadModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetFrequencyModulator(const USoundModulatorBase* InModulator)
 {
-	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
+	IterateEffects<FSourceEffectChorus>([InModulator](FSourceEffectChorus& InDelay)
 	{
-		InDelay.SetSpreadModulator(InModulatorSettings);
+		InDelay.SetFrequencyModulator(InModulator);
 	});
 }
 
-void USourceEffectChorusPreset::SetSettings(const FSourceEffectChorusSettings& InSettings)
+void USourceEffectChorusPreset::SetWet(float InWet)
 {
-	UpdateSettings(InSettings);
+	UpdateSettings([NewWet = InWet](FSourceEffectChorusSettings& OutSettings)
+	{
+		OutSettings.WetModulation.Value = NewWet;
+	});
+}
+
+void USourceEffectChorusPreset::SetWetModulator(const USoundModulatorBase* InModulator)
+{
+	IterateEffects<FSourceEffectChorus>([InModulator](FSourceEffectChorus& InDelay)
+	{
+		InDelay.SetWetModulator(InModulator);
+	});
+}
+
+void USourceEffectChorusPreset::SetDry(float InDry)
+{
+	UpdateSettings([NewDry = InDry](FSourceEffectChorusSettings& OutSettings)
+	{
+		OutSettings.DryModulation.Value = NewDry;
+	});
+}
+
+void USourceEffectChorusPreset::SetDryModulator(const USoundModulatorBase* InModulator)
+{
+	IterateEffects<FSourceEffectChorus>([InModulator](FSourceEffectChorus& InDelay)
+	{
+		InDelay.SetDryModulator(InModulator);
+	});
+}
+
+void USourceEffectChorusPreset::SetSpread(float InSpread)
+{
+	UpdateSettings([NewSpread = InSpread](FSourceEffectChorusSettings& OutSettings)
+	{
+		OutSettings.SpreadModulation.Value = NewSpread;
+	});
+}
+
+void USourceEffectChorusPreset::SetSpreadModulator(const USoundModulatorBase* InModulator)
+{
+	IterateEffects<FSourceEffectChorus>([InModulator](FSourceEffectChorus& InDelay)
+	{
+		InDelay.SetSpreadModulator(InModulator);
+	});
+}
+
+void USourceEffectChorusPreset::SetSettings(const FSourceEffectChorusBaseSettings& InSettings)
+{
+	UpdateSettings([NewBaseSettings = InSettings](FSourceEffectChorusSettings& OutSettings)
+	{
+		OutSettings.DepthModulation.Value = NewBaseSettings.Depth;
+		OutSettings.FrequencyModulation.Value = NewBaseSettings.Frequency;
+		OutSettings.FeedbackModulation.Value = NewBaseSettings.Feedback;
+		OutSettings.WetModulation.Value = NewBaseSettings.WetLevel;
+		OutSettings.DryModulation.Value = NewBaseSettings.DryLevel;
+		OutSettings.SpreadModulation.Value = NewBaseSettings.Spread;
+	});
+}
+
+void USourceEffectChorusPreset::SetModulationSettings(const FSourceEffectChorusSettings& InModulationSettings)
+{
+	UpdateSettings(InModulationSettings);
+
+	// Must be called to update modulators
 	OnInit();
 }

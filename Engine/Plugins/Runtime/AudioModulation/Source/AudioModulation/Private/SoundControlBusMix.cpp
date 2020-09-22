@@ -7,7 +7,6 @@
 #include "AudioModulationLogging.h"
 #include "AudioModulationProfileSerializer.h"
 #include "AudioModulationStatics.h"
-#include "AudioModulationSystem.h"
 #include "Engine/World.h"
 #include "SoundControlBus.h"
 
@@ -38,6 +37,8 @@ USoundControlBusMix::USoundControlBusMix(const FObjectInitializer& ObjectInitial
 
 void USoundControlBusMix::BeginDestroy()
 {
+	using namespace AudioModulation;
+
 	Super::BeginDestroy();
 
 	if (UWorld* World = GetWorld())
@@ -48,9 +49,9 @@ void USoundControlBusMix::BeginDestroy()
 			{
 				if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
 				{
-					auto ModSystem = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetModulationSystem();
-					check(ModSystem);
-					ModSystem->DeactivateBusMix(*this);
+					FAudioModulation* Modulation = static_cast<FAudioModulation*>(ModulationInterface);
+					check(Modulation);
+					Modulation->DeactivateBusMix(*this);
 				}
 			}
 		}
@@ -59,25 +60,25 @@ void USoundControlBusMix::BeginDestroy()
 
 void USoundControlBusMix::ActivateMix()
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.ActivateBusMix(*this);
+		OutModulation.ActivateBusMix(*this);
 	});
 }
 
 void USoundControlBusMix::DeactivateMix()
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.DeactivateBusMix(*this);
+		OutModulation.DeactivateBusMix(*this);
 	});
 }
 
 void USoundControlBusMix::DeactivateAllMixes()
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.DeactivateAllBusMixes();
+		OutModulation.DeactivateAllBusMixes();
 	});
 }
 
@@ -132,9 +133,9 @@ void USoundControlBusMix::OnPropertyChanged(FProperty* Property, EPropertyChange
 		}
 	}
 
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.UpdateMix(*this);
+		OutModulation.UpdateMix(*this);
 	});
 }
 #endif // WITH_EDITOR
@@ -160,9 +161,9 @@ void USoundControlBusMix::SaveMixToProfile()
 
 void USoundControlBusMix::SoloMix()
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.SoloBusMix(*this);
+		OutModulation.SoloBusMix(*this);
 	});
 }
 

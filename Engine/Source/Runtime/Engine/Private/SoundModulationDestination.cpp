@@ -14,9 +14,9 @@ namespace Audio
 		: DeviceId(InModulationDestination.DeviceId)
 		, ValueTarget(InModulationDestination.ValueTarget)
 		, bIsBuffered(InModulationDestination.bIsBuffered)
-		, bValueLinear(InModulationDestination.bValueLinear)
+		, bValueNormalized(InModulationDestination.bValueNormalized)
 		, OutputBuffer(InModulationDestination.OutputBuffer)
-		, TempBufferLinear(InModulationDestination.TempBufferLinear)
+		, TempBufferNormalized(InModulationDestination.TempBufferNormalized)
 		, Handle(InModulationDestination.Handle)
 		, ParameterName(InModulationDestination.ParameterName)
 		, Parameter(InModulationDestination.Parameter)
@@ -28,9 +28,9 @@ namespace Audio
 		DeviceId			= InModulationDestination.DeviceId;
 		ValueTarget			= InModulationDestination.ValueTarget;
 		bIsBuffered			= InModulationDestination.bIsBuffered;
-		bValueLinear		= InModulationDestination.bValueLinear;
+		bValueNormalized		= InModulationDestination.bValueNormalized;
 		OutputBuffer		= InModulationDestination.OutputBuffer;
-		TempBufferLinear	= InModulationDestination.TempBufferLinear;
+		TempBufferNormalized	= InModulationDestination.TempBufferNormalized;
 		Handle				= InModulationDestination.Handle;
 		ParameterName		= InModulationDestination.ParameterName;
 		Parameter			= InModulationDestination.Parameter;
@@ -43,9 +43,9 @@ namespace Audio
 		DeviceId			= MoveTemp(InModulationDestination.DeviceId);
 		ValueTarget			= MoveTemp(InModulationDestination.ValueTarget);
 		bIsBuffered			= MoveTemp(InModulationDestination.bIsBuffered);
-		bValueLinear		= MoveTemp(InModulationDestination.bValueLinear);
+		bValueNormalized		= MoveTemp(InModulationDestination.bValueNormalized);
 		OutputBuffer		= MoveTemp(InModulationDestination.OutputBuffer);
-		TempBufferLinear	= MoveTemp(InModulationDestination.TempBufferLinear);
+		TempBufferNormalized	= MoveTemp(InModulationDestination.TempBufferNormalized);
 		Handle				= MoveTemp(InModulationDestination.Handle);
 		ParameterName		= MoveTemp(InModulationDestination.ParameterName);
 		Parameter			= MoveTemp(InModulationDestination.Parameter);
@@ -55,14 +55,14 @@ namespace Audio
 		return *this;
 	}
 
-	void FModulationDestination::Init(FDeviceId InDeviceId, bool bInIsBuffered, bool bInValueLinear)
+	void FModulationDestination::Init(FDeviceId InDeviceId, bool bInIsBuffered, bool bInValueNormalized)
 	{
 		DeviceId = InDeviceId;
 		bIsBuffered = bInIsBuffered;
-		bValueLinear = bInValueLinear;
+		bValueNormalized = bInValueNormalized;
 
 		OutputBuffer.Reset();
-		TempBufferLinear.Reset();
+		TempBufferNormalized.Reset();
 		ParameterName = FName();
 
 		FScopeLock Lock(&SettingsCritSection);
@@ -79,9 +79,9 @@ namespace Audio
 		return bIsActive > 0;
 	}
 
-	void FModulationDestination::Init(FDeviceId InDeviceId, FName InParameterName, bool bInIsBuffered, bool bInValueLinear)
+	void FModulationDestination::Init(FDeviceId InDeviceId, FName InParameterName, bool bInIsBuffered, bool bInValueNormalized)
 	{
-		Init(InDeviceId, bInIsBuffered, bInValueLinear);
+		Init(InDeviceId, bInIsBuffered, bInValueNormalized);
 		ParameterName = InParameterName;
 	}
 
@@ -91,11 +91,11 @@ namespace Audio
 
 		bHasProcessed = 1;
 		float LastTarget = ValueTarget;
-		float NewTargetLinear = Parameter.DefaultValue;
+		float NewTargetNormalized = Parameter.DefaultValue;
 
 		if (Parameter.bRequiresConversion)
 		{
-			Parameter.LinearFunction(&NewTargetLinear, 1);
+			Parameter.NormalizedFunction(&NewTargetNormalized, 1);
 		}
 
 		FScopeLock Lock(&SettingsCritSection);
@@ -103,10 +103,10 @@ namespace Audio
 			bIsActive = Handle.IsValid();
 			if (bIsActive)
 			{
-				Handle.GetValue(NewTargetLinear);
+				Handle.GetValue(NewTargetNormalized);
 			}
 		}
-		ValueTarget = NewTargetLinear;
+		ValueTarget = NewTargetNormalized;
 
 		if (OutputBuffer.Num() != InNumSamples)
 		{
@@ -116,25 +116,25 @@ namespace Audio
 		BufferSetToConstantInplace(OutputBuffer, 1.0f);
 		FadeBufferFast(OutputBuffer, LastTarget, ValueTarget);
 
-		if (TempBufferLinear.Num() != InNumSamples)
+		if (TempBufferNormalized.Num() != InNumSamples)
 		{
-			TempBufferLinear.Reset();
-			TempBufferLinear.AddUninitialized(InNumSamples);
+			TempBufferNormalized.Reset();
+			TempBufferNormalized.AddUninitialized(InNumSamples);
 		}
 
-		FMemory::Memcpy(TempBufferLinear.GetData(), InBufferUnitBase, sizeof(float) * InNumSamples);
+		FMemory::Memcpy(TempBufferNormalized.GetData(), InBufferUnitBase, sizeof(float) * InNumSamples);
 
 		// Convert input buffer to linear space if necessary
 		if (Parameter.bRequiresConversion)
 		{
-			Parameter.LinearFunction(TempBufferLinear.GetData(), TempBufferLinear.Num());
+			Parameter.NormalizedFunction(TempBufferNormalized.GetData(), TempBufferNormalized.Num());
 		}
 
 		// Mix mod value and base value buffers in linear space
-		Parameter.MixFunction(OutputBuffer.GetData(), TempBufferLinear.GetData(), InNumSamples);
+		Parameter.MixFunction(OutputBuffer.GetData(), TempBufferNormalized.GetData(), InNumSamples);
 
 		// Convert result to unit space if necessary
-		if (Parameter.bRequiresConversion && !bValueLinear)
+		if (Parameter.bRequiresConversion && !bValueNormalized)
 		{
 			Parameter.UnitFunction(OutputBuffer.GetData(), OutputBuffer.Num());
 		}
@@ -144,11 +144,11 @@ namespace Audio
 	{
 		bHasProcessed = 1;
 		float LastTarget = ValueTarget;
-		float NewTargetLinear = Parameter.DefaultValue;
+		float NewTargetNormalized = Parameter.DefaultValue;
 
 		if (Parameter.bRequiresConversion)
 		{
-			Parameter.LinearFunction(&NewTargetLinear, 1);
+			Parameter.NormalizedFunction(&NewTargetNormalized, 1);
 		}
 
 		FScopeLock Lock(&SettingsCritSection);
@@ -156,15 +156,15 @@ namespace Audio
 			bIsActive = Handle.IsValid();
 			if (bIsActive)
 			{
-				Handle.GetValue(NewTargetLinear);
+				Handle.GetValue(NewTargetNormalized);
 			}
 		}
 
 		// Convert base to linear space
-		float InValueBaseLinear = InValueUnitBase;
+		float InValueBaseNormalized = InValueUnitBase;
 		if (Parameter.bRequiresConversion)
 		{
-			Parameter.LinearFunction(&InValueBaseLinear, 1);
+			Parameter.NormalizedFunction(&InValueBaseNormalized, 1);
 		}
 
 		if (bIsBuffered)
@@ -177,11 +177,11 @@ namespace Audio
 		}
 
 		// Mix in base value
-		Parameter.MixFunction(&NewTargetLinear, &InValueBaseLinear, 1);
-		ValueTarget = NewTargetLinear;
+		Parameter.MixFunction(&NewTargetNormalized, &InValueBaseNormalized, 1);
+		ValueTarget = NewTargetNormalized;
 
 		// Convert target to unit space if required
-		if (Parameter.bRequiresConversion && !bValueLinear)
+		if (Parameter.bRequiresConversion && !bValueNormalized)
 		{
 			Parameter.UnitFunction(&ValueTarget, 1);
 		}
@@ -216,9 +216,9 @@ namespace Audio
 		return !FMath::IsNearlyEqual(LastTarget, ValueTarget);
 	}
 
-	void FModulationDestination::UpdateSettings(const FSoundModulationDestinationSettings& InSettings)
+	void FModulationDestination::UpdateModulator(const USoundModulatorBase* InModulator)
 	{
-		const TWeakObjectPtr<const USoundModulatorBase> ModPtr(InSettings.Modulator);
+		const TWeakObjectPtr<const USoundModulatorBase> ModPtr(InModulator);
 		auto UpdateHandleLambda = [this, ModPtr]()
 		{
 			if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetAudioDeviceRaw(DeviceId))

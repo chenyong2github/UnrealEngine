@@ -3,19 +3,19 @@
 
 
 #if WITH_EDITOR
-void USoundModulationParameter::RefreshLinearValue()
+void USoundModulationParameter::RefreshNormalizedValue()
 {
-	const float NewLinearValue = ConvertUnitToLinear(Settings.ValueUnit);
-	const float NewLinearValueClamped = FMath::Clamp(NewLinearValue, 0.0f, 1.0f);
-	if (!FMath::IsNearlyEqual(NewLinearValueClamped, Settings.ValueLinear))
+	const float NewNormalizedValue = ConvertUnitToNormalized(Settings.ValueUnit);
+	const float NewNormalizedValueClamped = FMath::Clamp(NewNormalizedValue, 0.0f, 1.0f);
+	if (!FMath::IsNearlyEqual(NewNormalizedValueClamped, Settings.ValueNormalized))
 	{
-		Settings.ValueLinear = NewLinearValueClamped;
+		Settings.ValueNormalized = NewNormalizedValueClamped;
 	}
 }
 
 void USoundModulationParameter::RefreshUnitValue()
 {
-	const float NewUnitValue = ConvertLinearToUnit(Settings.ValueLinear);
+	const float NewUnitValue = ConvertNormalizedToUnit(Settings.ValueNormalized);
 	const float NewUnitValueClamped = FMath::Clamp(NewUnitValue, GetUnitMin(), GetUnitMax());
 	if (!FMath::IsNearlyEqual(NewUnitValueClamped, Settings.ValueUnit))
 	{
@@ -42,7 +42,7 @@ Audio::FModulationUnitConvertFunction USoundModulationParameterFrequencyBase::Ge
 	};
 }
 
-Audio::FModulationLinearConversionFunction USoundModulationParameterFrequencyBase::GetLinearConversionFunction() const
+Audio::FModulationNormalizedConversionFunction USoundModulationParameterFrequencyBase::GetNormalizedConversionFunction() const
 {
 	return [InUnitMin = GetUnitMin(), InUnitMax = GetUnitMax()](float* RESTRICT OutValueBuffer, int32 InNumSamples)
 	{
@@ -67,7 +67,7 @@ Audio::FModulationMixFunction USoundModulationParameterHPFFrequency::GetMixFunct
 USoundModulationParameterHPFFrequency::USoundModulationParameterHPFFrequency(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Settings.ValueLinear = 0.0f;
+	Settings.ValueNormalized = 0.0f;
 
 #if WITH_EDITORONLY_DATA
 	Settings.ValueUnit = GetUnitDefault();
@@ -101,7 +101,7 @@ Audio::FModulationUnitConvertFunction USoundModulationParameterScaled::GetUnitCo
 	};
 }
 
-Audio::FModulationLinearConversionFunction USoundModulationParameterScaled::GetLinearConversionFunction() const
+Audio::FModulationNormalizedConversionFunction USoundModulationParameterScaled::GetNormalizedConversionFunction() const
 {
 	return [InUnitMin = UnitMin, InUnitMax = UnitMax](float* RESTRICT OutValueBuffer, int32 InNumSamples)
 	{
@@ -126,7 +126,7 @@ float USoundModulationParameterScaled::GetUnitMax() const
 USoundModulationParameterBipolar::USoundModulationParameterBipolar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Settings.ValueLinear = 0.5f;
+	Settings.ValueNormalized = 0.5f;
 
 #if WITH_EDITORONLY_DATA
 	Settings.ValueUnit = GetUnitDefault();
@@ -160,7 +160,7 @@ Audio::FModulationUnitConvertFunction USoundModulationParameterBipolar::GetUnitC
 	};
 }
 
-Audio::FModulationLinearConversionFunction USoundModulationParameterBipolar::GetLinearConversionFunction() const
+Audio::FModulationNormalizedConversionFunction USoundModulationParameterBipolar::GetNormalizedConversionFunction() const
 {
 	return [InUnitRange = UnitRange](float* RESTRICT OutValueBuffer, int32 InNumSamples)
 	{
@@ -199,7 +199,7 @@ Audio::FModulationUnitConvertFunction USoundModulationParameterVolume::GetUnitCo
 	};
 }
 
-Audio::FModulationLinearConversionFunction USoundModulationParameterVolume::GetLinearConversionFunction() const
+Audio::FModulationNormalizedConversionFunction USoundModulationParameterVolume::GetNormalizedConversionFunction() const
 {
 	return [InUnitMin = GetUnitMin()](float* RESTRICT OutValueBuffer, int32 InNumSamples)
 	{
