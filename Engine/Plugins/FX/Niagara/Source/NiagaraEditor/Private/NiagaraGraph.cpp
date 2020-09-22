@@ -1137,7 +1137,7 @@ void UNiagaraGraph::FindInputNodes(TArray<UNiagaraNodeInput*>& OutInputNodes, UN
 
 TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOnly) const
 {
-	TArray<UEdGraphNode*> NodesToProcess = bReachableOnly ? FindReachbleNodes() : Nodes;
+	TArray<UEdGraphNode*> NodesToProcess = bReachableOnly ? FindReachableNodes() : Nodes;
 
 	TArray<FNiagaraVariable> Result;
 	for (UEdGraphNode* Node : NodesToProcess)
@@ -1161,7 +1161,7 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOn
 	return Result;
 }
 
-TArray<UEdGraphNode*> UNiagaraGraph::FindReachbleNodes() const
+TArray<UEdGraphNode*> UNiagaraGraph::FindReachableNodes() const
 {
 	TArray<UEdGraphNode*> ResultNodes;
 	TArray<UNiagaraNodeOutput*> OutNodes;
@@ -1689,13 +1689,18 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 			NewScriptVariable->DefaultBinding = (*OldScriptVariable)->DefaultBinding;
 			VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
 		}
-		VariableToScriptVariable.Remove(Parameter);
+
+		if (!bRenameRequestedFromStaticSwitch)
+		{
+			// Static switches take care to remove the last existing parameter themselves, we don't want to remove the parameter if there are still switches with the name around 
+			VariableToScriptVariable.Remove(Parameter);
+		}
 	}
 
 	// Either set the new meta-data or use the existing meta-data.
 	if (!NewScriptVariableFound)
 	{
-		SetPerScriptMetaData(NewParameter, OldMetaData);
+		SetMetaData(NewParameter, OldMetaData);
 	}
 	else
 	{
