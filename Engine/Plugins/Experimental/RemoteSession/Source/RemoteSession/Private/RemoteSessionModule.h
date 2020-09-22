@@ -62,6 +62,7 @@ public:
 
 private:
 	void OnPostInit();
+	bool HandleSettingsSaved();
 
 	TSharedPtr<FRemoteSessionHost> CreateHostInternal(TArray<FRemoteSessionChannelInfo> SupportedChannels, int32 Port) const;
 

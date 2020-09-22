@@ -13,14 +13,7 @@ FBackChannelOSCConnection::FBackChannelOSCConnection(TSharedRef<IBackChannelSock
 	: Connection(InConnection)
 {
 	LastReceiveTime = FPlatformTime::Seconds();
-	LastSendTime = 0;
-	PingTime = 3;
-	HasErrorState = false;
-
-	// OSC connections expect a size followed by payload for TCP connections
-	ExpectedSizeOfNextPacket = 4;
-	ReceivedDataSize = 0;
-
+	
 	const int32 kDefaultBufferSize = 4096;
 	ReceiveBuffer.AddUninitialized(kDefaultBufferSize);
 }
@@ -86,7 +79,7 @@ void FBackChannelOSCConnection::RemoveMessageHandler(const TCHAR* Path, FDelegat
 
 void FBackChannelOSCConnection::ReceivePackets(const float MaxTime /*= 0*/)
 {
-	const float kTimeout = 10;
+	const float kTimeout = FPlatformMisc::IsDebuggerPresent() ? ConnectionTImeoutWhenDebugging : ConnectionTimeout;
 
 	ReceiveData(MaxTime);
 	DispatchMessages();
