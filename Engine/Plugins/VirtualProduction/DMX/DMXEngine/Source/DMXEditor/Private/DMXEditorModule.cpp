@@ -249,75 +249,34 @@ TSharedRef<FDMXEditor> FDMXEditorModule::CreateEditor(const EToolkitMode::Type M
 
 void FDMXEditorModule::AddToolbarExtension(FToolBarBuilder& InOutBuilder)
 {
-	FToolBarBuilder ToolBarComboButtonBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
-	ToolBarComboButtonBuilder.AddComboButton(
+	auto OnGetToolbarButtonBrushLambda = [this]() -> const FSlateIcon
+	{
+		bool bSendEnabled = UDMXProtocolBlueprintLibrary::IsSendDMXEnabled();
+		bool bReceiveEnabled = UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled();
+
+		if (bSendEnabled && bReceiveEnabled)
+		{
+			return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_snd-rcv");
+		}
+		else if (bSendEnabled)
+		{
+			return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_snd");
+		}
+		else if (bReceiveEnabled)
+		{
+			return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_rcv");
+		}
+
+		return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_none");
+	};
+
+	InOutBuilder.AddComboButton(
 		FUIAction(),
 		FOnGetContent::CreateRaw(this, &FDMXEditorModule::GenerateMonitorsMenu, SharedDMXEditorCommands),
-		LOCTEXT("LevelEditorToolbarButton.Label", "DMX"),
-		LOCTEXT("LevelEditorToolbarButton.ToolTip", "DMX Tools"),
-		FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon")
-		);
-
-	auto OnGetSendEnabledBrushLambda = [this]() -> const FSlateBrush*
-	{
-		if (UDMXProtocolBlueprintLibrary::IsSendDMXEnabled())
-		{
-			return FDMXEditorStyle::Get().GetBrush("DMXEditor.LevelEditor.IOEnabled");
-		}
-
-		return FDMXEditorStyle::Get().GetBrush("DMXEditor.LevelEditor.IODisabled");
-	};
-
-	auto OnGetReceiveEnabledBrushLambda = [this]() -> const FSlateBrush*
-	{
-		if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
-		{
-			return FDMXEditorStyle::Get().GetBrush("DMXEditor.LevelEditor.IOEnabled");
-		}
-
-		return FDMXEditorStyle::Get().GetBrush("DMXEditor.LevelEditor.IODisabled");
-	};
-
-	InOutBuilder.AddWidget(
-		SNew(SOverlay)
-		+ SOverlay::Slot()
-		[
-			ToolBarComboButtonBuilder.MakeWidget()
-		]
-		+ SOverlay::Slot()
-		.Padding(6.0f, 2.0f, 2.0f, 2.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SGridPanel)
-			+ SGridPanel::Slot(0, 0)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("LevelEditorToolbarButtonOverlay.Text.Receive", "rcv"))
-				.TextStyle(FEditorStyle::Get(), "MessageLog")
-			]
-			+ SGridPanel::Slot(1, 0)
-			.VAlign(VAlign_Center)
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SImage)
-				.Image_Lambda(OnGetReceiveEnabledBrushLambda)
-				.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.5f))
-			]
-			+ SGridPanel::Slot(0, 1)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("LevelEditorToolbarButtonOverlay.Text.Send", "snd"))
-				.TextStyle(FEditorStyle::Get(), "MessageLog")
-			]
-			+ SGridPanel::Slot(1, 1)
-			.VAlign(VAlign_Center)
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SImage)
-				.Image_Lambda(OnGetSendEnabledBrushLambda)
-				.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.5f))
-			]
-		]);
+		LOCTEXT("InputInfo_Label", "DMX"),
+		LOCTEXT("InputInfo_ToolTip", "DMX Tools"),
+		TAttribute<FSlateIcon>::Create(OnGetToolbarButtonBrushLambda)
+	);
 }
 
 TSharedRef<SWidget> FDMXEditorModule::GenerateMonitorsMenu(TSharedPtr<FUICommandList> InCommands)
