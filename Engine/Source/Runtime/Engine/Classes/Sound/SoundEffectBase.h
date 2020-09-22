@@ -104,6 +104,7 @@ protected:
 
 	FThreadSafeBool bChanged;
 	TWeakObjectPtr<USoundEffectPreset> Preset;
+	uint32 ParentPresetUniqueId = INDEX_NONE;
 
 	FThreadSafeBool bIsRunning;
 	FThreadSafeBool bIsActive;
