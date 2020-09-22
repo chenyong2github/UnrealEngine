@@ -718,7 +718,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetCellSize(TEXT("Net.RepGraph.Sp
 FAutoConsoleCommand RepDriverListsAddTestmd(TEXT("Net.RepGraph.Lists.AddTest"), TEXT(""), FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray< FString >& Args) 
 { 
 	static FActorRepListRefView List;
-	List.PrepareForWrite(true);
 
 	int32 Num = 1;
 	if (Args.Num() > 0 )
@@ -1055,7 +1054,7 @@ void UReplicationGraphNode::LogNode(FReplicationGraphDebugInfo& DebugInfo, const
 
 void LogActorRepList(FReplicationGraphDebugInfo& DebugInfo, FString Prefix, const FActorRepListRefView& List)
 {
-	if (List.IsValid() == false || List.Num() <= 0)
+	if (List.Num() <= 0)
 	{
 		return;
 	}
