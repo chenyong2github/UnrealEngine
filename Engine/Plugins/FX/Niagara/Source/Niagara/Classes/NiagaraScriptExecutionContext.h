@@ -173,6 +173,7 @@ struct FNiagaraScriptExecutionContextBase
 	static uint32 TickCounter;
 
 	int32 HasInterpolationParameters : 1;
+	int32 bAllowParallel : 1;
 #if STATS
 	TArray<FStatScopeData> StatScopeData;
 	TMap<TStatIdData const*, float> ExecutionTimings;
