@@ -1,0 +1,105 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "/Engine/Private/DeferredShadingCommon.ush"
+
+#define DIGBUFFER_ENABLED		1
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DIGBuffer_DecodeDiffuseColor(in float2 ScreenUV, out bool IsValid, out float3 OutValue)
+{
+#if DIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.DiffuseColor;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
+void DIGBuffer_DecodeWorldNormal(in float2 ScreenUV, out bool IsValid, out float3 OutValue)
+{
+#if DIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.WorldNormal;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
+void DIGBuffer_DecodeVelocity(in float2 ScreenUV, out bool IsValid, out float4 OutValue)
+{
+#if DIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.Velocity;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
+void DIGBuffer_DecodeBaseColor(in float2 ScreenUV, out bool IsValid, out float3 OutValue)
+{
+#if DIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.BaseColor;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
+void DIGBuffer_DecodeMetallic(in float2 ScreenUV, out bool IsValid, out float OutValue)
+{
+#if DIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.Metallic;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
+void DIGBuffer_DecodeSpecular(in float2 ScreenUV, out bool IsValid, out float OutValue)
+{
+#if DIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.Specular;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
+void DIGBuffer_DecodeRoughness(in float2 ScreenUV, out bool IsValid, out float OutValue)
+{
+#if DIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.Roughness;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
+void DIGBuffer_DecodeDepth(in float2 ScreenUV, out bool IsValid, out float OutValue)
+{
+#if DIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.Depth;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
