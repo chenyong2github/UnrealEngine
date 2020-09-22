@@ -1,18 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "VirtualHeightfieldMeshEnable.h"
+
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "CoreGlobals.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/UObjectIterator.h"
 #include "VirtualHeightfieldMeshComponent.h"
-#include "VT/RuntimeVirtualTextureEnum.h"
+#include "VT/RuntimeVirtualTextureVolume.h"
 
 namespace VirtualHeightfieldMesh
 {
 	/** CVar to toggle support for virtual heightfield mesh. */
 	static TAutoConsoleVariable<int32> CVarVHMEnable(
 		TEXT("r.VHM.Enable"),
-		0,
+		1,
 		TEXT("Enable virtual heightfield mesh"),
 		ECVF_RenderThreadSafe
 	);
@@ -34,7 +36,15 @@ namespace VirtualHeightfieldMesh
 			{
 				It->MarkRenderStateDirty();
 
-				if (It->GetVirtualTexture() != nullptr)
+				ARuntimeVirtualTextureVolume* VirtualTextureVolume = It->GetVirtualTextureVolume();
+				URuntimeVirtualTextureComponent* VirtualTextureComponent = VirtualTextureVolume != nullptr ? VirtualTextureVolume->VirtualTextureComponent : nullptr;
+				URuntimeVirtualTexture* VirtualTexture = VirtualTextureComponent != nullptr ? VirtualTextureComponent->GetVirtualTexture() : nullptr;
+
+				if (VirtualTextureComponent != nullptr)
+				{
+					VirtualTextureComponent->MarkRenderStateDirty();
+				}
+				if (VirtualTexture != nullptr)
 				{
 					RuntimeVirtualTextures.AddUnique(It->GetVirtualTexture());
 				}
@@ -55,4 +65,9 @@ namespace VirtualHeightfieldMesh
 	}
 
 	FAutoConsoleVariableSink GConsoleVariableSink(FConsoleCommandDelegate::CreateStatic(&OnUpdate));
+
+	bool IsEnabled(FStaticFeatureLevel InFeatureLevel)
+	{
+		return CVarVHMEnable.GetValueOnAnyThread() != 0 && (InFeatureLevel >= ERHIFeatureLevel::SM5) && UseVirtualTexturing(InFeatureLevel);
+	}
 }

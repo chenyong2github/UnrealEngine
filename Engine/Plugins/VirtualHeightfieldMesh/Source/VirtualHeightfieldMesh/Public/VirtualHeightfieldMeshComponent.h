@@ -21,6 +21,10 @@ protected:
 	/** The RuntimeVirtualTextureVolume that contains virtual texture heightmap. */
 	UPROPERTY(EditAnywhere, Category = Heightfield)
 	TSoftObjectPtr<ARuntimeVirtualTextureVolume> VirtualTexture;
+	
+	/** UObject ref resolved from VirtualTexture weak ref. */
+	UPROPERTY(Transient)
+	ARuntimeVirtualTextureVolume* VirtualTextureRef;
 
 	/** Placeholder for details customization image. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
@@ -70,7 +74,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Occlusion LODs", ClampMin = "0", ClampMax = "5"))
 	int32 NumOcclusionLods = 0;
 
+	/** Allows us to only see this actor in game and not in the Editor. This is useful if we only want to see the Heightfield virtual texture source primitives during edition. */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Actor Hidden In Editor", DisplayAfter = "bHiddenInGame"))
+	bool bHiddenInEditor = true;
+
 public:
+	/** Get the HiddenInEditor flag  on this component. */
+	bool GetHiddenInEditor() const { return bHiddenInEditor; }
+
 	/** Get the associated runtime virtual texture volume. Can return nullptr if the volume is from an unloaded level. */
 	ARuntimeVirtualTextureVolume* GetVirtualTextureVolume() const;
 	/** Get the associated runtime virtual texture transform including any texel snap offset. */
@@ -92,12 +103,29 @@ public:
 	void InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData);
 #endif
 
+	UMaterialInterface* GetMaterial() const { return Material; }
 	float GetLod0ScreenSize() const { return Lod0ScreenSize; }
 	float GetLod0Distribution() const { return Lod0Distribution; }
 	float GetLodDistribution() const { return LodDistribution; }
 	int32 GetNumSubdivisionLods() const { return NumSubdivisionLods; }
 	int32 GetNumTailLods() const { return NumTailLods; }
 	int32 GetNumOcclusionLods() const { return NumOcclusionLods; }
+
+protected:
+	/** Function used by the VirtualTexture delegate to retrieve our HidePrimitives flags. */
+	UFUNCTION()
+	void GatherHideFlags(bool& InOutHidePrimitivesInEditor, bool& InOutHidePrimitivesInGame) const;
+
+	//~ Begin UObject Interface.
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	//~ End UObject Interface.
+
+	//~ Begin UActorComponent Interface
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
+	//~ End UActorComponent Interface
 
 	//~ Begin USceneComponent Interface
 	virtual bool IsVisible() const override;
