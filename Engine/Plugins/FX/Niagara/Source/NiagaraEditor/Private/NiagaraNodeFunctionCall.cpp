@@ -672,7 +672,14 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 	}
 	else if (Signature.IsValid())
 	{
-		if (Signature.bExperimental)
+		if (Signature.bSoftDeprecatedFunction)
+		{
+			UEdGraphNode::bHasCompilerMessage = true;
+			UEdGraphNode::ErrorType = EMessageSeverity::Info;
+
+			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionDeprecatedSoftly", "There is a newer version of this function, consider switching over to it.");
+		}
+		else if (Signature.bExperimental)
 		{
 			UEdGraphNode::bHasCompilerMessage = true;
 			UEdGraphNode::ErrorType = EMessageSeverity::Info;
