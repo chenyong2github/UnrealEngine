@@ -565,7 +565,7 @@ TSharedPtr< IDatasmithBaseMaterialElement > FDatasmithMaxMatExport::ExportUnique
 	{
 		if (FString(DatasmithScene->GetMaterial(i)->GetName()) == MaterialName)
 		{
-			return TSharedPtr< IDatasmithBaseMaterialElement >();
+			return DatasmithScene->GetMaterial(i);
 		}
 	}
 
