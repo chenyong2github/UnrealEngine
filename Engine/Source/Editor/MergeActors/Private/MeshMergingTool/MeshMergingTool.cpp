@@ -173,6 +173,8 @@ bool FMeshMergingTool::RunMerge(const FString& PackageName)
 				MergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
 				MergedActor->SetActorLabel(MergedMesh->GetName());
 				World->UpdateCullDistanceVolumes(MergedActor, MergedActor->GetStaticMeshComponent());
+				GEditor->SelectNone(true, true);
+				GEditor->SelectActor(MergedActor, true, true);
 				// Remove source actors
 				for (AActor* Actor : Actors)
 				{
