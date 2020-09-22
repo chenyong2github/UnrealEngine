@@ -25,7 +25,7 @@ public:
 
 REGISTER_CHANNEL_FACTORY(FRemoteSessionLiveLinkChannel, FRemoteSessionLiveLinkChannelFactoryWorker, ERemoteSessionChannelMode::Read);
 
-#define MESSAGE_ADDRESS TEXT("/RS.LiveLink")
+#define LL_MESSAGE_ADDRESS TEXT("/RS.LiveLink")
 
 FRemoteSessionLiveLinkChannel::FRemoteSessionLiveLinkChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection)
 	: IRemoteSessionChannel(InRole, InConnection)
@@ -41,7 +41,7 @@ FRemoteSessionLiveLinkChannel::~FRemoteSessionLiveLinkChannel()
 	if (Role == ERemoteSessionChannelMode::Read)
 	{
 		// Remove the callback so it doesn't call back on an invalid this
-		Connection->RemoveRouteDelegate(MESSAGE_ADDRESS, MessageCallbackHandle);
+		Connection->RemoveRouteDelegate(LL_MESSAGE_ADDRESS, MessageCallbackHandle);
 	}
 }
 
