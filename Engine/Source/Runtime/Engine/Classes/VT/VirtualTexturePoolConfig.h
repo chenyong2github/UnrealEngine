@@ -18,7 +18,7 @@ struct FVirtualTextureSpacePoolConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	FVirtualTextureSpacePoolConfig() : MinTileSize(0), MaxTileSize(0), SizeInMegabyte(0), bAllowSizeScale(false) {}
+	FVirtualTextureSpacePoolConfig() : MinTileSize(0), MaxTileSize(0), SizeInMegabyte(0), bAllowSizeScale(false), ScalabilityGroup(0) {}
 
 	/** Minimum tile size to match (including tile border). */
 	UPROPERTY()
@@ -39,6 +39,10 @@ struct FVirtualTextureSpacePoolConfig
 	/** Allow the size to allocate for the pool to be scaled by some factor. */
 	UPROPERTY()
 	bool bAllowSizeScale;
+
+	/** Scalability group index that gives the size scale. */
+	UPROPERTY()
+	uint32 ScalabilityGroup;
 
 	/** Is this the default config? Use this setting when we can't find any other match. */
 	bool IsDefault() const { return Formats.Num() == 0; }

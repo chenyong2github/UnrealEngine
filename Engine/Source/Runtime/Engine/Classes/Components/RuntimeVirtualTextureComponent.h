@@ -33,6 +33,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTexture)
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
 
+	/** Set to true to enable scalability settings for the virtual texture. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (InlineEditConditionToggle))
+	bool bEnableScalability = false;
+
+	/** Group index of the scalability settings to use for the virtual texture. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (UIMin = "0", UIMax = "2", EditCondition = bEnableScalability))
+	uint32 ScalabilityGroup = 0;
+
 	/** Texture object containing streamed low mips. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTextureBuild)
 	UVirtualTextureBuilder* StreamingTexture = nullptr;
@@ -71,6 +79,12 @@ public:
 
 	/** Get the runtime virtual texture object on this component. */
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
+
+	/** Get if scalability settings are enabled. */
+	bool IsScalable() const { return bEnableScalability; }
+
+	/** Get group index of the scalability settings. */
+	uint32 GetScalabilityGroup() const { return ScalabilityGroup; }
 
 	/** Get the streaming virtual texture object on this component. */
 	UVirtualTextureBuilder* GetStreamingTexture() const { return StreamingTexture; }
