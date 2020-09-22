@@ -1250,24 +1250,27 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 			if (CRTrack)
 			{
 				UControlRig* TrackControlRig = CRTrack->GetControlRig();
-				if (ControlRigEditMode)
+				if (TrackControlRig)
 				{
-					ControlRig = ControlRigEditMode->GetControlRig(false);
-					if (ControlRig != TrackControlRig)
+					if (ControlRigEditMode)
 					{
-						ControlRigEditMode->SetObjects(TrackControlRig, nullptr, GetSequencer());
-					}
-					break;
-				}
-				else
-				{
-					GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-					ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-					if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = TrackControlRig->GetObjectBinding())
-					{
-						if (ControlRigEditMode)
+						ControlRig = ControlRigEditMode->GetControlRig(false);
+						if (ControlRig != TrackControlRig)
 						{
 							ControlRigEditMode->SetObjects(TrackControlRig, nullptr, GetSequencer());
+						}
+						break;
+					}
+					else
+					{
+						GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
+						ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+						if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = TrackControlRig->GetObjectBinding())
+						{
+							if (ControlRigEditMode)
+							{
+								ControlRigEditMode->SetObjects(TrackControlRig, nullptr, GetSequencer());
+							}
 						}
 					}
 				}
