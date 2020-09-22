@@ -2,8 +2,9 @@
 
 #include "USDStageAssetImportFactory.h"
 
-#include "USDLog.h"
 #include "USDAssetImportData.h"
+#include "USDErrorUtils.h"
+#include "USDLog.h"
 #include "USDStageImporter.h"
 #include "USDStageImporterModule.h"
 #include "USDStageImportOptions.h"
@@ -62,13 +63,13 @@ UObject* UUsdStageAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject
 	{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport( this, InClass, InParent, InName, Parms );
 
+		FScopedUsdMessageLog ScopedMessageLog;
+
 		UUsdStageImporter* USDImporter = IUsdStageImporterModule::Get().GetImporter();
 		USDImporter->ImportFromFile(ImportContext);
 
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, ImportContext.SceneActor);
 		GEditor->BroadcastLevelActorListChanged();
-
-		ImportContext.DisplayErrorMessages(ImportContext.bIsAutomated);
 
 		ImportedObject = ImportContext.ImportedPackage ? Cast<UObject>(ImportContext.ImportedPackage) : Cast<UObject>(ImportContext.SceneActor);
 	}
@@ -129,14 +130,14 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 {
 	if (!Obj)
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("ReimportErrorInvalidAsset", "Failed to reimport asset as it is invalid!"));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "ReimportErrorInvalidAsset", "Failed to reimport asset as it is invalid!" ) );
 		return EReimportResult::Failed;
 	}
 
 	UUsdAssetImportData* ImportData = UUsdStageImporter::GetAssetImportData(Obj);
 	if (!ImportData)
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("ReimportErrorNoImportData", "Failed to reimport asset '{0}' as it doesn't seem to have import data!"), FText::FromName(Obj->GetFName())));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, FText::Format( LOCTEXT( "ReimportErrorNoImportData", "Failed to reimport asset '{0}' as it doesn't seem to have import data!" ), FText::FromName( Obj->GetFName() ) ) );
 		return EReimportResult::Failed;
 	}
 
@@ -144,17 +145,17 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 	const bool bAllowActorImport = false;
 	if (!ImportContext.Init(Obj->GetName(), ImportData->GetFirstFilename(), Obj->GetName(), Obj->GetFlags(), IsAutomatedImport(), bIsReimport, bAllowActorImport))
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("ReimportErrorNoContext", "Failed to initialize reimport context for asset '{0}'!"), FText::FromName(Obj->GetFName())));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, FText::Format( LOCTEXT( "ReimportErrorNoContext", "Failed to initialize reimport context for asset '{0}'!" ), FText::FromName( Obj->GetFName() ) ) );
 		return EReimportResult::Failed;
 	}
 
 	ImportContext.PackagePath = Obj->GetOutermost()->GetPathName();
 
+	FScopedUsdMessageLog ScopedMessageLog;
+
 	UUsdStageImporter* USDImporter = IUsdStageImporterModule::Get().GetImporter();
 	UObject* ReimportedAsset = nullptr;
 	bool bSuccess = USDImporter->ReimportSingleAsset(ImportContext, Obj, ImportData, ReimportedAsset);
-
-	ImportContext.DisplayErrorMessages(ImportContext.bIsAutomated);
 
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetReimport(Obj);
 
