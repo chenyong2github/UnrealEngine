@@ -12,6 +12,7 @@
 #include "SoundFieldRendering.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Async/Async.h"
+#include "Stats/Stats.h"
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
@@ -131,6 +132,13 @@ static FAutoConsoleCommand GModulationSetMaxPitchRange(
 
 // Disable subframe timing logic
 #define AUDIO_SUBFRAME_ENABLED 0
+
+// Define profiling for source manager. 
+DEFINE_STAT(STAT_AudioMixerHRTF);
+DEFINE_STAT(STAT_AudioMixerSourceBuffers);
+DEFINE_STAT(STAT_AudioMixerSourceEffectBuffers);
+DEFINE_STAT(STAT_AudioMixerSourceManagerUpdate);
+DEFINE_STAT(STAT_AudioMixerSourceOutputBuffers);
 
 namespace Audio
 {
@@ -1656,6 +1664,7 @@ namespace Audio
 	void FMixerSourceManager::ComputeSourceBuffersForIdRange(const bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, SourceBuffers);
+		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceBuffers);
 
 		const double AudioRenderThreadTime = MixerDevice->GetAudioRenderThreadTime();
 		const double AudioClockDelta = MixerDevice->GetAudioClockDelta();
@@ -1965,6 +1974,7 @@ namespace Audio
 		if (SourceInfo.bUseHRTFSpatializer)
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, HRTF);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerHRTF);
 
 			AUDIO_MIXER_CHECK(SpatializationPlugin.IsValid());
 			AUDIO_MIXER_CHECK(SourceInfo.NumInputChannels <= MaxChannelsSupportedBySpatializationPlugin);
@@ -2035,6 +2045,7 @@ namespace Audio
 	void FMixerSourceManager::ComputePostSourceEffectBufferForIdRange(bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, SourceEffectsBuffers);
+		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceEffectBuffers);
 
 		const bool bIsDebugModeEnabled = DebugSoloSources.Num() > 0;
 
@@ -2280,6 +2291,7 @@ namespace Audio
 	void FMixerSourceManager::ComputeOutputBuffersForIdRange(const bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, SourceOutputBuffers);
+		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceOutputBuffers);
 
 		for (int32 SourceId = SourceIdStart; SourceId < SourceIdEnd; ++SourceId)
 		{
@@ -2541,6 +2553,7 @@ namespace Audio
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		CSV_SCOPED_TIMING_STAT(Audio, SourceManagerUpdate);
+		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceManagerUpdate);
 
 		if (FPlatformProcess::SupportsMultithreading())
 		{
