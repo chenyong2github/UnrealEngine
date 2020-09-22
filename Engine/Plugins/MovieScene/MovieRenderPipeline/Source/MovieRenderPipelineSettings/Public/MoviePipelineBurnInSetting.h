@@ -14,12 +14,13 @@ class UMoviePipelineBurnInWidget;
 namespace MoviePipeline { struct FMoviePipelineRenderPassInitSettings; }
 
 UCLASS(Blueprintable)
-class UMoviePipelineBurnInSetting : public UMoviePipelineRenderPass
+class MOVIERENDERPIPELINESETTINGS_API UMoviePipelineBurnInSetting : public UMoviePipelineRenderPass
 {
 	GENERATED_BODY()
 
 	UMoviePipelineBurnInSetting()
 		: BurnInClass(TEXT("/MovieRenderPipeline/Blueprints/DefaultBurnIn.DefaultBurnIn_C"))
+		, bCompositeOntoFinalImage(true)
 	{
 	}
 
@@ -42,6 +43,8 @@ public:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(MetaClass="MoviePipelineBurnInWidget"), Category = "Widget Settings")
 	FSoftClassPath BurnInClass;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipelineBurnInWidget"), Category = "Widget Settings")
+	bool bCompositeOntoFinalImage;
 
 private:
 	FIntPoint OutputResolution;
