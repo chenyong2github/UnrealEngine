@@ -387,6 +387,7 @@ static void GetTextureBuildSettings(
 	}
 	else if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
+		OutBuildSettings.bStreamable = GSupportsTexture2DArrayStreaming;
 		OutBuildSettings.bTextureArray = true;
 	}
 	else if (Texture.IsA(UVolumeTexture::StaticClass()))

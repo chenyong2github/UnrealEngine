@@ -6,6 +6,8 @@
 
 #include "Rendering/StreamableTextureResource.h"
 #include "Engine/Texture.h"
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ProfilingDebugging/ScopedDebugInfo.h"
 #include "RenderUtils.h"
@@ -96,9 +98,11 @@ FStreamableTextureResource::FStreamableTextureResource(UTexture* InOwner, const 
 	bSRGB = InOwner->SRGB;
 	bGreyScaleFormat = (PixelFormat == PF_G8) || (PixelFormat == PF_BC4);
 
+	Filter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(InOwner);
+
 	// Get the biggest mips size, might be different from the actual resolution (depending on NumOfResidentLODs).
 	const FTexture2DMipMap& Mip0 = PlatformData->Mips[State.AssetLODBias];
-	SizeX = Mip0.SizeX;
+	SizeX = Mip0.SizeX;	
 	SizeY = Mip0.SizeY;
 	SizeZ = Mip0.SizeZ;
 
