@@ -395,11 +395,11 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 {
 	RootVariable.SetName(InValue);
 
-	bool bIsRootParticleValue = RootVariable.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace);
-	bool bIsRootUnaliasedEmitterValue = RootVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace);
-	bool bIsAliasedEmitterValue = InEmitter ? RootVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()) : false;
-	bool bIsRootSystemValue = RootVariable.IsInNameSpace(FNiagaraConstants::SystemNamespace);
-	bool bIsRootUserValue = RootVariable.IsInNameSpace(FNiagaraConstants::UserNamespace);
+	const bool bIsRootParticleValue = RootVariable.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace);
+	const bool bIsRootUnaliasedEmitterValue = RootVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace);
+	const bool bIsAliasedEmitterValue = InEmitter ? RootVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()) : false;
+	const bool bIsRootSystemValue = RootVariable.IsInNameSpace(FNiagaraConstants::SystemNamespace);
+	const bool bIsRootUserValue = RootVariable.IsInNameSpace(FNiagaraConstants::UserNamespace);
 
 	// We clear out the namespace for the sourcemode so that we can keep the values up-to-date if you change the source mode.
 	if (bIsRootParticleValue && InSourceMode == ENiagaraRendererSourceDataMode::Particles)
@@ -412,7 +412,7 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
 		BindingSourceMode = ENiagaraBindingSource::ImplicitFromSource;
 	}
-	else if ((InEmitter && bIsAliasedEmitterValue) && InSourceMode == ENiagaraRendererSourceDataMode::Emitter)
+	else if (bIsAliasedEmitterValue && InSourceMode == ENiagaraRendererSourceDataMode::Emitter)
 	{
 		// First, replace unaliased emitter namespace with "Emitter" namespace
 		TMap<FString, FString> Aliases;
@@ -431,9 +431,12 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 	else if (bIsRootUnaliasedEmitterValue || bIsAliasedEmitterValue)
 	{
 		// First, replace unaliased emitter namespace with "Emitter" namespace
-		TMap<FString, FString> Aliases;
-		Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
-		RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
+		if (InEmitter != nullptr)
+		{
+			TMap<FString, FString> Aliases;
+			Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
+			RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
+		}
 
 		// Now strip out "Emitter"
 		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
@@ -580,7 +583,7 @@ bool FNiagaraVariableAttributeBinding::Matches(const FNiagaraVariableBase& OldVa
 
 	// Now we need to deal with any aliased emitter namespaces for the match. If so resolve the aliases then try the match.
 	FNiagaraVariable OldVarAliased = OldVariable;
-	if (OldVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+	if (InEmitter && OldVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
 	{
 		// First, resolve any aliases
 		TMap<FString, FString> Aliases;
@@ -726,11 +729,17 @@ bool FNiagaraMaterialAttributeBinding::Matches(const FNiagaraVariableBase& OldVa
 
 void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmitter) 
 {
-	TMap<FString, FString> Aliases;
-	Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
-	ResolvedNiagaraVariable = FNiagaraVariable::ResolveAliases(NiagaraVariable, Aliases);
+	if (InEmitter != nullptr)
+	{
+		TMap<FString, FString> Aliases;
+		Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
+		ResolvedNiagaraVariable = FNiagaraVariable::ResolveAliases(NiagaraVariable, Aliases);
+	}
+	else
+	{
+		ResolvedNiagaraVariable = NiagaraVariable;
+	}
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 
