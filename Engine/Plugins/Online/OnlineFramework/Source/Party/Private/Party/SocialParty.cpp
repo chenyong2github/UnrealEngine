@@ -589,7 +589,7 @@ void USocialParty::OnLocalPlayerIsLeaderChanged(bool bIsLeader)
 		for (UPartyMember* Member : GetPartyMembers())
 		{
 			const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
-			const FString& MemberSessionType = MemberPlatform.GetSessionType();
+			const FString& MemberSessionType = MemberPlatform.GetPlatformDescription().SessionType;
 			if (!MemberSessionType.IsEmpty())
 			{
 				if (GetRepData().FindSessionInfo(MemberSessionType))
@@ -1768,7 +1768,7 @@ void USocialParty::CreatePlatformSession(const FString& SessionType)
 		FUniqueNetIdRepl OwnerPrimaryId;
 		for (UPartyMember* Member : GetPartyMembers())
 		{
-			if (SessionType == Member->GetRepData().GetPlatform().GetSessionType())
+			if (SessionType == Member->GetRepData().GetPlatform().GetPlatformDescription().SessionType)
 			{
 				OwnerPrimaryId = Member->GetPrimaryNetId();
 				if (Member->IsLocalPlayer())
