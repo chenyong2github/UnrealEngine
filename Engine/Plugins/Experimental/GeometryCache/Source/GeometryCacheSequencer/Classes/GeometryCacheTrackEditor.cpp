@@ -29,6 +29,7 @@
 #include "GeometryCacheComponent.h"
 #include "GeometryCache.h"
 #include "Styling/SlateIconFinder.h"
+#include "LevelSequence.h"
 
 namespace GeometryCacheEditorConstants
 {
@@ -286,6 +287,11 @@ TSharedRef<ISequencerTrackEditor> FGeometryCacheTrackEditor::CreateTrackEditor(T
 	return MakeShareable(new FGeometryCacheTrackEditor(InSequencer));
 }
 
+
+bool FGeometryCacheTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
+{
+	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
+}
 
 bool FGeometryCacheTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
 {
