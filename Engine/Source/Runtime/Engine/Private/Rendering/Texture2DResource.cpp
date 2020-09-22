@@ -6,8 +6,6 @@
 
 #include "Rendering/Texture2DResource.h"
 #include "Engine/Texture2D.h"
-#include "DeviceProfiles/DeviceProfile.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
 #include "RenderUtils.h"
 
 // TODO Only adding this setting to allow backwards compatibility to be forced.  The default
@@ -71,7 +69,6 @@ void FTexture2DResource::CacheSamplerStateInitializer(const UTexture2D* InOwner)
 	}
 
 	// Set FStreamableTextureResource sampler state settings as it is UTexture2D specific.
-	Filter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(InOwner);
 	AddressU = InOwner->AddressX == TA_Wrap ? AM_Wrap : (InOwner->AddressX == TA_Clamp ? AM_Clamp : AM_Mirror);
 	AddressV = InOwner->AddressY == TA_Wrap ? AM_Wrap : (InOwner->AddressY == TA_Clamp ? AM_Clamp : AM_Mirror);
 	MipBias = UTexture2D::GetGlobalMipMapLODBias() + DefaultMipBias;
