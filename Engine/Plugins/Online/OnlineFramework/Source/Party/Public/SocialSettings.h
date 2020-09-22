@@ -15,11 +15,30 @@ struct FSocialPlatformDescription
 
 	FSocialPlatformDescription() { };
 
+	/**
+	 * The name of this platform
+	 * @see IOnlineSubsystem::GetLocalPlatformName
+	 */
 	UPROPERTY()
-	FString SocialPlatformTypeName;
+	FString Name;
 
+	/**
+	 * The type of this platform.  For example DESKTOP or MOBILE
+	 */
 	UPROPERTY()
-	FString SocialPlatformName;
+	FString PlatformType;
+
+	/** The online subsystem this platform uses */
+	UPROPERTY()
+	FName OnlineSubsystem;
+
+	/** The session type this platform uses */
+	UPROPERTY()
+	FString SessionType;
+
+	/** The external association type for this platform */
+	UPROPERTY()
+	FString ExternalAccountType;
 };
 
 /**

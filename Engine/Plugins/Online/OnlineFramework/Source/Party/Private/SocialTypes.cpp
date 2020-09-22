@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 #define PLATFORM_NAME_MOBILE	TEXT("MOBILE")
-#define PLATFORM_NAME_DESKTOP	TEXT("DESKTOP")
+#define PLATFORM_NAME_DESKTOP	TEXT("PC")
 #define PLATFORM_NAME_CONSOLE	TEXT("CONSOLE")
 
 FUserPlatform::FUserPlatform()
@@ -21,7 +21,7 @@ FUserPlatform::FUserPlatform(const FString& InPlatform)
 	const TArray<FSocialPlatformDescription>& SocialPlatformDescriptions = USocialSettings::GetSocialPlatformDescriptions();
 	for (const FSocialPlatformDescription& Entry : SocialPlatformDescriptions)
 	{
-		if (Entry.SocialPlatformName == InPlatform)
+		if (Entry.Name == InPlatform)
 		{
 			PlatformDescription = Entry;
 			break;
@@ -36,43 +36,32 @@ FUserPlatform::FUserPlatform(const FString& InPlatform)
 
 bool FUserPlatform::operator==(const FString& OtherStr) const
 {
-	return PlatformDescription.SocialPlatformName == OtherStr;
+	return PlatformDescription.Name == OtherStr;
 }
 
 bool FUserPlatform::operator==(const FUserPlatform& Other) const
 {
-	return PlatformDescription.SocialPlatformName == Other.PlatformDescription.SocialPlatformName;
-}
-
-const FString FUserPlatform::GetTypeName() const
-{
-	return PlatformDescription.SocialPlatformTypeName;
-
-	/*FUserPlatform LocalPlatform = FUserPlatform(IOnlineSubsystem::GetLocalPlatformName());
-	if (IsConsole() && LocalPlatform.IsConsole() && PlatformStr != LocalPlatform)
-	{
-		return PLATFORM_NAME_CONSOLE;
-	}*/
+	return PlatformDescription.Name == Other.PlatformDescription.Name;
 }
 
 bool FUserPlatform::IsValid() const
 {
-	return !PlatformDescription.SocialPlatformName.IsEmpty();
+	return !PlatformDescription.Name.IsEmpty();
 }
 
 bool FUserPlatform::IsDesktop() const
 {
-	return PlatformDescription.SocialPlatformTypeName == PLATFORM_NAME_DESKTOP;
+	return PlatformDescription.PlatformType == PLATFORM_NAME_DESKTOP;
 }
 
 bool FUserPlatform::IsMobile() const
 {
-	return PlatformDescription.SocialPlatformTypeName == PLATFORM_NAME_MOBILE;
+	return PlatformDescription.PlatformType == PLATFORM_NAME_MOBILE;
 }
 
 bool FUserPlatform::IsConsole() const
 {
-	return PlatformDescription.SocialPlatformTypeName == PLATFORM_NAME_CONSOLE;
+	return PlatformDescription.PlatformType == PLATFORM_NAME_CONSOLE;
 }
 
 bool FUserPlatform::IsCrossplayWith(const FUserPlatform& OtherPlatform) const
