@@ -28,6 +28,8 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 	virtual void Execute(const FRigUnitContext& Context) {}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const { return FRigElementKey(); }
+
+	virtual FTransform DetermineOffsetTransformForPin(const FString& InPinPath, void* InUserContext) const { return FTransform::Identity; }
 };
 
 /** Base class for all rig units that can change data */
