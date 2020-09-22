@@ -13,6 +13,10 @@
 #include "MovieSceneObjectBindingIDPicker.h"
 #include "MovieSceneToolHelpers.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Compilation/MovieSceneTemplateInterrogation.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Algo/Transform.h"
 #include "Algo/Copy.h"
@@ -20,13 +24,6 @@
 #include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "F3DAttachTrackEditor"
-
-
-
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * TODO: (arodham) Any code in this file that deals with attachment compoenstation and FMovieSceneEvaluationTrack
- * has been commented out to unblock moving forward with high-perf evaluation, it needs to be revisted.
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 /**
  * Class that draws an attach section in the sequencer
@@ -129,6 +126,7 @@ private:
 F3DAttachTrackEditor::F3DAttachTrackEditor( TSharedRef<ISequencer> InSequencer )
 : FActorPickerTrackEditor( InSequencer )
 , PreserveType(ETransformPreserveType::None)
+, Interrogator(MakeUnique<UE::MovieScene::FSystemInterrogator>())
 {
 }
 
@@ -182,7 +180,7 @@ void F3DAttachTrackEditor::ShowPickerSubMenu(FMenuBuilder& MenuBuilder, TArray<F
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([this]() { 
-				PreserveType = ETransformPreserveType::CurrentKey; //(PreserveType != ETransformPreserveType::CurrentKey) ? ETransformPreserveType::CurrentKey : ETransformPreserveType::None;
+				PreserveType = ETransformPreserveType::CurrentKey;
 			}), 
 			FCanExecuteAction::CreateLambda([]() { return true; }),
 			FIsActionChecked::CreateLambda([this]() { return PreserveType == ETransformPreserveType::CurrentKey; })
@@ -197,7 +195,7 @@ void F3DAttachTrackEditor::ShowPickerSubMenu(FMenuBuilder& MenuBuilder, TArray<F
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([this]() { 
-				PreserveType = ETransformPreserveType::AllKeys; //(PreserveType != ETransformPreserveType::AllKeys) ? ETransformPreserveType::AllKeys : ETransformPreserveType::None; 
+				PreserveType = ETransformPreserveType::AllKeys; 
 			}),
 			FCanExecuteAction::CreateLambda([this]() { return true; }),
 			FIsActionChecked::CreateLambda([this]() { return PreserveType == ETransformPreserveType::AllKeys; })
@@ -212,7 +210,7 @@ void F3DAttachTrackEditor::ShowPickerSubMenu(FMenuBuilder& MenuBuilder, TArray<F
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([this]() { 
-				PreserveType = ETransformPreserveType::Bake; //(PreserveType != ETransformPreserveType::Bake) ? ETransformPreserveType::Bake : ETransformPreserveType::None; 
+				PreserveType = ETransformPreserveType::Bake; 
 			}),
 			FCanExecuteAction::CreateLambda([this]() { return true; }),
 			FIsActionChecked::CreateLambda([this]() { return PreserveType == ETransformPreserveType::Bake; })
@@ -227,7 +225,7 @@ void F3DAttachTrackEditor::ShowPickerSubMenu(FMenuBuilder& MenuBuilder, TArray<F
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([this]() {
-				PreserveType = ETransformPreserveType::None; //(PreserveType != ETransformPreserveType::Bake) ? ETransformPreserveType::Bake : ETransformPreserveType::None; 
+				PreserveType = ETransformPreserveType::None; 
 			}),
 			FCanExecuteAction::CreateLambda([this]() { return true; }),
 			FIsActionChecked::CreateLambda([this]() { return PreserveType == ETransformPreserveType::None; })
@@ -324,11 +322,10 @@ void F3DAttachTrackEditor::ActorSocketPicked(const FName SocketName, USceneCompo
 	}
 }
 
-void F3DAttachTrackEditor::FindOrCreateTransformTrack(const TRange<FFrameNumber>& InAttachRange, UMovieScene* InMovieScene, const FGuid& InObjectHandle, UMovieScene3DTransformTrack*& OutTransformTrack, UMovieScene3DTransformSection*& OutTransformSection, const FMovieSceneEvaluationTrack*& OutEvalTrack)
+void F3DAttachTrackEditor::FindOrCreateTransformTrack(const TRange<FFrameNumber>& InAttachRange, UMovieScene* InMovieScene, const FGuid& InObjectHandle, UMovieScene3DTransformTrack*& OutTransformTrack, UMovieScene3DTransformSection*& OutTransformSection)
 {
 	OutTransformTrack = nullptr;
 	OutTransformSection = nullptr;
-	OutEvalTrack = nullptr;
 
 	FName TransformPropertyName("Transform");
 
@@ -342,13 +339,8 @@ void F3DAttachTrackEditor::FindOrCreateTransformTrack(const TRange<FFrameNumber>
 
 		if (TransformTrack)
 		{
-			//OutEvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(GetSequencer().Get(), TransformTrack->GetSignature());
 			TransformTrack->SetPropertyNameAndPath(TransformPropertyName, TransformPropertyName.ToString());
 		}
-	}
-	else
-	{
-		//OutEvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(GetSequencer().Get(), TransformTrack->GetSignature());
 	}
 
 	if (!TransformTrack)
@@ -465,19 +457,21 @@ FORCEINLINE FTransform FloatValuesToTransform(TArrayView<const FMovieSceneFloatV
 /**
  * Evaluates the transform of an object at a certain point in time
  */
-FTransform GetLocationAtTime(TSharedPtr<ISequencer> Sequencer, const FMovieSceneEvaluationTrack* EvalTrack, FFrameNumber KeyTime, UObject* Object)
+FTransform GetLocationAtTime(UMovieScene3DTransformTrack* TransformTrack, FFrameNumber KeyTime, UE::MovieScene::FSystemInterrogator& Interrogator)
 {
-	//ensure(EvalTrack);
+	Interrogator.Reset();
+	Interrogator.ImportTrack(TransformTrack, UE::MovieScene::FInterrogationChannel::Default());
+	Interrogator.AddInterrogation(KeyTime);
+	Interrogator.Update();
 
-	// FMovieSceneInterrogationData InterrogationData;
-	// //Sequencer->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
-	// FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, Sequencer->GetFocusedTickResolution()));
-	// EvalTrack->Interrogate(Context, InterrogationData, Object);
+	TArray<UE::MovieScene::FIntermediate3DTransform> Transforms;
+	Interrogator.QueryLocalSpaceTransforms(UE::MovieScene::FInterrogationChannel::Default(), Transforms);
 
-	// for (const FTransformData& Transform : InterrogationData.Iterate<FTransformData>(UMovieScene3DTransformSection::GetInterrogationKey()))
-	// {
-	// 	return FTransform(Transform.Rotation, Transform.Translation, Transform.Scale);
-	// }
+	if (Transforms.Num())
+	{
+		FTransform Transform(Transforms[0].GetRotation(), Transforms[0].GetTranslation(), Transforms[0].GetScale());
+		return Transform;
+	}
 
 	return FTransform::Identity;
 }
@@ -519,10 +513,16 @@ struct FLocalTransformEvaluator : ITransformEvaluator
 	/**
 	 * Creates an evaluator for an object. Uses the evaluation track if it exists, otherwise uses the actor's transform
 	 */
-	FLocalTransformEvaluator(TWeakPtr<ISequencer> InWeakSequencer, UObject* InObject)
-		: WeakSequencer(InWeakSequencer)
+	FLocalTransformEvaluator(TWeakPtr<F3DAttachTrackEditor> InWeakAttachTrackEditor, UObject* InObject)
+		: WeakAttachTrackEditor(InWeakAttachTrackEditor)
 	{
-		TSharedPtr<ISequencer> Sequencer = InWeakSequencer.Pin();
+		TSharedPtr<F3DAttachTrackEditor> AttachTrackEditor = InWeakAttachTrackEditor.Pin();
+		if (!AttachTrackEditor)
+		{
+			return;
+		}
+
+		ISequencer* Sequencer = AttachTrackEditor->GetSequencer().Get();
 		if (!Sequencer)
 		{
 			return;
@@ -540,9 +540,7 @@ struct FLocalTransformEvaluator : ITransformEvaluator
 			UMovieScene3DTransformTrack* ActorTransformTrack = Cast<UMovieScene3DTransformTrack>(MovieScene->FindTrack<UMovieScene3DTransformTrack>(ActorHandle));
 			if (ActorTransformTrack)
 			{
-				//const FMovieSceneEvaluationTrack* EvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(Sequencer.Get(), ActorTransformTrack->GetSignature());
-				//check(EvalTrack)
-				//TransformEval.SetSubtype<TTuple<const FMovieSceneEvaluationTrack*, UObject*>>(TTuple<const FMovieSceneEvaluationTrack*, UObject*>(EvalTrack, Actor));
+				TransformEval.SetSubtype<TTuple<UMovieScene3DTransformTrack*, UObject*>>(TTuple<UMovieScene3DTransformTrack*, UObject*>(ActorTransformTrack, Actor));
 			}
 		}
 	}
@@ -550,10 +548,10 @@ struct FLocalTransformEvaluator : ITransformEvaluator
 	/**
 	 * Creates an evaluator for an object with an already existing evaluation track
 	 */
-	FLocalTransformEvaluator(TWeakPtr<ISequencer> InWeakSequencer, UObject* InObject, const FMovieSceneEvaluationTrack* InEvalTrack)
-		: WeakSequencer(InWeakSequencer)
+	FLocalTransformEvaluator(TWeakPtr<F3DAttachTrackEditor> InWeakAttachTrackEditor, UObject* InObject, UMovieScene3DTransformTrack* InTransformTrack)
+		: WeakAttachTrackEditor(InWeakAttachTrackEditor)
 	{
-		//TransformEval.SetSubtype<TTuple<const FMovieSceneEvaluationTrack*, UObject*>>(TTuple<const FMovieSceneEvaluationTrack*, UObject*>(InEvalTrack, InObject));
+		TransformEval.SetSubtype<TTuple<UMovieScene3DTransformTrack*, UObject*>>(TTuple<UMovieScene3DTransformTrack*, UObject*>(InTransformTrack, InObject));
 	}
 
 	/**
@@ -561,28 +559,35 @@ struct FLocalTransformEvaluator : ITransformEvaluator
 	 */
 	FTransform operator()(const FFrameNumber& InTime) const override
 	{
-		// TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-		// if (Sequencer)
-		// {
-		// 	const bool bEvalParentTransform = TransformEval.GetCurrentSubtypeIndex() == 1;
-		// 	if (bEvalParentTransform)
-		// 	{
-		// 		const FMovieSceneEvaluationTrack* EvalTrack = TransformEval.GetSubtype<TTuple<const FMovieSceneEvaluationTrack*, UObject*>>().Get<0>();
-		// 		UObject* Object = TransformEval.GetSubtype<TTuple<const FMovieSceneEvaluationTrack*, UObject*>>().Get<1>();
-		// 		return GetLocationAtTime(WeakSequencer.Pin(), EvalTrack, InTime, Object);
-		// 	}
-		// 	else
-		// 	{
-		// 		return TransformEval.GetSubtype<FTransform>();
-		// 	}
-		// }
+		TSharedPtr<F3DAttachTrackEditor> AttachTrackEditor = WeakAttachTrackEditor.Pin();
+		if (!AttachTrackEditor)
+		{
+			return FTransform::Identity;
+		}
+
+		ISequencer* Sequencer = AttachTrackEditor->GetSequencer().Get();
+		if (!Sequencer)
+		{
+			return FTransform::Identity;
+		}
+		
+		const bool bEvalParentTransform = TransformEval.GetCurrentSubtypeIndex() == 1;
+		if (bEvalParentTransform)
+		{
+			UMovieScene3DTransformTrack* TransformTrack = TransformEval.GetSubtype<TTuple<UMovieScene3DTransformTrack*, UObject*>>().Get<0>();
+		 	return GetLocationAtTime(TransformTrack, InTime, *WeakAttachTrackEditor.Pin()->Interrogator.Get());
+		}
+		else
+		{
+		 	return TransformEval.GetSubtype<FTransform>();
+		}
 
 		return FTransform::Identity;
 	}
 
 private:
-	TUnion<FTransform, TTuple<const FMovieSceneEvaluationTrack*, UObject*>> TransformEval;
-	TWeakPtr<ISequencer> WeakSequencer;
+	TUnion<FTransform, TTuple<UMovieScene3DTransformTrack*, UObject*>> TransformEval;
+	TWeakPtr<F3DAttachTrackEditor> WeakAttachTrackEditor;
 };
 
 /**
@@ -598,10 +603,16 @@ struct FWorldTransformEvaluator : ITransformEvaluator
 	 * Creates a new evaluator for a given object
 	 * @param InSocketName is the socket to evaluate for if this is a skeletal mesh
 	 */
-	FWorldTransformEvaluator(TWeakPtr<ISequencer> InWeakSequencer, UObject* InObject, const FName InSocketName = NAME_None)
-		: WeakSequencer(InWeakSequencer)
+	FWorldTransformEvaluator(TWeakPtr<F3DAttachTrackEditor> InWeakAttachTrackEditor, UObject* InObject, const FName InSocketName = NAME_None)
+		: WeakAttachTrackEditor(InWeakAttachTrackEditor)
 	{
-		TSharedPtr<ISequencer> Sequencer = InWeakSequencer.Pin();
+		TSharedPtr<F3DAttachTrackEditor> AttachTrackEditor = InWeakAttachTrackEditor.Pin();
+		if (!AttachTrackEditor)
+		{
+			return;
+		}
+
+		ISequencer* Sequencer = AttachTrackEditor->GetSequencer().Get();
 		if (!Sequencer)
 		{
 			return;
@@ -619,7 +630,7 @@ struct FWorldTransformEvaluator : ITransformEvaluator
 		// Loop through all parents to get an accumulated array of evaluators
 		do
 		{
-			TUnion<FTransform, TTuple<const FMovieSceneEvaluationTrack*, UObject*>> ActorEval;
+			TUnion<FTransform, TTuple<UMovieScene3DTransformTrack*, UObject*>> ActorEval;
 			// If we find a socket, get the world transform of the socket and break out immediately
 			if (Actor->GetRootComponent()->DoesSocketExist(SocketName))
 			{
@@ -638,9 +649,7 @@ struct FWorldTransformEvaluator : ITransformEvaluator
 				UMovieScene3DTransformTrack* ActorTransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(ActorHandle);
 				if (ActorTransformTrack)
 				{
-					// const FMovieSceneEvaluationTrack* EvalTrack = MovieSceneToolHelpers::GetEvaluationTrack(Sequencer.Get(), ActorTransformTrack->GetSignature());
-					// check(EvalTrack)
-					// ActorEval.SetSubtype<TTuple<const FMovieSceneEvaluationTrack*, UObject*>>(TTuple<const FMovieSceneEvaluationTrack*, UObject*>(EvalTrack, Actor));
+					ActorEval.SetSubtype<TTuple<UMovieScene3DTransformTrack*, UObject*>>(TTuple<UMovieScene3DTransformTrack*, UObject*>(ActorTransformTrack, Actor));
 				}
 			}
 
@@ -658,8 +667,8 @@ struct FWorldTransformEvaluator : ITransformEvaluator
 	/**
 	 * Copies the array of all individual actor evaluators to create a new evaluator
 	 */
-	FWorldTransformEvaluator(TWeakPtr<ISequencer> InWeakSequencer, TArrayView<const TUnion<FTransform, TTuple<const FMovieSceneEvaluationTrack*, UObject*>>> InTransformEvals)
-		: WeakSequencer(InWeakSequencer)
+	FWorldTransformEvaluator(TWeakPtr<F3DAttachTrackEditor> InWeakAttachTrackEditor, TArrayView<const TUnion<FTransform, TTuple<UMovieScene3DTransformTrack*, UObject*>>> InTransformEvals)
+		: WeakAttachTrackEditor(InWeakAttachTrackEditor)
 	{
 		Algo::Copy(InTransformEvals, TransformEvals);
 	}
@@ -667,10 +676,10 @@ struct FWorldTransformEvaluator : ITransformEvaluator
 	/**
 	 * Adds an evaluation track for the child of the first transform evaluator
 	 */
-	void PrependTransformEval(UObject* InObject, const FMovieSceneEvaluationTrack* InEvalTrack)
+	void PrependTransformEval(UObject* InObject, UMovieScene3DTransformTrack* InTransformTrack)
 	{
-		TUnion<FTransform, TTuple<const FMovieSceneEvaluationTrack*, UObject*>> ActorEval;
-		ActorEval.SetSubtype<TTuple<const FMovieSceneEvaluationTrack*, UObject*>>(TTuple<const FMovieSceneEvaluationTrack*, UObject*>(InEvalTrack, InObject));
+		TUnion<FTransform, TTuple<UMovieScene3DTransformTrack*, UObject*>> ActorEval;
+		ActorEval.SetSubtype<TTuple<UMovieScene3DTransformTrack*, UObject*>>(TTuple<UMovieScene3DTransformTrack*, UObject*>(InTransformTrack, InObject));
 		TransformEvals.Insert(ActorEval, 0);
 	}
 
@@ -679,7 +688,7 @@ struct FWorldTransformEvaluator : ITransformEvaluator
 	 */
 	void PrependTransformEval(const FTransform& InTransform)
 	{
-		TUnion<FTransform, TTuple<const FMovieSceneEvaluationTrack*, UObject*>> ActorEval;
+		TUnion<FTransform, TTuple<UMovieScene3DTransformTrack*, UObject*>> ActorEval;
 		ActorEval.SetSubtype<FTransform>(InTransform);
 		TransformEvals.Insert(ActorEval, 0);
 	}
@@ -689,27 +698,34 @@ struct FWorldTransformEvaluator : ITransformEvaluator
 	 */
 	FTransform operator()(const FFrameNumber& InTime) const override
 	{
-		FTransform Accumulated = FTransform::Identity;
-		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-		if (Sequencer)
+		TSharedPtr<F3DAttachTrackEditor> AttachTrackEditor = WeakAttachTrackEditor.Pin();
+		if (!AttachTrackEditor)
 		{
-			for (TUnion<FTransform, TTuple<const FMovieSceneEvaluationTrack*, UObject*>> TransformEval : TransformEvals)
-			{
-				FTransform ActorTransform;
-				const bool bEvalParentTransform = TransformEval.GetCurrentSubtypeIndex() == 1;
-				if (bEvalParentTransform)
-				{
-					const FMovieSceneEvaluationTrack* EvalTrack = TransformEval.GetSubtype<TTuple<const FMovieSceneEvaluationTrack*, UObject*>>().Get<0>();
-					UObject* Object = TransformEval.GetSubtype<TTuple<const FMovieSceneEvaluationTrack*, UObject*>>().Get<1>();
-					ActorTransform = GetLocationAtTime(Sequencer, EvalTrack, InTime, Object);
-				}
-				else
-				{
-					ActorTransform = TransformEval.GetSubtype<FTransform>();
-				}
+			return FTransform::Identity;
+		}
 
-				Accumulated *= ActorTransform;
+		ISequencer* Sequencer = AttachTrackEditor->GetSequencer().Get();
+		if (!Sequencer)
+		{
+			return FTransform::Identity;
+		}
+
+		FTransform Accumulated = FTransform::Identity;
+		for (TUnion<FTransform, TTuple<UMovieScene3DTransformTrack*, UObject*>> TransformEval : TransformEvals)
+		{
+			FTransform ActorTransform;
+			const bool bEvalParentTransform = TransformEval.GetCurrentSubtypeIndex() == 1;
+			if (bEvalParentTransform)
+			{
+				UMovieScene3DTransformTrack* TransformTrack = TransformEval.GetSubtype<TTuple<UMovieScene3DTransformTrack*, UObject*>>().Get<0>();
+				ActorTransform = GetLocationAtTime(TransformTrack, InTime, *WeakAttachTrackEditor.Pin()->Interrogator.Get());
 			}
+			else
+			{
+				ActorTransform = TransformEval.GetSubtype<FTransform>();
+			}
+
+			Accumulated *= ActorTransform;
 		}
 
 		return Accumulated;
@@ -718,14 +734,14 @@ struct FWorldTransformEvaluator : ITransformEvaluator
 	/**
 	 * Gets the individual actor evaluators for each parent
 	 */
-	TArrayView <const TUnion<FTransform, TTuple<const FMovieSceneEvaluationTrack*, UObject*>>> GetTransformEvalsView() const 
+	TArrayView <const TUnion<FTransform, TTuple<UMovieScene3DTransformTrack*, UObject*>>> GetTransformEvalsView() const 
 	{
 		return TransformEvals;
 	}
 
 private:
-	TArray<TUnion<FTransform, TTuple<const FMovieSceneEvaluationTrack*, UObject*>>> TransformEvals;
-	TWeakPtr<ISequencer> WeakSequencer;
+	TArray<TUnion<FTransform, TTuple<UMovieScene3DTransformTrack*, UObject*>>> TransformEvals;
+	TWeakPtr<F3DAttachTrackEditor> WeakAttachTrackEditor;
 };
 
 /**
@@ -739,14 +755,14 @@ struct FAttachRevertModifier
 	 *                               modifying the object's movements to how they were before the attach.
 	 *                      If false: Parent's movement is kept and transforms are simply converted to world space.
 	 */
-	FAttachRevertModifier(TSharedPtr<ISequencer> InSequencer, const TRange<FFrameNumber>& InRevertRange, UMovieScene3DAttachSection* InAttachSection, const FName InSocketName, bool bInFullRevert)
+	FAttachRevertModifier(TSharedPtr<F3DAttachTrackEditor> InWeakAttachTrackEditor, const TRange<FFrameNumber>& InRevertRange, UMovieScene3DAttachSection* InAttachSection, const FName InSocketName, bool bInFullRevert)
 		: bFullRevert(bInFullRevert)
 		, RevertRange(InRevertRange)
 	{
 		FMovieSceneObjectBindingID ConstraintID = InAttachSection->GetConstraintBindingID();
-		AActor* ConstraintActor = GetConstraintActor(InSequencer, ConstraintID);
+		AActor* ConstraintActor = GetConstraintActor(InWeakAttachTrackEditor->GetSequencer(), ConstraintID);
 
-		TransformEvaluator = FWorldTransformEvaluator(InSequencer, ConstraintActor, InSocketName);
+		TransformEvaluator = FWorldTransformEvaluator(InWeakAttachTrackEditor, ConstraintActor, InSocketName);
 
 		BeginConstraintTransform = TransformEvaluator(InRevertRange.GetLowerBoundValue());
 
@@ -755,7 +771,7 @@ struct FAttachRevertModifier
 	/**
 	 * Creates a new revert modifier with a given evaluator for a parent transform to undo compensation
 	 */
-	FAttachRevertModifier(TSharedPtr<ISequencer> InSequencer, const TRange<FFrameNumber>& InRevertRange, const FWorldTransformEvaluator& InTransformEvaluator, bool bInFullRevert)
+	FAttachRevertModifier(TSharedPtr<F3DAttachTrackEditor> InWeakAttachTrackEditor, const TRange<FFrameNumber>& InRevertRange, const FWorldTransformEvaluator& InTransformEvaluator, bool bInFullRevert)
 		: bFullRevert(bInFullRevert)
 		, TransformEvaluator(InTransformEvaluator)
 		, BeginConstraintTransform(InTransformEvaluator(InRevertRange.GetLowerBoundValue()))
@@ -875,17 +891,15 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 {
 	// Find the transform track associated with the selected object
 	UMovieScene3DTransformTrack* TransformTrack = GetMovieSceneSequence()->GetMovieScene()->FindTrack<UMovieScene3DTransformTrack>(InObjectBinding);
-	if (TransformTrack->GetAllSections().Num() != 1)
+	if (!TransformTrack || TransformTrack->GetAllSections().Num() != 1)
 	{
 		return;
 	}
 
-	const FMovieSceneEvaluationTrack* EvalTrack = nullptr; // MovieSceneToolHelpers::GetEvaluationTrack(GetSequencer().Get(), TransformTrack->GetSignature());
-
 	TArrayView<TWeakObjectPtr<>> BoundObjects = GetSequencer()->FindBoundObjects(InObjectBinding, GetSequencer()->GetFocusedTemplateID());
 
 	FQualifiedFrameTime QualifiedNewDetachTime = GetSequencer()->GetLocalTime();
-	if (InSection && EvalTrack && BoundObjects.Num() == 1 && BoundObjects[0].IsValid())
+	if (InSection && BoundObjects.Num() == 1 && BoundObjects[0].IsValid())
 	{
 		TRange<FFrameNumber> BeforeTrimRange = InSection->GetRange();
 		const FScopedTransaction Transaction(LOCTEXT("TrimAttach", "Trim Attach"));
@@ -906,7 +920,7 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 		check(AttachSection);
 
 		// Create a revert modifier with the range and section as parameters
-		FAttachRevertModifier RevertModifier(GetSequencer(), ExcludedRange, AttachSection, AttachSection->AttachSocketName, AttachSection->bFullRevertOnDetach);
+		FAttachRevertModifier RevertModifier(SharedThis(this), ExcludedRange, AttachSection, AttachSection->AttachSocketName, AttachSection->bFullRevertOnDetach);
 
 		// Find the transform section associated with the track, so far we only support modifying transform tracks with one section
 		UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->GetAllSections()[0]);
@@ -917,11 +931,11 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 
 		TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 
-		FLocalTransformEvaluator LocalTransformEval(GetSequencer(), Object, EvalTrack);
+		FLocalTransformEvaluator LocalTransformEval(SharedThis(this), Object, TransformTrack);
 
 		if (AttachSection->ReAttachOnDetach.IsValid())
 		{
-			FWorldTransformEvaluator ReAttachParentEvaluator(GetSequencer(), AttachSection->ReAttachOnDetach.Get());
+			FWorldTransformEvaluator ReAttachParentEvaluator(SharedThis(this), AttachSection->ReAttachOnDetach.Get());
 
 			CompensateChildTrack(ExcludedRange, Channels, TOptional<TArrayView<FMovieSceneFloatChannel*>>(), ReAttachParentEvaluator, LocalTransformEval, ETransformPreserveType::CurrentKey, RevertModifier);
 		}
@@ -1125,7 +1139,7 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 	// It's possible that the objects bound to this parent binding ID are null, in which case there will be no compensation
 	AActor* ParentActor = GetConstraintActor(GetSequencer(), ConstraintBindingID);	
 
-	FWorldTransformEvaluator ParentTransformEval(GetSequencer(), ParentActor, SocketName);
+	FWorldTransformEvaluator ParentTransformEval(SharedThis(this), ParentActor, SocketName);
 
 	FGuid ParentActorHandle = GetSequencer()->GetHandleToObject(ParentActor, false);
 	TOptional<TArrayView<FMovieSceneFloatChannel*>> ParentChannels;
@@ -1195,23 +1209,22 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 		}
 
 		// Create a blank world transform evaluator, add parent evaluator if there is a parent
-		FWorldTransformEvaluator WorldChildTransformEval(GetSequencer(), nullptr);
+		FWorldTransformEvaluator WorldChildTransformEval(SharedThis(this), nullptr);
 		AActor* Actor = Cast<AActor>(Object);
 		if (AActor* PrevParentActor = Actor->GetAttachParentActor())
 		{
-			WorldChildTransformEval = FWorldTransformEvaluator(GetSequencer(), PrevParentActor);
+			WorldChildTransformEval = FWorldTransformEvaluator(SharedThis(this), PrevParentActor);
 		}
 
 		// Create transform track for object
 		TRange<FFrameNumber> AttachRange(KeyTime, AttachEndTime);
 		UMovieScene3DTransformTrack* TransformTrack = nullptr;
 		UMovieScene3DTransformSection* TransformSection = nullptr;
-		const FMovieSceneEvaluationTrack* EvalTrack = nullptr;
-		FindOrCreateTransformTrack(AttachRange, MovieScene, ObjectHandle, TransformTrack, TransformSection, EvalTrack);
+		FindOrCreateTransformTrack(AttachRange, MovieScene, ObjectHandle, TransformTrack, TransformSection);
 
-		if (EvalTrack)
+		if (TransformTrack)
 		{
-			WorldChildTransformEval.PrependTransformEval(Object, EvalTrack);
+			WorldChildTransformEval.PrependTransformEval(Object, TransformTrack);
 		}
 		else
 		{
@@ -1282,7 +1295,7 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 				continue;
 			}
 
-			RevertModifier = FAttachRevertModifier(GetSequencer(), RevertRange, IntersectingAttachSection, SocketName, PreserveType == ETransformPreserveType::CurrentKey);
+			RevertModifier = FAttachRevertModifier(SharedThis(this), RevertRange, IntersectingAttachSection, SocketName, PreserveType == ETransformPreserveType::CurrentKey);
 		}
 		// Existing parent that's not an attach track
 		else if (WorldChildTransformEval.GetTransformEvalsView().Num() > 1)
@@ -1293,16 +1306,16 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 			// Get the evaluator for the previous parent track
 			const int32 NumChildEvals = WorldChildTransformEval.GetTransformEvalsView().Num();
 			auto PrevParentTransformEvals = WorldChildTransformEval.GetTransformEvalsView().Slice(1, NumChildEvals - 1);
-			FWorldTransformEvaluator PrevParentEvaluator(GetSequencer(), PrevParentTransformEvals);
-
-			RevertModifier = FAttachRevertModifier(GetSequencer(), RevertRange, PrevParentEvaluator, PreserveType == ETransformPreserveType::CurrentKey);
+			FWorldTransformEvaluator PrevParentEvaluator(SharedThis(this), PrevParentTransformEvals);
+		
+			RevertModifier = FAttachRevertModifier(SharedThis(this), RevertRange, PrevParentEvaluator, PreserveType == ETransformPreserveType::CurrentKey);
 
 			ReAttachOnDetach = Actor->GetAttachParentActor();
 		}
 
 		if (RevertModifier.IsSet())
 		{
-			FLocalTransformEvaluator LocalChildTransformEval(GetSequencer(), Object, EvalTrack);
+			FLocalTransformEvaluator LocalChildTransformEval(SharedThis(this), Object, TransformTrack);
 
 			// Add the new attach section to the track
 			UMovieSceneSection* NewSection = Cast<UMovieScene3DAttachTrack>(Track)->AddConstraint(KeyTime, Duration, SocketName, ComponentName, ConstraintBindingID);

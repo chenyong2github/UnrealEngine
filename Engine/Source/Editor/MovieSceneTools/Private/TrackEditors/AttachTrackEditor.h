@@ -13,6 +13,7 @@
 #include "Containers/Union.h"
 #include "Containers/Map.h"
 #include "Templates/Function.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 struct FMovieSceneFloatChannel;
 
@@ -79,7 +80,7 @@ private:
 	void ShowPickerSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneSection* Section);
 
 	/** Helper for AddKeyInternal to get transform tracks for child */
-	void FindOrCreateTransformTrack(const TRange<FFrameNumber>& InAttachRange, UMovieScene* InMovieScene, const FGuid& InObjectHandle, UMovieScene3DTransformTrack*& OutTransformTrack, UMovieScene3DTransformSection*& OutTransformSection, const FMovieSceneEvaluationTrack*& OutEvalTrack);
+	void FindOrCreateTransformTrack(const TRange<FFrameNumber>& InAttachRange, UMovieScene* InMovieScene, const FGuid& InObjectHandle, UMovieScene3DTransformTrack*& OutTransformTrack, UMovieScene3DTransformSection*& OutTransformSection);
 
 	/** Helper for AddKeyInternal to offset child track's keys */
 	template<typename ModifierFuncType>
@@ -91,4 +92,7 @@ private:
 
 private:
 	ETransformPreserveType PreserveType;
+
+public:
+	TUniquePtr<UE::MovieScene::FSystemInterrogator> Interrogator;
 };
