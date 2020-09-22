@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/Engine.h"
+#include "EngineModule.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
@@ -3770,6 +3771,8 @@ void FMaterialEditor::OnVectorParameterDefaultChanged(class UMaterialExpression*
 
 		OverriddenVectorParametersToRevert.AddUnique(ParameterName);
 	}
+
+	OnParameterDefaultChanged();
 }
 
 void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName ParameterName, float Value, bool bOverride)
@@ -3845,6 +3848,20 @@ void FMaterialEditor::OnScalarParameterDefaultChanged(class UMaterialExpression*
 		SetScalarParameterDefaultOnDependentMaterials(ParameterName, Value, true);
 
 		OverriddenScalarParametersToRevert.AddUnique(ParameterName);
+	}
+
+	OnParameterDefaultChanged();
+}
+
+void FMaterialEditor::OnParameterDefaultChanged()
+{
+	// Brute force all flush virtual textures if this material writes to any runtime virtual texture.
+	if (Material->MaterialDomain == EMaterialDomain::MD_RuntimeVirtualTexture || Material->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput)
+	{
+		ENQUEUE_RENDER_COMMAND(FlushVTCommand)([](FRHICommandListImmediate& RHICmdList)
+		{
+			GetRendererModule().FlushVirtualTextureCache(); 
+		});
 	}
 }
 
