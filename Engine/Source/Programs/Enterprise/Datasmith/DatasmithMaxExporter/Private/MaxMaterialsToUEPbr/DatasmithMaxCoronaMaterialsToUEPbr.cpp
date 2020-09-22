@@ -202,7 +202,7 @@ namespace DatasmithMaxCoronaMaterialsToUEPbrImpl
 				}
 				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("mapamountBump")) == 0)
 				{
-					CoronaMaterialProperties.BumpMap.Weight = ParamBlock2->GetFloat( ParamDefinition.ID, CurrentTime ) * 0.01f; // For some reason, mapamountBump is 0-100 instead of 0-1 like the other maps
+					CoronaMaterialProperties.BumpMap.Weight = ParamBlock2->GetFloat( ParamDefinition.ID, CurrentTime );
 				}
 				else if ( FCString::Stricmp( ParamDefinition.int_name, TEXT("texmapOnBump") ) == 0 )
 				{
@@ -709,10 +709,14 @@ void FDatasmithMaxCoronaBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScen
 			PreviousExpression = BlendFunctionCall;
 
 			IDatasmithMaterialExpressionFunctionCall* LayerMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
-			if (TSharedPtr<IDatasmithBaseMaterialElement> LayerMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, CoatedMaterial.Material, AssetsPath))
+			TSharedPtr<IDatasmithBaseMaterialElement> LayerMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, CoatedMaterial.Material, AssetsPath);
+
+			if ( !LayerMaterial )
 			{
-				LayerMaterialFunctionCall->SetFunctionPathName(LayerMaterial->GetName());
+				continue;
 			}
+
+			LayerMaterialFunctionCall->SetFunctionPathName(LayerMaterial->GetName());
 			LayerMaterialFunctionCall->ConnectExpression(*BlendFunctionCall->GetInput(1));
 
 			IDatasmithMaterialExpressionScalar* AmountExpression = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
