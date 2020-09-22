@@ -1309,9 +1309,6 @@ void FClassHierarchy::SortChildren( TSharedPtr< FClassViewerNode >& InRootNode)
 	TArray< TSharedPtr< FClassViewerNode > >& ChildList = InRootNode->GetChildrenList();
 	for(int32 ChildIndex = 0; ChildIndex < ChildList.Num(); ChildIndex++)
 	{
-		// Setup the parent weak pointer, useful for going up the tree for unloaded blueprints.
-		ChildList[ChildIndex]->ParentNode = InRootNode;
-
 		// Check the child, then check the return to see if it is valid. If it is valid, end the recursion.
 		SortChildren(ChildList[ChildIndex]);
 	}
@@ -2504,9 +2501,11 @@ void SClassViewer::Populate()
 		ClassTree->RequestTreeRefresh();
 
 		TSharedPtr<FClassViewerNode> ClassNode;
+		TSharedPtr<FClassViewerNode> ExpandNode;
 		if (PreviousSelection.Num() > 0)
 		{
 			ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByGeneratedClassPath(RootNode, PreviousSelection[0]);
+			ExpandNode = ClassNode ? ClassNode->ParentNode.Pin() : nullptr;
 		}
 		else if (InitOptions.InitiallySelectedClass)
 		{
@@ -2533,15 +2532,16 @@ void SClassViewer::Populate()
 					}
 				}
 			}
+			ExpandNode = ClassNode;
+		}
+
+		for (; ExpandNode; ExpandNode = ExpandNode->ParentNode.Pin())
+		{
+			ClassTree->SetItemExpansion(ExpandNode, true);
 		}
 
 		if (ClassNode)
 		{
-			for (TSharedPtr<FClassViewerNode> ParentNode = ClassNode->ParentNode.Pin(); ParentNode; ParentNode = ParentNode->ParentNode.Pin())
-			{
-				ClassTree->SetItemExpansion(ParentNode, true);
-			}
-
 			ClassTree->SetSelection(ClassNode);
 		}
 	}
