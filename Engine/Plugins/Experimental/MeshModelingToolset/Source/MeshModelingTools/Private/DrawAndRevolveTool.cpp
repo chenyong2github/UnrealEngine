@@ -258,7 +258,7 @@ void UDrawAndRevolveTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URevolveToolProperties, DrawPlaneAndAxis)))
 	{
 		FFrame3d ProfileDrawPlane(Settings->DrawPlaneAndAxis); // Casting to FFrame3d
-		ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
+		ControlPointsMechanic->SetPlane(ProfileDrawPlane);
 		PlaneMechanic->SetPlaneWithoutBroadcast(ProfileDrawPlane);
 		UpdateRevolutionAxis(Settings->DrawPlaneAndAxis);
 	}
