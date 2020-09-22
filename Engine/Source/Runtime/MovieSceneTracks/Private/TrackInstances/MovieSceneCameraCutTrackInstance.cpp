@@ -52,6 +52,7 @@ namespace MovieScene
 
 		FBlendedCameraCutEasingInfo EaseIn;
 		FBlendedCameraCutEasingInfo EaseOut;
+		bool bLockPreviousCamera = false;
 		bool bIsFinalBlendOut = false;
 
 		FMovieSceneObjectBindingID PreviousCameraBindingID;
@@ -145,6 +146,7 @@ namespace MovieScene
 			CameraCutParams.bJumpCut = Context.HasJumped();
 			CameraCutParams.BlendTime = Params.EaseIn.RootBlendTime;
 			CameraCutParams.BlendType = Params.EaseIn.BlendType;
+			CameraCutParams.bLockPreviousCamera = Params.bLockPreviousCamera;
 
 #if WITH_EDITOR
 			UObject* PreviousCameraActor = FindBoundObject(Params.PreviousCameraBindingID, Params.PreviousOperandSequenceID, Player);
@@ -230,6 +232,9 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 				Params.EaseOut = FBlendedCameraCutEasingInfo(RootEaseOutTime, Section->Easing.EaseOut);
 			}
 
+			// Remember locking option.
+			Params.bLockPreviousCamera = Section->bLockPreviousCamera;
+
 			// Get preview blending.
 			const float Weight = Section->EvaluateEasing(Context.GetTime());
 			Params.PreviewBlendFactor = Weight;
@@ -310,6 +315,7 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 			// been subtracted from 1.f). So we grab those for the blend info.
 			FinalCameraCut.EaseIn = PrevChildCameraCut.EaseIn;
 			FinalCameraCut.PreviewBlendFactor = PrevChildCameraCut.PreviewBlendFactor;
+			FinalCameraCut.bLockPreviousCamera = PrevChildCameraCut.bLockPreviousCamera;
 		}
 	}
 	else if (CameraCutParams.Num() == 1)
