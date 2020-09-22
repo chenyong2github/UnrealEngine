@@ -32,16 +32,10 @@ class ENGINE_API USoundEffectSubmixPreset : public USoundEffectPreset
 /** Struct which has data needed to initialize the submix effect. */
 struct FSoundEffectSubmixInitData
 {
-	uint32 DeviceID;
-	void* PresetSettings;
-	float SampleRate;
-
-	FSoundEffectSubmixInitData()
-		: DeviceID(INDEX_NONE)
-		, PresetSettings(nullptr)
-		, SampleRate(0)
-	{
-	}
+	uint32 DeviceID = INDEX_NONE;
+	void* PresetSettings = nullptr;
+	float SampleRate = 0.0f;
+	uint32 ParentPresetUniqueId = INDEX_NONE;
 };
 
 /** Struct which supplies audio data to submix effects on game thread. */
@@ -92,7 +86,7 @@ class ENGINE_API FSoundEffectSubmix : public FSoundEffectBase
 public:
 	virtual ~FSoundEffectSubmix() = default;
 
-	/**  Provided for interpolating parameters from audio volume system, enabling transition between various settings */
+	//  Provided for interpolating parameters from audio volume system, enabling transition between various settings
 	virtual bool SetParameters(const FAudioEffectParameters& InParameters)
 	{
 		return false;
@@ -110,37 +104,54 @@ public:
 		return false;
 	}
 
-	/** Called on game thread to allow submix effect to query game data if needed. */
+	// Called on game thread to allow submix effect to query game data if needed.
 	virtual void Tick()
 	{
 	}
 
-	/** Override to down mix input audio to a desired channel count. */
+	// Override to down mix input audio to a desired channel count.
 	virtual uint32 GetDesiredInputChannelCountOverride() const
 	{
 		return INDEX_NONE;
 	}
 
-	/** Process the input block of audio. Called on audio thread. */
+	// Process the input block of audio. Called on audio thread.
 	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
 	{
 	}
 
-	/** Allow effects to supply a drylevel. */
+	// Allow effects to supply a dry level.
 	virtual float GetDryLevel() const { return 0.0f; }
 
-	/** Processes audio in the submix effect. */
+	// Processes audio in the submix effect.
 	void ProcessAudio(FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData);
 
 	friend class USoundEffectPreset;
+
+	// Called by the audio engine or systems internally. This function calls the virtual Init function implemented by derived classes.
+	void Setup(const FSoundEffectSubmixInitData& InInitData)
+	{
+		InitData_Internal = InInitData;
+		Init(InInitData);
+	}
+
+	// Returns the data that was given to the source effect when initialized.
+	const FSoundEffectSubmixInitData& GetInitData() const
+	{
+		return InitData_Internal;
+	}
 
 protected:
 	FSoundEffectSubmix()
 	{
 	}
 
+private:
 	/** Called on an audio effect at initialization on main thread before audio processing begins. */
 	virtual void Init(const FSoundEffectSubmixInitData& InInitData)
 	{
 	}
+
+	FSoundEffectSubmixInitData InitData_Internal;
+	uint32 ParentPresetUniqueId = INDEX_NONE;
 };
