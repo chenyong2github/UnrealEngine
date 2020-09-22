@@ -454,7 +454,7 @@ private:
 	void UpdateAvailableControls();
 
 	/** Remove a transient / temporary control used to interact with a pin */
-	FName AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey = FRigElementKey());
+	FName AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey = FRigElementKey(), FTransform OffsetTransform = FTransform::Identity);
 
 	/** Sets the value of a transient control based on a pin */
 	bool SetTransientControlValue(URigVMPin* InPin);
