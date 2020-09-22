@@ -2116,3 +2116,8 @@ void FVirtualTextureSystem::CallPendingCallbacks()
 {
 	Producers.CallPendingCallbacks();
 }
+
+void FVirtualTextureSystem::ReleasePendingResources()
+{
+	ReleasePendingSpaces();
+}
