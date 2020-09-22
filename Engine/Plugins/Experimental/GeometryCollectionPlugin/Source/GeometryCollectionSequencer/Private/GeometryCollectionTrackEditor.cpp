@@ -28,6 +28,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "Styling/SlateIconFinder.h"
+#include "LevelSequence.h"
 
 namespace GeometryCollectionEditorConstants
 {
@@ -271,6 +272,10 @@ TSharedRef<ISequencerTrackEditor> FGeometryCollectionTrackEditor::CreateTrackEdi
 	return MakeShareable( new FGeometryCollectionTrackEditor( InSequencer ) );
 }
 
+bool FGeometryCollectionTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
+{
+	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
+}
 
 bool FGeometryCollectionTrackEditor::SupportsType( TSubclassOf<UMovieSceneTrack> Type ) const
 {

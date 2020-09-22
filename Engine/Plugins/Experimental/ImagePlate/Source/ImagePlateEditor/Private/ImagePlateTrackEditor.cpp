@@ -23,6 +23,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DDynamic.h"
 #include "Rendering/DrawElements.h"
+#include "LevelSequence.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -217,7 +218,7 @@ UMovieSceneTrack* FImagePlateTrackEditor::AddTrack(UMovieScene* FocusedMovieScen
 	}
 	return Track;
 }
-
+PRAGMA_DISABLE_OPTIMIZATION
 void FImagePlateTrackEditor::OnAnimatedPropertyChanged(const FPropertyChangedParams& PropertyChangedParams)
 {
 	const FProperty* ChangedProperty = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
@@ -226,8 +227,8 @@ void FImagePlateTrackEditor::OnAnimatedPropertyChanged(const FPropertyChangedPar
 		return;
 	}
 
-	// Only animate a texture if it's on the image plate component
-	if (!ChangedProperty->GetTypedOwner(UImagePlateComponent::StaticClass()))
+	// Only animate a texture if it is on an image plate
+	if (!ChangedProperty->GetTypedOwner(FImagePlateParameters::StaticStruct()->StaticClass()))
 	{
 		return;
 	}
@@ -273,7 +274,7 @@ void FImagePlateTrackEditor::OnAnimatedPropertyChanged(const FPropertyChangedPar
 		GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 	}
 }
-
+PRAGMA_ENABLE_OPTIMIZATION
 void FImagePlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
 	// We only know how to add specific properties for image plates and components. Anything else must be keyed through the generic MediaPlayer property
@@ -443,10 +444,14 @@ TSharedRef<ISequencerSection> FImagePlateTrackEditor::MakeSectionInterface(UMovi
 	return MakeShared<FImagePlateSection>(*CastChecked<UMovieSceneImagePlateSection>(&SectionObject), ThumbnailPool, GetSequencer());
 }
 
+bool FImagePlateTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
+{
+	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
+}
+
 bool FImagePlateTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> TrackClass) const
 {
 	return TrackClass.Get() && TrackClass.Get()->IsChildOf(UMovieSceneImagePlateTrack::StaticClass());
 }
-
 
 #undef LOCTEXT_NAMESPACE
