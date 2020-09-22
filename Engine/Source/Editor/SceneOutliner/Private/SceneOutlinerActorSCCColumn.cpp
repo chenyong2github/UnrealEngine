@@ -168,3 +168,5 @@ const FSlateBrush* FSceneOutlinerActorSCCColumn::GetHeaderIcon() const
 		return FEditorStyle::GetBrush("SourceControl.StatusIcon.Off");
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
