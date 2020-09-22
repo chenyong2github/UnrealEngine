@@ -3831,7 +3831,11 @@ int32 UAnimSequence::InsertTrack(const FName& BoneName)
 #if WITH_EDITOR
 	FModifyRawDataSourceGuard Modify(this);
 #endif
+	return InsertTrackInternal(BoneName);
+}
 
+int32 UAnimSequence::InsertTrackInternal(const FName& BoneName)
+{
 	// first verify if it doesn't exists, if it does, return
 	int32 CurrentTrackIndex = AnimationTrackNames.Find(BoneName);
 	if (CurrentTrackIndex != INDEX_NONE)
@@ -3861,7 +3865,6 @@ int32 UAnimSequence::InsertTrack(const FName& BoneName)
 		// now insert to the track
 		RawAnimationData.Insert(RawTrack, NewTrackIndex);
 		AnimationTrackNames.Insert(BoneName, NewTrackIndex);
-		SourceRawAnimationData.Insert(RawTrack, NewTrackIndex);
 
 		RefreshTrackMapFromAnimTrackNames();
 
@@ -4435,13 +4438,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimation()
 	}
 	else
 	{
-		if(SourceRawAnimationData.Num() == 0)
-		{
-			// if source data is empty, this is first time
-			// copies the data
-			SourceRawAnimationData = RawAnimationData;
-		}
-		else
+		if(SourceRawAnimationData.Num() != 0)
 		{
 			// we copy SourceRawAnimationData because we'd need to create additive on top of current one
 			RawAnimationData = SourceRawAnimationData;
@@ -4465,7 +4462,10 @@ void UAnimSequence::BakeTrackCurvesToRawAnimation()
 			}
 		}
 
-		for(const auto& Curve : RawCurveData.TransformCurves)
+		TArray<TPair<const FTransformCurve&, int32>> CurveTrackPairs;
+		CurveTrackPairs.Reserve(RawCurveData.TransformCurves.Num());
+
+		for (const auto& Curve : RawCurveData.TransformCurves)
 		{
 			// find curves first, and then see what is index of this curve
 			FName BoneName;
@@ -4478,7 +4478,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimation()
 				// the animation data doesn't have this track, so insert it
 				if(TrackIndex == INDEX_NONE)
 				{
-					TrackIndex = InsertTrack(BoneName);
+					TrackIndex = InsertTrackInternal(BoneName);
 					// if it still didn't find, something went horribly wrong
 					if(ensure(TrackIndex != INDEX_NONE) == false)
 					{
@@ -4488,70 +4488,81 @@ void UAnimSequence::BakeTrackCurvesToRawAnimation()
 					}
 				}
 
-				// now modify data
-				auto& RawTrack = RawAnimationData[TrackIndex];
+				CurveTrackPairs.Emplace(Curve, TrackIndex);
+			}
+		}
 
-				// since now we're editing keys, 
-				// if 1 (which meant constant), just expands to # of frames
-				if(RawTrack.PosKeys.Num() == 1)
+		//Cache Source data
+		SourceRawAnimationData = RawAnimationData;
+
+		for(const TPair<const FTransformCurve&, int32>& Pair : CurveTrackPairs)
+		{
+			const FTransformCurve& Curve = Pair.Key;
+			const int32 TrackIndex = Pair.Value;
+			// now modify data
+			auto& RawTrack = RawAnimationData[TrackIndex];
+
+			// since now we're editing keys, 
+			// if 1 (which meant constant), just expands to # of frames
+			if(RawTrack.PosKeys.Num() == 1)
+			{
+				FVector OneKey = RawTrack.PosKeys[0];
+				RawTrack.PosKeys.Init(OneKey, NumFrames);
+			}
+			else
+			{
+				ensure(RawTrack.PosKeys.Num() == NumFrames);
+			}
+
+			if(RawTrack.RotKeys.Num() == 1)
+			{
+				FQuat OneKey = RawTrack.RotKeys[0];
+				RawTrack.RotKeys.Init(OneKey, NumFrames);
+			}
+			else
+			{
+				ensure(RawTrack.RotKeys.Num() == NumFrames);
+			}
+
+			// although we don't allow edit of scale
+			// it is important to consider scale when apply transform
+			// so make sure this also is included
+			if(RawTrack.ScaleKeys.Num() == 1)
+			{
+				FVector OneKey = RawTrack.ScaleKeys[0];
+				RawTrack.ScaleKeys.Init(OneKey, NumFrames);
+			}
+			else
+			{
+				ensure(RawTrack.ScaleKeys.Num() == NumFrames);
+			}
+
+			// NumFrames can't be zero (filtered earlier)
+			float Interval = GetIntervalPerKey(NumFrames, SequenceLength);
+
+			// now we have all data ready to apply
+			for(int32 KeyIndex=0; KeyIndex < NumFrames; ++KeyIndex)
+			{
+				// now evaluate
+				FTransformCurve* TransformCurve = static_cast<FTransformCurve*>(RawCurveData.GetCurveData(Curve.Name.UID, ERawCurveTrackTypes::RCT_Transform));
+
+				if(ensure(TransformCurve))
 				{
-					FVector OneKey = RawTrack.PosKeys[0];
-					RawTrack.PosKeys.Init(OneKey, NumFrames);
+					FTransform AdditiveTransform = TransformCurve->Evaluate(KeyIndex * Interval, 1.0);
+					FTransform LocalTransform(RawTrack.RotKeys[KeyIndex], RawTrack.PosKeys[KeyIndex], RawTrack.ScaleKeys[KeyIndex]);
+					//  						LocalTransform = LocalTransform * AdditiveTransform;
+					//  						RawTrack.RotKeys[KeyIndex] = LocalTransform.GetRotation();
+					//  						RawTrack.PosKeys[KeyIndex] = LocalTransform.GetTranslation();
+					//  						RawTrack.ScaleKeys[KeyIndex] = LocalTransform.GetScale3D();
+
+					RawTrack.RotKeys[KeyIndex] = LocalTransform.GetRotation() * AdditiveTransform.GetRotation();
+					RawTrack.PosKeys[KeyIndex] = LocalTransform.TransformPosition(AdditiveTransform.GetTranslation());
+					RawTrack.ScaleKeys[KeyIndex] = LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D();
 				}
 				else
 				{
-					ensure(RawTrack.PosKeys.Num() == NumFrames);
-				}
-
-				if(RawTrack.RotKeys.Num() == 1)
-				{
-					FQuat OneKey = RawTrack.RotKeys[0];
-					RawTrack.RotKeys.Init(OneKey, NumFrames);
-				}
-				else
-				{
-					ensure(RawTrack.RotKeys.Num() == NumFrames);
-				}
-
-				// although we don't allow edit of scale
-				// it is important to consider scale when apply transform
-				// so make sure this also is included
-				if(RawTrack.ScaleKeys.Num() == 1)
-				{
-					FVector OneKey = RawTrack.ScaleKeys[0];
-					RawTrack.ScaleKeys.Init(OneKey, NumFrames);
-				}
-				else
-				{
-					ensure(RawTrack.ScaleKeys.Num() == NumFrames);
-				}
-
-				// NumFrames can't be zero (filtered earlier)
-				float Interval = GetIntervalPerKey(NumFrames, SequenceLength);
-
-				// now we have all data ready to apply
-				for(int32 KeyIndex=0; KeyIndex < NumFrames; ++KeyIndex)
-				{
-					// now evaluate
-					FTransformCurve* TransformCurve = static_cast<FTransformCurve*>(RawCurveData.GetCurveData(Curve.Name.UID, ERawCurveTrackTypes::RCT_Transform));
-
-					if(ensure(TransformCurve))
-					{
-						FTransform AdditiveTransform = TransformCurve->Evaluate(KeyIndex * Interval, 1.0);
-						FTransform LocalTransform(RawTrack.RotKeys[KeyIndex], RawTrack.PosKeys[KeyIndex], RawTrack.ScaleKeys[KeyIndex]);
-						//  						LocalTransform = LocalTransform * AdditiveTransform;
-						//  						RawTrack.RotKeys[KeyIndex] = LocalTransform.GetRotation();
-						//  						RawTrack.PosKeys[KeyIndex] = LocalTransform.GetTranslation();
-						//  						RawTrack.ScaleKeys[KeyIndex] = LocalTransform.GetScale3D();
-
-						RawTrack.RotKeys[KeyIndex] = LocalTransform.GetRotation() * AdditiveTransform.GetRotation();
-						RawTrack.PosKeys[KeyIndex] = LocalTransform.TransformPosition(AdditiveTransform.GetTranslation());
-						RawTrack.ScaleKeys[KeyIndex] = LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D();
-					}
-					else
-					{
-						UE_LOG(LogAnimation, Warning, TEXT("Animation Baking : Missing Curve for %s."), *BoneName.ToString());
-					}
+					FName BoneName = AnimationTrackNames[TrackIndex];
+					UE_LOG(LogAnimation, Warning, TEXT("Animation Baking : Missing Curve for %s."), *BoneName.ToString());
 				}
 			}
 		}

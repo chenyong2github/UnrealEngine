@@ -880,6 +880,11 @@ private:
 	 */
 	int32 InsertTrack(const FName& BoneName);
 
+private:
+	/** Internal insert function to be used by BakeTrackCurvesToRawAnimation*/ 
+	int32 InsertTrackInternal(const FName& BoneName);
+
+public:
 	/**
 	 * Utility function to resize the sequence
 	 * It rearranges curve data + notifies
