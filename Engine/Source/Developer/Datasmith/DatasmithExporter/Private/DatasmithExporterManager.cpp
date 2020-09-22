@@ -350,6 +350,7 @@ void FDatasmithExporterManager::Shutdown()
 			GDatasmithGameThread->RequestExit();
 			GMainThreadAsRunnable->WaitForCompletion();
 			delete GMainThreadAsRunnable;
+			GDatasmithGameThread.Reset();
 		}
 		else
 		{
@@ -377,8 +378,6 @@ void FDatasmithExporterManager::RunGarbageCollection()
 		PushCommandIntoGameThread(MoveTemp(Command), true);
 
 		GarbageCollectionDoneFuture.Wait();
-
-		GDatasmithGameThread.Reset();
 	}
 	else
 	{
