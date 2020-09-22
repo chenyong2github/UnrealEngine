@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioDeviceManager.h"
 #include "IAudioModulation.h"
 #include "SoundControlBus.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
-#include "SoundModulationGeneratorLFOProxy.h"
+#include "SoundModulationGeneratorProxy.h"
 
 
 namespace AudioModulation
@@ -21,21 +22,18 @@ namespace AudioModulation
 		bool bBypass;
 		float DefaultValue;
 
-		TArray<FModulatorLFOSettings> LFOSettings;
+		TArray<FModulationGeneratorSettings> GeneratorSettings;
 		Audio::FModulationMixFunction MixFunction;
 
-		FControlBusSettings(const USoundControlBus& InBus)
+		FControlBusSettings(const USoundControlBus& InBus, Audio::FDeviceId InDeviceId)
 			: TModulatorBase<FBusId>(InBus.GetName(), InBus.GetUniqueID())
 			, bBypass()
-			, DefaultValue(InBus.GetDefaultLinearValue())
+			, DefaultValue(InBus.GetDefaultNormalizedValue())
 			, MixFunction(InBus.GetMixFunction())
 		{
-			for (const USoundModulationGenerator* Modulator : InBus.Modulators)
+			for (const USoundModulationGenerator* Generator : InBus.Generators)
 			{
-				if (const USoundModulationGeneratorLFO* LFO = Cast<USoundModulationGeneratorLFO>(Modulator))
-				{
-					LFOSettings.Add(*LFO);
-				}
+				GeneratorSettings.Emplace(FModulationGeneratorSettings(*Generator, InDeviceId));
 			}
 		}
 	};
@@ -49,13 +47,13 @@ namespace AudioModulation
 		FControlBusProxy& operator =(const FControlBusSettings& InSettings);
 
 		float GetDefaultValue() const;
-		const TArray<FLFOHandle>& GetLFOHandles() const;
-		float GetLFOValue() const;
+		const TArray<FGeneratorHandle>& GetGeneratorHandles() const;
+		float GetGeneratorValue() const;
 		float GetMixValue() const;
 		float GetValue() const;
 		bool IsBypassed() const;
 		void MixIn(const float InValue);
-		void MixLFO();
+		void MixGenerators();
 		void Reset();
 
 	private:
@@ -65,13 +63,13 @@ namespace AudioModulation
 		float DefaultValue;
 
 		// Cached values
-		float LFOValue;
+		float GeneratorValue;
 		float MixValue;
 
 		bool bBypass;
 
 		Audio::FModulationMixFunction MixFunction;
-		TArray<FLFOHandle> LFOHandles;
+		TArray<FGeneratorHandle> GeneratorHandles;
 	};
 
 	using FBusProxyMap = TMap<FBusId, FControlBusProxy>;

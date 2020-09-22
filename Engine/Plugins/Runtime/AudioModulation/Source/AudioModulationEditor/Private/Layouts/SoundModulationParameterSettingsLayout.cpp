@@ -62,7 +62,7 @@ void FSoundModulationParameterSettingsLayoutCustomization::CustomizeChildren(TSh
 		PropertyHandles.Add(PropertyName, ChildHandle);
 	}
 
-	TSharedRef<IPropertyHandle> LinearValueHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationParameterSettings, ValueLinear)).ToSharedRef();
+	TSharedRef<IPropertyHandle> NormalizedValueHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationParameterSettings, ValueNormalized)).ToSharedRef();
 	TSharedRef<IPropertyHandle> UnitValueHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationParameterSettings, ValueUnit)).ToSharedRef();
 	TSharedRef<IPropertyHandle> UnitDisplayNameHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationParameterSettings, UnitDisplayName)).ToSharedRef();
 
@@ -79,12 +79,12 @@ void FSoundModulationParameterSettingsLayoutCustomization::CustomizeChildren(TSh
 		{
 			if (USoundModulationParameter* Parameter = ModParamSettingsUtils::GetStructParameter(StructPropertyHandle))
 			{
-				Parameter->RefreshLinearValue();
+				Parameter->RefreshNormalizedValue();
 				Parameter->RefreshUnitValue();
 			}
 		}));
 
-		LinearValueHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([StructPropertyHandle]()
+		NormalizedValueHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([StructPropertyHandle]()
 		{
 			if (USoundModulationParameter* Parameter = ModParamSettingsUtils::GetStructParameter(StructPropertyHandle))
 			{
@@ -136,7 +136,7 @@ void FSoundModulationParameterSettingsLayoutCustomization::CustomizeChildren(TSh
 				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
-					LinearValueHandle->CreatePropertyValueWidget()
+					NormalizedValueHandle->CreatePropertyValueWidget()
 				]
 			+ SHorizontalBox::Slot()
 				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
@@ -145,7 +145,7 @@ void FSoundModulationParameterSettingsLayoutCustomization::CustomizeChildren(TSh
 				[
 					SNew(STextBlock)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.Text(LOCTEXT("SoundModulationControl_UnitValueLinear", "Linear"))
+					.Text(LOCTEXT("SoundModulationControl_UnitValueNormalized", "Normalized"))
 					.IsEnabled(false)
 				]
 		];
@@ -164,7 +164,7 @@ void FSoundModulationParameterSettingsLayoutCustomization::CustomizeChildren(TSh
 			]
 			.ValueContent()
 			[
-				LinearValueHandle->CreatePropertyValueWidget()
+				NormalizedValueHandle->CreatePropertyValueWidget()
 			];
 	}
 

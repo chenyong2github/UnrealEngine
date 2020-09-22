@@ -75,15 +75,16 @@ void FSoundControlModulationPatchLayoutCustomization::CustomizeChildren(TSharedR
 	TSharedRef<IPropertyHandle> InputsHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, Inputs)).ToSharedRef();
 	TSharedRef<IPropertyHandle> ParameterHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, OutputParameter)).ToSharedRef();
 
+	TAttribute<bool> EditCondition = TAttribute<bool>::Create([this, BypassHandle]()
+	{
+		bool bIsBypassed = false;
+		BypassHandle->GetValue(bIsBypassed);
+		return !bIsBypassed;
+	});
+
 	ChildBuilder.AddProperty(BypassHandle);
-	ChildBuilder.AddProperty(ParameterHandle);
-	ChildBuilder.AddProperty(InputsHandle)
-		.Visibility(TAttribute<EVisibility>::Create([this, BypassHandle]()
-		{
-			bool bIsBypassed = false;
-			BypassHandle->GetValue(bIsBypassed);
-			return bIsBypassed ? EVisibility::Hidden : EVisibility::Visible;
-		}));
+	ChildBuilder.AddProperty(ParameterHandle).EditCondition(EditCondition, nullptr);
+	ChildBuilder.AddProperty(InputsHandle).EditCondition(EditCondition, nullptr);
 }
 
 void FSoundControlModulationPatchLayoutCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)

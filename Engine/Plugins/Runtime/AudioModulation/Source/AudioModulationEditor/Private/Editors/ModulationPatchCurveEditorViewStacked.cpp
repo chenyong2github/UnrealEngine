@@ -24,8 +24,8 @@ namespace PatchCurveViewUtils
 {
 	void FormatLabel(const USoundModulationParameter& InParameter, const FNumberFormattingOptions& InNumFormatOptions, FText& InOutLabel)
 	{
-		const float LinearValue = FCString::Atof(*InOutLabel.ToString());
-		const float UnitValue = InParameter.ConvertLinearToUnit(LinearValue);
+		const float NormalizedValue = FCString::Atof(*InOutLabel.ToString());
+		const float UnitValue = InParameter.ConvertNormalizedToUnit(NormalizedValue);
 		FText UnitLabel = FText::AsNumber(UnitValue, &InNumFormatOptions);
 		InOutLabel = FText::Format(LOCTEXT("ModulationPatchCurveView_UnitFormat", "{0} ({1})"), UnitLabel, InOutLabel);
 	}
@@ -44,7 +44,7 @@ FModPatchCurveEditorModel::FModPatchCurveEditorModel(FRichCurve& InRichCurve, UO
 
 void FModPatchCurveEditorModel::Refresh(EModPatchOutputEditorCurveSource InSource, int32 InInputIndex)
 {
-	InputAxisName = LOCTEXT("ModulationCurveDisplayTitle_Linear", "Linear");
+	InputAxisName = LOCTEXT("ModulationCurveDisplayTitle_Normalized", "Normalized");
 	FText OutputAxisName = InputAxisName;
 
 	FSoundControlModulationInput* Input = nullptr;
