@@ -11,6 +11,7 @@ public class AudioModulationEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"GameProjectGeneration",
 				"UnrealEd",
 				"PropertyEditor",
 				"SequenceRecorder",

@@ -9,7 +9,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "Engine/World.h"
 #include "SoundControlBusProxy.h"
-#include "SoundModulationGeneratorLFO.h"
+
 
 USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -41,7 +41,7 @@ void USoundControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyC
 			Address = GetName();
 		}
 
-		AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem & OutModSystem)
+		AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModSystem)
 		{
 			OutModSystem.UpdateModulator(*this);
 		});
@@ -71,6 +71,8 @@ void USoundControlBus::PostRename(UObject* OldOuter, const FName OldName)
 
 void USoundControlBus::BeginDestroy()
 {
+	using namespace AudioModulation;
+
 	Super::BeginDestroy();
 
 	if (UWorld* World = GetWorld())
@@ -80,9 +82,9 @@ void USoundControlBus::BeginDestroy()
 			check(AudioDevice->IsModulationPluginEnabled());
 			if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
 			{
-				auto ModSystem = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetModulationSystem();
-				check(ModSystem);
-				ModSystem->DeactivateBus(*this);
+				FAudioModulation* Modulation = static_cast<FAudioModulation*>(ModulationInterface);
+				check(Modulation);
+				Modulation->DeactivateBus(*this);
 			}
 		}
 	}

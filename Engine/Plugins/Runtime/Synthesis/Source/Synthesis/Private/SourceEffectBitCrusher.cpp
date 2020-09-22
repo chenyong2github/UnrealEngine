@@ -2,6 +2,9 @@
 
 #include "SourceEffects/SourceEffectBitCrusher.h"
 
+#include "IAudioModulation.h"
+
+
 void FSourceEffectBitCrusher::Init(const FSoundEffectSourceInitData& InitData)
 {
 	bIsActive = true;
@@ -12,8 +15,8 @@ void FSourceEffectBitCrusher::Init(const FSoundEffectSourceInitData& InitData)
 		BitMod.Init(InitData.AudioDeviceId, FName("BitDepth"), false /* bInIsBuffered */);
 		SampleRateMod.Init(InitData.AudioDeviceId, FName("SampleRate"), false /* bInIsBuffered */);
 
-		SetBitModulator(ProcPreset->Settings.BitModulation);
-		SetSampleRateModulator(ProcPreset->Settings.SampleRateModulation);
+		SetBitModulator(ProcPreset->Settings.BitModulation.Modulator);
+		SetSampleRateModulator(ProcPreset->Settings.SampleRateModulation.Modulator);
 	}
 }
 
@@ -39,20 +42,20 @@ void FSourceEffectBitCrusher::ProcessAudio(const FSoundEffectSourceInputData& In
 	BitCrusher.ProcessAudio(InData.InputSourceEffectBufferPtr, InData.NumSamples, OutAudioBufferData);
 }
 
-void FSourceEffectBitCrusher::SetBitModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void FSourceEffectBitCrusher::SetBitModulator(const USoundModulatorBase* InModulator)
 {
-	BitMod.UpdateSettings(InModulatorSettings);
+	BitMod.UpdateModulator(InModulator);
 }
 
-void FSourceEffectBitCrusher::SetSampleRateModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void FSourceEffectBitCrusher::SetSampleRateModulator(const USoundModulatorBase* InModulator)
 {
-	SampleRateMod.UpdateSettings(InModulatorSettings);
+	SampleRateMod.UpdateModulator(InModulator);
 }
 
 void USourceEffectBitCrusherPreset::OnInit()
 {
-	SetBitModulator(Settings.BitModulation);
-	SetSampleRateModulator(Settings.SampleRateModulation);
+	SetBitModulator(Settings.BitModulation.Modulator);
+	SetSampleRateModulator(Settings.SampleRateModulation.Modulator);
 }
 
 void USourceEffectBitCrusherPreset::Serialize(FArchive& Ar)
@@ -77,24 +80,51 @@ void USourceEffectBitCrusherPreset::Serialize(FArchive& Ar)
 #endif // WITH_EDITORONLY_DATA
 }
 
-void USourceEffectBitCrusherPreset::SetBitModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void USourceEffectBitCrusherPreset::SetBits(float InBits)
 {
-	IterateEffects<FSourceEffectBitCrusher>([InModulatorSettings](FSourceEffectBitCrusher& InCrusher)
+	UpdateSettings([NewBits = InBits](FSourceEffectBitCrusherSettings& OutSettings)
 	{
-		InCrusher.SetBitModulator(InModulatorSettings);
+		OutSettings.BitModulation.Value = NewBits;
 	});
 }
 
-void USourceEffectBitCrusherPreset::SetSampleRateModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
+void USourceEffectBitCrusherPreset::SetBitModulator(const USoundModulatorBase* InModulator)
 {
-	IterateEffects<FSourceEffectBitCrusher>([InModulatorSettings](FSourceEffectBitCrusher& InCrusher)
+	IterateEffects<FSourceEffectBitCrusher>([InModulator](FSourceEffectBitCrusher& InCrusher)
 	{
-		InCrusher.SetSampleRateModulator(InModulatorSettings);
+		InCrusher.SetBitModulator(InModulator);
 	});
 }
 
-void USourceEffectBitCrusherPreset::SetSettings(const FSourceEffectBitCrusherSettings& InSettings)
+void USourceEffectBitCrusherPreset::SetSampleRate(float InSampleRate)
 {
-	UpdateSettings(InSettings);
+	UpdateSettings([NewSampleRate = InSampleRate](FSourceEffectBitCrusherSettings& OutSettings)
+	{
+		OutSettings.SampleRateModulation.Value = NewSampleRate;
+	});
+}
+
+void USourceEffectBitCrusherPreset::SetSampleRateModulator(const USoundModulatorBase* InModulator)
+{
+	IterateEffects<FSourceEffectBitCrusher>([InModulator](FSourceEffectBitCrusher& InCrusher)
+	{
+		InCrusher.SetSampleRateModulator(InModulator);
+	});
+}
+
+void USourceEffectBitCrusherPreset::SetSettings(const FSourceEffectBitCrusherBaseSettings& InSettings)
+{
+	UpdateSettings([NewBaseSettings = InSettings](FSourceEffectBitCrusherSettings& OutSettings)
+	{
+		OutSettings.BitModulation.Value = NewBaseSettings.BitDepth;
+		OutSettings.SampleRateModulation.Value = NewBaseSettings.SampleRate;
+	});
+}
+
+void USourceEffectBitCrusherPreset::SetModulationSettings(const FSourceEffectBitCrusherSettings& InModulationSettings)
+{
+	UpdateSettings(InModulationSettings);
+
+	// Must be called to update modulators
 	OnInit();
 }
