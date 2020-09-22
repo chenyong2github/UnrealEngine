@@ -92,7 +92,7 @@ protected:
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly, BlueprintGetter = GetInputsList, Category = "Composure|Input", meta=(ShowOnlyInnerProperties))
 	TArray<UCompositingElementInput*> Inputs;
 
-	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly, BlueprintGetter = GetTransformsList, Category = "Composure|Transform/Compositing Passes", meta=(DisplayName = "Transform Passes", ShowOnlyInnerProperties, DisplayAfter=Inputs))
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly, BlueprintGetter = GetTransformsList, Category = "Composure|Transform/Compositing Passes", meta=(DisplayName = "Transform Passes", ShowOnlyInnerProperties, DisplayAfter="Inputs"))
 	TArray<UCompositingElementTransform*> TransformPasses;
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly, BlueprintGetter = GetOutputsList, Category = "Composure|Output", meta = (ShowOnlyInnerProperties))
@@ -116,7 +116,7 @@ public:
 	EInheritedSourceType ResolutionSource = EInheritedSourceType::Inherited;
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintGetter=GetRenderResolution, Category="Composure|Output")
+	UPROPERTY(EditAnywhere, BlueprintSetter=SetRenderResolution, BlueprintGetter=GetRenderResolution, Category="Composure|Output")
  	FIntPoint RenderResolution;
 public:
 
@@ -165,14 +165,36 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	void SetCompIdName(const FName NewName);
+	/**
+	 * Rename composure actor's name
+	 * @param NewName             New name for current composure element.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Composure|Element")
+	void SetElementName(const FName NewName);
 
 	bool AttachAsChildLayer(ACompositingElement* Child);
+	
 	bool DetatchAsChildLayer(ACompositingElement* Child);
 
+	/**
+	 * Determines whether current composure element is a child of another composure element or not.
+	 * @return bool                Whether current composure actor is a child actor or not.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Composure|Element")
 	bool IsSubElement() const;
+
+	/**
+	 * Get the parent composure element of current element.
+	 * @return bool                Whether the function successfully finds the parent or not.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Composure|Element")
 	ACompositingElement* GetElementParent() const;
 
+	/**
+	 * Get the first level of current element's child composure elements. 
+	 * @return TArray<ACompositingElement*>   The array containing all the first level children without any grandchildren.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Composure|Element")
 	const TArray<ACompositingElement*> GetChildElements() const;
 
 	template<class T>
@@ -180,13 +202,38 @@ public:
 	{
 		return Cast<T>(AddNewPass(PassName, T::StaticClass(), ConstructedBy));
 	}
+
 	UCompositingElementPass* AddNewPass(FName PassName, TSubclassOf<UCompositingElementPass> PassType, ECompPassConstructionType ConstructedBy = ECompPassConstructionType::CodeConstructed);
-	
+
+	/**
+	 * Remove a pass from inner pass. This function will not deal with public list shown in the editor. Use DeletePass instead.
+	 * @param  ElementPass          The pass that is going to be removed. 
+	 * @return bool                 True if deletion operation is successful.
+	 */
 	bool RemovePass(UCompositingElementPass* ElementPass);
+
 	int32 RemovePassesOfType(TSubclassOf<UCompositingElementPass> PassType);
 
+	/**
+	 * Return the rendering opacity of current composure actor.
+	 * @return float                The rendering opacity of current composure element.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Composure|Element")
 	float GetOpacity() const { return OutputOpacity; }
+
+	/**
+	 * Set the rendering opacity of current composure actor.
+	 * @param NewOpacity            The new opacity value set to the composure element. 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Composure|Element")
 	void SetOpacity(const float NewOpacity);
+
+	/**
+	 * When set to false, all children composure actor and current actor's auto-rendering behavior will be disabled. This option is
+	 * available in the detail panel of the composure element actor as well.
+	 * @param bAutoRunChildAndSelf    Enable/Disable all the children and itself's rendering. By default, all rendering is enabled.
+	 */
+	virtual void SetAutoRunChildrenAndSelf(bool bAutoRunChildAndSelf = true) override;
 
 public:
 	//~ ICompImageColorPickerInterface API
@@ -228,7 +275,8 @@ public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, DisplayName=OnFinalPassRendered, Category="Composure")
 	FDynamicOnFinalPassRendered OnFinalPassRendered_BP;
 
-	UFUNCTION(BlueprintPure, Category = "Composure")
+	/** Return the FName of the composure element object*/
+	UFUNCTION(BlueprintPure, Category = "Composure|Element")
 	FName GetCompElementName() const { return CompShotIdName; }
 
 	UFUNCTION(BlueprintCallable, Category = "Composure")
@@ -246,6 +294,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Composure|Input")
 	ACameraActor* FindTargetCamera() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Composure|Input")
+	void SetTargetCamera(ACameraActor* NewCameraActor);
+
 	UFUNCTION(BlueprintCallable, Category = "Composure")
 	void RegisterPassResult(FName ReferenceName, UTexture* PassResult, bool bSetAsLatestRenderResult = true);
 	UFUNCTION(BlueprintCallable, Category = "Composure")
@@ -256,15 +307,18 @@ public:
 	UFUNCTION(BlueprintGetter)
 	FIntPoint GetRenderResolution() const;
 
+	UFUNCTION(BlueprintSetter)
+	void SetRenderResolution(FIntPoint NewResolution) { RenderResolution = NewResolution; }
+
 	/*********************************/
 	// Pass Management 
 
 	UFUNCTION(BlueprintCallable, Category = "Composure", meta = (DeterminesOutputType = "InputType"))
-	UCompositingElementInput* FindInputPass(TSubclassOf<UCompositingElementInput> InputType, UTexture*& PassResult, FName OptionalPassName = NAME_None);
+	UCompositingElementInput* FindInputPass(UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementInput> InputType, UTexture*& PassResult, FName OptionalPassName = NAME_None);
 	UFUNCTION(BlueprintCallable, Category = "Composure", meta = (DeterminesOutputType = "TransformType"))
-	UCompositingElementTransform* FindTransformPass(TSubclassOf<UCompositingElementTransform> TransformType, UTexture*& PassResult, FName OptionalPassName = NAME_None);
+	UCompositingElementTransform* FindTransformPass(UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementTransform> TransformType, UTexture*& PassResult, FName OptionalPassName = NAME_None);
 	UFUNCTION(BlueprintCallable, Category = "Composure", meta = (DeterminesOutputType = "OutputType"))
-	UCompositingElementOutput* FindOutputPass(TSubclassOf<UCompositingElementOutput> OutputType, FName OptionalPassName = NAME_None);
+	UCompositingElementOutput* FindOutputPass(UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementOutput> OutputType, FName OptionalPassName = NAME_None);
 	
 	UFUNCTION(BlueprintGetter)
 	TArray<UCompositingElementInput*> GetInputsList() const { return GetInternalInputsList(); }
@@ -273,13 +327,48 @@ public:
 	UFUNCTION(BlueprintGetter)
 	TArray<UCompositingElementOutput*> GetOutputsList() const { return GetInternalOutputsList(); }
 
+	/**
+	 * Delete a specific pass. This function deals with the public list where deletion is directly reflected in the editor.
+	 * @param  PassToDelete			  The pass that will be deleted.
+	 * @return bool                   Whether the delete operation is successful or not
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Composure|Pass")
+	bool DeletePass(UCompositingElementPass* PassToDelete);
+
+	/**
+	 * Create a new input pass into the public list which directly shows in the editor. 
+	 * @param  PassName                       The name for the new pass.
+	 * @param  InputType                      The class type of the created pass.
+	 * @return CompositingElementInput        The newly created input pass object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Composure|Pass", meta = (DeterminesOutputType = "InputType"))
+	UCompositingElementInput* CreateNewInputPass(FName PassName, UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementInput> InputType);
+
+	/**
+	 * Create a new Transform pass into the public list which directly shows in the editor.
+	 * @param  PassName                       The name for the new pass.
+	 * @param  TransformType                  The class type of the created pass.
+	 * @return CompositingElementTransform    The newly created transform pass object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Composure|Pass", meta = (DeterminesOutputType = "TransformType"))
+	UCompositingElementTransform* CreateNewTransformPass(FName PassName, UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementTransform> TransformType);
+
+	/**
+	 * Create a new Output pass into the public list which directly shows in the editor.
+	 * @param  PassName                       The name for the new pass.
+	 * @param  OutputType                     The class type of the created pass.
+	 * @return CompositingElementOutput       The newly created output pass object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Composure|Pass", meta = (DeterminesOutputType = "OutputType"))
+	UCompositingElementOutput* CreateNewOutputPass(FName PassName, UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementOutput> OutputType);
+
 protected:
 	UFUNCTION(BlueprintCallable, Category = "Composure|Input", meta = (DeterminesOutputType = "InputType", BlueprintProtected))
-	UCompositingElementInput* AddNewInputPass(FName PassName, TSubclassOf<UCompositingElementInput> InputType);
+	UCompositingElementInput* AddNewInputPass(FName PassName, UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementInput> InputType);
 	UFUNCTION(BlueprintCallable, Category = "Composure|Input", meta = (DeterminesOutputType = "TransformType", BlueprintProtected))
-	UCompositingElementTransform* AddNewTransformPass(FName PassName, TSubclassOf<UCompositingElementTransform> TransformType);
+	UCompositingElementTransform* AddNewTransformPass(FName PassName, UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementTransform> TransformType);
 	UFUNCTION(BlueprintCallable, Category = "Composure|Input", meta = (DeterminesOutputType = "OutputType", BlueprintProtected))
-	UCompositingElementOutput* AddNewOutputPass(FName PassName, TSubclassOf<UCompositingElementOutput> OutputType);
+	UCompositingElementOutput* AddNewOutputPass(FName PassName, UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementOutput> OutputType);
 
 public: 
 	//~ Begin UObject interface
@@ -303,8 +392,11 @@ public:
 
 	//~ Begin AComposurePipelineBaseActor interface
 	virtual void SetAutoRun(bool bNewAutoRunVal) override;
+	
 	virtual void EnqueueRendering_Implementation(bool bCameraCutThisFrame) override;
 	virtual bool IsActivelyRunning_Implementation() const;
+
+	UFUNCTION(BlueprintPure, Category = "Composure")
 	virtual int32 GetRenderPriority() const override;
 	//~ End AComposurePipelineBaseActor interface
 

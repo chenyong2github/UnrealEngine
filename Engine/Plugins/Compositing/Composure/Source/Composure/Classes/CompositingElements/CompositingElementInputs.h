@@ -71,7 +71,7 @@ private:
 
 class UMediaTexture;
 
-UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Media Texture Input"))
+UCLASS(BlueprintType, Blueprintable)
 class COMPOSURE_API UMediaTextureCompositingInput : public UCompositingMediaInput
 {
 	GENERATED_BODY()

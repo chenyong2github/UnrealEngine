@@ -15,7 +15,7 @@
 class FCompositingTargetSwapChain;
 class UComposurePostProcessPassPolicy;
 
-UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Post Process Pass Set"))
+UCLASS(BlueprintType, Blueprintable)
 class COMPOSURE_API UCompositingPostProcessPass : public UCompositingElementTransform
 {
 	GENERATED_BODY()
@@ -38,7 +38,7 @@ protected:
 /* UCompositingElementMaterialPass
  *****************************************************************************/
 
-UCLASS(BlueprintType, Blueprintable, editinlinenew, meta = (DisplayName = "Custom Material Pass"))
+UCLASS(BlueprintType, Blueprintable, editinlinenew)
 class COMPOSURE_API UCompositingElementMaterialPass : public UCompositingPostProcessPass
 {
 	GENERATED_BODY()
@@ -52,6 +52,23 @@ public:
 	virtual UTexture* ApplyTransform_Implementation(UTexture* Input, UComposurePostProcessingPassProxy* PostProcessProxy, ACameraActor* TargetCamera) override;
 	//~ End UCompositingElementTransform interface
 
+	/**
+	 * Set the material interface used by current material pass. 
+	 * @param NewMaterial            The new material interface users want to set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Compositing Pass")
+	void SetMaterialInterface(UMaterialInterface* NewMaterial);
+
+	/**
+	 * Set the parameter mappings between texture parameters and composure layers. Users can not create new entries into the map as the keys are read only.
+	 * Invalid Texture parameter names will result in a failed setting operation. 
+	 * @param TextureParamName       The name of the texture parameter inside the material interface. Used as key.
+	 * @param ComposureLayerName     The name of the composure layer the texture parameter is mapped to. Used as value.
+	 * @return bool                  True if set operation is successful. 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Compositing Pass")
+	bool SetParameterMapping(FName TextureParamName, FName ComposureLayerName);
+
 protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void ApplyMaterialParams(UMaterialInstanceDynamic* MID);
@@ -62,18 +79,18 @@ protected:
 
 class UComposureTonemapperPassPolicy;
 
-UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Tonemap"))
+UCLASS(BlueprintType, Blueprintable)
 class COMPOSURE_API UCompositingTonemapPass : public UCompositingElementTransform
 {
 	GENERATED_BODY()
 
 public:
 	/** Color grading settings. */
-	UPROPERTY(Interp, Category = "Compositing Pass", meta = (ShowOnlyInnerProperties, DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	UPROPERTY(Interp, Category = "Compositing Pass",meta = (ShowOnlyInnerProperties, DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	FColorGradingSettings ColorGradingSettings;
 	
 	/** Film stock settings. */
-	UPROPERTY(Interp, Category = "Compositing Pass", meta = (ShowOnlyInnerProperties, DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	UPROPERTY(Interp, Category = "Compositing Pass",meta = (ShowOnlyInnerProperties, DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	FFilmStockSettings FilmStockSettings;
 
 	/** in percent, Scene chromatic aberration / color fringe (camera imperfection) to simulate an artifact that happens in real-world lens, mostly visible in the image corners. */
@@ -96,7 +113,7 @@ class UMediaBundle;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 
-UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Multi Pass Chroma Keyer"))
+UCLASS(BlueprintType, Blueprintable)
 class UMultiPassChromaKeyer : public UCompositingElementTransform
 {
 	GENERATED_BODY()
@@ -127,7 +144,7 @@ class UMediaBundle;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 
-UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "Multi Pass Despill"))
+UCLASS(BlueprintType, Blueprintable)
 class UMultiPassDespill : public UCompositingElementTransform
 {
 	GENERATED_BODY()
@@ -163,7 +180,7 @@ class UAlphaTransformPass : public UCompositingElementTransform
 public:
 	UAlphaTransformPass();
 
-	UPROPERTY(EditAnywhere, Category = "Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	UPROPERTY(EditAnywhere,Category = "Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	float AlphaScale = 1.f;
 
 public:
@@ -182,14 +199,14 @@ private:
 /* UCompositingOpenColorIOPass
 *****************************************************************************/
 
-UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "OpenColorIO"))
+UCLASS(BlueprintType, Blueprintable)
 class COMPOSURE_API UCompositingOpenColorIOPass : public UCompositingElementTransform
 {
 	GENERATED_BODY()
 
 public:
 	/** Color grading settings. */
-	UPROPERTY(Interp, Category = "OpenColorIO Settings", meta = (ShowOnlyInnerProperties, DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	UPROPERTY(Interp, Category = "OpenColorIO Settings",meta = (ShowOnlyInnerProperties, DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	FOpenColorIOColorConversionSettings ColorConversionSettings;
 
 public:
