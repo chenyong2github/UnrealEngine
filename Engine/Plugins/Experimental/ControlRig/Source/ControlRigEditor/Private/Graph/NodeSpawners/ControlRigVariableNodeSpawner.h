@@ -16,6 +16,7 @@
 #include "ControlRigVariableNodeSpawner.generated.h"
 
 class UControlRigGraphNode;
+class UControlRigBlueprint;
 
 UCLASS(Transient)
 class CONTROLRIGEDITOR_API UControlRigVariableNodeSpawner : public UBlueprintNodeSpawner
@@ -30,18 +31,20 @@ public:
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigVariableNodeSpawner* CreateFromExternalVariable(const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static UControlRigVariableNodeSpawner* CreateFromExternalVariable(UControlRigBlueprint* InBlueprint, const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
 	virtual FBlueprintNodeSignature GetSpawnerSignature() const override;
 	virtual FBlueprintActionUiSpec GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const override;
 	virtual UEdGraphNode* Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const override;
+	virtual bool IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const override;
 	// End UBlueprintNodeSpawner interface
 
 private:
 
 	/** The pin type we will spawn */
+	TWeakObjectPtr<UControlRigBlueprint> Blueprint;
 	FRigVMExternalVariable ExternalVariable;
 	bool bIsGetter;
 
