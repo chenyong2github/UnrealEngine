@@ -50,10 +50,11 @@ public:
 	EPhysicsProxyType ConcreteType();
 	
 	bool IsValid() { return Constraint != nullptr && Constraint->IsValid(); }
-	bool HasActiveConnections() const;
 
 	bool IsInitialized() const { return bInitialized; }
 	void SetInitialized() { bInitialized = true; }
+
+	static Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
 
 	//
 	//  Lifespan Management
@@ -136,7 +137,7 @@ private:
 	FConstraintData JointSettingsBuffer;
 	FJointConstraintDirtyFlags DirtyFlagsBuffer;
 
-	CONSTRAINT_TYPE* Constraint;
+	CONSTRAINT_TYPE* Constraint; 	// This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
 	FConstraintHandle* Handle;
 	bool bInitialized;
 
@@ -156,7 +157,6 @@ public:
 
 
 template<> CHAOS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
-template<> CHAOS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::HasActiveConnections() const;
 template<> CHAOS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer);
 template<> CHAOS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp);
 
