@@ -2027,11 +2027,11 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 		DstTextures.Emplace(RetrieveTextureBase(InTextures[i], NextSiblingGPUIndex));
 	}
 
-#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
-
 	FD3D12Device* Device = GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
 	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
+
+#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
 
 	for (int32 i = 0; i < NumTextures; i++)
 	{

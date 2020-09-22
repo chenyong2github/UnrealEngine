@@ -297,9 +297,10 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 	// Render to the light attenuation buffer for all views.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
 		const FViewInfo& View = Views[ViewIndex];
+
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 		if (View.VisibleLightInfos[LightSceneInfo->Id].bInViewFrustum)
 		{
