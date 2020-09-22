@@ -93,7 +93,7 @@ public:
 	UMaterialInterface* Material;
 
 	/** Maps material texture param names to prior passes/elements. Overrides the element's param mapping list above. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CompositingMaterial", meta = (ReadOnlyKeys))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CompositingMaterial", meta = (ReadOnlyKeys, DisplayName = "Input Elements"))
 	TMap<FName, FName> ParamPassMappings;
 
 	UPROPERTY(EditDefaultsOnly, Category = "CompositingMaterial", meta = (DisplayName="Expected Param Mappings"))

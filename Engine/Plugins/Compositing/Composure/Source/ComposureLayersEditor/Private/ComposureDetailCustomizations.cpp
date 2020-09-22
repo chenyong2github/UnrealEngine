@@ -1431,7 +1431,7 @@ void FCompositingMaterialPassCustomization::RebuildTextureSourceList()
 				FoundSelf = true;
 				break;
 			}
-			else if (Input && Input->bEnabled)
+			else if (Input && Input->IsPassEnabled())
 			{
 				if (Input->bIntermediate)
 				{
@@ -1463,7 +1463,7 @@ void FCompositingMaterialPassCustomization::RebuildTextureSourceList()
 					FoundSelf = true;
 					break;
 				}
-				else if (Transform->bEnabled)
+				else if (Transform->IsPassEnabled())
 				{
 					if (Transform->bIntermediate)
 					{
@@ -1593,7 +1593,7 @@ TArray<TSharedPtr<FName>> FCompositingMaterialPassCustomization::GetPassNamesRec
 
 	for (UCompositingElementInput* Input : Element->GetInputsList())
 	{
-		if (Input->bEnabled && !Input->bIntermediate)
+		if (Input->IsPassEnabled() && !Input->bIntermediate)
 		{
 			AddPassNameToList(Input->PassName);
 		}
@@ -1601,7 +1601,7 @@ TArray<TSharedPtr<FName>> FCompositingMaterialPassCustomization::GetPassNamesRec
 
 	for (UCompositingElementTransform* Transform : Element->GetTransformsList())
 	{
-		if (Transform->bEnabled && !Transform->bIntermediate)
+		if (Transform->IsPassEnabled() && !Transform->bIntermediate)
 		{
 			AddPassNameToList(Transform->PassName);
 		}
