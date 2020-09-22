@@ -1217,6 +1217,10 @@ void SNiagaraParameterMapView::OnDeleteEntry()
 			System->Modify();
 			System->GetExposedParameters().RemoveParameter(ParameterAction->Parameter);
 			System->EditorOnlyAddedParameters.RemoveParameter(ParameterAction->Parameter);
+
+			// Update anything that was referencing that parameter
+			System->HandleVariableRemoved(ParameterAction->Parameter, true);
+
 		}
 	}
 }
@@ -1971,6 +1975,29 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 
 			bSuccess = bParameterStoreRename | bAssignmentNodeRename;
 		}
+
+		// Handle renaming any renderer properties that might match.
+		if (bSuccess)
+		{
+			if (Parameter.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace) || Parameter.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+			{
+				FGraphPanelSelectionSet Objs = SelectedScriptObjects->GetSelectedObjects();
+				for (UObject* SelectedObj : Objs)
+				{
+					UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(SelectedObj);
+					if (Emitter)
+					{
+						Emitter->HandleVariableRenamed(Parameter, FNiagaraVariableBase(Parameter.GetType(), NewName), true);
+					}
+				}
+			}
+			else
+			{
+				System->HandleVariableRenamed(Parameter, FNiagaraVariableBase(Parameter.GetType(), NewName), true);
+			}
+
+		}
+		
 	}
 
 	if (bSuccess)

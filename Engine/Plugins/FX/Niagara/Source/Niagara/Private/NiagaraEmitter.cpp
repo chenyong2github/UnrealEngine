@@ -810,6 +810,36 @@ UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnRenderersChanged()
 {
 	return OnRenderersChangedDelegate;
 }
+
+void UNiagaraEmitter::HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts)
+{
+	// Rename the variable if it is in use by any renderer properties
+	for (UNiagaraRendererProperties* Prop : GetRenderers())
+	{
+		Prop->Modify(false);
+		Prop->RenameVariable(InOldVariable, InNewVariable, this);
+	}
+
+	if (bUpdateContexts)
+	{
+		FNiagaraSystemUpdateContext UpdateCtx(this, true);
+	}
+}
+
+void UNiagaraEmitter::HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts)
+{
+	// Reset the variable if it is in use by any renderer properties
+	for (UNiagaraRendererProperties* Prop : GetRenderers())
+	{
+		Prop->Modify(false);
+		Prop->RemoveVariable(InOldVariable, this);
+	}
+
+	if (bUpdateContexts)
+	{
+		FNiagaraSystemUpdateContext UpdateCtx(this, true);
+	}
+}
 #endif
 
 bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)const
