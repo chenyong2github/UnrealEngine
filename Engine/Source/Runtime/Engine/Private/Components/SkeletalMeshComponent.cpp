@@ -369,17 +369,18 @@ void USkeletalMeshComponent::RegisterComponentTickFunctions(bool bRegister)
 	UpdateClothTickRegisteredState();
 }
 
+
 void USkeletalMeshComponent::RegisterEndPhysicsTick(bool bRegister)
 {
 	if (bRegister != EndPhysicsTickFunction.IsTickFunctionRegistered())
 	{
 		if (bRegister)
 		{
-			if (SetupActorComponentTickFunction(&EndPhysicsTickFunction))
+			UWorld* World = GetWorld();
+			if (World->EndPhysicsTickFunction.IsTickFunctionRegistered() && SetupActorComponentTickFunction(&EndPhysicsTickFunction))
 			{
 				EndPhysicsTickFunction.Target = this;
 				// Make sure our EndPhysicsTick gets called after physics simulation is finished
-				UWorld* World = GetWorld();
 				if (World != nullptr)
 				{
 					EndPhysicsTickFunction.AddPrerequisite(World, World->EndPhysicsTickFunction);
