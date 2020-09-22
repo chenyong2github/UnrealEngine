@@ -157,6 +157,11 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 //////////////////////////////////////////////////////////////////////////
 // FOverlapResult
 
+AActor* FOverlapResult::GetActor() const
+{
+	return OverlapObjectHandle.FetchActor();
+}
+
 UPrimitiveComponent* FOverlapResult::GetComponent() const
 {
 	return Component.Get();

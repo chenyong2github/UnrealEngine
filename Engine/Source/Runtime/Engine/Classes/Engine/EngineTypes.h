@@ -2293,6 +2293,9 @@ struct ENGINE_API FOverlapResult
 		For SkeletalMeshComponents this is the Body index or INDEX_NONE for single body */
 	int32 ItemIndex;
 
+	/** Utility to return the Actor that owns the Component that was hit */
+	AActor* GetActor() const;
+
 	/** Utility to return the Component that was hit */
 	UPrimitiveComponent* GetComponent() const;
 
