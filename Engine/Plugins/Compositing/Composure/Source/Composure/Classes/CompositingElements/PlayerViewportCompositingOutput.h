@@ -17,7 +17,7 @@ class UPlayerCompOutputCameraModifier;
 /* UPlayerViewportCompositingOutput
  *****************************************************************************/
 
-UCLASS(meta=(DisplayName="Player Viewport"))
+UCLASS()
 class COMPOSURE_API UPlayerViewportCompositingOutput : public UColorConverterOutputPass, public IBlendableInterface
 {
 	GENERATED_BODY()
