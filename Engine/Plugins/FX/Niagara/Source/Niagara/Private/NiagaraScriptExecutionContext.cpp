@@ -868,29 +868,6 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 	);
 }
 
-void FNiagaraComputeExecutionContext::BakeVariableNamesForIterationLookup()
-{
-	// We need to store the name of each DI source variable here so that we can look it up later when looking for the 
-			// iteration interface.
-	TArray<FNiagaraVariable> Params;
-	CombinedParamStore.GetParameters(Params);
-	for (FNiagaraVariable& Var : Params)
-	{
-		if (!Var.IsDataInterface())
-			continue;
-
-		UNiagaraDataInterface* DI = CombinedParamStore.GetDataInterface(Var);
-		if (DI)
-		{
-			FNiagaraDataInterfaceProxy* Proxy = DI->GetProxy();
-			if (Proxy)
-			{
-				Proxy->SourceDIName = Var.GetName();
-			}
-		}
-	}
-}
-
 void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
 {
 	GPUScript = InGPUComputeScript;
@@ -1122,7 +1099,6 @@ bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemI
 			}
 		}
 #endif
-
 		CombinedParamStore.Tick();
 	}
 
