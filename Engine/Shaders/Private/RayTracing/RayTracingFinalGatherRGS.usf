@@ -299,8 +299,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 #endif
 				// Apply temporal bilateral rejection criteria to prevent haloing around occluding objects
 				uint2 LocalPixelCoord = GetPixelCoord(GlobalIndex, UpscaleFactor);
-				float LocalDeviceZ = SceneDepthBuffer.Load(int3(LocalPixelCoord, 0)).r;
-				float3 LocalWorldNormal = DecodeNormal(SceneGBufferA.Load(int3(LocalPixelCoord, 0)).xyz);
+				float LocalDeviceZ = SceneDepthTexture.Load(int3(LocalPixelCoord, 0)).r;
+				float3 LocalWorldNormal = DecodeNormal(GBufferATexture.Load(int3(LocalPixelCoord, 0)).xyz);
 				if (ShouldBilateralReject(LocalPixelCoord, DeviceZ, LocalDeviceZ, WorldNormal, LocalWorldNormal)) continue;
 
 				uint GatherPointsIndex = DispatchThreadIdToLinearIndex(GlobalIndex);
