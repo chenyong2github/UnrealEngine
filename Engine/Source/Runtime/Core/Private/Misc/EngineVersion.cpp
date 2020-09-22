@@ -7,6 +7,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "BuildSettings.h"
+#include "CoreGlobals.h"
 
 FEngineVersionBase::FEngineVersionBase(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist)
 : Major(InMajor)
@@ -243,8 +244,20 @@ void operator<<(FStructuredArchive::FSlot Slot, FEngineVersion &Version)
 	}
 }
 
+bool ReleaseObjectVersionValidator(const FCustomVersion& Version, const FCustomVersionArray& AllVersions)
+{
+	// Any asset saved as ReleaseObjectVersion 31 or 32 will be broken in the future due to the
+	// inadvertent changing of release object version in another stream
+	// Asset must be resaved with an appropriate version of the engine to arrange its versions correctly
+	const bool bInvalidReleaseObjectVersion = (Version.Version == FReleaseObjectVersion::ReleaseObjectVersionFixup || Version.Version == FReleaseObjectVersion::PinTypeIncludesUObjectWrapperFlag);
+	if (bInvalidReleaseObjectVersion)
+	{
+		UE_LOG(LogInit, Error, TEXT("Package must be resaved with an appropriate engine version or else future versions will be incorrectly applied."));
+	}
+	return !bInvalidReleaseObjectVersion;
+}
 
 // Unique Release Object version id
 const FGuid FReleaseObjectVersion::GUID(0x9C54D522, 0xA8264FBE, 0x94210746, 0x61B482D0);
 // Register Release custom version with Core
-FCustomVersionRegistration GRegisterReleaseObjectVersion(FReleaseObjectVersion::GUID, FReleaseObjectVersion::LatestVersion, TEXT("Release"));
+FCustomVersionRegistration GRegisterReleaseObjectVersion(FReleaseObjectVersion::GUID, FReleaseObjectVersion::LatestVersion, TEXT("Release"), (FPlatformProperties::RequiresCookedData() ? nullptr : &ReleaseObjectVersionValidator));
