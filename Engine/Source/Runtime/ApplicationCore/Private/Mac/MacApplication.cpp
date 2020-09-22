@@ -2163,6 +2163,8 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 				Info.NativeWidth = CGDisplayPixelsWide(DisplayID);
 				Info.NativeHeight = CGDisplayPixelsHigh(DisplayID);
 			}
+
+			Info.MaxResolution = FIntPoint(Info.NativeWidth, Info.NativeHeight);
 		
 			CFRelease(ArrDisplay);
 

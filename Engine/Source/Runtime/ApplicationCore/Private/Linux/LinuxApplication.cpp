@@ -1492,6 +1492,7 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 			Display.ID = TEXT("fakedisplay");
 			Display.NativeWidth = Width;
 			Display.NativeHeight = Height;
+			Display.MaxResolution = FIntPoint(Width, Height);
 			Display.DisplayRect = FPlatformRect(0, 0, Width, Height);
 			Display.WorkArea = FPlatformRect(0, 0, Width, Height);
 
@@ -1514,6 +1515,7 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 		Display.ID = FString::Printf(TEXT("display%d"), DisplayIdx);
 		Display.NativeWidth = DisplayBounds.w;
 		Display.NativeHeight = DisplayBounds.h;
+		Display.MaxResolution = FIntPoint(DisplayBounds.w, DisplayBounds.h);
 		Display.DisplayRect = FPlatformRect(DisplayBounds.x, DisplayBounds.y, DisplayBounds.x + DisplayBounds.w, DisplayBounds.y + DisplayBounds.h);
 		Display.WorkArea = FPlatformRect(UsableBounds.x, UsableBounds.y, UsableBounds.x + UsableBounds.w, UsableBounds.y + UsableBounds.h);
 		Display.bIsPrimary = DisplayIdx == 0;
