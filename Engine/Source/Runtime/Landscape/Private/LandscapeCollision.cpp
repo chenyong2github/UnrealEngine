@@ -56,6 +56,8 @@
 #include "Chaos/Core.h"
 #include "Chaos/HeightField.h"
 #include "Chaos/ImplicitObjectTransformed.h"
+#include "PhysicsEngine/Experimental/ChaosDerivedData.h"
+#include "Chaos/ChaosArchive.h"
 #endif
 
 using namespace PhysicsInterfaceTypes;
@@ -105,23 +107,42 @@ ULandscapeHeightfieldCollisionComponent::FHeightfieldGeometryRef::~FHeightfieldG
 	GSharedHeightfieldRefs.Remove(Guid);
 }
 
-TMap<FGuid, ULandscapeMeshCollisionComponent::FPhysXMeshRef* > GSharedMeshRefs;
+TMap<FGuid, ULandscapeMeshCollisionComponent::FTriMeshGeometryRef* > GSharedMeshRefs;
 
-ULandscapeMeshCollisionComponent::FPhysXMeshRef::~FPhysXMeshRef()
+ULandscapeMeshCollisionComponent::FTriMeshGeometryRef::FTriMeshGeometryRef()
+#if WITH_PHYSX
+	:	RBTriangleMesh(nullptr)
+#if WITH_EDITOR
+	, RBTriangleMeshEd(nullptr)
+#endif	//WITH_EDITOR
+#endif	//WITH_PHYSX
+{}
+
+ULandscapeMeshCollisionComponent::FTriMeshGeometryRef::FTriMeshGeometryRef(FGuid& InGuid)
+	: Guid(InGuid)
+#if WITH_PHYSX
+	, RBTriangleMesh(nullptr)
+#if WITH_EDITOR
+	, RBTriangleMeshEd(nullptr)
+#endif	//WITH_EDITOR
+#endif	//WITH_PHYSX
+{}
+
+ULandscapeMeshCollisionComponent::FTriMeshGeometryRef::~FTriMeshGeometryRef()
 {
 #if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// Free the existing heightfield data.
 	if (RBTriangleMesh)
 	{
 		GPhysXPendingKillTriMesh.Add(RBTriangleMesh);
-		RBTriangleMesh = NULL;
+		RBTriangleMesh = nullptr;
 	}
 
 #if WITH_EDITOR
 	if (RBTriangleMeshEd)
 	{
 		GPhysXPendingKillTriMesh.Add(RBTriangleMeshEd);
-		RBTriangleMeshEd = NULL;
+		RBTriangleMeshEd = nullptr;
 	}
 #endif// WITH_EDITOR
 #endif// WITH_PHYSX
@@ -1040,7 +1061,6 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 		return true;
 	}
 
-#if PHYSICS_INTERFACE_PHYSX
 	COOK_STAT(auto Timer = LandscapeCollisionCookStats::MeshUsageStats.TimeSyncWork());
 	// we have 2 versions of collision objects
 	const int32 CookedDataIndex = bUseDefMaterial ? 0 : 1;
@@ -1209,11 +1229,32 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 		InOutMaterials.Add(DefMaterial);
 	}
 
-	bool bFlipNormals = true;
 	TArray<uint8> OutData;
+	bool Result = false;
+#if PHYSICS_INTERFACE_PHYSX
+	bool bFlipNormals = true;
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 	const IPhysXCooking* Cooker = TPM->FindPhysXCooking(Format);
-	bool Result = Cooker->CookTriMesh(Format, EPhysXMeshCookFlags::Default, Vertices, Indices, MaterialIndices, bFlipNormals, OutData);
+	Result = Cooker->CookTriMesh(Format, EPhysXMeshCookFlags::Default, Vertices, Indices, MaterialIndices, bFlipNormals, OutData);
+#elif WITH_CHAOS
+	FCookBodySetupInfo CookInfo;
+	FTriMeshCollisionData& MeshDesc = CookInfo.TriangleMeshDesc;
+	MeshDesc.bFlipNormals = true;
+	MeshDesc.Vertices = MoveTemp(Vertices);
+	MeshDesc.Indices = MoveTemp(Indices);
+	MeshDesc.MaterialIndices = MoveTemp(MaterialIndices);
+	CookInfo.bCookTriMesh = true;
+	TArray<int32> Remap;
+	TUniquePtr<Chaos::FTriangleMeshImplicitObject> Trimesh = FChaosDerivedDataCooker::BuildSingleTrimesh(MeshDesc, Remap);
+
+	if(Trimesh.IsValid())
+	{
+		FMemoryWriter Ar(OutData);
+		Chaos::FChaosArchive ChaosAr(Ar);
+		ChaosAr << Trimesh;
+		Result = OutData.Num() > 0;
+	}
+#endif
 
 	if (Result)
 	{
@@ -1236,21 +1277,15 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 	}
 
 	return Result;
-
-#elif WITH_CHAOS
-CHAOS_ENSURE(false);
-#endif
-	return false;
 }
 #endif //WITH_EDITOR
 
 void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 {
-#if PHYSICS_INTERFACE_PHYSX
 	// If we have not created a heightfield yet - do it now.
 	if (!IsValidRef(MeshRef))
 	{
-		FPhysXMeshRef* ExistingMeshRef = nullptr;
+		FTriMeshGeometryRef* ExistingMeshRef = nullptr;
 		bool bCheckDDC = true;
 
 		if (!MeshGuid.IsValid())
@@ -1285,16 +1320,22 @@ void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 
 			if (CookedCollisionData.Num())
 			{
-				MeshRef = GSharedMeshRefs.Add(MeshGuid, new FPhysXMeshRef(MeshGuid));
+				MeshRef = GSharedMeshRefs.Add(MeshGuid, new FTriMeshGeometryRef(MeshGuid));
 
 				// Create physics objects
+#if PHYSICS_INTERFACE_PHYSX
 				FPhysXInputStream Buffer(CookedCollisionData.GetData(), CookedCollisionData.Num());
 				MeshRef->RBTriangleMesh = GPhysXSDK->createTriangleMesh(Buffer);
+#elif WITH_CHAOS
+				FMemoryReader Reader(CookedCollisionData);
+				Chaos::FChaosArchive Ar(Reader);
+				Ar << MeshRef->Trimesh;
+#endif
 
 				for (UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-					CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape material setup not implemented"));
+					MeshRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
 #else
 					MeshRef->UsedPhysicalMaterialArray.Add(PhysicalMaterial->GetPhysicsMaterial().Material);
 #endif
@@ -1314,16 +1355,333 @@ void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 					TArray<UPhysicalMaterial*> CookedMaterialsEd;
 					if (CookCollisionData(PhysicsFormatName, true, bCheckDDC, CookedCollisionDataEd, CookedMaterialsEd))
 					{
+#if PHYSICS_INTERFACE_PHYSX
 						FPhysXInputStream MeshStream(CookedCollisionDataEd.GetData(), CookedCollisionDataEd.Num());
 						MeshRef->RBTriangleMeshEd = GPhysXSDK->createTriangleMesh(MeshStream);
+#elif WITH_CHAOS
+						FMemoryReader EdReader(CookedCollisionData);
+						Chaos::FChaosArchive EdAr(EdReader);
+						EdAr << MeshRef->EditorTrimesh;
+#endif
 					}
 				}
 #endif //WITH_EDITOR
 			}
 		}
 	}
-#endif //WITH_PHYSX
 }
+
+
+ULandscapeMeshCollisionComponent::ULandscapeMeshCollisionComponent()
+{
+	// make landscape always create? 
+	bAlwaysCreatePhysicsState = true;
+}
+
+ULandscapeMeshCollisionComponent::~ULandscapeMeshCollisionComponent() = default;
+
+#if PHYSICS_INTERFACE_PHYSX
+struct FMeshCollisionInitHelper
+{
+	FMeshCollisionInitHelper() = delete;
+	FMeshCollisionInitHelper(TRefCountPtr<ULandscapeMeshCollisionComponent::FTriMeshGeometryRef> InMeshRef, UWorld* InWorld, UPrimitiveComponent* InComponent, FBodyInstance* InBodyInstance)
+		: ComponentToWorld(FTransform::Identity)
+		, ComponentScale(FVector::OneVector)
+		, CollisionScale(1.0f)
+		, MeshRef(InMeshRef)
+		, World(InWorld)
+		, Component(InComponent)
+		, TargetInstance(InBodyInstance)
+	{
+		PxGeom.triangleMesh = MeshRef->RBTriangleMesh;
+		PxGeom.scale.scale.x = ComponentScale.X * CollisionScale;
+		PxGeom.scale.scale.y = ComponentScale.Y * CollisionScale;
+		PxGeom.scale.scale.z = ComponentScale.Z;
+
+		PxGeomEd.triangleMesh = MeshRef->RBTriangleMeshEd;
+		PxGeomEd.scale.scale.x = ComponentScale.X * CollisionScale;
+		PxGeomEd.scale.scale.y = ComponentScale.Y * CollisionScale;
+		PxGeomEd.scale.scale.z = ComponentScale.Z;
+
+		check(World);
+		PhysScene = World->GetPhysicsScene();
+		check(PhysScene);
+		check(Component);
+		check(TargetInstance);
+	}
+
+	void SetComponentScale3D(const FVector& InScale)
+	{
+		ComponentScale = InScale;
+
+		PxGeom.scale.scale.x = ComponentScale.X * CollisionScale;
+		PxGeom.scale.scale.y = ComponentScale.Y * CollisionScale;
+		PxGeom.scale.scale.z = ComponentScale.Z;
+
+		PxGeomEd.scale.scale.x = ComponentScale.X * CollisionScale;
+		PxGeomEd.scale.scale.y = ComponentScale.Y * CollisionScale;
+		PxGeomEd.scale.scale.z = ComponentScale.Z;
+	}
+
+	void SetCollisionScale(float InScale)
+	{
+		CollisionScale = InScale;
+
+		PxGeom.scale.scale.x = ComponentScale.X * CollisionScale;
+		PxGeom.scale.scale.y = ComponentScale.Y * CollisionScale;
+		PxGeom.scale.scale.z = ComponentScale.Z;
+
+		PxGeomEd.scale.scale.x = ComponentScale.X * CollisionScale;
+		PxGeomEd.scale.scale.y = ComponentScale.Y * CollisionScale;
+		PxGeomEd.scale.scale.z = ComponentScale.Z;
+	}
+
+	void SetComponentToWorld(const FTransform& InTransform)
+	{
+		ComponentToWorld = InTransform;
+
+		PxComponentTransform = U2PTransform(ComponentToWorld);
+	}
+
+	void SetFilters(const FCollisionFilterData& InQueryFilter, const FCollisionFilterData& InSimulationFilter)
+	{
+		QueryFilter = InQueryFilter;
+		SimulationFilter = InSimulationFilter;
+	}
+
+	void SetEditorFilter(const FCollisionFilterData& InFilter)
+	{
+		QueryFilterEd = InFilter;
+	}
+
+	bool IsGeometryValid() const
+	{
+		return PxGeom.isValid();
+	}
+
+	void CreateActors()
+	{
+		{
+			// Create the sync scene actor
+			PActor = GPhysXSDK->createRigidStatic(PxComponentTransform);
+			PxShape* NewShape = GPhysXSDK->createShape(PxGeom, MeshRef->UsedPhysicalMaterialArray.GetData(), MeshRef->UsedPhysicalMaterialArray.Num(), true);
+			check(NewShape);
+
+			// Heightfield is used for simple and complex collision
+			NewShape->setQueryFilterData(U2PFilterData(QueryFilter));
+			NewShape->setSimulationFilterData(U2PFilterData(SimulationFilter));
+			NewShape->setFlag(PxShapeFlag::eSCENE_QUERY_SHAPE, true);
+			NewShape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, true);
+			NewShape->setFlag(PxShapeFlag::eVISUALIZATION, true);
+
+			PActor->attachShape(*NewShape);
+			NewShape->release();
+		}
+
+#if WITH_EDITOR
+		if(!World->IsGameWorld()) // Need to create editor shape
+		{
+			PxMaterial* PDefaultMat = GEngine->DefaultPhysMaterial->GetPhysicsMaterial().Material;
+			PxShape* NewShape = GPhysXSDK->createShape(PxGeom, &PDefaultMat, 1, true);
+			check(NewShape);
+
+			NewShape->setQueryFilterData(U2PFilterData(QueryFilterEd));
+			NewShape->setFlag(PxShapeFlag::eSCENE_QUERY_SHAPE, true);
+
+			PActor->attachShape(*NewShape);
+			NewShape->release();
+		}
+#endif
+
+		// Set body instance data
+		TargetInstance->PhysicsUserData = FPhysicsUserData(TargetInstance);
+		TargetInstance->OwnerComponent = Component;
+		TargetInstance->ActorHandle.SyncActor = PActor;
+		PActor->userData = &TargetInstance->PhysicsUserData;
+	}
+
+	void AddToScene()
+	{
+		check(PhysScene);
+
+		// Add to scenes
+		PxScene* SyncScene = PhysScene->GetPxScene();
+		SCOPED_SCENE_WRITE_LOCK(SyncScene);
+		SyncScene->addActor(*PActor);
+	}
+
+private:
+	FTransform ComponentToWorld;
+	FVector ComponentScale;
+	float CollisionScale;
+	TRefCountPtr<ULandscapeMeshCollisionComponent::FTriMeshGeometryRef> MeshRef;
+	FPhysScene* PhysScene;
+	FCollisionFilterData QueryFilter;
+	FCollisionFilterData SimulationFilter;
+	FCollisionFilterData QueryFilterEd;
+	UWorld* World;
+	UPrimitiveComponent* Component;
+	FBodyInstance* TargetInstance;
+
+	PxTriangleMeshGeometry PxGeom;
+	PxTriangleMeshGeometry PxGeomEd;
+	PxTransform PxComponentTransform;
+	PxRigidStatic* PActor;
+};
+#elif WITH_CHAOS
+struct FMeshCollisionInitHelper
+{
+	FMeshCollisionInitHelper() = delete;
+	FMeshCollisionInitHelper(TRefCountPtr<ULandscapeMeshCollisionComponent::FTriMeshGeometryRef> InMeshRef, UWorld* InWorld, UPrimitiveComponent* InComponent, FBodyInstance* InBodyInstance)
+		: ComponentToWorld(FTransform::Identity)
+		, ComponentScale(FVector::OneVector)
+		, CollisionScale(1.0f)
+		, MeshRef(InMeshRef)
+		, World(InWorld)
+		, Component(InComponent)
+		, TargetInstance(InBodyInstance)
+	{
+		check(World);
+		PhysScene = World->GetPhysicsScene();
+		check(PhysScene);
+		check(Component);
+		check(TargetInstance);
+	}
+
+	void SetComponentScale3D(const FVector& InScale)
+	{
+		ComponentScale = InScale;
+	}
+
+	void SetCollisionScale(float InScale)
+	{
+		CollisionScale = InScale;
+	}
+
+	void SetComponentToWorld(const FTransform& InTransform)
+	{
+		ComponentToWorld = InTransform;
+	}
+
+	void SetFilters(const FCollisionFilterData& InQueryFilter, const FCollisionFilterData& InSimulationFilter)
+	{
+		QueryFilter = InQueryFilter;
+		SimulationFilter = InSimulationFilter;
+	}
+
+	void SetEditorFilter(const FCollisionFilterData& InFilter)
+	{
+		QueryFilterEd = InFilter;
+	}
+
+	bool IsGeometryValid() const
+	{
+		return MeshRef->Trimesh.IsValid();
+	}
+
+	void CreateActors()
+	{
+		Chaos::FShapesArray ShapeArray;
+		TArray<TUniquePtr<Chaos::FImplicitObject>> Geometries;
+		
+		FActorCreationParams Params;
+		Params.InitialTM = ComponentToWorld;
+		Params.InitialTM.SetScale3D(FVector::OneVector);
+		Params.bQueryOnly = true;
+		Params.bStatic = true;
+		Params.Scene = PhysScene;
+
+		FPhysicsInterface::CreateActor(Params, ActorHandle);
+
+		FVector Scale = FVector(ComponentScale.X * CollisionScale, ComponentScale.Y * CollisionScale, ComponentScale.Z);
+
+		{
+			TUniquePtr<Chaos::FPerShapeData> NewShape = Chaos::FPerShapeData::CreatePerShapeData(ShapeArray.Num());
+			TUniquePtr<Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>> ScaledTrimesh = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>>(MakeSerializable(MeshRef->Trimesh), Scale);
+
+			NewShape->SetGeometry(MakeSerializable(ScaledTrimesh));
+			NewShape->SetQueryData(QueryFilter);
+			NewShape->SetSimData(SimulationFilter);
+			NewShape->SetCollisionTraceType(Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseComplexAsSimple);
+			NewShape->SetMaterials(MeshRef->UsedChaosMaterials);
+
+			Geometries.Emplace(MoveTemp(ScaledTrimesh));
+			ShapeArray.Emplace(MoveTemp(NewShape));
+		}
+
+#if WITH_EDITOR
+		if(!World->IsGameWorld())
+		{
+			TUniquePtr<Chaos::FPerShapeData> NewEdShape = Chaos::FPerShapeData::CreatePerShapeData(ShapeArray.Num());
+			TUniquePtr<Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>> ScaledTrimeshEd = MakeUnique<Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>>(MakeSerializable(MeshRef->EditorTrimesh), Scale);
+
+			NewEdShape->SetGeometry(MakeSerializable(ScaledTrimeshEd));
+			NewEdShape->SetQueryData(QueryFilterEd);
+			NewEdShape->SetSimEnabled(false);
+			NewEdShape->SetCollisionTraceType(Chaos::EChaosCollisionTraceFlag::Chaos_CTF_UseComplexAsSimple);
+			NewEdShape->SetMaterial(GEngine->DefaultPhysMaterial->GetPhysicsMaterial());
+
+			Geometries.Emplace(MoveTemp(ScaledTrimeshEd));
+			ShapeArray.Emplace(MoveTemp(NewEdShape));
+		}
+#endif
+
+		if(Geometries.Num() == 1)
+		{
+			ActorHandle->SetGeometry(MoveTemp(Geometries[0]));
+		}
+		else
+		{
+			ActorHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geometries)));
+		}
+
+		for(TUniquePtr<Chaos::FPerShapeData>& Shape : ShapeArray)
+		{
+			Chaos::FRigidTransform3 WorldTransform = Chaos::FRigidTransform3(ActorHandle->X(), ActorHandle->R());
+			Shape->UpdateShapeBounds(WorldTransform);
+		}
+
+		ActorHandle->SetShapesArray(MoveTemp(ShapeArray));
+
+		TargetInstance->PhysicsUserData = FPhysicsUserData(TargetInstance);
+		TargetInstance->OwnerComponent = Component;
+		TargetInstance->ActorHandle = ActorHandle;
+
+		ActorHandle->SetUserData(&TargetInstance->PhysicsUserData);
+	}
+
+	void AddToScene()
+	{
+		check(PhysScene);
+
+		TArray<FPhysicsActorHandle> Actors;
+		Actors.Add(ActorHandle);
+
+		PhysScene->AddActorsToScene_AssumesLocked(Actors, true);
+		PhysScene->AddToComponentMaps(Component, ActorHandle->GetProxy());
+
+		if(TargetInstance->bNotifyRigidBodyCollision)
+		{
+			PhysScene->RegisterForCollisionEvents(Component);
+		}
+	}
+
+private:
+	FTransform ComponentToWorld;
+	FVector ComponentScale;
+	float CollisionScale;
+	TRefCountPtr<ULandscapeMeshCollisionComponent::FTriMeshGeometryRef> MeshRef;
+	FPhysScene* PhysScene;
+	FCollisionFilterData QueryFilter;
+	FCollisionFilterData SimulationFilter;
+	FCollisionFilterData QueryFilterEd;
+	UWorld* World;
+	UPrimitiveComponent* Component;
+	FBodyInstance* TargetInstance;
+
+	FPhysicsActorHandle ActorHandle;
+};
+#endif
 
 void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 {
@@ -1331,12 +1689,13 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 
 	if (!BodyInstance.IsValidBodyInstance())
 	{
-#if PHYSICS_INTERFACE_PHYSX
 		// This will do nothing, because we create trimesh at component PostLoad event, unless we destroyed it explicitly
 		CreateCollisionObject();
 
 		if (IsValidRef(MeshRef))
 		{
+			FMeshCollisionInitHelper Initializer(MeshRef, GetWorld(), this, &BodyInstance);
+
 			// Make transform for this landscape component PxActor
 			FTransform LandscapeComponentTransform = GetComponentToWorld();
 			FMatrix LandscapeComponentMatrix = LandscapeComponentTransform.ToMatrixWithScale();
@@ -1349,99 +1708,40 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 
 			// Get the scale to give to PhysX
 			FVector LandscapeScale = LandscapeComponentMatrix.ExtractScaling();
-			PxTransform PhysXLandscapeComponentTransform = U2PTransform(FTransform(LandscapeComponentMatrix));
 
-			// Create tri-mesh shape
-			PxTriangleMeshGeometry PTriMeshGeom;
-			PTriMeshGeom.triangleMesh = MeshRef->RBTriangleMesh;
-			PTriMeshGeom.scale.scale.x = LandscapeScale.X * CollisionScale;
-			PTriMeshGeom.scale.scale.y = LandscapeScale.Y * CollisionScale;
-			PTriMeshGeom.scale.scale.z = LandscapeScale.Z;
+			Initializer.SetComponentToWorld(LandscapeComponentTransform);
+			Initializer.SetComponentScale3D(LandscapeScale);
+			Initializer.SetCollisionScale(CollisionScale);
 
-			if (PTriMeshGeom.isValid())
+			if(Initializer.IsGeometryValid())
 			{
-				// Creating both a sync and async actor, since this object is static
-
-				// Create the sync scene actor
-				PxRigidStatic* MeshActorSync = GPhysXSDK->createRigidStatic(PhysXLandscapeComponentTransform);
-				PxShape* MeshShapeSync = GPhysXSDK->createShape(PTriMeshGeom, MeshRef->UsedPhysicalMaterialArray.GetData(), MeshRef->UsedPhysicalMaterialArray.Num(), true);
-				check(MeshShapeSync);
-
 				// Setup filtering
 				FCollisionFilterData QueryFilterData, SimFilterData;
 				CreateShapeFilterData(GetCollisionObjectType(), FMaskFilter(0), GetOwner()->GetUniqueID(), GetCollisionResponseToChannels(), GetUniqueID(), 0, QueryFilterData, SimFilterData, false, false, true);
-
-				// Heightfield is used for simple and complex collision
 				QueryFilterData.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
 				SimFilterData.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
-				MeshShapeSync->setQueryFilterData(U2PFilterData(QueryFilterData));
-				MeshShapeSync->setSimulationFilterData(U2PFilterData(SimFilterData));
-				MeshShapeSync->setFlag(PxShapeFlag::eSCENE_QUERY_SHAPE, true);
-				MeshShapeSync->setFlag(PxShapeFlag::eSIMULATION_SHAPE, true);
-				MeshShapeSync->setFlag(PxShapeFlag::eVISUALIZATION, true);
 
-				MeshActorSync->attachShape(*MeshShapeSync);
-				MeshShapeSync->release();
-
-				FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
+				Initializer.SetFilters(QueryFilterData, SimFilterData);
 
 #if WITH_EDITOR
-				// Create a shape for a mesh which is used only by the landscape editor
-				if (!GetWorld()->IsGameWorld())
-				{
-					PxTriangleMeshGeometry PTriMeshGeomEd;
-					PTriMeshGeomEd.triangleMesh = MeshRef->RBTriangleMeshEd;
-					PTriMeshGeomEd.scale.scale.x = LandscapeScale.X * CollisionScale;
-					PTriMeshGeomEd.scale.scale.y = LandscapeScale.Y * CollisionScale;
-					PTriMeshGeomEd.scale.scale.z = LandscapeScale.Z;
-					if (PTriMeshGeomEd.isValid())
-					{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-						CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape shape creation not implemented"));
-#else
-						PxMaterial* PDefaultMat = GEngine->DefaultPhysMaterial->GetPhysicsMaterial().Material;
-						PxShape* MeshShapeEdSync = GPhysXSDK->createShape(PTriMeshGeomEd, &PDefaultMat, 1, true);
-						check(MeshShapeEdSync);
+				FCollisionResponseContainer EdResponse;
+				EdResponse.SetAllChannels(ECollisionResponse::ECR_Ignore);
+				EdResponse.SetResponse(ECollisionChannel::ECC_Visibility, ECR_Block);
+				FCollisionFilterData QueryFilterDataEd, SimFilterDataEd;
+				CreateShapeFilterData(ECollisionChannel::ECC_Visibility, FMaskFilter(0), GetOwner()->GetUniqueID(), EdResponse, GetUniqueID(), 0, QueryFilterDataEd, SimFilterDataEd, true, false, true);
+				QueryFilterDataEd.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
 
-						FCollisionResponseContainer CollisionResponse;
-						CollisionResponse.SetAllChannels(ECollisionResponse::ECR_Ignore);
-						CollisionResponse.SetResponse(ECollisionChannel::ECC_Visibility, ECR_Block);
-						FCollisionFilterData QueryFilterDataEd, SimFilterDataEd;
-						CreateShapeFilterData(ECollisionChannel::ECC_Visibility, FMaskFilter(0), GetOwner()->GetUniqueID(), CollisionResponse, GetUniqueID(), 0, QueryFilterDataEd, SimFilterDataEd, true, false, true);
-
-						QueryFilterDataEd.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
-						MeshShapeEdSync->setQueryFilterData(U2PFilterData(QueryFilterDataEd));
-						MeshShapeEdSync->setFlag(PxShapeFlag::eSCENE_QUERY_SHAPE, true);
-
-						MeshActorSync->attachShape(*MeshShapeEdSync);
-						MeshShapeEdSync->release();
+				Initializer.SetEditorFilter(QueryFilterDataEd);
 #endif
-					}
-				}
-#endif// WITH_EDITOR
 
-				// Set body instance data
-				BodyInstance.PhysicsUserData = FPhysicsUserData(&BodyInstance);
-				BodyInstance.OwnerComponent = this;
-
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-				CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape sim scene addition not implemented"));
-#else
-				BodyInstance.ActorHandle.SyncActor = MeshActorSync;
-				MeshActorSync->userData = &BodyInstance.PhysicsUserData;
-
-				// Add to scenes
-				PxScene* SyncScene = PhysScene->GetPxScene();
-				SCOPED_SCENE_WRITE_LOCK(SyncScene);
-				SyncScene->addActor(*MeshActorSync);
-#endif
+				Initializer.CreateActors();
+				Initializer.AddToScene();
 			}
 			else
 			{
 				UE_LOG(LogLandscape, Log, TEXT("ULandscapeMeshCollisionComponent::OnCreatePhysicsState(): TriMesh invalid"));
 			}
 		}
-#endif // WITH_PHYSX
 	}
 }
 

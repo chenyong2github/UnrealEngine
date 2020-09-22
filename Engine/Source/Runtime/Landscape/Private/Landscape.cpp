@@ -676,13 +676,6 @@ void ULandscapeComponent::GetLayerDebugColorKey(int32& R, int32& G, int32& B) co
 }
 #endif	//WITH_EDITOR
 
-ULandscapeMeshCollisionComponent::ULandscapeMeshCollisionComponent(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
-{
-	// make landscape always create? 
-	bAlwaysCreatePhysicsState = true;
-}
-
 ULandscapeInfo::ULandscapeInfo(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {

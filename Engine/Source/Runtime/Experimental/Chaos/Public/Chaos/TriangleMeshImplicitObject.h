@@ -120,7 +120,7 @@ namespace Chaos
 
 		FTriangleMeshImplicitObject(const FTriangleMeshImplicitObject& Other) = delete;
 		FTriangleMeshImplicitObject(FTriangleMeshImplicitObject&& Other) = delete;
-		virtual ~FTriangleMeshImplicitObject() {}
+		virtual ~FTriangleMeshImplicitObject();
 
 		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const;
 
