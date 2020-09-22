@@ -9,9 +9,10 @@
 #include "CoreMinimal.h"
 
 class IDatasmithExpressionInput;
-class IDatasmithUEPbrMaterialElement;
-class IDatasmithMaterialExpression;
 class IDatasmithExpressionParameter;
+class FDatasmithFacadeKeyValueProperty;
+class IDatasmithMaterialExpression;
+class IDatasmithUEPbrMaterialElement;
 
 class FDatasmithFacadeMaterialExpression;
 
