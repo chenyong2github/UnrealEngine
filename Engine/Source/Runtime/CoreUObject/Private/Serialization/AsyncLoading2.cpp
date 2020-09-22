@@ -784,7 +784,7 @@ public:
 	FNameMap& GlobalNameMap;
 	TMap<FIoContainerId, TUniquePtr<FLoadedContainer>> LoadedContainers;
 
-	FString CurrentCulture;
+	TArray<FString> CurrentCultureNames;
 
 	FCriticalSection PackageNameMapsCritical;
 
@@ -811,8 +811,10 @@ public:
 
 	void SetupCulture()
 	{
-		CurrentCulture = FInternationalization::Get().GetCurrentCulture()->GetName();
+		FInternationalization& Internationalization = FInternationalization::Get();
+		FString CurrentCulture = Internationalization.GetCurrentCulture()->GetName();
 		FParse::Value(FCommandLine::Get(), TEXT("CULTURE="), CurrentCulture);
+		CurrentCultureNames = Internationalization.GetPrioritizedCultureNames(CurrentCulture);
 	}
 
 	void SetupInitialLoadData()
@@ -949,7 +951,16 @@ public:
 
 						{
 							TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreLocalization);
-							FSourceToLocalizedPackageIdMap* LocalizedPackages = ContainerHeader.CulturePackageMap.Find(CurrentCulture);
+							const FSourceToLocalizedPackageIdMap* LocalizedPackages = nullptr;
+							for (const FString& CultureName : CurrentCultureNames)
+							{
+								LocalizedPackages = ContainerHeader.CulturePackageMap.Find(CultureName);
+								if (LocalizedPackages)
+								{
+									break;
+								}
+							}
+
 							if (LocalizedPackages)
 							{
 								for (auto& Pair : *LocalizedPackages)
