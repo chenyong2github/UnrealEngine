@@ -1526,3 +1526,8 @@ int32 FGenericPlatformMisc::GetPakchunkIndexFromPakFile(const FString& InFilenam
 
 	return ChunkNumber;
 }
+
+bool FGenericPlatformMisc::IsPGOEnabled()
+{
+	return PLATFORM_COMPILER_OPTIMIZATION_PG;
+}
