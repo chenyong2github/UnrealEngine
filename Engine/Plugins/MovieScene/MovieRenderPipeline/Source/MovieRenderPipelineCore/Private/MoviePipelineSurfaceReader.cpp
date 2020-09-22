@@ -127,10 +127,17 @@ void FMoviePipelineSurfaceReader::ResolveSampleToReadbackTexture_RenderThread(co
 
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 		TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
 		if (bInvertAlpha)
 		{
 			TShaderMapRef<FScreenPSInvertAlpha> PixelShader(ShaderMap);
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 			// Bind the SourceSurfaceSample to our texture sampler with a point sample (since the resolutions match).
 			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
@@ -139,14 +146,12 @@ void FMoviePipelineSurfaceReader::ResolveSampleToReadbackTexture_RenderThread(co
 		{
 			TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			// Bind the SourceSurfaceSample to our texture sampler with a point sample (since the resolutions match).
 			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceSurfaceSample);
 		}
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		RendererModule->DrawRectangle(
 			RHICmdList,
