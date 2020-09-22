@@ -106,7 +106,7 @@ public:
 	operator const FString&() const { return PlatformDescription.Name; }
 	const FString& ToString() const { return PlatformDescription.Name; }
 	const FString& GetTypeName() const { return PlatformDescription.PlatformType; }
-	const FString& GetSessionType() const { return PlatformDescription.SessionType; }
+	const FSocialPlatformDescription& GetPlatformDescription() const { return PlatformDescription; }
 
 	bool operator==(const FString& OtherStr) const;
 	bool operator!=(const FString& OtherStr) const { return !operator==(OtherStr); }
