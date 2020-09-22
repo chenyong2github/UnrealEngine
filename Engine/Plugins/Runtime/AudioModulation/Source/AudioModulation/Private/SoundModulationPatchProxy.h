@@ -80,7 +80,7 @@ namespace AudioModulation
 		{
 			if (InPatch.OutputParameter)
 			{
-				DefaultOutputValue = InPatch.OutputParameter->Settings.ValueLinear;
+				DefaultOutputValue = InPatch.OutputParameter->Settings.ValueNormalized;
 				MixFunction = InPatch.OutputParameter->GetMixFunction();
 			}
 

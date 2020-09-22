@@ -30,7 +30,7 @@ struct ENGINE_API FSoundModulationDestinationSettings
 	bool bEnableModulation = false;
 #endif // WITH_EDITORONLY_DATA
 
-	/** Subscribed modulator to listen to apply result to base value. */
+	/** Modulation source, which provides value to mix with base value. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
 	USoundModulatorBase* Modulator = nullptr;
 };
@@ -50,17 +50,17 @@ namespace Audio
 			/** Initializes the modulation destination
 			 * InDeviceId - DeviceId associated with modulation plugin instance
 			 * bInIsBuffered - Whether or not to run destination in "buffered mode," which manages an internal buffer to smooth modulation value between process calls
-			 * bInValueLinear - Whether or not to keep the output value in linear [0.0f, 1.0f] space
+			 * bInValueNormalized - Whether or not to keep the output value in normalized, unitless [0.0f, 1.0f] space
 			 */
-			void Init(FDeviceId InDeviceId, bool bInIsBuffered = false, bool bInValueLinear = false);
+			void Init(FDeviceId InDeviceId, bool bInIsBuffered = false, bool bInValueNormalized = false);
 
 			/** Initializes the modulation destination
 			 * InDeviceId - DeviceId associated with modulation plugin instance
 			 * InParameterName - Name of parameter used to mix/convert destination value to/from unit space
 			 * bInIsBuffered - Whether or not to run destination in "buffered mode," which manages an internal buffer to smooth modulation value between process calls
-			 * bInValueLinear - Whether or not to keep the output value in linear [0.0f, 1.0f] space
+			 * bInValueNormalized - Whether or not to keep the output value in normalized, unitless [0.0f, 1.0f] space
 			 */
-			void Init(FDeviceId InDeviceId, FName InParameterName, bool bInIsBuffered = false, bool bInValueLinear = false);
+			void Init(FDeviceId InDeviceId, FName InParameterName, bool bInIsBuffered = false, bool bInValueNormalized = false);
 
 			/** returns whether or not destination references an active modulator */
 			bool IsActive();
@@ -81,12 +81,12 @@ namespace Audio
 			float ValueTarget = 1.0f;
 
 			uint8 bIsBuffered   = 0;
-			uint8 bValueLinear  = 0;
+			uint8 bValueNormalized  = 0;
 			uint8 bIsActive     = 0;
 			uint8 bHasProcessed = 0;
 
-			AlignedFloatBuffer OutputBuffer;
-			AlignedFloatBuffer TempBufferLinear;
+			FAlignedFloatBuffer OutputBuffer;
+			FAlignedFloatBuffer TempBufferNormalized;
 			FModulatorHandle Handle;
 
 			FName ParameterName;
@@ -96,7 +96,7 @@ namespace Audio
 
 		public:
 			/** Returns buffer of interpolated modulation values */
-			FORCEINLINE const AlignedFloatBuffer& GetBuffer() const
+			FORCEINLINE const FAlignedFloatBuffer& GetBuffer() const
 			{
 				check(bIsBuffered);
 				return OutputBuffer;
@@ -110,7 +110,7 @@ namespace Audio
 			}
 
 			/** Returns sample value last reported by modulator. Returns value in unit space, unless 
-			 * 'ValueLinear' option is set on initialization.
+			 * 'ValueNormalized' option is set on initialization.
 			 */
 			FORCEINLINE float GetValue() const
 			{

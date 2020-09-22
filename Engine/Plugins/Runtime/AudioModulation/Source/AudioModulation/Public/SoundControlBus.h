@@ -56,7 +56,7 @@ public:
 	virtual void BeginDestroy() override;
 	virtual const Audio::FModulationMixFunction& GetMixFunction() const;
 
-	virtual float GetDefaultLinearValue() const { return Parameter ? Parameter->Settings.ValueLinear : 1.0f; }
+	virtual float GetDefaultNormalizedValue() const { return Parameter ? Parameter->Settings.ValueNormalized : 1.0f; }
 
 	virtual FName GetOutputParameterName() const override
 	{

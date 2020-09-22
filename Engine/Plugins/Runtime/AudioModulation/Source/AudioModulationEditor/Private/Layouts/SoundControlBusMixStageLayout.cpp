@@ -50,23 +50,23 @@ namespace AudioModulationEditorUtils
 		return nullptr;
 	}
 
-	void HandleConvertLinearToUnit(TSharedRef<IPropertyHandle> BusHandle, TSharedRef<IPropertyHandle> LinearValueHandle, TSharedRef<IPropertyHandle> UnitValueHandle)
+	void HandleConvertNormalizedToUnit(TSharedRef<IPropertyHandle> BusHandle, TSharedRef<IPropertyHandle> NormalizedValueHandle, TSharedRef<IPropertyHandle> UnitValueHandle)
 	{
 		if (USoundModulationParameter* Parameter = AudioModulationEditorUtils::GetParameterFromBus(BusHandle))
 		{
 			if (Parameter->RequiresUnitConversion())
 			{
-				float LinearValue = 1.0f;
-				if (LinearValueHandle->GetValue(LinearValue) == FPropertyAccess::Success)
+				float NormalizedValue = 1.0f;
+				if (NormalizedValueHandle->GetValue(NormalizedValue) == FPropertyAccess::Success)
 				{
-					const float UnitValue = Parameter->ConvertLinearToUnit(LinearValue);
+					const float UnitValue = Parameter->ConvertNormalizedToUnit(NormalizedValue);
 					UnitValueHandle->SetValue(UnitValue, EPropertyValueSetFlags::NotTransactable);
 				}
 			}
 		}
 	}
 
-	void HandleConvertUnitToLinear(TSharedRef<IPropertyHandle> BusHandle, TSharedRef<IPropertyHandle> UnitValueHandle, TSharedRef<IPropertyHandle> LinearValueHandle)
+	void HandleConvertUnitToNormalized(TSharedRef<IPropertyHandle> BusHandle, TSharedRef<IPropertyHandle> UnitValueHandle, TSharedRef<IPropertyHandle> NormalizedValueHandle)
 	{
 		if (USoundModulationParameter* Parameter = AudioModulationEditorUtils::GetParameterFromBus(BusHandle))
 		{
@@ -75,8 +75,8 @@ namespace AudioModulationEditorUtils
 				float UnitValue = 1.0f;
 				if (UnitValueHandle->GetValue(UnitValue) == FPropertyAccess::Success)
 				{
-					const float LinearValue = Parameter->ConvertUnitToLinear(UnitValue);
-					LinearValueHandle->SetValue(LinearValue);
+					const float NormalizedValue = Parameter->ConvertUnitToNormalized(UnitValue);
+					NormalizedValueHandle->SetValue(NormalizedValue);
 				}
 			}
 		}
@@ -112,21 +112,21 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 
 	ChildBuilder.AddProperty(BusHandle);
 
-	TSharedRef<IPropertyHandle> LinearValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue)).ToSharedRef();
+	TSharedRef<IPropertyHandle> NormalizedValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue)).ToSharedRef();
 	TSharedRef<IPropertyHandle> UnitValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetUnitValue)).ToSharedRef();
 
 	// When editor opens, set unit value in case bus unit has changed while editor was closed.
-	AudioModulationEditorUtils::HandleConvertLinearToUnit(BusHandle, LinearValueHandle, UnitValueHandle);
+	AudioModulationEditorUtils::HandleConvertNormalizedToUnit(BusHandle, NormalizedValueHandle, UnitValueHandle);
 
-	LinearValueHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([BusHandle, LinearValueHandle, UnitValueHandle]()
+	NormalizedValueHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([BusHandle, NormalizedValueHandle, UnitValueHandle]()
 	{
-		AudioModulationEditorUtils::HandleConvertLinearToUnit(BusHandle, LinearValueHandle, UnitValueHandle);
+		AudioModulationEditorUtils::HandleConvertNormalizedToUnit(BusHandle, NormalizedValueHandle, UnitValueHandle);
 	}));
 
-	UnitValueHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([BusHandle, UnitValueHandle, LinearValueHandle]()
+	UnitValueHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([BusHandle, UnitValueHandle, NormalizedValueHandle]()
 	{
-		AudioModulationEditorUtils::HandleConvertUnitToLinear(BusHandle, UnitValueHandle, LinearValueHandle);
-		AudioModulationEditorUtils::HandleConvertLinearToUnit(BusHandle, LinearValueHandle, UnitValueHandle);
+		AudioModulationEditorUtils::HandleConvertUnitToNormalized(BusHandle, UnitValueHandle, NormalizedValueHandle);
+		AudioModulationEditorUtils::HandleConvertNormalizedToUnit(BusHandle, NormalizedValueHandle, UnitValueHandle);
 	}));
 
 	ChildBuilder.AddCustomRow(StructPropertyHandle->GetPropertyDisplayName())
@@ -171,7 +171,7 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
-					LinearValueHandle->CreatePropertyValueWidget()
+					NormalizedValueHandle->CreatePropertyValueWidget()
 				]
 			+ SHorizontalBox::Slot()
 				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
@@ -180,7 +180,7 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 				[
 					SNew(STextBlock)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.Text(LOCTEXT("SoundModulationControl_UnitValueLinear", "Linear"))
+					.Text(LOCTEXT("SoundModulationControl_UnitValueNormalized", "Normalized"))
 				]
 	]
 	.Visibility(TAttribute<EVisibility>::Create([BusHandle]()
@@ -193,7 +193,7 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 		return EVisibility::Hidden;
 	}));
 
-	ChildBuilder.AddProperty(LinearValueHandle)
+	ChildBuilder.AddProperty(NormalizedValueHandle)
 	.Visibility(TAttribute<EVisibility>::Create([BusHandle]()
 	{
 		if (USoundModulationParameter* Parameter = AudioModulationEditorUtils::GetParameterFromBus(BusHandle))

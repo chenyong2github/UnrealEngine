@@ -15,14 +15,14 @@ struct AUDIOMODULATION_API FSoundModulationParameterSettings
 	GENERATED_USTRUCT_BODY()
 
 	/** 
-	  * Linear default value of modulator. To ensure bypass functionality of mixing, patching, and modulating 
+	  * Normalized, unitless default value of modulator. To ensure bypass functionality of mixing, patching, and modulating 
 	  * functions as anticipated, value should be selected such that GetMixFunction (see USoundModulationParameter)
 	  * reduces to an identity function (i.e. function acts as a "pass-through" for all values in the range [0.0, 1.0]).
-	  * If GetMixFunction performs the mathmatical operation f(x1, x2), then the default ValueLinear should result in
-	  * f(x1, d) = x1 where d is ValueLinear.
+	  * If GetMixFunction performs the mathematical operation f(x1, x2), then the default ValueNormalized should result in
+	  * f(x1, d) = x1 where d is ValueNormalized.
 	  */
 	UPROPERTY(EditAnywhere, Category = General, meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float ValueLinear = 1.0f;
+	float ValueNormalized = 1.0f;
 
 #if WITH_EDITORONLY_DATA
 	/** (Optional) Text name of parameter's unit */
@@ -65,8 +65,8 @@ public:
 		return MixFunction;
 	}
 
-	/** Function used to convert linear value to unit value */
-	virtual Audio::FModulationLinearConversionFunction  GetUnitConversionFunction() const
+	/** Function used to convert normalized, unitless value to unit value */
+	virtual Audio::FModulationNormalizedConversionFunction  GetUnitConversionFunction() const
 	{
 		static const Audio::FModulationUnitConvertFunction ConversionFunction = [](float* RESTRICT OutValueBuffer, int32 InNumSamples)
 		{
@@ -75,36 +75,36 @@ public:
 		return ConversionFunction;
 	}
 
-	/** Function used to convert unit value to linear value */
-	virtual Audio::FModulationLinearConversionFunction GetLinearConversionFunction() const
+	/** Function used to convert unit value to normalized, unitless value */
+	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const
 	{
-		static const Audio::FModulationLinearConversionFunction ConversionFunction = [](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+		static const Audio::FModulationNormalizedConversionFunction ConversionFunction = [](float* RESTRICT OutValueBuffer, int32 InNumSamples)
 		{
 		};
 
 		return ConversionFunction;
 	}
 
-	/** Converts linear [0.0f, 1.0f] value to unit value. */
-	virtual float ConvertLinearToUnit(float InLinearValue) const final
+	/** Converts normalized, unitless value [0.0f, 1.0f] to unit value. */
+	virtual float ConvertNormalizedToUnit(float InNormalizedValue) const final
 	{
-		float UnitValue = InLinearValue;
+		float UnitValue = InNormalizedValue;
 		GetUnitConversionFunction()(&UnitValue, 1);
 		return UnitValue;
 	}
 
-	/** Converts unit value to linear [0.0f, 1.0f] value. */
-	virtual float ConvertUnitToLinear(float InUnitValue) const final
+	/** Converts unit value to unitless, normalized value [0.0f, 1.0f]. */
+	virtual float ConvertUnitToNormalized(float InUnitValue) const final
 	{
-		float LinearValue = InUnitValue;
-		GetLinearConversionFunction()(&LinearValue, 1);
-		return LinearValue;
+		float NormalizedValue = InUnitValue;
+		GetNormalizedConversionFunction()(&NormalizedValue, 1);
+		return NormalizedValue;
 	}
 
 	/** Returns default unit value (works with and without editor loaded) */
 	virtual float GetUnitDefault() const
 	{
-		return ConvertLinearToUnit(Settings.ValueLinear);
+		return ConvertNormalizedToUnit(Settings.ValueNormalized);
 	}
 
 	virtual float GetUnitMin() const
@@ -118,12 +118,12 @@ public:
 	}
 
 #if WITH_EDITOR
-	void RefreshLinearValue();
+	void RefreshNormalizedValue();
 	void RefreshUnitValue();
 #endif // WITH_EDITOR
 };
 
-// Modulation Parameter that scales linear value to explicit unit minimum and maximum.
+// Linearly scaled value between unit minimum and maximum.
 UCLASS(BlueprintType, MinimalAPI)
 class USoundModulationParameterScaled : public USoundModulationParameter
 {
@@ -140,12 +140,12 @@ public:
 
 	virtual bool RequiresUnitConversion() const override;
 	virtual Audio::FModulationUnitConvertFunction GetUnitConversionFunction() const override;
-	virtual Audio::FModulationLinearConversionFunction GetLinearConversionFunction() const override;
+	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const override;
 	virtual float GetUnitMin() const override;
 	virtual float GetUnitMax() const override;
 };
 
-// Modulation Parameter that scales linear value to logarithmic frequency unit space.
+// Modulation Parameter that scales normalized, unitless value to logarithmic frequency unit space.
 UCLASS(BlueprintType, MinimalAPI, abstract)
 class USoundModulationParameterFrequencyBase : public USoundModulationParameter
 {
@@ -154,10 +154,10 @@ class USoundModulationParameterFrequencyBase : public USoundModulationParameter
 public:
 	virtual bool RequiresUnitConversion() const override;
 	virtual Audio::FModulationUnitConvertFunction GetUnitConversionFunction() const override;
-	virtual Audio::FModulationLinearConversionFunction GetLinearConversionFunction() const override;
+	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const override;
 };
 
-// Modulation Parameter that scales linear value to logarithmic frequency unit space with provided minimum and maximum.
+// Modulation Parameter that scales normalized, unitless value to logarithmic frequency unit space with provided minimum and maximum.
 UCLASS(BlueprintType, MinimalAPI)
 class USoundModulationParameterFrequency : public USoundModulationParameterFrequencyBase
 {
@@ -183,7 +183,7 @@ public:
 	}
 };
 
-// Modulation Parameter that scales linear value to logarithmic frequency unit space with standard filter min and max frequency set.
+// Modulation Parameter that scales normalized, unitless value to logarithmic frequency unit space with standard filter min and max frequency set.
 UCLASS(BlueprintType, MinimalAPI)
 class USoundModulationParameterFilterFrequency : public USoundModulationParameterFrequencyBase
 {
@@ -201,7 +201,7 @@ public:
 	}
 };
 
-// Modulation Parameter that scales linear value to logarithmic frequency unit space with standard filter min and max frequency set.
+// Modulation Parameter that scales normalized, unitless value to logarithmic frequency unit space with standard filter min and max frequency set.
 // Mixes by taking the minimum (i.e. aggressive) filter frequency of all active modulators.
 UCLASS(BlueprintType, MinimalAPI)
 class USoundModulationParameterLPFFrequency : public USoundModulationParameterFilterFrequency
@@ -212,7 +212,7 @@ public:
 	virtual Audio::FModulationMixFunction GetMixFunction() const override;
 };
 
-// Modulation Parameter that scales linear value to logarithmic frequency unit space with standard filter min and max frequency set.
+// Modulation Parameter that scales normalized, unitless value to logarithmic frequency unit space with standard filter min and max frequency set.
 // Mixes by taking the maximum (i.e. aggressive) filter frequency of all active modulators.
 UCLASS(BlueprintType, MinimalAPI)
 class USoundModulationParameterHPFFrequency : public USoundModulationParameterFilterFrequency
@@ -223,7 +223,7 @@ public:
 	virtual Audio::FModulationMixFunction GetMixFunction() const override;
 };
 
-// Modulation Parameter that scales linear value to bipolar range. Mixes multiplicatively.
+// Modulation Parameter that scales normalized, unitless value to bipolar range. Mixes multiplicatively.
 UCLASS(BlueprintType, MinimalAPI)
 class USoundModulationParameterBipolar : public USoundModulationParameter
 {
@@ -237,7 +237,7 @@ public:
 	virtual bool RequiresUnitConversion() const override;
 	virtual Audio::FModulationMixFunction GetMixFunction() const override;
 	virtual Audio::FModulationUnitConvertFunction GetUnitConversionFunction() const override;
-	virtual Audio::FModulationLinearConversionFunction GetLinearConversionFunction() const override;
+	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const override;
 	virtual float GetUnitMax() const override;
 	virtual float GetUnitMin() const override;
 };
@@ -254,7 +254,7 @@ public:
 
 	virtual bool RequiresUnitConversion() const override;
 	virtual Audio::FModulationUnitConvertFunction GetUnitConversionFunction() const override;
-	virtual Audio::FModulationLinearConversionFunction GetLinearConversionFunction() const override;
+	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const override;
 	virtual float GetUnitMin() const override;
 	virtual float GetUnitMax() const override;
 };

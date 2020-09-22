@@ -274,8 +274,9 @@ namespace AudioModulation
 						Parameter.ParameterName = InParamName;
 						Parameter.bRequiresConversion = Param->RequiresUnitConversion();
 						Parameter.MixFunction = Param->GetMixFunction();
+						Parameter.UnitDisplayName = Param->Settings.UnitDisplayName;
 						Parameter.UnitFunction = Param->GetUnitConversionFunction();
-						Parameter.LinearFunction = Param->GetLinearConversionFunction();
+						Parameter.NormalizedFunction = Param->GetNormalizedConversionFunction();
 						Parameter.DefaultValue = Param->GetUnitDefault();
 						Parameter.MinValue = Param->GetUnitMin();
 						Parameter.MaxValue = Param->GetUnitMax();
