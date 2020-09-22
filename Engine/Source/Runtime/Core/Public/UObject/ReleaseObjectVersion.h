@@ -102,14 +102,14 @@ struct CORE_API FReleaseObjectVersion
 		// FFieldPath will serialize the owner struct reference and only a short path to its property
 		FFieldPathOwnerSerialization,
 
+		// Dummy version to allow us to fix up the fact that ReleaseObjectVersion was changed elsewhere
+		ReleaseObjectVersionFixup,
+
 		// Pin types include a flag that propagates the 'CPF_UObjectWrapper' flag to generated properties
 		PinTypeIncludesUObjectWrapperFlag,
 
 		// Added Weight member to FMeshToMeshVertData
 		WeightFMeshToMeshVertData,
-
-		// Dummy version to allow us to fix up the fact that ReleaseObjectVersion was changed elsewhere
-		ReleaseObjectVersionFixup,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
