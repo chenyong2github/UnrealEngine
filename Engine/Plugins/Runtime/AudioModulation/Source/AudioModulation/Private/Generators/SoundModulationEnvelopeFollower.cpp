@@ -9,7 +9,9 @@
 
 namespace AudioModulation
 {
+#if !UE_BUILD_SHIPPING
 	const FString FEnvelopeFollowerGenerator::DebugName = TEXT("EnvelopeFollower");
+#endif // !UE_BUILD_SHIPPING
 
 	FEnvelopeFollowerGenerator::FEnvelopeFollowerGenerator(const FEnvelopeFollowerGeneratorParams& InParams, Audio::FDeviceId InDeviceId)
 		: IGenerator(InDeviceId)
