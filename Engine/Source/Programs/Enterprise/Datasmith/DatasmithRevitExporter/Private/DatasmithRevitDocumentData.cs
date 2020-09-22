@@ -185,7 +185,8 @@ namespace DatasmithRevitExporter
 
 					if (CurrentElement.GetType() == typeof(Wall)
 						|| CurrentElement.GetType() == typeof(ModelText)
-						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve)))
+						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve))
+						|| CurrentElement.GetType() == typeof(StructuralConnectionHandler))
 					{
 						MeshPointsTransform = PivotTransform.Inverse;
 					}
@@ -243,6 +244,10 @@ namespace DatasmithRevitExporter
 					{
 						Translation = Paths[0].GetEndPoint(0);
 					}
+				}
+				else if (InElement.GetType() == typeof(StructuralConnectionHandler))
+				{
+					Translation = (InElement as StructuralConnectionHandler).GetOrigin();
 				}
 
 				if (Translation == null)
@@ -309,6 +314,12 @@ namespace DatasmithRevitExporter
 							BasisZ = Derivatives.BasisZ.Normalize();
 						}
 					}
+				}
+				else if (InElement.GetType() == typeof(StructuralConnectionHandler))
+				{
+					BasisX = XYZ.BasisX;
+					BasisY = XYZ.BasisY;
+					BasisZ = XYZ.BasisZ;
 				}
 				else if (InElement.GetType() == typeof(ModelText))
 				{
