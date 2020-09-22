@@ -571,6 +571,44 @@ void FD3D12CommandContextBase::RHIEndFrame()
 	UpdateMemoryStats();
 }
 
+void FD3D12CommandContextBase::SignalTransitionFences(TArrayView<const FRHITransition*> Transitions)
+{
+	bool bSubmitted = false;
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const auto* Data = Transition->GetPrivateData<FD3D12TransitionData>();
+		const auto& Fence = Data->Fence;
+		if (Fence)
+		{
+			if (!bSubmitted)
+			{
+				RHISubmitCommandsHint();
+				bSubmitted = true;
+			}
+			Fence->Signal(bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
+		}
+	}
+}
+
+void FD3D12CommandContextBase::WaitForTransitionFences(TArrayView<const FRHITransition*> Transitions)
+{
+	bool bSubmitted = false;
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const auto* Data = Transition->GetPrivateData<FD3D12TransitionData>();
+		const auto& Fence = Data->Fence;
+		if (Fence)
+		{
+			if (!bSubmitted)
+			{
+				RHISubmitCommandsHint();
+				bSubmitted = true;
+			}
+			Fence->GpuWait(bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default, Fence->GetLastSignaledFence());
+		}
+	}
+}
+
 void FD3D12CommandContextBase::UpdateMemoryStats()
 {
 #if PLATFORM_WINDOWS && STATS
@@ -803,6 +841,62 @@ IRHICommandContextContainer* FD3D12DynamicRHI::RHIGetCommandContextContainer(int
 
 #endif // D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
 
+void FD3D12DynamicRHI::RHICreateResourceTransition(FRHITransition* Transition, EResourceTransitionPipeline Pipeline, EResourceTransitionPipelineFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+{
+	ERHIPipeline SrcPipelines = ERHIPipeline::Graphics;
+	ERHIPipeline DstPipelines = ERHIPipeline::Graphics;
+	switch (Pipeline)
+	{
+	case EResourceTransitionPipeline::Graphics_To_Graphics:
+		SrcPipelines = ERHIPipeline::Graphics;
+		DstPipelines = ERHIPipeline::Graphics;
+		break;
+
+	case EResourceTransitionPipeline::Graphics_To_AsyncCompute:
+		SrcPipelines = ERHIPipeline::Graphics;
+		DstPipelines = ERHIPipeline::AsyncCompute;
+		break;
+
+	case EResourceTransitionPipeline::AsyncCompute_To_Graphics:
+		SrcPipelines = ERHIPipeline::AsyncCompute;
+		DstPipelines = ERHIPipeline::Graphics;
+		break;
+
+	case EResourceTransitionPipeline::AsyncCompute_To_AsyncCompute:
+		SrcPipelines = ERHIPipeline::AsyncCompute;
+		DstPipelines = ERHIPipeline::AsyncCompute;
+		break;
+	}
+
+	checkf(FMath::IsPowerOfTwo(uint32(SrcPipelines)) && FMath::IsPowerOfTwo(uint32(DstPipelines)), TEXT("Support for multi-pipe resources is not yet implemented."));
+
+	// Construct the data in-place on the transition instance
+	FD3D12TransitionData* Data = new (Transition->GetPrivateData<FD3D12TransitionData>()) FD3D12TransitionData;
+
+	Data->SrcPipelines = SrcPipelines;
+	Data->DstPipelines = DstPipelines;
+	Data->CreateFlags = CreateFlags;
+
+	const bool bCrossPipeline = SrcPipelines != DstPipelines;
+
+	if (bCrossPipeline && !EnumHasAnyFlags(Data->CreateFlags, EResourceTransitionPipelineFlags::NoFence))
+	{
+		const FName Name = SrcPipelines == ERHIPipeline::Graphics ? L"<Graphics To AsyncCompute>" : L"<AsyncCompute To Graphics>";
+
+		Data->Fence = new FD3D12Fence(&GetAdapter(), FRHIGPUMask::All(), Name);
+		Data->Fence->CreateFence();
+	}
+
+	Data->bCrossPipeline = bCrossPipeline;
+	Data->Infos.Append(Infos.GetData(), Infos.Num());
+}
+
+void FD3D12DynamicRHI::RHIReleaseResourceTransition(FRHITransition* Transition)
+{
+	// Destruct the transition data
+	Transition->GetPrivateData<FD3D12TransitionData>()->~FD3D12TransitionData();
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -830,6 +924,17 @@ void FD3D12CommandContextRedirector::RHITransitionResources(EResourceTransitionA
 
 		Fence->Signal(ED3D12CommandQueueType::Default);
 	}	
+}
+
+void FD3D12CommandContextRedirector::RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	ContextRedirect(RHIBeginTransitionsWithoutFencing(Transitions));
+	SignalTransitionFences(Transitions);
+}
+
+void FD3D12CommandContextRedirector::RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	ContextRedirect(RHIEndResourceTransitions(Transitions));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -57,7 +57,8 @@ protected:
 
 	virtual FD3D12CommandContext* GetContext(uint32 InGPUIndex) = 0;
 
-protected:
+	void SignalTransitionFences(TArrayView<const FRHITransition*> Transitions);
+	void WaitForTransitionFences(TArrayView<const FRHITransition*> Transitions);
 
 	FRHIGPUMask GPUMask;
 
@@ -241,6 +242,10 @@ public:
 	virtual void SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner);
 
 	virtual void SetAsyncComputeBudgetInternal(EAsyncComputeBudget Budget) {}
+
+	void RHIBeginTransitionsWithoutFencing(TArrayView<const FRHITransition*> Transitions);
+	virtual void RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
+	virtual void RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 
 	// IRHIComputeContext interface
 	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) final override;
@@ -511,6 +516,10 @@ public:
 	}
 	// Special implementation that only signal the fence once.
 	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFenceRHI) final override;
+
+	// Special implementation that only signal the fence once.
+	virtual void RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
+	virtual void RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 
 	FORCEINLINE virtual void RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override
 	{
@@ -892,4 +901,15 @@ private:
 	{
 		return EffectFences.FindByPredicate([GPUIndex](const auto& Other) { return Other.GPUMask.Contains(GPUIndex); });
 	}
+};
+
+struct FD3D12TransitionData
+{
+	ERHIPipeline SrcPipelines, DstPipelines;
+	EResourceTransitionPipelineFlags CreateFlags = EResourceTransitionPipelineFlags::None;
+
+	TArray<FRHITransitionInfo, TInlineAllocator<4>> Infos;
+	TRefCountPtr<FD3D12Fence> Fence;
+
+	bool bCrossPipeline = false;
 };
