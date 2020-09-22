@@ -492,7 +492,7 @@
 	</Agent>
 
 	<Agent Name="Tools Group Win64" Type="Win64_Licensee">
-		<Node Name="Build Tools Win64" Requires="Compile UnrealHeaderTool Win64;#NotForLicensee Build Tools Win64">
+		<Node Name="Build Tools Win64" Requires="Compile UnrealHeaderTool Win64;#NotForLicensee Build Tools Win64" Produces="#Tools Win64 Complete">
 			<Compile Target="CrashReportClient" Configuration="Shipping" Platform="Win64" Tag="#Build Tools Win64" Arguments="$(CrashReporterCompileArgsWin)"/>
 			<Compile Target="CrashReportClientEditor" Configuration="Shipping" Platform="Win64" Tag="#Build Tools Win64" Arguments="$(CrashReporterCompileArgsWin)"/>
 			<Tag Files="#NotForLicensee Build Tools Win64" With="#Build Tools Win64"/>
@@ -518,6 +518,8 @@
 				<Tag Files="Engine/Source/...;Engine/Plugins/..." Filter="*.c;*.h;*.cpp;*.hpp;*.inl" Except="Engine/Source/ThirdParty/..." With="#SourceFiles"/>
 				<SrcSrv BinaryFiles="#Build Tools Win64" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(Change)"/>
 			</Do>
+
+			<Tag Files="cpp.hint" With="#Tools Win64 Complete"/>
 		</Node>
 		<!-- Compile the C# tools. Copies files to a temporary directory first, to strip out all confidential folders and avoid sharing violations with the running version of UAT. -->
 		<Node Name="Build Tools CS" Requires="Update Version Files" Produces="#Build Tools CS Binaries;#SourceForDocumentation">
