@@ -284,10 +284,16 @@ namespace GeometryCollectionTest
 			{
 				Solver->UnregisterObject(BCW->Particle);
 			}
-			delete Object;
 		}
 		
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
+
+		//don't delete wrapper objects until solver is gone.
+		//can have callbacks that rely on wrapper objects
+		for (WrapperBase* Object : PhysicsObjects)
+		{
+			delete Object;
+		}
 	}
 
 	template<typename Traits>

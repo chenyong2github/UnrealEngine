@@ -83,7 +83,7 @@ namespace Chaos
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 			MSolver->StartingSceneSimulation();
 
-			MSolver->ApplyCallbacks_Internal(MDeltaTime);
+			MSolver->ApplyCallbacks_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
 
 			{
@@ -909,40 +909,27 @@ namespace Chaos
 		{
 			//update callbacks
 			{
-				for(FSimCallbackHandle* NewCallback : PushData->SimCallbacksToAdd)
-				{
-					if(ensure(NewCallback->PTHandle == nullptr)) //if not null we have double registration
-					{
-						FSimCallbackHandlePT* PTCallback = new FSimCallbackHandlePT(NewCallback);	//todo: use better memory management
-						SimCallbacks.Add(PTCallback);
-						NewCallback->PTHandle = PTCallback;
-					}
-				}
+				SimCallbackObjects.Append(PushData->SimCallbackObjectsToAdd);
 
-				for(int32 Idx = 0; Idx < PushData->SimCallbacksToRemove.Num(); ++Idx)
+				for (int32 Idx = 0; Idx < PushData->SimCallbackObjectsToRemove.Num(); ++Idx)
 				{
-					FSimCallbackHandle* RemovedCallback = PushData->SimCallbacksToRemove[Idx];
-					if(ensure(RemovedCallback->PTHandle != nullptr)) //if not null we are unregistering something that was never registered (or double delete) 
+					ISimCallbackObject* RemovedCallbackObject = PushData->SimCallbackObjectsToRemove[Idx];
+					if (Idx == 0)
 					{
-						if(Idx == 0)
-						{
-							//callback was removed right away so skip it entirely (unless it was tagged as running at least once no matter what)
-							RemovedCallback->PTHandle->bPendingDelete = !RemovedCallback->bRunOnceMore;
-						}
-						else
-						{
-							//want to delete, but came later in interval so need to run at least once
-							RemovedCallback->bRunOnceMore = true;
-						}
+						//callback was removed right away so skip it entirely (unless it was tagged as running at least once no matter what)
+						RemovedCallbackObject->bPendingDelete = !RemovedCallbackObject->bRunOnceMore;
+					}
+					else
+					{
+						//want to delete, but came later in interval so need to run at least once
+						RemovedCallbackObject->bRunOnceMore = true;
 					}
 				}
 
 				//save any pending data for this particular interval
-				for(const FSimCallbackDataPair& Pair : PushData->SimCallbackDataPairs)
+				for (const FSimCallbackInputAndObject& InputAndCallbackObj : PushData->SimCallbackInputs)
 				{
-					const FSimCallbackHandle* Handle = Pair.Callback;
-					check(Handle->PTHandle);	//must have been registered already
-					Handle->PTHandle->IntervalData.Add(Pair.Data);
+					InputAndCallbackObj.CallbackObject->IntervalData.Add(InputAndCallbackObj.Input);
 				}
 			}
 
