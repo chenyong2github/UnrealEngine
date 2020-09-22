@@ -230,7 +230,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	{
 		for (URuntimeVirtualTexture* VirtualTexture : InComponent->GetRuntimeVirtualTextures())
 		{
-			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
+			if (VirtualTexture != nullptr)
 			{
 				RuntimeVirtualTextures.Add(VirtualTexture);
 				RuntimeVirtualTextureMaterialTypes.AddUnique(VirtualTexture->GetMaterialType());
