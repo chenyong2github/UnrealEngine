@@ -123,6 +123,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
 
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges);
+
 	/** Instantly stops any inertial scrolling that is currently in progress */
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void EndInertialScrolling();
