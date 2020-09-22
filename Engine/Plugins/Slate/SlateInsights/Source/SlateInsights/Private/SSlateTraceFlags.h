@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SLeafWidget.h"
+
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
 
 namespace UE
 {
