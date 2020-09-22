@@ -66,13 +66,7 @@ bool FUserPlatform::IsConsole() const
 
 bool FUserPlatform::IsCrossplayWith(const FUserPlatform& OtherPlatform) const
 {
-	if (*this != OtherPlatform)
-	{
-		// Any difference in platform qualifies as crossplay for a console platform
-		// Desktops and mobile aren't considered crossplay within themselves (i.e. Android+iOS or Mac+PC don't count)
-		return IsConsole() || IsDesktop() != OtherPlatform.IsDesktop() || IsMobile() != OtherPlatform.IsMobile();
-	}
-	return false;
+	return PlatformDescription.CrossplayPool != OtherPlatform.PlatformDescription.CrossplayPool;
 }
 
 bool FUserPlatform::IsCrossplayWith(const FString& OtherPlatformStr) const
