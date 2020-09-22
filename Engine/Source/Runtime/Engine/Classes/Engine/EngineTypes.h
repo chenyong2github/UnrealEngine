@@ -1917,6 +1917,74 @@ struct FPrimitiveMaterialRef
 	{ 	}
 };
 
+// Handle to a unique object. This may specify a full weigh actor or it may only specify the light weight instance that represents the same object.
+USTRUCT(BlueprintType)
+struct ENGINE_API FActorInstanceHandle
+{
+	GENERATED_BODY()
+
+	friend struct FLightWeightInstanceSubsystem;
+	friend class ALightWeightInstanceManager;
+
+	FActorInstanceHandle();
+
+	explicit FActorInstanceHandle(AActor* InActor);
+	explicit FActorInstanceHandle(int32 InManagerIndex, int32 InInstanceIndex);
+	explicit FActorInstanceHandle(class ALightWeightInstanceManager* Manager, int32 InInstanceIndex);
+
+	FActorInstanceHandle(const FActorInstanceHandle& Other);
+
+	bool IsValid() const;
+
+	bool DoesRepresentClass(const UClass* OtherClass) const;
+
+	UClass* GetRepresentedClass() const;
+
+	FVector GetLocation() const;
+	FRotator GetRotation() const;
+
+	ULevel* GetLevel() const;
+	bool IsInLevel(ULevel* InLevel) const;
+
+	FName GetFName() const;
+	FString GetName() const;
+
+	// Returns the actor specified by this handle. This may require loading and creating the actor object.
+	AActor* FetchActor() const;
+	template <typename T>
+	T* FetchActor() const;
+
+	FORCEINLINE int32 GetInstanceIndex() const { return InstanceIndex; }
+
+	FActorInstanceHandle& operator=(const FActorInstanceHandle& Other) = default;
+	FActorInstanceHandle& operator=(FActorInstanceHandle&& Other) = default;
+
+	bool operator==(const FActorInstanceHandle& Other) const;
+	bool operator!=(const FActorInstanceHandle& Other) const;
+
+	bool operator==(const AActor* OtherActor) const;
+	bool operator!=(const AActor* OtherActor) const;
+
+	friend ENGINE_API FArchive& operator<<(FArchive& Ar, FActorInstanceHandle& Handle);
+
+private:
+	// this is cached here for convenience
+	UPROPERTY()
+	mutable TWeakObjectPtr<AActor> Actor;
+
+	// Identifies the light weight instance manager to use
+	int32 ManagerIndex;
+
+	// Identifies the instance within the manager
+	int32 InstanceIndex;
+};
+
+template <typename T>
+T* FActorInstanceHandle::FetchActor() const
+{
+	return Cast<T>(FetchActor());
+}
+
 /**
  * Structure containing information about one hit of a trace, such as point of impact and surface normal at that point.
  */
@@ -2022,9 +2090,9 @@ struct ENGINE_API FHitResult
 	UPROPERTY()
 	TWeakObjectPtr<class UPhysicalMaterial> PhysMaterial;
 
-	/** Actor hit by the trace. */
+	/** Handle to the object hit by the trace. */
 	UPROPERTY()
-	TWeakObjectPtr<class AActor> Actor;
+	FActorInstanceHandle HitObjectHandle;
 
 	/** PrimitiveComponent hit by the trace. */
 	UPROPERTY()
@@ -2097,10 +2165,14 @@ struct ENGINE_API FHitResult
 		}
 	}
 
-	/** Utility to return the Actor that owns the Component that was hit. */
-	FORCEINLINE AActor* GetActor() const
+	FORCEINLINE FActorInstanceHandle GetHitObjectHandle() const
 	{
-		return Actor.Get();
+		return HitObjectHandle;
+	}
+
+	FORCEINLINE bool HasValidHitObjectHandle() const
+	{
+		return HitObjectHandle.IsValid();
 	}
 
 	/** Utility to return the Component that was hit. */
@@ -2203,9 +2275,8 @@ struct ENGINE_API FOverlapResult
 {
 	GENERATED_BODY()
 
-	/** Actor that the check hit. */
 	UPROPERTY()
-	TWeakObjectPtr<class AActor> Actor;
+	FActorInstanceHandle OverlapObjectHandle;
 
 	/** PrimitiveComponent that the check hit. */
 	UPROPERTY()
@@ -2215,9 +2286,6 @@ struct ENGINE_API FOverlapResult
 		For DestructibleComponents, this is the ChunkInfo index. 
 		For SkeletalMeshComponents this is the Body index or INDEX_NONE for single body */
 	int32 ItemIndex;
-
-	/** Utility to return the Actor that owns the Component that was hit */
-	AActor* GetActor() const;
 
 	/** Utility to return the Component that was hit */
 	UPrimitiveComponent* GetComponent() const;

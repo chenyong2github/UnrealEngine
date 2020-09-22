@@ -187,7 +187,7 @@ inline void CaptureOverlap(const UWorld* World, const FPhysicsGeometryCollection
 	{
 		FHitResult NewResult = FHitResult(0.f);
 		NewResult.bBlockingHit = OverlapResult.bBlockingHit;
-		NewResult.Actor = OverlapResult.Actor;
+		NewResult.HitObjectHandle = OverlapResult.OverlapObjectHandle;
 		NewResult.Component = OverlapResult.Component;
 		NewResult.Item = OverlapResult.ItemIndex;
 		HitResults.Add(NewResult);
@@ -216,7 +216,7 @@ inline void CaptureOverlap(const UWorld* World, const FCollisionShape& PGeom, co
 	{
 		FHitResult NewResult = FHitResult(0.f);
 		NewResult.bBlockingHit = OverlapResult.bBlockingHit;
-		NewResult.Actor = OverlapResult.Actor;
+		NewResult.HitObjectHandle = OverlapResult.OverlapObjectHandle;
 		NewResult.Component = OverlapResult.Component;
 		NewResult.Item = OverlapResult.ItemIndex;
 		HitResults.Add(NewResult);

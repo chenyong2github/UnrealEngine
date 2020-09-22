@@ -63,7 +63,7 @@ TArray<TWeakObjectPtr<AActor> >	AGameplayAbilityTargetActor_Radius::PerformOverl
 	for (int32 i = 0; i < Overlaps.Num(); ++i)
 	{
 		//Should this check to see if these pawns are in the AimTarget list?
-		APawn* PawnActor = Cast<APawn>(Overlaps[i].GetActor());
+		APawn* PawnActor = Overlaps[i].OverlapObjectHandle.FetchActor<APawn>();
 		if (PawnActor && !HitActors.Contains(PawnActor) && Filter.FilterPassesForActor(PawnActor))
 		{
 			HitActors.Add(PawnActor);

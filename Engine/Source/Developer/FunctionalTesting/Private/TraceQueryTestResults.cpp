@@ -47,11 +47,10 @@ FString UTraceQueryTestResults::ToString()
 void CaptureNameHelper(FTraceQueryTestNames& Names, FHitResult& HitResult)
 {
 	UPrimitiveComponent* HitComp = HitResult.GetComponent();
-	AActor* HitActor = HitResult.GetActor();
 	UPhysicalMaterial* PhysMat = HitResult.PhysMaterial.Get();
 
 	Names.ComponentName = HitComp ? HitComp->GetFName() : NAME_None;
-	Names.ActorName = HitActor ? HitActor->GetFName() : NAME_None;
+	Names.ActorName = HitResult.HitObjectHandle.IsValid() ? HitResult.HitObjectHandle.GetFName() : NAME_None;
 	Names.PhysicalMaterialName = PhysMat ? PhysMat->GetFName() : NAME_None;
 }
 

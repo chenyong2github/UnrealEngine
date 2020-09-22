@@ -272,7 +272,7 @@ public:
 					// if we found a valid snap, return it
 					if (SmallestAngle < Request.VisualAngleThresholdDegrees)
 					{
-						SnapResult.TargetActor = HitResult.Actor.Get();
+						SnapResult.TargetActor = HitResult.HitObjectHandle.FetchActor();
 						SnapResult.TargetComponent = HitResult.Component.Get();
 						Results.Add(SnapResult);
 						FoundResultCount++;

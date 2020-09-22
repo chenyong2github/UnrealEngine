@@ -576,9 +576,9 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetData_SingleTargetHit : public
 	virtual TArray<TWeakObjectPtr<AActor> >	GetActors() const override
 	{
 		TArray<TWeakObjectPtr<AActor> >	Actors;
-		if (HitResult.Actor.IsValid())
+		if (HitResult.HasValidHitObjectHandle())
 		{
-			Actors.Push(HitResult.Actor);
+			Actors.Push(HitResult.HitObjectHandle.FetchActor());
 		}
 		return Actors;
 	}

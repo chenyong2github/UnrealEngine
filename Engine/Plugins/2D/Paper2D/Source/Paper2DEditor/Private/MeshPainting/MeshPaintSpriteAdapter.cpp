@@ -83,7 +83,7 @@ bool FMeshPaintSpriteAdapter::LineTraceComponent(struct FHitResult& OutHit, cons
 					OutHit.ImpactNormal = WorldNormal;
 					OutHit.TraceStart = Start;
 					OutHit.TraceEnd = End;
-					OutHit.Actor = SpriteComponent->GetOwner();
+					OutHit.HitObjectHandle = FActorInstanceHandle(SpriteComponent->GetOwner());
 					OutHit.Component = SpriteComponent;
 					OutHit.FaceIndex = VertexIndex / 3;
 

@@ -183,7 +183,7 @@ void FConcertClientDesktopPresenceMode::SendEvents(IConcertClientSession& Sessio
 
 
 						// chose closest point to origin.  Always favor the trace if the proxy and the trace reached the same actor since the trace will be more accurate
-						if ((ActorProxy && ActorProxy->Actor == Result.Actor) || FVector::DistSquared(LineCheckStart, LineTrace) < FVector::DistSquared(LineCheckStart, HitProxyTrace))
+						if ((ActorProxy && Result.GetHitObjectHandle() == ActorProxy->Actor) || FVector::DistSquared(LineCheckStart, LineTrace) < FVector::DistSquared(LineCheckStart, HitProxyTrace))
 						{
 							Event.TraceEnd = LineTrace;
 						}

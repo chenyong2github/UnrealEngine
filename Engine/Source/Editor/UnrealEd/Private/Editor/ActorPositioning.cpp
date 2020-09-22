@@ -56,7 +56,8 @@ FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const FViewpo
 /** Check to see if the specified hit result should be ignored from actor positioning calculations for the specified scene view */
 bool IsHitIgnored(const FHitResult& InHit, const FSceneView& InSceneView)
 {
-	const auto* Actor = InHit.GetActor();
+	const FActorInstanceHandle& HitObjHandle = InHit.HitObjectHandle;
+	AActor* Actor = HitObjHandle.FetchActor();
 	
 	// Try and find a primitive component for the hit
 	const UPrimitiveComponent* PrimitiveComponent = Actor ? Cast<UPrimitiveComponent>(Actor->GetRootComponent()) : nullptr;
@@ -76,7 +77,7 @@ bool IsHitIgnored(const FHitResult& InHit, const FSceneView& InSceneView)
 	}
 
 	// Ignore volumes and shapes
-	if (Actor && Actor->IsA(AVolume::StaticClass()))
+	if (HitObjHandle.DoesRepresentClass(AVolume::StaticClass()))
 	{
 		return true;
 	}
@@ -126,7 +127,7 @@ FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const UWorld&
 		// Go through all hits and find closest
 		float ClosestHitDistanceSqr = TNumericLimits<float>::Max();
 
-		for (const auto& Hit : Hits)
+		for (const FHitResult& Hit : Hits)
 		{
 			const float DistanceToHitSqr = (Hit.ImpactPoint - RayStart).SizeSquared();
 			if (DistanceToHitSqr < ClosestHitDistanceSqr)
@@ -135,7 +136,7 @@ FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const UWorld&
 				Results.Location = Hit.Location;
 				Results.SurfaceNormal = Hit.Normal.GetSafeNormal();
 				Results.State = FActorPositionTraceResult::HitSuccess;
-				Results.HitActor = Hit.Actor;
+				Results.HitActor = Hit.HitObjectHandle.FetchActor();
 			}
 		}
 	}

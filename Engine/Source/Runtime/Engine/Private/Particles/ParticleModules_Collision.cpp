@@ -385,10 +385,10 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 		{
 			bool bDecrementMaxCount = true;
 			bool bIgnoreCollision = false;
-			if (Hit.GetActor())
+			if (Hit.HitObjectHandle.IsValid())
 			{
-				bDecrementMaxCount = !bPawnsDoNotDecrementCount || !Cast<APawn>(Hit.GetActor());
-				bIgnoreCollision = bIgnoreTriggerVolumes && Hit.GetActor()->IsA(ATriggerBase::StaticClass());
+				bDecrementMaxCount = !bPawnsDoNotDecrementCount || !Hit.HitObjectHandle.DoesRepresentClass(APawn::StaticClass());
+				bIgnoreCollision = bIgnoreTriggerVolumes && Hit.HitObjectHandle.DoesRepresentClass(ATriggerBase::StaticClass());
 				//@todo.SAS. Allow for PSys to say what it wants to collide w/?
 			}
 

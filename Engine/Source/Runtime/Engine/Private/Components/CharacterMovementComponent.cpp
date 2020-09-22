@@ -2958,8 +2958,7 @@ FVector UCharacterMovementComponent::GetPenetrationAdjustment(const FHitResult& 
 	{
 		const bool bIsProxy = (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy);
 		float MaxDistance = bIsProxy ? MaxDepenetrationWithGeometryAsProxy : MaxDepenetrationWithGeometry;
-		const AActor* HitActor = Hit.GetActor();
-		if (Cast<APawn>(HitActor))
+		if (Hit.HitObjectHandle.DoesRepresentClass(APawn::StaticClass()))
 		{
 			MaxDistance = bIsProxy ? MaxDepenetrationWithPawnAsProxy : MaxDepenetrationWithPawn;
 		}
@@ -4089,12 +4088,11 @@ FVector UCharacterMovementComponent::FindWaterLine(FVector InWater, FVector Outo
 	TArray<FHitResult> Hits;
 	GetWorld()->LineTraceMultiByChannel(Hits, OutofWater, InWater, UpdatedComponent->GetCollisionObjectType(), FCollisionQueryParams(SCENE_QUERY_STAT(FindWaterLine), true, CharacterOwner));
 
-	for( int32 HitIdx = 0; HitIdx < Hits.Num(); HitIdx++ )
+	for (const FHitResult& Check : Hits)
 	{
-		const FHitResult& Check = Hits[HitIdx];
-		if ( !CharacterOwner->IsOwnedBy(Check.GetActor()) && !Check.Component.Get()->IsWorldGeometry() )
+		if ( !CharacterOwner->IsOwnedBy(Check.HitObjectHandle.FetchActor()) && !Check.Component.Get()->IsWorldGeometry() )
 		{
-			APhysicsVolume *W = Cast<APhysicsVolume>(Check.GetActor());
+			APhysicsVolume *W = Check.HitObjectHandle.FetchActor<APhysicsVolume>();
 			if ( W && W->bWaterVolume )
 			{
 				FVector Dir = (InWater - OutofWater).GetSafeNormal();
@@ -4685,7 +4683,7 @@ void UCharacterMovementComponent::OnCharacterStuckInGeometry(const FHitResult* H
 					   Hit->Location.X, Hit->Location.Y, Hit->Location.Z,
 					   Hit->Normal.X, Hit->Normal.Y, Hit->Normal.Z,
 					   Hit->PenetrationDepth,
-					   *GetNameSafe(Hit->GetActor()),
+					   *Hit->HitObjectHandle.GetName(),
 					   *GetNameSafe(Hit->GetComponent()),
 					   Hit->BoneName.IsValid() ? *Hit->BoneName.ToString() : TEXT("None"),
 					   StuckWarningCountSinceNotify
@@ -4746,7 +4744,7 @@ void UCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, floa
 
 		if (Hit.IsValidBlockingHit())
 		{
-			if (CanStepUp(Hit) || (CharacterOwner->GetMovementBase() != NULL && CharacterOwner->GetMovementBase()->GetOwner() == Hit.GetActor()))
+			if (CanStepUp(Hit) || (CharacterOwner->GetMovementBase() != nullptr && Hit.HitObjectHandle == CharacterOwner->GetMovementBase()->GetOwner()))
 			{
 				// hit a barrier, try to step up
 				const FVector GravDir(0.f, 0.f, -1.f);
@@ -5852,7 +5850,7 @@ bool UCharacterMovementComponent::CheckWaterJump(FVector CheckPoint, FVector& Wa
 	const ECollisionChannel CollisionChannel = UpdatedComponent->GetCollisionObjectType();
 	bool bHit = GetWorld()->SweepSingleByChannel( HitInfo, UpdatedComponent->GetComponentLocation(), CheckPoint, FQuat::Identity, CollisionChannel, CapsuleShape, CapsuleParams, ResponseParam);
 	
-	if ( bHit && !Cast<APawn>(HitInfo.GetActor()) )
+	if ( bHit && !HitInfo.HitObjectHandle.DoesRepresentClass(APawn::StaticClass()) )
 	{
 		// hit a wall - check if it is low enough
 		WallNormal = -1.f * HitInfo.ImpactNormal;
@@ -6519,12 +6517,13 @@ bool UCharacterMovementComponent::CanStepUp(const FHitResult& Hit) const
 	}
 
 	// No actor for "fake" hits when we are on a known good base.
-	const AActor* HitActor = Hit.GetActor();
-	if (!HitActor)
+	
+	if (!Hit.HitObjectHandle.IsValid())
 	{
 		 return true;
 	}
 
+	const AActor* HitActor = Hit.HitObjectHandle.FetchActor();
 	if (!HitActor->CanBeBaseForCharacter(CharacterOwner))
 	{
 		return false;
@@ -6766,7 +6765,7 @@ void UCharacterMovementComponent::HandleImpact(const FHitResult& Impact, float T
 		PFAgent->OnMoveBlockedBy(Impact);
 	}
 
-	APawn* OtherPawn = Cast<APawn>(Impact.GetActor());
+	APawn* OtherPawn = Impact.HitObjectHandle.FetchActor<APawn>();
 	if (OtherPawn)
 	{
 		NotifyBumpedPawn(OtherPawn);

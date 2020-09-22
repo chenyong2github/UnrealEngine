@@ -137,6 +137,8 @@ class ENGINE_API UHierarchicalInstancedStaticMeshComponent : public UInstancedSt
 {
 	GENERATED_UCLASS_BODY()
 
+	friend class ALightWeightInstanceStaticMeshManager;
+
 	~UHierarchicalInstancedStaticMeshComponent();
 
 	TSharedPtr<TArray<FClusterNode>, ESPMode::ThreadSafe> ClusterTreePtr;

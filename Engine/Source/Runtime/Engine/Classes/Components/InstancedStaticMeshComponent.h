@@ -124,6 +124,8 @@ UCLASS(ClassGroup = Rendering, meta = (BlueprintSpawnableComponent), Blueprintab
 class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 {
 	GENERATED_UCLASS_BODY()
+
+	friend class ALightWeightInstanceManager;
 	
 	/** Needs implementation in InstancedStaticMesh.cpp to compile UniquePtr for forward declared class */
 	UInstancedStaticMeshComponent(FVTableHelper& Helper);

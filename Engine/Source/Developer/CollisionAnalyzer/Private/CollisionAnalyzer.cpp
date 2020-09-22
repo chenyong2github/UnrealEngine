@@ -37,7 +37,7 @@ void SerializeHitResult(FArchive& Ar, FHitResult& Result)
 	Ar << Result.PenetrationDepth;
 	Ar << Result.BoneName;
 	Ar << Result.PhysMaterial;
-	Ar << Result.Actor;
+	Ar << Result.HitObjectHandle;
 	Ar << Result.Component;
 	Ar << Result.FaceIndex;
 }

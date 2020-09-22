@@ -146,8 +146,8 @@ bool UViewportInteractor::HandleInputKey( FEditorViewportClient& ViewportClient,
 			// Prefer transform gizmo interactions over anything else
 			const bool bPressedTransformGizmo =
 				Event == IE_Pressed &&
-				HitResult.Actor.IsValid() &&
-				HitResult.Actor == WorldInteraction->GetTransformGizmoActor() &&
+				HitResult.HitObjectHandle.IsValid() &&
+				HitResult.HitObjectHandle == WorldInteraction->GetTransformGizmoActor() &&
 				Action->ActionType == ViewportWorldActionTypes::SelectAndMove;
 			if( !bPressedTransformGizmo )
 			{
@@ -177,13 +177,13 @@ bool UViewportInteractor::HandleInputKey( FEditorViewportClient& ViewportClient,
 				if ( Event == IE_Pressed )
 				{
 					// No clicking while we're dragging the world.  (No laser pointers are visible, anyway.)
-					if ( !bIsDraggingWorldWithTwoHands && HitResult.Actor.IsValid() )
+					if ( !bIsDraggingWorldWithTwoHands && HitResult.HitObjectHandle.IsValid() )
 					{
 						if ( WorldInteraction->IsInteractableComponent( HitResult.GetComponent() ) )
 						{
 							InteractorData.ClickingOnComponent = HitResult.GetComponent();	// @todo gizmo: Should be changed to store only gizmo components?
 
-							AActor* Actor = HitResult.Actor.Get();
+							AActor* Actor = HitResult.HitObjectHandle.FetchActor();
 
 							FVector LaserPointerStart, LaserPointerEnd;
 							const bool bHaveLaserPointer = GetLaserPointer( /* Out */ LaserPointerStart, /* Out */ LaserPointerEnd );
@@ -675,7 +675,7 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 {
 	FHitResult BestHitResult;
 
-	if (SavedHitResult.IsSet() && OptionalListOfIgnoredActors != nullptr && !OptionalListOfIgnoredActors->Contains(SavedHitResult->Actor) && (SavedHitResultFilterMode.IsSet() && (GizmoFilterMode == SavedHitResultFilterMode.GetValue())))
+	if (SavedHitResult.IsSet() && OptionalListOfIgnoredActors != nullptr && !OptionalListOfIgnoredActors->Contains(SavedHitResult->HitObjectHandle.FetchActor()) && (SavedHitResultFilterMode.IsSet() && (GizmoFilterMode == SavedHitResultFilterMode.GetValue())))
 	{
 		BestHitResult = SavedHitResult.GetValue();
 	}
@@ -760,7 +760,7 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 								bool bClassHasPriority = false;
 								bClassHasPriority =
 									( HitResult.GetComponent() != nullptr && HitResult.GetComponent()->IsA( CurrentClass ) ) ||
-									( HitResult.GetActor() != nullptr && HitResult.GetActor()->IsA( CurrentClass ) );
+									( HitResult.HitObjectHandle.IsValid() && HitResult.HitObjectHandle.DoesRepresentClass( CurrentClass ) );
 
 								if ( bClassHasPriority )
 								{
@@ -770,8 +770,8 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 							}
 						}
 
-						const bool bHitResultIsGizmo = HitResult.GetActor() != nullptr && HitResult.GetActor() == WorldInteraction->GetTransformGizmoActor();
-						if ( BestHitResult.GetActor() == nullptr ||
+						const bool bHitResultIsGizmo = HitResult.HitObjectHandle.IsValid() && HitResult.HitObjectHandle == WorldInteraction->GetTransformGizmoActor();
+						if ( !BestHitResult.HitObjectHandle.IsValid() ||
 							 InteractorData.bHitResultIsPriorityType ||
 							 bHitResultIsGizmo )
 						{

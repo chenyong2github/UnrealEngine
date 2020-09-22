@@ -84,7 +84,7 @@ bool AGameplayAbilityTargetActor_GroundTrace::AdjustCollisionResultForShape(cons
 		SweepWithFilter(LocalResult, ThisWorld, Filter, TraceStart, TraceEnd, FQuat::Identity, CollisionShape, TraceProfile.Name, Params);
 		if (!LocalResult.bStartPenetrating)
 		{
-			if (!LocalResult.bBlockingHit || (LocalResult.Actor.IsValid() && Cast<APawn>(LocalResult.Actor.Get())))
+			if (!LocalResult.bBlockingHit || (LocalResult.HitObjectHandle.IsValid() && LocalResult.HitObjectHandle.DoesRepresentClass(APawn::StaticClass())))
 			{
 				//Off the map, or hit an actor
 #if ENABLE_DRAW_DEBUG

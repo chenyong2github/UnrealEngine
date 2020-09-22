@@ -489,7 +489,7 @@ static bool ComponentIsDamageableFrom(UPrimitiveComponent* VictimComp, FVector c
 			else
 			{
 				// if we hit something else blocking, it's not
-				UE_LOG(LogDamage, Log, TEXT("Radial Damage to %s blocked by %s (%s)"), *GetNameSafe(VictimComp), *GetNameSafe(OutHitResult.GetActor()), *GetNameSafe(OutHitResult.Component.Get()));
+				UE_LOG(LogDamage, Log, TEXT("Radial Damage to %s blocked by %s (%s)"), *GetNameSafe(VictimComp), *OutHitResult.GetHitObjectHandle().GetName(), *GetNameSafe(OutHitResult.Component.Get()));
 				return false;
 			}
 		}
@@ -528,10 +528,9 @@ bool UGameplayStatics::ApplyRadialDamageWithFalloff(const UObject* WorldContextO
 
 	// collate into per-actor list of hit components
 	TMap<AActor*, TArray<FHitResult> > OverlapComponentMap;
-	for (int32 Idx = 0; Idx < Overlaps.Num(); ++Idx)
+	for (const FOverlapResult& Overlap : Overlaps)
 	{
-		FOverlapResult const& Overlap = Overlaps[Idx];
-		AActor* const OverlapActor = Overlap.GetActor();
+		AActor* const OverlapActor = Overlap.OverlapObjectHandle.FetchActor();
 
 		if (OverlapActor &&
 			OverlapActor->CanBeDamaged() &&
@@ -1132,6 +1131,7 @@ UParticleSystemComponent* UGameplayStatics::SpawnEmitterAttached(UParticleSystem
 	return PSC;
 }
 
+// FRED_TODO: propagate hit object handles further instead of converting to an actor here
 void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, UPhysicalMaterial*& PhysMat, AActor*& HitActor, UPrimitiveComponent*& HitComponent, FName& HitBoneName, int32& HitItem, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BreakHitResult);
@@ -1144,7 +1144,7 @@ void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit,
 	Normal = Hit.Normal;
 	ImpactNormal = Hit.ImpactNormal;	
 	PhysMat = Hit.PhysMaterial.Get();
-	HitActor = Hit.GetActor();
+	HitActor = Hit.GetHitObjectHandle().FetchActor();
 	HitComponent = Hit.GetComponent();
 	HitBoneName = Hit.BoneName;
 	HitItem = Hit.Item;
@@ -1166,7 +1166,7 @@ FHitResult UGameplayStatics::MakeHitResult(bool bBlockingHit, bool bInitialOverl
 	Hit.Normal = Normal;
 	Hit.ImpactNormal = ImpactNormal;
 	Hit.PhysMaterial = PhysMat;
-	Hit.Actor = HitActor;
+	Hit.HitObjectHandle = FActorInstanceHandle(HitActor);
 	Hit.Component = HitComponent;
 	Hit.BoneName = HitBoneName;
 	Hit.Item = HitItem;

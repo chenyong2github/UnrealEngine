@@ -830,8 +830,8 @@ void UViewportWorldInteraction::HoverTick( const float DeltaTime )
 		FHitResult HitHoverResult = Interactor->GetHitResultFromLaserPointer();
 
 		const bool bIsHoveringOverTransformGizmo =
-			HitHoverResult.Actor.IsValid() &&
-			HitHoverResult.Actor == TransformGizmoActor;
+			HitHoverResult.HitObjectHandle.IsValid() &&
+			HitHoverResult.HitObjectHandle == TransformGizmoActor;
 
 		// Prefer transform gizmo hover over everything else
 		if( !bIsHoveringOverTransformGizmo )
@@ -848,13 +848,13 @@ void UViewportWorldInteraction::HoverTick( const float DeltaTime )
 		{
 			UActorComponent* NewHoveredActorComponent = nullptr;
 
-			if ( HitHoverResult.Actor.IsValid() )
+			if ( HitHoverResult.HitObjectHandle.IsValid() )
 			{
-				USceneComponent* HoveredActorComponent = HitHoverResult.GetComponent();
-				AActor* Actor = HitHoverResult.Actor.Get();
+				USceneComponent* HoveredActorComponent = HitHoverResult.GetComponent();	
 
 				if ( HoveredActorComponent && IsInteractableComponent( HoveredActorComponent ) )
 				{
+					AActor* Actor = HitHoverResult.HitObjectHandle.FetchActor();
 					HoveredObjects.Add( FViewportHoverTarget( Actor ) );
 
 					Interactor->SetHoverLocation(HitHoverResult.ImpactPoint);
@@ -2540,7 +2540,7 @@ bool UViewportWorldInteraction::FindPlacementPointUnderLaser( UViewportInteracto
 	const EHitResultGizmoFilterMode GizmoFilterMode = EHitResultGizmoFilterMode::NoGizmos; // Never place on top of gizmos, just ignore them
 	const bool bEvenIfUIIsInFront = true;	// Don't let the UI block placement
 	FHitResult HitResult = Interactor->GetHitResultFromLaserPointer( &IgnoredActors, GizmoFilterMode, nullptr, bEvenIfUIIsInFront );
-	if( HitResult.Actor.IsValid() )
+	if( HitResult.HitObjectHandle.IsValid() )
 	{
 		bHitSomething = true;
 		HitLocation = HitResult.ImpactPoint;
@@ -3454,7 +3454,7 @@ FVector UViewportWorldInteraction::FindTransformGizmoAlignPoint(const FTransform
 		{
 			for (FOverlapResult OverlapResult : OutOverlaps)
 			{
-				const AActor* PossibleCandidateActor = OverlapResult.GetActor();
+				const AActor* PossibleCandidateActor = OverlapResult.OverlapObjectHandle.FetchActor();
 
 				// Don't align to yourself, the entire world, or any actors hidden in the editor
 				if (PossibleCandidateActor != nullptr

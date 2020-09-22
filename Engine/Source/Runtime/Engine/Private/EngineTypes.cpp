@@ -6,6 +6,8 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/LightWeightInstanceSubsystem.h"
+#include "GameFramework/LightWeightInstanceManager.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/MeshMerging.h"
@@ -115,7 +117,7 @@ void FDamageEvent::GetBestHitInfo(AActor const* HitActor, AActor const* HitInsti
 	if (HitActor)
 	{
 		// fill out the hitinfo as best we can
-		OutHitInfo.Actor = const_cast<AActor*>(HitActor);
+		OutHitInfo.HitObjectHandle = FActorInstanceHandle(const_cast<AActor*>(HitActor));
 		OutHitInfo.bBlockingHit = true;
 		OutHitInfo.BoneName = NAME_None;
 		OutHitInfo.Component = Cast<UPrimitiveComponent>(HitActor->GetRootComponent());
@@ -235,6 +237,210 @@ UActorComponent* FComponentReference::GetComponent(AActor* OwningActor) const
 	return Result;
 }
 
+FActorInstanceHandle::FActorInstanceHandle()
+	: Actor(nullptr)
+	, ManagerIndex(INDEX_NONE)
+	, InstanceIndex(INDEX_NONE)
+{
+	// do nothing
+}
+
+FActorInstanceHandle::FActorInstanceHandle(AActor* InActor)
+	: Actor(InActor)
+	, ManagerIndex(INDEX_NONE)
+	, InstanceIndex(INDEX_NONE)
+{
+	if (InActor)
+	{
+		if (ALightWeightInstanceManager* LWIManager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(InActor->StaticClass(), InActor->GetLevel()))
+		{
+			InstanceIndex = LWIManager->FindIndexForActor(InActor);
+			if (InstanceIndex != INDEX_NONE)
+			{
+				ManagerIndex = FLightWeightInstanceSubsystem::Get().GetManagerIndex(LWIManager);
+			}
+		}
+	}
+}
+
+FActorInstanceHandle::FActorInstanceHandle(int32 InManagerIndex, int32 InInstanceIndex)
+	: Actor(nullptr)
+	, ManagerIndex(InManagerIndex)
+{
+	const ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(InManagerIndex);
+
+	if (ensure(Manager))
+	{
+		InstanceIndex = Manager->ConvertCollisionIndexToLightWeightIndex(InInstanceIndex);
+
+		if (AActor*const* FoundActor = Manager->Actors.Find(InInstanceIndex))
+		{
+			Actor = *FoundActor;
+		}
+	}
+	else
+	{
+		ManagerIndex = INDEX_NONE;
+		InstanceIndex = INDEX_NONE;
+	}
+}
+
+FActorInstanceHandle::FActorInstanceHandle(ALightWeightInstanceManager* Manager, int32 InInstanceIndex)
+	: Actor(nullptr)
+	, ManagerIndex(INDEX_NONE)
+	, InstanceIndex(InInstanceIndex)
+{
+	if (ensure(Manager))
+	{
+		InstanceIndex = Manager->ConvertCollisionIndexToLightWeightIndex(InInstanceIndex);
+		if (AActor*const* FoundActor = Manager->Actors.Find(InstanceIndex))
+		{
+			Actor = *FoundActor;
+		}
+
+		ManagerIndex = FLightWeightInstanceSubsystem::Get().GetManagerIndex(Manager);
+		ensure(ManagerIndex != INDEX_NONE);
+	}
+}
+
+FActorInstanceHandle::FActorInstanceHandle(const FActorInstanceHandle& Other)
+{
+	Actor = Other.Actor;
+	ManagerIndex = Other.ManagerIndex;
+	InstanceIndex = Other.InstanceIndex;
+}
+
+bool FActorInstanceHandle::IsValid() const
+{
+	return (ManagerIndex != INDEX_NONE && InstanceIndex != INDEX_NONE) || Actor.IsValid();
+}
+
+bool FActorInstanceHandle::DoesRepresentClass(const UClass* OtherClass) const
+{
+	if (OtherClass == nullptr)
+	{
+		return false;
+	}
+
+	if (Actor.IsValid())
+	{
+		return Actor->IsA(OtherClass);
+	}
+
+	if (ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(*this))
+	{
+		return Manager->DoesRepresentClass(OtherClass);
+	}
+
+	return false;
+}
+
+UClass* FActorInstanceHandle::GetRepresentedClass() const
+{
+	if (!IsValid())
+	{
+		return nullptr;
+	}
+
+	if (Actor.IsValid())
+	{
+		return Actor->GetClass();
+	}
+
+	if (ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(*this))
+	{
+		return Manager->GetRepresentedClass();
+	}
+
+	return nullptr;
+}
+
+FVector FActorInstanceHandle::GetLocation() const
+{
+	return FVector();
+}
+
+FRotator FActorInstanceHandle::GetRotation() const
+{
+	return FRotator();
+}
+
+ULevel* FActorInstanceHandle::GetLevel() const
+{
+	return nullptr;
+}
+
+bool FActorInstanceHandle::IsInLevel(ULevel* Level) const
+{
+	return false;
+}
+
+FName FActorInstanceHandle::GetFName() const
+{
+	return NAME_None;
+}
+
+FString FActorInstanceHandle::GetName() const
+{
+	return FString();
+}
+
+AActor* FActorInstanceHandle::FetchActor() const
+{
+	if (Actor.IsValid())
+	{
+		return Actor.Get();
+	}
+
+	return FLightWeightInstanceSubsystem::Get().GetActor(*this);
+}
+
+bool FActorInstanceHandle::operator==(const FActorInstanceHandle& Other) const
+{
+	return ManagerIndex == Other.ManagerIndex && InstanceIndex == Other.InstanceIndex;
+}
+
+bool FActorInstanceHandle::operator!=(const FActorInstanceHandle& Other) const
+{
+	return !(*this == Other);
+}
+
+bool FActorInstanceHandle::operator==(const AActor* OtherActor) const
+{
+	// if we have an actor, compare the two actors
+	if (Actor.IsValid())
+	{
+		return Actor.Get() == OtherActor;
+	}
+
+	// we don't have an actor so see if we can look up an instance associated with OtherActor and see if we refer to the same instance
+	if (ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(OtherActor->StaticClass(), OtherActor->GetLevel()))
+	{
+		if (FLightWeightInstanceSubsystem::Get().GetManagerIndex(Manager) != ManagerIndex)
+		{
+			return false;
+		}
+
+		return Manager->FindIndexForActor(OtherActor) == InstanceIndex;
+	}
+	
+	return false;
+}
+
+bool FActorInstanceHandle::operator!=(const AActor* OtherActor) const
+{
+	return !(*this == OtherActor);
+}
+
+FArchive& operator<<(FArchive& Ar, FActorInstanceHandle& Handle)
+{
+	Ar << Handle.Actor;
+	Ar << Handle.ManagerIndex;
+	Ar << Handle.InstanceIndex;
+
+	return Ar;
+}
+
 FString FHitResult::ToString() const
 {
 	return FString::Printf(TEXT("bBlockingHit:%s bStartPenetrating:%s Time:%f Location:%s ImpactPoint:%s Normal:%s ImpactNormal:%s TraceStart:%s TraceEnd:%s PenetrationDepth:%f Item:%d PhysMaterial:%s Actor:%s Component:%s BoneName:%s FaceIndex:%d"),
@@ -250,7 +456,7 @@ FString FHitResult::ToString() const
 		PenetrationDepth,
 		Item,
 		PhysMaterial.IsValid() ? *PhysMaterial->GetName() : TEXT("None"),
-		Actor.IsValid() ? *Actor->GetName() : TEXT("None"),
+		*FLightWeightInstanceSubsystem::Get().GetName(HitObjectHandle),
 		Component.IsValid() ? *Component->GetName() : TEXT("None"),
 		BoneName.IsValid() ? *BoneName.ToString() : TEXT("None"),
 		FaceIndex);

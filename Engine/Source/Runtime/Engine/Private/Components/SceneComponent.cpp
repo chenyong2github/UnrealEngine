@@ -57,7 +57,7 @@ DECLARE_CYCLE_STAT(TEXT("Component PostUpdateNavData"), STAT_ComponentPostUpdate
 FOverlapInfo::FOverlapInfo(UPrimitiveComponent* InComponent, int32 InBodyIndex)
 	: bFromSweep(false)
 {
-	OverlapInfo.Actor = InComponent ? InComponent->GetOwner() : nullptr;
+	OverlapInfo.HitObjectHandle = FActorInstanceHandle(InComponent ? InComponent->GetOwner() : nullptr);
 	OverlapInfo.Component = InComponent;
 	OverlapInfo.Item = InBodyIndex;
 }
@@ -2626,10 +2626,9 @@ void USceneComponent::UpdatePhysicsVolume( bool bTriggerNotifiers )
 						MyWorld->OverlapMultiByChannel(Hits, GetComponentLocation(), FQuat::Identity, GetCollisionObjectType(), FCollisionShape::MakeSphere(0.f), Params);
 					}
 
-					for (int32 HitIdx = 0; HitIdx < Hits.Num(); HitIdx++)
+					for (const FOverlapResult& Link : Hits)
 					{
-						const FOverlapResult& Link = Hits[HitIdx];
-						APhysicsVolume* const V = Cast<APhysicsVolume>(Link.GetActor());
+						APhysicsVolume* const V = Link.OverlapObjectHandle.FetchActor<APhysicsVolume>();
 						if (V && (V->Priority > NewVolume->Priority))
 						{
 							if (bOverlappedOrigin || V->IsOverlapInVolume(*this))

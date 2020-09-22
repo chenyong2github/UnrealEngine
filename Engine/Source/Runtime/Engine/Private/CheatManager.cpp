@@ -718,7 +718,7 @@ void UCheatManager::TickCollisionDebug()
 				if(bHit)
 				{
 					AddCapsuleSweepDebugInfo(ViewLoc, End, Result.ImpactPoint, Result.Normal, Result.ImpactNormal, Result.Location, DebugCapsuleHalfHeight, DebugCapsuleRadius, false, (Result.bStartPenetrating && Result.bBlockingHit)? true: false);
-					UE_LOG(LogCollision, Log, TEXT("Collision component (%s) : Actor (%s)"), *GetNameSafe(Result.Component.Get()), *GetNameSafe(Result.GetActor()));
+					UE_LOG(LogCollision, Log, TEXT("Collision component (%s) : Actor (%s)"), *GetNameSafe(Result.Component.Get()), *Result.HitObjectHandle.GetName());
 				}
 			}
 		}
@@ -1214,8 +1214,8 @@ AActor* UCheatManager::GetTarget(APlayerController* PlayerController, struct FHi
     bool bHit = GetWorld()->LineTraceSingleByChannel(OutHit, CamLoc, CamRot.Vector() * 100000.f + CamLoc, ECC_Pawn, TraceParams);
     if (bHit)
     {
-        check(OutHit.GetActor() != NULL);
-        return OutHit.GetActor();
+        check(OutHit.HitObjectHandle.FetchActor() != nullptr);
+		return OutHit.HitObjectHandle.FetchActor();
     }
     return NULL;
 }

@@ -396,7 +396,7 @@ void UVREditorUISystem::OnPreviewInputAction(FEditorViewportClient& ViewportClie
 		if (VREditorInteractor->GetLaserPointer(LaserPointerStart, LaserPointerEnd))
 		{
 			FHitResult HitResult = VREditorInteractor->GetHitResultFromLaserPointer();
-			if (HitResult.Actor.IsValid())
+			if (HitResult.HitObjectHandle.IsValid())
 			{
 				UWidgetComponent* WidgetComponent = Cast<UWidgetComponent>(HitResult.GetComponent());
 
@@ -593,10 +593,10 @@ void UVREditorUISystem::OnVRHoverUpdate(UViewportInteractor* Interactor, FVector
 			if( Interactor->GetLaserPointer( LaserPointerStart, LaserPointerEnd ) )
 			{
 				FHitResult HitResult = Interactor->GetHitResultFromLaserPointer();
-				if( HitResult.Actor.IsValid() )
+				if( HitResult.HitObjectHandle.IsValid() )
 				{
 					// The laser should make the quick radial menu stay active
-					if ((HitResult.Actor == QuickRadialMenu) && (QuickRadialMenu != nullptr))
+					if ((HitResult.HitObjectHandle == QuickRadialMenu) && (QuickRadialMenu != nullptr))
 					{
 						RadialMenuModifierSpawnTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
 						FVector2D ReturnToCenter = FVector2D::ZeroVector;
@@ -1907,9 +1907,9 @@ bool UVREditorUISystem::ShouldPreviewPanel()
 	{
 		// If we are clicking with the laser interactor, instantly spawn the panel
 		FHitResult HitResult = LaserInteractor->GetHitResultFromLaserPointer();
-		if (HitResult.Actor.IsValid())
+		if (HitResult.HitObjectHandle.IsValid())
 		{
-			if (HitResult.Actor == QuickRadialMenu)
+			if (HitResult.HitObjectHandle == QuickRadialMenu)
 			{
 				bDragFromOpen = !LaserInteractor->IsClickingOnUI();
 			}

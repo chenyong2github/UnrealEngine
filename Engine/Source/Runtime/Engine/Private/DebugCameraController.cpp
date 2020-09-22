@@ -252,7 +252,7 @@ AActor* ADebugCameraController::GetSelectedActor() const
 void ADebugCameraController::Select( FHitResult const& Hit )
 {
 	// store selection
-	SelectedActor = Hit.GetActor();
+	SelectedActor = Hit.HitObjectHandle.FetchActor();
 	SelectedComponent = Hit.Component.Get();
 	SelectedHitPoint = Hit;
 

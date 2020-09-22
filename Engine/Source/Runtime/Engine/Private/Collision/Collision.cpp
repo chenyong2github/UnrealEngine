@@ -35,7 +35,7 @@ FHitResult::FHitResult(class AActor* InActor, class UPrimitiveComponent* InCompo
 	ImpactPoint = HitLoc;
 	Normal = HitNorm;
 	ImpactNormal = HitNorm;
-	Actor = InActor;
+	HitObjectHandle = FActorInstanceHandle(InActor);
 	Component = InComponent;
 }
 
@@ -130,7 +130,7 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 	}
 
 	Ar << PhysMaterial;
-	Ar << Actor;
+	Ar << HitObjectHandle;
 	Ar << Component;
 	Ar << BoneName;
 	if (!bInvalidFaceIndex)
@@ -156,11 +156,6 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 
 //////////////////////////////////////////////////////////////////////////
 // FOverlapResult
-
-AActor* FOverlapResult::GetActor() const
-{
-	return Actor.Get();
-}
 
 UPrimitiveComponent* FOverlapResult::GetComponent() const
 {

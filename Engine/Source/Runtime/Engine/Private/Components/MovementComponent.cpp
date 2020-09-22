@@ -635,7 +635,7 @@ bool UMovementComponent::ResolvePenetrationImpl(const FVector& ProposedAdjustmen
 			   *ActorOwner->GetName(),
 			   *UpdatedComponent->GetName(),
 			   *UpdatedComponent->GetComponentLocation().ToString(),
-			   *GetNameSafe(Hit.GetActor()),
+			   *Hit.GetHitObjectHandle().GetName(),
 			   *GetNameSafe(Hit.GetComponent()),
 			   Hit.Component.IsValid() ? *Hit.GetComponent()->GetComponentLocation().ToString() : TEXT("<unknown>"),
 			   Hit.PenetrationDepth,

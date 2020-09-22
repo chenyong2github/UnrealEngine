@@ -21,6 +21,7 @@
 #include "Chaos/ParticleHandle.h"
 #endif
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
+#include "GameFramework/LightWeightInstanceManager.h"
 
 // Used to place overlaps into a TMap when deduplicating them
 struct FOverlapKey
@@ -201,8 +202,16 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 	// Grab actor/component
 	if( OwningComponent )
 	{
-		OutResult.Actor = OwningComponent->GetOwner();
 		OutResult.Component = OwningComponent;
+		AActor* Owner = OwningComponent->GetOwner();
+		if (ALightWeightInstanceManager* LWIManager = Cast<ALightWeightInstanceManager>(Owner))
+		{
+			OutResult.HitObjectHandle = FActorInstanceHandle(LWIManager, OutResult.Item);
+		}
+		else
+		{
+			OutResult.HitObjectHandle = FActorInstanceHandle(OwningComponent->GetOwner());
+		}
 
 		if (bReturnPhysMat)
 		{
@@ -287,7 +296,7 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 #if ENABLE_NAN_DIAGNOSTIC
 			SetHitResultFromShapeAndFaceIndex(HitShape, HitActor, InternalFaceIndex, OutResult.ImpactPoint, OutResult, bReturnPhysMat);
 			UE_LOG(LogCore, Error, TEXT("ConvertQueryImpactHit() NaN details:\n>> Actor:%s (%s)\n>> Component:%s\n>> Item:%d\n>> BoneName:%s\n>> Time:%f\n>> Distance:%f\n>> Location:%s\n>> bIsBlocking:%d\n>> bStartPenetrating:%d"),
-				*GetNameSafe(OutResult.GetActor()), OutResult.Actor.IsValid() ? *OutResult.GetActor()->GetPathName() : TEXT("no path"),
+				*OutResult.GetHitObjectHandle().GetName(), OutResult.HasValidHitObjectHandle() ? *OutResult.GetHitObjectHandle().FetchActor()->GetPathName() : TEXT("no path"),
 				*GetNameSafe(OutResult.GetComponent()), OutResult.Item, *OutResult.BoneName.ToString(),
 				OutResult.Time, OutResult.Distance, *OutResult.Location.ToString(), OutResult.bBlockingHit ? 1 : 0, OutResult.bStartPenetrating ? 1 : 0);
 #endif // ENABLE_NAN_DIAGNOSTIC
@@ -307,7 +316,7 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 #if ENABLE_NAN_DIAGNOSTIC
 		SetHitResultFromShapeAndFaceIndex(HitShape, HitActor, InternalFaceIndex, OutResult.ImpactPoint, OutResult, bReturnPhysMat);
 		UE_LOG(LogCore, Error, TEXT("ConvertQueryImpactHit() NaN details:\n>> Actor:%s (%s)\n>> Component:%s\n>> Item:%d\n>> BoneName:%s\n>> Time:%f\n>> Distance:%f\n>> Location:%s\n>> bIsBlocking:%d\n>> bStartPenetrating:%d"),
-			*GetNameSafe(OutResult.GetActor()), OutResult.Actor.IsValid() ? *OutResult.GetActor()->GetPathName() : TEXT("no path"),
+			*OutResult.GetHitObjectHandle().GetName(), OutResult.HasValidHitObjectHandle() ? *OutResult.GetHitObjectHandle().FetchActor()->GetPathName() : TEXT("no path"),
 			*GetNameSafe(OutResult.GetComponent()), OutResult.Item, *OutResult.BoneName.ToString(),
 			OutResult.Time, OutResult.Distance, *OutResult.Location.ToString(), OutResult.bBlockingHit ? 1 : 0, OutResult.bStartPenetrating ? 1 : 0);
 #endif // ENABLE_NAN_DIAGNOSTIC
@@ -546,7 +555,7 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
         BodyInst = FPhysicsInterface::ShapeToOriginalBodyInstance(BodyInst, &Shape);
 		if (const UPrimitiveComponent* OwnerComponent = BodyInst->OwnerComponent.Get())
 		{
-			OutOverlap.Actor = OwnerComponent->GetOwner();
+			OutOverlap.OverlapObjectHandle = FActorInstanceHandle(OwnerComponent->GetOwner());
 			OutOverlap.Component = BodyInst->OwnerComponent; // Copying weak pointer is faster than assigning raw pointer.
 			OutOverlap.ItemIndex = OwnerComponent->bMultiBodyOverlap ? BodyInst->InstanceBodyIndex : INDEX_NONE;
 		}
@@ -574,7 +583,7 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 		if(PossibleOwner)
 		{
 			OutOverlap.Component = PossibleOwner;
-			OutOverlap.Actor = OutOverlap.Component->GetOwner();
+			OutOverlap.OverlapObjectHandle = FActorInstanceHandle(OutOverlap.Component->GetOwner());
 			OutOverlap.ItemIndex = INDEX_NONE;
 		}
 		else
@@ -599,7 +608,7 @@ static void AddUniqueOverlap(TArray<FOverlapResult>& OutOverlaps, const FOverlap
 		if (Overlap.ItemIndex == NewOverlap.ItemIndex && Overlap.Component == NewOverlap.Component)
 		{
 			// These should be the same if the component matches!
-			checkSlow(Overlap.Actor == NewOverlap.Actor);
+			checkSlow(Overlap.OverlapObjectHandle == NewOverlap.OverlapObjectHandle);
 
 			// If we had a non-blocking overlap with this component, but now we have a blocking one, use that one instead!
 			if(!Overlap.bBlockingHit && NewOverlap.bBlockingHit)

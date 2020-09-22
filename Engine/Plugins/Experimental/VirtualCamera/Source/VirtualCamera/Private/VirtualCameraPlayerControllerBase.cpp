@@ -377,7 +377,7 @@ void AVirtualCameraPlayerControllerBase::SetFocusDistanceToActor(const ETouchInd
 		VCPawn->SetFocusDistance(Hit.Distance);
 
 		// Set this actor as the tracked actor, and move the exact focus tracked point to where the touch occurred
-		if (AActor* HitActor = Hit.GetActor())
+		if (AActor* HitActor = Hit.GetHitObjectHandle().FetchActor())
 		{
 			FVector TrackingPointOffset = HitActor->GetActorRotation().UnrotateVector(Hit.ImpactPoint - HitActor->GetActorLocation());
 			TrackingPointOffset /= HitActor->GetActorScale(); // Adjust for non-standard scales when we rotate the vector
@@ -430,7 +430,7 @@ void AVirtualCameraPlayerControllerBase::SetFocusDistanceThroughPoint(const FVec
 	FVector const TraceEnd = CameraWorldLocation + TraceDirection * FocusTraceDist;
 	bool const bHit = GetWorld()->LineTraceSingleByChannel(Hit, CameraWorldLocation, TraceEnd, ECC_Visibility, TraceParams);
 
-	if (bHit && Hit.GetActor())
+	if (bHit && Hit.GetHitObjectHandle().IsValid())
 	{
 		VCPawn->SetFocusDistance(Hit.Distance);
 	}	

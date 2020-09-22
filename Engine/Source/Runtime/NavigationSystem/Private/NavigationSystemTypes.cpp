@@ -27,7 +27,7 @@ namespace
 		if (bHit)
 		{
 			UE_VLOG_LOCATION(Querier, LogNavigation, Log, Hit.Location, 15, FColor::Red, TEXT("%s")
-				, Hit.Actor.IsValid() ? *Hit.Actor->GetName() : TEXT("NULL"));
+				, *Hit.HitObjectHandle.GetName());
 
 			if (Cast<UStaticMeshComponent>(Hit.Component.Get()))
 			{

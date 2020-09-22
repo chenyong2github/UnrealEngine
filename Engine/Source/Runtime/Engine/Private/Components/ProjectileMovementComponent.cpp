@@ -538,7 +538,7 @@ UProjectileMovementComponent::EHandleBlockingHitResult UProjectileMovementCompon
 
 	if (Hit.bStartPenetrating)
 	{
-		UE_LOG(LogProjectileMovement, Verbose, TEXT("Projectile %s is stuck inside %s.%s with velocity %s!"), *GetNameSafe(ActorOwner), *GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent()), *Velocity.ToString());
+		UE_LOG(LogProjectileMovement, Verbose, TEXT("Projectile %s is stuck inside %s.%s with velocity %s!"), *GetNameSafe(ActorOwner), *Hit.HitObjectHandle.GetName(), *GetNameSafe(Hit.GetComponent()), *Velocity.ToString());
 		return EHandleBlockingHitResult::Abort;
 	}
 

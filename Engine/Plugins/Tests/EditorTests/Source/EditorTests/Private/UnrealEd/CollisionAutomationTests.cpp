@@ -199,7 +199,7 @@ bool FComponentSweepMultiTest::RunTest(const FString& Parameters)
 			{
 				for (int32 iHits = 0; iHits < OutHits.Num(); iHits++)
 				{
-					AActor* EachActor = OutHits[iHits].GetActor();
+					AActor* EachActor = OutHits[iHits].GetHitObjectHandle().FetchActor();
 					if (EachActor == TestRayMeshActor)
 					{
 						BlockedBySpecified = true;	
@@ -271,7 +271,7 @@ bool FLineTraceSingleByChannel::RunTest(const FString& Parameters)
 			bool BlockedBySpecified = false;
 			if (WasBlocked == true)
 			{
-				if (OutHit.GetActor() == TestRayMeshActor)
+				if (OutHit.GetHitObjectHandle() == TestRayMeshActor)
 				{
 					BlockedBySpecified = true;
 					// This generates a snippet you can copy/paste into the ini file for test validation

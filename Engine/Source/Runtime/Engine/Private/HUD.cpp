@@ -492,7 +492,7 @@ AActor* AHUD::GetCurrentDebugTargetActor()
 		bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, CamLoc, CamRot.Vector() * 100000.f + CamLoc, ECC_WorldDynamic, TraceParams);
 		if (bHit)
 		{
-			AActor* HitActor = Hit.Actor.Get();
+			AActor* HitActor = Hit.HitObjectHandle.FetchActor();
 			if (HitActor && ((ShowDebugTargetDesiredClass == nullptr) || HitActor->IsA(ShowDebugTargetDesiredClass)))
 			{
 				DebugTargetActor = HitActor;

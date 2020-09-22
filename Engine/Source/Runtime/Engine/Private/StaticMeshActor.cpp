@@ -184,20 +184,25 @@ void AStaticMeshActor::CheckForErrors()
 		TArray<FOverlapResult> Overlaps;
 		GetWorld()->OverlapMultiByChannel(Overlaps, GetActorLocation(), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(1.f), SphereParams);
 
-		for ( int32 OverlapIdx=0; OverlapIdx<Overlaps.Num(); OverlapIdx++ )
+		for ( const FOverlapResult& Overlap : Overlaps )
 		{
-			AStaticMeshActor *A = Cast<AStaticMeshActor>(Overlaps[OverlapIdx].GetActor());
-			if ( A && (A != this) && (A->GetActorLocation() - GetActorLocation()).IsNearlyZero() && A->StaticMeshComponent
-				&& (A->StaticMeshComponent->GetStaticMesh() == StaticMeshComponent->GetStaticMesh()) && (A->GetActorRotation() == GetActorRotation())
-				&& (A->StaticMeshComponent->GetRelativeScale3D() == StaticMeshComponent->GetRelativeScale3D()) )
+			if (Overlap.OverlapObjectHandle.IsValid() && Overlap.OverlapObjectHandle != this && Overlap.OverlapObjectHandle.DoesRepresentClass(AStaticMeshActor::StaticClass()) &&
+				(Overlap.OverlapObjectHandle.GetLocation() - GetActorLocation()).IsNearlyZero() &&
+				(Overlap.OverlapObjectHandle.GetRotation() == GetActorRotation()))
 			{
-				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("ActorName0"), FText::FromString(GetName()));
-				Arguments.Add(TEXT("ActorName1"), FText::FromString(A->GetName()));
-				MapCheck.Warning()
-					->AddToken(FUObjectToken::Create(this))
-					->AddToken(FTextToken::Create(FText::Format( LOCTEXT( "MapCheck_Message_SameLocation", "{ActorName0} is in the same location as {ActorName1}" ), Arguments ) ))
-					->AddToken(FMapErrorToken::Create(FMapErrors::SameLocation));
+				AStaticMeshActor* A = Overlap.OverlapObjectHandle.FetchActor<AStaticMeshActor>();
+				check(A);
+
+				if (A->StaticMeshComponent && (A->StaticMeshComponent->GetStaticMesh() == StaticMeshComponent->GetStaticMesh()) && (A->StaticMeshComponent->GetRelativeScale3D() == StaticMeshComponent->GetRelativeScale3D()))
+				{
+					FFormatNamedArguments Arguments;
+						Arguments.Add(TEXT("ActorName0"), FText::FromString(GetName()));
+						Arguments.Add(TEXT("ActorName1"), FText::FromString(A->GetName()));
+						MapCheck.Warning()
+						->AddToken(FUObjectToken::Create(this))
+						->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_SameLocation", "{ActorName0} is in the same location as {ActorName1}"), Arguments)))
+						->AddToken(FMapErrorToken::Create(FMapErrors::SameLocation));
+				}
 			}
 		}
 

@@ -2610,6 +2610,7 @@ public:
 	bool IsInLevel(const class ULevel *TestLevel) const;
 
 	/** Return the ULevel that this Actor is part of. */
+	UFUNCTION(BlueprintCallable, Category=Level)
 	ULevel* GetLevel() const;
 
 	/**	Do anything needed to clear out cross level references; Called from ULevel::PreSave	 */
