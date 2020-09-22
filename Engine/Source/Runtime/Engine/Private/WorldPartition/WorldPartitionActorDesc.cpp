@@ -140,19 +140,19 @@ FString FWorldPartitionActorDesc::ToString() const
 
 void FWorldPartitionActorDesc::UpdateHash()
 {
-	FHashBuilder HashBuilder;
-	BuildHash(HashBuilder);
-	Hash = HashBuilder.GetHash();
-}
-
-void FWorldPartitionActorDesc::BuildHash(FHashBuilder& HashBuilder)
-{
-	HashBuilder << Guid << Class << ActorPackage << ActorPath << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant << Layers << References;
+	FHashBuilderArchive HashBuilderAr;
+	Serialize(HashBuilderAr);
+	Hash = HashBuilderAr.GetHash();
 }
 
 void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 {
 	Ar << Class << Guid << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant << Layers << References;
+
+	if (!Ar.IsPersistent())
+	{
+		Ar << ActorPackage << ActorPath;
+	}
 }
 
 FBox FWorldPartitionActorDesc::GetBounds() const

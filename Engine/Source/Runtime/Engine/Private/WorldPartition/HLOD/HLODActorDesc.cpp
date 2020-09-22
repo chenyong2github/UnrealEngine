@@ -36,12 +36,4 @@ void FHLODActorDesc::Serialize(FArchive& Ar)
 		HLODLayer = HLODLayerStr;
 	}
 }
-
-void FHLODActorDesc::BuildHash(FHashBuilder& HashBuilder)
-{
-	FWorldPartitionActorDesc::BuildHash(HashBuilder);
-	HashBuilder << SubActors;
-	HashBuilder << HLODLayer.ToString();
-}
-
 #endif

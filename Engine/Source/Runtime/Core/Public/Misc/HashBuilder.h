@@ -13,10 +13,15 @@ public:
 		: Hash(~InHash)
 	{}
 
+	void Append(const void* Data, int64 Num)
+	{
+		Hash = FCrc::MemCrc32(Data, Num, Hash);
+	}
+
 	template <typename T>
 	typename TEnableIf<TIsPODType<T>::Value, FHashBuilder&>::Type Append(const T& InData)
 	{
-		Hash = FCrc::MemCrc32(&InData, sizeof(T), Hash);
+		Append(&InData, sizeof(T));
 		return *this;
 	}
 
@@ -65,4 +70,31 @@ public:
 
 private:
 	uint32 Hash;
+};
+
+/**
+ * FArchive adapter for FHashBuilder
+ */
+class FHashBuilderArchive : public FArchive
+{
+public:
+	FHashBuilderArchive()
+	{
+		SetIsLoading(false);
+		SetIsSaving(true);
+		SetIsPersistent(false);
+	}
+
+	virtual FString GetArchiveName() const { return TEXT("FHashBuilderArchive"); }
+
+	void Serialize(void* Data, int64 Num) override { HashBuilder.Append(Data, Num); }
+
+	using FArchive::operator<<;
+	virtual FArchive& operator<<(class FName& Value) override { HashBuilder << Value; return *this; }
+	virtual FArchive& operator<<(class UObject*& Value) override { check(0); return *this; }
+
+	uint32 GetHash() const { return HashBuilder.GetHash(); }
+
+protected:
+	FHashBuilder HashBuilder;
 };

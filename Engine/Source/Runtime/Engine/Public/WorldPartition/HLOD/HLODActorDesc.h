@@ -22,8 +22,6 @@ public:
 	inline const FSoftObjectPath& GetHLODLayer() const { return HLODLayer; }
 
 protected:
-	virtual void BuildHash(FHashBuilder& HashBuilder) override;
-
 	virtual void InitFrom(const AActor* InActor) override;
 	virtual void Serialize(FArchive& Ar) override;
 

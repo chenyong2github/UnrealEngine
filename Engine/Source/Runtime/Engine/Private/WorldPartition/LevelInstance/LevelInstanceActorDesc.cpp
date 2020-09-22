@@ -40,10 +40,4 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 		}
 	}
 }
-
-void FLevelInstanceActorDesc::BuildHash(FHashBuilder& HashBuilder)
-{
-	FWorldPartitionActorDesc::BuildHash(HashBuilder);
-	HashBuilder << LevelPackage << LevelInstanceTransform;
-}
 #endif

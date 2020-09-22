@@ -89,7 +89,6 @@ protected:
 	FWorldPartitionActorDesc();
 	
 	void UpdateHash();
-	virtual void BuildHash(FHashBuilder& HashBuilder);
 
 	virtual void InitFrom(const AActor* Actor);
 	virtual void Serialize(FArchive& Ar);

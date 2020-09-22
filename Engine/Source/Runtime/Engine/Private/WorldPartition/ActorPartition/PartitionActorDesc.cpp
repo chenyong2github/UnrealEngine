@@ -26,10 +26,4 @@ void FPartitionActorDesc::Serialize(FArchive& Ar)
 
 	Ar << GridSize << GridIndexX << GridIndexY << GridIndexZ;
 }
-
-void FPartitionActorDesc::BuildHash(FHashBuilder& HashBuilder)
-{
-	FWorldPartitionActorDesc::BuildHash(HashBuilder);
-	HashBuilder << GridSize << GridIndexX << GridIndexY << GridIndexZ;
-}
 #endif
