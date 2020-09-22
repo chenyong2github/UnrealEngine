@@ -6,6 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "Developer/Merge/Public/Merge.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "AssetRegistry/AssetData.h"
 
 class IToolkitHost;
 
@@ -69,8 +70,8 @@ public:
 	/** Allows overriding asset activation to perform asset type specific activation for the supplied assets. This happens when the user double clicks, presses enter, or presses space. Return true if you have overridden the behavior. */
 	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) = 0;
 
-	/** Returns true if we should load this asset for previewing or editing. */
-	virtual bool CanLoadAssetForPreviewOrEdit(const struct FAssetData& InAssetData) = 0;
+	/** Returns the set of asset data that is valid to load. */
+	virtual TArray<FAssetData> GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDatas, bool bIsPreview) = 0;
 
 	/** Returns true if this class can be used as a filter in the content browser */
 	virtual bool CanFilter() = 0;
@@ -106,10 +107,10 @@ public:
 	virtual EThumbnailPrimType GetDefaultThumbnailPrimitiveType(UObject* Asset) const = 0;
 
 	/** Optionally returns a custom widget to overlay on top of this assets' thumbnail */
-	virtual TSharedPtr<class SWidget> GetThumbnailOverlay(const struct FAssetData& AssetData) const = 0;
+	virtual TSharedPtr<class SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const = 0;
 
 	/** Returns additional tooltip information for the specified asset, if it has any (otherwise return the null widget) */
-	virtual FText GetAssetDescription(const struct FAssetData& AssetData) const = 0;
+	virtual FText GetAssetDescription(const FAssetData& AssetData) const = 0;
 
 	/** Returns whether the asset was imported from an external source */
 	virtual bool IsImportedAsset() const = 0;
