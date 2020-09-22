@@ -9,7 +9,13 @@
 
 void UMoviePipelineLinearExecutorBase::Execute_Implementation(UMoviePipelineQueue* InPipelineQueue)
 {
-	check(InPipelineQueue);
+	if (!InPipelineQueue)
+	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Executor asked to execute a null queue, not supported!"));
+		OnExecutorErroredImpl(nullptr, true, LOCTEXT("NullPipelineError", "Executor asked to execute a null queue, not supported!"));
+		OnExecutorFinishedImpl();
+		return;
+	}
 
 	if (InPipelineQueue->GetJobs().Num() == 0)
 	{

@@ -15,6 +15,7 @@
 #include "Misc/FileHelper.h"
 #include "UObject/UObjectHash.h"
 #include "MoviePipelinePythonHostExecutor.h"
+#include "MoviePipelineUtils.h"
 
 #if WITH_EDITOR
 //#include "Editor.h"
@@ -39,7 +40,7 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 
 	uint8 ReturnCode = ParseMovieRenderData(SequenceAssetValue, SettingsAssetValue, MoviePipelineLocalExecutorClassType, MoviePipelineClassType, 
 		/*Out*/ Queue, /*Out*/ ExecutorBase);
-	if (!ensureMsgf(ExecutorBase && Queue, TEXT("There was a failure parsing the command line and a movie render cannot be started. Check the log for more details.")))
+	if (!ensureMsgf(ExecutorBase, TEXT("There was a failure parsing the command line and a movie render cannot be started. Check the log for more details.")))
 	{
 		// Take the failure return code from the detection of our command line arguments.
 		FPlatformMisc::RequestExitWithStatus(/*Force*/ false, /*ReturnCode*/ ReturnCode);
@@ -48,7 +49,15 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 	else
 	{
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Successfully detected and loaded required movie arguments. Rendering will begin once the map is loaded."));
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("NumJobs: %d ExecutorClass: %s PipelineClass: %s"), Queue->GetJobs().Num(), *ExecutorBase->GetClass()->GetName(), *MoviePipelineClassType);
+		if (Queue)
+		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("NumJobs: %d ExecutorClass: %s"), Queue->GetJobs().Num(), *ExecutorBase->GetClass()->GetName());
+		}
+		else
+		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("ExecutorClass: %s"), *ExecutorBase->GetClass()->GetName());
+		}
+
 	}
 
 	// We add the Executor to the root set. It will own all of the configuration data so this keeps it nicely in memory until finished,
@@ -132,13 +141,13 @@ UClass* GetMoviePipelineClass(const FString& MoviePipelineClassType, const FStri
 
 bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FString& OutSequenceAssetPath, FString& OutConfigAssetPath, FString& OutExecutorType, FString& OutPipelineType) const
 {
-	// Look to see if they've specified a Movie Pipeline to run. This should be in the format:
+	// Look to see if they've specified a Level Sequence to render. This should be in the format:
 	// "/Game/MySequences/MySequence.MySequence"
-	FParse::Value(FCommandLine::Get(), TEXT("-MoviePipeline="), OutSequenceAssetPath);
+	FParse::Value(FCommandLine::Get(), TEXT("-LevelSequence="), OutSequenceAssetPath);
 
 	// Look to see if they've specified a configuration to use. This should be in the format:
 	// "/Game/MyRenderSettings/MyHighQualitySetting.MyHighQualitySetting" or an absolute path 
-	// to a exported json file. Or the contents of a serialized package .utxt
+	// to a exported json file.
 	FParse::Value(FCommandLine::Get(), TEXT("-MoviePipelineConfig="), OutConfigAssetPath);
 
 	// The user may want to override the executor. By default, we use the one specified in the Project
@@ -157,22 +166,34 @@ bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FStrin
 	return OutSequenceAssetPath.Len() > 0 || OutConfigAssetPath.Len() > 0 || OutExecutorType.Len() > 0 || OutPipelineType.Len() > 0;
 }
 
+/**
+* Command Line rendering supports two options for rendering things. We support a very simple 'provide the level sequence/settings to use'
+* option which mimicks the old command line support. Option two is more advanced where you provide your own Executor. To allow for flexibility,
+* the only thing required here is the executor path, a queue/level sequence are optional.
+*
+*
+*	Option 1: Simple Command Line Render.
+*		- Level Sequence (Required unless you pass an entire Queue asset, passed via -MoviePipeline="/Game/...")
+*		- Preset or Queue to use (A preset is required if using a Level Sequence above, passed via -MoviePipelineConfig="/Game/...")
+*		- Will render on current map
+*		ie: 
+*			"E:\SubwaySequencer\SubwaySequencer.uproject" subwaySequencer_P -game -LevelSequence="/Game/Sequencer/SubwaySequencerMASTER.SubwaySequencerMASTER" -MoviePipelineConfig="/Game/Cinematics/MoviePipeline/Presets/SmallTestPreset.SmallTestPreset" -windowed -resx=1280 -resy=720 -log -notexturestreaming
+*		or:
+*			ie: "E:\SubwaySequencer\SubwaySequencer.uproject" subwaySequencer_P -game -MoviePipelineConfig="/Game/Cinematics/MoviePipeline/Presets/BigTestQueue.BigTestQueue" -windowed -resx=1280 -resy=720 -log -notexturestreaming
+*
+*	Option 2: Advanced Custom Executor. 
+*		- Executor Class (Required, pass via -MoviePipelineLocalExecutorClass=/Script/MovieRenderPipelineCore.MoviePipelinePythonHostExecutor)
+*		- Level Sequence or Queue (Optional, if passed will be available to Executor)
+*		- Python Class Override (Optional, requires using MoviePipelinePythonHostExecutor above, pass via -ExecutorPythonClass=/Engine/PythonTypes.MoviePipelineExampleRuntimeExecutor
+*/
 uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequenceAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType,
 	UMoviePipelineQueue*& OutQueue, UMoviePipelineExecutorBase*& OutExecutor) const
 {
 	// Store off the messages that print the expected format since they're printed in a couple places.
-	const FString SequenceAssetFormatString = TEXT("Movie Pipeline Asset should be specified in the format '-MoviePipeline=\"/Game/MySequences/MyPipelineAsset\", or a relative (to executable)/absolute path to a JSON file in the format '-MoviePipeline=\"D:/MyMoviePipelineConfig.json\".");
+	const FString SequenceAssetFormatString = TEXT("Level Sequence/Queue Asset should be specified in the format '-LevelSequence=\"/Game/MySequences/MySequence.MySequence\"");
 	const FString ConfigAssetFormatString	= TEXT("Pipeline Config Asset should be specified in the format '-MoviePipelineConfig=\"/Game/MyRenderSettings/MyHighQualitySetting.MyHighQualitySetting\"'");
 	const FString PipelineClassFormatString = TEXT("Movie Pipeline Class should be specified in the format '-MoviePipelineClass=\"/Script/ModuleName.ClassNameNoUPrefix\"'");
 	const FString ExecutorClassFormatString = TEXT("Pipeline Executor Class should be specified in the format '-MoviePipelineLocalExecutorClass=\"/Script/ModuleName.ClassNameNoUPrefix\"'");
-
-	// They need both an asset and a configuration so early out if we don't have that.
-	if (InConfigAssetPath.Len() == 0)
-	{
-		UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("No Movie Pipeline Config was specified to use as settings."));
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("%s"), *ConfigAssetFormatString);
-		return MoviePipelineErrorCodes::NoConfig;
-	}
 
 	OutQueue = nullptr;
 	OutExecutor = nullptr;
@@ -217,12 +238,12 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 			OutQueue = NewObject<UMoviePipelineQueue>();
 			UMoviePipelineExecutorJob* NewJob = OutQueue->AllocateNewJob(UMoviePipelineExecutorJob::StaticClass()); // Only the default job type is supported right now.
 			NewJob->Sequence = FSoftObjectPath(InSequenceAssetPath);
-
-			// Duplicate the configuration in case we modify it and in case multiple jobs will use it.
-			// we don't ave packages in game mode but if another job uses it we don't want to have modified.
-			UMoviePipelineMasterConfig* NewConfig = NewObject<UMoviePipelineMasterConfig>(NewJob);
-			NewConfig->CopyFrom(AssetAsConfig);
 			NewJob->SetConfiguration(AssetAsConfig);
+			UWorld* CurrentWorld = MoviePipeline::FindCurrentWorld();
+			if (CurrentWorld)
+			{
+				NewJob->Map = FSoftObjectPath(CurrentWorld);
+			}
 		}
 
 		if (!OutQueue)
@@ -232,7 +253,7 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 			return MoviePipelineErrorCodes::NoConfig;
 		}
 	}
-	else
+	else if (InConfigAssetPath.Len() > 0)
 	{
 		// If they didn't pass a path that started with /Game/, we'll try to see if it is a manifest file.
 		if (InConfigAssetPath.EndsWith(FPackageName::GetTextAssetPackageExtension()))
@@ -268,34 +289,6 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Unknown Config Asset Path. Path: %s"), *InConfigAssetPath);
 			return MoviePipelineErrorCodes::NoConfig;
 		}
-#if 0
-		else
-		{
-			// Due to API limitations we need to save this to a file and then call LoadPackage()
-			FGuid FileNameGuid = FGuid::NewGuid();
-
-			FString ManifestFileName = TEXT("MovieRenderPipeline/") + FileNameGuid.ToString() + FPackageName::GetTextAssetPackageExtension();
-			FString ManifestFilePath = FPaths::ProjectSavedDir() / ManifestFileName;
-
-			if (!FFileHelper::SaveStringToFile(InConfigAssetPath, *ManifestFilePath))
-			{
-				UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Failed to find Pipeline Configuration asset to render. Please note that the /Content/ part of the on-disk structure is omitted. Looked for: %s"), *InConfigAssetPath);
-				return MoviePipelineErrorCodes::NoConfig;
-			}
-
-			UPackage* NewPackage = LoadPackage(nullptr, *ManifestFilePath, LOAD_None);
-			if (NewPackage)
-			{
-			}
-			else
-			{
-				UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Could not parse text asset package."));
-				return MoviePipelineErrorCodes::NoConfig;
-			}
-				 
-		}
-#endif
-
 	}
 
 	// We have a special edge case for our Python Host class. It relies on Python modifying the CDO to point to a specific class, so
@@ -306,20 +299,36 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 		const UMoviePipelinePythonHostExecutor* CDO = GetDefault<UMoviePipelinePythonHostExecutor>();
 		ExecutorClass = CDO->ExecutorClass;
 
+		// If they didn't set it on the CDO, see if they passed it on the command line.
 		if (!ExecutorClass)
 		{
-			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("No class set in Python Host Executor. This does nothing without setting a class via \"unreal.get_default_object(unreal.MoviePipelinePythonHostExecutor).executor_class = MyPythonClassName\"."));
+			FString PythonClassName;
+			FParse::Value(FCommandLine::Get(), TEXT("-ExecutorPythonClass="), PythonClassName);
+
+			if (PythonClassName.Len() > 0)
+			{
+				ExecutorClass = LoadClass<UMoviePipelineExecutorBase>(GetTransientPackage(), *PythonClassName);
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Loaded executor from Python class: %s"), *PythonClassName);
+			}
+		}
+
+		if (!ExecutorClass)
+		{
+			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("No class set in Python Host Executor. This does nothing without setting a class via \"unreal.get_default_object(unreal.MoviePipelinePythonHostExecutor).executor_class = self.get_class(), or passing -ExecutorPythonClass=...\"."));
 			return MoviePipelineErrorCodes::Critical;
 		}
 	}
-
 
 	// By this time, we know what assets you want to render, how to process the array of assets, and what runs an individual render. First we will create an executor.
 	OutExecutor = NewObject<UMoviePipelineExecutorBase>(GetTransientPackage(), ExecutorClass);
 	OutExecutor->SetMoviePipelineClass(PipelineClass);
 
-	// Rename our Queue to belong to the Executor
-	OutQueue->Rename(nullptr, OutExecutor);
+	// A queue is optional if they're using an advanced executor
+	if (OutQueue)
+	{
+		// Rename our Queue to belong to the Executor.
+		OutQueue->Rename(nullptr, OutExecutor);
+	}
 
 	return MoviePipelineErrorCodes::Success;
 }

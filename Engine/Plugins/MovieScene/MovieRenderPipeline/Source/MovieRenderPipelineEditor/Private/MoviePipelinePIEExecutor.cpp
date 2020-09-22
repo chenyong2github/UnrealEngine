@@ -267,6 +267,9 @@ void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 
 void UMoviePipelinePIEExecutor::DelayedFinishNotification()
 {
+	OnIndividualJobFinishedImpl(Queue->GetJobs()[CurrentPipelineIndex]);
+
+	// Now that PIE has finished
 	UMoviePipeline* MoviePipeline = ActiveMoviePipeline;
 	
 	// Null these out now since OnIndividualPipelineFinished might invoke something that causes a GC
