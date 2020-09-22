@@ -112,12 +112,7 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 
 	// Locked Exposure
 	{
-		if (InOutSampleState.ExposureCompensation.IsSet())
-		{
-			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-			View->FinalPostProcessSettings.AutoExposureBias = InOutSampleState.ExposureCompensation.GetValue();
-		}
-		else if (InOutSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
+		if (InOutSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
 		{
 			// Auto exposure is not allowed
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual when using tiling!"));
