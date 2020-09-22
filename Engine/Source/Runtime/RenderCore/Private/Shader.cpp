@@ -1187,10 +1187,10 @@ void DumpShaderStats(EShaderPlatform Platform, EShaderFrequency Frequency)
 
 	// Write an average row.
 	ShaderTypeViewer.AddColumn(TEXT("Average"));
-	ShaderTypeViewer.AddColumn(TEXT("%.1f"),TotalShaderCount / (float)TotalTypeCount);
-	ShaderTypeViewer.AddColumn(TEXT("%.1f"),(float)TotalInstructionCount / TotalShaderCount);
-	ShaderTypeViewer.AddColumn(TEXT("%.1f"),TotalSize / (float)TotalShaderCount);
-	ShaderTypeViewer.AddColumn(TEXT("%.1f"),TotalSizePerType / TotalTypeCount);
+	ShaderTypeViewer.AddColumn(TEXT("%.1f"),TotalTypeCount   ? (TotalShaderCount / (float)TotalTypeCount)        : 0.0f);
+	ShaderTypeViewer.AddColumn(TEXT("%.1f"),TotalShaderCount ? ((float)TotalInstructionCount / TotalShaderCount) : 0.0f);
+	ShaderTypeViewer.AddColumn(TEXT("%.1f"),TotalShaderCount ? (TotalSize / (float)TotalShaderCount)             : 0.0f);
+	ShaderTypeViewer.AddColumn(TEXT("%.1f"),TotalTypeCount   ? (TotalSizePerType / TotalTypeCount)               : 0.0f);
 	ShaderTypeViewer.AddColumn(TEXT("-"));
 	ShaderTypeViewer.AddColumn(TEXT("-"));
 	ShaderTypeViewer.CycleRow();
