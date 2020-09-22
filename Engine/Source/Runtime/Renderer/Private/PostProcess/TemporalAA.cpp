@@ -811,7 +811,7 @@ FTAAOutputs AddTemporalAAPass(
 				}
 
 				// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shader.
-				PassParameters->SceneVelocityBuffer = BlackDummy;
+				PassParameters->GBufferVelocityTexture = BlackDummy;
 			}
 			else
 			{
@@ -914,13 +914,11 @@ FTAAOutputs AddTemporalAAPass(
 
 		// Debug UAVs
 		{
-			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
 				OutputExtent,
 				PF_FloatRGBA,
 				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-				/* bInForceSeparateTargetAndShaderResource = */ false);
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
 			FRDGTextureRef DebugTexture = GraphBuilder.CreateTexture(DebugDesc, TEXT("Debug.TAA"));
 			PassParameters->DebugOutput = GraphBuilder.CreateUAV(DebugTexture);
@@ -1053,7 +1051,7 @@ static void AddGen5MainTemporalAAPasses(
 			Extent,
 			PF_FloatRGBA,
 			FClearValueBinding::None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+			/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
 		FRDGTextureRef DebugTexture = GraphBuilder.CreateTexture(DebugDesc, DebugName);
 
@@ -1067,62 +1065,61 @@ static void AddGen5MainTemporalAAPasses(
 	FRDGTextureRef PrevClosestDepthTexture;
 	{
 		{
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-					InputExtent,
-					PF_R32_UINT,
-					FClearValueBinding::None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				InputExtent,
+				PF_R32_UINT,
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
-				PrevUseCountTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevUseCountTexture"));
-				PrevClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevClosestDepthTexture"));
-			}
-
-			FTAAClearPrevTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAAClearPrevTexturesCS::FParameters>();
-			PassParameters->CommonParameters = CommonParameters;
-			PassParameters->PrevUseCountOutput = GraphBuilder.CreateUAV(PrevUseCountTexture);
-			PassParameters->PrevClosestDepthOutput = GraphBuilder.CreateUAV(PrevClosestDepthTexture);
-
-			TShaderMapRef<FTAAClearPrevTexturesCS> ComputeShader(View.ShaderMap);
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("TAA ClearPrevTextures %dx%d", InputRect.Width(), InputRect.Height()),
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
+			PrevUseCountTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevUseCountTexture"));
+			PrevClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.PrevClosestDepthTexture"));
 		}
 
+		FTAAClearPrevTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAAClearPrevTexturesCS::FParameters>();
+		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->PrevUseCountOutput = GraphBuilder.CreateUAV(PrevUseCountTexture);
+		PassParameters->PrevClosestDepthOutput = GraphBuilder.CreateUAV(PrevClosestDepthTexture);
+
+		TShaderMapRef<FTAAClearPrevTexturesCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("TAA ClearPrevTextures %dx%d", InputRect.Width(), InputRect.Height()),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
+	}
+
+	{
 		{
-			{
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-					InputExtent,
-					PF_G16R16,
-					FClearValueBinding::None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				InputExtent,
+				PF_G16R16,
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
-				DilatedVelocityTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.DilatedVelocity"));
+			DilatedVelocityTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.DilatedVelocity"));
 
-				Desc.Format = PF_R16F;
-				ClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.ClosestDepthTexture"));
-			}
-
-			FTAADilateVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADilateVelocityCS::FParameters>();
-			PassParameters->CommonParameters = CommonParameters;
-			PassParameters->SceneDepthTexture = PassInputs.SceneDepthTexture;
-			PassParameters->SceneVelocityTexture = PassInputs.SceneVelocityTexture;
-			PassParameters->DilatedVelocityOutput = GraphBuilder.CreateUAV(DilatedVelocityTexture);
-			PassParameters->ClosestDepthOutput = GraphBuilder.CreateUAV(ClosestDepthTexture);
-			PassParameters->PrevUseCountOutput = GraphBuilder.CreateUAV(PrevUseCountTexture);
-			PassParameters->PrevClosestDepthOutput = GraphBuilder.CreateUAV(PrevClosestDepthTexture);
-			PassParameters->DebugOutput = CreateDebugUAV(InputExtent, TEXT("Debug.TAA.DilateVelocity"));
-
-			TShaderMapRef<FTAADilateVelocityCS> ComputeShader(View.ShaderMap);
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("TAA DilateVelocity %dx%d", InputRect.Width(), InputRect.Height()),
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
+			Desc.Format = PF_R16F;
+			ClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.ClosestDepthTexture"));
 		}
+
+		FTAADilateVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADilateVelocityCS::FParameters>();
+		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->SceneDepthTexture = PassInputs.SceneDepthTexture;
+		PassParameters->SceneVelocityTexture = PassInputs.SceneVelocityTexture;
+		PassParameters->DilatedVelocityOutput = GraphBuilder.CreateUAV(DilatedVelocityTexture);
+		PassParameters->ClosestDepthOutput = GraphBuilder.CreateUAV(ClosestDepthTexture);
+		PassParameters->PrevUseCountOutput = GraphBuilder.CreateUAV(PrevUseCountTexture);
+		PassParameters->PrevClosestDepthOutput = GraphBuilder.CreateUAV(PrevClosestDepthTexture);
+		PassParameters->DebugOutput = CreateDebugUAV(InputExtent, TEXT("Debug.TAA.DilateVelocity"));
+
+		TShaderMapRef<FTAADilateVelocityCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("TAA DilateVelocity %dx%d", InputRect.Width(), InputRect.Height()),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
 	}
 
 	// Setup the previous frame history
@@ -1161,7 +1158,7 @@ static void AddGen5MainTemporalAAPasses(
 
 	// Decimate input to flicker at same frequency as input.
 	FRDGTextureRef PredictionSceneColorTexture;
-	FRDGTextureRef PredictionInfoTexture;
+	FRDGTextureRef ParallaxRejectionMaskTexture;
 	{
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
@@ -1217,13 +1214,11 @@ static void AddGen5MainTemporalAAPasses(
 		FRDGTextureRef FilteredPredictionSceneColorTexture;
 		{
 			{
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 					LowFrequencyExtent,
 					PF_FloatR11G11B10,
 					FClearValueBinding::None,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
 				FilteredInputTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Filtered.SceneColor"));
 				FilteredPredictionSceneColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Filtered.Prediction.SceneColor"));
@@ -1257,7 +1252,7 @@ static void AddGen5MainTemporalAAPasses(
 					RejectionExtent,
 					PF_R8,
 					FClearValueBinding::None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+					/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
 				HistoryRejectionTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.HistoryRejection"));
 			}
@@ -1326,7 +1321,7 @@ static void AddGen5MainTemporalAAPasses(
 				HistoryExtent,
 				PF_FloatR11G11B10,
 				FClearValueBinding::None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
 			SceneColorOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Output"));
 		}
