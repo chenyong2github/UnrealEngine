@@ -214,7 +214,6 @@ FPrecomputedVolumetricLightmapData::FPrecomputedVolumetricLightmapData()
 	, BrickSize(0)
 	, BrickDataDimensions(EForceInit::ForceInitToZero)
 	, BrickDataBaseOffsetInAtlas(0)
-	, IndexInCPUSubLevelBrickDataList(INDEX_NONE)
 {}
 
 FPrecomputedVolumetricLightmapData::~FPrecomputedVolumetricLightmapData()
@@ -490,7 +489,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 			SceneData->CPUSubLevelIndirectionTable.Empty();
 			SceneData->CPUSubLevelIndirectionTable.AddZeroed(IndirectionTextureDimensions.X * IndirectionTextureDimensions.Y * IndirectionTextureDimensions.Z);
 			SceneData->CPUSubLevelBrickDataList.Empty();
-			IndexInCPUSubLevelBrickDataList = SceneData->CPUSubLevelBrickDataList.Add(this);
+			SceneData->CPUSubLevelBrickDataList.Add(this);
 		}
 	}
 	else
@@ -531,10 +530,15 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 			if (SceneData->IndirectionTexture.Data.Num() > 0)
 			{
 				SceneDataAdded.Add(SceneData);
-
-				IndexInCPUSubLevelBrickDataList = SceneData->CPUSubLevelBrickDataList.Add(this);
+				// Find empty spot or Add new
+				int32 IndexInCPUSubLevelBrickDataList = SceneData->CPUSubLevelBrickDataList.Find(nullptr);
+				if (IndexInCPUSubLevelBrickDataList == INDEX_NONE)
+				{
+					IndexInCPUSubLevelBrickDataList = SceneData->CPUSubLevelBrickDataList.Add(nullptr);
+				}
 				check(IndexInCPUSubLevelBrickDataList < UINT8_MAX);
 				uint8 Value = (uint8)IndexInCPUSubLevelBrickDataList;
+				SceneData->CPUSubLevelBrickDataList[IndexInCPUSubLevelBrickDataList] = this;
 
 				for (int32 BrickIndex = 0; BrickIndex < SubLevelBrickPositions.Num(); BrickIndex++)
 				{
@@ -613,32 +617,37 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::RemoveFromSceneData(FPrecomp
 			// CPU Path
 			if (SceneData->IndirectionTexture.Data.Num() > 0)
 			{
-				ensure(SceneData->CPUSubLevelBrickDataList[IndexInCPUSubLevelBrickDataList] == this);
-				if (SceneData->CPUSubLevelBrickDataList[IndexInCPUSubLevelBrickDataList] == this)
+				for (int32 Index = 0; Index < SceneData->CPUSubLevelBrickDataList.Num(); ++Index)
 				{
-					SceneData->CPUSubLevelBrickDataList.RemoveAt(IndexInCPUSubLevelBrickDataList);
-
-					for (int32 BrickIndex = 0; BrickIndex < SubLevelBrickPositions.Num(); BrickIndex++)
+					if (SceneData->CPUSubLevelBrickDataList[Index] == this)
 					{
-						const FColor OriginalValue = IndirectionTextureOriginalValues[BrickIndex];
-
-						const FIntVector IndirectionDestDataCoordinate = SubLevelBrickPositions[BrickIndex];
-						const int32 IndirectionDestDataIndex =
-							((IndirectionDestDataCoordinate.Z * SceneData->IndirectionTextureDimensions.Y) + IndirectionDestDataCoordinate.Y) *
-							SceneData->IndirectionTextureDimensions.X + IndirectionDestDataCoordinate.X;
-
+						SceneData->CPUSubLevelBrickDataList[Index] = nullptr;
+				
+						for (int32 BrickIndex = 0; BrickIndex < SubLevelBrickPositions.Num(); BrickIndex++)
 						{
-							const int32 IndirectionTextureDataStride = GPixelFormats[SceneData->IndirectionTexture.Format].BlockBytes;
-							uint8* IndirectionVoxelPtr = (uint8*)&SceneData->IndirectionTexture.Data[IndirectionDestDataIndex * IndirectionTextureDataStride];
-							*(IndirectionVoxelPtr + 0) = OriginalValue.R;
-							*(IndirectionVoxelPtr + 1) = OriginalValue.G;
-							*(IndirectionVoxelPtr + 2) = OriginalValue.B;
-							*(IndirectionVoxelPtr + 3) = 1;
-						}
+							const FColor OriginalValue = IndirectionTextureOriginalValues[BrickIndex];
 
-						{
-							SceneData->CPUSubLevelIndirectionTable[IndirectionDestDataIndex] = 0;
+							const FIntVector IndirectionDestDataCoordinate = SubLevelBrickPositions[BrickIndex];
+							const int32 IndirectionDestDataIndex =
+								((IndirectionDestDataCoordinate.Z * SceneData->IndirectionTextureDimensions.Y) + IndirectionDestDataCoordinate.Y) *
+								SceneData->IndirectionTextureDimensions.X + IndirectionDestDataCoordinate.X;
+
+							{
+								const int32 IndirectionTextureDataStride = GPixelFormats[SceneData->IndirectionTexture.Format].BlockBytes;
+								uint8* IndirectionVoxelPtr = (uint8*)&SceneData->IndirectionTexture.Data[IndirectionDestDataIndex * IndirectionTextureDataStride];
+								*(IndirectionVoxelPtr + 0) = OriginalValue.R;
+								*(IndirectionVoxelPtr + 1) = OriginalValue.G;
+								*(IndirectionVoxelPtr + 2) = OriginalValue.B;
+								*(IndirectionVoxelPtr + 3) = 1;
+							}
+
+							{
+								SceneData->CPUSubLevelIndirectionTable[IndirectionDestDataIndex] = 0;
+							}
 						}
+					
+						// we don't expect duplicates in CPUSubLevelBrickDataList
+						break;
 					}
 				}
 			}
