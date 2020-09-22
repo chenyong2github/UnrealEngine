@@ -351,7 +351,25 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInte
 	if (ParentRet)
 	{
 		return true;
-	} else if (FunctionInfo.DefinitionName == MaxNeighborsPerCellFunctionName)
+	}
+	else if (FunctionInfo.DefinitionName == NumCellsFunctionName)
+	{
+		static const TCHAR* FormatHLSL = TEXT(R"(
+			void {FunctionName}(out int OutNumCellsX, out int OutNumCellsY, out int OutNumCellsZ)
+			{
+				OutNumCellsX = {NumCellsName}.x;
+				OutNumCellsY = {NumCellsName}.y;
+				OutNumCellsZ = {NumCellsName}.z;
+			}
+		)");
+		TMap<FString, FStringFormatArg> FormatArgs =
+		{
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
+			{TEXT("NumCellsName"), NumCellsName + ParamInfo.DataInterfaceHLSLSymbol},
+		};
+		OutHLSL += FString::Format(FormatHLSL, FormatArgs);
+	}
+	else if (FunctionInfo.DefinitionName == MaxNeighborsPerCellFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_MaxNeighborsPerCell)
