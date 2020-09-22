@@ -20,6 +20,7 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"UEOpenExrRTTI", // Needed for EXR metadata
 				"ImageWrapper",				
 				"CinematicCamera", // For metadata
+				"MovieRenderPipelineSettings", // For settings
 			}
 		);
 
