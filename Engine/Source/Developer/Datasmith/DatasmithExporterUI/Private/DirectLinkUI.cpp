@@ -10,6 +10,7 @@
 #include "Containers/Queue.h"
 #include "CoreGlobals.h"
 #include "Delegates/Delegate.h"
+#include "Framework/Application/SWindowTitleBar.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Hal/Platform.h"
 #include "Misc/ConfigCacheIni.h"
@@ -18,6 +19,7 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SWindow.h"
 
@@ -35,6 +37,25 @@ namespace DirectLinkUIUtils
 		return TEXT("DLCacheFolder");
 	}
 
+	EHorizontalAlignment GetWindowTitleAlignement()
+	{
+		EWindowTitleAlignment::Type TitleAlignment = FSlateApplicationBase::Get().GetPlatformApplication()->GetWindowTitleAlignment();
+		EHorizontalAlignment TitleContentAlignment;
+
+		if ( TitleAlignment == EWindowTitleAlignment::Left )
+		{
+			TitleContentAlignment = HAlign_Left;
+		}
+		else if ( TitleAlignment == EWindowTitleAlignment::Center )
+		{
+			TitleContentAlignment = HAlign_Center;
+		}
+		else
+		{
+			TitleContentAlignment = HAlign_Right;
+		}
+		return TitleContentAlignment;
+	}
 }
 
 FDirectLinkUI::FDirectLinkUI()
@@ -67,26 +88,44 @@ void FDirectLinkUI::OpenDirectLinkStreamWindow()
 		}
 		else
 		{
+			// This window setup might be an issue on mac where users often expect os borders on their window
 			TSharedRef<SWindow> Window = SNew( SWindow )
+				.CreateTitleBar( false )
 				.ClientSize( FVector2D( 640, 480 ) )
 				.AutoCenter( EAutoCenter::PrimaryWorkArea )
 				.SizingRule( ESizingRule::UserSized )
 				.FocusWhenFirstShown( true )
-				.Title( LOCTEXT("DirectlinkStreamManagerWindowTitle", "Direct Link") )
-				[
-					SNew( SBorder )
-					.BorderImage( FCoreStyle::Get().GetBrush( "ToolPanel.GroupBorder" ) )
+				.Title( LOCTEXT("DirectlinkStreamManagerWindowTitle", "Datasmith Direct Link Connection Status") );
+
+			TSharedRef<SWindowTitleBar> WindowTitleBar = SNew( SWindowTitleBar, Window, nullptr, DirectLinkUIUtils::GetWindowTitleAlignement() )
+				.Visibility( EVisibility::Visible )
+				.ShowAppIcon( false );
+
+			Window->SetTitleBar( WindowTitleBar );
+
+			Window->SetContent(
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
 					[
-						SNew( SDirectLinkStreamManager, Enpoint )
-						// There can only be one window that change this value (no locks required here)
-						.DefaultCacheDirectory( DirectLinkCacheDirectory )
-						// The slate application should always be close before this module.
-						.OnCacheDirectoryChanged_Raw( this, &FDirectLinkUI::OnCacheDirectoryChanged )
+						WindowTitleBar
 					]
-				];
+					+ SVerticalBox::Slot()
+					.FillHeight( 1.f )
+					[
+						SNew( SBorder )
+						.BorderImage( FCoreStyle::Get().GetBrush( "ToolPanel.GroupBorder" ) )
+						[
+							SNew( SDirectLinkStreamManager, Enpoint )
+							// There can only be one window that change this value (no locks required here)
+							.DefaultCacheDirectory( DirectLinkCacheDirectory )
+							// The slate application should always be close before this module.
+							.OnCacheDirectoryChanged_Raw( this, &FDirectLinkUI::OnCacheDirectoryChanged )
+						]
+					]
+				);
 
 			DirectLinkWindow = Window;
-
 			FSlateApplication::Get().AddWindow( Window, true );
 			Window->HACK_ForceToFront();
 		}
