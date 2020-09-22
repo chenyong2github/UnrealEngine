@@ -48,6 +48,8 @@ public:
 	
 	/** Used to show or hide certain properties */
 	void SetPropertyVisibilityDelegate(FIsPropertyVisible InVisibilityDelegate);
+	/** Can be used to disable the details view making it read-only */
+	void SetPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled InPropertyEditingDelegate);
 
 private:
 	/** Create the properties tab and its content */
