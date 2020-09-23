@@ -20,6 +20,11 @@ struct CORE_API FCommandLine
 	static const uint32 MaxCommandLineSize = 16384;
 
 	/** 
+	 * Resets FCommandLine to an uninitialised state as if Set() has never been called
+	 */
+	static void Reset();
+
+	/** 
 	 * Returns an edited version of the executable's command line with the game name and certain other parameters removed. 
 	 */
 	static const TCHAR* Get();

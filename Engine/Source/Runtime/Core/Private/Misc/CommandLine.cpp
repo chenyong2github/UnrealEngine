@@ -29,6 +29,15 @@ bool FCommandLine::IsInitialized()
 	return bIsInitialized;
 }
 
+void FCommandLine::Reset()
+{
+	CmdLine[0] = '\0';
+	OriginalCmdLine[0] = '\0';
+	LoggingCmdLine[0] = '\0';
+	LoggingOriginalCmdLine[0] = '\0';
+	bIsInitialized = false;
+}
+
 const TCHAR* FCommandLine::Get()
 {
 	UE_CLOG(!bIsInitialized, LogInit, Fatal, TEXT("Attempting to get the command line but it hasn't been initialized yet."));
