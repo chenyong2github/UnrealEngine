@@ -6933,7 +6933,7 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 			}
 			if (FixupNodes.Num() > 0)
 			{
-				if (!SFixupSelfContextDialog::CreateModal(FixupNodes, this, FixupNodes.Num() != PastedNodes.Num()))
+				if (!SFixupSelfContextDialog::CreateModal(FixupNodes, Cast<UBlueprint>(DestinationGraph->GetOuter()), this, FixupNodes.Num() != PastedNodes.Num()))
 				{
 					for (UEdGraphNode* Node : PastedNodes)
 					{
