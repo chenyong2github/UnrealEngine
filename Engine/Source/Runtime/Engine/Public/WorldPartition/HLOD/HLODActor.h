@@ -30,12 +30,6 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	//~ End AActor Interface.
 
-#if WITH_EDITOR
-	void SetLODParent(AActor& InActor);
-	void ClearLODParent(AActor& InActor);
-	void UpdateLODParent(AActor& InActor, bool bInClear);
-#endif
-
 	UPrimitiveComponent* GetHLODComponent();
 
 public:

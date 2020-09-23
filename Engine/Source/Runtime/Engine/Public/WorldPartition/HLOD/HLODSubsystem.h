@@ -46,8 +46,6 @@ public:
 private:
 #if WITH_EDITOR
 	void RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem);
-	void OnWorldPartitionActorRegistered(AActor& InActor, bool bInLoaded);
-	const FWorldPartitionActorDesc* GetHLODActorForActor(const AActor* InActor) const;
 #endif
 
 private:

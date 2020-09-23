@@ -55,30 +55,6 @@ EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const
 	return EActorGridPlacement::Location;
 }
 
-void AWorldPartitionHLOD::SetLODParent(AActor& InActor)
-{
-	UpdateLODParent(InActor, false);
-}
-
-void AWorldPartitionHLOD::ClearLODParent(AActor& InActor)
-{
-	UpdateLODParent(InActor, true);
-}
-
-void AWorldPartitionHLOD::UpdateLODParent(AActor& InActor, bool bInClear)
-{
-	for (UActorComponent* Component : InActor.GetComponents())
-	{
-		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component))
-		{
-			if (UHLODLayer::ShouldIncludeInHLOD(PrimitiveComponent, SubActorsHLODLevel))
-			{
-				PrimitiveComponent->SetCachedLODParentPrimitive(!bInClear ? GetHLODComponent() : nullptr);
-			}
-		}
-	}
-}
-
 void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives, float InFadeOutDistance)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::SetHLODPrimitive);
@@ -149,8 +125,6 @@ void AWorldPartitionHLOD::SetChildrenPrimitives(const TArray<UPrimitiveComponent
 	for (UPrimitiveComponent* ChildPrimitive : InChildrenPrimitives)
 	{
 		SubActorsSet.Add(ChildPrimitive->GetOwner()->GetActorGuid());
-
-		ChildPrimitive->SetCachedLODParentPrimitive(HLODComponent);
 	}
 
 	SubActors = SubActorsSet.Array();
