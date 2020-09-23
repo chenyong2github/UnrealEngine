@@ -171,7 +171,7 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 	// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
 	uint32 SkyLightIndex = 0;
 	LightParameters.Type[SkyLightIndex] = 0;
-	LightParameters.Color[SkyLightIndex] = FVector(1.0);
+	LightParameters.Color[SkyLightIndex] = LightScene.SkyLight.IsSet() ? FVector(LightScene.SkyLight->Color) : FVector();
 	LightParameters.Mobility[SkyLightIndex] = (LightScene.SkyLight.IsSet() && LightScene.SkyLight->bStationary) ? 1 : 0;
 	uint32 Transmission = 1;
 	uint8 LightingChannelMask = 0b111;
