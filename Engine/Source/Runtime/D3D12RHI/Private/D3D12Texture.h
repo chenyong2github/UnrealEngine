@@ -528,7 +528,7 @@ public:
 		uint32 InSizeX,
 		uint32 InSizeY,
 		EPixelFormat InFormat) :
-		FD3D12Texture2D(InDevice, InSizeX, InSizeY, 1, 1, 1, InFormat, false, TexCreate_Presentable, FClearValueBinding()),
+		FD3D12Texture2D(InDevice, InSizeX, InSizeY, 1, 1, 1, InFormat, false, TexCreate_RenderTargetable | TexCreate_Presentable, FClearValueBinding()),
 		Viewport(InViewPort), bIsSDR(bInIsSDR)
 	{
 	}
