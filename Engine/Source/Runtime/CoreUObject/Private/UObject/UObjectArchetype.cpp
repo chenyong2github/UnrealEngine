@@ -66,8 +66,7 @@ UObject* GetArchetypeFromRequiredInfoImpl(const UClass* Class, const UObject* Ou
 			&& Outer->GetClass() != UPackage::StaticClass()) // packages cannot have subobjects
 		{
 			// Get a lock on the UObject hash tables for the duration of the GetArchetype operation
-			void LockUObjectHashTables();
-			LockUObjectHashTables();
+			FScopedUObjectHashTablesLock HashTablesLock;
 
 			UObject* ArchetypeToSearch = nullptr;
 #if UE_CACHE_ARCHETYPE
@@ -120,9 +119,6 @@ UObject* GetArchetypeFromRequiredInfoImpl(const UClass* Class, const UObject* Ou
 
 				Result = ArchetypeToSearch->GetClass()->FindArchetype(Class, Name);
 			}
-
-			void UnlockUObjectHashTables();
-			UnlockUObjectHashTables();
 		}
 
 		if (!Result)
