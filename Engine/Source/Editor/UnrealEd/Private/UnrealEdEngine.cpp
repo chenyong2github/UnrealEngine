@@ -297,7 +297,7 @@ void UUnrealEdEngine::StartCookByTheBookInEditor( const TArray<ITargetPlatform*>
 
 bool UUnrealEdEngine::IsCookByTheBookInEditorFinished() const 
 { 
-	return !CookServer->IsCookByTheBookRunning();
+	return CookServer ? !CookServer->IsCookByTheBookRunning() : true;
 }
 
 void UUnrealEdEngine::CancelCookByTheBookInEditor()
