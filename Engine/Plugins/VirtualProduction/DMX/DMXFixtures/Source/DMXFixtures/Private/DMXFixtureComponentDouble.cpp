@@ -8,8 +8,8 @@ UDMXFixtureComponentDouble::UDMXFixtureComponentDouble()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	NumChannels = 2;
-	ChannelRefs.Add(DMXChannel1);
-	ChannelRefs.Add(DMXChannel2);
+	ChannelRefs.Add(&DMXChannel1);
+	ChannelRefs.Add(&DMXChannel2);
 	InitCells(1);
 }
 
@@ -29,8 +29,8 @@ float UDMXFixtureComponentDouble::RemapValue(int ChannelIndex, int Value)
 {
 	if (ChannelIndex < NumChannels)
 	{
-		float Alpha = float(Value) / ChannelRefs[ChannelIndex].BitResolution;
-		float Remapped = FMath::Lerp(ChannelRefs[ChannelIndex].MinValue, ChannelRefs[ChannelIndex].MaxValue, Alpha);
+		float Alpha = float(Value) / ChannelRefs[ChannelIndex]->BitResolution;
+		float Remapped = FMath::Lerp(ChannelRefs[ChannelIndex]->MinValue, ChannelRefs[ChannelIndex]->MaxValue, Alpha);
 		return Remapped;
 	}
 	else
@@ -46,7 +46,7 @@ void UDMXFixtureComponentDouble::SetRangeValue()
 	{
 		for (int ChannelIndex=0; ChannelIndex < ChannelRefs.Num(); ChannelIndex++)
 		{
-			Cell.ChannelInterpolation[ChannelIndex].RangeValue = FMath::Abs(ChannelRefs[ChannelIndex].MaxValue - ChannelRefs[ChannelIndex].MinValue);
+			Cell.ChannelInterpolation[ChannelIndex].RangeValue = FMath::Abs(ChannelRefs[ChannelIndex]->MaxValue - ChannelRefs[ChannelIndex]->MinValue);
 		}
 	}
 }
@@ -56,7 +56,7 @@ void UDMXFixtureComponentDouble::SetBitResolution(TMap<FDMXAttributeName, EDMXFi
 {
 	for (auto& Channel : ChannelRefs)
 	{
-		EDMXFixtureSignalFormat* format = Map.Find(Channel.Name);
+		EDMXFixtureSignalFormat* format = Map.Find(Channel->Name);
 		if (format != nullptr)
 		{
 			unsigned int BitResolution;
@@ -68,7 +68,7 @@ void UDMXFixtureComponentDouble::SetBitResolution(TMap<FDMXAttributeName, EDMXFi
 				case(EDMXFixtureSignalFormat::E32Bit): BitResolution = 4294967295; break;
 				default: BitResolution = 255;
 			}
-			Channel.BitResolution = BitResolution;
+			Channel->BitResolution = BitResolution;
 		}
 	}
 }
