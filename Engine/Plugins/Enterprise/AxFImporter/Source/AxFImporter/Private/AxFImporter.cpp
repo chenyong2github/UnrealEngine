@@ -1419,8 +1419,10 @@ private:
 
 			if (ExpressionHeight)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				Material->D3D11TessellationMode = EMaterialTessellationMode::MTM_FlatTessellation;
 				Material->bEnableAdaptiveTessellation = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				UMaterialExpressionVertexNormalWS* VertexNormalWS = CreateMaterialExpression<UMaterialExpressionVertexNormalWS>();
 
