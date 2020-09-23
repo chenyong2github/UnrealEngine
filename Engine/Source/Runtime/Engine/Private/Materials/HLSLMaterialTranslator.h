@@ -691,6 +691,7 @@ protected:
 	virtual int32 PrecomputedAOMask() override;
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override;
 	virtual int32 ShadowReplace(int32 Default, int32 Shadow) override;
+	virtual int32 ReflectionCapturePassSwitch(int32 Default, int32 Reflection) override;
 
 	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced);
 
