@@ -29,6 +29,9 @@ namespace Chaos
 		int32 Chaos_Collision_RelaxationEnabled = 1;
 		FAutoConsoleVariableRef CVarChaosCollisionRelaxationEnabled(TEXT("p.Chaos.Collision.RelaxationEnabled"), Chaos_Collision_RelaxationEnabled, TEXT("Whether to reduce applied impulses during iterations for improved solver stability but reduced convergence"));
 
+		int32 Chaos_Collision_PrevVelocityRestitutionEnabled = 0;
+		FAutoConsoleVariableRef CVarChaosCollisionPrevVelocityRestitutionEnabled(TEXT("p.Chaos.Collision.PrevVelocityRestitutionEnabled"), Chaos_Collision_PrevVelocityRestitutionEnabled, TEXT("If enabled restitution will be calculated on previous frame velocities instead of current frame velocities"));
+
 		int32 Chaos_Collision_ForceApplyType = 0;
 		FAutoConsoleVariableRef CVarChaosCollisionAlternativeApply(TEXT("p.Chaos.Collision.ForceApplyType"), Chaos_Collision_ForceApplyType, TEXT("Force Apply step to use Velocity(1) or Position(2) modes"));
 
@@ -137,6 +140,32 @@ namespace Chaos
 			return RelaxationFactor;
 		}
 
+		FReal CalculateRelativeNormalVelocityForRestitution(
+			const TGenericParticleHandle<FReal, 3> Particle0,
+			const TGenericParticleHandle<FReal, 3> Particle1,
+			const FRotation3& Q0,
+			const FRotation3& Q1,
+			const FVec3& ContactNormal,
+			const FVec3& VectorToPoint1,
+			const FVec3& VectorToPoint2)
+		{
+			// Get previous world space position of the contact points relative the CoM
+			// Note: These particular points might not even have been in contact at the start of the frame
+			// VectorToContact point is transformed to local space, and then back to world space at the previous frame orientation
+			FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0); // Previous Rotation
+			FRotation3 R1 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle1); // Previous Rotation
+
+			const FVec3 VectorToPoint1Prev = R0 * FRotation3::Conjugate(Q0) * VectorToPoint1;
+			const FVec3 VectorToPoint2Prev = R1 * FRotation3::Conjugate(Q1) * VectorToPoint2;
+			// 
+			const FVec3 ContactBody1VelocityPrev = FParticleUtilities::GetPreviousVelocityAtCoMRelativePosition(Particle0, VectorToPoint1Prev);
+			const FVec3 ContactBody2VelocityPrev = FParticleUtilities::GetPreviousVelocityAtCoMRelativePosition(Particle1, VectorToPoint2Prev);
+			const FVec3 RelativeVelocityPrev = ContactBody1VelocityPrev - ContactBody2VelocityPrev;
+			const FReal RelativeNormalVelocityForRestitution = FVec3::DotProduct(RelativeVelocityPrev, ContactNormal); // Note: using the current contact normal
+			
+			return RelativeNormalVelocityForRestitution;
+		}
+
 		// Calculate velocity corrections due to the given contact
 		// This function uses AccumulatedImpulse Clipping, so 
 		// AccumulatedImpulse is both an input and an output
@@ -186,9 +215,16 @@ namespace Chaos
 			const bool bApplyRestitution = bInApplyRestitution && (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
 			const FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 			const FReal Friction = bInApplyFriction ? Contact.Friction : (FReal)0; // Add friction even when pushing out
-			const FReal AngularFriction = bInApplyAngularFriction ? Contact.AngularFriction : (FReal)0; // Don't add angular friction in pushout since we don't have accumelated angular impulse clipping, todo: experiment with this later
+			const FReal AngularFriction = bInApplyAngularFriction ? Contact.AngularFriction : (FReal)0; // Don't add angular friction in pushout since we don't have accumulated angular impulse clipping, todo: experiment with this later
 
-			const FVec3 VelocityTarget = (-Restitution * FVec3::DotProduct(RelativeVelocity, Contact.Normal)) * Contact.Normal;
+			FReal RelativeNormalVelocityForRestitution = FVec3::DotProduct(RelativeVelocity, Contact.Normal); // Relative velocity in direction of the normal as used by restitution
+			// Use the previous contact velocities to calculate the restitution response
+			if (Restitution > (FReal)0.0f && Chaos_Collision_PrevVelocityRestitutionEnabled)
+			{
+				RelativeNormalVelocityForRestitution = CalculateRelativeNormalVelocityForRestitution(Particle0, Particle1, Q0, Q1, Contact.Normal, VectorToPoint1, VectorToPoint2);
+			}
+
+			const FVec3 VelocityTarget = (-Restitution * RelativeNormalVelocityForRestitution) * Contact.Normal;
 			const FVec3 VelocityChange = VelocityTarget - RelativeVelocity;
 			const FMatrix33 FactorInverse = Factor.Inverse();
 			FVec3 Impulse = FactorInverse * VelocityChange;  // Delta Impulse = (J.M^(-1).J^(T))^(-1).(ContactVelocityError)
@@ -384,12 +420,22 @@ namespace Chaos
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 
-			FVec3 VectorToPoint1 = Contact.Location - P0;
-			FVec3 VectorToPoint2 = Contact.Location - P1;
-			FVec3 Body1Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle0, VectorToPoint1);
-			FVec3 Body2Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle1, VectorToPoint2);
-			FVec3 RelativeVelocity = Body1Velocity - Body2Velocity;
-			FReal RelativeNormalVelocity = FVec3::DotProduct(RelativeVelocity, Contact.Normal);
+			const FVec3 VectorToPoint1 = Contact.Location - P0;
+			const FVec3 VectorToPoint2 = Contact.Location - P1;
+			const FVec3 Body1Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle0, VectorToPoint1);
+			const FVec3 Body2Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle1, VectorToPoint2);
+			const FVec3 RelativeVelocity = Body1Velocity - Body2Velocity;
+			const FReal RelativeNormalVelocity = FVec3::DotProduct(RelativeVelocity, Contact.Normal);
+			// Resting contact if very close to the surface
+			bool bApplyRestitution = (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
+			FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
+
+			FReal RelativeNormalVelocityForRestitution = RelativeNormalVelocity; // Relative velocity in direction of the normal as used by restitution
+			// Use the previous contact velocities to calculate the restitution response
+			if (Restitution > (FReal)0.0f && Chaos_Collision_PrevVelocityRestitutionEnabled)
+			{
+				RelativeNormalVelocityForRestitution = CalculateRelativeNormalVelocityForRestitution(Particle0, Particle1, Q0, Q1, Contact.Normal, VectorToPoint1, VectorToPoint2);
+			}
 
 			if (RelativeNormalVelocity < 0) // ignore separating constraints
 			{
@@ -402,16 +448,13 @@ namespace Chaos
 					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
 				FVec3 Impulse;
 				FVec3 AngularImpulse(0);
-
-				// Resting contact if very close to the surface
-				bool bApplyRestitution = (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
-				FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
+				
 				FReal Friction = Contact.Friction;
 				FReal AngularFriction = Contact.AngularFriction;
 
 				if (Friction > 0)
 				{
-					FVec3 VelocityChange = -(Restitution * RelativeNormalVelocity * Contact.Normal + RelativeVelocity);
+					FVec3 VelocityChange = -(Restitution * RelativeNormalVelocityForRestitution * Contact.Normal + RelativeVelocity);
 					FReal NormalVelocityChange = FVec3::DotProduct(VelocityChange, Contact.Normal);
 					FMatrix33 FactorInverse = Factor.Inverse();
 					FVec3 MinimalImpulse = FactorInverse * VelocityChange;
@@ -456,14 +499,14 @@ namespace Chaos
 							ImpulseDenominator = (FReal)1;
 						}
 
-						const FReal ImpulseMag = -(1 + Restitution) * RelativeNormalVelocity / ImpulseDenominator;
+						const FReal ImpulseMag = -(RelativeNormalVelocity + Restitution * RelativeNormalVelocityForRestitution) / ImpulseDenominator;
 						Impulse = ImpulseMag * (Contact.Normal - Friction * Tangent);
 					}
 				}
 				else
 				{
 					FReal ImpulseDenominator = FVec3::DotProduct(Contact.Normal, Factor * Contact.Normal);
-					FVec3 ImpulseNumerator = -(1 + Restitution) * FVec3::DotProduct(RelativeVelocity, Contact.Normal)* Contact.Normal;
+					FVec3 ImpulseNumerator = -(RelativeNormalVelocity + Restitution * RelativeNormalVelocityForRestitution) * Contact.Normal;
 					if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("Contact:%s\n\nParticle:%s\n\nLevelset:%s\n\nFactor*Constraint.Normal:%s, ImpulseDenominator:%f"),
 						*Contact.ToString(),
 						*Particle0->ToString(),
