@@ -64,7 +64,7 @@ namespace AudioModulation
 
 	void FAudioModulation::DeactivateBusMix(const USoundControlBusMix& InBusMix)
 	{
-		ModSystem->SoloBusMix(InBusMix);
+		ModSystem->DeactivateBusMix(InBusMix);
 	}
 
 	void FAudioModulation::DeactivateAllBusMixes()

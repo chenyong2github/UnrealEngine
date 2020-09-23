@@ -197,7 +197,7 @@ USoundControlBus* UAudioModulationStatics::CreateBus(const UObject* WorldContext
 		return nullptr;
 	}
 
-	USoundControlBus* NewBus = NewObject<USoundControlBus>(GetTransientPackage(), Name);
+	USoundControlBus* NewBus = NewObject<USoundControlBus>(World, Name);
 	NewBus->Parameter = Parameter;
 	NewBus->Address = Name.ToString();
 
@@ -228,7 +228,7 @@ USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldC
 		return nullptr;
 	}
 
-	USoundControlBusMix* NewBusMix = NewObject<USoundControlBusMix>(GetTransientPackage(), Name);
+	USoundControlBusMix* NewBusMix = NewObject<USoundControlBusMix>(World, Name);
 	for (FSoundControlBusMixStage& Stage : Stages)
 	{
 		if (Stage.Bus)
