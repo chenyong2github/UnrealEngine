@@ -1026,6 +1026,20 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		return;
 	}
 
+	// End any previous sessions running in separate processes.
+	EndPlayOnLocalPc();
+
+	// If there's level already being played, close it. (This may change GWorld). 
+	if (PlayWorld && PlaySessionRequest->SessionDestination == EPlaySessionDestinationType::InProcess)
+	{
+		// Cache our Play Session Request, as EndPlayMap will clear it. When this function exits the request will be reset anyways.
+		FRequestPlaySessionParams OriginalRequest = PlaySessionRequest.GetValue();
+		// Immediately end the current play world.
+		EndPlayMap(); 
+		// Restore the request as we're now processing it.
+		PlaySessionRequest = OriginalRequest;
+	}
+
 	// We want to use the ULevelEditorPlaySettings that come from the Play Session Request.
 	// By the time this function gets called, these settings are a copy of either the CDO, 
 	// or a user provided instance. The settings may have been modified by the game instance
@@ -1047,9 +1061,6 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		FPlayInEditorSessionInfo::FWindowSizeAndPos& NewPos = PlayInEditorSessionInfo->CachedWindowInfo.Add_GetRef(FPlayInEditorSessionInfo::FWindowSizeAndPos());
 		NewPos.Position = Position;
 	}
-
-	// End any previous sessions running in separate processes.
-	EndPlayOnLocalPc();
 
 	// If our settings require us to launch a separate process in any form, we require the user to save
 	// their content so that when the new process reads the data from disk it will match what we have in-editor.
@@ -2489,14 +2500,6 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 				Blueprint->bDisplayCompilePIEWarning = false;
 			}
 		}
-	}
-
-	// If there's level already being played, close it. (This may change GWorld). 
-	// This also invalidates PlaySessionRequest so don't use it below.
-	if (PlayWorld)
-	{
-		// Immediately end the play world.
-		EndPlayMap();
 	}
 
 	// Register for log processing so we can promote errors/warnings to the message log
