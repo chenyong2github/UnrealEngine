@@ -219,50 +219,41 @@ private:
 	FORCEINLINE friend FActorRepListType* end(const TActorRepListViewBase<PointerType>& View) { return View.RepList->Data + View.RepList->Num; }
 };
 
-/** A view that maintains ownership/(ref counting) to an actor replication list.  */
-struct REPLICATIONGRAPH_API FActorRepListRefView : public TActorRepListViewBase<TRefCountPtr<FActorRepList>>
+/**
+ * Holds a list of replicated actors that can be added/removed to.
+ */
+struct REPLICATIONGRAPH_API FActorRepListRefView
 {
-	/** Ideally, use Reset to set the initial size of the list. But if nothing is set, the first list we request will be of this size */
-	enum { InitialListSize = 4 } ;
-
-	FActorRepListRefView() { }
-	FActorRepListRefView(FActorRepList& InRepList) { RepList = &InRepList; }
-	FORCEINLINE FActorRepListType& operator[](int32 idx) const  { repCheck(RepList); repCheck(RepList->Max > idx); return RepList->Data[idx]; }
-
-	/** Initializes a new list for a given ExpectedMaxSize. Best practice is to call this once to get a good initial size to avoid reallocations/copying. Passing 0 will preserve the current size (if current size is also 0, InitialListSize is used) */
-	void Reset(int32 ExpectedMaxSize=0)
+	FActorRepListRefView()
 	{
-		if (RepList && RepList->RefCount == 1 && RepList->Max >= ExpectedMaxSize)
+	}
+
+	UE_DEPRECATED(4.27, "This constructor is deprecated since the class does not hold FActorRepList's anymore. ")
+	FActorRepListRefView(FActorRepList& InRepList) 
+	{ 
+		RepList.Reserve(InRepList.Num);
+		for (int32 i = 0; i < InRepList.Num; ++i)
 		{
-			// We can keep using this list
-			RepList->Num = 0;
-			CachedNum = 0;
-		}
-		else
-		{
-			// We must request a new list for this size
-			RequestNewList(ExpectedMaxSize > 0 ? ExpectedMaxSize : CachedNum, false);
+			RepList.Add(InRepList.Data[i]);
 		}
 	}
 
-	/** Prepares the list for modifications. If this list is shared by other RefViews, then you will get a new underlying list to reference. ResetContent determines if the content is cleared or not (regardless of refcount/new list) */
+	/** Empties the array but does not deallocate the internal memory. Will be resized if the specified max size is bigger than the current max. */
+	void Reset(int32 ExpectedMaxSize=0)
+	{
+		RepList.Reset(ExpectedMaxSize);
+	}
+
+	/** Preallocate the array so it can hold the specified size */
+	void Reserve(int32 Size)
+	{
+		RepList.Reserve(Size);
+	}
+
+	UE_DEPRECATED(4.27, "PrepareForWrite is not needed before calling operations on the RepList anymore. Use Reserve or Reset if you want to preallocate the array to a specific size")
 	void PrepareForWrite(bool bResetContent=false)
 	{
-		if (RepList == nullptr)
-		{
-			RequestNewList(InitialListSize, false);
-		}
-		else if (RepList->RefCount > 1)
-		{
-			// This list we are viewing is shared by others, so request a new one
-			RequestNewList(CachedNum, !bResetContent);
-		}
-		else if(bResetContent)
-		{
-			// We already have our own list but need to reset back to 0
-			RepList->Num = 0;
-			CachedNum = 0;
-		}
+		// empty
 	}
 
 	bool ConditionalAdd(const FActorRepListType& NewElement)
@@ -277,75 +268,103 @@ struct REPLICATIONGRAPH_API FActorRepListRefView : public TActorRepListViewBase<
 
 	void Add(const FActorRepListType& NewElement)
 	{
-		repCheckf(RepList != nullptr, TEXT("Invalid RepList when calling add new element to a list. Call ::PrepareForWrite or ::Reset before writing!"));
-		repCheckf(RepList->RefCount == 1, TEXT("Attempting to add new element to a list with >1 RefCount (%d). Call ::PrepareForWrite before writing!"), RepList->RefCount);
-		if (CachedNum == CachedMax)
-		{
-			// We can't add more to the list we are referencing, we need to get a new list and copy the contents over. This is transparent to the caller.
-			RequestNewList(CachedMax+1, true);
-		}
-		
-		CachedData[CachedNum++] = NewElement;
-		RepList->Num++;
+		RepList.Add(NewElement);
 	}
 
+	UE_DEPRECATED(4.27, "Remove has been deprecated in favor of RemoveSlow/RemoveFast. RemoveFast is the default recommendation unless you need the list order to be stable or are removing elements inside a RangedFor iteration loop.")
 	bool Remove(const FActorRepListType& ElementToRemove)
 	{
-		int32 idx = IndexOf(ElementToRemove);
-		if (idx >= 0)
-		{
-			RemoveAtImpl(idx);
-			return true;
-		}
-		return false;
+		return RemoveSlow(ElementToRemove);
 	}
 
+	/** Removes the element quickly but changes the list order */
 	bool RemoveFast(const FActorRepListType& ElementToRemove)
 	{
-		int32 idx = IndexOf(ElementToRemove);
-		if (idx >= 0)
-		{
-			RemoveAtSwap(idx);
-			return true;
-		}
-		return false;
+		return RepList.RemoveSingleSwap(ElementToRemove) > 0;
+	}
+
+	/** Removes the element but keeps the order intact. Generally not recommended for large lists. */
+	bool RemoveSlow(const FActorRepListType& ElementToRemove)
+	{
+		return RepList.RemoveSingle(ElementToRemove) > 0;
 	}
 
 	void RemoveAtSwap(int32 idx)
 	{
-		repCheck(RepList && Num() > idx);
-		CachedData[idx] = CachedData[CachedNum-1];
-		CachedNum--;
-		RepList->Num--;
+		RepList.RemoveAtSwap(idx);
 	}
 
-	void CopyContentsFrom(const FActorRepListRefView& Source);
-	void AppendContentsFrom(const FActorRepListRefView& Source);
+	void CopyContentsFrom(const FActorRepListRefView& Source)
+	{
+		RepList = Source.RepList;
+	}
+
+	void AppendContentsFrom(const FActorRepListRefView& Source)
+	{
+		RepList.Append(Source.RepList);
+	}
+
 	bool VerifyContents_Slow() const;
 
-	int32 Num() const { return CachedNum; }
+	/** Add contents to TArray/TSet. this is intended for debugging/ease of use */
+	void AppendToTArray(TArray<FActorRepListType>& OutArray) const
+	{
+		OutArray.Append(RepList);
+	}
+	void AppendToTSet(TSet<FActorRepListType>& OutSet) const
+	{
+		OutSet.Append(RepList);
+	}
+
+	FString BuildDebugString() const;
+
+	/**
+	 * Base view functions.
+	 */
+
+	FActorRepListType& operator[](int32 idx)				{ return RepList[idx]; }
+	const FActorRepListType& operator[](int32 idx) const	{ return RepList[idx]; }
+
+	TArray<FActorRepListType>::RangedForIteratorType begin()			{ return RepList.begin(); }
+	TArray<FActorRepListType>::RangedForConstIteratorType begin() const { return RepList.begin(); }
+	TArray<FActorRepListType>::RangedForIteratorType end()				{ return RepList.end(); }
+	TArray<FActorRepListType>::RangedForConstIteratorType end() const	{ return RepList.end(); }
+
+	UE_DEPRECATED(4.27, "IsValid is deprecated now that you don't need to call PrepareForWrite before doing operations on the list. Use IsEmpty() if you need to skip doing operations on empty lists")
+	bool IsValid() const 
+	{ 
+		return true; 
+	}
+
+	bool IsEmpty() const
+	{
+		return RepList.Num() <= 0;
+	}
+
+	int32 Num() const
+	{ 
+		return RepList.Num(); 
+	}
+	
+	/** Resets the container and returns the memory it held */
+	void ResetToNull()
+	{ 
+		RepList.Empty();
+	}
+
+	int32 IndexOf(const FActorRepListType& Value) const
+	{
+		return RepList.IndexOfByKey(Value);
+	}
+
+	bool Contains(const FActorRepListType& Value) const
+	{
+		return RepList.Contains(Value);
+	}
 
 private:
 
-	/** Cached data from our FActorRepList to avoid looking it up each time */
-	FActorRepListType* CachedData = nullptr;
-	int32 CachedNum  = 0;
-	int32 CachedMax = 0;
-
-	void RequestNewList(int32 NewSize, bool bCopyExistingContent);
-
-	void RemoveAtImpl(int32 Index)
-	{
-		repCheck(RepList && Num() > Index);
-		int32 NumToMove = CachedNum - Index - 1;
-		if (NumToMove)
-		{
-			FMemory::Memmove((void*)(&CachedData[Index]), (void*)(&CachedData[Index + 1]), NumToMove * sizeof(FActorRepListType));
-		}
-
-		CachedNum--;
-		RepList->Num--;
-	}
+	TArray<FActorRepListType> RepList;
 };
 
 /**
@@ -367,8 +386,8 @@ struct REPLICATIONGRAPH_API FActorRepListConstView
 		return ListReferenced.Num();
 	}
 
-	FActorRepListType* begin() const { return ListReferenced.begin(); }
-	FActorRepListType* end() const { return ListReferenced.end(); }
+	TArray<FActorRepListType>::RangedForConstIteratorType begin() const { return ListReferenced.begin(); }
+	TArray<FActorRepListType>::RangedForConstIteratorType end() const { return ListReferenced.end(); }
 
 private:
 	const FActorRepListRefView& ListReferenced;
@@ -379,8 +398,7 @@ private:
 struct UE_DEPRECATED(4.27, "Replace this struct with the new FActorRepListConstView struct.")  FActorRepListRawView : public TActorRepListViewBase<FActorRepList*>
 {
 	/** Standard ctor: make raw view from ref view */
-	REPLICATIONGRAPH_API FActorRepListRawView(const FActorRepListRefView& Source) { RepList = Source.RepList.GetReference(); }
-	REPLICATIONGRAPH_API FActorRepListRefView ToRefView() const { return FActorRepListRefView(*RepList); }
+	REPLICATIONGRAPH_API FActorRepListRawView(const FActorRepListRefView& Source) { /*deprecated*/ }
 };
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1191,7 +1209,6 @@ struct REPLICATIONGRAPH_API FGatheredReplicationActorLists
 		if (CVar_RepGraph_Verify)
 			List.VerifyContents_Slow();
 #endif
-		repCheck(List.IsValid());
 		if (List.Num() > 0)
 		{
 			ReplicationLists[(uint32)Flags].Emplace(FActorRepListConstView(List));

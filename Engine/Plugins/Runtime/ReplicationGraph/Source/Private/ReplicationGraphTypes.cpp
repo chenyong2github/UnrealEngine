@@ -226,53 +226,6 @@ void FActorRepList::Release()
 	}
 }
 
-void FActorRepListRefView::RequestNewList(int32 NewSize, bool CopyExistingContent)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(RepList_RequestNewList);
-	FActorRepList* NewList = &GActorListAllocator.RequestList(NewSize > 0 ? NewSize : InitialListSize);
-	if (CopyExistingContent)
-	{
-		FMemory::Memcpy((uint8*)NewList->Data, (uint8*)CachedData, CachedNum * sizeof(FActorRepListType) );
-		NewList->Num = CachedNum;
-	}
-	else
-	{
-		repCheck(NewList->Num == 0);
-		CachedNum = 0;
-	}
-	RepList = NewList;
-	CachedData = RepList->Data;
-	CachedMax = RepList->Max;
-}
-
-void FActorRepListRefView::CopyContentsFrom(const FActorRepListRefView& Source)
-{
-	const int32 NewNum = Source.CachedNum;
-
-	FActorRepList* NewList = &GActorListAllocator.RequestList(Source.Num());
-	FMemory::Memcpy((uint8*)NewList->Data, (uint8*)Source.CachedData, NewNum * sizeof(FActorRepListType) );
-	NewList->Num = NewNum;
-
-	RepList = NewList;	
-
-	CachedData = NewList->Data;
-	CachedMax = NewList->Max;
-	CachedNum = NewNum;
-}
-
-void FActorRepListRefView::AppendContentsFrom(const FActorRepListRefView& Source)
-{
-	const int32 NewNum = CachedNum + Source.CachedNum;
-	if (NewNum > CachedMax)
-	{
-		RequestNewList(NewNum, true);
-	}
-
-	FMemory::Memcpy((uint8*)&CachedData[CachedNum], (uint8*)Source.CachedData, Source.CachedNum * sizeof(FActorRepListType));
-	RepList->Num = NewNum;
-	CachedNum = NewNum;
-}
-
 bool FActorRepListRefView::VerifyContents_Slow() const
 {
 	for (FActorRepListType Actor : *this)
@@ -293,6 +246,20 @@ bool FActorRepListRefView::VerifyContents_Slow() const
 	}
 
 	return true;
+}
+
+FString FActorRepListRefView::BuildDebugString() const
+{
+	FString Str;
+	if (Num() > 0)
+	{
+		Str += GetActorRepListTypeDebugString(RepList[0]);
+		for (int32 i = 1; i < Num(); ++i)
+		{
+			Str += TEXT(", ") + GetActorRepListTypeDebugString(RepList[i]);
+		}
+	}
+	return Str;
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
