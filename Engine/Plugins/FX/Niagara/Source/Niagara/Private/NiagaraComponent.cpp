@@ -1455,7 +1455,10 @@ void UNiagaraComponent::BeginDestroy()
 	{
 		if (UWorld* World = GetWorld())
 		{
+			// Suppress excessive logging when not debugging the component pool - no easy way to tell if this is actually a problem
+#if ENABLE_NC_POOL_DEBUGGING
 			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+#endif
 			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
 			{
 				if (UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool())
@@ -1466,7 +1469,7 @@ void UNiagaraComponent::BeginDestroy()
 		}
 		else
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+			UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world is nullptr!\n"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
 		}
 
 		// Set pooling method to none as we are destroyed and can not go into the pool after this point
