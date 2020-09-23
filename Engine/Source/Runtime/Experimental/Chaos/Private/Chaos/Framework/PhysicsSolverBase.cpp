@@ -5,6 +5,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ChaosStats.h"
 #include "Chaos/PendingSpatialData.h"
+#include "PBDRigidsSolver.h"
 
 namespace Chaos
 {	
@@ -147,6 +148,17 @@ namespace Chaos
 		{
 			Command();
 		}
+		
+		// GeometryCollection particles do not always remove collision constraints on unregister,
+		// explicitly clear constraints so we will not crash when filling collision events in advance.
+		InSolver.CastHelper([](auto& Concrete)
+		{
+			auto* Evolution = Concrete.GetEvolution();
+			if (Evolution)
+			{
+				Evolution->ResetConstraints();
+			}
+		});
 
 		// Advance in single threaded because we cannot block on an async task here if in multi threaded mode. see above comments.
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
