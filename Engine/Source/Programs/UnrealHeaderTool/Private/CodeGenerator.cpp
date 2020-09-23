@@ -2683,7 +2683,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	}
 	else
 	{
-		FString FunctionName = CreateUTF8LiteralString(FNativeClassHeaderGenerator::GetOverriddenNameForLiteral(Function));
+		FString FunctionName = FNativeClassHeaderGenerator::GetUTF8OverriddenNameForLiteral(Function);
 		CurrentFunctionText.Logf(TEXT("\t\tUObject* Outer = %s();\r\n"), *OuterFunc);
 		CurrentFunctionText.Logf(TEXT("\t\tUFunction* ReturnFunction = static_cast<UFunction*>(StaticFindObjectFast( UFunction::StaticClass(), Outer, %s ));\r\n"), *FunctionName);
 	}
