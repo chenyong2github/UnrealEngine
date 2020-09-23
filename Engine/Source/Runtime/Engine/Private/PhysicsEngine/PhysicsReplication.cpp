@@ -99,6 +99,31 @@ namespace PhysicsReplicationCVars
 	static FAutoConsoleVariableRef CVarSkipSkeletalRepOptimization(TEXT("p.SkipSkeletalRepOptimization"), SkipSkeletalRepOptimization, TEXT("If true, we don't move the skeletal mesh component during replication. This is ok because the skeletal mesh already polls physx after its results"));
 }
 
+#if WITH_CHAOS
+struct FAsyncPhysicsRepCallbackData : public Chaos::FSimCallbackInput
+{
+	TArray<FAsyncPhysicsDesiredState> Buffer;
+	float LinearVelocityCoefficient;
+	float AngularVelocityCoefficient;
+	float PositionLerp;
+	float AngleLerp;
+
+	void Reset()
+	{
+		Buffer.Reset();
+	}
+};
+
+class FPhysicsReplicationAsyncCallback final : public Chaos::TSimCallbackObject<FAsyncPhysicsRepCallbackData>
+{
+	virtual Chaos::FSimCallbackNoOutput* OnPreSimulate_Internal(const float SimStart, const float DeltaSeconds, const TArrayView<const Chaos::FSimCallbackInput*>& Inputs) const override
+	{
+		FPhysicsReplication::ApplyAsyncDesiredState(DeltaSeconds, Inputs);
+		return nullptr;
+	}
+};
+#endif
+
 void ComputeDeltas(const FVector& CurrentPos, const FQuat& CurrentQuat, const FVector& TargetPos, const FQuat& TargetQuat, FVector& OutLinDiff, float& OutLinDiffSize,
 	FVector& OutAngDiffAxis, float& OutAngDiff, float& OutAngDiffSize)
 {
@@ -109,6 +134,19 @@ void ComputeDeltas(const FVector& CurrentPos, const FQuat& CurrentQuat, const FV
 	DeltaQuat.ToAxisAndAngle(OutAngDiffAxis, OutAngDiff);
 	OutAngDiff = FMath::RadiansToDegrees(FMath::UnwindRadians(OutAngDiff));
 	OutAngDiffSize = FMath::Abs(OutAngDiff);
+}
+
+FPhysicsReplication::~FPhysicsReplication()
+{
+#if WITH_CHAOS
+	if (AsyncCallback)
+	{
+		if (auto* Solver = PhysScene->GetSolver())
+		{
+			Solver->UnregisterAndFreeSimCallbackObject_External(AsyncCallback);
+		}
+	}
+#endif
 }
 
 bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay)
@@ -488,16 +526,7 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 	}
 
 #if WITH_CHAOS
-	if (UseAsyncResults)
-	{
-		if (auto* Solver = PhysScene->GetSolver())
-		{
-			FSimCallbackData& CallbackData = Solver->FindOrCreateCallbackProducerData(*AsyncCallback);
-			ensure(CallbackData.Data.VoidPtr == nullptr);
-			CallbackData.Data.VoidPtr = CurAsyncData;
-			CurAsyncData = nullptr;
-		}
-	}
+	CurAsyncData = nullptr;
 #endif
 }
 
@@ -515,23 +544,7 @@ FPhysicsReplication::FPhysicsReplication(FPhysScene* InPhysicsScene)
 	AsyncCallback = nullptr;
 	if (auto* Solver = PhysScene->GetSolver())
 	{
-		AsyncCallback = &Solver->RegisterSimCallback([](const float Dt, const TArray<FSimCallbackData*>& IntervalData)
-		{
-			FPhysicsReplication::ApplyAsyncDesiredState(Dt, IntervalData);
-		},
-
-		[](const TArray<FSimCallbackData*>& IntervalData)
-		{
-			//todo: if we want a memory pool we need to make sure the replication manager is around for these callbacks
-			//if we use a static one it must be multiple producer and multiple consumer because we can have multiple worlds
-			for (FSimCallbackData* CallbackData : IntervalData)
-			{
-				FAsyncPhysicsRepCallbackData* AsyncData = static_cast<FAsyncPhysicsRepCallbackData*>(CallbackData->Data.VoidPtr);
-				delete AsyncData;
-			}
-		}
-		
-		);
+		AsyncCallback = Solver->CreateAndRegisterSimCallbackObject_External<FPhysicsReplicationAsyncCallback>();
 	}
 #endif
 }
@@ -546,22 +559,21 @@ void FPhysicsReplication::PrepareAsyncData_External(const FRigidBodyErrorCorrect
 	const float AngleLerp = CharacterMovementCVars::AngleLerp >= 0.0f ? CharacterMovementCVars::AngleLerp : ErrorCorrection.AngleLerp;
 	const float AngularVelocityCoefficient = CharacterMovementCVars::AngularVelocityCoefficient >= 0.0f ? CharacterMovementCVars::AngularVelocityCoefficient : ErrorCorrection.AngularVelocityCoefficient;
 
-	CurAsyncData = new FAsyncPhysicsRepCallbackData();
+	CurAsyncData = AsyncCallback->GetProducerInputData_External();
 	CurAsyncData->PositionLerp = PositionLerp;
 	CurAsyncData->AngleLerp = AngleLerp;
 	CurAsyncData->LinearVelocityCoefficient = LinearVelocityCoefficient;
 	CurAsyncData->AngularVelocityCoefficient = AngularVelocityCoefficient;
 }
 
-void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const TArray<Chaos::FSimCallbackData*>& IntervalData)
+void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const TArrayView<const Chaos::FSimCallbackInput*>& IntervalData)
 {
 	//just take latest data since if the target is not there, we must have resolved target
 	using namespace Chaos;
 	if(IntervalData.Num() > 0)
 	{
-		const FSimCallbackData* CallbackData = IntervalData.Last();
-		//todo: handle multiple data properly
-		FAsyncPhysicsRepCallbackData* AsyncData = static_cast<FAsyncPhysicsRepCallbackData*>(CallbackData->Data.VoidPtr);
+		const FSimCallbackInput* CallbackData = IntervalData.Last();
+		const FAsyncPhysicsRepCallbackData* AsyncData = static_cast<const FAsyncPhysicsRepCallbackData*>(CallbackData);
 
 		const float LinearVelocityCoefficient = AsyncData->LinearVelocityCoefficient;
 		const float AngularVelocityCoefficient = AsyncData->AngularVelocityCoefficient;

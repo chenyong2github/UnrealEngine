@@ -11,6 +11,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "Chaos/ChaosMarshallingManager.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 
 namespace ChaosTest
 {
@@ -100,19 +101,37 @@ namespace ChaosTest
 		float Time = 0;
 		const float Dt = 1 / 30.f;
 
-		FSimCallbackHandle* Callback = &Solver->RegisterSimCallback([&Count, &Time, Dt](const float InDt, const TArray<FSimCallbackData*>& Data)
+		struct FDummyInt : public FSimCallbackInput
 		{
-			EXPECT_EQ(Dt, InDt);
-			EXPECT_EQ(Data.Num(),1);
-			EXPECT_EQ(Data[0]->Data.Int, Count);
-			++Count;
-			EXPECT_EQ(Time,Data[0]->GetStartTime());
-		});
+			void Reset() {}
+			int32 Data;
+		};
+
+		struct FCallback : public TSimCallbackObject<FDummyInt>
+		{
+			virtual FSimCallbackOutput* OnPreSimulate_Internal(const float StartTime, const float DeltaTime, const TArrayView<const FSimCallbackInput*>& Inputs) const override
+			{
+				EXPECT_EQ(1 / 30.f, DeltaTime);
+				EXPECT_EQ(Inputs.Num(), 1);
+				EXPECT_EQ(static_cast<const FDummyInt*>(Inputs[0])->Data, *CountPtr);
+				++(*CountPtr);
+				EXPECT_EQ(*Time, Inputs[0]->GetExternalTime());
+				return nullptr;
+			}
+
+			mutable int32* CountPtr;	//mutable because callback shouldn't have side effects, but for testing this is the easiest way
+			float* Time;
+		};
+
+		FCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCallback>();
+		Callback->CountPtr = &Count;
+		Callback->Time = &Time;
 
 
 		for(int Step = 0; Step < 10; ++Step)
 		{
-			Solver->FindOrCreateCallbackProducerData(*Callback).Data.Int = Step;
+			Callback->GetProducerInputData_External()->Data = Step;
+			
 			Solver->AdvanceAndDispatch_External(Dt);
 			Solver->UpdateGameThreadStructures();
 			Time += Dt;
@@ -120,7 +139,7 @@ namespace ChaosTest
 		
 		EXPECT_EQ(Count,10);
 
-		Solver->UnregisterSimCallback(*Callback);
+		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
 
 		for(int Step = 0; Step < 10; ++Step)
 		{
