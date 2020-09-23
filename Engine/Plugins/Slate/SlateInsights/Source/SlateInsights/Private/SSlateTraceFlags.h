@@ -7,6 +7,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SLeafWidget.h"
 
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
 #include "FastUpdate/WidgetUpdateFlags.h"
 #include "Widgets/InvalidateWidgetReason.h"
 
