@@ -263,8 +263,6 @@ public:
 
 	/** The OpenGL resource ID. */
 	GLuint Resource;
-	/** true if the shader has compiled successfully. */
-	bool bSuccessfullyCompiled;
 
 	/** External bindings for this shader. */
 	FOpenGLShaderBindings Bindings;
@@ -283,7 +281,6 @@ public:
 	/** Constructor. */
 	TOpenGLShader()
 		: Resource(0)
-		, bSuccessfullyCompiled(false)
 	{
 		FMemory::Memzero( &Bindings, sizeof(Bindings) );
 	}
