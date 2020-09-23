@@ -49,6 +49,10 @@ namespace UsdToUnrealImpl
 		{
 			return VertexIndex;
 		}
+		else if ( InterpType == pxr::UsdGeomTokens->varying )
+		{
+			return VertexIndex;
+		}
 		else if ( InterpType == pxr::UsdGeomTokens->faceVarying )
 		{
 			return VertexInstanceIndex;
