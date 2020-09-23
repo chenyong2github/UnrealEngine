@@ -22,13 +22,11 @@ ADMXFixtureActor::ADMXFixtureActor()
 	Head->SetupAttachment(Yoke);
 
 	PointLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("Fixture PointLight"));
-	//PointLight->CreationMethod = EComponentCreationMethod::Instance;
 	PointLight->SetupAttachment(Head);
 	PointLight->SetCastShadows(false);
 	PointLight->bAffectsWorld = false;
 
 	SpotLight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Fixture SpotLight"));
-	//SpotLight->CreationMethod = EComponentCreationMethod::Instance;
 	SpotLight->SetupAttachment(Head);
 	SpotLight->SetCastShadows(false);
 	SpotLight->bAffectsWorld = true;
@@ -44,6 +42,8 @@ ADMXFixtureActor::ADMXFixtureActor()
 	LightIntensityMax = 50000;
 	LightDistanceMax = 1000;
 	LightColorTemp = 6500;
+	SpotlightIntensityScale = 1.0f;
+	PointlightIntensityScale = 1.0f;
 	LightCastShadow = false;
 	UseDynamicOcclusion = false;
 	LensRadius = 10.0f;
@@ -135,12 +135,12 @@ void ADMXFixtureActor::FeedFixtureData()
 	}
 
 	// Set lights
-	SpotLight->SetIntensity(LightIntensityMax);
+	SpotLight->SetIntensity(LightIntensityMax * SpotlightIntensityScale);
 	SpotLight->SetTemperature(LightColorTemp);
 	SpotLight->SetCastShadows(LightCastShadow);
 	SpotLight->SetAttenuationRadius(LightDistanceMax);
 
-	PointLight->SetIntensity(LightIntensityMax);
+	PointLight->SetIntensity(LightIntensityMax * PointlightIntensityScale);
 	PointLight->SetTemperature(LightColorTemp);
 	PointLight->SetCastShadows(LightCastShadow);
 	PointLight->SetAttenuationRadius(LightDistanceMax);
