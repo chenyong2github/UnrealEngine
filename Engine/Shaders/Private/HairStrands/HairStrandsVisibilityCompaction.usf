@@ -161,7 +161,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	GroupMemoryBarrierWithGroupSync();
 	// Now notify how many nodes this thread wants to allocate
 	uint PixelDataSubOffsetInStorage = 0; 
-	uint PixelRenderNodecount = min(PixelNodeCount, PPLL_MAX_RENDER_NODE_COUNT);
+	uint PixelRenderNodecount = min(PixelNodeCount, uint(PPLL_MAX_RENDER_NODE_COUNT));
 	InterlockedAdd(AllocationNodeCount, PixelRenderNodecount, PixelDataSubOffsetInStorage);
 	GroupMemoryBarrierWithGroupSync();
 	// Now allocate all the nodes for this group contiguously in memory
@@ -253,7 +253,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		float2 VelocityOutput = 0;
 		if (VelocityType == VELOCITY_TYPE_AVG)
 		{
-			VelocityOutput = AverageVelocity / max(ValidVelocityCount, 1);
+			VelocityOutput = AverageVelocity / max(ValidVelocityCount, 1u);
 		}
 		else if (VelocityType == VELOCITY_TYPE_CLOSEST)
 		{
@@ -798,7 +798,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			float2 VelocityOutput = 0;
 			if (VelocityType == VELOCITY_TYPE_AVG)
 			{
-				VelocityOutput = EncodeVelocityToTexture(float3(AverageVelocity / max(ValidVelocityCount, 1), 0.0)).xy;
+				VelocityOutput = EncodeVelocityToTexture(float3(AverageVelocity / (float)max(ValidVelocityCount, 1u), 0.0)).xy;
 			}
 			else if (VelocityType == VELOCITY_TYPE_CLOSEST)
 			{

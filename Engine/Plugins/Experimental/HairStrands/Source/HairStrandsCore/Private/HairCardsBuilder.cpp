@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "HairCardsBuilder.h"
+#include "HairStrandsCore.h"
 #include "HairStrandsDatas.h"
 #include "HairCardsDatas.h"
 
@@ -20,19 +21,21 @@
 #include "Misc/ScopedSlowTask.h"
 #include "CommonRenderResources.h"
 #include "Engine/StaticMesh.h"
+#include "MeshAttributes.h"
+#include "StaticMeshAttributes.h"
+
+#if WITH_EDITOR
 
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(push)
 #pragma warning(disable:6294) // Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed.
 #endif
-PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/SparseLU>
 THIRD_PARTY_INCLUDES_END
-PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(pop)
 #endif
@@ -54,176 +57,6 @@ static FAutoConsoleVariableRef CVarHairCardsDynamicAtlasRefresh(TEXT("r.HairStra
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FHairCardAtlasTextureVS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FHairCardAtlasTextureVS);
-	SHADER_USE_PARAMETER_STRUCT(FHairCardAtlasTextureVS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntPoint, AtlasResolution)
-		SHADER_PARAMETER(uint32, VertexCount)
-
-		SHADER_PARAMETER_SRV(Buffer, VertexBuffer)
-		SHADER_PARAMETER_SRV(Buffer, UVsBuffer)
-		SHADER_PARAMETER_SRV(Buffer, NormalsBuffer)
-		SHADER_PARAMETER_SRV(Buffer, CardRectBuffer)
-		SHADER_PARAMETER_SRV(Buffer, CardItToClusterBuffer)
-		SHADER_PARAMETER_SRV(Buffer, ClusterIdToVerticesBuffer)
-		SHADER_PARAMETER_SRV(Buffer, ClusterBoundBuffer)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_VERTEX"), 1);
-	}
-};
-
-class FHairCardAtlasTexturePS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FHairCardAtlasTexturePS);
-	SHADER_USE_PARAMETER_STRUCT(FHairCardAtlasTexturePS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
-		//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
-		SHADER_PARAMETER(FIntPoint, AtlasResolution)
-		SHADER_PARAMETER(uint32, VertexCount)
-		SHADER_PARAMETER(uint32, BoundCount)
-		SHADER_PARAMETER(uint32, DebugCardIndex)
-
-		SHADER_PARAMETER(float, InVF_Radius)
-		SHADER_PARAMETER(float, InVF_Length)
-		SHADER_PARAMETER(FVector, InVF_PositionOffset)
-		SHADER_PARAMETER_SRV(Buffer, InVF_PositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer, InVF_AttributeBuffer)
-
-		SHADER_PARAMETER_SRV(Buffer, VertexBuffer)
-		SHADER_PARAMETER_SRV(Buffer, UVsBuffer)
-		SHADER_PARAMETER_SRV(Buffer, NormalsBuffer)
-		SHADER_PARAMETER_SRV(Buffer, CardRectBuffer)
-		SHADER_PARAMETER_SRV(Buffer, CardItToClusterBuffer)
-		SHADER_PARAMETER_SRV(Buffer, ClusterIdToVerticesBuffer)
-		SHADER_PARAMETER_SRV(Buffer, ClusterBoundBuffer)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_PIXEL"), 1);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FHairCardAtlasTextureVS, "/Engine/Private/HairStrands/HairCardsGeneration.usf", "MainVS", SF_Vertex);
-IMPLEMENT_GLOBAL_SHADER(FHairCardAtlasTexturePS, "/Engine/Private/HairStrands/HairCardsGeneration.usf", "MainPS", SF_Pixel);
-
-static void AddHairCardAtlasTexturePass(
-	FRDGBuilder& GraphBuilder,
-	const FShaderDrawDebugData* ShaderDrawData,
-	const uint32 VertexCount,
-	const uint32 PrimitiveCount,
-	const uint32 BoundCount,
-	FRHIIndexBuffer* InCardsIndexBuffer,
-	FRHIShaderResourceView* InCardsVertexBuffer,
-	FRHIShaderResourceView* InCardsUVsBuffer,
-	FRHIShaderResourceView* InCardsNormalsBuffer,
-	FRHIShaderResourceView* InCardsRectBuffer,
-	FRHIShaderResourceView* InCardItToClusterBuffer,
-	FRHIShaderResourceView* InClusterIdToVerticesBuffer,
-	FRHIShaderResourceView* InClusterBoundBuffer,
-
-	FRHIShaderResourceView* InHairStrands_PositionBuffer,
-	FRHIShaderResourceView* InHairStrands_AttributeBuffer,
-	FVector InHairStrands_PositionOffset,
-	float InHairStrands_Radius,
-	float InHairStrands_Length,
-
-	FRDGTextureRef OutDepthTexture,
-	FRDGTextureRef OutTangentTexture,
-	FRDGTextureRef OutCoverageTexture,
-	FRDGTextureRef OutAttributeTexture)
-{
-	const FIntPoint AtlasResolution = OutDepthTexture->Desc.Extent;
-
-
-	FHairCardAtlasTexturePS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairCardAtlasTexturePS::FParameters>();
-	ParametersPS->AtlasResolution = AtlasResolution;
-	ParametersPS->VertexCount = VertexCount;
-	ParametersPS->BoundCount = BoundCount;
-	ParametersPS->DebugCardIndex = GHairCardsDebugIndex;
-	ParametersPS->VertexBuffer = InCardsVertexBuffer;
-	ParametersPS->UVsBuffer = InCardsUVsBuffer;
-	ParametersPS->NormalsBuffer = InCardsNormalsBuffer;
-	ParametersPS->CardRectBuffer = InCardsRectBuffer;
-	ParametersPS->CardItToClusterBuffer = InCardItToClusterBuffer;
-	ParametersPS->ClusterIdToVerticesBuffer = InClusterIdToVerticesBuffer;
-	ParametersPS->ClusterBoundBuffer = InClusterBoundBuffer;
-
-	ParametersPS->InVF_PositionBuffer = InHairStrands_PositionBuffer;
-	ParametersPS->InVF_AttributeBuffer = InHairStrands_AttributeBuffer;
-	ParametersPS->InVF_PositionOffset = InHairStrands_PositionOffset;
-	ParametersPS->InVF_Radius = InHairStrands_Radius;
-	ParametersPS->InVF_Length = InHairStrands_Length;
-
-	if (ShaderDrawData)
-	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, ParametersPS->ShaderDrawParameters);
-		//ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
-	}
-
-	ParametersPS->RenderTargets[0] = FRenderTargetBinding(OutDepthTexture, ERenderTargetLoadAction::EClear);
-	ParametersPS->RenderTargets[1] = FRenderTargetBinding(OutTangentTexture, ERenderTargetLoadAction::EClear);
-	ParametersPS->RenderTargets[2] = FRenderTargetBinding(OutCoverageTexture, ERenderTargetLoadAction::EClear);
-	ParametersPS->RenderTargets[3] = FRenderTargetBinding(OutAttributeTexture, ERenderTargetLoadAction::EClear);
-
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-	TShaderMapRef<FHairCardAtlasTextureVS> VertexShader(ShaderMap);
-	TShaderMapRef<FHairCardAtlasTexturePS> PixelShader(ShaderMap);
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairCardsAtlasTexturePS"),
-		ParametersPS,
-		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
-		[ParametersPS, VertexShader, PixelShader, InCardsIndexBuffer, VertexCount, PrimitiveCount, AtlasResolution](FRHICommandList& RHICmdList)
-		{
-			FHairCardAtlasTextureVS::FParameters ParametersVS;
-			ParametersVS.AtlasResolution			= ParametersPS->AtlasResolution;
-			ParametersVS.VertexCount				= ParametersPS->VertexCount;
-			ParametersVS.VertexBuffer				= ParametersPS->VertexBuffer;
-			ParametersVS.UVsBuffer					= ParametersPS->UVsBuffer;
-			ParametersVS.NormalsBuffer				= ParametersPS->NormalsBuffer;
-			ParametersVS.CardRectBuffer				= ParametersPS->CardRectBuffer;
-			ParametersVS.CardItToClusterBuffer		= ParametersPS->CardItToClusterBuffer;
-			ParametersVS.ClusterIdToVerticesBuffer	= ParametersPS->ClusterIdToVerticesBuffer;
-			ParametersVS.ClusterBoundBuffer			= ParametersPS->ClusterBoundBuffer;
-
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
-
-			RHICmdList.SetViewport(0, 0, 0.0f, AtlasResolution.X, AtlasResolution.Y, 1.0f);
-			RHICmdList.SetStreamSource(0, nullptr, 0);
-			//RHICmdList.DrawPrimitive(0, PrimitiveCount * 3, 1);
-			RHICmdList.DrawIndexedPrimitive(InCardsIndexBuffer, 0, 0, VertexCount, 0, PrimitiveCount, 1);
-			
-		});
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-	
 class FHairCardAtlasTextureRectVS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairCardAtlasTextureRectVS);
@@ -238,7 +71,7 @@ class FHairCardAtlasTextureRectVS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, Atlas_RectResolution)
 	END_SHADER_PARAMETER_STRUCT()
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -273,7 +106,7 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -1195,9 +1028,8 @@ namespace HairCards
 				SelectFinalGuides(ClosestGuides, Metrics1);
 			}
 
-			check(ClosestGuides.Indices[0] >= 0);
-			check(ClosestGuides.Indices[1] >= 0);
-			check(ClosestGuides.Indices[2] >= 0);
+			// Check there is at least one valid guide
+			check(ClosestGuides.Indices[0] != FClosestGuides::Invalid || ClosestGuides.Indices[1] != FClosestGuides::Invalid || ClosestGuides.Indices[2] != FClosestGuides::Invalid);
 
 			return ClosestGuides;
 		}
@@ -1226,9 +1058,8 @@ namespace HairCards
 		FClosestGuides ClosestGuides;
 		SelectFinalGuides(ClosestGuides, Metrics);
 
-		check(ClosestGuides.Indices[0] >= 0);
-		check(ClosestGuides.Indices[1] >= 0);
-		check(ClosestGuides.Indices[2] >= 0);
+		// Check there is at least one valid guide
+		check(ClosestGuides.Indices[0] != FClosestGuides::Invalid || ClosestGuides.Indices[1] != FClosestGuides::Invalid || ClosestGuides.Indices[2] != FClosestGuides::Invalid);
 
 		return ClosestGuides;
 	}
@@ -1482,18 +1313,23 @@ namespace HairCards
 		const FHairStrandsDatas& RenStrandsData,
 		const FHairStrandsDatas& InSimStrandsData,
 		FHairStrandsClusters& OutClusters,
-		const FHairCardsClusterSettings& InSettings)
+		const FHairCardsGeometrySettings& InSettings)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairCards::BuildClusterData);
 
 		FHairStrandsDatas SimStrandsData;
-		if (InSettings.bUseGuide)
+		if (InSettings.GenerationType == EHairCardsGenerationType::UseGuides)
 		{
 			SimStrandsData = InSimStrandsData;
 		}
+		else if (InSettings.GenerationType == EHairCardsGenerationType::CardsCount)
+		{
+			const float DecimationFactor = FMath::Clamp(InSettings.CardsCount / float(RenStrandsData.GetNumCurves()), 0.f, 1.f);
+			GenerateGuides(RenStrandsData, FMath::Clamp(DecimationFactor, 0.f, 1.f), SimStrandsData);
+		}
 		else
 		{
-			GenerateGuides(RenStrandsData, FMath::Clamp(InSettings.ClusterDecimation, 0.f, 1.f), SimStrandsData);
+			check(false); // Not implemented
 		}
 
 		typedef TArray<FHairRoot> FRoots;
@@ -1509,7 +1345,7 @@ namespace HairCards
 			ExtractRoots(RenStrandsData, RenRoots, RenMinBound, RenMaxBound);
 			ExtractRoots(SimStrandsData, SimRoots, SimMinBound, SimMaxBound);
 
-			if (InSettings.Type == EHairCardsClusterType::Low)
+			if (InSettings.ClusterType == EHairCardsClusterType::Low)
 			{
 				// Build a conservative bound, to insure all queries will fall 
 				// into the grid volume.
@@ -1568,11 +1404,11 @@ namespace HairCards
 				SlowTask.EnterProgressFrame(CurrentCompletedTasks, TextBuilder.ToText());
 			}
 
-			if (InSettings.Type == EHairCardsClusterType::Low)
+			if (InSettings.ClusterType == EHairCardsClusterType::Low)
 			{
 				ClosestGuides[RenCurveIndex] = RootsGrid.FindClosestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData);
 			}
-			else // (InSettings.Type == EHairCardsClusterType::High)
+			else // (InSettings.ClusterType == EHairCardsClusterType::High)
 			{
 				ClosestGuides[RenCurveIndex] = FindBestRoots(RenCurveIndex, RenRoots, SimRoots, RenStrandsData, SimStrandsData);
 			}
@@ -1588,24 +1424,42 @@ namespace HairCards
 			}
 		});
 
+		// Insure the min length threshold is lower than the max curves length, to generate at least one cluster. 
+		// This is arbitrarely set to 95% of the longest strands
+		float MinLengthTreshold = FMath::Min(InSettings.MinCardsLength, SimStrandsData.StrandsCurves.MaxLength * 0.95f);
+		float MaxLengthTreshold = InSettings.MaxCardsLength > 0 ? FMath::Min(InSettings.MaxCardsLength, SimStrandsData.StrandsCurves.MaxLength) : SimStrandsData.StrandsCurves.MaxLength;
+
 		// Compute the number of clusters
-		// Some cluster might have no curve this is why we remove them
+		// * Some cluster might have no curve this is why we remove them
+		// * Cluster/guide which are shorter than a certain length are cut
 		const uint32 GuideCount = SimStrandsData.GetNumCurves();
 		TArray<int32> GuideIndexToClusterIndex;
 		GuideIndexToClusterIndex.SetNum(GuideCount);
 		{
 			uint32 ValidClusterCount = 0;
-			for (uint32 GuideIndex = 0; GuideIndex < GuideCount; ++GuideIndex)
-			{				
-				if (ClusterCurveIndexCount[GuideIndex] > 0)
-				{
-					GuideIndexToClusterIndex[GuideIndex] = ValidClusterCount;
-					++ValidClusterCount;
+			while (ValidClusterCount == 0)
+			{
+				for (uint32 GuideIndex = 0; GuideIndex < GuideCount; ++GuideIndex)
+				{				
+					const float GuideLength = SimStrandsData.StrandsCurves.CurvesLength[GuideIndex] * SimStrandsData.StrandsCurves.MaxLength;
+					const bool bIsCurveValid = GuideLength >= MinLengthTreshold && GuideLength <= MaxLengthTreshold;
+					if (bIsCurveValid && ClusterCurveIndexCount[GuideIndex] > 0)
+					{
+						GuideIndexToClusterIndex[GuideIndex] = ValidClusterCount;
+						++ValidClusterCount;
+					}
+					else
+					{
+						GuideIndexToClusterIndex[GuideIndex] = -1;
+					}
 				}
-				else
+
+				// If we haven't found a single valid cluster, slowly decrease/increase the min/max length thresholds
+				if (ValidClusterCount == 0)
 				{
-					GuideIndexToClusterIndex[GuideIndex] = -1;
-				}
+					MinLengthTreshold = MinLengthTreshold > 0 ? MinLengthTreshold * 0.1f : 0;
+					MaxLengthTreshold = MaxLengthTreshold < SimStrandsData.StrandsCurves.MaxLength ? FMath::Min(SimStrandsData.StrandsCurves.MaxLength, MaxLengthTreshold * 1.1f) : SimStrandsData.StrandsCurves.MaxLength;
+				}				
 			}
 			ClusterCount = FMath::Min(ValidClusterCount, uint32(FMath::Max(1, GHairCardsMaxClusterCount)));
 			OutClusters.SetNum(ClusterCount);
@@ -1618,7 +1472,9 @@ namespace HairCards
 			uint32 Offset = 0;
 			for (uint32 GuideIndex = 0; GuideIndex < GuideCount; ++GuideIndex)
 			{
-				if (ClusterCurveIndexCount[GuideIndex] > 0)
+				const float GuideLength = SimStrandsData.StrandsCurves.CurvesLength[GuideIndex] * SimStrandsData.StrandsCurves.MaxLength;
+				const bool bIsCurveValid = GuideLength >= MinLengthTreshold && GuideLength <= MaxLengthTreshold;
+				if (bIsCurveValid && ClusterCurveIndexCount[GuideIndex] > 0)
 				{
 					OutClusters.CurveOffset[ClusterIt] = Offset;
 					Offset += ClusterCurveIndexCount[GuideIndex];
@@ -1645,6 +1501,7 @@ namespace HairCards
 				}
 			}			
 		}
+
 		// Store the cluster guide points
 		uint32 ClusterOffset = 0;
 		OutClusters.GuidePoints.SetNum(SimStrandsData.GetNumPoints());
@@ -1951,15 +1808,19 @@ namespace HairCards
 		B = B0.Extent(B_Axis);
 	}
 
-	static void DecimateCurve(const float OutCount, TArray<FVector>& OutPoints)
+	static void DecimateCurve(const float InAngularThresholdInDegree, const float OutTargetCount, TArray<FVector>& OutPoints)
 	{
 		check(OutPoints.Num() > 2);
-		check(OutCount >= 2 && OutCount <= OutPoints.Num());
+		check(OutTargetCount >= 2 && OutTargetCount <= OutPoints.Num());
 			
-		while (OutPoints.Num() > OutCount)
+		const float AngularThresholdInRad = FMath::DegreesToRadians(InAngularThresholdInDegree);
+
+		// 'bCanDecimate' tracks if it is possible to reduce the remaining vertives even more while respecting the user angular constrain
+		bool bCanDecimate = true;
+		while (OutPoints.Num() > OutTargetCount && bCanDecimate)
 		{
 			float MinError = FLT_MAX;
-			uint32 ElementToRemove = 0;
+			int32 ElementToRemove = -1;
 			const uint32 Count = OutPoints.Num();
 			for (uint32 IndexIt = 1; IndexIt < Count - 1; ++IndexIt)
 			{
@@ -1969,13 +1830,28 @@ namespace HairCards
 
 				const float Area = FVector::CrossProduct(P0 - P1, P2 - P1).Size() * 0.5f;
 
-				if (Area < MinError)
+				//     P0 .       . P2
+				//         \Inner/
+				//   ` .    \   /
+				// Thres(` . \^/ ) Angle
+				//    --------.---------
+				//            P1
+				const FVector V0 = (P0 - P1).GetSafeNormal();
+				const FVector V1 = (P2 - P1).GetSafeNormal();
+				const float InnerAngle = FMath::Abs(FMath::Acos(FVector::DotProduct(V0, V1)));
+				const float Angle = (PI - InnerAngle) * 0.5f;
+
+				if (Area < MinError && Angle < AngularThresholdInRad)
 				{
 					MinError = Area;
 					ElementToRemove = IndexIt;
 				}
 			}
-			OutPoints.RemoveAt(ElementToRemove);
+			bCanDecimate = ElementToRemove >= 0;
+			if (bCanDecimate)
+			{
+				OutPoints.RemoveAt(ElementToRemove);
+			}
 		}
 	}
 
@@ -1989,7 +1865,7 @@ namespace HairCards
 		// Generate cluster only based on proximity for now. This will be iterativaly improved overtime
 		// Reuse the code from the interpolation code. 
 		// TODO: change this for https://www.lvdiwang.com/publications/hairsynthesis/2009_hairsynthesis.pdf
-		BuildClusterData(In, InSim, Out, InSettings.ClusterSettings);
+		BuildClusterData(In, InSim, Out, InSettings.GeometrySettings);
 
 		// For each cluster 
 		// compute the 'guide'/'center' strands in the middle of the strands
@@ -2070,11 +1946,12 @@ namespace HairCards
 				const uint32 OutCount = FMath::CeilToInt(FMath::Clamp(TotalLength / InSettings.GeometrySettings.MinSegmentLength, 2.f, float(BoundPoints.Num())));
 				if (OutCount < GuidePointCount)
 				{
-					DecimateCurve(OutCount, BoundPoints);
+					DecimateCurve(InSettings.GeometrySettings.AngularThreshold, OutCount, BoundPoints);
 				}
 				VertexCount = BoundPoints.Num();
 
-				const float OrientationU = FMath::Clamp(InSettings.GeometrySettings.UseCurveOrientation, 0.f, 1.0f);
+				const float UseCurveOrientation = 1;
+				const float OrientationU = FMath::Clamp(UseCurveOrientation, 0.f, 1.0f);
 
 				FVector PrevN;
 				for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
@@ -2160,7 +2037,7 @@ namespace HairCards
 		FHairCardsProceduralGeometry& OutCards)
 	{
 		const uint32 ClusterCount = InClusters.GetNum();
-		const uint32 CardsPerCluster = InSettings.GeometrySettings.CardsPerCluster;
+		const uint32 CardsPerCluster = 1;
 		OutCards.SetNum(ClusterCount * CardsPerCluster);
 
 		for (uint32 ClusterIt = 0; ClusterIt < ClusterCount; ++ClusterIt)
@@ -2459,7 +2336,7 @@ namespace HairCards
 		{
 			uint32 StartDescriptorIt = DescriptorIt;
 			uint32 EndDescriptorIt = DescriptorIt;
-			while (EndDescriptorIt < DescriptorCount && Descriptors[EndDescriptorIt].MaxLength > NextBucketLength)
+			while (EndDescriptorIt < DescriptorCount && Descriptors[EndDescriptorIt].MaxLength >= NextBucketLength)
 			{
 				++EndDescriptorIt;
 				++DescriptorIt;
@@ -2559,11 +2436,160 @@ namespace HairCards
 		}
 	}
 
+	static bool CreateCardsGuides(
+		const FHairCardsGeometry& InCards,
+		FHairStrandsDatas& OutGuides,
+		TArray<float>& OutCardLengths
+	)
+	{
+		// Build the guides from the triangles that form the card
+		// The guides are derived from the line that passes through the middle of each quad
+
+		const uint32 NumCards = InCards.PointOffsets.Num();
+		const uint32 MaxGuidePoints = InCards.Indices.Num() / 3;
+		OutCardLengths.SetNum(NumCards);
+
+		OutGuides.StrandsPoints.PointsPosition.Reserve(MaxGuidePoints);
+		OutGuides.StrandsPoints.PointsRadius.Reserve(MaxGuidePoints);
+		OutGuides.StrandsPoints.PointsCoordU.Reserve(MaxGuidePoints);
+		OutGuides.StrandsPoints.PointsBaseColor.Reserve(MaxGuidePoints);
+		OutGuides.StrandsPoints.PointsRoughness.Reserve(MaxGuidePoints);
+		OutGuides.StrandsCurves.SetNum(NumCards);
+		OutGuides.BoundingBox.Init();
+
+		const float GuideRadius = 0.01f;
+
+		uint32 TriangleIVertexIndices[3];
+		FVector4 TriangleUVs[3];
+		for (uint32 CardIt = 0; CardIt < NumCards; ++CardIt)
+		{
+			const uint32 NumTriangles = InCards.IndexCounts[CardIt] / 3;
+			const uint32 VertexOffset = InCards.IndexOffsets[CardIt];
+
+			TArray<FVector> CenterPoints;
+			CenterPoints.Reserve(NumTriangles);
+			for (uint32 TriangleIt = 0; TriangleIt < NumTriangles; ++TriangleIt)
+			{
+				const uint32 VertexIndexOffset = VertexOffset + TriangleIt * 3;
+				for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
+				{
+					const uint32 VertexIndex = InCards.Indices[VertexIndexOffset + VertexIt];
+					TriangleIVertexIndices[VertexIt] = VertexIndex;
+					TriangleUVs[VertexIt] = InCards.UVs[VertexIndex];
+				}
+
+				// For each triangle, find the edge that is perpendicular to the guide
+				// by using the UV as a hint, with the guide being perpendicular to U
+				uint32 V0 = MAX_uint32;
+				uint32 V1 = MAX_uint32;
+				uint32 V2 = MAX_uint32;
+				if (TriangleUVs[0].X != TriangleUVs[1].X && TriangleUVs[0].Y == TriangleUVs[1].Y)
+				{
+					V0 = 0;
+					V1 = 1;
+					V2 = 2;
+				}
+				else if (TriangleUVs[0].X != TriangleUVs[2].X && TriangleUVs[0].Y == TriangleUVs[2].Y)
+				{
+					V0 = 0;
+					V1 = 2;
+					V2 = 1;
+				}
+				else if (TriangleUVs[1].X != TriangleUVs[2].X && TriangleUVs[1].Y == TriangleUVs[2].Y)
+				{
+					V0 = 1;
+					V1 = 2;
+					V2 = 0;
+				}
+
+				FVector CenterPoint = FVector::ZeroVector;
+				bool bFoundPerpendicularEdge = V0 != MAX_uint32;
+				if (bFoundPerpendicularEdge)
+				{
+					// The guide point is the middle of the edge formed by V0 and V1
+					const FVector P0 = InCards.Positions[TriangleIVertexIndices[V0]];
+					const FVector P1 = InCards.Positions[TriangleIVertexIndices[V1]];
+					CenterPoint = (P0 + P1) / 2.f;
+				}
+				else
+				{
+					// No relation was found between the vertices UV, so the geometry is probably not usable as cards
+					// The guide point is at the center of the triangle
+					const FVector P0 = InCards.Positions[TriangleIVertexIndices[0]];
+					const FVector P1 = InCards.Positions[TriangleIVertexIndices[1]];
+					const FVector P2 = InCards.Positions[TriangleIVertexIndices[2]];
+					CenterPoint = (P0 + P1 + P2) / 3.f;
+				}
+
+				// Don't add duplicate points which are the points on the edge shared between 2 connected quads
+				if (CenterPoints.Num() == 0 || !CenterPoints.Last().Equals(CenterPoint))
+				{
+					CenterPoints.Add(CenterPoint);
+				}
+
+				// Handle guide for single triangle card as from the center point of the segment to the other vertex
+				if (NumTriangles == 1)
+				{
+					CenterPoints.Add(InCards.Positions[TriangleIVertexIndices[V2]]);
+				}
+			}
+
+			// Compute and store the guide's total length
+			const uint32 PointCount = CenterPoints.Num();
+			float TotalLength = 0.f;
+			for (uint32 PointIt = 0; PointIt < PointCount - 1; ++PointIt)
+			{
+				TotalLength += (CenterPoints[PointIt + 1] - CenterPoints[PointIt]).Size();
+			}
+			OutCardLengths[CardIt] = TotalLength;
+
+			const uint32 PointOffset = OutGuides.StrandsPoints.PointsPosition.Num();
+
+			OutGuides.StrandsCurves.CurvesCount[CardIt] = PointCount;
+			OutGuides.StrandsCurves.CurvesOffset[CardIt] = PointOffset;
+			OutGuides.StrandsCurves.CurvesLength[CardIt] = TotalLength;
+			OutGuides.StrandsCurves.CurvesRootUV[CardIt] = FVector2D(0, 0);
+			OutGuides.StrandsCurves.MaxLength = FMath::Max(OutGuides.StrandsCurves.MaxLength, TotalLength);
+			OutGuides.StrandsCurves.MaxRadius = GuideRadius;
+
+			float CurrentLength = 0;
+			for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
+			{
+				const FVector P0 = CenterPoints[PointIt];
+
+				OutGuides.BoundingBox += P0;
+
+				OutGuides.StrandsPoints.PointsPosition.Add(P0);
+				OutGuides.StrandsPoints.PointsBaseColor.Add(FVector::ZeroVector);
+				OutGuides.StrandsPoints.PointsRoughness.Add(0);
+				OutGuides.StrandsPoints.PointsCoordU.Add(FMath::Clamp(CurrentLength / TotalLength, 0.f, 1.f));
+				OutGuides.StrandsPoints.PointsRadius.Add(1);
+
+				// Simple geometric normal based on adjacent vertices
+				if (PointIt < PointCount - 1)
+				{
+					const FVector P1 = CenterPoints[PointIt + 1];
+					const float SegmentLength = (P1 - P0).Size();
+					CurrentLength += SegmentLength;
+				}
+			}
+		}
+
+		const float MaxLength = OutGuides.StrandsCurves.MaxLength > 0 ? OutGuides.StrandsCurves.MaxLength : 1;
+		for (uint32 CardIt = 0; CardIt < NumCards; ++CardIt)
+		{
+			OutGuides.StrandsCurves.CurvesLength[CardIt] /= MaxLength;
+		}
+
+		return true;
+	}
+
 	// Build interpolation data between the cards geometry and the guides
 	void CreateCardsInterpolation(
-		const FHairCardsProceduralGeometry& InCards,
+		const FHairCardsGeometry& InCards,
 		const FHairStrandsDatas& InGuides,
-		FHairCardsInterpolationDatas& Out)
+		FHairCardsInterpolationDatas& Out,
+		const TArray<float>& CardLengths)
 	{		
 		const uint32 TotalVertexCount = InCards.Positions.Num();
 		Out.SetNum(TotalVertexCount);
@@ -2579,7 +2605,7 @@ namespace HairCards
 
 			const uint32 VertexOffset = InCards.PointOffsets[CardIt];
 			const uint32 VertexCount = InCards.PointCounts[CardIt];
-			const float CardLength = InCards.Lengths[CardIt];
+			const float CardLength = CardLengths[CardIt];
 
 			for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
 			{
@@ -2617,6 +2643,14 @@ namespace HairCards
 				Out.PointsSimCurvesVertexLerp[VertexIndex] = GuideLerp;
 			}
 		}
+	}
+
+	void CreateCardsInterpolation(
+		const FHairCardsProceduralGeometry& InCards,
+		const FHairStrandsDatas& InGuides,
+		FHairCardsInterpolationDatas& Out)
+	{
+		CreateCardsInterpolation(InCards, InGuides, Out, InCards.Lengths);
 	}
 
 	static void CreateCardsAtlas(
@@ -2887,7 +2921,7 @@ namespace HairCards
 			}
 		}
 		check(MaxResolution <= 16384);
-		InAtlas.Resolution = AtlasResolution;
+		InAtlas.Resolution = FIntPoint(FMath::RoundUpToPowerOfTwo(AtlasResolution.X), FMath::RoundUpToPowerOfTwo(AtlasResolution.Y));
 
 		// Transfer the packing information from the sorting struct back to the cluster 
 		for (FAtlasRect& R : AtlasRects)
@@ -2927,13 +2961,67 @@ namespace HairCards
 
 namespace FHairCardsBuilder
 {
+
+FString GetVersion()
+{
+	// Important to update the version when cards building or importing changes
+	return TEXT("1");
+}
+
+void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
+{
+	if (!Out)
+	{
+		return;
+	}
+
+	FTextureFormatSettings FormatSettings;
+	FormatSettings.CompressionNone = true;
+	FormatSettings.CompressionSettings = TC_Masks;
+	FormatSettings.SRGB = false;
+
+#if WITH_EDITORONLY_DATA
+	Out->Source.Init(Resolution.X, Resolution.Y, 1, MipCount, SourceFormat, nullptr);
+#endif // #if WITH_EDITORONLY_DATA
+	Out->LODGroup = TEXTUREGROUP_EffectsNotFiltered; // Mipmap filtering, no compression
+#if WITH_EDITORONLY_DATA
+	Out->SetLayerFormatSettings(0, FormatSettings);
+#endif // #if WITH_EDITORONLY_DATA
+
+	Out->PlatformData = new FTexturePlatformData();
+	Out->PlatformData->SizeX = Resolution.X;
+	Out->PlatformData->SizeY = Resolution.Y;
+	Out->PlatformData->PixelFormat = PixelFormat;
+
+	Out->UpdateResource();
+}
+
+void AllocateAtlasTexture_Depth(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount)		{ AllocateAtlasTexture(Out, Resolution, MipCount, PF_R8G8B8A8, ETextureSourceFormat::TSF_BGRA8); }
+void AllocateAtlasTexture_Coverage(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount)	{ AllocateAtlasTexture(Out, Resolution, MipCount, PF_R8G8B8A8, ETextureSourceFormat::TSF_BGRA8); }
+void AllocateAtlasTexture_Tangent(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount)	{ AllocateAtlasTexture(Out, Resolution, MipCount, PF_B8G8R8A8, ETextureSourceFormat::TSF_BGRA8); }
+void AllocateAtlasTexture_Attribute(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount)	{ AllocateAtlasTexture(Out, Resolution, MipCount, PF_B8G8R8A8, ETextureSourceFormat::TSF_BGRA8); }
+
+void AllocateAtlasTexture(UTexture2D*& Out, const FIntPoint& InResolution, const FString& GroomPackageName, const FString& Suffix, TTextureAllocation TextureAllocation)
+{
+	if (!Out)
+	{
+		Out = FHairStrandsCore::CreateTexture(GroomPackageName, InResolution, Suffix, TextureAllocation);
+	}
+	else if (Out->GetSizeX() != InResolution.X || Out->GetSizeY() != InResolution.Y)
+	{
+		 FHairStrandsCore::ResizeTexture(Out, InResolution, TextureAllocation);
+	}
+}
+
 void BuildGeometry(
+	const FString& LODName,
 	const FHairStrandsDatas& InRen, 
 	const FHairStrandsDatas& InSim,
 	const FHairGroupsProceduralCards& Settings,
 	FHairCardsProceduralDatas& Out,
 	FHairStrandsDatas& OutGuides,
-	FHairCardsInterpolationDatas& OutInterpolation)
+	FHairCardsInterpolationDatas& OutInterpolation,
+	FHairGroupCardsTextures& OutTextures)
 {
 	// Basic algo:
 	// * Geometry
@@ -2986,8 +3074,13 @@ void BuildGeometry(
 		HairCards::CreateCardsInterpolation(Out.Cards, OutGuides, OutInterpolation);
 		check(Out.Cards.GetNum() > 0);
 
-		// Atlas texture is generated later on
+		AllocateAtlasTexture(OutTextures.DepthTexture,		Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Depth"), AllocateAtlasTexture_Depth);
+		AllocateAtlasTexture(OutTextures.CoverageTexture,	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Coverage"), AllocateAtlasTexture_Coverage);
+		AllocateAtlasTexture(OutTextures.TangentTexture,	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Tangent"), AllocateAtlasTexture_Tangent);
+		AllocateAtlasTexture(OutTextures.AttributeTexture,	Out.Atlas.Resolution, LODName, TEXT("_CardsAtlas_Attribute"), AllocateAtlasTexture_Attribute);
 	}
+
+	Out.Cards.BoundingBox.Init();
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
 	const uint32 PointCount = Out.Cards.Positions.Num();
@@ -3000,6 +3093,8 @@ void BuildGeometry(
 		Out.RenderData.UVs[PointIt] = Out.Cards.UVs[PointIt];
 		Out.RenderData.Normals[PointIt * 2] = FVector4(Out.Cards.Tangents[PointIt], 0);
 		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4(Out.Cards.Normals[PointIt], 1);
+
+		Out.Cards.BoundingBox += Out.RenderData.Positions[PointIt];
 	}
 
 	const uint32 IndexCount = Out.Cards.Indices.Num();
@@ -3083,9 +3178,11 @@ void BuildGeometry(
 	}
 }
 
-void ImportGeometry(
+bool ImportGeometry(
 	const UStaticMesh* StaticMesh,
-	FHairCardsDatas& Out)
+	FHairCardsDatas& Out,
+	FHairStrandsDatas& OutGuides,
+	FHairCardsInterpolationDatas& OutInterpolationData)
 {
 	const uint32 MeshLODIndex = 0;
 
@@ -3094,13 +3191,20 @@ void ImportGeometry(
 	const uint32 VertexCount = LODData.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 	const uint32 IndexCount = LODData.IndexBuffer.GetNumIndices();
 
+	// Basic sanity check. Need at least one triangle
+	if (IndexCount < 3)
+	{
+		return false;
+	}
+
 	Out.Cards.Positions.SetNum(VertexCount);
 	Out.Cards.Normals.SetNum(VertexCount);
 	Out.Cards.Tangents.SetNum(VertexCount);
 	Out.Cards.UVs.SetNum(VertexCount);
 	Out.Cards.Indices.SetNum(IndexCount);
 
-	// #hair_todo: rebuild the topology to extract cards
+	Out.Cards.BoundingBox.Init();
+
 	for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
 	{
 		const FVector2D VertexUV = LODData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIt, 0);
@@ -3108,11 +3212,70 @@ void ImportGeometry(
 		Out.Cards.UVs[VertexIt] = FVector4(VertexUV.X, VertexUV.Y, 0, 0);
 		Out.Cards.Tangents[VertexIt] = LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIt);
 		Out.Cards.Normals[VertexIt] = LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIt);
+
+		Out.Cards.BoundingBox += Out.Cards.Positions[VertexIt];
 	}
 
-	for (uint32 IndexIt = 0; IndexIt < IndexCount; ++IndexIt)
+	// The offsets always start at 0
+	Out.Cards.PointOffsets.Add(0);
+	Out.Cards.IndexOffsets.Add(0);
+
+	uint32 NumTrianglesInCard = 0;
+	TSet<uint32> IndicesInCard;
+	for (uint32 TriangleIndex = 0, NumTriangles = IndexCount / 3; TriangleIndex < NumTriangles; ++TriangleIndex)
 	{
-		Out.Cards.Indices[IndexIt] = LODData.IndexBuffer.GetIndex(IndexIt);
+		bool bIsConnected = false;
+		uint32 VertexIndex = TriangleIndex * 3;
+
+		uint32 TriangleVertexIndices[3];
+		for (uint32 TriangleVertexIndex = 0; TriangleVertexIndex < 3; ++TriangleVertexIndex)
+		{
+			const uint32 Index = LODData.IndexBuffer.GetIndex(VertexIndex);
+			Out.Cards.Indices[VertexIndex] = Index;
+
+			TriangleVertexIndices[TriangleVertexIndex] = Index;
+
+			// Detect if the current triangle is connected to the previous triangles in the card
+			// Could make the connectedness stronger by looking for shared edge instead of vertex
+			if (IndicesInCard.Contains(Index))
+			{
+				bIsConnected |= true;
+			}
+			VertexIndex++;
+		}
+
+		if (!bIsConnected && NumTrianglesInCard > 0)
+		{
+			// The current triangle is not connected, so consider it as part of another card
+			// Finalize the current card
+			const uint32 NumIndices = NumTrianglesInCard * 3;
+			const uint32 IndexOffset = NumIndices + Out.Cards.IndexOffsets.Last();
+			Out.Cards.IndexCounts.Add(NumIndices);
+			Out.Cards.IndexOffsets.Add(IndexOffset);
+
+			const uint32 PointCount = IndicesInCard.Num();
+			const uint32 PointOffset = PointCount + Out.Cards.PointOffsets.Last();
+
+			Out.Cards.PointOffsets.Add(PointOffset);
+			Out.Cards.PointCounts.Add(PointCount);
+
+			// Setup the new card and add the current triangle vertices to it
+			IndicesInCard.Reset();
+			NumTrianglesInCard = 0;
+		}
+
+		// Add the current triangle vertices to the card
+		for (uint32 TriangleVertexIndex = 0; TriangleVertexIndex < 3; ++TriangleVertexIndex)
+		{
+			IndicesInCard.Add(TriangleVertexIndices[TriangleVertexIndex]);
+		}
+		++NumTrianglesInCard;
+	}
+	// Finalize the last card
+	if (NumTrianglesInCard > 0)
+	{
+		Out.Cards.PointCounts.Add(IndicesInCard.Num());
+		Out.Cards.IndexCounts.Add(NumTrianglesInCard * 3);
 	}
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
@@ -3137,6 +3300,29 @@ void ImportGeometry(
 	Out.DepthTexture = nullptr;
 	Out.TangentTexture = nullptr;
 	Out.CoverageTexture = nullptr;
+	Out.AttributeTexture = nullptr;
+
+	TArray<float> CardLengths;
+	CardLengths.Reserve(Out.Cards.PointOffsets.Num());
+	bool bSuccess = HairCards::CreateCardsGuides(Out.Cards, OutGuides, CardLengths);
+	if (bSuccess)
+	{
+		HairCards::CreateCardsInterpolation(Out.Cards, OutGuides, OutInterpolationData, CardLengths);
+
+		// Fill out the interpolation data
+		OutInterpolationData.RenderData.Interpolation.SetNum(PointCount);
+		for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
+		{
+			const uint32 InterpVertexIndex = OutInterpolationData.PointsSimCurvesVertexIndex[PointIt];
+			const float VertexLerp = OutInterpolationData.PointsSimCurvesVertexLerp[PointIt];
+			FHairCardsInterpolationVertex PackedData;
+			PackedData.VertexIndex = InterpVertexIndex;
+			PackedData.VertexLerp = FMath::Clamp(uint32(VertexLerp * 0xFF), 0u, 0xFFu);
+			OutInterpolationData.RenderData.Interpolation[PointIt] = PackedData;
+		}
+	}
+
+	return bSuccess;
 }
 
 void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out)
@@ -3147,10 +3333,6 @@ void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out)
 	Out.RenderData.Normals = In.RenderData.Normals;
 	Out.RenderData.Indices = In.RenderData.Indices;
 	Out.RenderData.UVs = In.RenderData.UVs;
-
-	Out.DepthTexture = nullptr;
-	Out.TangentTexture = nullptr;
-	Out.CoverageTexture = nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3160,6 +3342,7 @@ struct FCardsAtlasQuery
 	FHairCardsProceduralDatas* ProceduralData = nullptr;
 	FHairCardsRestResource* RestResource = nullptr;
 	FHairCardsProceduralResource* ProceduralResource = nullptr;
+	FHairGroupCardsTextures* Textures = nullptr;
 };
 TQueue<FCardsAtlasQuery> GCardsAtlasQuery;
 
@@ -3167,12 +3350,14 @@ TQueue<FCardsAtlasQuery> GCardsAtlasQuery;
 void BuildTextureAtlas(
 	FHairCardsProceduralDatas* ProceduralData,
 	FHairCardsRestResource* RestResource,
-	FHairCardsProceduralResource* ProceduralResource)
+	FHairCardsProceduralResource* ProceduralResource,
+	FHairGroupCardsTextures* Textures)
 {
 	FCardsAtlasQuery Q;
 	Q.ProceduralData = ProceduralData;
 	Q.RestResource = RestResource;
 	Q.ProceduralResource = ProceduralResource;
+	Q.Textures = Textures;
 	GCardsAtlasQuery.Enqueue(Q);
 }
 
@@ -3183,6 +3368,72 @@ bool HasHairCardsAtlasQueries()
 	return !FHairCardsBuilder::GCardsAtlasQuery.IsEmpty();
 }
 
+static void AddCardsTextureReadbackPass(
+	FRDGBuilder& GraphBuilder,
+	uint32 BytePerPixel,
+	FRDGTextureRef InputTexture,
+	UTexture2D* OutTexture)
+{
+	AddReadbackTexturePass(
+		GraphBuilder,
+		RDG_EVENT_NAME("CopyRDGToTexture2D"),
+		InputTexture,
+	[InputTexture, OutTexture, BytePerPixel](FRHICommandListImmediate& RHICmdList)
+	{
+		const FIntPoint Resolution = InputTexture->Desc.Extent;
+		check(OutTexture->GetSurfaceWidth() == Resolution.X);
+		check(OutTexture->GetSurfaceHeight() == Resolution.Y);
+
+		FRHIResourceCreateInfo CreateInfo;
+		FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
+			InputTexture->Desc.Extent.X,
+			InputTexture->Desc.Extent.Y,
+			InputTexture->Desc.Format,
+			InputTexture->Desc.NumMips,
+			1, TexCreate_CPUReadback, CreateInfo);
+
+		FRHICopyTextureInfo CopyInfo;
+		CopyInfo.NumMips = InputTexture->Desc.NumMips;
+		RHICmdList.CopyTexture(
+			InputTexture->GetRHI(),
+			StagingTexture->GetTexture2D(),
+			CopyInfo);
+
+		// Flush, to ensure that all texture generation is done
+		GDynamicRHI->RHISubmitCommandsAndFlushGPU();
+		GDynamicRHI->RHIBlockUntilGPUIdle();
+
+		// don't think we can mark package as a dirty in the package build
+#if WITH_EDITORONLY_DATA
+		void* InData = nullptr;
+		int32 Width = 0, Height = 0;
+		RHICmdList.MapStagingSurface(StagingTexture, InData, Width, Height);
+		uint8* InDataRGBA8 = (uint8*)InData;
+
+		uint8 MipIndex = 0;
+		const uint32 PixelCount = Resolution.X * Resolution.Y;
+		const uint32 SizeInBytes = BytePerPixel * PixelCount;
+		uint8* OutData = OutTexture->Source.LockMip(0);
+		// Since the source and target format are different we need to swizzle the channel
+		// RGBA8 -> TSF_BGRA8
+		for (uint32 PixelIt = 0; PixelIt < PixelCount; ++PixelIt)
+		{
+			const uint32 PixelOffset = PixelIt * 4;
+			OutData[PixelOffset + 0] = InDataRGBA8[PixelOffset + 2];
+			OutData[PixelOffset + 1] = InDataRGBA8[PixelOffset + 1];
+			OutData[PixelOffset + 2] = InDataRGBA8[PixelOffset + 0];
+			OutData[PixelOffset + 3] = InDataRGBA8[PixelOffset + 3];
+		}
+		OutTexture->Source.UnlockMip(0);
+
+		RHICmdList.UnmapStagingSurface(StagingTexture);
+
+		OutTexture->DeferCompression = true; // This forces reloading data when the asset is saved
+		OutTexture->MarkPackageDirty();
+#endif // #if WITH_EDITORONLY_DATA
+	});
+}
+
 void RunHairCardsAtlasQueries(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -3191,45 +3442,35 @@ void RunHairCardsAtlasQueries(
 	FHairCardsBuilder::FCardsAtlasQuery Q;
 	while (FHairCardsBuilder::GCardsAtlasQuery.Dequeue(Q))
 	{
-		if (!Q.ProceduralData || !Q.RestResource || !Q.ProceduralResource)
+		if (!Q.ProceduralData || !Q.RestResource || !Q.ProceduralResource || !Q.Textures)
 			continue;
 
 		// Allocate resources for generating the atlas texture (for editor mode only)
-		FRDGTextureDesc Desc0(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_None));
-		FRDGTextureDesc Desc1(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_None));
-		FRDGTextureDesc Desc2(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None));
-		FRDGTextureDesc Desc3(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None));
-	//
-	//	GRenderTargetPool.FindFreeElement(RHICmdList, Desc0, Q.ProceduralResource->CardsDepthTextureRT, TEXT("HairCardsAtlasDepthTexture"), true, ERenderTargetTransience::NonTransient);
-	//	GRenderTargetPool.FindFreeElement(RHICmdList, Desc1, Q.ProceduralResource->CardsCoverageTextureRT, TEXT("HairCardsAtlasCoverageTexture"), true, ERenderTargetTransience::NonTransient);
-	//	GRenderTargetPool.FindFreeElement(RHICmdList, Desc2, Q.ProceduralResource->CardsUVsTextureRT, TEXT("HairCardsAtlasTangentTexture"), true, ERenderTargetTransience::NonTransient);	
-
-		FRDGTextureRef DepthTexture		= GraphBuilder.CreateTexture(Desc0, TEXT("CardsDepth"));
-		FRDGTextureRef CoverageTexture	= GraphBuilder.CreateTexture(Desc1, TEXT("CardCoverage"));
-		FRDGTextureRef TangentTexture	= GraphBuilder.CreateTexture(Desc2, TEXT("CardTangent"));
-		FRDGTextureRef AttributeTexture = GraphBuilder.CreateTexture(Desc2, TEXT("CardAttribute"));
+		FRDGTextureRef DepthTexture		= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardsDepth"));
+		FRDGTextureRef CoverageTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardCoverage"));
+		FRDGTextureRef TangentTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardTangent"));
+		FRDGTextureRef AttributeTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardAttribute"));
 		AddHairCardAtlasTexturePass(
 			GraphBuilder,
 			Q.ProceduralData->Atlas,
 			DebugShaderData,
-			Q.ProceduralResource->CardsStrandsPositions.SRV,// Q.RestResource->RestPositionBuffer.SRV,
-			Q.ProceduralResource->CardsStrandsAttributes.SRV,// Q.RestResource->RestPositionBuffer.SRV,
+			Q.ProceduralResource->CardsStrandsPositions.SRV,
+			Q.ProceduralResource->CardsStrandsAttributes.SRV,
 			DepthTexture,
 			CoverageTexture,
 			TangentTexture,
 			AttributeTexture);
 
+		AddCardsTextureReadbackPass(GraphBuilder, 4, DepthTexture,		Q.Textures->DepthTexture);
+		AddCardsTextureReadbackPass(GraphBuilder, 4, CoverageTexture,	Q.Textures->CoverageTexture);
+		AddCardsTextureReadbackPass(GraphBuilder, 4, TangentTexture,	Q.Textures->TangentTexture);
+		AddCardsTextureReadbackPass(GraphBuilder, 4, AttributeTexture,	Q.Textures->AttributeTexture);
 
-		GraphBuilder.QueueTextureExtraction(DepthTexture, &Q.ProceduralResource->CardsDepthTextureRT, ERHIAccess::SRVMask);
-		GraphBuilder.QueueTextureExtraction(CoverageTexture, &Q.ProceduralResource->CardsCoverageTextureRT, ERHIAccess::SRVMask);
-		GraphBuilder.QueueTextureExtraction(TangentTexture, &Q.ProceduralResource->CardsTangentTextureRT, ERHIAccess::SRVMask);
-		GraphBuilder.QueueTextureExtraction(AttributeTexture, &Q.ProceduralResource->CardsAttributeTextureRT, ERHIAccess::SRVMask);
+		Q.RestResource->DepthTexture	 = Q.Textures->DepthTexture->TextureReference.TextureReferenceRHI;
+		Q.RestResource->CoverageTexture  = Q.Textures->CoverageTexture->TextureReference.TextureReferenceRHI;
+		Q.RestResource->TangentTexture	 = Q.Textures->TangentTexture->TextureReference.TextureReferenceRHI;
+		Q.RestResource->AttributeTexture = Q.Textures->AttributeTexture->TextureReference.TextureReferenceRHI;
 
-		// Create/Copy
-		Q.RestResource->CardsCoverageTextureRT = Q.ProceduralResource->CardsCoverageTextureRT;
-		Q.RestResource->CardsDepthTextureRT = Q.ProceduralResource->CardsDepthTextureRT;
-		Q.RestResource->CardsTangentTextureRT = Q.ProceduralResource->CardsTangentTextureRT;
-		Q.RestResource->CardsAttributeTextureRT = Q.ProceduralResource->CardsAttributeTextureRT;
 		Q.ProceduralData->Atlas.bIsDirty = false;
 	}
 
@@ -3241,6 +3482,12 @@ void RunHairCardsAtlasQueries(
 
 namespace FHairMeshesBuilder
 {
+FString GetVersion()
+{
+	// Important to update the version when meshes building or importing changes
+	return TEXT("1");
+}
+
 void BuildGeometry(
 	const FHairStrandsDatas& InRen,
 	const FHairStrandsDatas& InSim,
@@ -3337,6 +3584,7 @@ void BuildGeometry(
 	Out.Meshes.Indices[34] = 4;
 	Out.Meshes.Indices[35] = 7;
 
+	Out.Meshes.BoundingBox.Init();
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
 	const uint32 PointCount = Out.Meshes.Positions.Num();
@@ -3349,6 +3597,8 @@ void BuildGeometry(
 		Out.RenderData.UVs[PointIt] = FVector4(Out.Meshes.UVs[PointIt].X, Out.Meshes.UVs[PointIt].Y, 0, 0);
 		Out.RenderData.Normals[PointIt * 2] = FVector4(Out.Meshes.Tangents[PointIt], 0);
 		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4(Out.Meshes.Normals[PointIt], 1);
+
+		Out.Meshes.BoundingBox += Out.RenderData.Positions[PointIt];
 	}
 
 	const uint32 IndexCount = Out.Meshes.Indices.Num();
@@ -3376,12 +3626,15 @@ void ImportGeometry(
 	Out.Meshes.UVs.SetNum(VertexCount);
 	Out.Meshes.Indices.SetNum(IndexCount);
 
+	Out.Meshes.BoundingBox.Init();
 	for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
 	{
 		Out.Meshes.Positions[VertexIt]	= LODData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIt);
 		Out.Meshes.UVs[VertexIt]		= LODData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIt, 0);
 		Out.Meshes.Tangents[VertexIt]	= LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIt);
 		Out.Meshes.Normals[VertexIt]	= LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIt);
+
+		Out.Meshes.BoundingBox += Out.Meshes.Positions[VertexIt];
 	}
 
 	for (uint32 IndexIt = 0; IndexIt < IndexCount; ++IndexIt)
@@ -3410,5 +3663,255 @@ void ImportGeometry(
 }
 
 } // namespace FHairMeshesBuilder
+
+
+namespace FHairCardsBuilder
+{
+
+// Utility class to construct MeshDescription instances
+class FMeshDescriptionBuilder
+{
+public:
+	void SetMeshDescription(FMeshDescription* Description);
+
+	/** Append vertex and return new vertex ID */
+	FVertexID AppendVertex(const FVector& Position);
+
+	/** Append new vertex instance and return ID */
+	FVertexInstanceID AppendInstance(const FVertexID& VertexID);
+
+	/** Set the Normal of a vertex instance*/
+	void SetInstanceNormal(const FVertexInstanceID& InstanceID, const FVector& Normal);
+
+	/** Set the UV of a vertex instance */
+	void SetInstanceUV(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, int32 UVLayerIndex = 0);
+
+	/** Set the number of UV layers */
+	void SetNumUVLayers(int32 NumUVLayers);
+
+	/** Enable per-triangle integer attribute named PolyTriGroups */
+	void EnablePolyGroups();
+
+	/** Create a new polygon group and return it's ID */
+	FPolygonGroupID AppendPolygonGroup();
+
+	/** Set the PolyTriGroups attribute value to a specific GroupID for a Polygon */
+	void SetPolyGroupID(const FPolygonID& PolygonID, int GroupID);
+
+	/** Append a triangle to the mesh with the given PolygonGroup ID */
+	FPolygonID AppendTriangle(const FVertexID& Vertex0, const FVertexID& Vertex1, const FVertexID& Vertex2, const FPolygonGroupID& PolygonGroup);
+
+	/** Append a triangle to the mesh with the given PolygonGroup ID, and optionally with triangle-vertex UVs and Normals */
+	FPolygonID AppendTriangle(const FVertexID* Triangle, const FPolygonGroupID& PolygonGroup, const FVector2D* VertexUVs = nullptr, const FVector* VertexNormals = nullptr);
+
+	/**
+	 * Append an arbitrary polygon to the mesh with the given PolygonGroup ID, and optionally with polygon-vertex UVs and Normals
+	 * Unique Vertex instances will be created for each polygon-vertex.
+	 */
+	FPolygonID AppendPolygon(const TArray<FVertexID>& Vertices, const FPolygonGroupID& PolygonGroup, const TArray<FVector2D>* VertexUVs = nullptr, const TArray<FVector>* VertexNormals = nullptr);
+
+	/**
+	 * Append a triangle to the mesh using the given vertex instances and PolygonGroup ID
+	 */
+	FPolygonID AppendTriangle(const FVertexInstanceID& Instance0, const FVertexInstanceID& Instance1, const FVertexInstanceID& Instance2, const FPolygonGroupID& PolygonGroup);
+
+protected:
+	FMeshDescription* MeshDescription;
+
+	TVertexAttributesRef<FVector> VertexPositions;
+	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
+	TVertexInstanceAttributesRef<FVector> InstanceNormals;
+	TVertexInstanceAttributesRef<FVector4> InstanceColors;
+
+	TPolygonAttributesRef<int> PolyGroups;
+};
+
+namespace ExtendedMeshAttribute
+{
+	const FName PolyTriGroups("PolyTriGroups");
+}
+
+void FMeshDescriptionBuilder::SetMeshDescription(FMeshDescription* Description)
+{
+	this->MeshDescription	= Description;
+	this->VertexPositions	= MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	this->InstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+	this->InstanceNormals	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	this->InstanceColors	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+}
+
+void FMeshDescriptionBuilder::EnablePolyGroups()
+{
+	PolyGroups = MeshDescription->PolygonAttributes().GetAttributesRef<int>(ExtendedMeshAttribute::PolyTriGroups);
+	if (PolyGroups.IsValid() == false)
+	{
+		MeshDescription->PolygonAttributes().RegisterAttribute<int>(ExtendedMeshAttribute::PolyTriGroups, 1, 0, EMeshAttributeFlags::AutoGenerated);
+		PolyGroups = MeshDescription->PolygonAttributes().GetAttributesRef<int>(ExtendedMeshAttribute::PolyTriGroups);
+		check(PolyGroups.IsValid());
+	}
+}
+
+FVertexID FMeshDescriptionBuilder::AppendVertex(const FVector& Position)
+{
+	FVertexID VertexID = MeshDescription->CreateVertex();
+	VertexPositions.Set(VertexID, Position);
+	return VertexID;
+}
+
+FPolygonGroupID FMeshDescriptionBuilder::AppendPolygonGroup()
+{
+	return MeshDescription->CreatePolygonGroup();
+}
+
+
+FVertexInstanceID FMeshDescriptionBuilder::AppendInstance(const FVertexID& VertexID)
+{
+	return MeshDescription->CreateVertexInstance(VertexID);
+}
+
+void FMeshDescriptionBuilder::SetInstanceNormal(const FVertexInstanceID& InstanceID, const FVector& Normal)
+{
+	if (InstanceNormals.IsValid())
+	{
+		InstanceNormals.Set(InstanceID, Normal);
+	}
+}
+
+void FMeshDescriptionBuilder::SetInstanceUV(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, int32 UVLayerIndex)
+{
+	if (InstanceUVs.IsValid() && ensure(UVLayerIndex < InstanceUVs.GetNumIndices()))
+	{
+		InstanceUVs.Set(InstanceID, UVLayerIndex, InstanceUV);
+	}
+}
+
+void FMeshDescriptionBuilder::SetNumUVLayers(int32 NumUVLayers)
+{
+	if (ensure(InstanceUVs.IsValid()))
+	{
+		InstanceUVs.SetNumIndices(NumUVLayers);
+	}
+}
+
+FPolygonID FMeshDescriptionBuilder::AppendTriangle(const FVertexInstanceID& Instance0, const FVertexInstanceID& Instance1, const FVertexInstanceID& Instance2, const FPolygonGroupID& PolygonGroup)
+{
+	TArray<FVertexInstanceID> Polygon;
+	Polygon.Add(Instance0);
+	Polygon.Add(Instance1);
+	Polygon.Add(Instance2);
+
+	const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroup, Polygon);
+
+	return NewPolygonID;
+}
+
+void FMeshDescriptionBuilder::SetPolyGroupID(const FPolygonID& PolygonID, int GroupID)
+{
+	PolyGroups.Set(PolygonID, 0, GroupID);
+}
+
+void ConvertCardsGeometryToMeshDescription(const FHairCardsGeometry& In, FMeshDescription& Out)
+{
+	Out.Empty();
+
+	FMeshDescriptionBuilder Builder;
+	Builder.SetMeshDescription(&Out);
+	Builder.EnablePolyGroups();
+	Builder.SetNumUVLayers(1);
+
+	// create vertices
+	TArray<FVertexInstanceID> VertexInstanceIDs;
+	const uint32 VertexCount = In.GetNumVertices();
+	VertexInstanceIDs.Reserve(VertexCount);
+	for (uint32 VIndex=0; VIndex<VertexCount; ++VIndex)
+	{
+		FVertexID VertexID = Builder.AppendVertex(In.Positions[VIndex]);
+		FVertexInstanceID InstanceID = Builder.AppendInstance(VertexID);
+		FVector2D UV = FVector2D(In.UVs[VIndex].X, In.UVs[VIndex].Y);
+		Builder.SetInstanceNormal(InstanceID, In.Normals[VIndex]);
+		Builder.SetInstanceUV(InstanceID, UV, 0);
+
+		VertexInstanceIDs.Add(InstanceID);
+	}
+
+	// Build the polygroup, i.e. the triangles belonging to the same cards
+	const int32 TriangleCount = In.GetNumTriangles();
+	const uint32 CardsCount = In.IndexCounts.Num();
+	TArray<int32> TriangleToCardGroup;
+	TriangleToCardGroup.Reserve(TriangleCount);
+	for (uint32 GroupId = 0; GroupId < CardsCount; ++GroupId)
+	{
+		const uint32 IndexOffset = In.IndexOffsets[GroupId];
+		const uint32 IndexCount  = In.IndexCounts[GroupId];
+		const uint32 GroupTriangleCount = IndexCount / 3;
+		for (uint32 TriangleId = 0; TriangleId < GroupTriangleCount; ++TriangleId)
+		{
+			TriangleToCardGroup.Add(GroupId);
+		}
+	}
+
+	// build the polygons
+	FPolygonGroupID ZeroPolygonGroupID = Builder.AppendPolygonGroup();
+	for (int32 TriID=0; TriID < TriangleCount; ++TriID)
+	{
+		// transfer material index to MeshDescription polygon group (by convention)
+		FPolygonGroupID UsePolygonGroupID = ZeroPolygonGroupID;
+
+		int32 VertexIndex0 = In.Indices[TriID * 3 + 0];
+		int32 VertexIndex1 = In.Indices[TriID * 3 + 1];
+		int32 VertexIndex2 = In.Indices[TriID * 3 + 2];
+
+		FVertexInstanceID VertexInstanceID0 = VertexInstanceIDs[VertexIndex0];
+		FVertexInstanceID VertexInstanceID1 = VertexInstanceIDs[VertexIndex1];
+		FVertexInstanceID VertexInstanceID2 = VertexInstanceIDs[VertexIndex2];
+
+		FPolygonID NewPolygonID = Builder.AppendTriangle(VertexInstanceID0, VertexInstanceID1, VertexInstanceID2, UsePolygonGroupID);
+		Builder.SetPolyGroupID(NewPolygonID, TriangleToCardGroup[TriID]);
+	}
+}
+
+void ExportGeometry(const FHairCardsDatas& InCardsData, UStaticMesh* OutStaticMesh)
+{
+	if (!OutStaticMesh)
+	{
+		return;
+	}
+
+	FMeshDescription MeshDescription;
+	FStaticMeshAttributes Attributes(MeshDescription);
+	Attributes.Register();
+
+	// Actual conversion
+	ConvertCardsGeometryToMeshDescription(InCardsData.Cards, MeshDescription);
+
+	FMeshDescription* MeshDesc = OutStaticMesh->CreateMeshDescription(0);
+	*MeshDesc = MeshDescription;
+	if (OutStaticMesh->BodySetup == nullptr)
+	{
+		OutStaticMesh->CreateBodySetup();
+	}
+	if (OutStaticMesh->BodySetup != nullptr)
+	{
+		// enable complex as simple collision to use mesh directly
+		OutStaticMesh->BodySetup->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
+	}
+
+	// add a material slot. Must always have one material slot.
+	if (OutStaticMesh->StaticMaterials.Num() == 0)
+	{
+		OutStaticMesh->StaticMaterials.Add(FStaticMaterial());
+	}
+
+	// assuming we have updated the LOD 0 MeshDescription, tell UStaticMesh about this
+	OutStaticMesh->CommitMeshDescription(0);
+
+	// not sure what this does...marks things dirty? updates stuff after modification??
+	OutStaticMesh->PostEditChange();
+}
+
+} // namespace FHairCardsExporter
+
+#endif // WITH_EDITOR 
+
 
 #undef LOCTEXT_NAMESPACE

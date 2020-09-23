@@ -27,7 +27,7 @@ class FHairCardsVertexFactoryShaderParameters : public FVertexFactoryShaderParam
 {
 	DECLARE_TYPE_LAYOUT(FHairCardsVertexFactoryShaderParameters, NonVirtual);
 public:
-	LAYOUT_FIELD(FShaderParameter, Density);
+	LAYOUT_FIELD(FShaderParameter, InvertUV);
 	LAYOUT_FIELD(FShaderResourceParameter, PositionBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, PreviousPositionBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, NormalsBuffer);
@@ -63,6 +63,8 @@ public:
 		CoverageSampler.Bind(ParameterMap, TEXT("HairCardsVF_CoverageSampler"));
 		AttributeTexture.Bind(ParameterMap, TEXT("HairCardsVF_AttributeTexture"));
 		AttributeSampler.Bind(ParameterMap, TEXT("HairCardsVF_AttributeSampler"));
+
+		InvertUV.Bind(ParameterMap, TEXT("HairCardsVF_bInvertUV"));		
 	}
 
 	void GetElementShaderBindings(
@@ -93,36 +95,59 @@ public:
 			VFC_BindParam(ShaderBindings, NormalsBuffer, LOD.RestResource->NormalsBuffer.SRV.GetReference());
 			VFC_BindParam(ShaderBindings, UVsBuffer, LOD.RestResource->UVsBuffer.SRV.GetReference());
 
-			//VFC_BindParam(ShaderBindings, CardsAtlasRectBuffer, nullptr);
-			//VFC_BindParam(ShaderBindings, CardsDimensionBuffer, nullptr);
+			// Cards atlas UV are inverted so fetching needs to be inverted on the y-axis
+			VFC_BindParam(ShaderBindings, InvertUV, 1);
 
-			if (LOD.RestResource->CardsDepthTextureRT)
+			if (LOD.RestResource->DepthTexture)
 			{
-				ShaderBindings.AddTexture(DepthTexture, DepthSampler, LOD.RestResource->DepthSampler, LOD.RestResource->CardsDepthTextureRT->GetRenderTargetItem().TargetableTexture); 
+				ShaderBindings.AddTexture(DepthTexture, DepthSampler, LOD.RestResource->DepthSampler, LOD.RestResource->DepthTexture); 
 			}
 
-			if (LOD.RestResource->CardsTangentTextureRT)
+			if (LOD.RestResource->TangentTexture)
 			{
-				ShaderBindings.AddTexture(TangentTexture, TangentSampler, LOD.RestResource->TangentSampler, LOD.RestResource->CardsTangentTextureRT->GetRenderTargetItem().TargetableTexture);
+				ShaderBindings.AddTexture(TangentTexture, TangentSampler, LOD.RestResource->TangentSampler, LOD.RestResource->TangentTexture);
 			}
 
-			if (LOD.RestResource->CardsCoverageTextureRT)
+			if (LOD.RestResource->CoverageTexture)
 			{
-				ShaderBindings.AddTexture(CoverageTexture, CoverageSampler, LOD.RestResource->CoverageSampler, LOD.RestResource->CardsCoverageTextureRT->GetRenderTargetItem().TargetableTexture);
+				ShaderBindings.AddTexture(CoverageTexture, CoverageSampler, LOD.RestResource->CoverageSampler, LOD.RestResource->CoverageTexture);
 			}
 
-			if (LOD.RestResource->CardsAttributeTextureRT)
+			if (LOD.RestResource->AttributeTexture)
 			{
-				ShaderBindings.AddTexture(AttributeTexture, AttributeSampler, LOD.RestResource->AttributeSampler, LOD.RestResource->CardsAttributeTextureRT->GetRenderTargetItem().TargetableTexture);
+				ShaderBindings.AddTexture(AttributeTexture, AttributeSampler, LOD.RestResource->AttributeSampler, LOD.RestResource->AttributeTexture);
 			}
 		}
 		else if (Instance.GeometryType == EHairGeometryType::Meshes)
 		{
 			const FHairGroupInstance::FMeshes::FLOD& LOD = Instance.Meshes.LODs[LODIndex];
-			VFC_BindParam(ShaderBindings, PositionBuffer, LOD.RestResource->PositionBuffer.SRV.GetReference());
-			VFC_BindParam(ShaderBindings, PreviousPositionBuffer, LOD.RestResource->PositionBuffer.SRV.GetReference());
+			VFC_BindParam(ShaderBindings, PositionBuffer, LOD.DeformedResource->GetBuffer(FHairMeshesDeformedResource::Current).SRV.GetReference());
+			VFC_BindParam(ShaderBindings, PreviousPositionBuffer, LOD.DeformedResource->GetBuffer(FHairMeshesDeformedResource::Previous).SRV.GetReference());
 			VFC_BindParam(ShaderBindings, NormalsBuffer, LOD.RestResource->NormalsBuffer.SRV.GetReference());
 			VFC_BindParam(ShaderBindings, UVsBuffer, LOD.RestResource->UVsBuffer.SRV.GetReference());
+
+			// Meshes UV are not inverted so no need to invert the y-axis
+			VFC_BindParam(ShaderBindings, InvertUV, 0);
+
+			if (LOD.RestResource->DepthTexture)
+			{
+				ShaderBindings.AddTexture(DepthTexture, DepthSampler, LOD.RestResource->DepthSampler, LOD.RestResource->DepthTexture);
+			}
+
+			if (LOD.RestResource->TangentTexture)
+			{
+				ShaderBindings.AddTexture(TangentTexture, TangentSampler, LOD.RestResource->TangentSampler, LOD.RestResource->TangentTexture);
+			}
+
+			if (LOD.RestResource->CoverageTexture)
+			{
+				ShaderBindings.AddTexture(CoverageTexture, CoverageSampler, LOD.RestResource->CoverageSampler, LOD.RestResource->CoverageTexture);
+			}
+
+			if (LOD.RestResource->AttributeTexture)
+			{
+				ShaderBindings.AddTexture(AttributeTexture, AttributeSampler, LOD.RestResource->AttributeSampler, LOD.RestResource->AttributeTexture);
+			}
 		}
 	}
 };
@@ -134,7 +159,7 @@ IMPLEMENT_TYPE_LAYOUT(FHairCardsVertexFactoryShaderParameters);
  */
 bool FHairCardsVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (Parameters.MaterialParameters.MaterialDomain == MD_Surface && Parameters.MaterialParameters.bIsUsedWithHairStrands && Parameters.Platform == EShaderPlatform::SP_PCD3D_SM5) || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
+	return (Parameters.MaterialParameters.MaterialDomain == MD_Surface && Parameters.MaterialParameters.bIsUsedWithHairStrands && IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform)) || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
 }
 
 void FHairCardsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

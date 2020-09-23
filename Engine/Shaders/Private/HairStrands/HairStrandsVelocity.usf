@@ -98,7 +98,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		}
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-		OutVelocityTexture[PixelCoord] = ToOutput(EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1), 0.0)).xy);
+		OutVelocityTexture[PixelCoord] = ToOutput(EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1u), 0.0)).xy);
 		#endif		
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST

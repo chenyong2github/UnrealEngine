@@ -147,21 +147,10 @@ struct FMeshBatchElement
 	}
 };
 
-FORCEINLINE bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLevel::Type FeatureLevel)
-{
-	return
-		ERHIFeatureLevel::SM5 == FeatureLevel &&
-		Material && Material->IsUsedWithHairStrands() && Material->GetShadingModels().HasShadingModel(MSM_Hair) &&
-		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
-}
-
-FORCEINLINE bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShaderParameters& Parameters)
-{
-	return
-		IsPCPlatform(Platform) && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5 &&
-		Parameters.bIsUsedWithHairStrands && Parameters.ShadingModels.HasShadingModel(MSM_Hair) &&
-		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked);
-}
+// Helper functions for hair strands shaders
+ENGINE_API bool IsHairStrandsGeometrySupported(const EShaderPlatform Platform);
+ENGINE_API bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLevel::Type FeatureLevel);
+ENGINE_API bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShaderParameters& Parameters);
 
 /**
  * A batch of mesh elements, all with the same material and vertex buffer

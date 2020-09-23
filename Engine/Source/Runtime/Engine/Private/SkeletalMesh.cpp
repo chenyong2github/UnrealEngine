@@ -3559,6 +3559,16 @@ void USkeletalMesh::CacheDerivedData()
 	PostMeshCached.Broadcast(this);
 }
 
+FString USkeletalMesh::GetDerivedDataKey()
+{
+	// Cache derived data for the running platform.
+	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+	ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+	check(RunningPlatform);
+
+	return SkeletalMeshRenderData->GetDerivedDataKey(RunningPlatform, this);
+}
+
 int32 USkeletalMesh::ValidatePreviewAttachedObjects()
 {
 	int32 NumBrokenAssets = PreviewAttachedAssetContainer.ValidatePreviewAttachedObjects();

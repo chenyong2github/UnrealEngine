@@ -273,8 +273,8 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	}
 
 	#if PERMUTATION_SUPERSAMPLING
-	AvgHairCount /= max(1, SampleCount);
-	AvgHairVisility /= max(1, SampleCount);
+	AvgHairCount /= max(1u, SampleCount);
+	AvgHairVisility /= max(1u, SampleCount);
 	#endif
 
 	return ComputeTransmittanceFromHairCount(AvgHairCount, AvgHairVisility, GBuffer, SinLightAngle, HairLUTTexture, HairLUTSampler);
@@ -318,7 +318,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			return;
 		}
 
-		FGBufferData GBuffer;
+		FGBufferData GBuffer = (FGBufferData)0;
 		GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
 		GBuffer.WorldNormal = Sample.Tangent;
 		GBuffer.BaseColor = Sample.BaseColor;

@@ -33,6 +33,8 @@ public:
 	TSharedPtr<FUICommandInfo> ViewMode_Roughness;
 	TSharedPtr<FUICommandInfo> ViewMode_VisCluster;
 
+	TSharedPtr<FUICommandInfo> ViewMode_CardsGuides;
+
 	virtual void RegisterCommands() override;
 };
 

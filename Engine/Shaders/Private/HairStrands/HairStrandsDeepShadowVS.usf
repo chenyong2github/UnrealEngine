@@ -63,7 +63,7 @@ void Main(
 	if (HairRenderInfo.bIsGPUDriven)
 	{
 		const uint MacroGroupId = VoxelRasterPass.MacroGroupId;
-		FVoxelizationViewInfo VoxelizationViewInfo = VoxelRasterPass.VoxelizationViewInfoBuffer.Load(MacroGroupId);
+		FVoxelizationViewInfo VoxelizationViewInfo = VoxelRasterPass.VoxelizationViewInfoBuffer[MacroGroupId];
 		WorldToClipMatrix = VoxelizationViewInfo.WorldToClip;
 		ViewportScale = VoxelizationViewInfo.RasterResolution / float2(VoxelRasterPass.ViewportResolution);
 		HairViewInfo.ViewForward = VoxelizationViewInfo.ViewForward;
@@ -114,7 +114,7 @@ void Main(
 	if (HairRenderInfo.bIsGPUDriven)
 	{
 		const uint MacroGroupId = VoxelRasterPass.MacroGroupId;
-		FVoxelizationViewInfo VoxelizationViewInfo = VoxelRasterPass.VoxelizationViewInfoBuffer.Load(MacroGroupId);
+		FVoxelizationViewInfo VoxelizationViewInfo = VoxelRasterPass.VoxelizationViewInfoBuffer[MacroGroupId];
 		WorldToClipMatrix			= VoxelizationViewInfo.WorldToClip;
 		HairViewInfo.ViewForward	= VoxelizationViewInfo.ViewForward;
 		ViewportScale				= VoxelizationViewInfo.RasterResolution / float2(VoxelRasterPass.ViewportResolution);
@@ -125,7 +125,7 @@ void Main(
 	if (HairRenderInfo.bIsGPUDriven)
 	{
 		const uint AtlasSlotIndex = DeepRasterPass.AtlasSlotIndex;
-		FDeepShadowViewInfo DeepShadowViewInfo = DeepRasterPass.DeepShadowViewInfoBuffer.Load(AtlasSlotIndex);
+		FDeepShadowViewInfo DeepShadowViewInfo = DeepRasterPass.DeepShadowViewInfoBuffer[AtlasSlotIndex];
 		WorldToClipMatrix			= DeepShadowViewInfo.WorldToClip;
 		HairViewInfo.ViewForward	= DeepShadowViewInfo.ViewForward;
 		HairViewInfo.RadiusAtDepth1 = DeepShadowViewInfo.MinRadiusAtDepth1;

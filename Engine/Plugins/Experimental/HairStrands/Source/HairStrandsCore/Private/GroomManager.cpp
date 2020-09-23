@@ -98,7 +98,7 @@ void RunHairStrandsInterpolation(
 	// Update dynamic mesh triangles
 	for (FHairGroupInstance* Instance : GHairManager.Instances)
 	{
-		int32 FrameLODIndex = -1;
+		int32 MeshLODIndex = -1;
 		if (Instance->WorldType != WorldType)
 			continue;
 	
@@ -125,35 +125,79 @@ void RunHairStrandsInterpolation(
 		for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
 		{
 			// Ensure all mesh's sections have the same LOD index
-			if (FrameLODIndex < 0) FrameLODIndex = Section.LODIndex;
-			check(FrameLODIndex == Section.LODIndex);
+			if (MeshLODIndex < 0) MeshLODIndex = Section.LODIndex;
+			check(MeshLODIndex == Section.LODIndex);
 
 			MeshDataLOD.Sections.Add(ConvertMeshSection(Section));
 		}
 
 		FBufferTransitionQueue TransitionQueue;
 
-		Instance->Debug.MeshLODIndex = FrameLODIndex;
-		if (0 <= FrameLODIndex)
+		Instance->Debug.MeshLODIndex = MeshLODIndex;
+		if (0 <= MeshLODIndex)
 		{
 			if (EHairStrandsInterpolationType::RenderStrands == Type)
 			{
-				if (FrameLODIndex < Instance->Strands.DeformedRootResource->LODs.Num() && Instance->Strands.DeformedRootResource->LODs[FrameLODIndex].IsValid())
+				if (Instance->GeometryType == EHairGeometryType::Strands)
 				{
-					AddHairStrandUpdateMeshTrianglesPass(
-						GraphBuilder, 
-						ShaderMap, 
-						FrameLODIndex, 
-						HairStrandsTriangleType::DeformedPose, 
-						MeshDataLOD, 
-						Instance->Strands.RestRootResource, 
-						Instance->Strands.DeformedRootResource,
-						TransitionQueue);
+					if (MeshLODIndex < Instance->Strands.DeformedRootResource->LODs.Num() && Instance->Strands.DeformedRootResource->LODs[MeshLODIndex].IsValid())
+					{
+						AddHairStrandUpdateMeshTrianglesPass(
+							GraphBuilder, 
+							ShaderMap, 
+							MeshLODIndex, 
+							HairStrandsTriangleType::DeformedPose, 
+							MeshDataLOD, 
+							Instance->Strands.RestRootResource, 
+							Instance->Strands.DeformedRootResource,
+							TransitionQueue);
+					}
+				}
+				else if (Instance->GeometryType == EHairGeometryType::Cards)
+				{
+					const uint32 HairLODIndex = Instance->HairGroupPublicData->LODIndex;
+					if (Instance->Cards.IsValid(HairLODIndex))
+					{
+						FHairGroupInstance::FCards::FLOD& CardsInstance = Instance->Cards.LODs[HairLODIndex];
+						if (MeshLODIndex < CardsInstance.Guides.DeformedRootResource->LODs.Num() &&
+							CardsInstance.Guides.DeformedRootResource->LODs[MeshLODIndex].IsValid())
+						{
+							AddHairStrandUpdateMeshTrianglesPass(
+								GraphBuilder,
+								ShaderMap,
+								MeshLODIndex,
+								HairStrandsTriangleType::DeformedPose,
+								MeshDataLOD,
+								CardsInstance.Guides.RestRootResource,
+								CardsInstance.Guides.DeformedRootResource,
+								TransitionQueue);
+						}
+					}
+				}
+				else if (Instance->GeometryType == EHairGeometryType::Meshes)
+				{
+					const uint32 HairLODIndex = Instance->HairGroupPublicData->LODIndex;
+					if (Instance->Meshes.IsValid(HairLODIndex))
+					{
+						FHairGroupInstance::FMeshes::FLOD& MeshesInstance = Instance->Meshes.LODs[HairLODIndex];
+						if (MeshLODIndex < Instance->Guides.DeformedRootResource->LODs.Num() && Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].IsValid())
+						{
+							AddHairMeshesInterpolationPass(
+								GraphBuilder,
+								ShaderMap,
+								MeshLODIndex,
+								MeshesInstance.RestResource,
+								MeshesInstance.DeformedResource,
+								Instance->Guides.RestRootResource, 
+								Instance->Guides.DeformedRootResource,
+								TransitionQueue);
+						}
+					}
 				}
 			}
 			else if (EHairStrandsInterpolationType::SimulationStrands == Type)
 			{
-				if (FrameLODIndex < Instance->Guides.DeformedRootResource->LODs.Num() && Instance->Guides.DeformedRootResource->LODs[FrameLODIndex].IsValid())
+				if (MeshLODIndex < Instance->Guides.DeformedRootResource->LODs.Num() && Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].IsValid())
 				{
 					AddHairStrandUpdateMeshTrianglesPass(
 						GraphBuilder,
@@ -164,10 +208,7 @@ void RunHairStrandsInterpolation(
 						Instance->Guides.RestRootResource,
 						Instance->Guides.DeformedRootResource,
 						TransitionQueue);
-				}
-
-				if (FrameLODIndex < Instance->Guides.DeformedRootResource->LODs.Num() && Instance->Guides.DeformedRootResource->LODs[FrameLODIndex].IsValid())
-				{
+				
 					AddHairStrandInitMeshSamplesPass(
 						GraphBuilder, 
 						ShaderMap, 
@@ -201,7 +242,7 @@ void RunHairStrandsInterpolation(
 			if (Instance->WorldType != WorldType)
 				continue;
 
-			ResetHairStrandsInterpolation(GraphBuilder, Instance, Instance->Debug.MeshLODIndex);
+			ResetHairStrandsInterpolation(GraphBuilder, ShaderMap, Instance, Instance->Debug.MeshLODIndex);
 		}
 	}
 
@@ -214,7 +255,8 @@ void RunHairStrandsInterpolation(
 				continue;
 
 			ComputeHairStrandsInterpolation(
-				GraphBuilder,
+				GraphBuilder, 
+				ShaderMap,
 				ShaderDrawData, 
 				Instance,
 				Instance->Debug.MeshLODIndex,
@@ -240,21 +282,27 @@ static void RunHairStrandsGatherCluster(
 bool HasHairStrandsFolliculeMaskQueries();
 void RunHairStrandsFolliculeMaskQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
 
+#if WITH_EDITOR
 bool HasHairStrandsTexturesQueries();
 void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData);
+#endif
 
 bool HasHairStrandsBindigQueries();
 void RunHairStrandsBindingQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
 
+#if WITH_EDITOR
 bool HasHairCardsAtlasQueries();
 void RunHairCardsAtlasQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData);
+#endif
 
 static void RunHairStrandsProcess(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData)
 {
+#if WITH_EDITOR
 	if (HasHairStrandsTexturesQueries())
 	{
 		RunHairStrandsTexturesQueries(GraphBuilder, ShaderMap, DebugShaderData);
 	}
+#endif
 
 	if (HasHairStrandsFolliculeMaskQueries())
 	{
@@ -266,10 +314,12 @@ static void RunHairStrandsProcess(FRDGBuilder& GraphBuilder, FGlobalShaderMap* S
 		RunHairStrandsBindingQueries(GraphBuilder, ShaderMap);
 	}
 
+#if WITH_EDITOR
 	if (HasHairCardsAtlasQueries())
 	{
 		RunHairCardsAtlasQueries(GraphBuilder, ShaderMap, DebugShaderData);
 	}
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -297,8 +347,10 @@ void ProcessHairStrandsBookmark(
 	if (Bookmark == EHairStrandsBookmark::ProcessTasks)
 	{
 		const bool bHasHairStardsnProcess =
+		#if WITH_EDITOR
 			HasHairCardsAtlasQueries() ||
 			HasHairStrandsTexturesQueries() ||
+		#endif
 			HasHairStrandsFolliculeMaskQueries() ||
 			HasHairStrandsBindigQueries();
 

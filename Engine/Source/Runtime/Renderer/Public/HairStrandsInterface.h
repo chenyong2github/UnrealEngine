@@ -101,7 +101,8 @@ enum EHairGeometryType
 class RENDERER_API FHairGroupPublicData : public FRenderResource
 {
 public:
-	FHairGroupPublicData(uint32 GroupIndex, uint32 ClusterCount, uint32 VertexCount);
+	FHairGroupPublicData(uint32 InGroupIndex);
+	void SetClusters(uint32 InClusterCount, uint32 InVertexCount);
 	
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -178,7 +179,7 @@ public:
 			
 		} Meshes;
 
-		EHairGeometryType GeometryType = EHairGeometryType::Strands;
+		EHairGeometryType GeometryType = EHairGeometryType::NoneGeometry;
 		FTransform LocalToWorldTransform;
 	};
 	FVertexFactoryInput VFInput;
@@ -259,10 +260,17 @@ struct FHairStrandClusterData
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-RENDERER_API bool IsHairStrandsSupported(const EShaderPlatform Platform);
-RENDERER_API bool IsHairStrandsEnable(EShaderPlatform Platform);
-RENDERER_API bool IsHairCardsEnable();
-RENDERER_API bool IsHairMeshesEnable();
+// API for enabling/disabling the various geometry representation
+enum class EHairStrandsShaderType
+{
+	Strands,
+	Cards,
+	Meshes,
+	Tool,
+	All
+};
+RENDERER_API bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform);
+RENDERER_API bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform = EShaderPlatform::SP_NumPlatforms);
 
 // Return strands & guide indices to be preserved, while all others strands/guides should be culled
 enum class EHairCullMode : uint8
@@ -318,7 +326,9 @@ struct FHairStrandsBookmarkParameters
 	FSceneView* View = nullptr;// // View 0
 	TRefCountPtr<IPooledRenderTarget> SceneColorTexture = nullptr;
 
+	bool bHzbRequest = false;
 	bool bHasElements = false;
+	bool bStrandsGeometryEnabled = false;
 
 	// Temporary
 	FHairStrandClusterData HairClusterData;

@@ -26,6 +26,7 @@
 
 // For attribute like RootUV/length/... make an indirection table?
 
+int HairCardsVF_bInvertUV;
 Texture2D<float>  HairCardsVF_DepthTexture;
 Texture2D<float3> HairCardsVF_TangentTexture;
 Texture2D<float>  HairCardsVF_CoverageTexture;
@@ -64,7 +65,7 @@ struct FHairVertexAttributes
 
 float GetHairStrandsDepth(uint HairPrimitiveId, float2 InUV, float InDeviceZ)
 {
-	InUV.y = 1 - InUV.y;
+	InUV.y = HairCardsVF_bInvertUV ? 1 - InUV.y : InUV.y;
 	const float SceneDepthOffset = HairCardsVF_DepthTexture.Sample(HairCardsVF_DepthSampler, InUV);
 	const float SceneDepth = ConvertFromDeviceZ(InDeviceZ);
 
@@ -73,7 +74,7 @@ float GetHairStrandsDepth(uint HairPrimitiveId, float2 InUV, float InDeviceZ)
 
 float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 InUV, half3x3 TangentToWorld)
 {
-	InUV.y = 1 - InUV.y;
+	InUV.y = HairCardsVF_bInvertUV ? 1 - InUV.y : InUV.y;
 	const float3 LocalTangent = HairCardsVF_TangentTexture.Sample(HairCardsVF_TangentSampler, InUV) * 2 - 1;
 	const float3 WorldTangent = mul(LocalTangent, TangentToWorld);
 	return WorldTangent;
@@ -81,13 +82,13 @@ float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 InUV, half3x3 TangentT
 
 float GetHairStrandsCoverage(uint HairPrimitiveId, float2 InUV)
 {
-	InUV.y = 1 - InUV.y;
+	InUV.y = HairCardsVF_bInvertUV ? 1 - InUV.y : InUV.y;
 	return HairCardsVF_CoverageTexture.Sample(HairCardsVF_CoverageSampler, InUV);
 }
 
 FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 InUV)
 {
-	InUV.y = 1 - InUV.y;
+	InUV.y = HairCardsVF_bInvertUV ? 1 - InUV.y : InUV.y;
 	const float4 Value = HairCardsVF_AttributeTexture.Sample(HairCardsVF_AttributeSampler, InUV);
 
 	FHairVertexAttributes Out;
@@ -249,6 +250,13 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.PrimitiveId = GetPrimitiveId(Interpolants);
 	Result.HairPrimitiveId = Interpolants.HairPrimitiveId;
 	Result.HairPrimitiveUV = float2(Interpolants.HairPrimitiveUV);
+#if NUM_TEX_COORD_INTERPOLATORS
+	UNROLL
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+	{
+		Result.TexCoords[CoordinateIndex] = GetUV(Interpolants, CoordinateIndex);
+	}
+#endif
 
 #if COMPILER_SUPPORTS_TO_SCALAR_MEMORY
 	Result.PrimitiveId = ToScalarMemory(Result.PrimitiveId);
@@ -413,6 +421,9 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.HairPrimitiveId = Input.VertexId;
 	Interpolants.HairPrimitiveUV = GetVertexPosition(Input).CardsUVs;
 	SetPrimitiveId(Interpolants, Intermediates.PrimitiveId);
+#if NUM_TEX_COORD_INTERPOLATORS 
+	SetUV(Interpolants, 0, Interpolants.HairPrimitiveUV);
+#endif
 
 	return Interpolants;
 }

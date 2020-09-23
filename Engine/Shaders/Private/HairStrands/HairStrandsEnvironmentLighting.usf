@@ -131,10 +131,6 @@ RWBuffer<uint>							Debug_SampleCounter;
 uint									Debug_MaxShadingPointCount;
 uint									Debug_MaxSampleCount;
 
-uint AllocateSample(uint SampleCount)
-{
-}
-
 uint AddShadingPoint(const FGBufferData GB, const float3 V, uint SampleCount)
 {
 	uint SampleOffset = 0;
@@ -423,7 +419,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			TransmittanceMask = ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
 
-		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();	
+		FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
 
 		// Directional albedo
 		#if 0
@@ -510,7 +506,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// BSDF
 		#if 0
 		{
-			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
 			TransmittanceData.MultipleScattering = 1;
 			TransmittanceData.GlobalScattering = Transmittance.xyz;
 			TransmittanceData.LocalScattering = 0;
@@ -771,12 +767,13 @@ void MainPS(
 	const FPackedHairSample PackedSample = HairVisibilityNodeData[LocalOffset];
 	const FHairSample Sample = UnpackHairSample(PackedSample);
 
-	FGBufferData GBuffer;
+	FGBufferData GBuffer = (FGBufferData)0;
 	GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
 	GBuffer.WorldNormal = Sample.Tangent;
 	GBuffer.BaseColor = Sample.BaseColor;
 	GBuffer.Roughness = Sample.Roughness;
 	GBuffer.Specular = Sample.Specular;
+	GBuffer.Metallic = 0; // Scattering;
 	GBuffer.Depth = ConvertFromDeviceZ(Sample.Depth);
 	GBuffer.GBufferAO = 1;
 	GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);

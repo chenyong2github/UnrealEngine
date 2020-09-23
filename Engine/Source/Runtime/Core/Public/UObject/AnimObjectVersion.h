@@ -41,6 +41,21 @@ struct CORE_API FAnimObjectVersion
 		// Serialized rigvm entry names
 		SerializeRigVMEntries,
 
+		// Serialized rigvm entry names
+		SerializeHairBindingAsset,
+
+		// Serialized rigvm entry names
+		SerializeHairClusterCullingData,
+
+		// Groom cards and meshes serialization
+		SerializeGroomCardsAndMeshes,
+
+		// Stripping LOD data from groom
+		GroomLODStripping,
+
+		// Stripping LOD data from groom
+		GroomBindingSerialization,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

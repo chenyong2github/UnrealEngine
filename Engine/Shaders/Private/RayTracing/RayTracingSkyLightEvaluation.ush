@@ -212,9 +212,8 @@ void SkyLightEvaluate(
 				float Backlit = 0.0;
 				float Area = 0.0;
 				uint2 Random = 0;
-				bool bEvalMultiScatter = false;
-				FHairTransmittanceData HairTransmittance = InitHairTransmittanceData();
-				LightingSample.Diffuse = HairShading(GBufferData, L, V, N, Shadow, HairTransmittance, Backlit, Area, Random, bEvalMultiScatter);
+				FHairTransmittanceData HairTransmittance = InitHairTransmittanceData(false);
+				LightingSample.Diffuse = HairShading(GBufferData, L, V, N, Shadow, HairTransmittance, Backlit, Area, Random);
 				LightingSample.Transmission = 0;
 				LightingSample.Specular = 0;
 			}

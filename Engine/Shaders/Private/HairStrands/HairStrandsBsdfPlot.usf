@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#define HAIR_CUSTOM_BSDF 1
-
 #include "../Common.ush"
 #include "../SceneTexturesCommon.ush"
 #include "../ShadingModels.ush"
@@ -241,7 +239,7 @@ void MainPS(
 
 			const float SampleBacklit = 1;
 			const float SampleSpecular = 0.5f;
-			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
 
 			uint InHairComponents = HairComponents;
 			const bool bPlotDualScatteringContribution = true;

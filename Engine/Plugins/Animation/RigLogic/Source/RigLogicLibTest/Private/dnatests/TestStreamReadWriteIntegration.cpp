@@ -3,7 +3,6 @@
 #include "dnatests/TestStreamReadWriteIntegration.h"
 
 #include "dnatests/Defs.h"
-#include "dnatests/FakeStream.h"
 #include "dnatests/Fixtures.h"
 
 #include "dna/DataLayer.h"
@@ -341,21 +340,21 @@ static void assertReaderHasAllData(Reader* reader, const LODParameters& params) 
 TEST_P(StreamReadWriteIntegrationTest, VerifyAllDNADataAfterSetFromIsUsed) {
     pma::AlignedMemoryResource memRes;
 
-    dnatests::FakeStream source;
     const auto bytes = raw::getBytes();
-    source.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-    source.seek(0);
+    auto source = pma::makeScoped<trio::MemoryStream>();
+    source->write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+    source->seek(0);
 
-    auto sourceReader = StreamReader::create(&source, DataLayer::All, 0u, &memRes);
+    auto sourceReader = StreamReader::create(source.get(), DataLayer::All, 0u, &memRes);
     sourceReader->read();
 
-    dnatests::FakeStream clone;
-    auto cloneWriter = StreamWriter::create(&clone, &memRes);
+    auto clone = pma::makeScoped<trio::MemoryStream>();
+    auto cloneWriter = StreamWriter::create(clone.get(), &memRes);
     cloneWriter->setFrom(sourceReader);
     cloneWriter->write();
 
-    clone.seek(0ul);
-    auto cloneReader = StreamReader::create(&clone, DataLayer::All, params.maxLOD, &memRes);
+    clone->seek(0ul);
+    auto cloneReader = StreamReader::create(clone.get(), DataLayer::All, params.maxLOD, &memRes);
     cloneReader->read();
 
     assertReaderHasAllData(cloneReader, params);

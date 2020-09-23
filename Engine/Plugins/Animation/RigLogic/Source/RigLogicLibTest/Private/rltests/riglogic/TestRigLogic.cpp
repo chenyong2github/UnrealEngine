@@ -2,7 +2,6 @@
 
 #include "rltests/Defs.h"
 #include "rltests/dna/DNAFixtures.h"
-#include "rltests/dna/FakeIOStream.h"
 
 #include "riglogic/RigLogic.h"
 
@@ -14,10 +13,11 @@ class RigLogicTest : public ::testing::Test {
     protected:
         void SetUp() override {
             const auto bytes = rltests::raw::getBytes();
-            stream.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-            stream.seek(0);
+            stream = pma::makeScoped<trio::MemoryStream>();
+            stream->write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+            stream->seek(0);
 
-            reader = dna::StreamReader::create(&stream);
+            reader = dna::StreamReader::create(stream.get());
             reader->read();
 
             rigLogic = rl4::RigLogic::create(reader);
@@ -32,7 +32,7 @@ class RigLogicTest : public ::testing::Test {
 
     protected:
         pma::AlignedMemoryResource memRes;
-        rltests::FakeIOStream stream;
+        pma::ScopedPtr<trio::MemoryStream, pma::FactoryDestroy<trio::MemoryStream> > stream;
         dna::StreamReader* reader;
         rl4::RigLogic* rigLogic;
         rl4::RigInstance* rigInstance;
@@ -66,10 +66,10 @@ TEST_F(RigLogicTest, AccessJointVariableAttributeIndices) {
 TEST_F(RigLogicTest, DumpStateThenRestore) {
     float guiControls[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
 
-    rltests::FakeIOStream dumpedState;
-    rigLogic->dump(&dumpedState);
-    dumpedState.seek(0);
-    auto cloneRigLogic = rl4::RigLogic::restore(&dumpedState);
+    auto dumpedState = pma::makeScoped<trio::MemoryStream>();
+    rigLogic->dump(dumpedState.get());
+    dumpedState->seek(0);
+    auto cloneRigLogic = rl4::RigLogic::restore(dumpedState.get());
     auto cloneRigInstance = rl4::RigInstance::create(cloneRigLogic);
 
     for (std::uint16_t lod = 0u; lod < rigLogic->getLODCount(); ++lod) {

@@ -19,6 +19,9 @@ namespace ShaderDrawDebug
 {
 	// Call this to know if this is even just available (for exemple in shipping mode buffers won't exists)
 	RENDERER_API bool IsShaderDrawDebugEnabled();
+	RENDERER_API void SetEnabled(bool bEnable);
+	RENDERER_API void SetMaxElementCount(uint32 MaxCount);
+	RENDERER_API uint32 GetMaxElementCount();
 
 	// Call this to know if a view can render this debug information
 	bool IsShaderDrawDebugEnabled(const FViewInfo& View);
