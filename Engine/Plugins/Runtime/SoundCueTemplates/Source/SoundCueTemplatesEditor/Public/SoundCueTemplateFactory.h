@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "ClassTemplateEditorSubsystem.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "SoundCueTemplate.h"
 #include "Factories/Factory.h"
+#include "SoundCueTemplate.h"
+#include "UObject/ObjectMacros.h"
 
 #include "SoundCueTemplateFactory.generated.h"
 
@@ -38,4 +39,10 @@ class USoundCueTemplateFactory : public UFactory
 	//~ End UFactory Interface
 
 	TArray<TWeakObjectPtr<USoundWave>> SoundWaves;
+};
+
+UCLASS()
+class USoundCueTemplateClassTemplate : public UPluginClassTemplate
+{
+	GENERATED_UCLASS_BODY()
 };
