@@ -2021,16 +2021,15 @@ static bool CompressMipChain(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CompressMipChain)
 
-	const bool bImageHasAlphaChannel = DetectAlphaChannel(MipChain[0]);
-
 	// now call the Ex version now that we have the proper MipChain
-	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0], bImageHasAlphaChannel);
+	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0]);
 	OutNumMipsInTail = CompressorCaps.NumMipsInTail;
 	OutExtData = CompressorCaps.ExtData;
 
 	TIndirectArray<FAsyncCompressionTask> AsyncCompressionTasks;
 	int32 MipCount = MipChain.Num();
 	check(MipCount >= (int32)CompressorCaps.NumMipsInTail);
+	const bool bImageHasAlphaChannel = DetectAlphaChannel(MipChain[0]);
 	const int32 MinAsyncCompressionSize = 128;
 	const bool bAllowParallelBuild = TextureFormat->AllowParallelBuild();
 	bool bCompressionSucceeded = true;
