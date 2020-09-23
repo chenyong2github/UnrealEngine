@@ -21,7 +21,7 @@ struct FBlendTarget
 	{}
 };
 
-USTRUCT(meta = (DisplayName = "Blend(Transform)", Category = "Blend"))
+USTRUCT(meta = (DisplayName = "Blend(Transform)", Category = "Blend", Deprecated = "5.0.0"))
 struct FRigUnit_BlendTransform : public FRigUnit
 {
 	GENERATED_BODY()
