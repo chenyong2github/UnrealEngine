@@ -19,6 +19,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Application/SlateApplication.h"
+#include "ClassTemplateEditorSubsystem.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
@@ -70,9 +71,6 @@
 #include "IAudioExtensionPlugin.h"
 #include "AudioPluginUtilities.h"
 #include "Sound/AudioSettings.h"
-#include "Sound/SoundEffectSubmix.h"
-#include "Sound/SoundEffectSource.h"
-#include "Components/SynthComponent.h"
 
 #include "PlatformInfo.h"
 #include "Blueprint/BlueprintSupport.h"
@@ -520,18 +518,6 @@ FString FNewClassInfo::GetHeaderTemplateFilename() const
 				{
 					return TEXT("CharacterClass.h.template");
 				}
-				else if (BaseClass == USoundEffectSourcePreset::StaticClass())
-				{
-					return TEXT("SoundEffectSourceClass.h.template");
-				}
-				else if (BaseClass == USoundEffectSubmixPreset::StaticClass())
-				{
-					return TEXT("SoundEffectSubmixClass.h.template");
-				}
-				else if (BaseClass == USynthComponent::StaticClass())
-				{
-					return TEXT("SynthComponentClass.h.template");
-				}
 			}
 			// Some other non-actor, non-component UObject class
 			return TEXT( "UObjectClass.h.template" );
@@ -577,18 +563,6 @@ FString FNewClassInfo::GetSourceTemplateFilename() const
 				else if (BaseClass == ACharacter::StaticClass())
 				{
 					return TEXT("CharacterClass.cpp.template");
-				}
-				else if (BaseClass == USoundEffectSubmixPreset::StaticClass())
-				{
-					return TEXT("SoundEffectSubmixClass.cpp.template");
-				}
-				else if (BaseClass == USoundEffectSourcePreset::StaticClass())
-				{
-					return TEXT("SoundEffectSourceClass.cpp.template");
-				}
-				else if (BaseClass == USynthComponent::StaticClass())
-				{
-					return TEXT("SynthComponentClass.cpp.template");
 				}
 			}
 			// Some other non-actor, non-component UObject class
@@ -3000,7 +2974,7 @@ const TCHAR* GameProjectUtils::GetDefaultBuildSettingsVersion()
 
 bool GameProjectUtils::ReadTemplateFile(const FString& TemplateFileName, FString& OutFileContents, FText& OutFailReason)
 {
-	const FString FullFileName = FPaths::EngineContentDir() / TEXT("Editor") / TEXT("Templates") / TemplateFileName;
+	const FString FullFileName = UClassTemplateEditorSubsystem::GetEngineTemplateDirectory() / TemplateFileName;
 	if ( FFileHelper::LoadFileToString(OutFileContents, *FullFileName) )
 	{
 		return true;
@@ -3180,7 +3154,24 @@ bool GenerateConstructorDeclaration(FString& Out, const FString& PrefixedClassNa
 bool GameProjectUtils::GenerateClassHeaderFile(const FString& NewHeaderFileName, const FString UnPrefixedClassName, const FNewClassInfo ParentClassInfo, const TArray<FString>& ClassSpecifierList, const FString& ClassProperties, const FString& ClassFunctionDeclarations, FString& OutSyncLocation, const FModuleContextInfo& ModuleInfo, bool bDeclareConstructor, FText& OutFailReason)
 {
 	FString Template;
-	if ( !ReadTemplateFile(ParentClassInfo.GetHeaderTemplateFilename(), Template, OutFailReason) )
+	bool bTemplateFound = false;
+	if (GEditor)
+	{
+		if (UClassTemplateEditorSubsystem* TemplateSubsystem = GEditor->GetEditorSubsystem<UClassTemplateEditorSubsystem>())
+		{
+			const UClass* BaseClass = ParentClassInfo.BaseClass;
+			if (const UClassTemplate* ClassTemplate = TemplateSubsystem->FindClassTemplate(ParentClassInfo.BaseClass))
+			{
+				bTemplateFound = ClassTemplate->ReadHeader(Template, OutFailReason);
+				if (!bTemplateFound)
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	if (!bTemplateFound && !ReadTemplateFile(ParentClassInfo.GetHeaderTemplateFilename(), Template, OutFailReason))
 	{
 		return false;
 	}
@@ -3225,6 +3216,7 @@ bool GameProjectUtils::GenerateClassHeaderFile(const FString& NewHeaderFileName,
 	FinalOutput = FinalOutput.Replace(TEXT("%UCLASS_SPECIFIER_LIST%"), *MakeCommaDelimitedList(ClassSpecifierList, false), ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%PREFIXED_CLASS_NAME%"), *PrefixedClassName, ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%PREFIXED_BASE_CLASS_NAME%"), *PrefixedBaseClassName, ESearchCase::CaseSensitive);
+	FinalOutput = FinalOutput.Replace(TEXT("%MODULE_NAME%"), *ModuleInfo.ModuleName, ESearchCase::CaseSensitive);
 
 	// Special case where where the wildcard starts with a tab and ends with a new line
 	const bool bLeadingTab = true;
@@ -3327,7 +3319,24 @@ static bool IsUsingOldStylePch(FString BaseDir)
 bool GameProjectUtils::GenerateClassCPPFile(const FString& NewCPPFileName, const FString UnPrefixedClassName, const FNewClassInfo ParentClassInfo, const TArray<FString>& AdditionalIncludes, const TArray<FString>& PropertyOverrides, const FString& AdditionalMemberDefinitions, FString& OutSyncLocation, const FModuleContextInfo& ModuleInfo, FText& OutFailReason)
 {
 	FString Template;
-	if ( !ReadTemplateFile(ParentClassInfo.GetSourceTemplateFilename(), Template, OutFailReason) )
+	bool bTemplateFound = false;
+	if (GEditor)
+	{
+		if (UClassTemplateEditorSubsystem* TemplateSubsystem = GEditor->GetEditorSubsystem<UClassTemplateEditorSubsystem>())
+		{
+			const UClass* BaseClass = ParentClassInfo.BaseClass;
+			if (const UClassTemplate* ClassTemplate = TemplateSubsystem->FindClassTemplate(ParentClassInfo.BaseClass))
+			{
+				bTemplateFound = ClassTemplate->ReadSource(Template, OutFailReason);
+				if (!bTemplateFound)
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	if (!bTemplateFound && !ReadTemplateFile(ParentClassInfo.GetSourceTemplateFilename(), Template, OutFailReason))
 	{
 		return false;
 	}
