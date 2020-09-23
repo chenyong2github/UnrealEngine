@@ -186,6 +186,67 @@ namespace UsdSkelRootTranslatorImpl
 		return OutHash;
 	}
 
+	FSHAHash ComputeSHAHash( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery )
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( UsdSkelRootTranslatorImpl::ComputeSHAHash_SkelQuery );
+
+		FSHAHash OutHash;
+		FSHA1 HashState;
+
+		FScopedUsdAllocs Allocs;
+
+		pxr::UsdSkelAnimQuery AnimQuery = InUsdSkeletonQuery.GetAnimQuery();
+		if ( !AnimQuery )
+		{
+			return OutHash;
+		}
+
+		pxr::UsdPrim UsdPrim = InUsdSkeletonQuery.GetPrim();
+		if ( !UsdPrim )
+		{
+			return OutHash;
+		}
+
+		pxr::UsdStageRefPtr Stage = UsdPrim.GetStage();
+		if ( !Stage )
+		{
+			return OutHash;
+		}
+
+		int32 InterpolationType = static_cast< int32 >( Stage->GetInterpolationType() );
+		HashState.Update( ( uint8* ) &InterpolationType, sizeof( int32 ) );
+
+		// Time samples for joint transforms
+		std::vector<double> TimeData;
+		AnimQuery.GetJointTransformTimeSamples( &TimeData );
+		HashState.Update( ( uint8* ) TimeData.data(), TimeData.size() * sizeof( double ) );
+
+		// Joint transform values
+		pxr::VtArray<pxr::GfMatrix4d> JointTransforms;
+		for ( double JointTimeSample : TimeData )
+		{
+			InUsdSkeletonQuery.ComputeJointLocalTransforms( &JointTransforms, JointTimeSample );
+			HashState.Update( ( uint8* ) JointTransforms.data(), JointTransforms.size() * sizeof( pxr::GfMatrix4d ) );
+		}
+
+		// Time samples for blend shape curves
+		AnimQuery.GetBlendShapeWeightTimeSamples( &TimeData );
+		HashState.Update( ( uint8* ) TimeData.data(), TimeData.size() * sizeof( double ) );
+
+		// Blend shape curve values
+		pxr::VtArray< float > WeightsForSample;
+		for ( double CurveTimeSample : TimeData )
+		{
+			AnimQuery.ComputeBlendShapeWeights( &WeightsForSample, pxr::UsdTimeCode( CurveTimeSample ) );
+			HashState.Update( ( uint8* ) WeightsForSample.data(), WeightsForSample.size() * sizeof( float ) );
+		}
+
+		HashState.Final();
+		HashState.GetHash( &OutHash.Hash[ 0 ] );
+
+		return OutHash;
+	}
+
 	void SetMorphTargetWeight( UPoseableMeshComponent& PoseableMeshComponent, const FString& MorphTargetName, float Weight )
 	{
 		USkeletalMesh* SkeletalMesh = PoseableMeshComponent.SkeletalMesh;
@@ -724,7 +785,7 @@ namespace UsdSkelRootTranslatorImpl
 							Context->AssetsCache,
 							Context->Time,
 							Context->ObjectFlags,
-							Context->BlendShapesByPath && Context->BlendShapesByPath->Num() > 0
+							NewBlendShapes.Num() > 0
 						);
 
 						if ( bMaterialsHaveChanged )
@@ -791,27 +852,33 @@ namespace UsdSkelRootTranslatorImpl
 							continue;
 						}
 
-						pxr::UsdPrim SkelAnimPrim = AnimQuery.GetPrim();
+						FSHAHash Hash = UsdSkelRootTranslatorImpl::ComputeSHAHash( SkelQuery );
+						FString HashString = Hash.ToString();
+						UAnimSequence* AnimSequence = Cast< UAnimSequence >( Context->AssetsCache.FindRef( HashString ) );
 
-						FScopedUnrealAllocs UEAllocs;
-
-						UAnimSequence* AnimSequence = NewObject<UAnimSequence>( GetTransientPackage(), *UsdToUnreal::ConvertString( SkelAnimPrim.GetName() ), Context->ObjectFlags );
-						AnimSequence->SetSkeleton(SkeletalMesh->Skeleton);
-
-						TUsdStore<pxr::VtArray<pxr::UsdSkelSkinningQuery>> SkinningTargets = Binding.GetSkinningTargets();
-						UsdToUnreal::ConvertSkelAnim( SkelQuery, &SkinningTargets.Get(), &NewBlendShapes, AnimSequence );
-
-						if ( AnimSequence->GetRawAnimationData().Num() != 0 || AnimSequence->RawCurveData.FloatCurves.Num() != 0 )
+						if ( !AnimSequence || AnimSequence->GetSkeleton() != SkeletalMesh->Skeleton )
 						{
-							UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( AnimSequence, TEXT( "USDAssetImportData" ) );
-							ImportData->PrimPath = GetPrim().GetPrimPath().GetString(); // Point to the SkelRoot so that it ends up next to the skeletal mesh
-							AnimSequence->AssetImportData = ImportData;
+							FScopedUnrealAllocs UEAllocs;
 
-							Context->AssetsCache.Add( AnimSequence->GetRawDataGuid().ToString(), AnimSequence );
-						}
-						else
-						{
-							AnimSequence->MarkPendingKill();
+							pxr::UsdPrim SkelAnimPrim = AnimQuery.GetPrim();
+							AnimSequence = NewObject<UAnimSequence>( GetTransientPackage(), *UsdToUnreal::ConvertString( SkelAnimPrim.GetName() ), Context->ObjectFlags );
+							AnimSequence->SetSkeleton(SkeletalMesh->Skeleton);
+
+							TUsdStore<pxr::VtArray<pxr::UsdSkelSkinningQuery>> SkinningTargets = Binding.GetSkinningTargets();
+							UsdToUnreal::ConvertSkelAnim( SkelQuery, &SkinningTargets.Get(), &NewBlendShapes, AnimSequence );
+
+							if ( AnimSequence->GetRawAnimationData().Num() != 0 || AnimSequence->RawCurveData.FloatCurves.Num() != 0 )
+							{
+								UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( AnimSequence, TEXT( "USDAssetImportData" ) );
+								ImportData->PrimPath = GetPrim().GetPrimPath().GetString(); // Point to the SkelRoot so that it ends up next to the skeletal mesh
+								AnimSequence->AssetImportData = ImportData;
+
+								Context->AssetsCache.Add( HashString, AnimSequence );
+							}
+							else
+							{
+								AnimSequence->MarkPendingKill();
+							}
 						}
 					}
 				}
