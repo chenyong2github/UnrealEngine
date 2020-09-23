@@ -1648,9 +1648,9 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 										PassParameters->LastInvalidationFrame = LastInvalidationFrame;
 										PassParameters->NumTotalSamples = Scene->Settings->GISamples;
 										PassParameters->TLAS = Scene->RayTracingScene->GetShaderResourceView();
-										PassParameters->GBufferWorldPosition = GraphBuilder.CreateUAV(GBufferWorldPosition);
-										PassParameters->GBufferWorldNormal = GraphBuilder.CreateUAV(GBufferWorldNormal);
-										PassParameters->GBufferShadingNormal = GraphBuilder.CreateUAV(GBufferShadingNormal);
+										PassParameters->GBufferWorldPosition = GBufferWorldPosition;
+										PassParameters->GBufferWorldNormal = GBufferWorldNormal;
+										PassParameters->GBufferShadingNormal = GBufferShadingNormal;
 										PassParameters->IrradianceAndSampleCount = GraphBuilder.CreateUAV(IrradianceAndSampleCount);
 										PassParameters->SHCorrectionAndStationarySkyLightBentNormal = GraphBuilder.CreateUAV(SHCorrectionAndStationarySkyLightBentNormal);
 										PassParameters->SHDirectionality = GraphBuilder.CreateUAV(SHDirectionality);
@@ -1659,8 +1659,8 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 										{
 											PassParameters->RayGuidingLuminance = GraphBuilder.CreateUAV(RayGuidingLuminance);
 											PassParameters->RayGuidingSampleCount = GraphBuilder.CreateUAV(RayGuidingSampleCount);
-											PassParameters->RayGuidingCDFX = GraphBuilder.CreateUAV(RayGuidingCDFX);
-											PassParameters->RayGuidingCDFY = GraphBuilder.CreateUAV(RayGuidingCDFY);
+											PassParameters->RayGuidingCDFX = RayGuidingCDFX;
+											PassParameters->RayGuidingCDFY = RayGuidingCDFY;
 											PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
 										}
 
@@ -2059,9 +2059,9 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 						PassParameters->ChannelIndexArray = ChannelIndexSRV;
 						PassParameters->LightSampleIndexArray = LightSampleIndexSRV;
 						PassParameters->LightShaderParametersArray = LightShaderParameterSRV;
-						PassParameters->GBufferWorldPosition = GraphBuilder.CreateUAV(GBufferWorldPosition);
-						PassParameters->GBufferWorldNormal = GraphBuilder.CreateUAV(GBufferWorldNormal);
-						PassParameters->GBufferShadingNormal = GraphBuilder.CreateUAV(GBufferShadingNormal);
+						PassParameters->GBufferWorldPosition = GBufferWorldPosition;
+						PassParameters->GBufferWorldNormal = GBufferWorldNormal;
+						PassParameters->GBufferShadingNormal = GBufferShadingNormal;
 						PassParameters->ShadowMask = GraphBuilder.CreateUAV(ShadowMask);
 						PassParameters->ShadowMaskSampleCount = GraphBuilder.CreateUAV(ShadowMaskSampleCount);
 
