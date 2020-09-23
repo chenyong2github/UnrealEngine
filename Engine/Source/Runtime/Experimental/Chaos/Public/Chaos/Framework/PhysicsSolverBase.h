@@ -160,11 +160,6 @@ namespace Chaos
 			}
 		}
 
-		virtual bool AreAnyTasksPending() const
-		{
-			return false;
-		}
-
 		bool IsPendingTasksComplete() const
 		{
 			if (PendingTasks && !PendingTasks->IsComplete())

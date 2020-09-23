@@ -646,11 +646,6 @@ public:
 		return Particles.GetUniqueIndices().GenerateUniqueIdx();
 	}
 
-	bool AreAnyTasksPending() const
-	{
-		return (AccelerationStructureTaskComplete.GetReference() && !AccelerationStructureTaskComplete->IsComplete());
-	}
-
 protected:
 	int32 NumConstraints() const
 	{
