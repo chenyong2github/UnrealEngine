@@ -1375,6 +1375,9 @@ private:
 	/** a delegate that broadcasts a notification whenever an actor is spawned */
 	FOnActorSpawned OnActorSpawned;
 
+	/** a delegate that broadcasts a notification before a newly spawned actor is initialized */
+	FOnActorSpawned OnActorPreSpawnInitialization;
+
 	/** Reset Async Trace Buffer **/
 	void ResetAsyncTrace();
 
@@ -2431,6 +2434,12 @@ public:
 
 	/** Remove a listener for OnActorSpawned events */
 	void RemoveOnActorSpawnedHandler( FDelegateHandle InHandle );
+
+	/** Add a listener for OnActorPreSpawnInitialization events */
+	FDelegateHandle AddOnActorPreSpawnInitialization(const FOnActorSpawned::FDelegate& InHandler);
+
+	/** Remove a listener for OnActorPreSpawnInitialization events */
+	void RemoveOnActorPreSpawnInitialization(FDelegateHandle InHandle);	
 
 	/**
 	 * Returns whether the passed in actor is part of any of the loaded levels actors array.

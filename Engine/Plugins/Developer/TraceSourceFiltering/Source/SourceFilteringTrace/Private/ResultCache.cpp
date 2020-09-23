@@ -109,10 +109,8 @@ void FResultCache::CacheFilterResult(const FFilter& Filter, const FActorFilterIn
 
 void FResultCache::CacheSpawnFilterResult(uint32 FilterHash, const uint32 ActorHash, bool bResult)
 {
-	if (bResult)
-	{
-		NewSpawnFilterResults.Add(HashCombine(FilterHash, ActorHash));
-	}
+	TSet<uint32>& ResultSet = bResult ? NewSpawnFilterPassResults : NewSpawnFilterRejectResults;
+	ResultSet.Add(HashCombine(FilterHash, ActorHash));
 }
 
 bool FResultCache::RetrieveCachedResult(const FFilter& Filter, const FActorFilterInfo& ActorInfo) const
@@ -140,10 +138,16 @@ bool FResultCache::RetrieveCachedResult(const FFilter& Filter, const FActorFilte
 
 void FResultCache::ProcessSpawnFilterResults()
 {
-	if (NewSpawnFilterResults.Num())
+	if (NewSpawnFilterRejectResults.Num() || NewSpawnFilterPassResults.Num())
 	{
-		SpawnFilterResults.Append(NewSpawnFilterResults);
-		NewSpawnFilterResults.Empty();
+		SpawnFilterResults.Append(NewSpawnFilterPassResults);
+		for (const uint32& Hash : NewSpawnFilterRejectResults)
+		{
+			SpawnFilterResults.Remove(Hash);
+		}
+		
+		NewSpawnFilterRejectResults.Empty();
+		NewSpawnFilterPassResults.Empty();
 	}
 }
 
