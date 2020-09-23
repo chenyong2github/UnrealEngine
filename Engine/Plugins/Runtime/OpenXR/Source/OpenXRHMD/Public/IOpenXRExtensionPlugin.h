@@ -193,4 +193,21 @@ public:
 	virtual void PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
 	{
 	}
+
+
+	/**
+	 * Start the AR system.
+	 *
+	 * @param SessionType The type of AR session to create
+	 *
+	 * @return true if the system was successfully started
+	 */
+	virtual void OnStartARSession(class UARSessionConfig* SessionConfig) {}
+
+	/** Stop the AR system but leave its internal state intact. */
+	virtual void OnPauseARSession() {}
+
+	/** Stop the AR system and reset its internal state; this task must succeed. */
+	virtual void OnStopARSession() {}
+
 };

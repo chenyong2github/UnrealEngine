@@ -2,21 +2,42 @@
 
 #pragma once
 
+#include "IOpenXRARTrackedMeshHolder.h"
 #include "IOpenXRHMDPlugin.h"
 #include "ARSystemSupportBase.h"
 #include "ARTraceResult.h"
 #include "ARPin.h"
 #include "OpenXRCore.h"
+#include "ARActor.h"
 #include "IOpenXRARModule.h"
 
 class FOpenXRHMD;
 
+DECLARE_STATS_GROUP(TEXT("OpenXRAR"), STATGROUP_OPENXRAR, STATCAT_Advanced);
+
+
+
 class FOpenXRARSystem :
 	public FARSystemSupportBase,
+	public IOpenXRARTrackedMeshHolder,
 	public FGCObject,
 	public TSharedFromThis<FOpenXRARSystem, ESPMode::ThreadSafe>
 {
 public:
+	/** A set of updates to be processed at once */
+	struct FMeshUpdateSet
+	{
+		FMeshUpdateSet()
+		{
+		}
+		~FMeshUpdateSet()
+		{
+			GuidToMeshUpdateList.Empty();
+		}
+
+		TMap<FGuid, FOpenXRMeshUpdate*> GuidToMeshUpdateList;
+	};
+
 	FOpenXRARSystem();
 	virtual ~FOpenXRARSystem();
 
@@ -43,7 +64,7 @@ public:
 	virtual void OnStartARSession(UARSessionConfig* SessionConfig);
 
 	/** Stop the AR system but leave its internal state intact. */
-	virtual void OnPauseARSession() {}
+	virtual void OnPauseARSession();
 
 	/** Stop the AR system and reset its internal state; this task must succeed. */
 	virtual void OnStopARSession();
@@ -60,7 +81,7 @@ public:
 	 * Note: Usually, an app will ask the user to select an appropriate location for some
 	 * experience. This allows us to choose an appropriate alignment transform.
 	 */
-	virtual void OnSetAlignmentTransform(const FTransform& InAlignmentTransform) {}
+	virtual void OnSetAlignmentTransform(const FTransform& InAlignmentTransform);
 
 	/**
 	 * Trace all the tracked geometries and determine which have been hit by a ray cast from `ScreenCoord`.
@@ -68,12 +89,12 @@ public:
 	 *
 	 * @return a list of all the geometries that were hit, sorted by distance
 	 */
-	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels) { return {}; }
+	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels);
 
-	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels) { return {}; }
+	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels);
 
 	/** @return a TArray of all the tracked geometries known to your ar system */
-	virtual TArray<UARTrackedGeometry*> OnGetAllTrackedGeometries() const { return {}; }
+	virtual TArray<UARTrackedGeometry*> OnGetAllTrackedGeometries() const;
 
 	/** @return a TArray of all the pins that attach components to TrackedGeometries */
 	virtual TArray<UARPin*> OnGetAllPins() const;
@@ -175,16 +196,45 @@ private:
 	FARSessionStatus SessionStatus;
 
 	void UpdateAnchors();
+	void ClearAnchors();
 
 	//
 	// PROPERTIES REPORTED TO FGCObject
 	// ...
 	UARSessionConfig* SessionConfig = nullptr;
 	TArray<UARPin*> Pins;
-	//TMap<FGuid, UARTrackedGeometry*> TrackedGeometries;
+	TMap<FGuid, FTrackedGeometryGroup> TrackedGeometryGroups;
 	// ...
 	// PROPERTIES REPORTED TO FGCObject
 	//
+
+
+	//IOpenXRARTrackedMeshHolder
+	virtual void StartMeshUpdates();
+	virtual FOpenXRMeshUpdate* AllocateMeshUpdate(FGuid InGuidMeshUpdate);
+	virtual void RemoveMesh(FGuid InGuidMeshUpdate);
+	virtual void EndMeshUpdates();
+
+	void RemoveMesh_GameThread(FGuid InGuidMeshUpdate);
+	void ProcessMeshUpdates_GameThread();
+	void AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh);
+	void OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID);
+
+	/** Removes all tracked geometries, marking them as not tracked and sending the delegate event */
+	void ClearTrackedGeometries();
+
+	/** Used to lock access to the update list that will be queued for the game thread */
+	FCriticalSection CurrentUpdateSync;
+	/** This pointer is locked until the list construction is complete, where this gets queued for game thread processing */
+	FMeshUpdateSet* CurrentUpdate;
+	/** Controls the access to the queue of mesh updates for the game thread to process */
+	FCriticalSection MeshUpdateListSync;
+	/** List of mesh updates for the game thread to process */
+	TArray<FMeshUpdateSet*> MeshUpdateList;
+	/** Holds the set of last known meshes so we can detect removed meshes. Only touched on the game thread */
+	TSet<FGuid> LastKnownMeshes;
+	//for networked callbacks
+	FDelegateHandle SpawnARActorDelegateHandle;
 
 };
 
@@ -202,6 +252,9 @@ public:
 	virtual void ShutdownModule() override;
 
 	virtual bool GetExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
+
+	virtual class IOpenXRARTrackedMeshHolder * GetTrackedMeshHolder() override;
+
 
 private:
 	TSharedPtr<FOpenXRARSystem, ESPMode::ThreadSafe> ARSystem;
