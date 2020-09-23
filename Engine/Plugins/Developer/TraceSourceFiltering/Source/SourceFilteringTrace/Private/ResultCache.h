@@ -83,8 +83,9 @@ protected:
 	/** contains actor + filter hash, for spawn filters (if passed) */
 	TSet<uint32> SpawnFilterResults;
 
-	/** Frame-accumulated spawn filter results, appended to SpawnFilterResults at the end of the frame */
-	TSet<uint32> NewSpawnFilterResults;
+	/** Frame-accumulated spawn filter results, applied to SpawnFilterResults at the end of the frame */
+	TSet<uint32> NewSpawnFilterPassResults;
+	TSet<uint32> NewSpawnFilterRejectResults;
 
 	// Contains filter index + its hash, map is re-populated each frame with interval filters which will be tick during it (see AddTickedIntervalFilter)
 	TMap<uint32, uint32> IntervalFilterIndexAndHash;
