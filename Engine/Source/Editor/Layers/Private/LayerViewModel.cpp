@@ -93,17 +93,6 @@ bool FLayerViewModel::IsVisible() const
 }
 
 
-bool FLayerViewModel::ShouldLoadActors() const
-{
-	if (!Layer.IsValid())
-	{
-		return false;
-	}
-
-	return Layer->ShouldLoadActors();
-}
-
-
 void FLayerViewModel::ToggleVisibility()
 {
 	if( !Layer.IsValid() )

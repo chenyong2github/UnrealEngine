@@ -51,9 +51,6 @@ public:
 	/**	@return Whether the Layer is visible */
 	bool IsVisible() const;
 
-	/**	@return Whether actors from this layer should be loaded */
-	bool ShouldLoadActors() const;
-
 	/** 
 	 *	Toggles the specified layer's visibility
 	 */
@@ -192,10 +189,6 @@ public:
 	/** Broadcasts whenever a layer visibility toggle is requested */
 	DECLARE_EVENT_OneParam( FLayerViewModel, FVisibilityToggledEvent, const TSharedPtr<FLayerViewModel>& )
 	FVisibilityToggledEvent& OnVisibilityToggled() { return VisibilityToggledEvent; }
-
-	/** Broadcasts whenever a layer actors loading toggle is requested */
-	DECLARE_EVENT_OneParam(FLayerViewModel, ActorsLoadingToggledEvent, const TSharedPtr<FLayerViewModel>&)
-	FVisibilityToggledEvent& OnActorsLoadingToggled() { return ActorsLoadingToggledEvent; }
 
 private:
 

@@ -106,15 +106,6 @@ void FLayerCollectionViewModel::BindCommands()
 		FCanExecuteAction::CreateSP( this, &FLayerCollectionViewModel::MakeAllLayersVisible_CanExecute ) );
 
 
-	ActionList.MapAction(Commands.ToggleSelectedLayersActorsLoading,
-			FExecuteAction::CreateSP(this, &FLayerCollectionViewModel::ToggleSelectedLayersActorsLoading_Executed),
-			FCanExecuteAction::CreateSP(this, &FLayerCollectionViewModel::ToggleSelectedLayersActorsLoading_CanExecute));
-
-	ActionList.MapAction(Commands.MakeAllLayersLoadActors,
-		FExecuteAction::CreateSP(this, &FLayerCollectionViewModel::MakeAllLayersLoadActors_Executed),
-		FCanExecuteAction::CreateSP(this, &FLayerCollectionViewModel::MakeAllLayersLoadActors_CanExecute));
-
-
 	ActionList.MapAction( Commands.RequestRenameLayer,
 		FExecuteAction::CreateSP( this, &FLayerCollectionViewModel::RequestRenameLayer_Executed ),
 		FCanExecuteAction::CreateSP( this, &FLayerCollectionViewModel::RequestRenameLayer_CanExecute ) );
@@ -280,7 +271,6 @@ void FLayerCollectionViewModel::OnLayerAdded( const TWeakObjectPtr< ULayer >& Ad
 
 	const TSharedRef< FLayerViewModel > NewLayerViewModel = FLayerViewModel::Create( AddedLayer, Editor );
 	NewLayerViewModel->OnVisibilityToggled().AddSP( this, &FLayerCollectionViewModel::ToggleLayerVisibility );
-	NewLayerViewModel->OnActorsLoadingToggled().AddSP( this, &FLayerCollectionViewModel::ToggleLayerActorsLoading );
 	AllLayerViewModels.Add( NewLayerViewModel );
 
 	// We specifically ignore filters when dealing with single additions
@@ -323,7 +313,6 @@ void FLayerCollectionViewModel::CreateViewModels( const TArray< TWeakObjectPtr< 
 	{
 		const TSharedRef< FLayerViewModel > NewLayerViewModel = FLayerViewModel::Create( *LayerIt, Editor );
 		NewLayerViewModel->OnVisibilityToggled().AddSP( this, &FLayerCollectionViewModel::ToggleLayerVisibility );
-		NewLayerViewModel->OnActorsLoadingToggled().AddSP( this, &FLayerCollectionViewModel::ToggleLayerActorsLoading );
 		AllLayerViewModels.Add( NewLayerViewModel );
 
 		if( Filters->PassesAllFilters( NewLayerViewModel ) )
@@ -644,71 +633,6 @@ void FLayerCollectionViewModel::MakeAllLayersVisible_Executed()
 }
 
 bool FLayerCollectionViewModel::MakeAllLayersVisible_CanExecute() const
-{
-	return AllLayerViewModels.Num() > 0;
-}
-
-
-// ToggleLayerActorsLoading ------------------------------------------
-void FLayerCollectionViewModel::ToggleLayerActorsLoading(const TSharedPtr<FLayerViewModel>& InLayer)
-{
-	if (SelectedLayers.Find(InLayer) == INDEX_NONE)
-	{
-		// Given layer wasn't selected so toggle only its own visibility
-		const FScopedTransaction Transaction(LOCTEXT("ToggleActorsLoading", "Toggle Layer Actors Loading"));
-		WorldLayers->ToggleLayerActorsLoading(InLayer->GetFName());
-	}
-	else
-	{
-		// Toggle actors loading of selected layers to the same state as the given layer
-		bool bShouldLoadActors = InLayer->ShouldLoadActors();
-
-		TArray< FName > SelectedLayerNames;
-		for (auto LayersIt = SelectedLayers.CreateConstIterator(); LayersIt; ++LayersIt)
-		{
-			const TSharedPtr< FLayerViewModel >& Layer = *LayersIt;
-			if (Layer->ShouldLoadActors() == bShouldLoadActors)
-			{
-				SelectedLayerNames.Add(Layer->GetFName());
-			}
-		}
-
-		const FScopedTransaction Transaction(LOCTEXT("ToggleSelectedLayersActorsLoading", "Toggle Layer Actors Loading"));
-		WorldLayers->ToggleLayersActorsLoading(SelectedLayerNames);
-	}
-}
-
-
-// ToggleSelectedLayersActorsLoading ------------------------------------------
-void FLayerCollectionViewModel::ToggleSelectedLayersActorsLoading_Executed()
-{
-	if (SelectedLayers.Num() == 0)
-	{
-		return;
-	}
-
-	TArray< FName > SelectedLayerNames;
-	AppendSelectLayerNames(SelectedLayerNames);
-
-	const FScopedTransaction Transaction(LOCTEXT("ToggleSelectedLayersActorsLoading", "Toggle Layers Actors Loading"));
-
-	WorldLayers->ToggleLayersActorsLoading(SelectedLayerNames);
-}
-
-bool FLayerCollectionViewModel::ToggleSelectedLayersActorsLoading_CanExecute() const
-{
-	return SelectedLayers.Num() > 0;
-}
-
-
-// MakeAllLayersLoadActors ----------------------------------------------------
-void FLayerCollectionViewModel::MakeAllLayersLoadActors_Executed()
-{
-	const FScopedTransaction Transaction(LOCTEXT("MakeAllLayersLoadActors", "Make All Layers Load Actors"));
-	WorldLayers->MakeAllLayersLoadActors();
-}
-
-bool FLayerCollectionViewModel::MakeAllLayersLoadActors_CanExecute() const
 {
 	return AllLayerViewModels.Num() > 0;
 }

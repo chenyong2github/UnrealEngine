@@ -70,16 +70,6 @@ bool FActorLayerViewModel::IsVisible() const
 	return Layer->IsVisible();
 }
 
-bool FActorLayerViewModel::ShouldActorsBeLoaded() const
-{
-	if( !Layer.IsValid() )
-	{
-		return false;
-	}
-
-	return Layer->ShouldLoadActors();
-}
-
 
 void FActorLayerViewModel::OnLayersChanged( const ELayersAction::Type Action, const TWeakObjectPtr< ULayer >& ChangedLayer, const FName& ChangedProperty )
 {

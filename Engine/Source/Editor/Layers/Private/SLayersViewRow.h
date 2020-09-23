@@ -19,7 +19,6 @@ namespace LayersView
 	/** IDs for list columns */
 	static const FName ColumnID_LayerLabel( "Layer" );
 	static const FName ColumnID_Visibility( "Visibility" );
-	static const FName ColumnID_ActorsLoading( "ActorsLoading" );
 }
 
 /**
@@ -131,14 +130,6 @@ private:
 	 */
 	const FSlateBrush* GetVisibilityBrushForLayer() const;
 
-	/**
-	 *	Called to get the Slate Image Brush representing the actors loading state of
-	 *	the layer this row widget represents
-	 *
-	 *	@return	The SlateBrush representing the layer's actors loading state
-	 */
-	const FSlateBrush* GetActorsLoadingBrushForLayer() const;
-
 private:
 
 	/** The layer associated with this row of data */
@@ -146,9 +137,6 @@ private:
 
 	/**	The visibility button for the layer */
 	TSharedPtr< SButton > VisibilityButton;
-
-	/**	The actors loading button for the layer */
-	TSharedPtr< SButton > ActorsLoadingButton;
 
 	/** The string to highlight on any text contained in the row widget */
 	TAttribute< FText > HighlightText;

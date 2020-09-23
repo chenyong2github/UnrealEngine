@@ -82,11 +82,6 @@ public:
 			.DefaultLabel(NSLOCTEXT("LayersView", "Visibility", "Visibility"))
 			.FixedWidth(40.0f)
 
-			/** Layer actors loading column */
-			+SHeaderRow::Column(LayersView::ColumnID_ActorsLoading)
-			.DefaultLabel(NSLOCTEXT("LayersView", "ActorsLoading", "Actors Loading"))
-			.FixedWidth(40.0f)
-
 			/** LayerName label column */
 			+SHeaderRow::Column(LayersView::ColumnID_LayerLabel)
 			.DefaultLabel(LOCTEXT("Column_LayerNameLabel", "Layer"));

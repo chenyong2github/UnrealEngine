@@ -421,23 +421,6 @@ void UWorldPartition::RegisterDelegates()
 
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
 		FEditorDelegates::EndPIE.AddUObject(this, &UWorldPartition::OnEndPIE);
-
-		if (LayerSubSystem)
-		{
-			OnLayersChangedHandle = LayerSubSystem->OnLayersChanged().AddLambda([this](const ELayersAction::Type Action, const TWeakObjectPtr<ULayer>& ChangedLayer, const FName& ChangedProperty)
-			{
-				static FName NAME_bShouldLoadActors(TEXT("bShouldLoadActors"));
-				if (ChangedProperty == NAME_bShouldLoadActors)
-				{
-					RefreshLoadedCells();
-				}
-			});
-
-			OnActorsLayersChangedHandle = LayerSubSystem->OnActorsLayersChanged().AddLambda([this](const TWeakObjectPtr<AActor>& ChangedActor)
-			{
-				UpdateActorDesc(ChangedActor.Get());
-			});
-		}
 	}
 }
 
@@ -445,12 +428,6 @@ void UWorldPartition::UnregisterDelegates()
 {
 	if (GEditor && !IsTemplate())
 	{
-		if (LayerSubSystem)
-		{
-			LayerSubSystem->OnLayersChanged().Remove(OnLayersChangedHandle);
-			LayerSubSystem->OnActorsLayersChanged().Remove(OnActorsLayersChangedHandle);
-		}
-
 		FEditorDelegates::PreBeginPIE.RemoveAll(this);
 		FEditorDelegates::EndPIE.RemoveAll(this);
 
@@ -848,28 +825,6 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 
 	Cell->Modify(false);
 
-	auto ShouldActorBeLoaded = [&](const FWorldPartitionActorDesc* ActorDesc)
-	{
-		if (LayerSubSystem)
-		{
-			uint32 NumValidLayers = 0;
-			for (const FName& LayerName : ActorDesc->GetLayers())
-			{
-				if (ULayer* Layer = LayerSubSystem->GetLayer(LayerName))
-				{
-					if (Layer->ShouldLoadActors())
-					{
-						return true;
-					}
-					NumValidLayers++;
-				}
-			}
-			return !NumValidLayers;
-		}
-
-		return true;
-	};
-
 	auto UnloadActor = [this](FWorldPartitionActorDesc* ActorDesc, AActor* Actor)
 	{
 		check(Actor);
@@ -908,40 +863,32 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 			// or directly referenced by a loaded cell.
 			check(Actor || !ActorDesc->GetLoadedRefCount());
 
-			// Filter actor against visible layers and load it if required
-			if (ShouldActorBeLoaded(ActorDesc))
-			{
-				bool bIsAlreadyInLoadedActors = false;
-				Cell->LoadedActors.Add(ActorDesc, &bIsAlreadyInLoadedActors);
+			bool bIsAlreadyInLoadedActors = false;
+			Cell->LoadedActors.Add(ActorDesc, &bIsAlreadyInLoadedActors);
 
-				if (bIsAlreadyInLoadedActors)
+			if (bIsAlreadyInLoadedActors)
+			{
+				// We already hold a reference to this actor
+				check(Actor);
+				check(ActorDesc->GetLoadedRefCount());
+				UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Skipped already loaded actor %s"), *Actor->GetFullName());
+			}
+			else
+			{
+				const uint32 ActorRefCount = ActorDesc->AddLoadedRefCount();
+
+				if (ActorRefCount == 1)
 				{
-					// We already hold a reference to this actor
-					check(Actor);
-					check(ActorDesc->GetLoadedRefCount());
-					UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Skipped already loaded actor %s"), *Actor->GetFullName());
+					// Register actor
+					Actor = RegisterActor(ActorDesc);
 				}
 				else
 				{
-					const uint32 ActorRefCount = ActorDesc->AddLoadedRefCount();
-
-					if (ActorRefCount == 1)
-					{
-						// Register actor
-						Actor = RegisterActor(ActorDesc);
-					}
-					else
-					{
-						check(Actor);
-						UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Referenced unloaded actor %s(%d)"), *Actor->GetFullName(), ActorRefCount);
-					}
-
-					check(Actor && Actor->GetActorGuid() == ActorDesc->GetGuid());
+					check(Actor);
+					UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Referenced unloaded actor %s(%d)"), *Actor->GetFullName(), ActorRefCount);
 				}
-			}
-			else if (Cell->LoadedActors.Remove(ActorDesc))
-			{
-				UnloadActor(ActorDesc, Actor);
+
+				check(Actor && Actor->GetActorGuid() == ActorDesc->GetGuid());
 			}
 		}
 	}

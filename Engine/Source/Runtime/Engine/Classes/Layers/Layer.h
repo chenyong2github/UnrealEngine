@@ -39,9 +39,6 @@ public:
 	void SetVisible(bool bIsVisible);
 	bool IsVisible() const;
 
-	void SetShouldLoadActors(bool bShouldLoadActors);
-	bool ShouldLoadActors() const;
-
 	const TArray<FLayerActorStats>& GetActorStats() const;
 	void ClearActorStats();
 	void AddToStats(AActor* Actor);
@@ -55,10 +52,6 @@ private:
 	/** Whether actors associated with the layer are visible in the viewport */
 	UPROPERTY()
 	uint32 bIsVisible:1;
-
-	/** Whether actors associated with the layer should be loaded or not */
-	UPROPERTY()
-	uint32 bShouldLoadActors:1;
 
 	/** 
 	 * Basic stats regarding the number of Actors and their types currently assigned to the Layer 

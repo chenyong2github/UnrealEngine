@@ -6,7 +6,6 @@ ULayer::ULayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, LayerName( NAME_None )
 	, bIsVisible( true )
-	, bShouldLoadActors( true )
 {
 }
 
@@ -28,16 +27,6 @@ void ULayer::SetVisible(bool bInIsVisible)
 bool ULayer::IsVisible() const
 {
 	return bIsVisible;
-}
-
-void ULayer::SetShouldLoadActors(bool bInShouldLoadActors)
-{
-	bShouldLoadActors = bInShouldLoadActors;
-}
-
-bool ULayer::ShouldLoadActors() const
-{
-	return bShouldLoadActors;
 }
 
 void ULayer::ClearActorStats()

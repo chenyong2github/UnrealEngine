@@ -836,6 +836,9 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				{
 					Actor->GridPlacement = DefaultGridPlacement;
 				}
+
+				// Clear actor layers as they are not supported yet in world partition
+				Actor->Layers.Empty();
 			}
 		}
 

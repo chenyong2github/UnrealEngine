@@ -78,23 +78,6 @@ TSharedRef< SWidget > SLayersViewRow::GenerateWidgetForColumn(const FName& Colum
 			]
 		;
 	}
-	else if (ColumnID == LayersView::ColumnID_ActorsLoading)
-	{
-		TableRowContent =
-			SAssignNew(ActorsLoadingButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.OnClicked(this, &SLayersViewRow::OnToggleActorsLoading)
-			.ToolTipText(LOCTEXT("ActorsLoadingButtonToolTip", "Toggle Actors Loading"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &SLayersViewRow::GetActorsLoadingBrushForLayer)
-			]
-		;
-	}
 	else
 	{
 		checkf(false, TEXT("Unknown ColumnID provided to SLayersView"));
@@ -272,18 +255,6 @@ const FSlateBrush* SLayersViewRow::GetVisibilityBrushForLayer() const
 	{
 		return IsHovered() ? FEditorStyle::GetBrush("Level.NotVisibleHighlightIcon16x") :
 			FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
-	}
-}
-
-const FSlateBrush* SLayersViewRow::GetActorsLoadingBrushForLayer() const
-{
-	if (ViewModel->ShouldLoadActors())
-	{
-		return FEditorStyle::GetBrush("SessionBrowser.StatusRunning");
-	}
-	else
-	{
-		return FEditorStyle::GetBrush("SessionBrowser.StatusTimedOut");
 	}
 }
 

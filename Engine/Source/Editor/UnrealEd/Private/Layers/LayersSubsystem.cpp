@@ -184,7 +184,8 @@ bool ULayersSubsystem::IsActorValidForLayer(AActor* Actor)
 	const bool bIsBuilderBrush = FActorEditorUtils::IsABuilderBrush(Actor);
 	const bool bIsHidden = (Actor->GetClass()->GetDefaultObject<AActor>()->bHiddenEd == true);
 	const bool bIsInEditorWorld = (Actor->GetWorld()->WorldType == EWorldType::Editor);
-	const bool bIsValid = !bIsHidden && !bIsBuilderBrush && bIsInEditorWorld;
+	const bool bIsPartitionedActor = Actor->GetLevel()->bIsPartitioned;
+	const bool bIsValid = !bIsHidden && !bIsBuilderBrush && bIsInEditorWorld && !bIsPartitionedActor;
 
 	return bIsValid;
 }
@@ -1142,77 +1143,6 @@ void ULayersSubsystem::MakeAllLayersVisible()
 	}
 
 	UpdateAllActorsVisibility( true, true );
-}
-
-
-
-void ULayersSubsystem::SetLayerActorsLoading(const FName& LayerName, const bool bShouldLoadActors)
-{
-	SetLayersActorsLoading({ LayerName }, bShouldLoadActors);
-}
-
-
-void ULayersSubsystem::SetLayersActorsLoading(const TArray< FName >& LayerNames, const bool bShouldLoadActors)
-{
-	bool bChangeOccurred = false;
-	for (const auto& LayerName : LayerNames)
-	{
-		ULayer* Layer = EnsureLayerExists(LayerName);
-		check(Layer != NULL);
-
-		if (Layer->ShouldLoadActors() != bShouldLoadActors)
-		{
-			Layer->Modify();
-			Layer->SetShouldLoadActors(bShouldLoadActors);
-			LayersChanged.Broadcast(ELayersAction::Modify, Layer, "bShouldLoadActors");
-			bChangeOccurred = true;
-		}
-	}
-
-	if (bChangeOccurred)
-	{
-		GEditor->RedrawLevelEditingViewports();
-	}
-}
-
-
-void ULayersSubsystem::ToggleLayerActorsLoading(const FName& LayerName)
-{
-	ULayer* Layer = EnsureLayerExists(LayerName);
-	check(Layer != NULL);
-
-	Layer->Modify();
-	Layer->SetShouldLoadActors(!Layer->ShouldLoadActors());
-
-	LayersChanged.Broadcast(ELayersAction::Modify, Layer, "bShouldLoadActors");
-	GEditor->RedrawLevelEditingViewports();
-}
-
-
-void ULayersSubsystem::ToggleLayersActorsLoading(const TArray< FName >& LayerNames)
-{
-	for (const auto& LayerName : LayerNames)
-	{
-		ToggleLayerActorsLoading(LayerName);
-	}
-
-	GEditor->RedrawLevelEditingViewports();
-}
-
-
-void ULayersSubsystem::MakeAllLayersLoadActors()
-{
-	for (auto Layer : GetWorld()->Layers)
-	{
-		if (!Layer->ShouldLoadActors())
-		{
-			Layer->Modify();
-			Layer->SetShouldLoadActors(true);
-			LayersChanged.Broadcast(ELayersAction::Modify, Layer, "bShouldLoadActors");
-		}
-	}
-
-	GEditor->RedrawLevelEditingViewports();
 }
 
 
