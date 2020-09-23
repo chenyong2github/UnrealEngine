@@ -55,7 +55,7 @@ void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Materia
 			if (Material != nullptr)
 			{
 				UMaterialInstanceDynamic* DynamicMaterial = Cast<UMaterialInstanceDynamic>(Material);
-				if ( (DynamicMaterial != nullptr && DynamicMaterial->Parent != OverrideMaterials[ElementIndex]) || OverrideMaterials[ElementIndex] == nullptr)
+				if (!((DynamicMaterial != nullptr && DynamicMaterial->Parent == OverrideMaterials[ElementIndex]) || OverrideMaterials[ElementIndex] == nullptr))
 				{
 					// Mark cached material parameter names dirty
 					MarkCachedMaterialParameterNameIndicesDirty();
