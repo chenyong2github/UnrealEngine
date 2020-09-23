@@ -89,12 +89,31 @@ protected:
 	}
 
 public:
+	// Creates a sound effect instance but does not initialize it.
+	template <typename TSoundEffectType>
+	static TSharedPtr<TSoundEffectType, ESPMode::ThreadSafe> CreateInstance(USoundEffectPreset& InOutPreset)
+	{
+		TSoundEffectType* NewEffect = static_cast<TSoundEffectType*>(InOutPreset.CreateNewEffect());
+		NewEffect->Preset = &InOutPreset;
+		NewEffect->ParentPresetUniqueId = InOutPreset.GetUniqueID();
+
+		TSharedPtr<TSoundEffectType, ESPMode::ThreadSafe> NewEffectPtr(NewEffect);
+
+		TSoundEffectPtr SoundEffectPtr = StaticCastSharedPtr<FSoundEffectBase, TSoundEffectType, ESPMode::ThreadSafe>(NewEffectPtr);
+		InOutPreset.AddEffectInstance(SoundEffectPtr);
+
+		return NewEffectPtr;
+	}
+
+	// Creates a sound effect instance and initializes it
 	template <typename TInitData, typename TSoundEffectType>
 	static TSharedPtr<TSoundEffectType, ESPMode::ThreadSafe> CreateInstance(const TInitData& InInitData, USoundEffectPreset& InOutPreset)
 	{
 		TSoundEffectType* NewEffect = static_cast<TSoundEffectType*>(InOutPreset.CreateNewEffect());
 		NewEffect->Preset = &InOutPreset;
-		NewEffect->Init(InInitData);
+		NewEffect->ParentPresetUniqueId = InInitData.ParentPresetUniqueId;
+
+		NewEffect->Setup(InInitData);
 
 		TSharedPtr<TSoundEffectType, ESPMode::ThreadSafe> NewEffectPtr(NewEffect);
 
