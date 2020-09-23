@@ -238,16 +238,18 @@ public:
 public:
 	//~ ICompImageColorPickerInterface API
 	//
-	// NOTE: as we cannot make BlueprintCallable functions EditorOnly, we've flagged these as 
+	// NOTE: as we cannot make BlueprintCallable functions EditorOnly, we've previously flagged these as 
 	//       "DevelopmentOnly", and made them non-functional outside of the editor
+	//       However, that restriction has now been removed, since the functions do nothing outside the Editor,
+	//       so it is ok for them to be included in packaged games.
 	//
 
 	/* EDITOR ONLY - Specifies which intermediate target to pick colors from (if left unset, we default to the display image) */
-	UFUNCTION(BlueprintCallable, Category = "Composure|Editor", meta = (DevelopmentOnly))
+	UFUNCTION(BlueprintCallable, Category = "Composure|Editor")
 	void SetEditorColorPickingTarget(UTextureRenderTarget2D* PickingTarget);
 
 	/* EDITOR ONLY - Specifies an intermediate image to display when picking (if left unset, we default to the final output image) */
-	UFUNCTION(BlueprintCallable, Category = "Composure|Editor", meta = (DevelopmentOnly))
+	UFUNCTION(BlueprintCallable, Category = "Composure|Editor")
 	void SetEditorColorPickerDisplayImage(UTexture* PickerDisplayImage);
 
 #if WITH_EDITOR
@@ -372,6 +374,7 @@ protected:
 
 public: 
 	//~ Begin UObject interface
+	virtual void BeginPlay() override;
 	virtual void PostInitProperties() override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;

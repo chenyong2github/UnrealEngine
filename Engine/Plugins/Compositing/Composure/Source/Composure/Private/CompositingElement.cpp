@@ -903,7 +903,13 @@ void ACompositingElement::PostLoad()
 	const int32 ComposureVer = GetLinkerCustomVersion(FComposureCustomVersion::GUID);
 	PostLoadCompatUpgrade(ComposureVer);
 
+#if WITH_EDITOR
+	RefreshAllInternalPassLists();
+#endif
+}
 
+void ACompositingElement::BeginPlay()
+{
 	RefreshAllInternalPassLists();
 }
 
