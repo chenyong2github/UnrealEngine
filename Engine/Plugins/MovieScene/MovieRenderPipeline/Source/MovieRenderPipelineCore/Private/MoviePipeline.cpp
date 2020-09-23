@@ -866,14 +866,36 @@ void UMoviePipeline::BuildShotListFromSequence()
 			ModifiedSegment.bCameraSectionIsActive = ModifiedSegment.CameraSection->IsActive();
 		}
 
-		ModifiedSegment.ShotSection = ShotSection;
 		if (ShotSection)
 		{
-			ModifiedSegment.bShotSectionIsLocked = ShotSection->IsLocked();
-			ModifiedSegment.ShotSectionRange = ShotSection->GetRange();
-			ModifiedSegment.bShotSectionIsActive = ShotSection->IsActive();
+			// Since multiple segments could map to the same cinematic shot section, and the cinematic 
+			// shot could have been modified already, find the first segment corresponding to this shot 
+			// and use its cached properties.
+			FMovieSceneChanges::FSegmentChange* ExistingShotSegment = nullptr;
+			for (int32 Index = 0; Index < SequenceChanges.Segments.Num(); Index++)
+			{
+				if (ShotSection == SequenceChanges.Segments[Index].ShotSection)
+				{
+					ExistingShotSegment = &SequenceChanges.Segments[Index];
+					break;
+				}
+			}
+			if (ExistingShotSegment)
+			{
+				ModifiedSegment.bShotSectionIsLocked = ExistingShotSegment->bShotSectionIsLocked;
+				ModifiedSegment.ShotSectionRange = ExistingShotSegment->ShotSectionRange;
+				ModifiedSegment.bShotSectionIsActive = ExistingShotSegment->bShotSectionIsActive;
+			}
+			else
+			{
+				ModifiedSegment.bShotSectionIsLocked = ShotSection->IsLocked();
+				ModifiedSegment.ShotSectionRange = ShotSection->GetRange();
+				ModifiedSegment.bShotSectionIsActive = ShotSection->IsActive();
+			}
+			
 			ShotSection->SetIsLocked(false);
 		}
+		ModifiedSegment.ShotSection = ShotSection;
 
 		// For non-active shots, this is where we stop
 		if (!Shot->bEnabled)
