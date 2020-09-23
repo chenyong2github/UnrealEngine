@@ -6012,7 +6012,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(WriteCookerOpenOrder);
 					if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
 					{
-						Generator.WriteCookerOpenOrder();
+						Generator.WriteCookerOpenOrder(SandboxFile.Get());
 					}
 				}
 				{
