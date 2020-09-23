@@ -388,6 +388,13 @@ namespace Chaos
 		/** Apply a solver configuration to this solver, set externally by the owner of a solver (see UPhysicsSettings for world solver settings) */
 		void ApplyConfig(const FChaosSolverConfiguration& InConfig);
 
+		virtual bool AreAnyTasksPending() const override
+		{
+			return GetEvolution()->AreAnyTasksPending();
+		}
+
+		void BeginDestroy();
+
 	private:
 
 		/**/

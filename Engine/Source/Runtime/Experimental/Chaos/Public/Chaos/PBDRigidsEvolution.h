@@ -646,6 +646,16 @@ public:
 		return Particles.GetUniqueIndices().GenerateUniqueIdx();
 	}
 
+	bool AreAnyTasksPending() const
+	{
+		return (AccelerationStructureTaskComplete.GetReference() && !AccelerationStructureTaskComplete->IsComplete());
+	}
+
+	void SetCanStartAsyncTasks(bool bInCanStartAsyncTasks)
+	{
+		bCanStartAsyncTasks = bInCanStartAsyncTasks;
+	}
+
 protected:
 	int32 NumConstraints() const
 	{
@@ -768,6 +778,9 @@ protected:
 	//the backing buffer for all acceleration structures
 	TArray<TUniquePtr<FAccelerationStructure>> AccelerationBackingBuffer;
 	bool bIsSingleThreaded;
+
+	// Allows us to tell evolution to stop starting async tasks if we are trying to cleanup solver/evo.
+	bool bCanStartAsyncTasks;
 
 public:
 	int32 LatestExternalTimestampConsumed;	//The latest external timestamp we consumed inputs from. Needed for synchronizing different DTs

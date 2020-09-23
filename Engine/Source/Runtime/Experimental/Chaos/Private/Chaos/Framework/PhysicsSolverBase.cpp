@@ -119,12 +119,26 @@ namespace Chaos
 
 	void FPhysicsSolverBase::DestroySolver(FPhysicsSolverBase& InSolver)
 	{
-		// DestroySolver should only be called if we are not waiting on async work.
-		// This should be called when World/Scene are cleaning up, World implements IsReadyForFinishDestroy() and returns false when async work is still going.
-		// This means that garbage collection should not cleanup world and this solver until this async work is complete.
-		// We do it this way because it is unsafe for us to block on async task in this function, as it is unsafe to block on a task during GC, as this may schedule
-		// another task that may be unsafe during GC, and cause crashes.
-		ensure(InSolver.IsPendingTasksComplete());
+		// Please read the comments this is a minefield.
+				
+		const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
+		if (bIsSingleThreadEnvironment == false)
+		{
+			// In Multithreaded: DestroySolver should only be called if we are not waiting on async work.
+			// This should be called when World/Scene are cleaning up, World implements IsReadyForFinishDestroy() and returns false when async work is still going.
+			// This means that garbage collection should not cleanup world and this solver until this async work is complete.
+			// We do it this way because it is unsafe for us to block on async task in this function, as it is unsafe to block on a task during GC, as this may schedule
+			// another task that may be unsafe during GC, and cause crashes.
+			ensure(InSolver.IsPendingTasksComplete());
+		}
+		else
+		{
+			// In Singlethreaded: We cannot wait for any tasks in IsReadyForFinishDestroy() (on World) so it always returns true in single threaded.
+			// Task will never complete during GC in single theading, as there are no threads to do it.
+			// so we have this wait below to allow single threaded to complete pending tasks before solver destroy.
+
+			InSolver.WaitOnPendingTasks_External();
+		}
 
 		//make sure any pending commands are executed
 		//we don't have a flush function because of dt concerns (don't want people flushing because commands end up in wrong dt)
@@ -134,7 +148,7 @@ namespace Chaos
 			Command();
 		}
 
-		// Advance in single threaded because we cannot block on an async task here, see above comments.
+		// Advance in single threaded because we cannot block on an async task here if in multi threaded mode. see above comments.
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 		InSolver.AdvanceAndDispatch_External(0);
 
