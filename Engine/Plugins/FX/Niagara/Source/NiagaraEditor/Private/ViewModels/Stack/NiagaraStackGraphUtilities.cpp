@@ -328,6 +328,69 @@ const UNiagaraNodeOutput* FNiagaraStackGraphUtilities::GetEmitterOutputNodeForSt
 	return GetEmitterOutputNodeForStackNodeInternal<const UNiagaraNodeOutput, const UNiagaraNode>(StackNode);
 }
 
+TArray<FName> FNiagaraStackGraphUtilities::StackContextResolution(UNiagaraEmitter* OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain)
+{
+	TArray<FName> PossibleRootNames;
+	ENiagaraScriptUsage Usage = OutputNodeInChain->GetUsage();
+	FName StageName;
+	FName AlternateStageName;
+	switch (Usage)
+	{
+		case ENiagaraScriptUsage::Function:
+		case ENiagaraScriptUsage::Module:
+		case ENiagaraScriptUsage::DynamicInput:
+			break;
+		case ENiagaraScriptUsage::ParticleSpawnScript:
+		case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+		case ENiagaraScriptUsage::ParticleUpdateScript:
+		case ENiagaraScriptUsage::ParticleEventScript:
+			StageName = TEXT("Particles");
+			break;
+		case ENiagaraScriptUsage::ParticleSimulationStageScript:
+		{
+			if (OwningEmitter)
+			{
+				UNiagaraSimulationStageBase* Base = OwningEmitter->GetSimulationStageById(OutputNodeInChain->GetUsageId());
+				if (Base)
+					StageName = Base->GetStackContextReplacementName();
+			}
+			
+			if (StageName == NAME_None)
+				StageName = TEXT("Particles");
+		}
+		break;
+		case ENiagaraScriptUsage::ParticleGPUComputeScript:
+			StageName = TEXT("Particles");
+			break;
+		case ENiagaraScriptUsage::EmitterSpawnScript:
+		case ENiagaraScriptUsage::EmitterUpdateScript:
+			StageName = TEXT("Emitter");
+			{
+				if (OwningEmitter)
+				{
+					FString EmitterAliasStr = OwningEmitter->GetUniqueEmitterName();
+					if (EmitterAliasStr.Len())
+					{
+						StageName = *EmitterAliasStr;
+						AlternateStageName = TEXT("Emitter");
+					}
+				}
+			}
+			break;
+		case ENiagaraScriptUsage::SystemSpawnScript:
+		case ENiagaraScriptUsage::SystemUpdateScript:
+			StageName = TEXT("System");
+			break;
+	}
+
+	if (StageName != NAME_None)	
+		PossibleRootNames.Add(StageName);
+	if (AlternateStageName != NAME_None)
+		PossibleRootNames.Add(AlternateStageName);
+
+	return PossibleRootNames;
+}
+
 void FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(UNiagaraEmitter* OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain, UNiagaraNode* NodeToVisit, FNiagaraParameterMapHistoryBuilder& Builder, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/)
 {
 	bool bSetUsage = false;
