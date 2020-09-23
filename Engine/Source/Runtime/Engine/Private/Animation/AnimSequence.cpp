@@ -1408,9 +1408,8 @@ FTransform UAnimSequence::ExtractRootMotionFromRange(float StartTrackPosition, f
 	}
 
 	// Transform to Component Space Rotation (inverse root transform from first frame)
-	const FTransform RootToComponentRot = FTransform(InitialTransform.GetRotation().Inverse());
-	StartTransform = RootToComponentRot * StartTransform;
-	EndTransform = RootToComponentRot * EndTransform;
+	StartTransform = StartTransform.GetRelativeTransform(InitialTransform);
+    EndTransform = EndTransform.GetRelativeTransform(InitialTransform);
 
 	return EndTransform.GetRelativeTransform(StartTransform);
 }
