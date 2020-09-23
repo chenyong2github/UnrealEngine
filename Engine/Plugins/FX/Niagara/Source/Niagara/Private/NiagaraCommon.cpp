@@ -425,16 +425,18 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 	}
 	else if (bIsRootParticleValue)
 	{
+		RootVariable.SetName(FNiagaraConstants::GetAttributeAsParticleDataSetKey(RootVariable).GetName());
 		BindingSourceMode = ENiagaraBindingSource::ExplicitParticles;
 	}
 	else if (bIsRootUnaliasedEmitterValue || bIsAliasedEmitterValue)
 	{
-		if (bIsRootUnaliasedEmitterValue && InEmitter)
-		{
-			TMap<FString, FString> Aliases;
-			Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
-			RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
-		}
+		// First, replace unaliased emitter namespace with "Emitter" namespace
+		TMap<FString, FString> Aliases;
+		Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
+		RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
+
+		// Now strip out "Emitter"
+		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
 		BindingSourceMode = ENiagaraBindingSource::ExplicitEmitter;
 	}
 	else if (bIsRootSystemValue)
@@ -507,16 +509,20 @@ void FNiagaraVariableAttributeBinding::Dump() const
 
 void FNiagaraVariableAttributeBinding::ResetToDefault(const FNiagaraVariableAttributeBinding& InOther, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
-	if (InOther.BindingSourceMode == ImplicitFromSource)
+	if (InOther.BindingSourceMode == ImplicitFromSource || InOther.BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter || InOther.BindingSourceMode == ENiagaraBindingSource::ExplicitParticles)
 	{
 		// The default may have been set with a different source mode, so we can't copy values over directly. Instead, we need to copy the implicit values over.
 		FNiagaraVariable TempVar = InOther.RootVariable;
-		if (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && InOther.BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource)
+		if ((InSourceMode == ENiagaraRendererSourceDataMode::Emitter && InOther.BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource) ||
+			InOther.BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter)
 		{
+			ensure(!InOther.DataSetVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace));
 			TempVar.SetName(*(FNiagaraConstants::EmitterNamespace.ToString() + TEXT(".") + InOther.DataSetVariable.GetName().ToString()));
 		}
-		else if (InSourceMode == ENiagaraRendererSourceDataMode::Particles && InOther.BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource)
+		else if ((InSourceMode == ENiagaraRendererSourceDataMode::Particles && InOther.BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource) ||
+			InOther.BindingSourceMode == ENiagaraBindingSource::ExplicitParticles)
 		{
+			ensure(!InOther.DataSetVariable.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace));
 			TempVar.SetName(*(FNiagaraConstants::ParticleAttributeNamespace.ToString() + TEXT(".") + InOther.DataSetVariable.GetName().ToString()));
 		}
 
@@ -537,8 +543,72 @@ bool FNiagaraVariableAttributeBinding::MatchesDefault(const FNiagaraVariableAttr
 	return true;
 }
 
+
+bool FNiagaraVariableAttributeBinding::RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	// First try a namespace mangling - free match.
+	if (OldVariable.GetName() == ParamMapVariable.GetName() && OldVariable.GetType() == ParamMapVariable.GetType())
+	{
+		SetValue(NewVariable.GetName(), InEmitter, InSourceMode);
+		return true;
+	}
+
+	// Now we need to deal with any aliased emitter namespaces for the match. If so resolve the aliases then try the match.
+	FNiagaraVariable OldVarAliased = OldVariable;
+	if (OldVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+	{
+		// First, resolve any aliases
+		TMap<FString, FString> Aliases;
+		Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
+		OldVarAliased = FNiagaraVariable::ResolveAliases(OldVariable, Aliases);
+	}
+	if (OldVarAliased.GetName() == ParamMapVariable.GetName() && OldVarAliased.GetType() == ParamMapVariable.GetType())
+	{
+		SetValue(NewVariable.GetName(), InEmitter, InSourceMode);
+		return true;
+	}
+	return false;
+}
+
+bool FNiagaraVariableAttributeBinding::Matches(const FNiagaraVariableBase& OldVariable,  const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	// First try a namespace mangling - free match.
+	if (OldVariable.GetName() == ParamMapVariable.GetName() && OldVariable.GetType() == ParamMapVariable.GetType())
+	{
+		return true;
+	}
+
+	// Now we need to deal with any aliased emitter namespaces for the match. If so resolve the aliases then try the match.
+	FNiagaraVariable OldVarAliased = OldVariable;
+	if (OldVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+	{
+		// First, resolve any aliases
+		TMap<FString, FString> Aliases;
+		Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
+		OldVarAliased = FNiagaraVariable::ResolveAliases(OldVariable, Aliases);
+	}
+	if (OldVarAliased.GetName() == ParamMapVariable.GetName() && OldVarAliased.GetType() == ParamMapVariable.GetType())
+	{
+		return true;
+	}
+	return false;
+}
+
 void FNiagaraVariableAttributeBinding::CacheValues(const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
+	// Some older values may have had the root with the emitter unqiue name as the namespace, fix this up
+	// to meet the new assumptions.
+	if (InEmitter && RootVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()))
+	{
+		// First, replace unaliased emitter namespace with "Emitter" namespace
+		TMap<FString, FString> Aliases;
+		Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
+		RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
+
+		// Now strip out "Emitter"
+		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
+	}
+
 	DataSetVariable = ParamMapVariable = (const FNiagaraVariableBase&)RootVariable;
 	bBindingExistsOnSource = false;
 
@@ -552,13 +622,17 @@ void FNiagaraVariableAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 		bIsCachedParticleValue = false;
 	}
 
-	// If this is an implicit variable, go ahead and expand the full namespace. RootVariable should be non-namespaced at this point.
-	if (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource)
+	// If this is one of the possible namespaces that is implicitly defined, go ahead and expand the full namespace. RootVariable should be non-namespaced at this point.
+	if ((InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource) ||
+		BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter)
 	{
+		ensure(!DataSetVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace));
 		ParamMapVariable.SetName(*(FNiagaraConstants::EmitterNamespace.ToString() + TEXT(".") + DataSetVariable.GetName().ToString()));
 	}
-	else if (InSourceMode == ENiagaraRendererSourceDataMode::Particles && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource)
+	else if ((InSourceMode == ENiagaraRendererSourceDataMode::Particles && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource) ||
+		BindingSourceMode == ENiagaraBindingSource::ExplicitParticles)
 	{
+		ensure(!DataSetVariable.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace));
 		ParamMapVariable.SetName(*(FNiagaraConstants::ParticleAttributeNamespace.ToString() + TEXT(".") + DataSetVariable.GetName().ToString()));
 	}
 
@@ -575,7 +649,6 @@ void FNiagaraVariableAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 			TMap<FString, FString> Aliases;
 			Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
 			ParamMapVariable = FNiagaraVariable::ResolveAliases(ParamMapVariable, Aliases);
-			RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
 			DataSetVariable = FNiagaraVariable::ResolveAliases(DataSetVariable, Aliases);
 		}
 
@@ -598,6 +671,58 @@ const FNiagaraVariableBase& FNiagaraMaterialAttributeBinding::GetParamMapBindabl
 	return ResolvedNiagaraVariable;
 }
 
+
+bool FNiagaraMaterialAttributeBinding::RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	// First try a namespace mangling - free match.
+	if (OldVariable.GetName() == NiagaraVariable.GetName() && OldVariable.GetType() == NiagaraVariable.GetType())
+	{
+		NiagaraVariable = NewVariable;
+		CacheValues(InEmitter);
+		return true;
+	}
+
+	// Now we need to deal with any aliased emitter namespaces for the match. If so resolve the aliases then try the match.
+	FNiagaraVariable OldVarAliased = OldVariable;
+	if (OldVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()))
+	{
+		// First, resolve any aliases
+		TMap<FString, FString> Aliases;
+		Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
+		OldVarAliased = FNiagaraVariable::ResolveAliases(OldVariable, Aliases);
+	}
+	if (OldVarAliased.GetName() == NiagaraVariable.GetName() && OldVarAliased.GetType() == NiagaraVariable.GetType())
+	{
+		NiagaraVariable = NewVariable;
+		CacheValues(InEmitter);
+		return true;
+	}
+	return false;
+}
+
+bool FNiagaraMaterialAttributeBinding::Matches(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	// First try a namespace mangling - free match.
+	if (OldVariable.GetName() == NiagaraVariable.GetName() && OldVariable.GetType() == NiagaraVariable.GetType())
+	{
+		return true;
+	}
+
+	// Now we need to deal with any aliased emitter namespaces for the match. If so resolve the aliases then try the match.
+	FNiagaraVariable OldVarAliased = OldVariable;
+	if (OldVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()))
+	{
+		// First, resolve any aliases
+		TMap<FString, FString> Aliases;
+		Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
+		OldVarAliased = FNiagaraVariable::ResolveAliases(OldVariable, Aliases);
+	}
+	if (OldVarAliased.GetName() == NiagaraVariable.GetName() && OldVarAliased.GetType() == NiagaraVariable.GetType())
+	{
+		return true;
+	}
+	return false;
+}
 
 void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmitter) 
 {

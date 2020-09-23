@@ -361,6 +361,33 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 }
 
 
+void UNiagaraSpriteRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter)
+{
+	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
+
+	// Handle renaming material bindings
+	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameterBindings)
+	{
+		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+	}
+}
+
+void UNiagaraSpriteRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter)
+{
+	Super::RemoveVariable(OldVariable, InEmitter);
+	
+	// Handle resetting material bindings to defaults
+	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameterBindings)
+	{
+		if (Binding.Matches(OldVariable, InEmitter, GetCurrentSourceMode()))
+		{
+			Binding.NiagaraVariable = FNiagaraVariable();
+			Binding.CacheValues(InEmitter);
+		}
+	}
+}
+
+
 const TArray<FNiagaraVariable>& UNiagaraSpriteRendererProperties::GetOptionalAttributes()
 {
 	static TArray<FNiagaraVariable> Attrs;

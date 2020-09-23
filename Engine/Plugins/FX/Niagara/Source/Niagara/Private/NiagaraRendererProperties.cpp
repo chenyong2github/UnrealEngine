@@ -167,6 +167,42 @@ FText UNiagaraRendererProperties::GetWidgetDisplayName() const
 	return GetClass()->GetDisplayNameText();
 }
 
+void UNiagaraRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter)
+{
+	// Handle the renaming of generic renderer bindings...
+	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
+	{
+		FNiagaraVariableAttributeBinding* Binding = const_cast<FNiagaraVariableAttributeBinding*>(AttributeBinding);
+		if (Binding)
+			Binding->RenameVariableIfMatching(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+	}
+}
+void UNiagaraRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable,const UNiagaraEmitter* InEmitter)
+{
+	// Handle the reset to defaults of generic renderer bindings
+	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
+	{
+		FNiagaraVariableAttributeBinding* Binding = const_cast<FNiagaraVariableAttributeBinding*>(AttributeBinding);
+		if (Binding && Binding->Matches(OldVariable, InEmitter, GetCurrentSourceMode()))
+		{
+			// Reset to default but first we have to find the default value!
+			for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
+			{
+				if (PropertyIterator->ContainerPtrToValuePtr<void>(this) == Binding)
+				{
+					FNiagaraVariableAttributeBinding* DefaultBinding = static_cast<FNiagaraVariableAttributeBinding*>(PropertyIterator->ContainerPtrToValuePtr<void>(GetClass()->GetDefaultObject()));
+					if (DefaultBinding)
+					{
+						Binding->ResetToDefault(*DefaultBinding, InEmitter, GetCurrentSourceMode());
+					}
+					break;
+				}
+			}		
+		}
+			
+	}
+}
+
 #endif
 
 uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const
