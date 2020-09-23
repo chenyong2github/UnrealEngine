@@ -176,9 +176,6 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 	}
 
 	RightPropertyColumnWidth = SplitterValues.PropertyValueColumn / (SplitterValues.PropertyValueColumn + SplitterValues.PropertyNameColumn);
-	ColumnSizeData.LeftColumnWidth = TAttribute<float>(this, &SVariantManager::OnGetLeftColumnWidth);
-	ColumnSizeData.RightColumnWidth = TAttribute<float>(this, &SVariantManager::OnGetRightColumnWidth);
-	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SVariantManager::OnSetColumnWidth);
 
 	InVariantManager->GetSelection().GetOnOutlinerNodeSelectionChanged().AddSP(this, &SVariantManager::RefreshActorList);
 	InVariantManager->GetSelection().GetOnActorNodeSelectionChanged().AddSP(this, &SVariantManager::OnActorNodeSelectionChanged);
@@ -388,7 +385,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 				SNew(SSplitter)
 				.Orientation(Orient_Horizontal)
 				+ SSplitter::Slot()
-				.Value(ColumnSizeData.LeftColumnWidth)
+				.Value(ColumnSizeData.NameColumnWidth)
 				.OnSlotResized(ColumnSizeData.OnNameColumnResized)
 				[
 					SNew(SBox)
@@ -515,8 +512,8 @@ SVariantManager::~SVariantManager()
 			Values.VariantColumn = MainSplitter->SlotAt(0).SizeValue.Get();
 			Values.ActorColumn = MainSplitter->SlotAt(1).SizeValue.Get();
 			float PropertyCombo = MainSplitter->SlotAt(2).SizeValue.Get();
-			Values.PropertyNameColumn = PropertyCombo * OnGetLeftColumnWidth();
-			Values.PropertyValueColumn = PropertyCombo * OnGetRightColumnWidth();
+			Values.PropertyNameColumn = PropertyCombo * ColumnSizeData.NameColumnWidth.Get();
+			Values.PropertyValueColumn = PropertyCombo * ColumnSizeData.ValueColumnWidth.Get();
 
 			GConfig->SetString(TEXT("VariantManager"), TEXT("MainSplitterValues"), *Values.ToString(), GEditorPerProjectIni);
 		}

@@ -396,7 +396,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			// create inner splitter
 			OuterSplitter->AddSlot()
 				.Value(ColumnSizeData.PropertyColumnWidth)
-				.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float){})) // dummy handler, FDetailColumnSizeData handles this calculation
+				.OnSlotResized(ColumnSizeData.OnPropertyColumnResized)
 			[
 				SAssignNew(InnerSplitter, SSplitter)
 				.Style(FEditorStyle::Get(), "DetailsView.Splitter")

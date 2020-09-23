@@ -21,7 +21,7 @@ class UDataprepContentConsumer;
 class UDataprepParameterizableObject;
 
 struct FAssetData;
-struct FDetailColumnSizeData;
+class FDetailColumnSizeData;
 
 namespace DataprepWidgetUtils
 {
@@ -67,8 +67,9 @@ class SDataprepCategoryWidget : public STableRow< TSharedPtr< EDataprepCategory 
 public:
 
 	SLATE_BEGIN_ARGS(SDataprepCategoryWidget) {}
-	SLATE_ARGUMENT(FText, Title)
-	SLATE_ARGUMENT(TSharedPtr< SWidget >, TitleDetail)
+		SLATE_ARGUMENT(FText, Title)
+		SLATE_ARGUMENT(TSharedPtr< SWidget >, TitleDetail)
+		SLATE_ARGUMENT(TSharedPtr< FDetailColumnSizeData >, ColumnSizeData)
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, TSharedRef< SWidget > InContent, const TSharedRef<STableViewBase>& InOwnerTableView );
@@ -98,6 +99,7 @@ public:
 		SLATE_ARGUMENT(float, Spacing)
 		SLATE_ARGUMENT(bool, ColumnPadding)
 		SLATE_ARGUMENT(bool, ResizableColumn)
+		SLATE_ARGUMENT(TSharedPtr< FDetailColumnSizeData >, ColumnSizeData)
 	SLATE_END_ARGS()
 
 public:

@@ -390,12 +390,8 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 			.Orientation(Orient_Horizontal)
 
 			+ SSplitter::Slot()
-			.Value(ColumnSizeData.LeftColumnWidth)
-			.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth)
-			{
-				 //This has to be bound or the splitter will take it upon itself to determine the size
-				 //We do nothing here because it is handled by the column size data
-			}))
+			.Value(ColumnSizeData.NameColumnWidth)
+			.OnSlotResized(ColumnSizeData.OnNameColumnResized)
 			[
 				SNew(SBox)
 				.VAlign(VAlign_Center)
@@ -415,8 +411,8 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 			]
 
 			+ SSplitter::Slot()
-			.Value(ColumnSizeData.RightColumnWidth)
-			.OnSlotResized(ColumnSizeData.OnWidthChanged)
+			.Value(ColumnSizeData.ValueColumnWidth)
+			.OnSlotResized(ColumnSizeData.OnValueColumnResized)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()

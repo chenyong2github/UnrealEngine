@@ -1010,7 +1010,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					.HitDetectionSplitterHandleSize(5.0f)
 					+ SSplitter::Slot()
 					.Value(Tree->ColumnSizeData.NameColumnWidth)
-					.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float){}))
+					.OnSlotResized(Tree->ColumnSizeData.OnNameColumnResized)
 					.Value(0.25f)
 					[
 						SNew(SHorizontalBox)

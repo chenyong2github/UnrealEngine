@@ -76,15 +76,15 @@ namespace DataprepWidgetUtils
 			ColumnSizeData = InArgs._ColumnSizeData;
 
 			AddSlot()
-			.Value(ColumnSizeData->LeftColumnWidth)
-			.OnSlotResized( SSplitter::FOnSlotResized::CreateLambda( [](float InNewWidth) -> void {} ) )
+			.Value(ColumnSizeData->NameColumnWidth)
+			.OnSlotResized(ColumnSizeData->OnNameColumnResized)
 			[
 				InArgs._NameWidget.ToSharedRef()
 			];
 
 			AddSlot()
-			.Value(InArgs._ColumnSizeData->RightColumnWidth)
-			.OnSlotResized(ColumnSizeData->OnWidthChanged)
+			.Value(InArgs._ColumnSizeData->ValueColumnWidth)
+			.OnSlotResized(ColumnSizeData->OnValueColumnResized)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -107,14 +107,14 @@ namespace DataprepWidgetUtils
 				const FVector2D AllottedSize = AllottedGeometry.GetLocalSize();
 
 				FVector2D LocalPosition = FVector2D::ZeroVector;
-				FVector2D LocalSize(  AllottedSize.X * ColumnSizeData->LeftColumnWidth.Get(0.f), AllottedSize.Y );
+				FVector2D LocalSize(  AllottedSize.X * ColumnSizeData->NameColumnWidth.Get(0.f), AllottedSize.Y );
 
 				ArrangedChildren.AddWidget( EVisibility::Visible, AllottedGeometry.MakeChild( LeftChild.GetWidget(), LocalPosition, LocalSize ));
 
 				const SSplitter::FSlot& RightChild = Children[1];
 
 				LocalPosition = FVector2D(LocalSize.X, 0.f);
-				LocalSize.X = AllottedSize.X * ColumnSizeData->RightColumnWidth.Get(0.f);
+				LocalSize.X = AllottedSize.X * ColumnSizeData->ValueColumnWidth.Get(0.f);
 
 				ArrangedChildren.AddWidget( EVisibility::Visible, AllottedGeometry.MakeChild( RightChild.GetWidget(), LocalPosition, LocalSize ));
 			}
@@ -595,14 +595,21 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 	bColumnPadding = InArgs._ColumnPadding;
 	bResizableColumn = InArgs._ResizableColumn;
 
-	ColumnSizeData = MakeShared<FDetailColumnSizeData>();
+	if ( InArgs._ColumnSizeData.IsValid() )
+	{
+		ColumnSizeData = InArgs._ColumnSizeData;
+	}
+	else
+	{
+		ColumnSizeData = MakeShared<FDetailColumnSizeData>();
+	}
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	FPropertyRowGeneratorArgs Args;
 	Generator = PropertyEditorModule.CreatePropertyRowGenerator(Args);
 
-	if( DetailedObject != nullptr )
+	if ( DetailedObject != nullptr )
 	{
 		TArray< UObject* > Objects;
 		Objects.Add( DetailedObject );
@@ -782,6 +789,8 @@ void SDataprepInstanceParentWidget::Construct(const FArguments& InArgs)
 	{
 		return;
 	}
+
+	ColumnSizeData = InArgs._ColumnSizeData;
 
 	TSharedRef<SWidget> NameWidget = SNew(SHorizontalBox)
 	.Clipping(EWidgetClipping::OnDemand)

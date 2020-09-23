@@ -36,8 +36,9 @@ public:
 	TAttribute<float> PropertyColumnWidth;
 	TAttribute<float> RightColumnWidth;
 	TAttribute<int32> HoveredSplitterIndex;
-	SSplitter::FOnSlotResized OnNameColumnResized; // intentionally left unbound, since we don't need a handler
+	SSplitter::FOnSlotResized OnNameColumnResized; // intentionally left unbound, since we don't need a handler as the width is derived from the value width
 	SSplitter::FOnSlotResized OnValueColumnResized;
+	SSplitter::FOnSlotResized OnPropertyColumnResized; // intentionally left unbound, since we don't need a handler as the width is derived from the right width
 	SSplitter::FOnSlotResized OnRightColumnResized;
 	SSplitter::FOnHandleHovered OnSplitterHandleHovered;
 

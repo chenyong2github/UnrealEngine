@@ -16,7 +16,7 @@
 class FUICommandList;
 class UDataprepContentProducer;
 class UDataprepAssetProducers;
-struct FDetailColumnSizeData;
+class FDetailColumnSizeData;
 
 class FContentProducerEntry
 {
@@ -102,7 +102,7 @@ class SDataprepProducersWidget : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS(SDataprepProducersWidget) {}
-	SLATE_ARGUMENT(TSharedPtr< FDetailColumnSizeData >, ColumnSizeData)
+		SLATE_ARGUMENT(TSharedPtr< FDetailColumnSizeData >, ColumnSizeData)
 	SLATE_END_ARGS()
 
 	~SDataprepProducersWidget();

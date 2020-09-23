@@ -213,11 +213,6 @@ public:
 	FReply OnAddVariantSetClicked();
 	FReply OnSummonAddActorMenu();
 
-	// Callbacks for ColumnSizeData
-	float OnGetLeftColumnWidth() const { return 1.0f - RightPropertyColumnWidth; }
-	float OnGetRightColumnWidth() const { return RightPropertyColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { RightPropertyColumnWidth = InWidth; }
-
 	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event);
 	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
 	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropChain);

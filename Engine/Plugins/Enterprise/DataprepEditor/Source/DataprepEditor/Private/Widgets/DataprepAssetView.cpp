@@ -454,8 +454,8 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 	}
 
 	TSharedRef<SDataprepDetailsView> DetailView = SNew(SDataprepDetailsView)
-	.ColumnSizeData( ColumnSizeData )
-	.Object( DataprepAssetInterfacePtr->GetParameterizationObject() );
+		.ColumnSizeData( ColumnSizeData )
+		.Object( DataprepAssetInterfacePtr->GetParameterizationObject() );
 
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar);
 
@@ -483,7 +483,9 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 			.AutoHeight()
 			//.MaxHeight( 400.f )
 			[
-				DataprepWidgetUtils::CreateParameterRow( SNew(SDataprepInstanceParentWidget).ColumnSizeData(ColumnSizeData).DataprepInstance(DataprepInstance) )
+				DataprepWidgetUtils::CreateParameterRow( SNew(SDataprepInstanceParentWidget)
+					.ColumnSizeData(ColumnSizeData)
+					.DataprepInstance(DataprepInstance) )
 			]
 		];
 
