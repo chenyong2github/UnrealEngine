@@ -86,102 +86,102 @@ namespace DatasmithRhino
 
 		private static void ExportHierarchyNode(FDatasmithFacadeScene DatasmithScene, RhinoSceneHierarchyNode Node, DatasmithRhinoSceneParser SceneParser)
 		{
+			FDatasmithFacadeActor ExportedActor = null;
+
 			if (Node.Info.bHasRhinoObject)
 			{
-				ExportObject(DatasmithScene, Node, SceneParser);
-			}
-			else
-			{
-				//This node has no RhinoObject, export an empty Actor.
-				ExportEmptyNode(DatasmithScene, Node);
-			}
-		}
+				RhinoObject CurrentObject = Node.Info.RhinoModelComponent as RhinoObject;
 
-		private static void ExportObject(FDatasmithFacadeScene InDatasmithScene, RhinoSceneHierarchyNode InNode, DatasmithRhinoSceneParser SceneParser)
-		{
-			RhinoObject CurrentObject = InNode.Info.RhinoModelComponent as RhinoObject;
-
-			if (CurrentObject.ObjectType == ObjectType.InstanceReference
-				|| CurrentObject.ObjectType == ObjectType.Point)
-			{
-				//The Instance Reference node is exported as an empty actor under which we create the instanced block.
-				//Export points as empty actors as well.
-				ExportEmptyNode(InDatasmithScene, InNode);
-			}
-			else if (CurrentObject.ObjectType == ObjectType.Light)
-			{
-				ExportLightObject(InDatasmithScene, InNode);
-			}
-			else if (SceneParser.ObjectIdToMeshInfoDictionary.TryGetValue(CurrentObject.Id, out DatasmithMeshInfo MeshInfo))
-			{
-				string HashedActorName = FDatasmithFacadeActor.GetStringHash("A:" + InNode.Info.Name);
-				FDatasmithFacadeActorMesh DatasmithActorMesh = new FDatasmithFacadeActorMesh(HashedActorName);
-				DatasmithActorMesh.SetLabel(InNode.Info.Label);
-				InNode.SetDatasmithActor(DatasmithActorMesh);
-
-				AddTagsToDatasmithActor(DatasmithActorMesh, InNode);
-				AddMetadataToDatasmithActor(DatasmithActorMesh, InNode, InDatasmithScene);
-				AddLayersToDatasmithActor(DatasmithActorMesh, InNode);
-
-				Transform OffsetTransform = Transform.Translation(MeshInfo.PivotOffset);
-				Transform WorldTransform = Transform.Multiply(InNode.Info.WorldTransform, OffsetTransform);
-				DatasmithActorMesh.SetWorldTransform(WorldTransform.ToFloatArray(false));
-
-				string MeshName = FDatasmithFacadeElement.GetStringHash(MeshInfo.Name);
-				DatasmithActorMesh.SetMesh(MeshName);
-
-				if (InNode.Info.bOverrideMaterial)
+				if (CurrentObject.ObjectType == ObjectType.InstanceReference
+					|| CurrentObject.ObjectType == ObjectType.Point)
 				{
-					RhinoMaterialInfo MaterialInfo = SceneParser.GetMaterialInfoFromMaterialIndex(InNode.Info.MaterialIndex);
-					DatasmithActorMesh.AddMaterialOverride(MaterialInfo.Name, 0);
+					// The Instance Reference node is exported as an empty actor under which we create the instanced block.
+					// Export points as empty actors as well.
+					ExportedActor = ParseEmptyActor(Node);
 				}
-
-				AddActorToParent(DatasmithActorMesh, InNode, InDatasmithScene);
+				else if (CurrentObject.ObjectType == ObjectType.Light)
+				{
+					ExportedActor = ParseLightActor(Node);
+				}
+				else if (SceneParser.ObjectIdToMeshInfoDictionary.TryGetValue(CurrentObject.Id, out DatasmithMeshInfo MeshInfo))
+				{
+					// If the node's object has a mesh associated to it, export it as a MeshActor.
+					ExportedActor = ParseMeshActor(Node, SceneParser, MeshInfo);
+				}
+				else
+				{
+					//#ueent_todo Log non-exported object in DatasmithExport UI (Writing to Rhino Console is extremely slow).
+				}
 			}
 			else
 			{
-				//TODO Log non-exported object in DatasmithExport UI (Writing to Rhino Console is extremely slow).
+				// This node has no RhinoObject (likely a layer), export an empty Actor.
+				ExportedActor = ParseEmptyActor(Node);
+			}
+
+			if (ExportedActor != null)
+			{
+				// Add common additional data to the actor, and add it to the hierarchy.
+				Node.SetDatasmithActor(ExportedActor);
+				AddTagsToDatasmithActor(ExportedActor, Node);
+				AddMetadataToDatasmithActor(ExportedActor, Node, DatasmithScene);
+				AddLayersToDatasmithActor(ExportedActor, Node);
+
+				AddActorToParent(ExportedActor, Node, DatasmithScene);
 			}
 		}
 
-		private static void ExportEmptyNode(FDatasmithFacadeScene InDatasmithScene, RhinoSceneHierarchyNode InNode)
+		private static FDatasmithFacadeActor ParseMeshActor(RhinoSceneHierarchyNode InNode, DatasmithRhinoSceneParser InSceneParser, DatasmithMeshInfo InMeshInfo)
+		{
+			string HashedActorName = FDatasmithFacadeActor.GetStringHash("A:" + InNode.Info.Name);
+			FDatasmithFacadeActorMesh DatasmithActorMesh = new FDatasmithFacadeActorMesh(HashedActorName);
+			DatasmithActorMesh.SetLabel(InNode.Info.Label);
+
+			Transform OffsetTransform = Transform.Translation(InMeshInfo.PivotOffset);
+			Transform WorldTransform = Transform.Multiply(InNode.Info.WorldTransform, OffsetTransform);
+			DatasmithActorMesh.SetWorldTransform(WorldTransform.ToFloatArray(false));
+
+			string MeshName = FDatasmithFacadeElement.GetStringHash(InMeshInfo.Name);
+			DatasmithActorMesh.SetMesh(MeshName);
+
+			if (InNode.Info.bOverrideMaterial)
+			{
+				RhinoMaterialInfo MaterialInfo = InSceneParser.GetMaterialInfoFromMaterialIndex(InNode.Info.MaterialIndex);
+				DatasmithActorMesh.AddMaterialOverride(MaterialInfo.Name, 0);
+			}
+
+			return DatasmithActorMesh;
+		}
+
+		private static FDatasmithFacadeActor ParseEmptyActor(RhinoSceneHierarchyNode InNode)
 		{
 			string HashedName = FDatasmithFacadeElement.GetStringHash(InNode.Info.Name);
 			FDatasmithFacadeActor DatasmithActor = new FDatasmithFacadeActor(HashedName);
 			DatasmithActor.SetLabel(InNode.Info.Label);
-			InNode.SetDatasmithActor(DatasmithActor);
-			AddTagsToDatasmithActor(DatasmithActor, InNode);
-			AddMetadataToDatasmithActor(DatasmithActor, InNode, InDatasmithScene);
-			AddLayersToDatasmithActor(DatasmithActor, InNode);
 
 			float[] MatrixArray = InNode.Info.WorldTransform.ToFloatArray(false);
 			DatasmithActor.SetWorldTransform(MatrixArray);
 
-			AddActorToParent(DatasmithActor, InNode, InDatasmithScene);
+			return DatasmithActor;
 		}
 
-		private static void ExportLightObject(FDatasmithFacadeScene InDatasmithScene, RhinoSceneHierarchyNode InNode)
+		private static FDatasmithFacadeActor ParseLightActor(RhinoSceneHierarchyNode InNode)
 		{
 			LightObject RhinoLightObject = InNode.Info.RhinoModelComponent as LightObject;
 
-			FDatasmithFacadeActorLight DatasmithActorLight = SetupLightActor(InNode.Info, RhinoLightObject.LightGeometry);
-			if (DatasmithActorLight != null)
+			FDatasmithFacadeActor ParsedDatasmithActor = SetupLightActor(InNode.Info, RhinoLightObject.LightGeometry);
+			if (ParsedDatasmithActor != null)
 			{
-				InNode.SetDatasmithActor(DatasmithActorLight);
-				AddTagsToDatasmithActor(DatasmithActorLight, InNode);
-				AddMetadataToDatasmithActor(DatasmithActorLight, InNode, InDatasmithScene);
-				AddLayersToDatasmithActor(DatasmithActorLight, InNode);
-
 				float[] MatrixArray = InNode.Info.WorldTransform.ToFloatArray(false);
-				DatasmithActorLight.SetWorldTransform(MatrixArray);
-
-				AddActorToParent(DatasmithActorLight, InNode, InDatasmithScene);
+				ParsedDatasmithActor.SetWorldTransform(MatrixArray);
 			}
 			else
 			{
 				// #ueent_todo: Log non supported light type.
-				ExportEmptyNode(InDatasmithScene, InNode);
+				ParsedDatasmithActor = ParseEmptyActor(InNode);
 			}
+
+			return ParsedDatasmithActor;
 		}
 
 		private static void AddActorToParent(FDatasmithFacadeActor InDatasmithActor, RhinoSceneHierarchyNode InNode, FDatasmithFacadeScene InDatasmithScene)
