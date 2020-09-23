@@ -32,6 +32,9 @@ static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
 float GetHairClipLength() { return GHairClipLength > 0 ? GHairClipLength : 100000;  }
 
+static int GHairStrandsSimulation = 1;
+static FAutoConsoleVariableRef CVarHairStrandsSimulation(TEXT("r.HairStrands.Simulation"), GHairStrandsSimulation, TEXT("Enable or disable the groom simulation"));
+
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -759,21 +762,36 @@ void UGroomComponent::ReleaseHairSimulation()
 
 void UGroomComponent::UpdateHairSimulation()  
 {
-	if (AngularSpringsSystem == nullptr) AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
-	if (CosseratRodsSystem == nullptr) CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
-
 	const int32 NumGroups = GroomAsset ? GroomAsset->HairGroupsPhysics.Num() : 0;
 	const int32 NumComponents = FMath::Max(NumGroups, NiagaraComponents.Num());
 
 	TArray<bool> ValidComponents;
 	ValidComponents.Init(false, NumComponents);
 
+	bool NeedSpringsSolver = false;
+	bool NeedRodsSolver = false;
 	if (GroomAsset)
 	{
 		for (int32 i = 0; i < NumGroups; ++i)
 		{
-			ValidComponents[i] = GroomAsset->HairGroupsPhysics[i].SolverSettings.EnableSimulation;
+			ValidComponents[i] = GroomAsset->HairGroupsPhysics[i].SolverSettings.EnableSimulation && (GHairStrandsSimulation == 1);
+			if (ValidComponents[i] && (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings))
+			{
+				NeedSpringsSolver = true;
+			}
+			if (ValidComponents[i] && (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods))
+			{
+				NeedRodsSolver = true;
+			}
 		}
+	}
+	if (NeedSpringsSolver && (AngularSpringsSystem == nullptr))
+	{
+		AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
+	}
+	if (NeedRodsSolver && (CosseratRodsSystem == nullptr))
+	{
+		CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
 	}
 	NiagaraComponents.SetNumZeroed(NumComponents);
 	for (int32 i = 0; i < NumComponents; ++i)
@@ -1164,7 +1182,7 @@ void UGroomComponent::UpdateSimulatedGroups()
 			for (FHairGroupInstance* Instance : LocalInstances)
 			{
 				const bool bIsSimulationEnable = (LocalGroomAsset && GroupIt < LocalGroomAsset->HairGroupsPhysics.Num()) ? 
-					LocalGroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation : false;
+					(LocalGroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation  && (GHairStrandsSimulation == 1)): false;
 				const bool bHasGlobalInterpolation = LocalBindingAsset && LocalGroomAsset && LocalGroomAsset->EnableGlobalInterpolation;
 				Instance->Strands.HairInterpolationType =
 					(LocalGroomAsset && LocalGroomAsset->HairInterpolationType == EGroomInterpolationType::RigidTransform) ? 0 :
@@ -1302,7 +1320,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 			HairGroupInstance->Guides.bIsSimulationEnable =
 				(GroomAsset && GroupIt < GroomAsset->HairGroupsPhysics.Num()) ?
-				GroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation :
+				(GroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation && (GHairStrandsSimulation ==1)) :
 				false;
 
 			HairGroupInstance->Guides.bHasGlobalInterpolation = BindingAsset && GroomAsset && GroomAsset->EnableGlobalInterpolation;

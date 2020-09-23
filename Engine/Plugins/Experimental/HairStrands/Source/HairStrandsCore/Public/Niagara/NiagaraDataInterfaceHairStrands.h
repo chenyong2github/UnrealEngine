@@ -287,7 +287,7 @@ struct FNDIHairStrandsData
 
 /** Data Interface for the strand base */
 UCLASS(EditInlineNew, Category = "Strands", meta = (DisplayName = "Hair Strands"))
-class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfaceHairStrands : public UNiagaraDataInterface
+class HAIRSTRANDSCORE_API UNiagaraDataInterfaceHairStrands : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 

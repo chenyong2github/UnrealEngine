@@ -15,13 +15,15 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"Projects",
 					"MeshDescription",
+					"NiagaraCore",
 					"Niagara",
+					"NiagaraShader",
 					"RenderCore",
 					"Renderer",
+					"VectorVM",
 					"RHI",
-					"ChaosCore",
-					"Chaos",
 					"Eigen"
 				});
 
