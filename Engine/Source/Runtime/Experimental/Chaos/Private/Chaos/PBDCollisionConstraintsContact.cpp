@@ -147,7 +147,8 @@ namespace Chaos
 			const FRotation3& Q1,
 			const FVec3& ContactNormal,
 			const FVec3& VectorToPoint1,
-			const FVec3& VectorToPoint2)
+			const FVec3& VectorToPoint2,
+			FReal &outVelocitySize)
 		{
 			// Get previous world space position of the contact points relative the CoM
 			// Note: These particular points might not even have been in contact at the start of the frame
@@ -162,6 +163,7 @@ namespace Chaos
 			const FVec3 ContactBody2VelocityPrev = FParticleUtilities::GetPreviousVelocityAtCoMRelativePosition(Particle1, VectorToPoint2Prev);
 			const FVec3 RelativeVelocityPrev = ContactBody1VelocityPrev - ContactBody2VelocityPrev;
 			const FReal RelativeNormalVelocityForRestitution = FVec3::DotProduct(RelativeVelocityPrev, ContactNormal); // Note: using the current contact normal
+			outVelocitySize = RelativeVelocityPrev.Size();
 			
 			return RelativeNormalVelocityForRestitution;
 		}
@@ -211,18 +213,19 @@ namespace Chaos
 				(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
 			FVec3 AngularImpulse(0);
 
+			FReal RelativeNormalVelocityForRestitution = FVec3::DotProduct(RelativeVelocity, Contact.Normal); // Relative velocity in direction of the normal as used by restitution
+			FReal RelativeVelocityForRestitutionSize = RelativeVelocity.Size();
+			// Use the previous contact velocities to calculate the restitution response
+			if (Chaos_Collision_PrevVelocityRestitutionEnabled && bInApplyRestitution && Contact.Restitution > (FReal)0.0f)
+			{
+				RelativeNormalVelocityForRestitution = CalculateRelativeNormalVelocityForRestitution(Particle0, Particle1, Q0, Q1, Contact.Normal, VectorToPoint1, VectorToPoint2, RelativeVelocityForRestitutionSize);
+			}
+
 			// Resting contact if very close to the surface
-			const bool bApplyRestitution = bInApplyRestitution && (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
+			const bool bApplyRestitution = bInApplyRestitution && (RelativeVelocityForRestitutionSize > ParticleParameters.RestitutionVelocityThreshold);
 			const FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 			const FReal Friction = bInApplyFriction ? Contact.Friction : (FReal)0; // Add friction even when pushing out
 			const FReal AngularFriction = bInApplyAngularFriction ? Contact.AngularFriction : (FReal)0; // Don't add angular friction in pushout since we don't have accumulated angular impulse clipping, todo: experiment with this later
-
-			FReal RelativeNormalVelocityForRestitution = FVec3::DotProduct(RelativeVelocity, Contact.Normal); // Relative velocity in direction of the normal as used by restitution
-			// Use the previous contact velocities to calculate the restitution response
-			if (Restitution > (FReal)0.0f && Chaos_Collision_PrevVelocityRestitutionEnabled)
-			{
-				RelativeNormalVelocityForRestitution = CalculateRelativeNormalVelocityForRestitution(Particle0, Particle1, Q0, Q1, Contact.Normal, VectorToPoint1, VectorToPoint2);
-			}
 
 			const FVec3 VelocityTarget = (-Restitution * RelativeNormalVelocityForRestitution) * Contact.Normal;
 			const FVec3 VelocityChange = VelocityTarget - RelativeVelocity;
@@ -426,16 +429,19 @@ namespace Chaos
 			const FVec3 Body2Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle1, VectorToPoint2);
 			const FVec3 RelativeVelocity = Body1Velocity - Body2Velocity;
 			const FReal RelativeNormalVelocity = FVec3::DotProduct(RelativeVelocity, Contact.Normal);
-			// Resting contact if very close to the surface
-			bool bApplyRestitution = (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
-			FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
+			
 
 			FReal RelativeNormalVelocityForRestitution = RelativeNormalVelocity; // Relative velocity in direction of the normal as used by restitution
+			FReal RelativeVelocityForRestitutionSize = RelativeVelocity.Size();
 			// Use the previous contact velocities to calculate the restitution response
-			if (Restitution > (FReal)0.0f && Chaos_Collision_PrevVelocityRestitutionEnabled)
+			if (Chaos_Collision_PrevVelocityRestitutionEnabled && Contact.Restitution > (FReal)0.0f)
 			{
-				RelativeNormalVelocityForRestitution = CalculateRelativeNormalVelocityForRestitution(Particle0, Particle1, Q0, Q1, Contact.Normal, VectorToPoint1, VectorToPoint2);
+				RelativeNormalVelocityForRestitution = CalculateRelativeNormalVelocityForRestitution(Particle0, Particle1, Q0, Q1, Contact.Normal, VectorToPoint1, VectorToPoint2, RelativeVelocityForRestitutionSize);
 			}
+
+			// Resting contact if very close to the surface
+			bool bApplyRestitution = (RelativeVelocityForRestitutionSize > ParticleParameters.RestitutionVelocityThreshold);
+			FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 
 			if (RelativeNormalVelocity < 0) // ignore separating constraints
 			{
@@ -904,7 +910,7 @@ namespace Chaos
 			// but also update the contact location if this is done
 			{
 				FVec3 DV0, DW0, DV1, DW1;
-				CalculateContactVelocityCorrections(Contact, Particle0, Particle1, IterationParameters, ParticleParameters, P0, Q0, P1, Q1, false, true, false, false, AccumulatedImpulse, DV0, DW0, DV1, DW1);
+				CalculateContactVelocityCorrections(Contact, Particle0, Particle1, IterationParameters, ParticleParameters, P0, Q0, P1, Q1, true, true, false, false, AccumulatedImpulse, DV0, DW0, DV1, DW1);
 				if (bIsRigidDynamic0)
 				{
 					PBDRigid0->V() += DV0;
