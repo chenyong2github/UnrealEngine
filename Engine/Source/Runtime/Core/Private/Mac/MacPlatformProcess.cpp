@@ -33,20 +33,9 @@ namespace PlatformProcessLimits
 	};
 };
 
-void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
+static void* GetDllHandleImpl(NSString* DylibPath, NSString* ExecutableFolder)
 {
 	SCOPED_AUTORELEASE_POOL;
-
-	check(Filename);
-
-	NSFileManager* FileManager = [NSFileManager defaultManager];
-	NSString* DylibPath = [NSString stringWithUTF8String:TCHAR_TO_UTF8(Filename)];
-	NSString* ExecutableFolder = [[[NSBundle mainBundle] executablePath] stringByDeletingLastPathComponent];
-	if (![FileManager fileExistsAtPath:DylibPath])
-	{
-		// If it's not a absolute or relative path, try to find the file in the app bundle
-		DylibPath = [ExecutableFolder stringByAppendingPathComponent:FString(Filename).GetNSString()];
-	}
 
 	// Check if dylib is already loaded
 	void* Handle = dlopen([DylibPath fileSystemRepresentation], RTLD_NOLOAD | RTLD_LAZY | RTLD_LOCAL);
@@ -68,6 +57,42 @@ void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
 	{
 		// Not loaded yet, so try to open it
 		Handle = dlopen([DylibPath fileSystemRepresentation], RTLD_LAZY | RTLD_LOCAL);
+	}
+	return Handle;
+}
+
+void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
+{
+	SCOPED_AUTORELEASE_POOL;
+
+	check(Filename);
+
+	NSString* DylibPath = [NSString stringWithUTF8String:TCHAR_TO_UTF8(Filename)];
+	NSString* ExecutableFolder = [[[NSBundle mainBundle] executablePath] stringByDeletingLastPathComponent];
+	void* Handle = nullptr;
+
+	// On 11.0.0+, system-provided dynamic libraries do not exist on the
+	// filesystem, only in a built-in dynamic linker cache.
+	if (FPlatformMisc::MacOSXVersionCompare(10,16,0) >= 0)
+	{
+		Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
+		if (!Handle)
+		{
+			// If it's not a absolute or relative path, try to find the file in the app bundle
+			DylibPath = [ExecutableFolder stringByAppendingPathComponent:FString(Filename).GetNSString()];
+	
+			Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
+		}
+	}
+	else
+	{
+		NSFileManager* FileManager = [NSFileManager defaultManager];
+		if (![FileManager fileExistsAtPath:DylibPath])
+		{
+			// If it's not a absolute or relative path, try to find the file in the app bundle
+			DylibPath = [ExecutableFolder stringByAppendingPathComponent:FString(Filename).GetNSString()];
+		}
+		Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
 	}
 	if (!Handle)
 	{
