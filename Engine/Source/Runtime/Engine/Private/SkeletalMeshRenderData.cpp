@@ -493,6 +493,13 @@ void FSkeletalMeshRenderData::InitResources(bool bNeedsVertexColors, TArray<UMor
 			}
 		}
 
+#if WITH_EDITOR
+		// CPU data isn't streamed in editor so valid RHI resources will be created for all LODs during InitResources
+		CurrentFirstLODIdx = 0;
+		PendingFirstLODIdx = 0;
+		Owner->SetCachedNumResidentLODs(LODRenderData.Num());
+#endif
+
 		ENQUEUE_RENDER_COMMAND(CmdSetSkeletalMeshReadyForStreaming)(
 			[this, Owner](FRHICommandListImmediate&)
 		{
