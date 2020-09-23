@@ -758,8 +758,11 @@ void MainVS_Mobile(
 	OutTexCoords[2] = OutTexCoord.xy + BufferSizeAndInvSize.zw * float2(-1, 0);
 	OutTexCoords[3] = OutTexCoord.xy + BufferSizeAndInvSize.zw * float2( 0, 1);
 
+	float2 ColorViewportPos = UVToScreenPos(OutTexCoord.xy, BufferSizeAndInvSize.xy);
+
 	// Scale vignette to always be a circle with consistent corner intensity.
-	OutVignetteExposureScale.xy = VignetteSpace(InPosition.xy);
+	float2 LensViewportPos = ConvertScreenViewportSpaceToLensViewportSpace(ColorViewportPos);
+	OutVignetteExposureScale.xy = VignetteSpace(LensViewportPos);
 
 	// Compute fringe tex coord offsets
 	BRANCH
@@ -804,9 +807,6 @@ void MainPS_Mobile(
 	in float3 InVignetteExposureScale : TEXCOORD3,
 	in float2 InTexCoords[4] : TEXCOORD4,
 	in float4 InFringeTexCoords : FRINGE_COORDS,
-	#if USE_32BPP_HDR
-		in float4 SvPosition : SV_Position,		// after all interpolators
-	#endif
 	out half4 OutColor : SV_Target0
 	)
 {
@@ -821,7 +821,6 @@ void MainPS_Mobile(
 	const float OneOverPreExposure = 1.f;
 #endif
 	
-#if !USE_32BPP_HDR
 	BRANCH
 	if (FringeIntensity > 0.0)
 	{
@@ -831,7 +830,6 @@ void MainPS_Mobile(
 		SceneColor.a = 1.0;
 	}
 	else
-#endif
 	{
 		SceneColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
 	}
@@ -871,14 +869,10 @@ void MainPS_Mobile(
 			SceneColor.rgb = lerp(SceneColor.rgb, Dof.rgb, DofAmount);
 		#else
 			#if USE_GRAIN_JITTER
-				#if USE_32BPP_HDR
-					// This has grain jitter off.
-				#else
-					// Do jitter for grain.
-					half4 DofFine = Texture2DSample(SceneColorTexture, SceneColorSampler, FineDofGrain.xy);
-					// Grain jitter.
-					SceneColor.rgb = lerp(SceneColor.rgb, DofFine.rgb, (1.0-Grain*Grain) * GrainScaleBiasJitter.z);
-				#endif
+				// Do jitter for grain.
+				half4 DofFine = Texture2DSample(SceneColorTexture, SceneColorSampler, FineDofGrain.xy);
+				// Grain jitter.
+				SceneColor.rgb = lerp(SceneColor.rgb, DofFine.rgb, (1.0-Grain*Grain) * GrainScaleBiasJitter.z);
 			#endif
 		#endif
 
@@ -899,9 +893,8 @@ void MainPS_Mobile(
 
 		float ExposureScale = InVignetteExposureScale.z;
 		
-		#if USE_32BPP_HDR && USE_VIGNETTE
+		#if USE_VIGNETTE
 			LinearColor.rgb *= ComputeVignetteMask(InVignetteExposureScale.xy, TonemapperParams.x );
-			LinearColor = max(LinearColor, float3(0, 0, 0));
 		#endif
 
 		// It is faster to do vignette as a texture lookup + mad because this is an ALU bound shader.
