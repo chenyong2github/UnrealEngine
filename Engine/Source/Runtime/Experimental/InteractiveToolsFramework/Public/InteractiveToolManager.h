@@ -223,6 +223,9 @@ public:
 	/** Render any active Tools. Called by UInteractiveToolsContext. */
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
+	/** Let active Tools do their screen space drawing. Called by UInteractiveToolsContext. */
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
+
 
 	//
 	// access to APIs, etc
