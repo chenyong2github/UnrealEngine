@@ -60,6 +60,9 @@ uint32 FRunnableThreadHoloLens::Run()
 	{
 		// Initialization has completed, release the sync event
 		ThreadInitSyncEvent->Trigger();
+
+		SetTls();
+
 		// Now run the task that needs to be done
 		ExitCode = Runnable->Run();
 		// Allow any allocated resources to be cleaned up

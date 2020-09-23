@@ -1047,6 +1047,8 @@ void ViewProvider::InitOptionalPackages()
 // this method is called after Load
 void ViewProvider::Run()
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
+
 	// Wait for activation to complete
 	while (!ActivationComplete)
 	{
