@@ -28,6 +28,7 @@ public class WebRemoteControl : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Settings",
+					"UnrealEd"
 				}
 			);
 		}
