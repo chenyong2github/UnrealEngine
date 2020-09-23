@@ -1250,7 +1250,7 @@ void FMovieSceneEventCustomization::SetEventEndpoint(UK2Node* NewEndpoint, UEdGr
 
 		for (UEdGraphPin* PayloadPin : PayloadTemplate->Pins)
 		{
-			if (PayloadPin != BoundObjectPin && PayloadPin->Direction == EGPD_Input && PayloadPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec && PayloadPin->LinkedTo.Num() == 0)
+			if (PayloadPin != BoundObjectPin && PayloadPin->Direction == EGPD_Input && PayloadPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec && PayloadPin->LinkedTo.Num() == 0 && PayloadPin->PinName != UEdGraphSchema_K2::PN_Self)
 			{
 				// Make a payload variable for this pin
 				if (EnumHasAnyFlags(AutoCreatePayload, EAutoCreatePayload::Variables))
