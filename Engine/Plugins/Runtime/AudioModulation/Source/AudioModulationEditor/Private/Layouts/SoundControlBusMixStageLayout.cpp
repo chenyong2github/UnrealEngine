@@ -143,7 +143,7 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 				.FillWidth(0.4f)
-				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					UnitValueHandle->CreatePropertyValueWidget()
