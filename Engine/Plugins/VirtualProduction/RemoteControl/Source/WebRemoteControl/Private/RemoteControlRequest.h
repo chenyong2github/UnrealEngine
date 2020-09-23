@@ -428,6 +428,24 @@ struct FSetPresetMetadataRequest : public FRCRequest
 	FString Value;
 };
 
+
+/**
+ * Holds a request to get an asset's thumbnail.
+ */
+USTRUCT()
+struct FGetObjectThumbnailRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FGetObjectThumbnailRequest() = default;
+
+	/**
+	 * The target object's path.
+	 */
+	UPROPERTY()
+	FString ObjectPath;
+};
+
 /**
  * Holds a request made for web socket.
  */
