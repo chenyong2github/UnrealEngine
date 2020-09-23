@@ -275,6 +275,16 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionActorDesc* InA
 
 					FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
 
+					if (bClearLoadedMask)
+					{
+						CellNode.RemoveChildLoadedNode(ChildIndex);
+
+						if (CellNode.HasChildLoadedNodes())
+						{
+							bClearLoadedMask = false;
+						}
+					}
+
 					if (bClearChildMask)
 					{
 						CellNode.RemoveChildNode(ChildIndex);
@@ -286,16 +296,6 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionActorDesc* InA
 						else
 						{
 							HashNodes.Remove(LevelCellCoord);
-						}
-					}
-
-					if (bClearLoadedMask)
-					{
-						CellNode.RemoveChildLoadedNode(ChildIndex);
-
-						if (CellNode.HasChildLoadedNodes())
-						{
-							bClearLoadedMask = false;
 						}
 					}
 
