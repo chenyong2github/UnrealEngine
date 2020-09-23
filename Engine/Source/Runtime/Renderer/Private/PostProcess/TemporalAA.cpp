@@ -1371,7 +1371,9 @@ static void AddGen5MainTemporalAAPasses(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TAA UpdateHistory %dx%d", HistorySize.X, HistorySize.Y),
+			RDG_EVENT_NAME("TAA UpdateHistory%s %dx%d", 
+				History.Textures[0]->Desc.Format == PF_FloatR11G11B10 ? TEXT(" R11G11B10") : TEXT(""),
+				HistorySize.X, HistorySize.Y),
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(HistorySize, 8));
