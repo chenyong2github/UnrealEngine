@@ -91,11 +91,12 @@ void USoundCue::CacheAggregateValues()
 			}
 #endif // #if WITH_EDITOR
 			Duration = NewDuration;
-			MaxDistance = FindMaxDistanceInternal();
-			bHasDelayNode = FirstNode->HasDelayNode();
-			bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
-			bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
 		}
+
+		MaxDistance = FindMaxDistanceInternal();
+		bHasDelayNode = FirstNode->HasDelayNode();
+		bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
+		bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
 	}
 }
 
