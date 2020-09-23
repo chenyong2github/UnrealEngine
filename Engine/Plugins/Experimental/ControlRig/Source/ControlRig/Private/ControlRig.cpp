@@ -461,7 +461,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		Context.ToWorldSpaceTransform = OuterSceneComponent->GetComponentToWorld();
 		Context.OwningComponent = OuterSceneComponent.Get();
 		Context.OwningActor = Context.OwningComponent->GetOwner();
-		Context.World = Context.OwningActor->GetWorld();
+		Context.World = Context.OwningComponent->GetWorld();
 	}
 	else
 	{
