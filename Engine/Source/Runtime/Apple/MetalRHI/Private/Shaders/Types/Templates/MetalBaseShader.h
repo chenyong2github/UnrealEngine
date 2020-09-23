@@ -36,6 +36,7 @@ extern mtlpp::LanguageVersion ValidateVersion(uint8 Version);
 
 #pragma mark - Metal RHI Base Shader Class Template
 
+extern bool GShowAuthFail;
 
 template<typename BaseResourceType, int32 ShaderType>
 class TMetalBaseShader : public BaseResourceType, public IRefCountedObject
@@ -249,10 +250,9 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 					bSavedSource = FFileHelper::SaveStringToFile(Source, *ShaderPathString);
 				}
 
-				static bool bAttemptedAuth = false;
-				if (!bSavedSource && !bAttemptedAuth)
+				if (!bSavedSource && !GShowAuthFail)
 				{
-					bAttemptedAuth = true;
+					GShowAuthFail = true;
 
 					if (IFileManager::Get().MakeDirectory(*FPaths::GetPath(ShaderPathString), true))
 					{
@@ -261,8 +261,7 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 
 					if (!bSavedSource)
 					{
-						FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-													 *NSLOCTEXT("MetalRHI", "ShaderDebugAuthFail", "Could not access directory required for debugging optimised Metal shaders. Falling back to slower runtime compilation of shaders for debugging.").ToString(), TEXT("Error"));
+						UE_LOG(LogRHI, Error, TEXT("Could not access directory required for debugging optimised Metal shaders. Falling back to slower runtime compilation of shaders for debugging."));
 					}
 				}
 			}
