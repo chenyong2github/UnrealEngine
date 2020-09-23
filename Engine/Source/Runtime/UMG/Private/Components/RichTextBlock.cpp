@@ -159,8 +159,11 @@ void URichTextBlock::SetTextStyleSet(class UDataTable* NewTextStyleSet)
 
 		RebuildStyleInstance();
 
-		MyRichTextBlock->SetDecoratorStyleSet(StyleInstance.Get());
-		MyRichTextBlock->SetTextStyle(DefaultTextStyle);
+		if (MyRichTextBlock.IsValid())
+		{
+			MyRichTextBlock->SetDecoratorStyleSet(StyleInstance.Get());
+			MyRichTextBlock->SetTextStyle(DefaultTextStyle);
+		}
 	}
 }
 
