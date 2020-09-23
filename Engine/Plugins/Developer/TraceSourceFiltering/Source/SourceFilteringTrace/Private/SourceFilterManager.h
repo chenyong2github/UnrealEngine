@@ -83,7 +83,7 @@ protected:
 	void SetupAsyncTasks(ENamedThreads::Type CurrentThread);
 
 	/** Waits for any previously kicked of async tasks */
-	void WaitForAsyncTasks() const;
+	void WaitForAsyncTasks();
 
 	/** Reset last frame's transient data and setup the next */
 	void ResetPerFrameData();

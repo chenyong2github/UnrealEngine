@@ -50,10 +50,10 @@ static const bool bForceThreadSafe = true;
 FSourceFilterManager::FSourceFilterManager(UWorld* InWorld) : World(InWorld), bAreTickFunctionsRegistered(false), ActorCollector(World, {}), FilterSetup(FSourceFilterSetup::GetFilterSetup())
 {
 	ActorSpawningDelegateHandle = World->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateLambda([this](AActor* InActor) 
-	{ 
+	{
 		// Apply filters if the world is marked as trace-able itself
 		if (CAN_TRACE_OBJECT(World))
-		{	
+		{
 			// Apply high level class filters
 			bool bClassFilterResult = true;
 			if (FilterSetup.HasAnyClassFilters())
@@ -106,15 +106,14 @@ FSourceFilterManager::~FSourceFilterManager()
 	}
 
 	FilterSetup.GetFilterSetupUpdated().RemoveAll(this);
+	
+	WaitForAsyncTasks();
 
-	if (IsValidRef(FinishTask))
+	if (IsValidRef(DrawTask) && !DrawTask->IsComplete())
 	{
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(FinishTask);
-	}
-
-	if (IsValidRef(DrawTask))
-	{
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(DrawTask);
+		// Mark drawing task as finished (would otherwise have been executed on GT)
+		TArray<FBaseGraphTask*> NewTasks;
+		DrawTask->DispatchSubsequents(NewTasks, ENamedThreads::GameThread);
 	}
 
 	if (Settings)
@@ -745,10 +744,20 @@ void FSourceFilterManager::UnregisterTickFunctions()
 	bAreTickFunctionsRegistered = false;
 }
 
-void FSourceFilterManager::WaitForAsyncTasks() const
+void FSourceFilterManager::WaitForAsyncTasks()
 {
+	check(IsInGameThread());
 	if (IsValidRef(FinishTask))
-	{
+	{	
+		// Run GT filtering task (in case the GT got pre-empted before executing it, which otherwise causes a deadlock)
+		if (IsValidRef(AsyncTasks[0]) && !AsyncTasks[0]->IsComplete())
+		{			
+			ApplyGameThreadFilters();
+
+			TArray<FBaseGraphTask*> NewTasks;
+			AsyncTasks[0]->DispatchSubsequents(NewTasks, ENamedThreads::GameThread);
+		}
+
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(FinishTask);
 	}
 }
