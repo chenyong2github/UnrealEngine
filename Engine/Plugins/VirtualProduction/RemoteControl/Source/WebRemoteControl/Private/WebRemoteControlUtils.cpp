@@ -251,56 +251,6 @@ namespace RemotePayloadSerializer
 	}
 }
 
-namespace HttpUtils
-{
-	/**
-	 * Add the desired content type to the http response headers.
-	 * @param InResponse The response to add the content type to.
-	 * @param InContentType The content type header to add.
-	 */
-	void AddContentTypeHeaders(FHttpServerResponse* InOutResponse, FString InContentType)
-	{
-		InOutResponse->Headers.Add(TEXT("content-type"), { MoveTemp(InContentType) });
-	}
-
-	/**
-	* Add CORS headers to a http response.
-	* @param InOutResponse The http response to add the CORS headers to.
-	*/
-	void AddCORSHeaders(FHttpServerResponse* InOutResponse)
-	{
-		check(InOutResponse != nullptr);
-		InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Origin"), { TEXT("*") });
-		InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Methods"), { TEXT("PUT, POST, GET, OPTIONS") });
-		InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Headers"), { TEXT("Origin, X-Requested-With, Content-Type, Accept") });
-		InOutResponse->Headers.Add(TEXT("Access-Control-Max-Age"), { TEXT("600") });
-	}
-
-	/**
-	 * Validate a request's content type.
-	 * @param InRequest The request to validate the content type on.
-	 * @param InContentType The target content type.
-	 * @param OutErrorText If set, the string pointer will be populated with an error message on error.
-	 * @return Whether or not the content type matches the target content type.
-	 */
-	bool IsRequestContentType(const FHttpServerRequest& InRequest, const FString& InContentType, FString* OutErrorText)
-	{
-		if (const TArray<FString>* ContentTypeHeaders = InRequest.Headers.Find(TEXT("Content-Type")))
-		{
-			if (ContentTypeHeaders->Num() > 0 && (*ContentTypeHeaders)[0] == InContentType)
-			{
-				return true;
-			}
-		}
-
-		if (OutErrorText)
-		{
-			*OutErrorText = FString::Printf(TEXT("Request content type must be %s"), *InContentType);
-		}
-		return false;
-	}
-}
-
 void WebRemoteControlUtils::ConvertToTCHAR(TConstArrayView<uint8> InUTF8Payload, TArray<uint8>& OutTCHARPayload)
 {
 	int32 StartIndex = OutTCHARPayload.Num();
@@ -325,15 +275,15 @@ void WebRemoteControlUtils::ConvertToUTF8(const FString& InString, TArray<uint8>
 TUniquePtr<FHttpServerResponse> WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes InResponseCode)
 {
 	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
-	HttpUtils::AddCORSHeaders(Response.Get());
-	HttpUtils::AddContentTypeHeaders(Response.Get(), TEXT("application/json"));
+	AddCORSHeaders(Response.Get());
+	AddContentTypeHeaders(Response.Get(), TEXT("application/json"));
 	Response->Code = InResponseCode;
 	return Response;
 }
 
 void WebRemoteControlUtils::CreateUTF8ErrorMessage(const FString& InMessage, TArray<uint8>& OutUTF8Message)
 {
-	WebRemoteControlUtils::ConvertToUTF8(FString::Printf(TEXT("{ \"errorMessage\": \"%s\" }"), *InMessage), OutUTF8Message);
+	ConvertToUTF8(FString::Printf(TEXT("{ \"errorMessage\": \"%s\" }"), *InMessage), OutUTF8Message);
 }
 
 bool WebRemoteControlUtils::GetStructParametersDelimiters(TConstArrayView<uint8> InTCHARPayload, TMap<FString, FBlockDelimiters>& InOutStructParameters, FString* OutErrorText)
@@ -405,7 +355,7 @@ bool WebRemoteControlUtils::GetStructParametersDelimiters(TConstArrayView<uint8>
 bool WebRemoteControlUtils::ValidateContentType(const FHttpServerRequest& InRequest, FString InContentType, const FHttpResultCallback& InCompleteCallback)
 {
 	FString ErrorText;
-	if (!HttpUtils::IsRequestContentType(InRequest, MoveTemp(InContentType), &ErrorText))
+	if (!IsRequestContentType(InRequest, MoveTemp(InContentType), &ErrorText))
 	{
 		TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
 		CreateUTF8ErrorMessage(ErrorText, Response->Body);
@@ -413,4 +363,35 @@ bool WebRemoteControlUtils::ValidateContentType(const FHttpServerRequest& InRequ
 		return false;
 	}
 	return true;
+}
+
+void WebRemoteControlUtils::AddContentTypeHeaders(FHttpServerResponse* InOutResponse, FString InContentType)
+{
+	InOutResponse->Headers.Add(TEXT("content-type"), { MoveTemp(InContentType) });
+}
+
+void WebRemoteControlUtils::AddCORSHeaders(FHttpServerResponse* InOutResponse)
+{
+	check(InOutResponse != nullptr);
+	InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Origin"), { TEXT("*") });
+	InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Methods"), { TEXT("PUT, POST, GET, OPTIONS") });
+	InOutResponse->Headers.Add(TEXT("Access-Control-Allow-Headers"), { TEXT("Origin, X-Requested-With, Content-Type, Accept") });
+	InOutResponse->Headers.Add(TEXT("Access-Control-Max-Age"), { TEXT("600") });
+}
+
+bool WebRemoteControlUtils::IsRequestContentType(const FHttpServerRequest& InRequest, const FString& InContentType, FString* OutErrorText)
+{
+	if (const TArray<FString>* ContentTypeHeaders = InRequest.Headers.Find(TEXT("Content-Type")))
+	{
+		if (ContentTypeHeaders->Num() > 0 && (*ContentTypeHeaders)[0] == InContentType)
+		{
+			return true;
+		}
+	}
+
+	if (OutErrorText)
+	{
+		*OutErrorText = FString::Printf(TEXT("Request content type must be %s"), *InContentType);
+	}
+	return false;
 }
