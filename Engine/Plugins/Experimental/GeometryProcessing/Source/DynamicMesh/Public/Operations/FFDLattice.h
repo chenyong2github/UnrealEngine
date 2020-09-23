@@ -46,7 +46,10 @@ protected:
 	// Extents of the lattice before it is deformed
 	FAxisAlignedBox3d InitialBounds;
 
-	/// Interpolation weights and cell indices per vertex of the input FDynamicMesh3
+	// 3D size of a lattice cell
+	FVector3d CellSize;
+
+	// Interpolation weights and cell indices per vertex of the input FDynamicMesh3
 	TArray<FEmbedding> VertexEmbeddings;
 
 
