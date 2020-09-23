@@ -2752,7 +2752,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 			HlslOutput += TEXT("\t\t}\n");
 
-			if (TranslationStages.Num() > 2)
 			{
 				if (bWriteInstanceCount)
 				{

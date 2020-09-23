@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraDataInterfaceVelocityGrid.h"
+#include "Niagara/NiagaraDataInterfaceVelocityGrid.h"
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
@@ -641,6 +641,96 @@ void FNDIVelocityGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 	}
 }
 
+
+//------------------------------------------------------------------------------------------------------------
+
+#define NIAGARA_HAIR_STRANDS_THREAD_COUNT 64
+
+class FCopyVelocityGridCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyVelocityGridCS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyVelocityGridCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector, GridSize)
+		SHADER_PARAMETER_SRV(Texture3D, GridCurrentBuffer)
+		SHADER_PARAMETER_UAV(RWTexture3D, GridDestinationBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCopyVelocityGridCS, "/Plugin/Experimental/HairStrands/Private/NiagaraCopyVelocityGrid.usf", "MainCS", SF_Compute);
+
+static void AddCopyVelocityGridPass(
+	FRDGBuilder& GraphBuilder,
+	FRHIShaderResourceView* GridCurrentBuffer,
+	FRHIUnorderedAccessView* GridDestinationBuffer,
+	const FIntVector& GridSize)
+{
+	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
+	const uint32 NumElements = (GridSize.X + 1) * (GridSize.Y + 1) * (GridSize.Z + 1);
+
+	FCopyVelocityGridCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyVelocityGridCS::FParameters>();
+	Parameters->GridCurrentBuffer = GridCurrentBuffer;
+	Parameters->GridDestinationBuffer = GridDestinationBuffer;
+	Parameters->GridSize = GridSize;
+
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+
+	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
+
+	TShaderMapRef<FCopyVelocityGridCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("CopyVelocityGrid"),
+		ComputeShader,
+		Parameters,
+		FIntVector(DispatchCount, 1, 1));
+}
+
+inline void CopyTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize)
+{
+	FRHIUnorderedAccessView* DestinationGridBufferUAV = DestinationGridBuffer->GridDataBuffer.UAV;
+	FRHIShaderResourceView* CurrentGridBufferSRV = CurrentGridBuffer->GridDataBuffer.SRV;
+	FRHIUnorderedAccessView* CurrentGridBufferUAV = CurrentGridBuffer->GridDataBuffer.UAV;
+
+	if (DestinationGridBufferUAV != nullptr && CurrentGridBufferSRV != nullptr && CurrentGridBufferUAV != nullptr)
+	{
+		const FIntVector LocalGridSize = GridSize;
+
+		ENQUEUE_RENDER_COMMAND(CopyVelocityGrid)(
+			[DestinationGridBufferUAV, CurrentGridBufferSRV, CurrentGridBufferUAV, LocalGridSize]
+		(FRHICommandListImmediate& RHICmdListImm)
+			{
+				FRHITransitionInfo Transitions[] = {
+					// FIXME: what's the source state for these?
+					FRHITransitionInfo(CurrentGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+					FRHITransitionInfo(DestinationGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+				};
+				RHICmdListImm.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
+
+				FRDGBuilder GraphBuilder(RHICmdListImm);
+
+				AddCopyVelocityGridPass(
+					GraphBuilder,
+					CurrentGridBufferSRV, DestinationGridBufferUAV, LocalGridSize);
+
+				GraphBuilder.Execute();
+			});
+	}
+}
+
 void FNDIVelocityGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	FNDIVelocityGridData* ProxyData =
@@ -649,9 +739,10 @@ void FNDIVelocityGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagar
 	if (ProxyData != nullptr)
 	{
 		//ProxyData->Swap();
-		FRHICopyTextureInfo CopyInfo;
-		RHICmdList.CopyTexture(ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer,
-			ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer, CopyInfo);
+		CopyTexture(RHICmdList, ProxyData->DestinationGridBuffer, ProxyData->CurrentGridBuffer,  ProxyData->GridSize);
+		//FRHICopyTextureInfo CopyInfo;
+		//RHICmdList.CopyTexture(ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer,
+		//	ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer, CopyInfo);
 	}
 }
 

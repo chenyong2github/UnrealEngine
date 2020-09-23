@@ -110,7 +110,7 @@ struct FNDIPhysicsAssetData
 
 /** Data Interface for the strand base */
 UCLASS(EditInlineNew, Category = "Strands", meta = (DisplayName = "Physics Asset"))
-class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfacePhysicsAsset : public UNiagaraDataInterface
+class HAIRSTRANDSCORE_API UNiagaraDataInterfacePhysicsAsset : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 

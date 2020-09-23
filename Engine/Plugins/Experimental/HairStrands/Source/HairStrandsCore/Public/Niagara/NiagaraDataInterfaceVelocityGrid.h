@@ -106,7 +106,7 @@ private:
 
 /** Data Interface for the strand base */
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Velocity Grid"))
-class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfaceVelocityGrid : public UNiagaraDataInterfaceRWBase
+class HAIRSTRANDSCORE_API UNiagaraDataInterfaceVelocityGrid : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 

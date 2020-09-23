@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraDataInterfacePhysicsAsset.h"
+#include "Niagara/NiagaraDataInterfacePhysicsAsset.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SkeletalRenderPublic.h"
