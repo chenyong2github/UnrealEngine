@@ -90,9 +90,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "VirtualCamera | Focus")
 	bool bAllowFocusVisualization;
 
-	UPROPERTY(BlueprintReadOnly, Category = "VirtualCamera | Focus")
-	EVirtualCameraFocusMethod FocusMethod;
-
 	/**
 	 * Delegate that will is triggered before transform is set onto Actor.
 	 * @param FVirtualCameraTransform Transform data that is passed to delegate.
@@ -162,15 +159,8 @@ protected:
 	virtual void SetSaveSettingsOnStopStreaming_Implementation(bool bShouldSettingsSave) override;
 	virtual FTransform GetRelativeTransform_Implementation() const override;
 	virtual void AddBlendableToCamera_Implementation(const TScriptInterface<IBlendableInterface>& InBlendableToAdd, float InWeight) override;
-	virtual void SetFocusDistance_Implementation(float InFocusDistanceCentimeters) override;
 	virtual void SetTrackedActorForFocus_Implementation(AActor* InActorToTrack, const FVector& InTrackingPointOffset) override;
-	virtual void SetFocusMethod_Implementation(EVirtualCameraFocusMethod InNewFocusMethod) override;
-	virtual EVirtualCameraFocusMethod GetFocusMethod_Implementation() const override;
 	virtual void SetFocusVisualization_Implementation(bool bInShowFocusVisualization) override;
-	virtual void SetReticlePosition_Implementation(const FVector2D& InViewportPosition) override;
-	virtual FVector2D GetReticlePosition_Implementation() const override;
-	virtual void UpdateHyperfocalDistance_Implementation() override;
-	virtual float GetHyperfocalDistance_Implementation() const override;
 	virtual bool ShouldSaveSettingsOnStopStreaming_Implementation() const override;
 	virtual void SetBeforeSetVirtualCameraTransformDelegate_Implementation(const FPreSetVirtualCameraTransform& InDelegate) override;
 	virtual void SetOnActorClickedDelegate_Implementation(const FOnActorClickedDelegate& InDelegate) override;
@@ -206,8 +196,6 @@ private:
 	/** Restores settings from save game. */
 	void LoadSettings();
 
-	void UpdateAutoFocus();
-
 #if WITH_EDITOR
 	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
 	void OnBlueprintPreCompile(UBlueprint* Blueprint);
@@ -222,6 +210,4 @@ private:
 	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;
 	TUniquePtr<FVirtualCameraViewportSettings> ViewportSettingsBackup;
 	FHitResult LastViewportTouchResult;
-	FVector2D ReticlePosition;
-	float HyperfocalDistance;
 };
