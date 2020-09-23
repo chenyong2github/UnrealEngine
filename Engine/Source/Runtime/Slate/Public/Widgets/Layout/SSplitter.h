@@ -105,6 +105,7 @@ public:
 	 */
 	FSlot& AddSlot( int32 AtIndex = INDEX_NONE );
 
+	DECLARE_DELEGATE_OneParam(FOnHandleHovered, int32);
 
 	SLATE_BEGIN_ARGS(SSplitter)
 		: _Style( &FCoreStyle::Get().GetWidgetStyle<FSplitterStyle>("Splitter") )
@@ -132,9 +133,13 @@ public:
 
 		SLATE_ARGUMENT( float, MinimumSlotHeight )
 
+		SLATE_ATTRIBUTE( int32, HighlightedHandleIndex )
+
+		SLATE_EVENT( FOnHandleHovered, OnHandleHovered )
+
 		SLATE_EVENT( FSimpleDelegate, OnSplitterFinishedResizing )
 		
-		SLATE_EVENT(FOnGetMaxSlotSize, OnGetMaxSlotSize)
+		SLATE_EVENT( FOnGetMaxSlotSize, OnGetMaxSlotSize )
 
 	SLATE_END_ARGS()
 
@@ -232,8 +237,7 @@ public:
 	/**
 	 * @return the current orientation of the splitter.
 	 */
-	EOrientation GetOrientation() const;	
-
+	EOrientation GetOrientation() const;
 
 private:
 	TArray<FLayoutGeometry> ArrangeChildrenForLayout( const FGeometry& AllottedGeometry ) const;
@@ -290,12 +294,15 @@ protected:
 	TPanelChildren< FSlot > Children;
 
 	int32 HoveredHandleIndex;
+	TAttribute<int32> HighlightedHandleIndex;
 	bool bIsResizing;
 	EOrientation Orientation;
 	ESplitterResizeMode::Type ResizeMode;
 
 	FSimpleDelegate OnSplitterFinishedResizing;
 	FOnGetMaxSlotSize OnGetMaxSlotSize;
+	FOnHandleHovered OnHandleHovered;
+
 	/** The user is not allowed to make any of the splitter's children smaller than this. */
 	float MinSplitterChildLength;
 
