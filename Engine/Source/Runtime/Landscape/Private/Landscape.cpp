@@ -123,7 +123,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("F96002C1787F44878795B534CEE2F902")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("683FD12EE0464A82A4536724447A1A89")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
