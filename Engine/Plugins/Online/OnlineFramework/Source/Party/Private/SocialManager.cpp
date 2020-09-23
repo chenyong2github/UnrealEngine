@@ -868,12 +868,12 @@ USocialParty* USocialManager::GetPartyInternal(const FOnlinePartyId& PartyId, bo
 
 TSharedPtr<const IOnlinePartyJoinInfo> USocialManager::GetJoinInfoFromSession(const FOnlineSessionSearchResult& PlatformSession)
 {
-	static const FName JoinInfoSettingName = PLATFORM_XBOXONE ? SETTING_CUSTOM_JOIN_INFO : SETTING_CUSTOM;
+	static const FName JoinInfoSettingName = PARTY_PLATFORM_SESSIONS_XBL ? SETTING_CUSTOM_JOIN_INFO : SETTING_CUSTOM;
 
 	FString JoinInfoJson;
 	if (PlatformSession.Session.SessionSettings.Get(JoinInfoSettingName, JoinInfoJson))
 	{
-#if PLATFORM_XBOXONE
+#if PARTY_PLATFORM_SESSIONS_XBL 
 		// On Xbox we encode our party data in base64 to avoid XboxLive trying to parse our json, so now we need to decode that
 		FBase64::Decode(JoinInfoJson, JoinInfoJson);
 #endif 
