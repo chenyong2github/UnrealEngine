@@ -6,6 +6,7 @@ using Rhino.Geometry;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 
 namespace DatasmithRhino
 {
@@ -44,6 +45,7 @@ namespace DatasmithRhino
 		public RhinoSceneHierarchyNode LinkedNode { get; private set; }
 		public FDatasmithFacadeActor DatasmithActor { get; private set; }
 		private List<RhinoSceneHierarchyNode> Children;
+		public HashSet<int> LayerIndices { get; private set; } = new HashSet<int>();
 
 		public RhinoSceneHierarchyNodeInfo Info { get; private set; }
 
@@ -77,12 +79,30 @@ namespace DatasmithRhino
 		{
 			LinkedNode = InLinkedNode;
 			InLinkedNode.bIsInstanceDefinition = true;
+			LayerIndices.UnionWith(InLinkedNode.LayerIndices);
 		}
 
 		public RhinoSceneHierarchyNode AddChild(RhinoSceneHierarchyNodeInfo InNodeInfo)
 		{
 			RhinoSceneHierarchyNode ChildNode = new RhinoSceneHierarchyNode(this, InNodeInfo);
+			ChildNode.LayerIndices.UnionWith(LayerIndices);
 			Children.Add(ChildNode);
+
+			return ChildNode;
+		}
+
+		public RhinoSceneHierarchyNode AddChild(RhinoSceneHierarchyNodeInfo InNodeInfo, int LayerIndex)
+		{
+			RhinoSceneHierarchyNode ChildNode = AddChild(InNodeInfo);
+			ChildNode.LayerIndices.Add(LayerIndex);
+
+			return ChildNode;
+		}
+
+		public RhinoSceneHierarchyNode AddChild(RhinoSceneHierarchyNodeInfo InNodeInfo, IEnumerable<int> LayerIndices)
+		{
+			RhinoSceneHierarchyNode ChildNode = AddChild(InNodeInfo);
+			ChildNode.LayerIndices.UnionWith(LayerIndices);
 
 			return ChildNode;
 		}
@@ -209,6 +229,8 @@ namespace DatasmithRhino
 
 		private Dictionary<int, string> MaterialIndexToMaterialHashDictionary = new Dictionary<int, string>();
 		private Dictionary<Guid, string> TextureIdToTextureHash = new Dictionary<Guid, string>();
+		private Dictionary<int, string> LayerIndexToLayerString = new Dictionary<int, string>();
+		private Dictionary<int, HashSet<int>> LayerIndexToLayerIndexHierarchy = new Dictionary<int, HashSet<int>>();
 		private List<string> GroupNameList = new List<string>();
 		private FUniqueNameGenerator ActorLabelGenerator = new FUniqueNameGenerator();
 		private FUniqueNameGenerator MaterialLabelGenerator = new FUniqueNameGenerator();
@@ -256,6 +278,27 @@ namespace DatasmithRhino
 			return null;
 		}
 
+		public string GetNodeLayerString(RhinoSceneHierarchyNode Node)
+		{
+			StringBuilder Buider = new StringBuilder();
+			foreach (int LayerIndex in Node.LayerIndices)
+			{
+				if (LayerIndexToLayerString.TryGetValue(LayerIndex, out string LayerString))
+				{
+					if (Buider.Length == 0)
+					{
+						Buider.Append(LayerString);
+					}
+					else
+					{
+						Buider.Append("," + LayerString);
+					}
+				}
+			}
+
+			return Buider.ToString();
+		}
+
 		private void ParseRhinoHierarchy()
 		{
 			foreach(var CurrentLayer in RhinoDocument.Layers)
@@ -270,7 +313,7 @@ namespace DatasmithRhino
 
 		private void RecursivelyParseLayerHierarchy(Layer CurrentLayer, RhinoSceneHierarchyNode ParentNode)
 		{
-			if(!CurrentLayer.IsVisible)
+			if(!CurrentLayer.IsVisible || CurrentLayer.IsDeleted)
 			{
 				return;
 			}
@@ -278,8 +321,9 @@ namespace DatasmithRhino
 			int MaterialIndex = CurrentLayer.RenderMaterialIndex;
 			Transform ParentTransform = ParentNode.bIsRoot ? ExportOptions.Xform : ParentNode.Info.WorldTransform;
 			RhinoSceneHierarchyNodeInfo NodeInfo = GenerateNodeInfo(CurrentLayer, ParentNode.bIsInstanceDefinition, MaterialIndex, ParentTransform);
-			RhinoSceneHierarchyNode CurrentNode = ParentNode.AddChild(NodeInfo);
+			RhinoSceneHierarchyNode CurrentNode = ParentNode.AddChild(NodeInfo, CurrentLayer.Index);
 			GuidToHierarchyNodeDictionary.Add(CurrentLayer.Id, CurrentNode);
+			LayerIndexToLayerString.Add(CurrentLayer.Index, BuildLayerString(CurrentLayer, ParentNode));
 			AddMaterialIndexMapping(CurrentLayer.RenderMaterialIndex);
 
 			RhinoObject[] ObjectsInLayer = RhinoDocument.Objects.FindByLayer(CurrentLayer);
@@ -299,6 +343,23 @@ namespace DatasmithRhino
 				// This layer is empty, remove it.
 				ParentNode.RemoveChild(CurrentNode);
 			}
+		}
+
+		private string BuildLayerString(Layer CurrentLayer, RhinoSceneHierarchyNode ParentNode)
+		{
+			string CurrentLayerName = FUniqueNameGenerator.GetTargetName(CurrentLayer).Replace(',', '_');
+
+			if (!ParentNode.bIsRoot && ParentNode.Info.bHasRhinoLayer)
+			{
+				Layer ParentLayer = ParentNode.Info.RhinoModelComponent as Layer;
+
+				if (LayerIndexToLayerString.TryGetValue(ParentLayer.Index, out string ParentLayerString))
+				{
+					return string.Format("{0}_{1}", ParentLayerString, CurrentLayerName);
+				}
+			}
+
+			return CurrentLayerName;
 		}
 
 		private void RecursivelyParseObjectInstance(RhinoObject[] InObjects, RhinoSceneHierarchyNode ParentNode)
@@ -328,7 +389,16 @@ namespace DatasmithRhino
 
 				int MaterialIndex = GetObjectMaterialIndex(CurrentObject, ParentNode.Info);
 				RhinoSceneHierarchyNodeInfo ObjectNodeInfo = GenerateNodeInfo(CurrentObject, ParentNode.bIsInstanceDefinition, MaterialIndex, ParentNode.Info.WorldTransform);
-				RhinoSceneHierarchyNode ObjectNode = ParentNode.AddChild(ObjectNodeInfo);
+				RhinoSceneHierarchyNode ObjectNode;
+				if (ParentNode.bIsRoot && ParentNode.bIsInstanceDefinition)
+				{
+					// The objects inside a Block definitions may be defined in a different layer than the one we are currently in.
+					ObjectNode = ParentNode.AddChild(ObjectNodeInfo, GetOrCreateLayerIndexHierarchy(CurrentObject.Attributes.LayerIndex));
+				}
+				else
+				{
+					ObjectNode = ParentNode.AddChild(ObjectNodeInfo);
+				}
 				GuidToHierarchyNodeDictionary.Add(CurrentObject.Id, ObjectNode);
 				AddObjectMaterialReference(CurrentObject, MaterialIndex);
 
@@ -575,6 +645,33 @@ namespace DatasmithRhino
 
 				GroupNameList.Insert(GroupIndex, GroupName);
 			}
+		}
+
+		private HashSet<int> GetOrCreateLayerIndexHierarchy(int ChildLayerIndex)
+		{
+			HashSet<int> LayerIndexHierarchy; 
+			if (!LayerIndexToLayerIndexHierarchy.TryGetValue(ChildLayerIndex, out LayerIndexHierarchy))
+			{
+				LayerIndexHierarchy = new HashSet<int>();
+				Layer CurrentLayer = RhinoDocument.Layers.FindIndex(ChildLayerIndex);
+
+				if (CurrentLayer != null)
+				{
+					LayerIndexHierarchy.Add(CurrentLayer.Index);
+
+					//Add all parent layers to the hierarchy set
+					while (CurrentLayer.ParentLayerId != Guid.Empty)
+					{
+						CurrentLayer = RhinoDocument.Layers.FindId(CurrentLayer.ParentLayerId);
+						LayerIndexHierarchy.Add(CurrentLayer.Index);
+					}
+				}
+
+				//The above search is costly, to avoid doing it for every exported object, cache the result.
+				LayerIndexToLayerIndexHierarchy.Add(ChildLayerIndex, LayerIndexHierarchy);
+			}
+
+			return LayerIndexHierarchy;
 		}
 
 		private void ParseRhinoMeshes()

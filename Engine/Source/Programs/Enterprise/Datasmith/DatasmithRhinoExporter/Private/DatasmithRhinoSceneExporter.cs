@@ -125,7 +125,7 @@ namespace DatasmithRhino
 				Node.SetDatasmithActor(ExportedActor);
 				AddTagsToDatasmithActor(ExportedActor, Node);
 				AddMetadataToDatasmithActor(ExportedActor, Node, DatasmithScene);
-				AddLayersToDatasmithActor(ExportedActor, Node);
+				ExportedActor.SetLayer(GetDatasmithActorLayers(Node, SceneParser));
 
 				AddActorToParent(ExportedActor, Node, DatasmithScene);
 			}
@@ -236,31 +236,18 @@ namespace DatasmithRhino
 			}
 		}
 
-		private static void AddLayersToDatasmithActor(FDatasmithFacadeActor InDatasmithActor, RhinoSceneHierarchyNode InNode)
+		private static string GetDatasmithActorLayers(RhinoSceneHierarchyNode InNode, DatasmithRhinoSceneParser SceneParser)
 		{
-			string Layer = "";
-			if (InNode.Parent != null && InNode.Parent.DatasmithActor != null)
-			{
-				string ParentLayer = InNode.Parent.DatasmithActor.GetLayer();
-				if (!string.IsNullOrEmpty(ParentLayer))
-				{
-					Layer = ParentLayer;
-				}
-			}
+			bool bIsSameAsParentLayer = !(InNode.Info.bHasRhinoLayer || (InNode.Parent?.Info.RhinoModelComponent as RhinoObject)?.ObjectType == ObjectType.InstanceReference);
 
-			if (InNode.Info.bHasRhinoLayer)
+			if (bIsSameAsParentLayer && InNode.Parent?.DatasmithActor != null)
 			{
-				if (string.IsNullOrEmpty(Layer))
-				{
-					Layer = InNode.Info.Label;
-				}
-				else
-				{
-					Layer = string.Format("{0}_{1}", Layer, InNode.Info.Label);
-				}
+				return InNode.Parent.DatasmithActor.GetLayer();
 			}
-
-			InDatasmithActor.SetLayer(Layer);
+			else
+			{
+				return SceneParser.GetNodeLayerString(InNode);
+			}
 		}
 
 		private static FDatasmithFacadeActorLight SetupLightActor(RhinoSceneHierarchyNodeInfo HierarchyNodeInfo, Light RhinoLight)
