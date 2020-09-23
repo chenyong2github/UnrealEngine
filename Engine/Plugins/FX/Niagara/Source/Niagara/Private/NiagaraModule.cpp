@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraModule.h"
+#include "Misc/LazySingleton.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraTypes.h"
 #include "NiagaraEvents.h"
@@ -305,6 +306,8 @@ void INiagaraModule::ShutdownModule()
 	NiagaraShaderModule.ResetOnRequestDefaultDataInterfaceHandler();
 
 	ShutdownRenderingResources();
+
+	FNiagaraTypeRegistry::TearDown();
 }
 
 #if WITH_EDITOR
@@ -476,16 +479,6 @@ TSet<UStruct*> FNiagaraTypeDefinition::IntStructs;
 TSet<UStruct*> FNiagaraTypeDefinition::BoolStructs;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::CollisionEventDef;
-
-
-FNiagaraTypeRegistry::RegisteredTypesArray FNiagaraTypeRegistry::RegisteredTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredParamTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredPayloadTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredUserDefinedTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredNumericTypes;
-TMap<uint32, int32> FNiagaraTypeRegistry::RegisteredTypeIndexMap;
-FRWLock FNiagaraTypeRegistry::RegisteredTypesLock;
-
 
 bool FNiagaraTypeDefinition::IsDataInterface()const
 {
@@ -970,7 +963,7 @@ void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
 UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(const FString& DIClassName)
 {
 	UClass* DIClass = nullptr;
-	for (const FNiagaraTypeDefinition& Def : RegisteredTypes)
+	for (const FNiagaraTypeDefinition& Def : Get().RegisteredTypes)
 	{
 		if (Def.IsDataInterface())
 		{
@@ -1002,6 +995,37 @@ UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(c
 	return nullptr;
 }
 
+// this will hold onto references to the classes/enums/structs that are used as a part of type definitions.  In the case that something is forcibly deleted
+// the contents of the RegisteredTypes array will have it's ClassStructorEnum cleared, and it will no longer be treated as a valid type
+// (FNiagaraTypeDefinitionHandle::Resolve will return an invalid Dummy reference).
+// 
+// It might be worth investigating changing RegisteredTypeIndexMap to be hashed based on the name of the class/enum/struct rather than the pointer.  That
+// way if we reload a type old data, with their existing index, will still be treated as valid.  In this current implementation old FNiagaraVariables will
+// have invalid types.  But, for now I think it would be an error to unload a type without having the variables that dependend on it also getting deleted.
+void FNiagaraTypeRegistry::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (FNiagaraTypeDefinition& RegisteredType : RegisteredTypes)
+	{
+		Collector.AddReferencedObject(RegisteredType.ClassStructOrEnum);
+	}
+}
+
+FString FNiagaraTypeRegistry::GetReferencerName() const
+{
+	return TEXT("FNiagaraTypeRegistry");
+}
+
+FNiagaraTypeRegistry& FNiagaraTypeRegistry::Get()
+{
+	return TLazySingleton<FNiagaraTypeRegistry>::Get();
+}
+
+void FNiagaraTypeRegistry::TearDown()
+{
+	TLazySingleton<FNiagaraTypeRegistry>::TearDown();
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 FDelegateHandle INiagaraModule::SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue)
 {
@@ -1028,7 +1052,12 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinitionHandle::Resolve() const
 
 	if (RegisteredTypes.IsValidIndex(RegisteredTypeIndex))
 	{
-		return RegisteredTypes[RegisteredTypeIndex];
+		// If the type is invalid, then it's likely that it has been invalidated by GC because the underlying object has
+		// been unloaded.
+		if (RegisteredTypes[RegisteredTypeIndex].IsValid())
+		{
+			return RegisteredTypes[RegisteredTypeIndex];
+		}
 	}
 
 	static FNiagaraTypeDefinition Dummy;
