@@ -1113,7 +1113,9 @@ namespace ChaosTest {
 				TickSolverHelper(Module,Solver);
 			}
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+			// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+			EXPECT_GE(Dynamic->X()[2], 10);
+			EXPECT_LE(Dynamic->X()[2], 11);
 		
 			const int RewindStep = 5;
 
@@ -1149,7 +1151,9 @@ namespace ChaosTest {
 			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
 			EXPECT_EQ(DesyncedParticles[1].MostDesynced,ESyncState::HardDesync);
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],9);
+			// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+			EXPECT_GE(Dynamic->X()[2],9);
+			EXPECT_LE(Dynamic->X()[2], 10);
 
 			Module->DestroySolver(Solver);
 		}
@@ -1328,7 +1332,9 @@ namespace ChaosTest {
 				Xs.Add(Dynamic->X());
 			}
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+
+			EXPECT_GE(Dynamic->X()[2], 10);
+			EXPECT_LE(Dynamic->X()[2], 11);
 
 			const int RewindStep = 5;
 
@@ -1352,7 +1358,9 @@ namespace ChaosTest {
 			EXPECT_EQ(DesyncedParticles[0].MostDesynced,ESyncState::HardDesync);
 			EXPECT_EQ(DesyncedParticles[0].Particle,Kinematic.Get());
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+			// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+			EXPECT_GE(Dynamic->X()[2],10);
+			EXPECT_LE(Dynamic->X()[2], 11);
 
 			Module->DestroySolver(Solver);
 		}
@@ -1402,7 +1410,9 @@ namespace ChaosTest {
 				Xs.Add(Dynamic->X());
 			}
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],5);
+			// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+			EXPECT_GE(Dynamic->X()[2], 5);
+			EXPECT_LE(Dynamic->X()[2], 6);
 
 			const int RewindStep = 0;
 
@@ -1419,7 +1429,9 @@ namespace ChaosTest {
 				EXPECT_GE(Dynamic->X()[2],10);
 			}
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+			// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+			EXPECT_GE(Dynamic->X()[2], 10);
+			EXPECT_LE(Dynamic->X()[2], 11);
 
 			//both desync
 			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
@@ -1476,7 +1488,9 @@ namespace ChaosTest {
 				Xs.Add(Dynamic->X());
 			}
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],5);
+			// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+			EXPECT_GE(Dynamic->X()[2], 5);
+			EXPECT_LE(Dynamic->X()[2], 6);
 
 			const int RewindStep = 0;
 
@@ -1494,7 +1508,9 @@ namespace ChaosTest {
 				EXPECT_VECTOR_FLOAT_EQ(Dynamic->X(),Xs[Step]);
 			}
 
-			EXPECT_FLOAT_EQ(Dynamic->X()[2],5);
+			// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+			EXPECT_GE(Dynamic->X()[2], 5);
+			EXPECT_LE(Dynamic->X()[2], 6);
 
 			//dynamic slave so only kinematic desyncs
 			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
@@ -1796,7 +1812,7 @@ namespace ChaosTest {
 				}
 
 				TickSolverHelper(Module,Solver);
-				EXPECT_LT(Dynamic->X()[2],10);
+				EXPECT_LE(Dynamic->X()[2],10);
 
 				//kinematic desync will be known at end of frame because the simulation doesn't write results (so we know right away it's a desync)
 				if(Step < LastStep)
@@ -1864,7 +1880,9 @@ namespace ChaosTest {
 			Xs.Add(Dynamic->X());
 		}
 
-		EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+		// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+		EXPECT_GE(Dynamic->X()[2], 10);
+		EXPECT_LE(Dynamic->X()[2], 12);
 
 		const int RewindStep = 0;
 
@@ -1910,7 +1928,10 @@ namespace ChaosTest {
 		EXPECT_EQ(DesyncedParticles[1].MostDesynced,DesyncedParticles[1].Particle == Kinematic.Get() ? ESyncState::HardDesync : ESyncState::SoftDesync);
 
 		EXPECT_TRUE(bEverSoft);
-		EXPECT_FLOAT_EQ(Dynamic->X()[2],10);
+
+		// We may end up a bit away from the surface (dt * V), due to solving for 0 velocity and not 0 position error
+		EXPECT_GE(Dynamic->X()[2], 10);
+		EXPECT_LE(Dynamic->X()[2], 12);
 
 		Module->DestroySolver(Solver);
 	}
