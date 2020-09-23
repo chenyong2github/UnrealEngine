@@ -28,6 +28,20 @@ enum ERuntimeVirtualTextureMipValueMode
 	RVTMVM_MAX,
 };
 
+/**
+ * Defines texture addressing behavior.
+ */
+UENUM()
+enum ERuntimeVirtualTextureTextureAddressMode
+{
+	/* Clamp mode. */
+	RVTTA_Clamp UMETA(DisplayName = "Clamp"),
+	/* Wrap mode. */
+	RVTTA_Wrap UMETA(DisplayName = "Wrap"),
+
+	RVTTA_MAX,
+};
+
 /** Material expression for sampling from a runtime virtual texture. */
 UCLASS(collapsecategories, hidecategories=Object)
 class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
@@ -61,6 +75,10 @@ class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMateri
 	/** Defines how the MipValue property is applied to the virtual texture lookup. */
 	UPROPERTY(EditAnywhere, Category = TextureSample)
 	TEnumAsByte<enum ERuntimeVirtualTextureMipValueMode> MipValueMode = RVTMVM_None;
+
+	/** Defines the texture addressing mode. */
+	UPROPERTY(EditAnywhere, Category = TextureSample)
+	TEnumAsByte<enum ERuntimeVirtualTextureTextureAddressMode> TextureAddressMode = RVTTA_Clamp;
 
 	/** Init settings that affect shader compilation and need to match the current VirtualTexture */
 	bool InitVirtualTextureDependentSettings();

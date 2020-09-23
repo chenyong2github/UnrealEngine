@@ -540,7 +540,7 @@ MaterialFloat4 TextureVirtualSampleLevel(
 float2 VirtualTextureWorldToUV(in float3 WorldPos, in float3 Origin, in float3 U, in float3 V)
 {
 	float3 P = WorldPos - Origin;
-	return saturate(float2(dot(P, U), dot(P, V)));
+	return float2(dot(P, U), dot(P, V));
 }
 
 /** Unpack color from YCoCg stored in BC3. */
