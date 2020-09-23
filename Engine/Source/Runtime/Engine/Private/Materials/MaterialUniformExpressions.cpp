@@ -1678,6 +1678,7 @@ FMaterialUniformExpressionExternalTextureParameter::FMaterialUniformExpressionEx
 
 FMaterialUniformExpressionExternalTextureParameter::FMaterialUniformExpressionExternalTextureParameter(FName InParameterName, int32 InTextureIndex)
 	: Super(InTextureIndex)
+	, ParameterName(InParameterName)
 {}
 
 void FMaterialUniformExpressionExternalTextureParameter::GetExternalTextureParameterInfo(FMaterialExternalTextureParameterInfo& OutParameter) const
