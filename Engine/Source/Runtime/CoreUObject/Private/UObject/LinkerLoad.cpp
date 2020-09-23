@@ -4286,8 +4286,9 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			Export.bExportLoadFailed = true;
 
 			FString OuterName = Export.OuterIndex.IsNull() ? LinkerRoot->GetFullName() : GetFullImpExpName(Export.OuterIndex);
-			UE_CLOG(Export.ObjectFlags & EObjectFlags::RF_Public, LogLinker, Warning, TEXT("Unable to load %s with outer %s because its class does not exist"), *Export.ObjectName.ToString(), *OuterName);
-			return NULL;
+			FString ClassName = GetClassName(Export.ThisIndex).ToString();
+			UE_LOG(LogLinker, Warning, TEXT("Unable to load %s with outer %s because its class (%s) does not exist"), *Export.ObjectName.ToString(), *OuterName, *ClassName);
+			return nullptr;
 		}
 
 		if (Export.DynamicType == FObjectExport::EDynamicType::ClassDefaultObject)
@@ -4301,7 +4302,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			else
 			{
 				UE_LOG(LogLinker, Warning, TEXT("CreateExport: Failed to create CDO %s because class is not found"), *Export.ObjectName.ToString());
-				return NULL;
+				return nullptr;
 			}
 		}
 
@@ -4309,7 +4310,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		// NULL (None) active class redirect.
 		if( !LoadClass && Export.ObjectName.IsNone() && Export.ClassIndex.IsNull() && !Export.OldClassName.IsNone() )
 		{
-			return NULL;
+			return nullptr;
 		}
 #endif
 		if( !LoadClass )
@@ -4327,7 +4328,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			// otherwise, return NULL and let the calling code determine what to do
 			FString OuterName = Export.OuterIndex.IsNull() ? LinkerRoot->GetFullName() : GetFullImpExpName(Export.OuterIndex);
 			UE_LOG(LogLinker, Warning, TEXT("CreateExport: Failed to load Outer for resource because its class is a redirector '%s': %s"), *Export.ObjectName.ToString(), *OuterName);
-			return NULL;
+			return nullptr;
 		}
 
 		check(LoadClass);

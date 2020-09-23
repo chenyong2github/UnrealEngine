@@ -265,16 +265,18 @@ FString FLinker::GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot,bool
 	FString Result;
 
 	bool bForcedExport = false;
+	bool bHasOuterImport = false;
 	for ( FPackageIndex LinkerIndex = FPackageIndex::FromExport(ExportIndex); !LinkerIndex.IsNull(); LinkerIndex = ImpExp(LinkerIndex).OuterIndex )
 	{ 
+		bHasOuterImport |= LinkerIndex.IsImport();
 		const FObjectResource& Resource = ImpExp(LinkerIndex);
 
 		// don't append a dot in the first iteration
 		if ( Result.Len() > 0 )
 		{
 			// if this export is not a UPackage but this export's Outer is a UPackage, we need to use subobject notation
-			if ((Resource.OuterIndex.IsNull() || GetExportClassName(Resource.OuterIndex) == NAME_Package)
-			  && GetExportClassName(LinkerIndex) != NAME_Package)
+			if ((Resource.OuterIndex.IsNull() || GetClassName(Resource.OuterIndex) == NAME_Package)
+			  && GetClassName(LinkerIndex) != NAME_Package)
 			{
 				Result = FString(SUBOBJECT_DELIMITER) + Result;
 			}
@@ -287,7 +289,9 @@ FString FLinker::GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot,bool
 		bForcedExport = bForcedExport || (LinkerIndex.IsExport() ? Exp(LinkerIndex).bForcedExport : false);
 	}
 
-	if ( bForcedExport && FakeRoot == nullptr && bResolveForcedExports )
+	if ((bForcedExport && FakeRoot == nullptr && bResolveForcedExports) ||
+		// if the export we are building the path of has an import in its outer chain, no need to append the LinkerRoot path
+		bHasOuterImport )
 	{
 		// Result already contains the correct path name for this export
 		return Result;
