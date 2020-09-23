@@ -30,6 +30,7 @@
 #include "EdMode.h"
 
 #include "BaseGizmos/GizmoRenderingUtil.h"
+#include "UnrealClient.h"
 
 //#define ENABLE_DEBUG_PRINTING
 
@@ -633,11 +634,11 @@ public:
 	FPrimitiveDrawInterface* PDI;
 	const FSceneView* SceneView;
 	FViewCameraState ViewCameraState;
+	EViewInteractionState ViewInteractionState;
 
-	FEdModeTempRenderContext(const FSceneView* View, FViewport* Viewport, FEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* DrawInterface)
+	FEdModeTempRenderContext(const FSceneView* View, FViewport* Viewport, FEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* DrawInterface, EViewInteractionState ViewInteractionState)
+		:PDI(DrawInterface), SceneView(View), ViewInteractionState(ViewInteractionState)
 	{
-		PDI = DrawInterface;
-		SceneView = View;
 		CacheCurrentViewState(Viewport, ViewportClient);
 	}
 
@@ -654,6 +655,11 @@ public:
 	virtual FViewCameraState GetCameraState() override
 	{
 		return ViewCameraState;
+	}
+
+	virtual EViewInteractionState GetViewInteractionState() override
+	{
+		return ViewInteractionState;
 	}
 
 	void CacheCurrentViewState(FViewport* Viewport, FEditorViewportClient* ViewportClient)
@@ -737,11 +743,39 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	}
 
 	// Render Tool and Gizmos
-	FEdModeTempRenderContext RenderContext(View, Viewport, ViewportClient, PDI);
+	const FEditorViewportClient* Focused = EditorModeManager->GetFocusedViewportClient();
+	const FEditorViewportClient* Hovered = EditorModeManager->GetHoveredViewportClient();
+	EViewInteractionState InteractionState = EViewInteractionState::None;
+	if (ViewportClient == Focused )
+	{
+		InteractionState |= EViewInteractionState::Focused;
+	}
+	if (ViewportClient == Hovered )
+	{
+		InteractionState |= EViewInteractionState::Hovered;
+	}
+	FEdModeTempRenderContext RenderContext(View, Viewport, ViewportClient, PDI, InteractionState);
 	ToolManager->Render(&RenderContext);
 	GizmoManager->Render(&RenderContext);
 }
 
+void UEdModeInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas)
+{
+	FEditorViewportClient* EditorViewportClient = static_cast<FEditorViewportClient*>(Viewport->GetClient());
+	const FViewportClient* Focused = EditorModeManager->GetFocusedViewportClient();
+	const FViewportClient* Hovered = EditorModeManager->GetHoveredViewportClient();
+	EViewInteractionState InteractionState = EViewInteractionState::None;
+	if (ViewportClient == Focused )
+	{
+		InteractionState |= EViewInteractionState::Focused;
+	}
+	if (ViewportClient == Hovered )
+	{
+		InteractionState |= EViewInteractionState::Hovered;
+	}
+	FEdModeTempRenderContext RenderContext(View, Viewport, EditorViewportClient, nullptr /*PDI*/, InteractionState);
+	ToolManager->DrawHUD(Canvas, &RenderContext);
+}
 
 
 bool UEdModeInteractiveToolsContext::ProcessEditDelete()

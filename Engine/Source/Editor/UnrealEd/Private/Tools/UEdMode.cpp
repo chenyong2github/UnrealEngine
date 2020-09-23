@@ -274,6 +274,12 @@ void UEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDraw
 
 void UEdMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
+	// give ToolsContext a chance to draw in screen space
+	if (ToolsContext != nullptr)
+	{
+		ToolsContext->DrawHUD(ViewportClient, Viewport, View, Canvas);
+	}
+
 	// Render the drag tool.
 	ViewportClient->RenderDragTool(View, Canvas);
 

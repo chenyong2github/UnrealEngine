@@ -209,6 +209,15 @@ void FModelingToolsEditorMode::Render(const FSceneView* View, FViewport* Viewpor
 	}
 }
 
+void FModelingToolsEditorMode::DrawHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View,FCanvas* Canvas)
+{
+	FEdMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
+	if (ToolsContext != nullptr)
+	{
+		ToolsContext->DrawHUD(ViewportClient, Viewport, View, Canvas);
+	}
+}
+
 
 
 
