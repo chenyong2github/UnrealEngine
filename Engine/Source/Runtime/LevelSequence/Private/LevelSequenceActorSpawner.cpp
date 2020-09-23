@@ -132,7 +132,6 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		if (ExistingObject)
 		{
 			FName DefunctName = MakeUniqueObjectName(WorldContext->PersistentLevel, ExistingObject->GetClass());
-			UE_LOG(LogMovieScene, Log, TEXT("Found existing object '%s' renaming to '%s'"), *SpawnName.ToString(), *DefunctName.ToString());
 			ExistingObject->Rename(*DefunctName.ToString(), nullptr, REN_ForceNoResetLoaders);
 		}
 	}
