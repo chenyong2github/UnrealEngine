@@ -346,7 +346,11 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	const float HistogramLogDelta = HistogramLogMax - HistogramLogMin;
 	const float HistogramScale = 1.0f / HistogramLogDelta;
 	const float HistogramBias = -HistogramLogMin * HistogramScale;
-	const float LuminanceMin = FMath::Exp2(HistogramLogMin);
+
+	// If we are in histogram mode, then we want to set the minimum to the bottom end of the histogram. But if we are in basic mode,
+	// we want to simply use a small epsilon to keep true black values from returning a NaN and/or a very low value. Also, basic
+	// mode does the calculation in pre-exposure space, which is why we need to multiply by View.PreExposure.
+	const float LuminanceMin = (AutoExposureMethod == AEM_Basic) ? 0.0001f * View.PreExposure : FMath::Exp2(HistogramLogMin);
 
 	//AutoExposureMeterMask
 	const FTextureRHIRef MeterMask = Settings.AutoExposureMeterMask ?
