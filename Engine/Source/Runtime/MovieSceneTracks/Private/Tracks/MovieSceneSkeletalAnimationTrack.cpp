@@ -458,7 +458,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 		TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
 
 		RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
-		RootMotionParams.EndFrame = AnimationSections[AnimationSections.Num() - 1]->GetExclusiveEndFrame();
+		RootMotionParams.EndFrame = AnimationSections[AnimationSections.Num() - 1]->GetExclusiveEndFrame() -1;
 
 		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 		FFrameRate TickResolution = MovieScene->GetTickResolution();
@@ -649,13 +649,20 @@ FTransform FMovieSceneSkeletalAnimRootMotionTrackParams::GetRootMotion(FFrameTim
 			int Index = (int)(FIndex);
 			FIndex -= (float)(Index);
 			FTransform Transform = RootTransforms[Index];
+			//Blends don't work with rotation if blend factor is smallish or largeish(returns Identity instead)so we have these 0.001f and >.99f checks.
 			if (FIndex > 0.001f)
 			{
-				//may hit a bug here with <= failing.
 				if (Index < RootTransforms.Num() - 1)
 				{
-					FTransform Next = RootTransforms[Index + 1];
-					Transform.Blend(Transform, Next, FIndex);
+					if (FIndex < 0.99f)
+					{
+						FTransform Next = RootTransforms[Index + 1];
+						Transform.Blend(Transform, Next, FIndex);
+					}
+					else
+					{
+						Transform = RootTransforms[Index + 1];
+					}
 				}
 				else
 				{
