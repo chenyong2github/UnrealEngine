@@ -557,6 +557,7 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 
 			// Handle automatic time remaining rules
 			Rule.bAutomaticRemainingTimeRule = TransitionNode->bAutomaticRuleBasedOnSequencePlayerInState;
+			Rule.SyncGroupNameToRequireValidMarkersRule = TransitionNode->SyncGroupNameToRequireValidMarkersRule;
 
 			// Handle custom transition graphs
 			Rule.CustomResultNodeIndex = INDEX_NONE;
