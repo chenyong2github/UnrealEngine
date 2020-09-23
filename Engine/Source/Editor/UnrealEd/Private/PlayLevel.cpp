@@ -3061,7 +3061,8 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 			.AutoCenter(bCenterNewWindowOverride ? EAutoCenter::PreferredWorkArea : EAutoCenter::None)
 			.UseOSWindowBorder(bUseOSWndBorder)
 			.SaneWindowPlacement(!bCenterNewWindowOverride)
-			.SizingRule(ESizingRule::UserSized);
+			.SizingRule(ESizingRule::UserSized)
+			.AdjustInitialSizeAndPositionForDPIScale(false);
 
 		PieWindow->SetAllowFastUpdate(true);
 	}
