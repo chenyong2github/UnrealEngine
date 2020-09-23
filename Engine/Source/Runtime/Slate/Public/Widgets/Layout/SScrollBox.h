@@ -194,6 +194,8 @@ public:
 	void SetAnimateWheelScrolling(bool bInAnimateWheelScrolling);
 
 	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
+	
+	void SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges);
 
 	float GetScrollOffset() const;
 
