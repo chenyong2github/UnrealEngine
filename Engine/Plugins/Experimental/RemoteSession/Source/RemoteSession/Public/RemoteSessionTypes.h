@@ -61,6 +61,14 @@ public:
 	UPROPERTY(config)
 	int32 HostPort = 2049;
 
+	/* Time until a connection will timeout  */
+	UPROPERTY(config)
+	int32 ConnectionTimeout = 5;
+
+	/* Time until a connection will timeout when a debugger is attached  */
+	UPROPERTY(config)
+	int32 ConnectionTimeoutWhenDebugging = 30;
+
 	/* Whether RemoteSession is functional in a shipping build */
 	UPROPERTY(config)
 	bool bAllowInShipping = false;
