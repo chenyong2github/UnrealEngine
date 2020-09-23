@@ -1518,12 +1518,17 @@ void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& 
 		Script->SyncAliases(RenameMap);
 	}
 
-	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	// if we haven't yet been postloaded then we'll hold off on updating the renderers as they are dependent on everything
+	// (System/Emitter/Scripts) being fully loaded.
+	if (!HasAnyFlags(RF_NeedPostLoad))
 	{
-		if (Renderer)
+		for (UNiagaraRendererProperties* Renderer : RendererProperties)
 		{
-			Renderer->Modify(false);
-			Renderer->RenameEmitter(*InOldName, this);
+			if (Renderer)
+			{
+				Renderer->Modify(false);
+				Renderer->RenameEmitter(*InOldName, this);
+			}
 		}
 	}
 }

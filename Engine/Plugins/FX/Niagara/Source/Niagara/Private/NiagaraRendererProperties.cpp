@@ -107,6 +107,12 @@ bool UNiagaraRendererProperties::IsSupportedVariableForBinding(const FNiagaraVar
 	return false;
 }
 
+void UNiagaraRendererProperties::RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter)
+{
+	const ENiagaraRendererSourceDataMode SourceMode = GetCurrentSourceMode();
+	UpdateSourceModeDerivates(SourceMode);
+}
+
 const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
 {
 	CurrentBoundAttributes.Reset();
