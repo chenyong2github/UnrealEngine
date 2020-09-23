@@ -8,6 +8,10 @@
 
 #include "Common.ush"
 
+#if COMPILER_DXC && PIXELSHADER
+#	include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
+#endif
+
 // Return far plane when scene textures are disabled in order not to break depthfade
 #define SCENE_TEXTURES_DISABLED_SCENE_DEPTH_VALUE 1e6
 
@@ -108,8 +112,8 @@ float4 GatherSceneDepth(float2 UV, float2 InvBufferSize)
 #endif
 
 // reroute depth fetch for deferred shading
-#if MOBILE_DEFERRED_SHADING && VULKAN_SUBPASS_DEPTHFETCH
-	#define VulkanSubpassDepthFetch() VulkanSubpassFetch4().r
+#if MOBILE_DEFERRED_SHADING && VULKAN_SUBPASS_DEPTHFETCH && !defined(VulkanSubpassDepthFetch)
+#	define VulkanSubpassDepthFetch() VulkanSubpassFetch4().r
 #endif
 
 /** return all channels of the scene lighting texture */
