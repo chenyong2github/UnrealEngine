@@ -626,6 +626,7 @@ namespace DatasmithRhino
 			Settings.HiddenObjects = false;
 			//First get all non-instance directly in the scene
 			Settings.ObjectTypeFilter = ObjectType.AnyObject ^ (ObjectType.InstanceDefinition | ObjectType.InstanceReference);
+			Settings.ReferenceObjects = true;
 
 			//Calling GetObjectList instead of directly iterating through RhinoDocument.Objects as it seems that the ObjectTable may sometimes contain uninitialized RhinoObjects.
 			HashSet<RhinoObject> ExportedObjects = new HashSet<RhinoObject>(RhinoDocument.Objects.GetObjectList(Settings));
