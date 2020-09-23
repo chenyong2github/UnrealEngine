@@ -154,15 +154,6 @@ public:
 
 	static void PlayInSettings_Clicked();
 
-	// Launch On
-	static void HandleLaunchOnDeviceActionExecute(FString DevicedId, FString DeviceName, bool bUseTurnkey);
-	static bool HandleLaunchOnDeviceActionCanExecute(FString DeviceName);
-	static bool HandleLaunchOnDeviceActionIsChecked(FString DeviceName);
-
-	// No Device
-	static void HandleNoDeviceFoundActionExecute() {}
-	static bool HandleNoDeviceFoundActionCanExecute() { return false; }
-
 	static void HandleShowSDKTutorial(FString PlatformName, FString NotInstalledDocLink);
 
 	static void RepeatLastLaunch_Clicked();
@@ -1671,45 +1662,6 @@ void FInternalPlayWorldCommandCallbacks::PlayInSettings_Clicked()
 
 
 
-static void PrepareLaunchOn(FString DeviceId, FString DeviceName)
-{
-	ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
-
-	PlaySettings->LastExecutedLaunchModeType = LaunchMode_OnDevice;
-	PlaySettings->LastExecutedLaunchDevice = DeviceId;
-	PlaySettings->LastExecutedLaunchName = DeviceName;
-
-	PlaySettings->PostEditChange();
-
-	PlaySettings->SaveConfig();
-}
-
-void FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionExecute(FString DeviceId, FString DeviceName, bool bUseTurnkey)
-{
-	PrepareLaunchOn(DeviceId, DeviceName);
-	LaunchOnDevice(DeviceId, DeviceName, bUseTurnkey);
-}
-
-
-bool FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionCanExecute(FString DeviceName)
-{
-	return CanLaunchOnDevice(DeviceName);
-}
-
-
-bool FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionIsChecked(FString DeviceName)
-{
-	return (DeviceName == GetDefault<ULevelEditorPlaySettings>()->LastExecutedLaunchName);
-}
-
-
-void FInternalPlayWorldCommandCallbacks::HandleShowSDKTutorial(FString PlatformName, FString NotInstalledDocLink)
-{
-	// broadcast this, and assume someone will pick it up
-	IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-	MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformName, NotInstalledDocLink);
-}
-
 void FInternalPlayWorldCommandCallbacks::GetMouseControlExecute()
 {
 	if (IsInPIE()) {
@@ -1956,6 +1908,35 @@ void FInternalPlayWorldCommandCallbacks::AddMessageLog(const FText& Text, const 
 }
 
 
+
+EPlayModeLocations FInternalPlayWorldCommandCallbacks::GetPlayModeLocation()
+{
+	// We can't use PlayLocation_DefaultPlayerStart without a player start position
+	return GEditor->CheckForPlayerStart()
+		? static_cast<EPlayModeLocations>(GetDefault<ULevelEditorPlaySettings>()->LastExecutedPlayModeLocation)
+		: PlayLocation_CurrentCameraLocation;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/////// Will move these into TurnkeySupportModule soon:
+
+
+
 bool FInternalPlayWorldCommandCallbacks::CanLaunchOnDevice(const FString& DeviceName)
 {
 	if (!GUnrealEd->IsPlayingViaLauncher())
@@ -2044,29 +2025,29 @@ void FInternalPlayWorldCommandCallbacks::LaunchOnDevice(const FString& DeviceId,
 
 				IUATHelperModule::Get().CreateUatTask(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")),
 					[SessionParams](FString Result, double)
+				{
+					// unfortunate string comparison for success
+					bool bWasSuccessful = Result == TEXT("Completed");
+					AsyncTask(ENamedThreads::GameThread, [SessionParams, bWasSuccessful]()
 					{
-						// unfortunate string comparison for success
-						bool bWasSuccessful = Result == TEXT("Completed");
-						AsyncTask(ENamedThreads::GameThread, [SessionParams, bWasSuccessful]()
+						if (bWasSuccessful)
 						{
- 							if (bWasSuccessful)
- 							{
- 								GUnrealEd->RequestPlaySession(SessionParams);
- 							}
- 							else
+							GUnrealEd->RequestPlaySession(SessionParams);
+						}
+						else
+						{
+							TSharedRef<SWindow> Win = OpenMsgDlgInt_NonModal(EAppMsgType::YesNo, LOCTEXT("SDKCheckFailed", "SDK Verification failed. Would you like to attempt the Launch On anyway?"), LOCTEXT("SDKCheckFailedTitle", "SDK Verification"),
+								FOnMsgDlgResult::CreateLambda([SessionParams](const TSharedRef<SWindow>&, EAppReturnType::Type Choice)
 							{
-								TSharedRef<SWindow> Win = OpenMsgDlgInt_NonModal(EAppMsgType::YesNo, LOCTEXT("SDKCheckFailed", "SDK Verification failed. Would you like to attempt the Launch On anyway?"), LOCTEXT("SDKCheckFailedTitle", "SDK Verification"),
-									FOnMsgDlgResult::CreateLambda([SessionParams](const TSharedRef<SWindow>&, EAppReturnType::Type Choice)
-									{
-										if (Choice == EAppReturnType::Yes)
-										{
-											GUnrealEd->RequestPlaySession(SessionParams);
-										}
-									}));
-								Win->ShowWindow();
-							}
-						});
+								if (Choice == EAppReturnType::Yes)
+								{
+									GUnrealEd->RequestPlaySession(SessionParams);
+								}
+							}));
+							Win->ShowWindow();
+						}
 					});
+				});
 			}
 			else
 			{
@@ -2075,33 +2056,6 @@ void FInternalPlayWorldCommandCallbacks::LaunchOnDevice(const FString& DeviceId,
 		}
 	}
 }
-
-
-EPlayModeLocations FInternalPlayWorldCommandCallbacks::GetPlayModeLocation()
-{
-	// We can't use PlayLocation_DefaultPlayerStart without a player start position
-	return GEditor->CheckForPlayerStart()
-		? static_cast<EPlayModeLocations>(GetDefault<ULevelEditorPlaySettings>()->LastExecutedPlayModeLocation)
-		: PlayLocation_CurrentCameraLocation;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/////// Will move these into TurnkeySupportModule soon:
 
 
 void FInternalPlayWorldCommandCallbacks::RepeatLastLaunch_Clicked()

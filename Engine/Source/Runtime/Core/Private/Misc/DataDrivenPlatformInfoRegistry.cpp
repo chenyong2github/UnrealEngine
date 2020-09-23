@@ -270,7 +270,8 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	DDPIGetString(IniFile, TEXT("TutorialPath"), Info.SDKTutorial);
 	DDPIGetName(IniFile, TEXT("PlatformGroupName"), Info.PlatformGroupName);
 	DDPIGetName(IniFile, TEXT("PlatformSubMenu"), Info.PlatformSubMenu);
-	
+	DDPIGetString(IniFile, TEXT("PrepareForDebuggingOptions"), Info.PrepareForDebuggingOptions);
+
 
 	DDPIGetString(IniFile, TEXT("NormalIconPath"), Info.IconPaths.NormalPath);
 	DDPIGetString(IniFile, TEXT("LargeIconPath"), Info.IconPaths.LargePath);
@@ -449,6 +450,60 @@ static FString ConvertToDDPIDeviceId(const FString& DeviceId)
 	return FString::Printf(TEXT("%s@%s"), *ConvertToDDPIPlatform(PlatformAndDevice[0]), *PlatformAndDevice[1]);
 }
 
+bool GetSdkInfoFromTurnkey(FString Line, FString& PlatformName, FString& DeviceId, FDDPISdkInfo& SdkInfo)
+{
+	int32 Colon = Line.Find(TEXT(": "));
+
+	if (Colon < 0)
+	{
+		return false;
+	}
+
+	// break up the string
+	PlatformName = Line.Mid(0, Colon);
+	FString Info = Line.Mid(Colon + 2);
+
+	int32 AtSign = PlatformName.Find(TEXT("@"));
+	if (AtSign > 0)
+	{
+		// return the platform@name as the deviceId, then remove the @name part for the platform
+		DeviceId = ConvertToDDPIDeviceId(PlatformName);
+		PlatformName = PlatformName.Mid(0, AtSign);
+	}
+
+	// get the DDPI name
+	PlatformName = ConvertToDDPIPlatform(PlatformName);
+
+	// parse out the results from the (key=val, key=val) result from turnkey
+	FString StatusString;
+	FString FlagsString;
+	FParse::Value(*Info, TEXT("Status="), StatusString);
+	FParse::Value(*Info, TEXT("Flags="), FlagsString);
+	FParse::Value(*Info, TEXT("Installed="), SdkInfo.InstalledVersion);
+	FParse::Value(*Info, TEXT("AutoSDK="), SdkInfo.AutoSDKVersion);
+	FParse::Value(*Info, TEXT("MinAllowed="), SdkInfo.MinAllowedVersion);
+	FParse::Value(*Info, TEXT("MaxAllowed="), SdkInfo.MaxAllowedVersion);
+
+	SdkInfo.Status = DDPIPlatformSdkStatus::Unknown;
+	if (StatusString == TEXT("Valid"))
+	{
+		SdkInfo.Status = DDPIPlatformSdkStatus::Valid;
+	}
+	else
+	{
+		if (FlagsString.Contains(TEXT("AutoSdk_InvalidVersionExists")) || FlagsString.Contains(TEXT("InstalledSdk_InvalidVersionExists")))
+		{
+			SdkInfo.Status = DDPIPlatformSdkStatus::OutOfDate;
+		}
+		else
+		{
+			SdkInfo.Status = DDPIPlatformSdkStatus::NoSdk;
+		}
+	}
+
+	return true;
+}
+
 void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 {
 	// make sure we've read in the inis
@@ -459,7 +514,7 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 	{
 		for (auto& It : DataDrivenPlatforms)
 		{
-			It.Value.SdkStatus = DDPIPlatformSdkStatus::Unknown;
+			It.Value.SdkInfo.Status = DDPIPlatformSdkStatus::Unknown;
 
 			// reset the per-device status when querying general Sdk status
 			It.Value.ClearDeviceStatus();
@@ -481,7 +536,7 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 		// reset status to unknown
 		for (auto& It : DataDrivenPlatforms)
 		{
-			It.Value.SdkStatus = DDPIPlatformSdkStatus::Querying;
+			It.Value.SdkInfo.Status = DDPIPlatformSdkStatus::Querying;
 
 			// reset the per-device status when querying general Sdk status
 			It.Value.ClearDeviceStatus();
@@ -502,32 +557,34 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 				{
 					for (FString& Line : Contents)
 					{
-						TArray<FString> Tokens;
-						Line.ParseIntoArray(Tokens, TEXT(": "), true);
-						// Tokens [0] is the platform, [1] is the status, [2] is information
+						UE_LOG(LogTemp, Log, TEXT("Turnkey Platform: %s"), *Line);
 
-						DDPIPlatformSdkStatus Status = DDPIPlatformSdkStatus::Unknown;
-						if (Tokens[1] == TEXT("Valid"))
+						// parse a Turnkey line
+						FString PlatformName, Unused;
+						FDDPISdkInfo SdkInfo;
+						if (GetSdkInfoFromTurnkey(Line, PlatformName, Unused, SdkInfo) == false)
 						{
-							Status = DDPIPlatformSdkStatus::Valid;
-						}
-						else
-						{
-							if (Tokens[2].Contains(TEXT("AutoSdk_InvalidVersionExists")) || Tokens[2].Contains(TEXT("InstalledSdk_InvalidVersionExists")))
-							{
-								Status = DDPIPlatformSdkStatus::OutOfDate;
-							}
-							else
-							{
-								Status = DDPIPlatformSdkStatus::NoSdk;
-							}
+							continue;
 						}
 
-						// have to convert back to WIndows from Win64
-						FString PlatformName = ConvertToDDPIPlatform(Tokens[0]);
-						DataDrivenPlatforms[*PlatformName].SdkStatus = Status;
+						// check if we had already set a ManualSDK - and don't set it again. Because of the way AutoSDKs are activated in the editor after the first call to Turnkey,
+						// future calls to Turnkey will inherit the AutoSDK env vars, and it won't be able to determine the manual SDK versions anymore. If we use the editor to
+						// install an SDK via Turnkey, it will directly update the installed version based on the result of that command, not this Update operation
 
-						UE_LOG(LogTemp, Log, TEXT("Turnkey Platform: %s - %d - %s"), *PlatformName, (int)Status, *Tokens[2]);
+						FString OriginalManualInstallValue = DataDrivenPlatforms[*PlatformName].SdkInfo.InstalledVersion;
+
+						// set it into the platform
+						DataDrivenPlatforms[*PlatformName].SdkInfo = SdkInfo;
+
+						// restore the original installed version if it set after the first time
+						if (OriginalManualInstallValue.Len() > 0)
+						{
+							DataDrivenPlatforms[*PlatformName].SdkInfo.InstalledVersion = OriginalManualInstallValue;
+						}
+
+
+						UE_LOG(LogTemp, Log, TEXT("[TEST] Turnkey Platform: %s - %d, Installed: %s, AudoSDK: %s, Allowed: %s-%s"), *PlatformName, (int)SdkInfo.Status, *SdkInfo.InstalledVersion,
+							*SdkInfo.AutoSDKVersion, *SdkInfo.MinAllowedVersion, *SdkInfo.MaxAllowedVersion);
 					}
 				}
 			}
@@ -535,7 +592,9 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 			{
 				for (auto& It : DataDrivenPlatforms)
 				{
-					It.Value.SdkStatus = DDPIPlatformSdkStatus::Error;
+					It.Value.SdkInfo.Status = DDPIPlatformSdkStatus::Error;
+					It.Value.SdkInfo.SdkErrorInformation = FText::Format(NSLOCTEXT("Turnkey", "TurnkeyError_ReturnedError", "Turnkey returned an error, code {0}"), { ExitCode });
+
 					// @todo turnkey error description!
 				}
 			}
@@ -543,17 +602,16 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 
 			for (auto& It : DataDrivenPlatforms)
 			{
-				if (It.Value.SdkStatus == DDPIPlatformSdkStatus::Querying)
+				if (It.Value.SdkInfo.Status == DDPIPlatformSdkStatus::Querying)
 				{
 					if (It.Value.bIsFakePlatform)
 					{
-						It.Value.SdkStatus = DDPIPlatformSdkStatus::Unknown;
+						It.Value.SdkInfo.Status = DDPIPlatformSdkStatus::Unknown;
 					}
 					else
 					{
-						It.Value.SdkStatus = DDPIPlatformSdkStatus::Error;
-						It.Value.SdkErrorInformation = "The platform's Sdk status was not returned from Turnkey";
-						//					It.Value.SdkErrorInformation = NSLOCTEXT("Turnkey", "PlatformNotReturned", "The platform's Sdk status was not returned from Turnkey");
+						It.Value.SdkInfo.Status = DDPIPlatformSdkStatus::Error;
+						It.Value.SdkInfo.SdkErrorInformation = NSLOCTEXT("Turnkey", "TurnkeyError_NotReturned", "The platform's Sdk status was not returned from Turnkey");
 					}
 				}
 			}
@@ -602,9 +660,11 @@ void FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(TArray<FString> Plat
 		FScopeLock Lock(&DDPILocker);
 
 		// set status to querying
+		FDDPISdkInfo DefaultInfo;
+		DefaultInfo.Status = DDPIPlatformSdkStatus::Querying;
 		for (const FString& Id : PlatformDeviceIds)
 		{
-			DeviceIdToInfo(Id).PerDeviceStatus.Add(ConvertToDDPIDeviceId(Id), DDPIPlatformSdkStatus::Querying);
+			DeviceIdToInfo(Id).PerDeviceStatus.Add(ConvertToDDPIDeviceId(Id), DefaultInfo);
 		}
 	}
 
@@ -622,24 +682,25 @@ void FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(TArray<FString> Plat
 				{
 					for (FString& Line : Contents)
 					{
-						TArray<FString> Tokens;
-						Line.ParseIntoArray(Tokens, TEXT(": "), true);
-						// Tokens [0] is platform:device, [1] is the status, [2] is information
-
-						// token[0] without an @ is just platform status, which we don't care about now
-						if (!Tokens[0].Contains(TEXT("@")))
+						FString PlatformName, DDPIDeviceId;
+						FDDPISdkInfo SdkInfo;
+						if (GetSdkInfoFromTurnkey(Line, PlatformName, DDPIDeviceId, SdkInfo) == false)
 						{
 							continue;
 						}
 
-						TArray<FString> PlatformAndDevice;
-						Tokens[0].ParseIntoArray(PlatformAndDevice, TEXT("@"), true);
-						
-						DDPIPlatformSdkStatus Status = Tokens[1] == TEXT("Valid") ? DDPIPlatformSdkStatus::FlashValid : DDPIPlatformSdkStatus::FlashOutOfDate;
+						// skip over non-device lines
+						if (DDPIDeviceId.Len() == 0)
+						{
+							continue;
+						}
 
-						DeviceIdToInfo(Tokens[0]).PerDeviceStatus[ConvertToDDPIDeviceId(Tokens[0])] = Status;
+						UE_LOG(LogTemp, Log, TEXT("Turnkey Device: %s"), *Line);
 
-						UE_LOG(LogTemp, Log, TEXT("Turnkey Device: %s - %d - %s"), *Tokens[0], (int)Status, *Tokens[2]);
+						DeviceIdToInfo(DDPIDeviceId).PerDeviceStatus[DDPIDeviceId] = SdkInfo;
+
+						UE_LOG(LogTemp, Log, TEXT("[TEST] Turnkey Device: %s - %d, Installed: %s, Allowed: %s-%s"), *DDPIDeviceId, (int)SdkInfo.Status, *SdkInfo.InstalledVersion,
+							*SdkInfo.MinAllowedVersion, *SdkInfo.MaxAllowedVersion);
 					}
 				}
 			}
@@ -648,11 +709,11 @@ void FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(TArray<FString> Plat
 			{
 				FDataDrivenPlatformInfo& Info = DeviceIdToInfo(Id);
 				
-				DDPIPlatformSdkStatus& Status = Info.PerDeviceStatus[ConvertToDDPIDeviceId(Id)];
-				if (Status == DDPIPlatformSdkStatus::Querying)
+				FDDPISdkInfo& SdkInfo = Info.PerDeviceStatus[ConvertToDDPIDeviceId(Id)];
+				if (SdkInfo.Status == DDPIPlatformSdkStatus::Querying)
 				{
-					Status = DDPIPlatformSdkStatus::Error;
-					Info.SdkErrorInformation = "A device's Sdk status was not returned from Turnkey";
+					SdkInfo.Status = DDPIPlatformSdkStatus::Error;
+					SdkInfo.SdkErrorInformation = NSLOCTEXT("Turnkey", "TurnkeyError_DeviceNotReturned", "A device's Sdk status was not returned from Turnkey");
 				}
 			}
 
@@ -689,14 +750,20 @@ void FDataDrivenPlatformInfoRegistry::ClearDeviceStatus(FName PlatformName)
 DDPIPlatformSdkStatus FDataDrivenPlatformInfo::GetStatusForDeviceId(const FString& DeviceId) const
 {
 	// return the status, or Unknown if not known
-	return PerDeviceStatus.FindRef(ConvertToDDPIDeviceId(DeviceId));
+	return PerDeviceStatus.FindRef(ConvertToDDPIDeviceId(DeviceId)).Status;
 }
+
+const FDDPISdkInfo& FDataDrivenPlatformInfo::GetSdkInfoForDeviceId(const FString& DeviceId) const
+{
+	return *PerDeviceStatus.Find(ConvertToDDPIDeviceId(DeviceId));
+}
+
 
 void FDataDrivenPlatformInfo::ClearDeviceStatus()
 {
 	for (auto& Pair : PerDeviceStatus)
 	{
-		Pair.Value = DDPIPlatformSdkStatus::Unknown;
+		Pair.Value.Status = DDPIPlatformSdkStatus::Unknown;
 	}
 }
 

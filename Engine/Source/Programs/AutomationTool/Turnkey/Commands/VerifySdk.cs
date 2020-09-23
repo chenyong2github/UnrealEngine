@@ -108,22 +108,39 @@ namespace Turnkey.Commands
 
 				SdkUtils.LocalAvailability LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, bUpdateIfNeeded);
 
+				string ManualSDKVersion, AutoSDKVersion;
+				string MinAllowedVersion, MaxAllowedVersion;
+				string MinSoftwareAllowedVersion, MaxSoftwareAllowedVersion;
+				PlatformSDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
+				PlatformSDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
+				PlatformSDK.GetValidSoftwareVersionRange(out MinSoftwareAllowedVersion, out MaxSoftwareAllowedVersion);
+
+//				if (ManualSDKVersion == "1")
+				{
+					TurnkeyUtils.Report("How did i get {0} {1}", ManualSDKVersion, AutoSDKVersion);
+				}
+
+				SdkUtils.LocalAvailability ReportedState = LocalState;
+				string StatusString;
+
 				if ((LocalState & SdkUtils.LocalAvailability.Platform_ValidHostPrerequisites) == 0)
 				{
-					TurnkeyUtils.Report("{0}: Invalid: [Host Prerequisites are not valid]", Platform);
+					StatusString = "Invalid";
 				}
 				else if ((LocalState & (SdkUtils.LocalAvailability.AutoSdk_ValidVersionExists | SdkUtils.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
 				{
-					string MinAllowedVersion, MaxAllowedVersion;
-					PlatformSDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
-					TurnkeyUtils.Report("{0}: Invalid: [No AutoSdk or Installed Sdk in range {1}-{2} - {3}]", Platform, MinAllowedVersion, MaxAllowedVersion, LocalState.ToString());
+					StatusString = "Invalid";
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 				}
 				else
 				{
-					TurnkeyUtils.Report("{0}: Valid: [{1}]", Platform, (LocalState & (SdkUtils.LocalAvailability.AutoSdk_ValidVersionExists | SdkUtils.LocalAvailability.InstalledSdk_ValidVersionExists)).ToString());
+					StatusString = "Valid";
+					ReportedState &= (SdkUtils.LocalAvailability.AutoSdk_ValidVersionExists | SdkUtils.LocalAvailability.InstalledSdk_ValidVersionExists);
 					//					TurnkeyUtils.Log("{0}: Valid [Installed: '{1}', Required: '{2}']", Platform, PlatformObject.GetInstalledSdk(), PlatformObject.GetAllowedSdks());
 				}
+
+				TurnkeyUtils.Report("{0}: (Status={1}, Installed={2}, AutoSDK={3}, MinAllowed={4}, MaxAllowed={5}, Flags=\"{6}\")", Platform, StatusString, ManualSDKVersion, AutoSDKVersion,
+					MinAllowedVersion, MaxAllowedVersion, ReportedState.ToString());
 
 				// install if out of date, or if forcing it
 				if (bForceSdkInstall || (bUpdateIfNeeded && TurnkeyUtils.ExitCode != AutomationTool.ExitCode.Success))
@@ -168,7 +185,7 @@ namespace Turnkey.Commands
 
 
 					// update LocalState
-					LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, false);
+//					LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, false);
 
 					// @todo turnkey: validate!
 				}
@@ -187,7 +204,7 @@ namespace Turnkey.Commands
 					TurnkeyUtils.Log("Installed Device validity:");
 
 					// a single device named all means all devices
-					if (!(DeviceNames.Count == 1 && DeviceNames[0].CompareTo("All") == 0))
+					if (!(DeviceNames.Count == 1 && DeviceNames[0].ToLower() == "all"))
 					{
 						Devices = Devices.Where(x => DeviceNames.Contains(x.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
 					}
@@ -196,26 +213,35 @@ namespace Turnkey.Commands
 					foreach (DeviceInfo Device in Devices)
 					{
 						bool bArePrerequisitesValid = AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, Retriever, !bUpdateIfNeeded);
+						bool bIsSoftwareValid = PlatformSDK.IsSoftwareVersionValid(Device.SoftwareVersion);
 
+						SdkUtils.LocalAvailability DeviceState = SdkUtils.LocalAvailability.None;
 						if (!bArePrerequisitesValid)
 						{
-							TurnkeyUtils.Report("{0}@{1}: Invalid: [Device Prerequisites are not valid]", Platform, Device.Name, Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
-							continue;
+							StatusString = "Invalid";
+							DeviceState |= SdkUtils.LocalAvailability.Device_InvalidPrerequisites;
 						}
-
-						bool bIsSoftwareValid = TurnkeyUtils.IsValueValid(Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions(), AutomationPlatform);
-
-
-						if (!bForceDeviceInstall && bIsSoftwareValid)
+						else if (bIsSoftwareValid)
 						{
-							TurnkeyUtils.Report("{0}@{1}: Valid: [{2}]", Platform, Device.Name, Device.SoftwareVersion);
+							StatusString = "Valid";
+							DeviceState |= SdkUtils.LocalAvailability.Device_InstallSoftwareValid;
 						}
 						else
 						{
-							if (!bForceDeviceInstall)
-							{
-								TurnkeyUtils.Report("{0}@{1}: Invalid: [Has {2}, needs {3}]", Platform, Device.Name, Device.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions());
-							}
+							StatusString = "Invalid";
+							DeviceState |= SdkUtils.LocalAvailability.Device_InstallSoftwareInvalid;
+						}
+
+						if (Device.bCanConnect== false)
+						{
+							DeviceState |= SdkUtils.LocalAvailability.Device_CannotConnect;
+						}
+
+						TurnkeyUtils.Report("{0}@{1}: (Status={2}, Installed={3}, MinAllowed={4}, MaxAllowed={5}, Flags=\"{6}\")", Platform, Device.Name, StatusString, Device.SoftwareVersion, 
+							MinSoftwareAllowedVersion, MaxSoftwareAllowedVersion, DeviceState.ToString());
+
+						if (bForceDeviceInstall || !bIsSoftwareValid)
+						{
 							TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 
 							if (bUpdateIfNeeded)

@@ -196,8 +196,18 @@ public:
 
 	static bool CanCookOrPackage(FName IniPlatformName, EPrepareContentMode Mode)
 	{
-		// prep for debugging not supported yet
-		return Mode != EPrepareContentMode::PrepareForDebugging && GetTargetPlatformManager()->FindTargetPlatform(IniPlatformName.ToString()) != nullptr;
+		if (GetTargetPlatformManager()->FindTargetPlatform(IniPlatformName.ToString()) == nullptr)
+		{
+			return false;
+		}
+
+		// PrepForDebugging needs the platform to specify how
+		if (Mode == EPrepareContentMode::PrepareForDebugging)
+		{
+			return FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName).PrepareForDebuggingOptions != TEXT("");
+		}
+
+		return true;
 	}
 
 	static void CookOrPackage(FName IniPlatformName, EPrepareContentMode Mode)
@@ -332,11 +342,6 @@ public:
 				BuildCookRunParams += TEXT(" -pak");
 			}
 
-			if (PackagingSettings->bUseIoStore)
-			{
-				BuildCookRunParams += TEXT(" -iostore");
-			}
-
 			if (PackagingSettings->IncludePrerequisites)
 			{
 				BuildCookRunParams += TEXT(" -prereqs");
@@ -388,6 +393,16 @@ public:
 			{
 				BuildCookRunParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
 			}
+		}
+		else if (Mode == EPrepareContentMode::PrepareForDebugging)
+		{
+			const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->Name);
+			if (ShouldBuildProject(PackagingSettings, TargetPlatform))
+			{
+				BuildCookRunParams += TEXT(" -build");
+			}
+
+			BuildCookRunParams += FString::Printf(TEXT(" %s"), *FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName).PrepareForDebuggingOptions);
 		}
 		else if (Mode == EPrepareContentMode::CookOnly)
 		{
@@ -756,31 +771,53 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 		for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
 		{
 			FString DeviceName = Proxy->GetName();
+			FString DeviceId = Proxy->GetTargetDeviceId(NAME_None);
 			MenuBuilder.AddSubMenu(
 				MakeSdkStatusAttribute(IniPlatformName, Proxy),
 				FText(),
-				FNewMenuDelegate::CreateLambda([UBTPlatformString, DeviceName](FMenuBuilder& SubMenuBuilder) {
-				SubMenuBuilder.AddMenuEntry(
-					LOCTEXT("Turnkey_RepairDevice", "Repair Device as Needed"),
-					LOCTEXT("TurnkeyTooltip_RepairDevice", "Perform any fixup that may be needed on this device. If up to date already, nothing will be done."),
-					FSlateIcon(),
-					FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, false, false, *DeviceName)
-				);
+				FNewMenuDelegate::CreateLambda([UBTPlatformString, IniPlatformName, DeviceName, DeviceId](FMenuBuilder& SubMenuBuilder)
+				{
+					const FDataDrivenPlatformInfo& DDPI = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName);
+					const FDDPISdkInfo& SdkInfo = DDPI.GetSdkInfoForDeviceId(DeviceId);
+					FFormatOrderedArguments Args = { FText::FromString(SdkInfo.InstalledVersion), FText::FromString(SdkInfo.MinAllowedVersion),FText::FromString(SdkInfo.MaxAllowedVersion) };
+					SubMenuBuilder.AddWidget(
+						SNew(STextBlock)
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						.Text(FText::Format(LOCTEXT("SdkInfo", "Manual Installed SDK: {0}\nAllowedVersions: {1}-{2}"), Args)),
+						FText::GetEmpty()
+					);
 
-				SubMenuBuilder.AddMenuEntry(
-					LOCTEXT("Turnkey_ForceRepairDevice", "Force Repair Device"),
-					LOCTEXT("TurnkeyTooltip_ForceRepairDevice", "Force repairing anything on the device needed (update firmware, etc). Will perform all steps possible, even if not needed."),
-					FSlateIcon(),
-					FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, false, *DeviceName)
-				);
-			})
+					SubMenuBuilder.AddMenuEntry(
+						LOCTEXT("Turnkey_RepairDevice", "Repair Device as Needed"),
+						LOCTEXT("TurnkeyTooltip_RepairDevice", "Perform any fixup that may be needed on this device. If up to date already, nothing will be done."),
+						FSlateIcon(),
+						FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, false, false, *DeviceName)
+					);
+
+					SubMenuBuilder.AddMenuEntry(
+						LOCTEXT("Turnkey_ForceRepairDevice", "Force Repair Device"),
+						LOCTEXT("TurnkeyTooltip_ForceRepairDevice", "Force repairing anything on the device needed (update firmware, etc). Will perform all steps possible, even if not needed."),
+						FSlateIcon(),
+						FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, false, *DeviceName)
+					);
+				})
 			);
 		}
 
-		MenuBuilder.EndSection();
-		}
 
-	MenuBuilder.BeginSection("AllDevices", LOCTEXT("TurnkeySection_Sdks", "Sdk Managment"));
+		MenuBuilder.EndSection();
+	}
+
+	MenuBuilder.BeginSection("SdkManagement", LOCTEXT("TurnkeySection_Sdks", "Sdk Managment"));
+
+	const FDDPISdkInfo& SdkInfo = DDPI.GetSdkInfo(true);
+	FFormatOrderedArguments Args = { FText::FromString(SdkInfo.InstalledVersion), FText::FromString(SdkInfo.AutoSDKVersion),FText::FromString(SdkInfo.MinAllowedVersion),FText::FromString(SdkInfo.MaxAllowedVersion) };
+	MenuBuilder.AddWidget(
+		SNew(STextBlock)
+		.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+		.Text(FText::Format(LOCTEXT("SdkInfo", "Manual Installed SDK: {0}\nAutoSDK: {1}\nAllowedVersions: {2}-{3}"), Args)),
+		FText::GetEmpty()
+	);
 
 	const TCHAR* NoDevice = nullptr;
 	if (DDPI.GetSdkStatus() == DDPIPlatformSdkStatus::OutOfDate)
@@ -881,7 +918,7 @@ bool CanLaunchOnDevice(const FString& DeviceName)
 }
 
 
-void LaunchOnDevice(const FString& DeviceId, const FString& DeviceName, bool bUseTurnkey)
+static void LaunchOnDevice(const FString& DeviceId, const FString& DeviceName, bool bUseTurnkey)
 {
 	FTargetDeviceId TargetDeviceId;
 	if (FTargetDeviceId::Parse(DeviceId, TargetDeviceId))
@@ -969,21 +1006,16 @@ static void PrepareLaunchOn(FString DeviceId, FString DeviceName)
 	PlaySettings->SaveConfig();
 }
 
-void HandleLaunchOnDeviceActionExecute(FString DeviceId, FString DeviceName, bool bUseTurnkey)
+static void HandleLaunchOnDeviceActionExecute(FString DeviceId, FString DeviceName, bool bUseTurnkey)
 {
 	PrepareLaunchOn(DeviceId, DeviceName);
 	LaunchOnDevice(DeviceId, DeviceName, bUseTurnkey);
 }
 
 
-bool HandleLaunchOnDeviceActionCanExecute(FString DeviceName)
+static bool HandleLaunchOnDeviceActionCanExecute(FString DeviceName)
 {
 	return CanLaunchOnDevice(DeviceName);
-}
-
-bool HandleLaunchOnDeviceActionIsChecked(FString DeviceName)
-{
-	return (DeviceName == GetDefault<ULevelEditorPlaySettings>()->LastExecutedLaunchName);
 }
 
 static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceProxy, FName PlatformName, FUIAction& OutAction, FText& OutTooltip)
@@ -1004,10 +1036,10 @@ static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceP
 	// 	}
 
 		// ... create an action...
+	FString DeviceId = DeviceProxy->GetTargetDeviceId(NAME_None);
 	OutAction = FUIAction(
-		FExecuteAction::CreateStatic(&HandleLaunchOnDeviceActionExecute, DeviceProxy->GetTargetDeviceId(NAME_None), DeviceProxy->GetName(), true)
+		FExecuteAction::CreateStatic(&HandleLaunchOnDeviceActionExecute, DeviceId, DeviceProxy->GetName(), true)
 		//		, FCanExecuteAction::CreateStatic(&HandleLaunchOnDeviceActionCanExecute, DeviceProxy->GetName())
-		//		, FIsActionChecked::CreateStatic(&HandleLaunchOnDeviceActionIsChecked, DeviceProxy->GetName())
 	);
 
 	// ... generate tooltip text
@@ -1453,6 +1485,18 @@ if (!FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("Proj
 {
 	return;
 }
+
+
+
+void FInternalPlayWorldCommandCallbacks::HandleShowSDKTutorial(FString PlatformName, FString NotInstalledDocLink)
+{
+	// broadcast this, and assume someone will pick it up
+	IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+	MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformName, NotInstalledDocLink);
+}
+
+
+
 
 
 #endif

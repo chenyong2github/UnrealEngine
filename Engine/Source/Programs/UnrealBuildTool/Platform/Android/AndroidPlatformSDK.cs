@@ -26,6 +26,13 @@ namespace UnrealBuildTool
 			MaxVersion = "r23a";
 		}
 
+		public override void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion)
+		{
+			MinVersion = MaxVersion = null;
+		}
+
+
+
 		// the version we prefer
 		private string RecommendedVersion = "r21b";
 

@@ -88,6 +88,8 @@ public:
 		, bHasInitErrors(false)
 		, bIgnoreFirstDelegateCall(true)
 	{
+		FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
+
 #if AUTOSDKS_ENABLED		
 		
 		// AutoSDKs only enabled if UE_SDKS_ROOT is set.
@@ -998,7 +1000,7 @@ protected:
 
 	bool SetupSDKStatus(const FString& TargetPlatforms)
 	{
-		FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
+//		FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
 #if 0
 		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FTargetPlatformManagerModule::SetupSDKStatus" ), STAT_FTargetPlatformManagerModule_SetupSDKStatus, STATGROUP_TargetPlatform );
 

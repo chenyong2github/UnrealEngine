@@ -26,6 +26,11 @@ namespace Turnkey
 			InstalledSdk_InvalidVersionExists = 32,
 			Platform_ValidHostPrerequisites = 64,
 			Platform_InvalidHostPrerequisites = 128,
+
+			Device_InvalidPrerequisites = 256,
+			Device_InstallSoftwareValid,
+			Device_InstallSoftwareInvalid,
+			Device_CannotConnect,
 		}
 
 		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform, bool bAllowUpdatingPrerequisites)
@@ -46,42 +51,47 @@ namespace Turnkey
 
 			UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(AutomationPlatform.PlatformType.ToString());
 
-			// if we have the variable at all, 
-			string AutoSdkVar = Environment.GetEnvironmentVariable("UE_SDKS_ROOT");
-			if (AutoSdkVar != null)
-			{
-				Result |= LocalAvailability.AutoSdk_VariableExists;
+			string ManualSDKVersion, AutoSDKVersion;
+			SDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
 
-				// get platform subdirectory
-				string AutoSubdir = string.Format("Host{0}/{1}", HostPlatform.Current.HostEditorPlatform.ToString(), SDK.GetAutoSDKPlatformName());
-				DirectoryInfo PlatformDir = new DirectoryInfo(Path.Combine(AutoSdkVar, AutoSubdir));
-				if (PlatformDir.Exists)
+			if (AutoSDKVersion == null)
+			{
+				// look to see if other versions are around
+				string AutoSdkVar = Environment.GetEnvironmentVariable("UE_SDKS_ROOT");
+				if (AutoSdkVar != null)
 				{
-					bool bValidVersionFound = false;
-					foreach (DirectoryInfo Dir in PlatformDir.EnumerateDirectories())
+					// no matter what, remember we have the variable set
+					Result |= LocalAvailability.AutoSdk_VariableExists;
+
+					// get platform subdirectory
+					string AutoSubdir = string.Format("Host{0}/{1}", HostPlatform.Current.HostEditorPlatform.ToString(), SDK.GetAutoSDKPlatformName());
+					DirectoryInfo PlatformDir = new DirectoryInfo(Path.Combine(AutoSdkVar, AutoSubdir));
+					if (PlatformDir.Exists)
 					{
-						// check for valid version number (auto SDK must match version exactly)
-						if (string.Compare(Dir.Name, SDK.GetAutoSDKDirectoryForMasterVersion()) == 0)
+						foreach (DirectoryInfo Dir in PlatformDir.EnumerateDirectories())
 						{
-							// make sure it actually has buits in it
+							// look to see if other versions have been synced, but are bad version (otherwise, we would have had AutoSDKVersion above!)
 							if (File.Exists(Path.Combine(Dir.FullName, "setup.bat")) || File.Exists(Path.Combine(Dir.FullName, "setup.sh")))
 							{
-								bValidVersionFound = true;
+								Result |= LocalAvailability.AutoSdk_InvalidVersionExists;
 								break;
 							}
 						}
 					}
-
-					// if we had a platform directory, but no valid versions, note that
-					Result |= bValidVersionFound ? LocalAvailability.AutoSdk_ValidVersionExists : LocalAvailability.AutoSdk_InvalidVersionExists;
 				}
+
+			}
+			else
+			{
+				Result |= LocalAvailability.AutoSdk_ValidVersionExists | LocalAvailability.AutoSdk_VariableExists;
 			}
 
+			// if we have the variable at all, 
+
 			// if anything is installed, this will return a value
-			string InstalledVersion = SDK.GetInstalledVersion();
-			if (!string.IsNullOrEmpty(InstalledVersion))
+			if (!string.IsNullOrEmpty(ManualSDKVersion))
 			{
-				if (SDK.IsVersionValid(InstalledVersion, bForAutoSDK: false))
+				if (SDK.IsVersionValid(ManualSDKVersion, bForAutoSDK: false))
 				{
 					Result |= LocalAvailability.InstalledSdk_ValidVersionExists;
 				}

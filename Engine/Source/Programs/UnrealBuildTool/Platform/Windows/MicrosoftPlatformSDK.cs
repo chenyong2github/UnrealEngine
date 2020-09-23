@@ -22,6 +22,12 @@ namespace UnrealBuildTool
 			MaxVersion = "10.9.99999";
 		}
 
+		public override void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion)
+		{
+			// @todo we may want to split this for Win64 vs other things
+			MinVersion = MaxVersion = null;
+		}
+
 		public override string GetInstalledSDKVersion()
 		{
 			if (Utils.IsRunningOnMono)

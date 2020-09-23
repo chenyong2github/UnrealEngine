@@ -492,8 +492,6 @@ void FMainMenu::RegisterFileProjectMenu()
 	);
 
 	Section.AddMenuEntry(FMainFrameCommands::Get().ZipUpProject);
-
-	Section.AddMenuEntry("TempNote", FText::FromString(TEXT("[See Launch for Packaging]")), FText(), FSlateIcon(), FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })), EUserInterfaceActionType::None);
 }
 
 void FMainMenu::RegisterRecentFileAndExitMenuItems()

@@ -756,6 +756,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override void RegisterBuildPlatforms()
 		{
+			// for GetValidSoftwareVersionRange reasons we probably want a HoloLensePlatformSDK class
 			MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK();
 
 			UEBuildPlatform.RegisterBuildPlatform(new HoloLens(SDK));

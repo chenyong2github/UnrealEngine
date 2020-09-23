@@ -103,6 +103,27 @@ namespace Turnkey.Commands
 // 					Sdks = Sdks.FindAll(x => x.IsNeeded(Platform, DeviceName));
 // 				}
 
+				Sdks.Sort((a,b) => 
+				{
+					int Val = a.Type.CompareTo(b.Type);
+					if (Val != 0)
+					{
+						return Val;
+					}
+
+					UInt64 VersionA, VersionB;
+					if (SDK.TryConvertVersionToInt(a.Version, out VersionA) && SDK.TryConvertVersionToInt(b.Version, out VersionB))
+					{
+						Val = VersionA.CompareTo(VersionB);
+						if (Val != 0)
+						{
+							return Val;
+						}
+						return a.AllowedFlashDeviceTypes.CompareTo(b.AllowedFlashDeviceTypes);
+					}
+
+					return 0;
+				});
 
 				if (bBestAvailable && Sdks.Count > 0)
 				{

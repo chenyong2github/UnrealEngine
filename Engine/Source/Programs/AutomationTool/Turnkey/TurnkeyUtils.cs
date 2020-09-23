@@ -34,8 +34,8 @@ namespace Turnkey
 			IEnumerable<string> AutoSDKPlatforms = UEBuildPlatformSDK.AllSDKs.Select(x => x.GetAutoSDKPlatformName()).Distinct();
 			SetVariable("AutoSDKPlatforms", string.Join(",", AutoSDKPlatforms));
 
-			TurnkeyUtils.Log("AllPlatforms = {0}", GetVariableValue("AllPlatforms"));
-			TurnkeyUtils.Log("AutoSDKPlatforms = {0}", GetVariableValue("AutoSDKPlatforms"));
+// 			TurnkeyUtils.Log("AllPlatforms = {0}", GetVariableValue("AllPlatforms"));
+// 			TurnkeyUtils.Log("AutoSDKPlatforms = {0}", GetVariableValue("AutoSDKPlatforms"));
 
 			SetVariable("HOST_PLATFORM_NAME", HostPlatform.Current.HostEditorPlatform.ToString());
 		}
@@ -140,9 +140,8 @@ namespace Turnkey
 					Platforms.Add(PossiblePlatforms[PlatformChoice - 1]);
 				}
 			}
-			else if (PlatformString == "All")
+			else if (PlatformString.ToLower() == "all")
 			{
-				// HACK UNTIL WIN32 IS GONE
 				Platforms = PossiblePlatforms;
 			}
 			else
@@ -166,7 +165,7 @@ namespace Turnkey
 				}
 			}
 
-			return Platforms;
+			return Platforms.OrderBy(x => x.ToString()).ToList();
 		}
 
 		public static DeviceInfo GetDeviceFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)

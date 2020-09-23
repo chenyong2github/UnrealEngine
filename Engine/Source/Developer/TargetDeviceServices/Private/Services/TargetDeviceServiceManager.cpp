@@ -134,7 +134,7 @@ bool FTargetDeviceServiceManager::AddTargetDevice(ITargetDevicePtr InDevice)
 		return false;
 	}
 
-	const FString& DeviceName = InDevice->GetName();
+	FString DeviceName = InDevice->GetName();
 	ITargetDeviceServicePtr DeviceService = AddService(DeviceName);
 
 	if (DeviceService.IsValid())

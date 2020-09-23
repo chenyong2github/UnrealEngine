@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Tools.DotNETCommon;
 
 namespace Turnkey
 {
@@ -56,7 +57,41 @@ namespace Turnkey
 				TurnkeyUtils.Log("Reqeusted local path {0} does not exist!", OutputPath);
 				return null;
 			}
-			
+
+			// accessing large remote files direcly can be crazy slow, so we cache large-ish files locally before using
+			bool bIsRemotePath = (new System.Uri(OutputPath).IsUnc) || (new DriveInfo(OutputPath).DriveType == DriveType.Network);
+			bool bIsLargeFile = File.Exists(OutputPath) && new FileInfo(OutputPath).Length > 5 * 1024 * 1024;
+			bool bIsDirectory = Directory.Exists(OutputPath);
+
+			if (bIsRemotePath && (bIsLargeFile || bIsDirectory))
+			{
+				string CopyLocation = Path.Combine(LocalCache.CreateTempDirectory(), Path.GetFileName(OutputPath));
+
+				if (bIsDirectory)
+				{
+					TurnkeyUtils.Log("Copying remote directory structure to local temp location {0}...", CopyLocation);
+					if (AutomationTool.CommandUtils.CopyDirectory_NoExceptions(OutputPath, CopyLocation) == false)
+					{
+						TurnkeyUtils.Log("Copy failed, unable to continue...");
+						return null;
+					}
+
+				}
+				else
+				{
+					TurnkeyUtils.Log("Copying large remote file to local temp location {0}...", CopyLocation);
+					if (AutomationTool.CommandUtils.CopyFile_NoExceptions(OutputPath, CopyLocation) == false)
+					{
+						TurnkeyUtils.Log("Copy failed, unable to continue...");
+						return null;
+					}
+				}
+
+				TurnkeyUtils.Log("Done!");
+
+				return CopyLocation;
+			}
+
 			return OutputPath;
 		}
 

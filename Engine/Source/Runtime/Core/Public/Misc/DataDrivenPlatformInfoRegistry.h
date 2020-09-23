@@ -13,7 +13,6 @@
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
-
 enum class DDPIPlatformSdkStatus : uint8
 {
 	Unknown,
@@ -27,6 +26,15 @@ enum class DDPIPlatformSdkStatus : uint8
 	// @todo turnkey: add AutoSdkValid and ManualSdkValid, with Valid a Combination of both
 };
 
+struct FDDPISdkInfo
+{
+	DDPIPlatformSdkStatus Status;
+	FText SdkErrorInformation;
+	FString InstalledVersion;
+	FString AutoSDKVersion; // only valid for platform, not device
+	FString MinAllowedVersion;
+	FString MaxAllowedVersion;
+};
 
 /** Available icon sizes (see FPlatformIconPaths) */
 enum class EPlatformIconSize : uint8
@@ -143,16 +151,27 @@ struct FDataDrivenPlatformInfo
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
-	// Information about the validity of using a platform, discovered via Turnkey
 private:
-	DDPIPlatformSdkStatus SdkStatus;
+	// Information about the validity of using a platform, discovered via Turnkey
+	FDDPISdkInfo SdkInfo;
+
+	// Information about the validity of each connected device (by string, discovered by Turnkey)
+	TMap<FString, FDDPISdkInfo> PerDeviceStatus;
+
 public:
 	DDPIPlatformSdkStatus GetSdkStatus(bool bBlockIfQuerying = true) const
 	{
-		check(!(bBlockIfQuerying && SdkStatus == DDPIPlatformSdkStatus::Querying));
-		return SdkStatus;
+		check(!(bBlockIfQuerying && SdkInfo.Status == DDPIPlatformSdkStatus::Querying));
+		return SdkInfo.Status;
 	}
-	FString SdkErrorInformation;
+
+	const FDDPISdkInfo& GetSdkInfo(bool bBlockIfQuerying = true) const
+	{
+		check(!(bBlockIfQuerying && SdkInfo.Status == DDPIPlatformSdkStatus::Querying));
+		return SdkInfo;
+	}
+
+
 
 	// setting moved from PlatformInfo::FTargetPlatformInfo
 
@@ -176,6 +195,9 @@ public:
 	FName UBTPlatformName;
 	FString UBTPlatformString;
 
+	/** If this is set, then it is used to prepare a project for debugging */
+	FString PrepareForDebuggingOptions;
+
 	/** Whether or not the platform can use Crash Reporter */
 	bool bCanUseCrashReporter;
 
@@ -192,9 +214,9 @@ public:
 	bool bHasCompiledTargetSupport;
 
 
-
 	// Get the status of a device, or Unknown if not specified
 	CORE_API DDPIPlatformSdkStatus GetStatusForDeviceId(const FString& DeviceId) const;
+	CORE_API const FDDPISdkInfo& GetSdkInfoForDeviceId(const FString& DeviceId) const;
 	CORE_API void ClearDeviceStatus();
 
 
@@ -236,8 +258,6 @@ public:
 private:
 	friend struct FDataDrivenPlatformInfoRegistry;
 
-	// Information about the validity of each connected device (by string, discovered by Turnkey)
-	TMap<FString, DDPIPlatformSdkStatus> PerDeviceStatus;
 #endif
 };
 

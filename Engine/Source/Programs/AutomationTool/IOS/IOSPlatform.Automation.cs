@@ -169,11 +169,6 @@ public class IOSPlatform : Platform
 		SDKName = (TargetPlatform == UnrealTargetPlatform.TVOS) ? "appletvos" : "iphoneos";
 	}
 
-	public override string GetAllowedSoftwareVersions()
-	{
-		return @"regex:^13\.5.*";
-	}
-
 	public override bool GetSDKInstallCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
 	{
 		Preamble = "Moving your original Xcode application from /Applications to the Trash, and unzipping the new version into /Applications";

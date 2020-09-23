@@ -22,6 +22,11 @@ namespace UnrealBuildTool
 			MaxVersion = "v16_clang-9.0.1-centos7";
 		}
 
+		public override void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion)
+		{
+			MinVersion = MaxVersion = null;
+		}
+
 		public override string GetAutoSDKPlatformName()
 		{
 			return TargetPlatformName;

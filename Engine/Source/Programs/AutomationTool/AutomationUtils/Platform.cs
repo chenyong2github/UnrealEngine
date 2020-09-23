@@ -174,11 +174,6 @@ namespace AutomationTool
 			return null;
 		}
 
-		public virtual string GetAllowedSoftwareVersions()
-		{
-			return "";
-		}
-
 		public virtual bool InstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, object HintObject, DeviceInfo Device = null)
 		{
 			string DownloadedSDK = Retriever.RetrieveFileSource(HintObject);

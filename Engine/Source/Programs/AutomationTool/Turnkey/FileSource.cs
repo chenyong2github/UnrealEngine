@@ -212,12 +212,12 @@ namespace Turnkey
 // 
 			if (Type == SourceType.Flash)
 			{
-				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
-				bool bIsValid = TurnkeyUtils.IsValueValid(Version, AutomationPlatform.GetAllowedSoftwareVersions(), AutomationPlatform);
+				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
+				bool bIsValid = SDK.IsSoftwareVersionValid(Version);
 				// if we were passed a device, also check if this Sdk is valid for that device
-				//				if (DeviceName != null)
+				if (Device != null)
 				{
-					bIsValid = bIsValid && Device != null && TurnkeyUtils.IsValueValid(Device.Type, AllowedFlashDeviceTypes, AutomationPlatform);
+					bIsValid &= TurnkeyUtils.IsValueValid(Device.Type, AllowedFlashDeviceTypes, AutomationTool.Platform.GetPlatform(Platform));
 				}
 				return bIsValid;
 			}
@@ -251,7 +251,7 @@ namespace Turnkey
 				//				Sdks = Sdks.FindAll(x => x.Version == null || (Type == SourceType.Flash ? TurnkeyUtils.IsValueValid(x.Version, Platform.GetAllowedSoftwareVersions(), Platform) : SDK.IsVersionValid(x.Version, bForAutoSDK: x.Type == SourceType.AutoSdk)));
 				Sdks = Sdks.FindAll(x => x.Version == null ||
 					(Type == SourceType.Flash ?
-						TurnkeyUtils.IsValueValid(x.Version, Platform.GetAllowedSoftwareVersions(), Platform) :
+						SDK.IsSoftwareVersionValid(x.Version) :
 						SDK.IsVersionValid(x.Version, bForAutoSDK: (bSelectBest && x.Type == SourceType.AutoSdk))
 					));
 

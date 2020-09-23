@@ -120,9 +120,8 @@ namespace Tools.DotNETCommon
 			// if we support AutoSDKs, then return both versions
 			if (PlatformSupportsAutoSDKs())
 			{
-				// we don't need ask the platform for the installed version because we know the AutoSDK version has to match the DesiredVersion if it was setup properly
-				//AutoSDKVersion = (HasRequiredAutoSDKInstalled() == SDKStatus.Valid) ? GetMainVersion() : null;
-				AutoSDKVersion = GetInstalledSDKVersion();
+				AutoSDKVersion = (HasRequiredAutoSDKInstalled() == SDKStatus.Valid) ? GetInstalledSDKVersion() : null;
+//				AutoSDKVersion = GetInstalledSDKVersion();
 			}
 			else
 			{
@@ -140,6 +139,10 @@ namespace Tools.DotNETCommon
 		public virtual bool IsVersionValid(string Version, bool bForAutoSDK)
 		{
 			return IsVersionValidInternal(Version, bForAutoSDK);
+		}
+		public virtual bool IsSoftwareVersionValid(string Version)
+		{
+			return IsSoftwareVersionValidInternal(Version);
 		}
 
 		public void ReactivateAutoSDK()
@@ -169,8 +172,15 @@ namespace Tools.DotNETCommon
 		/// </summary>
 		/// <param name="MinVersion">Smallest version allowed</param>
 		/// <param name="MaxVersion">Largest version allowed (inclusive)</param>
-		/// <returns>True if the versions are valid, false if the platform is unable to convert its versions into an integer</returns>
 		public abstract void GetValidVersionRange(out string MinVersion, out string MaxVersion);
+
+
+		/// <summary>
+		/// Gets the valid string range of software/flash versions. TryConvertVersionToInt() will need to succeed to make this usable for range checks
+		/// </summary>
+		/// <param name="MinVersion">Smallest version allowed, or null if no minmum (in other words, 0 - MaxVersion)</param>
+		/// <param name="MaxVersion">Largest version allowed (inclusive), or null if no maximum (in other words, MinVersion - infinity)y</param>
+		public abstract void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion);
 
 		/// <summary>
 		/// For a platform that doesn't use properly named AutoSDK directories, the directory name may not be convertible to an integer,
@@ -190,23 +200,36 @@ namespace Tools.DotNETCommon
 		/// <param name="MinVersion">Smallest version allowed</param>
 		/// <param name="MaxVersion">Largest version allowed (inclusive)</param>
 		/// <returns>True if the versions are valid, false if the platform is unable to convert its versions into an integer</returns>
-		public virtual bool GetValidVersionRange(out UInt64 MinVersion, out UInt64 MaxVersion)
+		public virtual void GetValidVersionRange(out UInt64 MinVersion, out UInt64 MaxVersion)
 		{
 			string MinVersionString, MaxVersionString;
 			GetValidVersionRange(out MinVersionString, out MaxVersionString);
 
-			if (TryConvertVersionToInt(MinVersionString, out MinVersion) && TryConvertVersionToInt(MaxVersionString, out MaxVersion))
+			// failures to convert here are bad
+			if (!TryConvertVersionToInt(MinVersionString, out MinVersion) || !TryConvertVersionToInt(MaxVersionString, out MaxVersion))
 			{
-				return true;
+				throw new Exception(string.Format("Unable to convert Min and Max valid versions to integers in {0} (Versions are {1} - {2})", GetType().Name, MinVersionString, MaxVersionString));
 			}
+		}
+		public virtual void GetValidSoftwareVersionRange(out UInt64 MinVersion, out UInt64 MaxVersion)
+		{
+			string MinVersionString, MaxVersionString;
+			GetValidSoftwareVersionRange(out MinVersionString, out MaxVersionString);
 
-			// if a version can't be converted to an int, we can't get any versions
-			MinVersion = MaxVersion = 0;
-			return false;
+			MinVersion = UInt64.MinValue;
+			MaxVersion = UInt64.MaxValue - 1; // MaxValue is always bad
+
+			// failures to convert here are bad
+			if ((MinVersionString != null && !TryConvertVersionToInt(MinVersionString, out MinVersion)) || 
+				(MaxVersionString != null && !TryConvertVersionToInt(MaxVersionString, out MaxVersion)))
+			{
+				throw new Exception(string.Format("Unable to convert Min and Max valid Software versions to integers in {0} (Versions are {1} - {2})", GetType().Name, MinVersionString, MaxVersionString));
+			}
 		}
 
+
 		// Let platform override behavior to determine if a version is a valid (useful for non-numeric versions)
-		public virtual bool IsVersionValidInternal(string Version, bool bForAutoSDK)
+		protected virtual bool IsVersionValidInternal(string Version, bool bForAutoSDK)
 		{
 			// we could have null if no SDK is installed at all, etc, which is always a failure
 			if (Version == null)
@@ -244,6 +267,27 @@ namespace Tools.DotNETCommon
 			// get numeric range
 			UInt64 MinVersion, MaxVersion;
 			GetValidVersionRange(out MinVersion, out MaxVersion);
+			return IntVersion >= MinVersion && IntVersion <= MaxVersion;
+		}
+
+		protected virtual bool IsSoftwareVersionValidInternal(string Version)
+		{
+			// we could have null if no SDK is installed at all, etc, which is always a failure
+			if (Version == null)
+			{
+				return false;
+			}
+
+			// convert it to an integer
+			UInt64 IntVersion;
+			if (!TryConvertVersionToInt(Version, out IntVersion))
+			{
+				return false;
+			}
+
+			// get numeric range
+			UInt64 MinVersion, MaxVersion;
+			GetValidSoftwareVersionRange(out MinVersion, out MaxVersion);
 			return IntVersion >= MinVersion && IntVersion <= MaxVersion;
 		}
 
@@ -307,6 +351,7 @@ namespace Tools.DotNETCommon
 		protected const string SDKRootEnvVar = "UE_SDKS_ROOT";
 
 		protected const string AutoSetupEnvVar = "AutoSDKSetup";
+
 
 		protected static bool IsWindows()
 		{
@@ -800,17 +845,20 @@ namespace Tools.DotNETCommon
 					if (bNeedsToWriteAutoSetupEnvVar)
 					{
 						// write out the manual sdk version since child processes won't be able to detect manual with AutoSDK messing up env vars
-						string ValueToWrite = CachedManualSDKVersion != null ? CachedManualSDKVersion : "__None";
 						using (StreamWriter Writer = File.AppendText(EnvVarFile))
 						{
-							Writer.WriteLine("{0}={1}", PlatformSetupEnvVar, ValueToWrite);
+							Writer.WriteLine("{0}={1}", PlatformSetupEnvVar, "1");
 						}
 						// set the variable in the local environment in case this process spawns any others.
-						Environment.SetEnvironmentVariable(PlatformSetupEnvVar, ValueToWrite);
+						Environment.SetEnvironmentVariable(PlatformSetupEnvVar, "1");
 					}
 
 					// make sure we know that we've modified the local environment, invalidating manual installs for this run.
 					bLocalProcessSetupAutoSDK = true;
+
+					// tell any child processes what our manual version was before setting up autosdk
+					string ValueToWrite = CachedManualSDKVersion != null ? CachedManualSDKVersion : "__None";
+					Environment.SetEnvironmentVariable(GetPlatformAutoSDKSetupEnvVar(), ValueToWrite);
 
 					return true;
 				}
