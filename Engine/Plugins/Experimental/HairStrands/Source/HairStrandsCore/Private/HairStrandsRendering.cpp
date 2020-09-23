@@ -12,7 +12,7 @@
 #include "HairStrandsInterface.h"
 #include "SceneView.h"
 #include "Containers/ResourceArray.h"
-#include "Rendering\SkeletalMeshRenderData.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "HAL/ConsoleManager.h"
 #include "GpuDebugRendering.h"
 #include "Async/ParallelFor.h"
@@ -32,14 +32,12 @@
 #pragma warning(push)
 #pragma warning(disable:6294) // Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed.
 #endif
-PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/SparseLU>
 THIRD_PARTY_INCLUDES_END
-PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(pop)
 #endif
@@ -147,7 +145,6 @@ class FDeformGuideCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer<uint>, SimVertexToRootIndexBuffer)
 
 		SHADER_PARAMETER_SRV(Buffer, SimRestPosePositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer, SimRootIndexBuffer)
 		SHADER_PARAMETER_UAV(RWBuffer, OutSimDeformedPositionBuffer)
 
 		SHADER_PARAMETER(uint32, SampleCount)
@@ -156,20 +153,20 @@ class FDeformGuideCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
 };
 
 IMPLEMENT_GLOBAL_SHADER(FDeformGuideCS, "/Engine/Private/HairStrands/HairStrandsGuideDeform.usf", "MainCS", SF_Compute);
 
 static void AddDeformSimHairStrandsPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	EDeformationType DeformationType,
 	const uint32 MeshLODIndex,
 	const uint32 VertexCount,
 	FHairStrandsRestRootResource* SimRestRootResources,
 	FHairStrandsDeformedRootResource* SimDeformedRootResources,
 	FRHIShaderResourceView* SimRestPosePositionBuffer,
-	FRHIShaderResourceView* SimRootIndexBuffer,
 	FRHIUnorderedAccessView* OutSimDeformedPositionBuffer,
 	const FVector& SimRestOffset,
 	const FVector& SimDeformedOffset,
@@ -197,7 +194,6 @@ static void AddDeformSimHairStrandsPass(
 
 	FDeformGuideCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDeformGuideCS::FParameters>();
 	Parameters->SimRestPosePositionBuffer = SimRestPosePositionBuffer;
-	Parameters->SimRootIndexBuffer = SimRootIndexBuffer;
 	Parameters->OutSimDeformedPositionBuffer = OutSimDeformedPositionBuffer;
 	Parameters->VertexCount = VertexCount;
 	Parameters->IterationCount = IterationCount % 10000;
@@ -256,8 +252,6 @@ static void AddDeformSimHairStrandsPass(
 	FDeformGuideCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FDeformGuideCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 	PermutationVector.Set<FDeformGuideCS::FDeformationType>(InternalDeformationType);
-
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	TShaderMapRef<FDeformGuideCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
@@ -374,7 +368,7 @@ class FHairInterpolationCS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -386,6 +380,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairInterpolationCS, "/Engine/Private/HairStrands/HairS
 
 static void AddHairStrandsInterpolationPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const FShaderDrawDebugData* ShaderDrawData,
 	FHairGroupInstance* Instance,
 	const uint32 VertexCount,
@@ -564,7 +559,6 @@ static void AddHairStrandsInterpolationPass(
 	PermutationVector.Set<FHairInterpolationCS::FScaleAndClip>(bNeedScaleOrClip ? 1 : 0);
 	PermutationVector.Set<FHairInterpolationCS::FCulling>(bCullingEnable ? 1 : 0);
 
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FHairInterpolationCS> ComputeShader(ShaderMap, PermutationVector);
 
 	if (bCullingEnable)
@@ -629,7 +623,7 @@ class FHairClusterAABBCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -641,6 +635,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairClusterAABBCS, "/Engine/Private/HairStrands/HairStr
 
 static void AddHairClusterAABBPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const FTransform& InRenLocalToWorld,
 	const FVector& OutHairWorldOffset,
 	FHairStrandClusterData::FHairGroup& ClusterData,
@@ -668,7 +663,7 @@ static void AddHairClusterAABBPass(
 
 	FHairClusterAABBCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairClusterAABBCS::FGroupSize>(GroupSize);
-	TShaderMapRef<FHairClusterAABBCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5), PermutationVector);
+	TShaderMapRef<FHairClusterAABBCS> ComputeShader(ShaderMap, PermutationVector);
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
@@ -689,7 +684,8 @@ class FHairCardsDeformationCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairCardsDeformationCS, FGlobalShader);
 
 	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize>;
+	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDynamicGeometry>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, CardsVertexCount)
@@ -698,20 +694,39 @@ class FHairCardsDeformationCS : public FGlobalShader
 		SHADER_PARAMETER(FVector, GuideDeformedPositionOffset)
 		SHADER_PARAMETER_SRV(Buffer, GuideRestPositionBuffer)
 		SHADER_PARAMETER_SRV(Buffer, GuideDeformedPositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer,   CardsRestPositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer,   CardsInterpolationBuffer)
+		SHADER_PARAMETER_SRV(Buffer, CardsRestPositionBuffer)
+		SHADER_PARAMETER_SRV(Buffer, CardsInterpolationBuffer)
+
+		SHADER_PARAMETER_SRV(Buffer<float4>, TriangleRestPosition0Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, TriangleRestPosition1Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, TriangleRestPosition2Buffer)
+
+		SHADER_PARAMETER_SRV(Buffer<float4>, TriangleDeformedPosition0Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, TriangleDeformedPosition1Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, TriangleDeformedPosition2Buffer)
+
+		SHADER_PARAMETER_SRV(Buffer<uint>, GuideRootBarycentricBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>, GuideVertexToRootIndexBuffer)
+
+
 		SHADER_PARAMETER_UAV(RWBuffer, CardsDeformedPositionBuffer)
+
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform); }
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairCardsDeformationCS, "/Engine/Private/HairStrands/HairCardsDeformation.usf", "MainCS", SF_Compute);
 
 static void AddHairCardsDeformationPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	const FShaderDrawDebugData* ShaderDrawData,
 	FHairGroupInstance* Instance,
+	const int32 MeshLODIndex,
 	FBufferTransitionQueue& OutTransitionQueue)
 {
 	const int32 HairLODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
@@ -733,11 +748,46 @@ static void AddHairCardsDeformationPass(
 
 	Parameters->CardsInterpolationBuffer = LOD.InterpolationResource->InterpolationBuffer.SRV;
 
+	const FHairStrandsRestRootResource* RestRootResources = LOD.Guides.RestRootResource;
+	const FHairStrandsDeformedRootResource* DeformedRootResources = LOD.Guides.DeformedRootResource;
+
+	const bool bIsVertexToCurveBuffersValid = RestRootResources && RestRootResources->VertexToCurveIndexBuffer.SRV != nullptr;
+	const bool bSupportDynamicMesh =
+		bIsVertexToCurveBuffersValid &&
+		RestRootResources &&
+		RestRootResources->RootData.RootCount > 0 &&
+		MeshLODIndex >= 0 &&
+		MeshLODIndex < RestRootResources->LODs.Num() &&
+		MeshLODIndex < DeformedRootResources->LODs.Num() &&
+		RestRootResources->LODs[MeshLODIndex].IsValid() &&
+		DeformedRootResources->LODs[MeshLODIndex].IsValid();
+	if (bSupportDynamicMesh)
+	{
+		Parameters->GuideVertexToRootIndexBuffer = RestRootResources->VertexToCurveIndexBuffer.SRV;
+		const FHairStrandsRestRootResource::FLOD& RestLODDatas = RestRootResources->LODs[MeshLODIndex];
+		const FHairStrandsDeformedRootResource::FLOD& DeformedLODDatas = DeformedRootResources->LODs[MeshLODIndex];
+
+		Parameters->GuideRootBarycentricBuffer = RestLODDatas.RootTriangleBarycentricBuffer.SRV;
+
+		Parameters->TriangleRestPosition0Buffer = RestLODDatas.RestRootTrianglePosition0Buffer.SRV;
+		Parameters->TriangleRestPosition1Buffer = RestLODDatas.RestRootTrianglePosition1Buffer.SRV;
+		Parameters->TriangleRestPosition2Buffer = RestLODDatas.RestRootTrianglePosition2Buffer.SRV;
+
+		Parameters->TriangleDeformedPosition0Buffer = DeformedLODDatas.DeformedRootTrianglePosition0Buffer.SRV;
+		Parameters->TriangleDeformedPosition1Buffer = DeformedLODDatas.DeformedRootTrianglePosition1Buffer.SRV;
+		Parameters->TriangleDeformedPosition2Buffer = DeformedLODDatas.DeformedRootTrianglePosition2Buffer.SRV;
+	}
+
+	if (ShaderDrawDebug::IsShaderDrawDebugEnabled() && ShaderDrawData)
+	{
+		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
+	}
+
 	const uint32 GroupSize = ComputeGroupSize();
 	FHairCardsDeformationCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairCardsDeformationCS::FDynamicGeometry>(bSupportDynamicMesh ? 1 : 0);
 	PermutationVector.Set<FHairCardsDeformationCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FHairCardsDeformationCS> ComputeShader(ShaderMap, PermutationVector);
 
 	const int32 DispatchCountX = FMath::DivideAndRoundUp(Parameters->CardsVertexCount, GroupSize);
@@ -774,13 +824,14 @@ class FHairTangentCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairTangentCS, "/Engine/Private/HairStrands/HairStrandsTangent.usf", "MainCS", SF_Compute);
 
 static void AddHairTangentPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	uint32 VertexCount,
 	FHairGroupPublicData* HairGroupPublicData,
 	const FShaderResourceViewRHIRef& PositionBuffer,
@@ -802,7 +853,6 @@ static void AddHairTangentPass(
 	PermutationVector.Set<FHairTangentCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 	PermutationVector.Set<FHairTangentCS::FCulling>(bCullingEnable ? 1 : 0);
 
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FHairTangentCS> ComputeShader(ShaderMap, PermutationVector);
 
 	if (bCullingEnable)
@@ -860,13 +910,14 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairRaytracingGeometryCS, "/Engine/Private/HairStrands/HairStrandsRaytracingGeometry.usf", "MainCS", SF_Compute);
 
 static void AddGenerateRaytracingGeometryPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	uint32 VertexCount,
 	float HairRadius,
 	const FVector& HairWorldOffset,
@@ -887,8 +938,6 @@ static void AddGenerateRaytracingGeometryPass(
 
 	FHairRaytracingGeometryCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairRaytracingGeometryCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
-
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	TShaderMapRef<FHairRaytracingGeometryCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
@@ -915,7 +964,7 @@ class FClearClusterAABBCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -927,6 +976,7 @@ IMPLEMENT_GLOBAL_SHADER(FClearClusterAABBCS, "/Engine/Private/HairStrands/HairSt
 
 static void AddClearClusterAABBPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	uint32 ClusterCount,
 	FRHIUnorderedAccessView* OutClusterAABBuffer,
 	FRHIUnorderedAccessView* OutGroupAABBuffer,
@@ -939,8 +989,6 @@ static void AddClearClusterAABBPass(
 	Parameters->OutClusterAABBBuffer = OutClusterAABBuffer;
 	Parameters->OutGroupAABBBuffer = OutGroupAABBuffer;
 
-	
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FClearClusterAABBCS> ComputeShader(ShaderMap);
 
 	const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(ClusterCount * 6, 1, 1) , FIntVector(64, 1, 1));
@@ -1027,6 +1075,7 @@ void RegisterClusterData(FHairGroupInstance* Instance, FHairStrandClusterData* I
 
 void ComputeHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const FShaderDrawDebugData* ShaderDrawData,
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex,
@@ -1075,13 +1124,13 @@ void ComputeHairStrandsInterpolation(
 		FBufferTransitionQueue TransitionQueue;
 		AddDeformSimHairStrandsPass(
 			GraphBuilder,
+			ShaderMap,
 			DeformationType,
 			MeshLODIndex,
 			Instance->Guides.RestResource->GetVertexCount(),
 			Instance->Guides.RestRootResource,
 			Instance->Guides.DeformedRootResource,
 			Instance->Guides.RestResource->RestPositionBuffer.SRV,
-			Instance->Strands.InterpolationResource->SimRootPointIndexBuffer.SRV,
 			Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).UAV, 
 			Instance->Guides.RestResource->PositionOffset,
 			Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),
@@ -1090,11 +1139,12 @@ void ComputeHairStrandsInterpolation(
 		TransitBufferToReadable(GraphBuilder, TransitionQueue);
 	}
 
-	if (DebugMode == EHairStrandsDebugMode::SimHairStrands)
+	if (DebugMode == EHairStrandsDebugMode::SimHairStrands && Instance->GeometryType == EHairGeometryType::Strands)
 	{
 		FBufferTransitionQueue TransitionQueue;
 		AddHairTangentPass(
 			GraphBuilder,
+			ShaderMap,
 			Instance->Guides.RestResource->GetVertexCount(),
 			Instance->HairGroupPublicData,
 			Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV,
@@ -1135,6 +1185,7 @@ void ComputeHairStrandsInterpolation(
 
 			AddClearClusterAABBPass(
 				GraphBuilder,
+				ShaderMap,
 				Instance->HairGroupPublicData->GetClusterCount(),
 				Instance->HairGroupPublicData->GetClusterAABBBuffer().UAV,
 				Instance->HairGroupPublicData->GetGroupAABBBuffer().UAV,
@@ -1160,6 +1211,7 @@ void ComputeHairStrandsInterpolation(
 
 				AddHairStrandsInterpolationPass(
 					GraphBuilder,
+					ShaderMap,
 					ShaderDrawData,
 					Instance, 
 					Instance->Strands.RestResource->GetVertexCount(),
@@ -1203,6 +1255,7 @@ void ComputeHairStrandsInterpolation(
 			{
 				AddHairClusterAABBPass(
 					GraphBuilder,
+					ShaderMap,
 					Instance->LocalToWorld,
 					Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),
 					HairGroupCluster,
@@ -1217,6 +1270,7 @@ void ComputeHairStrandsInterpolation(
 
 			AddHairTangentPass(
 				GraphBuilder,
+				ShaderMap,
 				Instance->Strands.RestResource->GetVertexCount(),
 				Instance->HairGroupPublicData,
 				Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV, //Output.VFInput.Strands.PositionBuffer,
@@ -1294,6 +1348,7 @@ void ComputeHairStrandsInterpolation(
 
 				AddHairStrandsInterpolationPass(
 					GraphBuilder,
+					ShaderMap,
 					ShaderDrawData,
 					Instance,
 					LOD.Guides.RestResource->GetVertexCount(),
@@ -1334,7 +1389,10 @@ void ComputeHairStrandsInterpolation(
 		
 			AddHairCardsDeformationPass(
 				GraphBuilder,
+				ShaderMap,
+				ShaderDrawData,
 				Instance,
+				MeshLODIndex,
 				TransitionQueue);
 		
 			TransitBufferToReadable(GraphBuilder, TransitionQueue);
@@ -1352,6 +1410,7 @@ void ComputeHairStrandsInterpolation(
 
 void ResetHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex)
 {
@@ -1364,13 +1423,13 @@ void ResetHairStrandsInterpolation(
 	FBufferTransitionQueue TransitionQueue;
 	AddDeformSimHairStrandsPass(
 		GraphBuilder,
+		ShaderMap,
 		EDeformationType::OffsetGuide,
 		MeshLODIndex,
 		Instance->Guides.RestResource->GetVertexCount(),
 		Instance->Guides.RestRootResource,
 		Instance->Guides.DeformedRootResource,
 		Instance->Guides.RestResource->RestPositionBuffer.SRV,
-		Instance->Strands.InterpolationResource->SimRootPointIndexBuffer.SRV,
 		Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).UAV, 
 		Instance->Guides.RestResource->PositionOffset,
 		Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current), 

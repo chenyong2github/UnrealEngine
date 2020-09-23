@@ -35,7 +35,7 @@ uint ComputeMipDensity(
 		(RawDensity7 & VOXEL_HAIR_MASK);
 	TotalHair /= 8;
 
-	return min(VOXEL_HAIR_MASK, TotalHair) | OutTotalOpaque;
+	return min(uint(VOXEL_HAIR_MASK), TotalHair) | OutTotalOpaque;
 }
 
 #if SHADER_MIP_VIRTUALVOXEL
@@ -130,6 +130,7 @@ int3 PageCountResolution;
 uint PageResolution;
 uint MipIt;
 
+Buffer<uint>	  PageIndexGlobalCounter; // Allocated page counter
 Texture3D<uint>	  DensityTexture;
 Buffer<uint>	  PageToPageIndexBuffer;
 RWBuffer<uint>	  OutPageIndexBuffer;
@@ -140,6 +141,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint  MaxDispatchCountPerDim = 65535;
 	const uint  PageIndex = DispatchThreadId.x + DispatchThreadId.y * MaxDispatchCountPerDim;
 	const uint3 PageCoord = IndexToCoord(PageIndex, PageCountResolution);
+
+	const uint AllocatedPageCount = PageIndexGlobalCounter[0];
+	if (PageIndex >= AllocatedPageCount)
+		return;
 
 	const uint OutPageResolution = PageResolution >> MipIt;
 	const uint TotalVoxelPerOutPageResolution = OutPageResolution * OutPageResolution * OutPageResolution;

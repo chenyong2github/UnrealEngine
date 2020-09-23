@@ -10,6 +10,8 @@
 #include "Shader.h"
 #include "GroomDesc.h"
 
+class FGlobalShaderMap;
+
 // Reset the interpolation data. This needs to be called prior to ComputeHairStrandsInterpolation 
 // and prior to the actual hair simulation in order to insure that:
 //  1) when hair simulation is enabled, the first frame is correct
@@ -17,11 +19,13 @@
 //     we reset to deform buffer to rest state)
 void ResetHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	struct FHairGroupInstance* Instance,
 	int32 LODIndex);
 
 void ComputeHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const struct FShaderDrawDebugData* DebugShaderData,
 	struct FHairGroupInstance* Instance,
 	int32 LODIndex,

@@ -13,7 +13,7 @@ void RenderHairPrePass(
 	FHairStrandsRenderingData& OutHairDatas)
 {
 	// #hair_todo: Add multi-view
-	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
+	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
 	if (bIsViewCompatible)
 	{
 		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
@@ -38,7 +38,7 @@ void RenderHairBasePass(
 	FHairStrandsRenderingData& OutHairDatas)
 {
 	// #hair_todo: Add multi-view
-	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
+	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
 	if (bIsViewCompatible)
 	{
 		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();

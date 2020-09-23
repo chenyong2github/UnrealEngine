@@ -78,6 +78,7 @@ public:
 	{
 		FHairStrandsRestRootResource* SimRootResources = nullptr;
 		FHairStrandsRestRootResource* RenRootResources = nullptr;
+		TArray<FHairStrandsRestRootResource*> CardsRootResources;
 	};
 	typedef TArray<FHairGroupResource> FHairGroupResources;
 	FHairGroupResources HairGroupResources;
@@ -90,6 +91,7 @@ public:
 	{
 		FHairStrandsRootData SimRootData;
 		FHairStrandsRootData RenRootData;
+		TArray<FHairStrandsRootData> CardsRootData;
 	};
 	typedef TArray<FHairGroupData> FHairGroupDatas;
 	FHairGroupDatas HairGroupDatas;
@@ -132,8 +134,23 @@ public:
 
 	void Reset();
 
+	/** Return true if the binding asset is valid, i.e., correctly built and loaded. */
+	bool IsValid() const { return bIsValid;  }
+
 	//private :
 #if WITH_EDITOR
 	FOnGroomBindingAssetChanged OnGroomBindingAssetChanged;
 #endif
+
+#if WITH_EDITORONLY_DATA
+	FString BuildDerivedDataKeySuffix(USkeletalMesh* Source, USkeletalMesh* Target, UGroomAsset* Groom, uint32 NumInterpolationPoints);
+	void CacheDerivedDatas();
+	void InvalidateBinding();
+	void InvalidateBinding(class USkeletalMesh*);
+	bool bRegisterSourceMeshCallback = false;
+	bool bRegisterTargetMeshCallback = false;
+	bool bRegisterGroomAssetCallback = false;
+	FString CachedDerivedDataKey;
+#endif
+	bool bIsValid = false;
 };

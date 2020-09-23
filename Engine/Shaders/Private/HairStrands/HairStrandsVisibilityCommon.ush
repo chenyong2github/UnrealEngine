@@ -332,8 +332,8 @@ FHairAttributes DecodeHairAttribute(uint4 Attributes)
 	float2 RootUV, RootIndex;
 	RootUV.x	= float(Attributes.x & 0xFF) / 255.f;
 	RootUV.y	= 1.0-(float((Attributes.x>>8) & 0xFF) / 255.f); // Invert V to compensate image origin flip
-	RootIndex.x	= Attributes.z & 0xFF;
-	RootIndex.y	= (Attributes.z >> 8) & 0xFF;
+	RootIndex.x	= float(Attributes.z & 0xFF);
+	RootIndex.y	= float((Attributes.z >> 8) & 0xFF);
 
 	FHairAttributes Out;
 	Out.RootUV	= RootUV + RootIndex;

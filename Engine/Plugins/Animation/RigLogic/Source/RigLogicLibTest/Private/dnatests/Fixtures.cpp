@@ -2051,20 +2051,15 @@ RawJoints Fixtures::getJoints(std::uint16_t currentMaxLOD, std::uint16_t current
     joints.colCount = jointColumnCount;
     for (std::size_t i = 0ul; i < jointGroupLODs.size(); ++i) {
         RawJointGroup jntGrp{memRes};
-        jntGrp.lods.insert(jntGrp.lods.end(),
-                           jointGroupLODs[i][srcIndex].begin(),
+        jntGrp.lods.assign(jointGroupLODs[i][srcIndex].begin(),
                            jointGroupLODs[i][srcIndex].end());
-        jntGrp.inputIndices.insert(jntGrp.inputIndices.end(),
-                                   jointGroupInputIndices[i][srcIndex][0ul].begin(),
+        jntGrp.inputIndices.assign(jointGroupInputIndices[i][srcIndex][0ul].begin(),
                                    jointGroupInputIndices[i][srcIndex][0ul].end());
-        jntGrp.outputIndices.insert(jntGrp.outputIndices.end(),
-                                    jointGroupOutputIndices[i][srcIndex][0ul].begin(),
+        jntGrp.outputIndices.assign(jointGroupOutputIndices[i][srcIndex][0ul].begin(),
                                     jointGroupOutputIndices[i][srcIndex][0ul].end());
-        jntGrp.values.insert(jntGrp.values.end(),
-                             jointGroupValues[i][srcIndex][0ul].begin(),
+        jntGrp.values.assign(jointGroupValues[i][srcIndex][0ul].begin(),
                              jointGroupValues[i][srcIndex][0ul].end());
-        jntGrp.jointIndices.insert(jntGrp.jointIndices.end(),
-                                   jointGroupJointIndices[i][srcIndex][0ul].begin(),
+        jntGrp.jointIndices.assign(jointGroupJointIndices[i][srcIndex][0ul].begin(),
                                    jointGroupJointIndices[i][srcIndex][0ul].end());
         joints.jointGroups.push_back(std::move(jntGrp));
     }
@@ -2077,14 +2072,11 @@ RawBlendShapeChannels Fixtures::getBlendShapes(std::uint16_t currentMaxLOD,
                                                pma::MemoryResource* memRes) {
     RawBlendShapeChannels blendShapes{memRes};
     const auto srcIndex = lodConstraintToIndex(currentMaxLOD, currentMinLOD);
-    blendShapes.lods.insert(blendShapes.lods.end(),
-                            blendShapeLODs[srcIndex].begin(),
+    blendShapes.lods.assign(blendShapeLODs[srcIndex].begin(),
                             blendShapeLODs[srcIndex].end());
-    blendShapes.inputIndices.insert(blendShapes.inputIndices.end(),
-                                    blendShapeInputIndices[srcIndex][0ul].begin(),
+    blendShapes.inputIndices.assign(blendShapeInputIndices[srcIndex][0ul].begin(),
                                     blendShapeInputIndices[srcIndex][0ul].end());
-    blendShapes.outputIndices.insert(blendShapes.outputIndices.end(),
-                                     blendShapeOutputIndices[srcIndex][0ul].begin(),
+    blendShapes.outputIndices.assign(blendShapeOutputIndices[srcIndex][0ul].begin(),
                                      blendShapeOutputIndices[srcIndex][0ul].end());
     return blendShapes;
 }
@@ -2094,23 +2086,17 @@ RawConditionalTable Fixtures::getConditionals(std::uint16_t currentMaxLOD,
                                               pma::MemoryResource* memRes) {
     RawConditionalTable conditionals{memRes};
     const auto srcIndex = lodConstraintToIndex(currentMaxLOD, currentMinLOD);
-    conditionals.inputIndices.insert(conditionals.inputIndices.end(),
-                                     conditionalInputIndices[srcIndex][0ul].begin(),
+    conditionals.inputIndices.assign(conditionalInputIndices[srcIndex][0ul].begin(),
                                      conditionalInputIndices[srcIndex][0ul].end());
-    conditionals.outputIndices.insert(conditionals.outputIndices.end(),
-                                      conditionalOutputIndices[srcIndex][0ul].begin(),
+    conditionals.outputIndices.assign(conditionalOutputIndices[srcIndex][0ul].begin(),
                                       conditionalOutputIndices[srcIndex][0ul].end());
-    conditionals.fromValues.insert(conditionals.fromValues.end(),
-                                   conditionalFromValues[srcIndex][0ul].begin(),
+    conditionals.fromValues.assign(conditionalFromValues[srcIndex][0ul].begin(),
                                    conditionalFromValues[srcIndex][0ul].end());
-    conditionals.toValues.insert(conditionals.toValues.end(),
-                                 conditionalToValues[srcIndex][0ul].begin(),
+    conditionals.toValues.assign(conditionalToValues[srcIndex][0ul].begin(),
                                  conditionalToValues[srcIndex][0ul].end());
-    conditionals.slopeValues.insert(conditionals.slopeValues.end(),
-                                    conditionalSlopeValues[srcIndex][0ul].begin(),
+    conditionals.slopeValues.assign(conditionalSlopeValues[srcIndex][0ul].begin(),
                                     conditionalSlopeValues[srcIndex][0ul].end());
-    conditionals.cutValues.insert(conditionals.cutValues.end(),
-                                  conditionalCutValues[srcIndex][0ul].begin(),
+    conditionals.cutValues.assign(conditionalCutValues[srcIndex][0ul].begin(),
                                   conditionalCutValues[srcIndex][0ul].end());
     return conditionals;
 }
@@ -2118,8 +2104,7 @@ RawConditionalTable Fixtures::getConditionals(std::uint16_t currentMaxLOD,
 RawAnimatedMaps Fixtures::getAnimatedMaps(std::uint16_t currentMaxLOD, std::uint16_t currentMinLOD, pma::MemoryResource* memRes) {
     RawAnimatedMaps animatedMaps{memRes};
     const auto srcIndex = lodConstraintToIndex(currentMaxLOD, currentMinLOD);
-    animatedMaps.lods.insert(animatedMaps.lods.end(),
-                             animatedMapLODs[srcIndex].begin(),
+    animatedMaps.lods.assign(animatedMapLODs[srcIndex].begin(),
                              animatedMapLODs[srcIndex].end());
     animatedMaps.conditionals = getConditionals(currentMaxLOD, currentMinLOD, memRes);
     return animatedMaps;

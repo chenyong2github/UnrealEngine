@@ -5,7 +5,7 @@
 FHairGroupsMeshesSourceDescription::FHairGroupsMeshesSourceDescription()
 {
 	 ImportedMesh = nullptr;
-	 Material = nullptr;
+	 MaterialSlotName = NAME_None;
 	 GroupIndex = 0;
 	 LODIndex = -1;
 }
@@ -15,6 +15,6 @@ bool FHairGroupsMeshesSourceDescription::operator==(const FHairGroupsMeshesSourc
 	return
 		GroupIndex == A.GroupIndex && 
 		LODIndex == A.LODIndex &&
-		Material == A.Material &&
+		MaterialSlotName == A.MaterialSlotName &&
 		ImportedMesh == A.ImportedMesh;
 }

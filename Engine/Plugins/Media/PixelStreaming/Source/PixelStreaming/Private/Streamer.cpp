@@ -372,7 +372,7 @@ void FStreamer::OnQualityOwnership(FPlayerId PlayerId)
 
 void FStreamer::SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("SendPlayerMessage: %d - %s"), static_cast<int32>(Type), *Descriptor);
+	UE_LOG(PixelStreamer, Verbose, TEXT("SendPlayerMessage: %d - %s"), static_cast<int32>(Type), *Descriptor);
 
 	FScopeLock PlayersLock(&PlayersCS);
 	for (auto&& PlayerEntry : Players)

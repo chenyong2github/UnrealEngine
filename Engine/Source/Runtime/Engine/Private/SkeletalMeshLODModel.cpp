@@ -59,8 +59,6 @@ FArchive& operator<<(FArchive& Ar, FSoftSkinVertex& V)
 
 	Ar << V.Color;
 
-	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
-
 	if (Ar.IsLoading())
 	{
 		FMemory::Memzero(V.InfluenceBones);
@@ -303,6 +301,10 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID); // Also used by FSoftSkinVertex serializer
+	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
+	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
+	Ar.UsingCustomVersion(FOverlappingVerticesCustomVersion::GUID);
 
 	// When data is cooked for server platform some of the
 	// variables are not serialized so that they're always
@@ -311,7 +313,6 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 
 	Ar << S.MaterialIndex;
 
-	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
 	if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::CombineSectionWithChunk)
 	{
 		uint16 DummyChunkIndex;
@@ -359,7 +360,6 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 		}
 	}
 
-	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
 	if (Ar.CustomVer(FRecomputeTangentCustomVersion::GUID) >= FRecomputeTangentCustomVersion::RuntimeRecomputeTangent)
 	{
 		Ar << S.bRecomputeTangent;
@@ -383,7 +383,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 			Ar << S.BaseVertexIndex;
 		}
 
-		if (!StripFlags.IsEditorDataStripped() && !(Ar.IsFilterEditorOnly() && Ar.IsCountingMemory()))
+		if (!StripFlags.IsEditorDataStripped() && !(Ar.IsFilterEditorOnly() && Ar.IsCountingMemory()) && !Ar.IsObjectReferenceCollector())
 		{
 			// For backwards compat, read rigid vert array into array
 			TArray<FLegacyRigidSkinVertex> LegacyRigidVertices;
@@ -421,7 +421,6 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 			}
 		}
 
-		Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 		if (Ar.IsLoading() && Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::IncreaseBoneIndexLimitPerChunk)
 		{
 			// Previous versions only supported 8-bit bone indices and bUse16BitBoneIndex wasn't serialized 
@@ -485,8 +484,6 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 			Ar << S.ClothingData;
 		}
 
-		Ar.UsingCustomVersion(FOverlappingVerticesCustomVersion::GUID);
-		
 		if (Ar.CustomVer(FOverlappingVerticesCustomVersion::GUID) >= FOverlappingVerticesCustomVersion::DetectOVerlappingVertices)
 		{
 			Ar << S.OverlappingVertices;

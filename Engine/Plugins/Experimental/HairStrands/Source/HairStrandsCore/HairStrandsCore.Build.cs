@@ -24,7 +24,8 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 					"VectorVM",
 					"RHI",
-					"Eigen"
+					"Eigen",
+					"StaticMeshDescription"
 				});
 
 			if (Target.bBuildEditor == true)

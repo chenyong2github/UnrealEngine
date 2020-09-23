@@ -148,8 +148,8 @@ FEvaluateOutput Evaluate(
 		const bool bUseStableRasterization = UseStableRasterization();
 
 		FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo, ResolvedView.HairRenderInfoBits, bUseStableRasterization);
-		const float SceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
-		const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : SceneDepth * HairRenderInfo.RadiusAtDepth1Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
+		const float LocalSceneDepth = ConvertFromDeviceZ(SvPosition.z); // Linear depth in world unit
+		const float PixelRadius = HairRenderInfo.bIsOrthoView ? HairRenderInfo.RadiusAtDepth1Primary : LocalSceneDepth * HairRenderInfo.RadiusAtDepth1Primary; // Not correct but the coverage is not used (we count instead the number of sub-sample covered)
 		const float StrandRealRadius = WorldStrandRadius;
 		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 
@@ -173,9 +173,9 @@ FEvaluateOutput Evaluate(
 		FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
 		FPixelMaterialInputs PixelMaterialInputs;
 
-		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+		float4 LocalScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
-		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, LocalScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
 		OutSample.BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 		OutSample.Roughness = GetMaterialRoughness(PixelMaterialInputs);
@@ -208,7 +208,7 @@ void Main(
 	bool bIsValid = false;
 	if (SampleIndex < MaterialPassParameters.MaxSampleCount)
 	{
-		const FNodeVis InNode = MaterialPassParameters.NodeVis.Load(SampleIndex);
+		const FNodeVis InNode = MaterialPassParameters.NodeVis[SampleIndex];
 		
 		const uint PackedSamplePixelCoord = MaterialPassParameters.NodeCoord[SampleIndex];
 		const float2 SamplePixelCoord = float2(PackedSamplePixelCoord & 0xFFFF, (PackedSamplePixelCoord>>16) & 0xFFFF) + float2(0.5f, 0.5f);
@@ -221,8 +221,15 @@ void Main(
 		if (SampleMaterialId == MaterialPass_MaterialId)
 		{
 			FEvaluateOutput Out = Evaluate(SamplePixelCoord, SampleDepth, SamplePrimitiveId, SampleCoverage8bit, MaterialPass_PrimitiveId);
-			MaterialPassParameters.OutNodeData[SampleIndex] = Out.NodeData;
-			MaterialPassParameters.OutNodeVelocity[SampleIndex] = Out.NodeVelocity;
+
+			// Note: Use the syntax _ over the syntax . as on certain platform the UAV buffers are 
+			// stored within a static const struct preventing doing a write operation
+			//
+			// Original code:
+			// MaterialPassParameters.OutNodeData[SampleIndex] = Out.NodeData;
+			// MaterialPassParameters.OutNodeVelocity[SampleIndex] = Out.NodeVelocity;
+			MaterialPassParameters_OutNodeData[SampleIndex] = Out.NodeData;
+			MaterialPassParameters_OutNodeVelocity[SampleIndex] = Out.NodeVelocity;
 
 			bIsValid = true;
 		}

@@ -18,6 +18,7 @@ class LODConstraint {
         std::uint16_t getMinLOD() const;
         void clampTo(std::uint16_t lodCount);
         void applyTo(Vector<std::uint16_t>& unconstrainedLODs) const;
+        void applyTo(DynArray<std::uint16_t>& unconstrainedLODs) const;
 
     private:
         Vector<std::uint16_t> lods;

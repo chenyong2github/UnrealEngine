@@ -35,6 +35,23 @@ public class RigLogicLib : ModuleRules
             PrivateDefinitions.Add("RL_BUILD_SHARED=1");
         }
 
+        if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+        {
+            PrivateDefinitions.Add("TRIO_WINDOWS_FILE_MAPPING_AVAILABLE=1");
+        }
+
+        if (Target.Platform == UnrealTargetPlatform.Linux)
+        {
+            PrivateDefinitions.Add("TRIO_MREMAP_AVAILABLE=1");
+        }
+
+        if (Target.Platform == UnrealTargetPlatform.Linux ||
+                Target.Platform == UnrealTargetPlatform.Mac ||
+                Target.Platform == UnrealTargetPlatform.PS4)
+        {
+            PrivateDefinitions.Add("TRIO_MMAP_AVAILABLE=1");
+        }
+
         if (Target.Platform == UnrealTargetPlatform.Win32 ||
                 Target.Platform == UnrealTargetPlatform.Win64 ||
                 Target.Platform == UnrealTargetPlatform.Linux ||
@@ -42,6 +59,7 @@ public class RigLogicLib : ModuleRules
                 Target.Platform == UnrealTargetPlatform.PS4 ||
                 Target.Platform == UnrealTargetPlatform.XboxOne)
         {
+            PublicDefinitions.Add("TERSE_ENABLE_SSE=1");
             PrivateDefinitions.Add("RL_BUILD_WITH_SSE=1");
         }
     }

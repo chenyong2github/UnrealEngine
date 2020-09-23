@@ -236,6 +236,7 @@ FGBufferData GetGBufferData(uint2 PixelCoord)
 	GBuffer.Roughness = 1;
 	GBuffer.CustomData = float4(0,0,1,0);
 	GBuffer.Specular = 0;
+	GBuffer.Metallic = 0; // Scattering
 
 	uint MacroGroupIndex = 0;
 	const FNodeDesc NodeDesc = DecodeNodeDesc(VisibilityNodeIndex.Load(uint3(PixelCoord, 0)));
@@ -275,6 +276,7 @@ void MainPS(
 {
 	OutColor = 0;
 	OutSubPixelColor = 0;	
+	OutDiffusionTexture = 0;
 	if (Enable == 0)
 		return;
 
@@ -380,7 +382,7 @@ void MainPS(
 
 			// Use dual scattering
 			#if 0
-			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
 			{
 				TransmittanceData.Transmittance = TransmittanceMask.Transmittance;
 				TransmittanceData.HairCount = TransmittanceMask.HairCount;
@@ -412,7 +414,7 @@ void MainPS(
 
 			// Use average energy
 			#if 1
-			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
 			{
 				TransmittanceData.LocalScattering = 0;
 				TransmittanceData.OpaqueVisibility = 1;
@@ -431,7 +433,7 @@ void MainPS(
 
 			// Nothing (passthrough)
 			#if 0
-			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
 			{
 				TransmittanceData.LocalScattering = 0;
 				TransmittanceData.GlobalScattering = 0;

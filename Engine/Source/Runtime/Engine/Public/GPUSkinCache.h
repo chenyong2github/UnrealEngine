@@ -92,7 +92,8 @@ struct FCachedGeometry
 {
 	struct Section
 	{
-		FRHIShaderResourceView* PositionBuffer = nullptr;
+		FRDGBufferSRVRef RDGPositionBuffer = nullptr;		// Valid when the input comes from a manual skin cache (i.e. skinned run into compute on demand)
+		FRHIShaderResourceView* PositionBuffer = nullptr;	// Valid when the input comes from the skin cached (since it is not convert yet to RDG)
 		FRHIShaderResourceView* UVsBuffer = nullptr;
 		FRHIShaderResourceView* IndexBuffer = nullptr;
 		uint32 UVsChannelOffset = 0;
@@ -108,8 +109,7 @@ struct FCachedGeometry
 
 	int32 LODIndex = 0;
 	TArray<Section> Sections;
-	TRefCountPtr<FRDGPooledBuffer> DeformedPositionBuffer;
-	FShaderResourceViewRHIRef DeformedPositionsSRV;
+	FRDGBufferRef DeformedPositionBuffer = nullptr;
 };
 
 class FGPUSkinCache

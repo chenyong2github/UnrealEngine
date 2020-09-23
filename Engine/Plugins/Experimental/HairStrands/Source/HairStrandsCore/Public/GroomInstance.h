@@ -67,6 +67,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		FRWBuffer DebugAttributeBuffer;
 		FHairGroupInstanceModifer Modifier;
 
+		UMaterialInterface* Material = nullptr;
 	} Strands;
 
 	//////////////////////////////////////////////////////////////////////////////////////////
@@ -88,6 +89,8 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 			FHairCardsInterpolationResource* InterpolationResource = nullptr;
 
 			FStrandsBaseWithInterpolation Guides;
+
+			UMaterialInterface* Material = nullptr;
 		};
 		TArray<FLOD> LODs;
 	} Cards;
@@ -96,14 +99,17 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	// Meshes
 	struct FMeshes
 	{
-		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].RestResource != nullptr; }
+		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].RestResource != nullptr && LODs[LODIndex].DeformedResource != nullptr; }
 		struct FLOD
 		{
 			// Data
 			FHairMeshesDatas* Data = nullptr;
 
 			// Resources
-			FHairMeshesResource* RestResource = nullptr;
+			FHairMeshesRestResource* RestResource = nullptr;
+			FHairMeshesDeformedResource* DeformedResource = nullptr;
+
+			UMaterialInterface* Material = nullptr;
 		};
 		TArray<FLOD> LODs;
 	} Meshes;
@@ -123,6 +129,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		USkeletalMeshComponent*	SkeletalComponent = nullptr;
 		FString					SkeletalComponentName;
 		FTransform				SkeletalLocalToWorld = FTransform::Identity;
+		bool					bDrawCardsGuides = false;
 
 		// Transfer
 		TArray<FRWBuffer> TransferredPositions;

@@ -2,6 +2,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsMeshRBF.ush"
 
 float3 SimRestOffset;
 float3 SimDeformedOffset;
@@ -10,7 +11,6 @@ uint IterationCount;
 uint DispatchCountX;
 
 Buffer<uint4> SimRestPosePositionBuffer;
-Buffer<uint>  SimRootIndexBuffer;
 RWBuffer<uint4> OutSimDeformedPositionBuffer;
 
 
@@ -82,16 +82,7 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
 
 // Align with some normal
 #if PERMUTATION_DEFORMATION == DEFORMATION_NORMAL_DIRECTION
-	const uint RootIndex = SimRootIndexBuffer[VertexIndex];
-	const float3 V0 = f16tof32(SimRestPosePositionBuffer[RootIndex]);
-	const float3 V1 = f16tof32(SimRestPosePositionBuffer[RootIndex+1]);
-	const float3 T = normalize(V1 - V0);
-	const float D = length(Pos-V0);
-
-	const float3 Offset = V0 + D*T - Pos;
-
-	float Time = 0.5f * cos(Seed / 64.f) + 0.5f; // [0..1]
-	return Pos + lerp(0, Offset, Time);
+	return Pos;
 #endif
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE
@@ -110,22 +101,9 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_GLOBAL
 	const float3 RestControlPoint = Pos + SimRestOffset;
-	float3 ControlPoint = RestControlPoint;
-
-	// Apply rbf interpolation from the samples set
-	for(int i = 0; i < SampleCount; ++i)
-	{
-		const float3 PositionDelta = RestControlPoint - RestSamplePositionsBuffer[i];
-		const float FunctionValue = sqrt( dot(PositionDelta,PositionDelta)+1);
-		ControlPoint += FunctionValue * MeshSampleWeightsBuffer[i].xyz;
-	}
-	ControlPoint += MeshSampleWeightsBuffer[SampleCount].xyz;
-	ControlPoint += MeshSampleWeightsBuffer[SampleCount+1].xyz * RestControlPoint.x;
-	ControlPoint += MeshSampleWeightsBuffer[SampleCount+2].xyz * RestControlPoint.y;
-	ControlPoint += MeshSampleWeightsBuffer[SampleCount+3].xyz * RestControlPoint.z;
+	const float3 ControlPoint = ApplyRBF(RestControlPoint, SampleCount, RestSamplePositionsBuffer, MeshSampleWeightsBuffer);
 	return ControlPoint - SimDeformedOffset;
 #endif
-
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
