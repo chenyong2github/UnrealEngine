@@ -30,7 +30,7 @@ FMeshDescriptionHelper::FMeshDescriptionHelper(FMeshBuildSettings* InBuildSettin
 {
 }
 
-void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription)
+void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription, bool bBuildOnlyPosition)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionHelper::GetRenderMeshDescription);
 
@@ -54,6 +54,7 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 	FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, RenderMeshDescription, ComparisonThreshold);
 
 	// Compute any missing normals or tangents.
+	if (!bBuildOnlyPosition)
 	{
 		// Static meshes always blend normals of overlapping corners.
 		EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals;
@@ -66,7 +67,7 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 		FStaticMeshOperations::ComputeTangentsAndNormals(RenderMeshDescription, ComputeNTBsOptions);
 	}
 
-	if (BuildSettings->bGenerateLightmapUVs && VertexInstanceArray.Num() > 0)
+	if (BuildSettings->bGenerateLightmapUVs && !bBuildOnlyPosition && VertexInstanceArray.Num() > 0)
 	{
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 		int32 NumIndices = VertexInstanceUVs.GetNumChannels();

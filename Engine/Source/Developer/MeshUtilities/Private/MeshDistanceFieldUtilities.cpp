@@ -319,6 +319,7 @@ void FMeshDistanceFieldAsyncTask::DoWork()
 
 void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	FString MeshName,
+	const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 	const FStaticMeshLODResources& LODModel,
 	class FQueuedThreadPool& ThreadPool,
 	const TArray<EBlendMode>& MaterialBlendModes,
@@ -330,8 +331,11 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	if (DistanceFieldResolutionScale > 0)
 	{
 		const double StartTime = FPlatformTime::Seconds();
-		const FPositionVertexBuffer& PositionVertexBuffer = LODModel.VertexBuffers.PositionVertexBuffer;
-		FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+
+		const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.Indices.Num() : LODModel.IndexBuffer.GetNumIndices();
+		const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.Vertices.Num() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
+		const FStaticMeshSectionArray& Sections = SourceMeshData.IsValid() ? SourceMeshData.Sections : LODModel.Sections;
+
 		TArray<FkDOPBuildCollisionTriangle<uint32> > BuildTriangles;
 
 		RTCDevice EmbreeDevice = NULL;
@@ -376,13 +380,34 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 			&& Bounds.Origin.Z + Bounds.BoxExtent.Z > -KINDA_SMALL_NUMBER;
 
 		TArray<int32> FilteredTriangles;
-		FilteredTriangles.Empty(Indices.Num() / 3);
+		FilteredTriangles.Empty(NumIndices / 3);
 
-		for (int32 i = 0; i < Indices.Num(); i += 3)
+		for (int32 i = 0; i < NumIndices; i += 3)
 		{
-			FVector V0 = PositionVertexBuffer.VertexPosition(Indices[i + 0]);
-			FVector V1 = PositionVertexBuffer.VertexPosition(Indices[i + 1]);
-			FVector V2 = PositionVertexBuffer.VertexPosition(Indices[i + 2]);
+			int32 I0, I1, I2;
+			FVector V0, V1, V2;
+
+			if (SourceMeshData.IsValid())
+			{
+				I0 = SourceMeshData.Indices[i + 0];
+				I1 = SourceMeshData.Indices[i + 1];
+				I2 = SourceMeshData.Indices[i + 2];
+
+				V0 = SourceMeshData.Vertices[I0].Position;
+				V1 = SourceMeshData.Vertices[I1].Position;
+				V2 = SourceMeshData.Vertices[I2].Position;
+			}
+			else
+			{
+				const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+				I0 = Indices[i + 0];
+				I1 = Indices[i + 1];
+				I2 = Indices[i + 2];
+
+				V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
+				V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
+				V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
+			}
 
 			if (bMeshWasPlane)
 			{
@@ -399,9 +424,9 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 			{
 				bool bTriangleIsOpaqueOrMasked = false;
 
-				for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+				for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
 				{
-					const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+					const FStaticMeshSection& Section = Sections[SectionIndex];
 
 					if ((uint32)i >= Section.FirstIndex && (uint32)i < Section.FirstIndex + Section.NumTriangles * 3)
 					{
@@ -430,7 +455,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 
 		if (bUseEmbree)
 		{
-			GeomID = rtcNewTriangleMesh(EmbreeScene, RTC_GEOMETRY_STATIC, FilteredTriangles.Num(), PositionVertexBuffer.GetNumVertices());
+			GeomID = rtcNewTriangleMesh(EmbreeScene, RTC_GEOMETRY_STATIC, FilteredTriangles.Num(), NumVertices);
 
 			rtcSetIntersectionFilterFunction(EmbreeScene, GeomID, EmbreeFilterFunc);
 			rtcSetOcclusionFilterFunction(EmbreeScene, GeomID, EmbreeFilterFunc);
@@ -445,13 +470,30 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 
 		for (int32 TriangleIndex = 0; TriangleIndex < FilteredTriangles.Num(); TriangleIndex++)
 		{
-			int32 I0 = Indices[TriangleIndex * 3 + 0];
-			int32 I1 = Indices[TriangleIndex * 3 + 1];
-			int32 I2 = Indices[TriangleIndex * 3 + 2];
+			int32 I0, I1, I2;
+			FVector V0, V1, V2;
 
-			FVector V0 = PositionVertexBuffer.VertexPosition(I0);
-			FVector V1 = PositionVertexBuffer.VertexPosition(I1);
-			FVector V2 = PositionVertexBuffer.VertexPosition(I2);
+			if (SourceMeshData.IsValid())
+			{
+				I0 = SourceMeshData.Indices[TriangleIndex * 3 + 0];
+				I1 = SourceMeshData.Indices[TriangleIndex * 3 + 1];
+				I2 = SourceMeshData.Indices[TriangleIndex * 3 + 2];
+
+				V0 = SourceMeshData.Vertices[I0].Position;
+				V1 = SourceMeshData.Vertices[I1].Position;
+				V2 = SourceMeshData.Vertices[I2].Position;
+			}
+			else
+			{
+				const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+				I0 = Indices[TriangleIndex * 3 + 0];
+				I1 = Indices[TriangleIndex * 3 + 1];
+				I2 = Indices[TriangleIndex * 3 + 2];
+
+				V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
+				V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
+				V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
+			}
 
 			if (bMeshWasPlane)
 			{
@@ -748,7 +790,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 				VolumeDimensions.X,
 				VolumeDimensions.Y,
 				VolumeDimensions.Z,
-				Indices.Num() / 3,
+				NumIndices / 3,
 				MinVolumeDistance,
 				MaxVolumeDistance,
 				*MeshName);
@@ -768,6 +810,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 
 void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	FString MeshName,
+	const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 	const FStaticMeshLODResources& LODModel,
 	class FQueuedThreadPool& ThreadPool,
 	const TArray<EBlendMode>& MaterialBlendModes,

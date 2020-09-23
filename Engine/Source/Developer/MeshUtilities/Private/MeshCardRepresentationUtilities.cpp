@@ -21,11 +21,14 @@ bool SetupEmbreeScene(
 	FString MeshName,
 	int32 PrimitiveRangeStart, 
 	int32 PrimitiveRangeEnd, 
-	const FInputPrimitiveIds& InputPrimitiveIds, 
+	const FInputPrimitiveIds& InputPrimitiveIds,
+	const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 	const FStaticMeshLODResources& LODModel,
 	RTCDevice EmbreeDevice,
 	RTCScene& EmbreeScene)
 {
+	const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.Vertices.Num() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
+
 	EmbreeScene = rtcDeviceNewScene(EmbreeDevice, RTC_SCENE_STATIC, RTC_INTERSECT1);
 			
 	RTCError ReturnErrorNewScene = rtcDeviceGetError(EmbreeDevice);
@@ -36,14 +39,12 @@ bool SetupEmbreeScene(
 		return false;
 	}
 
-	const FPositionVertexBuffer& PositionVertexBuffer = LODModel.VertexBuffers.PositionVertexBuffer;
-	FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
 	const int32 NumTriangles = PrimitiveRangeEnd - PrimitiveRangeStart;
 
 	FVector4* EmbreeVertices = NULL;
 	int32* EmbreeIndices = NULL;
 
-	uint32 GeomID = rtcNewTriangleMesh(EmbreeScene, RTC_GEOMETRY_STATIC, NumTriangles, PositionVertexBuffer.GetNumVertices());
+	uint32 GeomID = rtcNewTriangleMesh(EmbreeScene, RTC_GEOMETRY_STATIC, NumTriangles, NumVertices);
 
 	EmbreeVertices = (FVector4*)rtcMapBuffer(EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
 	EmbreeIndices = (int32*)rtcMapBuffer(EmbreeScene, GeomID, RTC_INDEX_BUFFER);
@@ -51,13 +52,31 @@ bool SetupEmbreeScene(
 	for (int32 PrimitiveIndex = PrimitiveRangeStart; PrimitiveIndex < PrimitiveRangeEnd; PrimitiveIndex++)
 	{
 		int32 TriangleIndex = InputPrimitiveIds[PrimitiveIndex];
-		int32 I0 = Indices[TriangleIndex * 3 + 0];
-		int32 I1 = Indices[TriangleIndex * 3 + 1];
-		int32 I2 = Indices[TriangleIndex * 3 + 2];
 
-		FVector V0 = PositionVertexBuffer.VertexPosition(I0);
-		FVector V1 = PositionVertexBuffer.VertexPosition(I1);
-		FVector V2 = PositionVertexBuffer.VertexPosition(I2);
+		int32 I0, I1, I2;
+		FVector V0, V1, V2;
+
+		if (SourceMeshData.IsValid())
+		{
+			I0 = SourceMeshData.Indices[TriangleIndex * 3 + 0];
+			I1 = SourceMeshData.Indices[TriangleIndex * 3 + 1];
+			I2 = SourceMeshData.Indices[TriangleIndex * 3 + 2];
+
+			V0 = SourceMeshData.Vertices[I0].Position;
+			V1 = SourceMeshData.Vertices[I1].Position;
+			V2 = SourceMeshData.Vertices[I2].Position;
+		}
+		else
+		{
+			const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+			I0 = Indices[TriangleIndex * 3 + 0];
+			I1 = Indices[TriangleIndex * 3 + 1];
+			I2 = Indices[TriangleIndex * 3 + 2];
+
+			V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
+			V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
+			V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
+		}
 
 		EmbreeIndices[TriangleIndex * 3 + 0] = I0;
 		EmbreeIndices[TriangleIndex * 3 + 1] = I1;
@@ -110,14 +129,12 @@ public:
 	const FString& MeshName;
 	RTCScene FullMeshEmbreeScene;
 	RTCDevice EmbreeDevice;
-	const FStaticMeshLODResources& LODModel;
 	FCardRepresentationData& OutData;
 
-	FGenerateCardMeshContext(const FString& InMeshName, RTCScene InEmbreeScene, RTCDevice InEmbreeDevice, const FStaticMeshLODResources& InLODModel, FCardRepresentationData& InOutData) :
+	FGenerateCardMeshContext(const FString& InMeshName, RTCScene InEmbreeScene, RTCDevice InEmbreeDevice, FCardRepresentationData& InOutData) :
 		MeshName(InMeshName),
 		FullMeshEmbreeScene(InEmbreeScene),
 		EmbreeDevice(InEmbreeDevice),
-		LODModel(InLODModel),
 		OutData(InOutData)
 	{}
 };
@@ -517,6 +534,7 @@ void BuildCubeMapTree(const FBox& CardBounds, const FGenerateCardMeshContext& Co
 
 bool FMeshUtilities::GenerateCardRepresentationData(
 	FString MeshName,
+	const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 	const FStaticMeshLODResources& LODModel,
 	class FQueuedThreadPool& ThreadPool,
 	const FBoxSphereBounds& Bounds,
@@ -535,9 +553,8 @@ bool FMeshUtilities::GenerateCardRepresentationData(
 		return false;
 	}
 
-	const FPositionVertexBuffer& PositionVertexBuffer = LODModel.VertexBuffers.PositionVertexBuffer;
-	FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
-	const int32 NumTriangles = Indices.Num() / 3;
+	const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.Indices.Num() : LODModel.IndexBuffer.GetNumIndices();
+	const int32 NumTriangles = NumIndices / 3;
 
 	FInputPrimitiveIds InputPrimitiveIds;
 	InputPrimitiveIds.Reserve(NumTriangles);
@@ -549,14 +566,14 @@ bool FMeshUtilities::GenerateCardRepresentationData(
 
 	RTCScene EmbreeScene = nullptr;
 
-	const bool bEmbreeSetup = SetupEmbreeScene(MeshName, 0, NumTriangles, InputPrimitiveIds, LODModel, EmbreeDevice, EmbreeScene);
+	const bool bEmbreeSetup = SetupEmbreeScene(MeshName, 0, NumTriangles, InputPrimitiveIds, SourceMeshData, LODModel, EmbreeDevice, EmbreeScene);
 
 	if (!bEmbreeSetup)
 	{
 		return false;
 	}
 
-	FGenerateCardMeshContext Context(MeshName, EmbreeScene, EmbreeDevice, LODModel, OutData);
+	FGenerateCardMeshContext Context(MeshName, EmbreeScene, EmbreeDevice, OutData);
 
 	BuildCubeMapTree(Bounds.GetBox(), Context, OutData);
 

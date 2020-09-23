@@ -19,6 +19,7 @@ class UStaticMeshComponent;
 struct FFlattenMaterial;
 struct FRawMesh;
 struct FStaticMeshLODResources;
+class FSourceMeshDataForDerivedDataTask;
 
 typedef FIntPoint FMeshIdAndLOD;
 struct FFlattenMaterial;
@@ -205,6 +206,7 @@ public:
 	/** Builds a signed distance field volume for the given LODModel. */
 	virtual void GenerateSignedDistanceFieldVolumeData(
 		FString MeshName,
+		const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 		const FStaticMeshLODResources& LODModel,
 		class FQueuedThreadPool& ThreadPool,
 		const TArray<EBlendMode>& MaterialBlendModes,
@@ -215,6 +217,7 @@ public:
 
 	virtual bool GenerateCardRepresentationData(
 		FString MeshName,
+		const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 		const FStaticMeshLODResources& LODModel,
 		class FQueuedThreadPool& ThreadPool,
 		const FBoxSphereBounds& Bounds,

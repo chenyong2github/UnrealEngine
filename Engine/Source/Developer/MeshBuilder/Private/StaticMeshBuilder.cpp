@@ -376,6 +376,7 @@ bool FStaticMeshBuilder::Build(
 	TArray< FStaticMeshBuildVertex >& Verts,
 	TArray< uint32 >& Indexes,
 	FStaticMeshSectionArray& Sections,
+	bool bBuildOnlyPosition,
 	uint32& NumTexCoords,
 	bool& bHasColors )
 {
@@ -399,7 +400,7 @@ bool FStaticMeshBuilder::Build(
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::Build::Mappings"));
 		MeshDescription = *OriginalMeshDescription;
-		MeshDescriptionHelper.SetupRenderMeshDescription( StaticMesh, MeshDescription);
+		MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescription, bBuildOnlyPosition);
 	}
 	else
 	{

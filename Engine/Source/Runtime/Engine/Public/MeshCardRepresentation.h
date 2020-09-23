@@ -14,6 +14,7 @@
 #include "RenderResource.h"
 #include "RenderingThread.h"
 #include "Templates/UniquePtr.h"
+#include "DerivedMeshDataTaskUtils.h"
 
 template <class T> class TLockFreePointerListLIFO;
 
@@ -142,7 +143,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	void CacheDerivedData(const FString& InDDCKey, UStaticMesh* Mesh, UStaticMesh* GenerateSource);
+	void CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData);
 
 #endif
 
@@ -160,6 +161,8 @@ public:
 	FAsyncCardRepresentationTask();
 
 	bool bSuccess = false;
+
+	FSourceMeshDataForDerivedDataTask SourceMeshData;
 	UStaticMesh* StaticMesh;
 	UStaticMesh* GenerateSource;
 	FString DDCKey;
@@ -228,4 +231,4 @@ extern ENGINE_API FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue;
 
 extern ENGINE_API FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey);
 
-extern ENGINE_API void BeginCacheMeshCardRepresentation(UStaticMesh* StaticMeshAsset, class FStaticMeshRenderData& RenderData, const FString& DistanceFieldKey);
+extern ENGINE_API void BeginCacheMeshCardRepresentation(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMeshAsset, class FStaticMeshRenderData& RenderData, const FString& DistanceFieldKey, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData);

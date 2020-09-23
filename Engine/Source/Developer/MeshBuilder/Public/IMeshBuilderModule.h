@@ -36,6 +36,7 @@ public:
 		TArray< FStaticMeshBuildVertex >& Verts,
 		TArray< uint32 >& Indexes,
 		FStaticMeshSectionArray& Sections,
+		bool bBuildOnlyPosition,
 		uint32& NumTexCoords,
 		bool& bHasColors )
 	{

@@ -21,7 +21,7 @@ public:
 	FMeshDescriptionHelper(FMeshBuildSettings* InBuildSettings);
 
 	//Build a render mesh description with the BuildSettings. This will update the RenderMeshDescription in place
-	void SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription);
+	void SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription, bool bBuildOnlyPosition = false);
 
 	void ReduceLOD(const FMeshDescription& BaseMesh, FMeshDescription& DestMesh, const struct FMeshReductionSettings& ReductionSettings, const FOverlappingCorners& InOverlappingCorners, float &OutMaxDeviation);
 

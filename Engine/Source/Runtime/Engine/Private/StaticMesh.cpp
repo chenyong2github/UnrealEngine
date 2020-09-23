@@ -2658,7 +2658,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				BuildSettings.DistanceFieldReplacementMesh->ConditionalPostLoad();
 			}
 
-			LODResources[0].DistanceFieldData->CacheDerivedData(DistanceFieldKey, Owner, *this, MeshToGenerateFrom, BuildSettings.DistanceFieldResolutionScale, BuildSettings.bGenerateDistanceFieldAsIfTwoSided);
+			LODResources[0].DistanceFieldData->CacheDerivedData(DistanceFieldKey, TargetPlatform, Owner, *this, MeshToGenerateFrom, BuildSettings.DistanceFieldResolutionScale, BuildSettings.bGenerateDistanceFieldAsIfTwoSided);
 		}
 		else
 		{
@@ -2667,7 +2667,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 	}
 	else
 	{
-		BeginCacheMeshCardRepresentation(Owner, *this, DerivedDataKey);
+		BeginCacheMeshCardRepresentation(TargetPlatform, Owner, *this, DerivedDataKey, /* OptionalSourceMeshData */ nullptr);
 	}
 }
 #endif // #if WITH_EDITOR

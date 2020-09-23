@@ -96,6 +96,7 @@ private:
 
 	virtual void GenerateSignedDistanceFieldVolumeData(
 		FString MeshName,
+		const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 		const FStaticMeshLODResources& LODModel,
 		class FQueuedThreadPool& ThreadPool,
 		const TArray<EBlendMode>& MaterialBlendModes,
@@ -108,6 +109,7 @@ private:
 
 	virtual bool GenerateCardRepresentationData(
 		FString MeshName,
+		const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 		const FStaticMeshLODResources& LODModel,
 		class FQueuedThreadPool& ThreadPool,
 		const FBoxSphereBounds& Bounds,

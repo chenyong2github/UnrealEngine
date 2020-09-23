@@ -15,6 +15,7 @@
 #include "RenderingThread.h"
 #include "TextureLayout3d.h"
 #include "Templates/UniquePtr.h"
+#include "DerivedMeshDataTaskUtils.h"
 
 class FDistanceFieldVolumeData;
 class UStaticMesh;
@@ -363,7 +364,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	void CacheDerivedData(const FString& InDDCKey, UStaticMesh* Mesh, class FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);
+	void CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, class FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);
 
 #endif
 
@@ -382,10 +383,12 @@ public:
 	FAsyncDistanceFieldTask();
 
 	TArray<EBlendMode> MaterialBlendModes;
+	FSourceMeshDataForDerivedDataTask SourceMeshData;
 	UStaticMesh* StaticMesh;
 	UStaticMesh* GenerateSource;
 	float DistanceFieldResolutionScale;
 	bool bGenerateDistanceFieldAsIfTwoSided;
+	const ITargetPlatform* TargetPlatform;
 	FString DDCKey;
 	FDistanceFieldVolumeData* GeneratedVolumeData;
 };

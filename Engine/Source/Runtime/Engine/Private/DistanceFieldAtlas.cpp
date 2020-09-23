@@ -21,6 +21,7 @@
 #include "GlobalShader.h"
 #include "RenderGraph.h"
 #include "MeshCardRepresentation.h"
+#include "IMeshBuilderModule.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -871,7 +872,7 @@ FDistanceFieldAsyncQueue* GDistanceFieldAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for distance field data, must be changed when modifying the generation code or data format
-#define DISTANCEFIELD_DERIVEDDATA_VER TEXT("6CBBF5D788CA4699B140BAEC2A3B6B67")
+#define DISTANCEFIELD_DERIVEDDATA_VER TEXT("CA7B773FC3D44F4B8E72678A8BE829DA")
 
 FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 {
@@ -905,7 +906,7 @@ FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 
 #if WITH_EDITORONLY_DATA
 
-void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStaticMesh* Mesh, FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided)
+void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided)
 {
 	TArray<uint8> DerivedData;
 
@@ -916,7 +917,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStatic
 		FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 		Ar << *this;
 
-		BeginCacheMeshCardRepresentation(Mesh, RenderData, InDDCKey);
+		BeginCacheMeshCardRepresentation(TargetPlatform, Mesh, RenderData, InDDCKey, /*OptionalSourceMeshData*/ nullptr);
 	}
 	else
 	{
@@ -925,6 +926,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStatic
 		FAsyncDistanceFieldTask* NewTask = new FAsyncDistanceFieldTask;
 		NewTask->DDCKey = InDDCKey;
 		check(Mesh && GenerateSource);
+		NewTask->TargetPlatform = TargetPlatform;
 		NewTask->StaticMesh = Mesh;
 		NewTask->GenerateSource = GenerateSource;
 		NewTask->DistanceFieldResolutionScale = DistanceFieldResolutionScale;
@@ -943,6 +945,22 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStatic
 			}
 
 			NewTask->MaterialBlendModes.Add(BlendMode);
+		}
+
+		// Nanite overrides source static mesh with a coarse representation. Need to load original data before we build the mesh SDF.
+		if (Mesh->NaniteSettings.bEnabled)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FDistanceFieldVolumeData::BuildMesh"));
+
+			uint32 NumTexCoords = 0;
+			bool bHasColors = false;
+
+			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
+			if (!MeshBuilderModule.BuildMesh(Mesh, NewTask->SourceMeshData.Vertices, NewTask->SourceMeshData.Indices, NewTask->SourceMeshData.Sections, /* bBuildOnlyPosition */ true, NumTexCoords, bHasColors))
+			{
+				UE_LOG(LogStaticMesh, Error, TEXT("Failed to build static mesh. See previous line(s) for details."));
+				return;
+			}
 		}
 
 		GDistanceFieldAsyncQueue->AddTask(NewTask);
@@ -1212,6 +1230,7 @@ void FDistanceFieldAsyncQueue::Build(FAsyncDistanceFieldTask* Task, FQueuedThrea
 
 		MeshUtilities->GenerateSignedDistanceFieldVolumeData(
 			Task->StaticMesh->GetName(),
+			Task->SourceMeshData,
 			LODModel,
 			ThreadPool,
 			Task->MaterialBlendModes,
@@ -1292,7 +1311,7 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks()
 				COOK_STAT(Timer.AddMiss(DerivedData.Num()));
 			}
 
-			BeginCacheMeshCardRepresentation(Task->StaticMesh, *Task->StaticMesh->RenderData, Task->DDCKey);
+			BeginCacheMeshCardRepresentation(Task->TargetPlatform, Task->StaticMesh, *Task->StaticMesh->RenderData, Task->DDCKey, &Task->SourceMeshData);
 		}
 
 		delete Task;

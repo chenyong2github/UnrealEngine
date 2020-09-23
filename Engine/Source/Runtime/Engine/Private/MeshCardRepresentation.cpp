@@ -17,6 +17,7 @@
 #include "Engine/StaticMesh.h"
 #include "Misc/AutomationTest.h"
 #include "Async/ParallelFor.h"
+#include "IMeshBuilderModule.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -51,7 +52,7 @@ FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for card representation data, must be changed when modifying the generation code or data format
-#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("BD2E2E564F0C5A69A37178216589A7D2")
+#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("378A453D4B7A4B163E62A302B1EE8BD8")
 
 FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey)
 {
@@ -67,7 +68,7 @@ FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey)
 
 #if WITH_EDITORONLY_DATA
 
-void BeginCacheMeshCardRepresentation(UStaticMesh* StaticMeshAsset, FStaticMeshRenderData& RenderData, const FString& DistanceFieldKey)
+void BeginCacheMeshCardRepresentation(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMeshAsset, FStaticMeshRenderData& RenderData, const FString& DistanceFieldKey, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData)
 {
 	static const auto CVarCards = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MeshCardRepresentation"));
 
@@ -83,12 +84,12 @@ void BeginCacheMeshCardRepresentation(UStaticMesh* StaticMeshAsset, FStaticMeshR
 
 			UStaticMesh* MeshToGenerateFrom = StaticMeshAsset;
 
-			RenderData.LODResources[0].CardRepresentationData->CacheDerivedData(Key, StaticMeshAsset, MeshToGenerateFrom);
+			RenderData.LODResources[0].CardRepresentationData->CacheDerivedData(Key, TargetPlatform, StaticMeshAsset, MeshToGenerateFrom, OptionalSourceMeshData);
 		}
 	}
 }
 
-void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, UStaticMesh* Mesh, UStaticMesh* GenerateSource)
+void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData)
 {
 	TArray<uint8> DerivedData;
 
@@ -109,6 +110,26 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, UStaticM
 		NewTask->StaticMesh = Mesh;
 		NewTask->GenerateSource = GenerateSource;
 		NewTask->GeneratedCardRepresentation = new FCardRepresentationData();
+
+		// Nanite overrides source static mesh with a coarse representation. Need to load original data before we build the mesh SDF.
+		if (OptionalSourceMeshData)
+		{
+			NewTask->SourceMeshData = *OptionalSourceMeshData;
+		}
+		else if (Mesh->NaniteSettings.bEnabled)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FCardRepresentationData::BuildMesh"));
+
+			uint32 NumTexCoords = 0;
+			bool bHasColors = false;
+
+			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
+			if (!MeshBuilderModule.BuildMesh(Mesh, NewTask->SourceMeshData.Vertices, NewTask->SourceMeshData.Indices, NewTask->SourceMeshData.Sections, /* bBuildOnlyPosition */ true, NumTexCoords, bHasColors))
+			{
+				UE_LOG(LogStaticMesh, Error, TEXT("Failed to build static mesh. See previous line(s) for details."));
+				return;
+			}
+		}
 
 		GCardRepresentationAsyncQueue->AddTask(NewTask);
 	}
@@ -372,6 +393,7 @@ void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQ
 
 		Task->bSuccess = MeshUtilities->GenerateCardRepresentationData(
 			Task->StaticMesh->GetName(),
+			Task->SourceMeshData,
 			LODModel,
 			ThreadPool,
 			Task->GenerateSource->RenderData->Bounds,

@@ -33,6 +33,7 @@ public:
 		TArray< FStaticMeshBuildVertex >& Verts,
 		TArray< uint32 >& Indexes,
 		FStaticMeshSectionArray& Sections,
+		bool bBuildOnlyPosition,
 		uint32& NumTexCoords,
 		bool& bHasColors ) override;
 
@@ -60,6 +61,7 @@ bool FMeshBuilderModule::BuildMesh(
 	TArray< FStaticMeshBuildVertex >& Verts,
 	TArray< uint32 >& Indexes,
 	FStaticMeshSectionArray& Sections,
+	bool bBuildOnlyPosition,
 	uint32& NumTexCoords,
 	bool& bHasColors )
 {
@@ -67,7 +69,7 @@ bool FMeshBuilderModule::BuildMesh(
 	if( StaticMesh )
 	{
 		//Call the static mesh builder
-		return FStaticMeshBuilder().Build( StaticMesh, Verts, Indexes, Sections, NumTexCoords, bHasColors );
+		return FStaticMeshBuilder().Build( StaticMesh, Verts, Indexes, Sections, bBuildOnlyPosition, NumTexCoords, bHasColors );
 	}
 	return false;
 }
