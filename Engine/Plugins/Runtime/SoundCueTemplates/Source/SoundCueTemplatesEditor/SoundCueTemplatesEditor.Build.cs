@@ -6,22 +6,23 @@ public class SoundCueTemplatesEditor : ModuleRules
 {
 	public SoundCueTemplatesEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(
-            new string[]
-            {
-                "Core",
-                "SoundCueTemplates",
-                "ToolMenus"
-            }
-        );
+		PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"SoundCueTemplates",
+				"ToolMenus"
+			}
+		);
 
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
                 "CoreUObject",
 				"EditorFramework",
+				"GameProjectGeneration",
                 "EditorStyle",
                 "Engine",
                 "UnrealEd",
@@ -31,10 +32,10 @@ public class SoundCueTemplatesEditor : ModuleRules
             }
         );
 
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "AssetTools"
-            }
-        );
-    }
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"AssetTools"
+			}
+		);
+	}
 }
