@@ -475,7 +475,7 @@ FProcHandle FMacPlatformProcess::CreateProcInternal(const TCHAR* URL, const TCHA
 
 		if (DyldInsertLibrariesEnvVarIndex != -1)
 		{
-			EnvVariables = (char**)FMemory::Malloc(sizeof(char*) + 1);
+			EnvVariables = (char**)FMemory::Malloc(sizeof(char*) * NumEnvVariables + 1);
 
 			int32 NewCount = 0;
 			for (int32 VarIndex = 0; VarIndex < NumEnvVariables; ++VarIndex)
