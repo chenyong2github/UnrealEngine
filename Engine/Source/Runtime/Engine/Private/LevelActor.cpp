@@ -558,6 +558,9 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	Actor->bIsEditorPreviewActor = SpawnParameters.bTemporaryEditorActor;
 #endif //WITH_EDITOR
 
+	// Broadcast delegate before the actor and its contained components are initialized
+	OnActorPreSpawnInitialization.Broadcast(Actor);
+
 	Actor->PostSpawnInitialize(UserTransform, SpawnParameters.Owner, SpawnParameters.Instigator, SpawnParameters.IsRemoteOwned(), SpawnParameters.bNoFail, SpawnParameters.bDeferConstruction);
 
 	// if we are spawning an external actor, clear the dirty flag after post spawn initialize which might have dirtied the level package through running construction scripts
