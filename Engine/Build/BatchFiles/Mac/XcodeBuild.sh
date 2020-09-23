@@ -62,20 +62,20 @@ if [ "$ACTION" == "build" ]; then
 	# flags based on platform
 	case $PLATFORM in 
 		"IOS")
-			AdditionalFlags += " -deploy"
+			AdditionalFlags="${AdditionalFlags} -deploy"
 		;;
 
 		"TVOS")
-			AdditionalFlags += " -deploy"
+			AdditionalFlags="${AdditionalFlags} -deploy"
 		;;
 	esac
 
 	case $CLANG_STATIC_ANALYZER_MODE in
 		"deep")
-			AdditionalFlags+="-SkipActionHistory"
+			AdditionalFlags="${AdditionalFlags} -SkipActionHistory"
 			;;
 		"shallow")
-			AdditionalFlags+="-SkipActionHistory"
+			AdditionalFlags="${AdditionalFlags} -SkipActionHistory"
 			;;
 	esac
 
