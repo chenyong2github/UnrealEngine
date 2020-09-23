@@ -38,19 +38,27 @@ UThumbnailInfo* FAssetTypeActions_World::GetThumbnailInfo(UObject* Asset) const
 	return ThumbnailInfo;
 }
 
-bool FAssetTypeActions_World::CanLoadAssetForPreviewOrEdit(const FAssetData& InAssetData)
+TArray<FAssetData> FAssetTypeActions_World::GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDatas, bool bIsPreview)
 {
-	if (!FEditorFileUtils::IsMapPackageAsset(InAssetData.ObjectPath.ToString()))
+	TArray<FAssetData> AssetsToOpen;
+	for (const FAssetData& AssetData : InAssetDatas)
 	{
-		return false;
+		if (FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString()))
+		{
+			// If there are any unsaved changes to the current level, see if the user wants to save those first
+			// If they do not wish to save, then we will bail out of opening this asset.
+			constexpr bool bPromptUserToSave = true;
+			constexpr bool bSaveMapPackages = true;
+			constexpr bool bSaveContentPackages = true;
+			if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages))
+			{
+				AssetsToOpen.Add(AssetData);
+			}
+			break;
+		}
 	}
 
-	// If there are any unsaved changes to the current level, see if the user wants to save those first
-	// If they do not wish to save, then we will bail out of opening this asset.
-	bool bPromptUserToSave = true;
-	bool bSaveMapPackages = true;
-	bool bSaveContentPackages = true;
-	return FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages);
+	return MoveTemp(AssetsToOpen);
 }
 
 #undef LOCTEXT_NAMESPACE
