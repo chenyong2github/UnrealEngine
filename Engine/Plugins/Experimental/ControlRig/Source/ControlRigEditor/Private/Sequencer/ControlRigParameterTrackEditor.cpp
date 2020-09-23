@@ -1408,17 +1408,6 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 			return;
 		}
 		ActorObject = Component->GetOwner();
-		if (bSelected)
-		{
-			//make sure the actor is selected, otherwise we really can't select the proxies.
-			if (AActor* SkelMeshActor = Cast<AActor>(ActorObject))
-			{
-				if (SkelMeshActor->IsSelected() == false)
-				{
-					GEditor->SelectActor(SkelMeshActor, true, true, false);
-				}
-			}
-		}
 		bool bCreateTrack = false;
 		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(Component);
 		FGuid ObjectHandle = HandleResult.Handle;
