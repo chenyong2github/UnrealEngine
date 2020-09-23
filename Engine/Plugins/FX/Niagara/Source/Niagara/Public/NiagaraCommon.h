@@ -312,6 +312,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	uint32 bWriteFunction : 1;
 
+	/** Whether or not this function should show up in normal usage. */
+	UPROPERTY()
+	uint32 bSoftDeprecatedFunction : 1;
+
 	/** Bitmask for which scripts are supported for this function. Use UNiagaraScript::MakeSupportedUsageContextBitmask to make the bitmask. */
 	UPROPERTY(meta = (Bitmask, BitmaskEnum = ENiagaraScriptUsage))
 	int32 ModuleUsageBitmask;
@@ -341,6 +345,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, bSoftDeprecatedFunction(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageMinIndex(INDEX_NONE)
 		, ContextStageMaxIndex(INDEX_NONE)
@@ -358,6 +363,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, bSoftDeprecatedFunction(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageMinIndex(INDEX_NONE)
 		, ContextStageMaxIndex(INDEX_NONE)
@@ -376,6 +382,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, bSoftDeprecatedFunction(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageMinIndex(INDEX_NONE)
 		, ContextStageMaxIndex(INDEX_NONE)
