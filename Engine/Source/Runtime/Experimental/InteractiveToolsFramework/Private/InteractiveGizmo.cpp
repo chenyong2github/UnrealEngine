@@ -26,6 +26,9 @@ void UInteractiveGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
+void UInteractiveGizmo::DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI )
+{
+}
 
 void UInteractiveGizmo::AddInputBehavior(UInputBehavior* Behavior)
 {
