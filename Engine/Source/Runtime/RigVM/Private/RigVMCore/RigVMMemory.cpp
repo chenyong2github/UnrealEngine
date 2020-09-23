@@ -1000,7 +1000,10 @@ bool FRigVMMemoryContainer::Copy(
 			UScriptStruct* ScriptStruct = GetScriptStruct(InTargetRegisterIndex, InTargetRegisterOffset);
 			int32 NumStructs = InNumBytes / ScriptStruct->GetStructureSize();
 			ensure(NumStructs * ScriptStruct->GetStructureSize() == InNumBytes);
-			ScriptStruct->CopyScriptStruct(InTargetPtr, InSourcePtr, NumStructs);
+			if (NumStructs > 0 && InTargetPtr)
+			{
+				ScriptStruct->CopyScriptStruct(InTargetPtr, InSourcePtr, NumStructs);
+			}
 			break;
 		}
 		case ERigVMRegisterType::Name:
