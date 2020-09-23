@@ -79,6 +79,20 @@ public:
 	}
 
 	/**
+	* Sets re-usability of the bound address by other sockets.
+	*
+	* @param bInReusable Whether to enable or disable re-usability of the bound address.
+	* @return This instance (for method chaining).
+	* @see AsNonBlocking, AsNonBlocking
+	*/
+	FTcpSocketBuilder AsReusable(bool bInReusable)
+	{
+		Reusable = bInReusable;
+
+		return *this;
+	}
+
+	/**
  	 * Sets the local address to bind the socket to.
 	 *
 	 * Unless specified in a subsequent call to BoundToPort(), a random
