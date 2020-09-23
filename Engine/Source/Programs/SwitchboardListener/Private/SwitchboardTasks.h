@@ -9,9 +9,6 @@ enum class ESwitchboardTaskType : uint8
 	Start,
 	Kill,
 	KillAll,
-	VcsInit,
-	VcsReportRevision,
-	VcsSync,
 	Restart,
 	ReceiveFileFromClient,
 	SendFileToClient,
@@ -77,40 +74,6 @@ struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
 	{}
 
 	FString Source;
-};
-
-struct FSwitchboardVcsInitTask : public FSwitchboardTask
-{
-	FSwitchboardVcsInitTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InVcsProviderName, const TMap<FString, FString>& InVcsSettings)
-		: FSwitchboardTask{ ESwitchboardTaskType::VcsInit, TEXT("vcs init"), InTaskId, InEndpoint }
-		, ProviderName(InVcsProviderName)
-		, VcsSettings(InVcsSettings)
-	{}
-
-	FString ProviderName;
-	TMap<FString, FString> VcsSettings;
-};
-
-struct FSwitchboardVcsReportRevisionTask : public FSwitchboardTask
-{
-	FSwitchboardVcsReportRevisionTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InPath)
-		: FSwitchboardTask{ ESwitchboardTaskType::VcsReportRevision, TEXT("vcs report revision"), InTaskId, InEndpoint }
-		, Path(InPath)
-	{}
-
-	FString Path;
-};
-
-struct FSwitchboardVcsSyncTask : public FSwitchboardTask
-{
-	FSwitchboardVcsSyncTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InRevision, const FString& InPath)
-		: FSwitchboardTask{ ESwitchboardTaskType::VcsSync, TEXT("vcs sync"), InTaskId, InEndpoint }
-		, Revision(InRevision)
-		, Path(InPath)
-	{}
-
-	FString Revision;
-	FString Path;
 };
 
 struct FSwitchboardDisconnectTask : public FSwitchboardTask

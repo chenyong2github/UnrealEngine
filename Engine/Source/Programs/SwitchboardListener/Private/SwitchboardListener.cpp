@@ -4,7 +4,6 @@
 
 #include "SwitchboardListenerApp.h"
 #include "SwitchboardProtocol.h"
-#include "SwitchboardSourceControl.h"
 #include "SwitchboardTasks.h"
 
 #include "Common/TcpListener.h"
@@ -71,7 +70,6 @@ struct FRunningProcess
 FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
 	: Endpoint(MakeUnique<FIPv4Endpoint>(InEndpoint))
 	, SocketListener(nullptr)
-	, SourceControl(MakeUnique<FSwitchboardSourceControl>())
 {
 }
 
@@ -82,10 +80,16 @@ FSwitchboardListener::~FSwitchboardListener()
 
 bool FSwitchboardListener::Init()
 {
-	SocketListener = MakeUnique<FTcpListener>(*Endpoint);
-	SocketListener->OnConnectionAccepted().BindRaw(this, &FSwitchboardListener::OnIncomingConnection);
-	UE_LOG(LogSwitchboard, Display, TEXT("Started listening on %s:%d"), *SocketListener->GetLocalEndpoint().Address.ToString(), SocketListener->GetLocalEndpoint().Port);
-	return true;
+	SocketListener = MakeUnique<FTcpListener>(*Endpoint, FTimespan::FromSeconds(1), false);
+	if (SocketListener->IsActive())
+	{
+		SocketListener->OnConnectionAccepted().BindRaw(this, &FSwitchboardListener::OnIncomingConnection);
+		UE_LOG(LogSwitchboard, Display, TEXT("Started listening on %s:%d"), *SocketListener->GetLocalEndpoint().Address.ToString(), SocketListener->GetLocalEndpoint().Port);
+		return true;
+	}
+
+	UE_LOG(LogSwitchboard, Error, TEXT("Could not create Tcp Listener!"));
+	return false;
 }
 
 bool FSwitchboardListener::Tick()
@@ -98,19 +102,6 @@ bool FSwitchboardListener::Tick()
 
 			FIPv4Endpoint ClientEndpoint = Connection.Key;
 			LastActivityTime.FindOrAdd(ClientEndpoint, FPlatformTime::Seconds());
-
-			SourceControl->ConnectCompleteDelegate.BindLambda([this, ClientEndpoint](bool bInSuccess, FString InErrorMessage)
-			{
-				OnSourceControlConnectFinished(bInSuccess, InErrorMessage, ClientEndpoint);
-			});
-			SourceControl->ReportRevisionCompleteDelegate.BindLambda([this, ClientEndpoint](bool bInSuccess, FString InRevision, FString InErrorMessage)
-			{
-				OnSourceControlReportRevisionFinished(bInSuccess, InRevision, InErrorMessage, ClientEndpoint);
-			});
-			SourceControl->SyncCompleteDelegate.BindLambda([this, ClientEndpoint](bool bInSuccess, FString InRevision, FString InErrorMessage)
-			{
-				OnSourceControlSyncFinished(bInSuccess, InRevision, InErrorMessage, ClientEndpoint);
-			});
 		}
 	}
 
@@ -238,21 +229,6 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		{
 			const FSwitchboardSendFileToClientTask& SendFileToClientTask = static_cast<const FSwitchboardSendFileToClientTask&>(InTask);
 			return SendFileToClient(SendFileToClientTask);
-		}
-		case ESwitchboardTaskType::VcsInit:
-		{
-			const FSwitchboardVcsInitTask& VcsInitTask = static_cast<const FSwitchboardVcsInitTask&>(InTask);
-			return InitVersionControlSystem(VcsInitTask);
-		}
-		case ESwitchboardTaskType::VcsReportRevision:
-		{
-			const FSwitchboardVcsReportRevisionTask& VcsRevisionTask = static_cast<const FSwitchboardVcsReportRevisionTask&>(InTask);
-			return ReportVersionControlRevision(VcsRevisionTask);
-		}
-		case ESwitchboardTaskType::VcsSync:
-		{
-			const FSwitchboardVcsSyncTask& VcsSyncTask = static_cast<const FSwitchboardVcsSyncTask&>(InTask);
-			return SyncVersionControl(VcsSyncTask);
 		}
 		case ESwitchboardTaskType::KeepAlive:
 		{
@@ -396,39 +372,6 @@ bool FSwitchboardListener::SendFileToClient(const FSwitchboardSendFileToClientTa
 	return SendMessage(CreateSendFileToClientCompletedMessage(InSendFileToClientTask.Source, EncodedFileContent), InSendFileToClientTask.Recipient);
 }
 
-bool FSwitchboardListener::InitVersionControlSystem(const FSwitchboardVcsInitTask& InVcsInitTask)
-{
-	if (!SourceControl->Connect(InVcsInitTask.ProviderName, InVcsInitTask.VcsSettings))
-	{
-		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *SourceControl->GetLastError());
-		SendMessage(CreateVcsInitFailedMessage(SourceControl->GetLastError()), InVcsInitTask.Recipient);
-		return false;
-	}
-	return true;
-}
-
-bool FSwitchboardListener::ReportVersionControlRevision(const FSwitchboardVcsReportRevisionTask& InVcsRevisionTask)
-{
-	if (!SourceControl->ReportRevision(InVcsRevisionTask.Path))
-	{
-		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *SourceControl->GetLastError());
-		SendMessage(CreateVcsReportRevisionFailedMessage(SourceControl->GetLastError()), InVcsRevisionTask.Recipient);
-		return false;
-	}
-	return true;
-}
-
-bool FSwitchboardListener::SyncVersionControl(const FSwitchboardVcsSyncTask& InSyncTask)
-{
-	if (!SourceControl->Sync(InSyncTask.Path, InSyncTask.Revision))
-	{
-		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *SourceControl->GetLastError());
-		SendMessage(CreateVcsSyncFailedMessage(SourceControl->GetLastError()), InSyncTask.Recipient);
-		return false;
-	}
-	return true;
-}
-
 void FSwitchboardListener::CleanUpDisconnectedSockets()
 {
 	const double CurrentTime = FPlatformTime::Seconds();
@@ -488,6 +431,11 @@ bool FSwitchboardListener::HandleRunningProcesses()
 				UE_LOG(LogSwitchboard, Display, TEXT("Process exited with returncode: %d"), ReturnCode);
 
 				const FString ProcessOutput(UTF8_TO_TCHAR(Process.Output.GetData()));
+				if (ReturnCode != 0)
+				{
+					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), *ProcessOutput);
+				}
+
 				SendMessage(CreateProgramEndedMessage(Process.UUID.ToString(), ReturnCode, ProcessOutput), Process.Recipient);
 
 				FPlatformProcess::CloseProc(Process.Handle);
@@ -529,40 +477,4 @@ bool FSwitchboardListener::SendMessage(const FString& InMessage, const FIPv4Endp
 	// this happens when a client disconnects while a task it had issued is not finished
 	UE_LOG(LogSwitchboard, Verbose, TEXT("Trying to send message to disconnected client %s"), *InEndpoint.ToString());
 	return false;
-}
-
-void FSwitchboardListener::OnSourceControlConnectFinished(bool bInSuccess, FString InErrorMessage, const FIPv4Endpoint& InEndpoint)
-{
-	if (bInSuccess)
-	{
-		SendMessage(CreateVcsInitCompletedMessage(), InEndpoint);
-	}
-	else
-	{
-		SendMessage(CreateVcsInitFailedMessage(InErrorMessage), InEndpoint);
-	}
-}
-
-void FSwitchboardListener::OnSourceControlReportRevisionFinished(bool bInSuccess, FString InRevision, FString InErrorMessage, const FIPv4Endpoint& InEndpoint)
-{
-	if (bInSuccess)
-	{
-		SendMessage(CreateVcsReportRevisionCompletedMessage(InRevision), InEndpoint);
-	}
-	else
-	{
-		SendMessage(CreateVcsReportRevisionFailedMessage(InErrorMessage), InEndpoint);
-	}
-}
-
-void FSwitchboardListener::OnSourceControlSyncFinished(bool bInSuccess, FString InRevision, FString InErrorMessage, const FIPv4Endpoint& InEndpoint)
-{
-	if (bInSuccess)
-	{
-		SendMessage(CreateVcsSyncCompletedMessage(InRevision), InEndpoint);
-	}
-	else
-	{
-		SendMessage(CreateVcsSyncFailedMessage(InErrorMessage), InEndpoint);
-	}
 }
