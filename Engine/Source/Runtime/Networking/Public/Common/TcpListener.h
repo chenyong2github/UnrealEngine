@@ -33,13 +33,15 @@ public:
 	 *
 	 * @param LocalEndpoint The local IP endpoint to listen on.
 	 * @param SleepTime The maximum time to wait for a pending connection inside the polling loop (default = 1 second).
+	 * @param Toggles socket-reusability which allows for other sockets to use the same address (default = true).
 	 */
-	FTcpListener(const FIPv4Endpoint& LocalEndpoint, const FTimespan& InSleepTime = FTimespan::FromSeconds(1))
-		: DeleteSocket(true)
+	FTcpListener(const FIPv4Endpoint& LocalEndpoint, const FTimespan& InSleepTime = FTimespan::FromSeconds(1), bool bInReusable = true)
+		: bDeleteSocket(true)
 		, Endpoint(LocalEndpoint)
 		, SleepTime(InSleepTime)
 		, Socket(nullptr)
-		, Stopping(false)
+		, bStopping(false)
+		, bSocketReusable(bInReusable)
 	{
 		Thread = FRunnableThread::Create(this, TEXT("FTcpListener"), 8 * 1024, TPri_Normal);
 	}
@@ -49,12 +51,14 @@ public:
 	 *
 	 * @param InSocket The socket to listen on.
 	 * @param SleepTime SleepTime The maximum time to wait for a pending connection inside the polling loop (default = 1 second).
+	 * @param bInReusable Toggles socket-reusability which allows for other sockets to use the same address (default = true).
 	 */
-	FTcpListener(FSocket& InSocket, const FTimespan& InSleepTime = FTimespan::FromSeconds(1))
-		: DeleteSocket(false)
+	FTcpListener(FSocket& InSocket, const FTimespan& InSleepTime = FTimespan::FromSeconds(1), bool bInReusable = true)
+		: bDeleteSocket(false)
 		, SleepTime(InSleepTime)
 		, Socket(&InSocket)
-		, Stopping(false)
+		, bStopping(false)
+		, bSocketReusable(bInReusable)
 	{
 		TSharedRef<FInternetAddr> LocalAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 		Socket->GetAddress(*LocalAddress);
@@ -72,7 +76,7 @@ public:
 			delete Thread;
 		}
 
-		if (DeleteSocket && (Socket != nullptr))
+		if (bDeleteSocket && (Socket != nullptr))
 		{
 			ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Socket);
 			Socket = nullptr;
@@ -108,7 +112,7 @@ public:
 	 */
 	bool IsActive() const
 	{
-		return ((Socket != nullptr) && !Stopping);
+		return ((Socket != nullptr) && !bStopping);
 	}
 
 public:
@@ -135,7 +139,7 @@ public:
 		if (Socket == nullptr)
 		{
 			Socket = FTcpSocketBuilder(TEXT("FTcpListener server"))
-				.AsReusable()
+				.AsReusable(bSocketReusable)
 				.BoundToEndpoint(Endpoint)
 				.Listening(8)
 				.WithSendBufferSize(2 * 1024 * 1024);
@@ -150,7 +154,7 @@ public:
 
 		const bool bHasZeroSleepTime = (SleepTime == FTimespan::Zero());
 
-		while (!Stopping)
+		while (!bStopping)
 		{
 			bool Pending = false;
 
@@ -193,7 +197,7 @@ public:
 
 	virtual void Stop() override
 	{
-		Stopping = true;
+		bStopping = true;
 	}
 
 	virtual void Exit() override { }
@@ -201,7 +205,7 @@ public:
 private:
 
 	/** Holds a flag indicating whether the socket should be deleted in the destructor. */
-	bool DeleteSocket;
+	bool bDeleteSocket;
 
 	/** Holds the server endpoint. */
 	FIPv4Endpoint Endpoint;
@@ -213,7 +217,10 @@ private:
 	FSocket* Socket;
 
 	/** Holds a flag indicating that the thread is stopping. */
-	bool Stopping;
+	bool bStopping;
+
+	/** Holds a flag indicating if the bound address can be used by other sockets. */
+	bool bSocketReusable;
 
 	/** Holds the thread object. */
 	FRunnableThread* Thread;
