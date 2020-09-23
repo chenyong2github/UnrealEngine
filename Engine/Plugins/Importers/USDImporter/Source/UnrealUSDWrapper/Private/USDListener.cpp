@@ -160,9 +160,6 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 		return;
 	}
 
-	// If the change is just about the stage updating some info like startTimeSeconds or framesPerSecond, then we don't
-	// need to refresh all prims. This is important because when undo/redoing, we may resync the movie scene, which shouldn't trigger prim spawning
-	bool bIsPureStageInfoChange = true;
 	TMap< FString, bool > PrimsChangedList;
 	TArray< FString > StageChangedFields;
 
@@ -172,7 +169,6 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 	for ( PathRange::const_iterator It = PathsToUpdate.begin(); It != PathsToUpdate.end(); ++It )
 	{
 		constexpr bool bResync = true;
-		bIsPureStageInfoChange = false;
 		PrimsChangedList.Add( ANSI_TO_TCHAR( It->GetAbsoluteRootOrPrimPath().GetString().c_str() ), bResync );
 	}
 
@@ -195,12 +191,12 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 			if ( Change && Change->flags.didReloadContent )
 			{
 				bResync = true;
-				bIsPureStageInfoChange = false;
 			}
 		}
 
 		// Change on the stage root
-		if ( PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath() )
+		bool bIsRootLayer = PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath();
+		if ( bIsRootLayer )
 		{
 			pxr::TfTokenVector ChangedFields = PathToUpdateIt.GetChangedFields();
 
@@ -211,31 +207,29 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 				if ( ChangedField == UsdGeomTokens->metersPerUnit )
 				{
 					bResync = true; // Force a resync when changing the metersPerUnit since it affects all coordinates
-					bIsPureStageInfoChange = false;
 					break;
 				}
 			}
 		}
-		else
-		{
-			bIsPureStageInfoChange = false;
-		}
 
-		PrimsChangedList.Add( PrimPath, bResync );
+		// If the change is just about the stage updating some info like startTimeSeconds or framesPerSecond, then we don't
+		// need to refresh all prims. This is important because when undo/redoing, we may resync the movie scene, which shouldn't trigger prim spawning
+		if ( !bIsRootLayer || bResync )
+		{
+			PrimsChangedList.Add( PrimPath, bResync );
+		}
 	}
 
 	if ( PrimsChangedList.Num() > 0 )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
+		OnPrimsChanged.Broadcast( PrimsChangedList );
+	}
 
-		if ( bIsPureStageInfoChange )
-		{
-			OnStageInfoChanged.Broadcast( StageChangedFields );
-		}
-		else
-		{
-			OnPrimsChanged.Broadcast( PrimsChangedList );
-		}
+	if ( StageChangedFields.Num() > 0 )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		OnStageInfoChanged.Broadcast( StageChangedFields );
 	}
 }
 
