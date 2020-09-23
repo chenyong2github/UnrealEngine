@@ -354,6 +354,17 @@ public:
 		}
 	}
 
+	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	{
+		// special case for normal maps
+		if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG || BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
+		{
+			return GetQualityFormat(FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE);
+		}
+		
+		return GetQualityFormat(BuildSettings.CompressionQuality);
+	}
+
 	virtual bool CompressImage(
 			const FImage& InImage,
 			const struct FTextureBuildSettings& BuildSettings,
@@ -371,7 +382,8 @@ public:
 		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
 
 		// Determine the compressed pixel format and compression parameters
-		EPixelFormat CompressedPixelFormat = PF_Unknown;
+		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, InImage, bImageHasAlphaChannel);
+
 		FString CompressionParameters = TEXT("");
 
 		bool bIsRGBColor = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB ||
@@ -381,22 +393,20 @@ public:
 
 		if (bIsRGBColor)
 		{
-			CompressedPixelFormat = GetQualityFormat(BuildSettings.CompressionQuality);
+			CompressedPixelFormat = GetQualityFormat();
 			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -ch 1 1 1 0"), *GetQualityString(BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
 		}
 		else if (bIsRGBAColor)
 		{
-			CompressedPixelFormat = GetQualityFormat(BuildSettings.CompressionQuality);
+			CompressedPixelFormat = GetQualityFormat();
 			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -ch 1 1 1 1"), *GetQualityString(BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG)
 		{
-			CompressedPixelFormat = GetQualityFormat(FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE);
 			CompressionParameters = FString::Printf(TEXT("%s -esw 0g0b -ch 0 1 0 1 -oplimit 1000 -mincorrel 0.99 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *GetQualityString(FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE, -1));
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
 		{
-			CompressedPixelFormat = GetQualityFormat(FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE);
 			CompressionParameters = FString::Printf(TEXT("%s -esw bg00 -ch 1 1 0 0 -oplimit 1000 -mincorrel 0.99 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *GetQualityString(FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE, -1));
 		}
 
