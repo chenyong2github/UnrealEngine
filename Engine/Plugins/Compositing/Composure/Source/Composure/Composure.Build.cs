@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"CinematicCamera",
                     "MediaIOCore",
 					"OpenColorIO",
+					"ActorLayerUtilities",
                 }
 				);
 
