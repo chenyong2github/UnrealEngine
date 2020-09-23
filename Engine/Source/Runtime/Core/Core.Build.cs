@@ -220,6 +220,7 @@ public class Core : ModuleRules
         }
 
         PublicDefinitions.Add("WITH_MALLOC_STOMP=" + (bWithMallocStomp ? "1" : "0"));
+		PublicDefinitions.Add("ALLOW_CONFIG_CACHE_DOWNLOAD_0=" + (GetAllowsConfigDownload0() ? "1" : "0"));
 
 		PrivateDefinitions.Add("PLATFORM_COMPILER_OPTIMIZATION_LTCG=" + (Target.bAllowLTCG ? "1" : "0"));
 		PrivateDefinitions.Add("PLATFORM_COMPILER_OPTIMIZATION_PG=" + (Target.bPGOOptimize ? "1" : "0"));
@@ -227,4 +228,6 @@ public class Core : ModuleRules
 
 		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
 	}
+
+	protected virtual bool GetAllowsConfigDownload0() { return false; }
 }
