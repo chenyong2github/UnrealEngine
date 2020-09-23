@@ -7,6 +7,7 @@
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
 #include "UObject/EnterpriseObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 
 FName FMeshDescription::VerticesName("Vertices");
@@ -156,13 +157,16 @@ void FMeshDescription::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::MeshDescriptionNewSerialization)
 	{
 		UE_LOG(LogLoad, Warning, TEXT("Deprecated serialization format"));
 	}
 
-	if (Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::MeshDescriptionNewFormat)
+	if (Ar.IsLoading() &&
+		Ar.CustomVer(FReleaseObjectVersion::GUID) != FReleaseObjectVersion::MeshDescriptionNewFormat &&
+		Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MeshDescriptionNewFormat)
 	{
 		// Serialize the old format data and transform it into the new format mesh element map
 		SerializeLegacy(Ar);

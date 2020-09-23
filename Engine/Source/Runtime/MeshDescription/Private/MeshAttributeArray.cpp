@@ -3,6 +3,7 @@
 #include "MeshAttributeArray.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 
 FArchive& operator<<(FArchive& Ar, FAttributesSetEntry& Entry)
@@ -13,7 +14,8 @@ FArchive& operator<<(FArchive& Ar, FAttributesSetEntry& Entry)
 		Ar << AttributeType;
 
 		uint32 Extent = 1;
-		if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MeshDescriptionNewFormat)
+		if (Ar.CustomVer(FReleaseObjectVersion::GUID) == FReleaseObjectVersion::MeshDescriptionNewFormat ||
+			Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::MeshDescriptionNewFormat)
 		{
 			Ar << Extent;
 		}

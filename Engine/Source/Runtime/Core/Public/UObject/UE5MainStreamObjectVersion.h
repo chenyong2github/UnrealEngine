@@ -21,6 +21,10 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Removing SourceAnimationData, animation layering is now applied during compression
 		RemovingSourceAnimationData,
 
+		// New MeshDescription format.
+		// This is the correct versioning for MeshDescription changes which were added to ReleaseObjectVersion.
+		MeshDescriptionNewFormat,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
