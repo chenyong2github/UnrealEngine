@@ -1163,7 +1163,7 @@ void FFbxImporter::FixMaterialClashName()
 			if (!GIsAutomationTesting)
 			{
 				AddTokenizedErrorMessage(
-					FTokenizedMessage::Create(EMessageSeverity::Warning, GetErrorTextFunction(UniqueName)),
+					FTokenizedMessage::Create(EMessageSeverity::Log, GetErrorTextFunction(UniqueName)),
 					FFbxErrors::Generic_LoadingSceneFailed);
 			}
 		}
@@ -1256,7 +1256,7 @@ void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 			if (!GIsAutomationTesting)
 			{
 				AddTokenizedErrorMessage(
-					FTokenizedMessage::Create(EMessageSeverity::Warning,
+					FTokenizedMessage::Create(EMessageSeverity::Log,
 						FText::Format(LOCTEXT("FbxImport_NodeNameClash", "FBX File Loading: Found name clash, node '{0}' was renamed to '{1}'"), FText::FromString(NodeName), FText::FromString(UniqueNodeName))),
 					FFbxErrors::Generic_LoadingSceneFailed);
 			}
