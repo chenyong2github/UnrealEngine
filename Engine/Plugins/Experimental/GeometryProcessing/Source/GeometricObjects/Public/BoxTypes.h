@@ -13,9 +13,11 @@ struct TInterval1
 	RealType Min;
 	RealType Max;
 
-	TInterval1()
+	TInterval1() :
+		TInterval1(Empty())
 	{
 	}
+
 	TInterval1(const RealType& Min, const RealType& Max)
 	{
 		this->Min = Min;
@@ -186,7 +188,7 @@ struct TInterval1
 
 	inline bool IsEmpty() const
 	{
-		return Max > Min;
+		return Max < Min;
 	}
 
 	void Expand(RealType Radius)
@@ -208,9 +210,11 @@ struct TAxisAlignedBox3
 	FVector3<RealType> Min;
 	FVector3<RealType> Max;
 
-	TAxisAlignedBox3()
+	TAxisAlignedBox3() : 
+		TAxisAlignedBox3(TAxisAlignedBox3<RealType>::Empty())
 	{
 	}
+
 	TAxisAlignedBox3(const FVector3<RealType>& Min, const FVector3<RealType>& Max)
 	{
 		this->Min = Min;
@@ -470,7 +474,7 @@ struct TAxisAlignedBox3
 
 	inline bool IsEmpty() const
 	{
-		return Max.X > Min.X || Max.Y > Min.Y || Max.Z > Min.Z;
+		return Max.X < Min.X || Max.Y < Min.Y || Max.Z < Min.Z;
 	}
 
 	void Expand(RealType Radius)
@@ -490,9 +494,11 @@ struct TAxisAlignedBox2
 	FVector2<RealType> Min;
 	FVector2<RealType> Max;
 
-	TAxisAlignedBox2()
+	TAxisAlignedBox2() : 
+		TAxisAlignedBox2(Empty())
 	{
 	}
+
 	TAxisAlignedBox2(const FVector2<RealType>& Min, const FVector2<RealType>& Max)
 		: Min(Min), Max(Max)
 	{
@@ -663,7 +669,7 @@ struct TAxisAlignedBox2
 
 	inline bool IsEmpty() const
 	{
-		return Max.X > Min.X || Max.Y > Min.Y;
+		return Max.X < Min.X || Max.Y < Min.Y;
 	}
 
 	void Expand(RealType Radius)

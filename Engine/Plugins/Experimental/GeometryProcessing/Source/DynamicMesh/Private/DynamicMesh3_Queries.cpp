@@ -591,6 +591,11 @@ int FDynamicMesh3::FindTriangle(int a, int b, int c) const
  */
 FAxisAlignedBox3d FDynamicMesh3::GetBounds() const
 {
+	if (VertexCount() == 0) 
+	{
+		return FAxisAlignedBox3d::Empty();
+	}
+
 	FVector3d MinVec = Vertices[*(VertexIndicesItr().begin())];
 	FVector3d MaxVec = MinVec;
 	for (int vi : VertexIndicesItr())
