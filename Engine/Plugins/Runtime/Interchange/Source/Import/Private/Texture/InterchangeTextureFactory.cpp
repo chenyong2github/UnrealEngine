@@ -109,12 +109,12 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	{
 		return nullptr;
 	}
-	const TOptional<Interchange::FImportImage> PayloadData = TextureTranslator->GetTexturePayloadData(Arguments.SourceData, PayLoadKey.GetValue());
+	const TOptional<UE::Interchange::FImportImage> PayloadData = TextureTranslator->GetTexturePayloadData(Arguments.SourceData, PayLoadKey.GetValue());
 	if(!PayloadData.IsSet())
 	{
 		return nullptr;
 	}
-	const Interchange::FImportImage& Image = PayloadData.GetValue();
+	const UE::Interchange::FImportImage& Image = PayloadData.GetValue();
 
 	const UClass* TextureClass = TextureNode->GetAssetClass();
 	check(TextureClass && TextureClass->IsChildOf(GetFactoryClass()));

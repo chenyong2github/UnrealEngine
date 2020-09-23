@@ -13,19 +13,22 @@
 #include "InterchangeTextureNode.generated.h"
 
 //Interchange namespace
-namespace Interchange
+namespace UE
 {
-
-struct FTextureNodeStaticData : public FBaseNodeStaticData
-{
-	static const FAttributeKey& PayloadSourceFileKey()
+	namespace Interchange
 	{
-		static FAttributeKey AttributeKey(TEXT("__PayloadSourceFile__"));
-		return AttributeKey;
-	}
-};
 
-}
+		struct FTextureNodeStaticData : public FBaseNodeStaticData
+		{
+			static const FAttributeKey& PayloadSourceFileKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__PayloadSourceFile__"));
+				return AttributeKey;
+			}
+		};
+
+	}//ns Interchange
+}//ns UE
 
 UCLASS(BlueprintType)
 class INTERCHANGENODEPLUGIN_API UInterchangeTextureNode : public UInterchangeBaseNode
@@ -99,20 +102,20 @@ public:
 	/** Texture node Interface Begin */
 	virtual const TOptional<FString> GetPayLoadKey() const
 	{
-		if (!Attributes.ContainAttribute(Interchange::FTextureNodeStaticData::PayloadSourceFileKey()))
+		if (!Attributes.ContainAttribute(UE::Interchange::FTextureNodeStaticData::PayloadSourceFileKey()))
 		{
 			return TOptional<FString>();
 		}
-		Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes.GetAttributeHandle<FString>(Interchange::FTextureNodeStaticData::PayloadSourceFileKey());
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes.GetAttributeHandle<FString>(UE::Interchange::FTextureNodeStaticData::PayloadSourceFileKey());
 		if (!AttributeHandle.IsValid())
 		{
 			return TOptional<FString>();
 		}
 		FString PayloadKey;
-		Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
+		UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
 		if (!IsAttributeStorageResultSuccess(Result))
 		{
-			LogAttributeStorageErrors(Result, TEXT("UInterchangeTextureNode.GetPayLoadKey"), Interchange::FTextureNodeStaticData::PayloadSourceFileKey());
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeTextureNode.GetPayLoadKey"), UE::Interchange::FTextureNodeStaticData::PayloadSourceFileKey());
 			return TOptional<FString>();
 		}
 		return TOptional<FString>(PayloadKey);
@@ -121,10 +124,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
 	virtual void SetPayLoadKey(const FString& PayloadKey)
 	{
-		Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(Interchange::FTextureNodeStaticData::PayloadSourceFileKey(), PayloadKey);
+		UE::Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(UE::Interchange::FTextureNodeStaticData::PayloadSourceFileKey(), PayloadKey);
 		if (!IsAttributeStorageResultSuccess(Result))
 		{
-			LogAttributeStorageErrors(Result, TEXT("UInterchangeTextureNode.SetPayLoadKey"), Interchange::FTextureNodeStaticData::PayloadSourceFileKey());
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeTextureNode.SetPayLoadKey"), UE::Interchange::FTextureNodeStaticData::PayloadSourceFileKey());
 		}
 	}
 
@@ -784,56 +787,56 @@ private:
 #endif
 	}
 
-	const Interchange::FAttributeKey ClassNameAttributeKey = Interchange::FAttributeKey(TEXT("__ClassTypeAttribute__"));
+	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FAttributeKey(TEXT("__ClassTypeAttribute__"));
 
 	//Texture Adjustments
-	const Interchange::FAttributeKey Macro_CustomAdjustBrightnessKey = Interchange::FAttributeKey(TEXT("AdjustBrightness"));
-	const Interchange::FAttributeKey Macro_CustomAdjustBrightnessCurveKey = Interchange::FAttributeKey(TEXT("AdjustBrightnessCurve"));
-	const Interchange::FAttributeKey Macro_CustomAdjustVibranceKey = Interchange::FAttributeKey(TEXT("AdjustVibrance"));
-	const Interchange::FAttributeKey Macro_CustomAdjustSaturationKey = Interchange::FAttributeKey(TEXT("AdjustSaturation"));
-	const Interchange::FAttributeKey Macro_CustomAdjustRGBCurveKey = Interchange::FAttributeKey(TEXT("AdjustRGBCurve"));
-	const Interchange::FAttributeKey Macro_CustomAdjustHueKey = Interchange::FAttributeKey(TEXT("AdjustHue"));
-	const Interchange::FAttributeKey Macro_CustomAdjustMinAlphaKey = Interchange::FAttributeKey(TEXT("AdjustMinAlpha"));
-	const Interchange::FAttributeKey Macro_CustomAdjustMaxAlphaKey = Interchange::FAttributeKey(TEXT("AdjustMaxAlpha"));
-	const Interchange::FAttributeKey Macro_CustombChromaKeyTextureKey = Interchange::FAttributeKey(TEXT("bChromaKeyTexture"));
-	const Interchange::FAttributeKey Macro_CustomChromaKeyThresholdKey = Interchange::FAttributeKey(TEXT("ChromaKeyThreshold"));
-	const Interchange::FAttributeKey Macro_CustomChromaKeyColorKey = Interchange::FAttributeKey(TEXT("ChromaKeyColor"));
+	const UE::Interchange::FAttributeKey Macro_CustomAdjustBrightnessKey = UE::Interchange::FAttributeKey(TEXT("AdjustBrightness"));
+	const UE::Interchange::FAttributeKey Macro_CustomAdjustBrightnessCurveKey = UE::Interchange::FAttributeKey(TEXT("AdjustBrightnessCurve"));
+	const UE::Interchange::FAttributeKey Macro_CustomAdjustVibranceKey = UE::Interchange::FAttributeKey(TEXT("AdjustVibrance"));
+	const UE::Interchange::FAttributeKey Macro_CustomAdjustSaturationKey = UE::Interchange::FAttributeKey(TEXT("AdjustSaturation"));
+	const UE::Interchange::FAttributeKey Macro_CustomAdjustRGBCurveKey = UE::Interchange::FAttributeKey(TEXT("AdjustRGBCurve"));
+	const UE::Interchange::FAttributeKey Macro_CustomAdjustHueKey = UE::Interchange::FAttributeKey(TEXT("AdjustHue"));
+	const UE::Interchange::FAttributeKey Macro_CustomAdjustMinAlphaKey = UE::Interchange::FAttributeKey(TEXT("AdjustMinAlpha"));
+	const UE::Interchange::FAttributeKey Macro_CustomAdjustMaxAlphaKey = UE::Interchange::FAttributeKey(TEXT("AdjustMaxAlpha"));
+	const UE::Interchange::FAttributeKey Macro_CustombChromaKeyTextureKey = UE::Interchange::FAttributeKey(TEXT("bChromaKeyTexture"));
+	const UE::Interchange::FAttributeKey Macro_CustomChromaKeyThresholdKey = UE::Interchange::FAttributeKey(TEXT("ChromaKeyThreshold"));
+	const UE::Interchange::FAttributeKey Macro_CustomChromaKeyColorKey = UE::Interchange::FAttributeKey(TEXT("ChromaKeyColor"));
 
 	//Texture Compression
-	const Interchange::FAttributeKey Macro_CustomCompressionNoAlphaKey = Interchange::FAttributeKey(TEXT("CompressionNoAlpha"));
-	const Interchange::FAttributeKey Macro_CustomDeferCompressionKey = Interchange::FAttributeKey(TEXT("DeferCompression"));
-	const Interchange::FAttributeKey Macro_CustomLossyCompressionAmountKey = Interchange::FAttributeKey(TEXT("LossyCompressionAmount"));
-	const Interchange::FAttributeKey Macro_CustomMaxTextureSizeKey = Interchange::FAttributeKey(TEXT("MaxTextureSize"));
-	const Interchange::FAttributeKey Macro_CustomCompressionQualityKey = Interchange::FAttributeKey(TEXT("CompressionQuality"));
-	const Interchange::FAttributeKey Macro_CustomCompressionSettingsKey = Interchange::FAttributeKey(TEXT("CompressionSettings"));
+	const UE::Interchange::FAttributeKey Macro_CustomCompressionNoAlphaKey = UE::Interchange::FAttributeKey(TEXT("CompressionNoAlpha"));
+	const UE::Interchange::FAttributeKey Macro_CustomDeferCompressionKey = UE::Interchange::FAttributeKey(TEXT("DeferCompression"));
+	const UE::Interchange::FAttributeKey Macro_CustomLossyCompressionAmountKey = UE::Interchange::FAttributeKey(TEXT("LossyCompressionAmount"));
+	const UE::Interchange::FAttributeKey Macro_CustomMaxTextureSizeKey = UE::Interchange::FAttributeKey(TEXT("MaxTextureSize"));
+	const UE::Interchange::FAttributeKey Macro_CustomCompressionQualityKey = UE::Interchange::FAttributeKey(TEXT("CompressionQuality"));
+	const UE::Interchange::FAttributeKey Macro_CustomCompressionSettingsKey = UE::Interchange::FAttributeKey(TEXT("CompressionSettings"));
 
 	//Texture general
-	const Interchange::FAttributeKey Macro_CustombDitherMipMapAlphaKey = Interchange::FAttributeKey(TEXT("bDitherMipMapAlpha"));
-	const Interchange::FAttributeKey Macro_CustomAlphaCoverageThresholdsKey = Interchange::FAttributeKey(TEXT("AlphaCoverageThresholds"));
-	const Interchange::FAttributeKey Macro_CustombFlipGreenChannelKey = Interchange::FAttributeKey(TEXT("bFlipGreenChannel"));
-	const Interchange::FAttributeKey Macro_CustombForcePVRTC4Key = Interchange::FAttributeKey(TEXT("bForcePVRTC4"));
-	const Interchange::FAttributeKey Macro_CustomPowerOfTwoModeKey = Interchange::FAttributeKey(TEXT("PowerOfTwoMode"));
-	const Interchange::FAttributeKey Macro_CustomPaddingColorKey = Interchange::FAttributeKey(TEXT("PaddingColor"));
-	const Interchange::FAttributeKey Macro_CustomFilterKey = Interchange::FAttributeKey(TEXT("Filter"));
-	const Interchange::FAttributeKey Macro_CustomMipLoadOptionsKey = Interchange::FAttributeKey(TEXT("MipLoadOptions"));
-	const Interchange::FAttributeKey Macro_CustomSRGBKey = Interchange::FAttributeKey(TEXT("SRGB"));
-	const Interchange::FAttributeKey Macro_CustombUseLegacyGammaKey = Interchange::FAttributeKey(TEXT("bUseLegacyGamma"));
-	const Interchange::FAttributeKey Macro_CustomVirtualTextureStreamingKey = Interchange::FAttributeKey(TEXT("VirtualTextureStreaming"));
-	const Interchange::FAttributeKey Macro_CustomAddressXKey = Interchange::FAttributeKey(TEXT("AddressX"));
-	const Interchange::FAttributeKey Macro_CustomAddressYKey = Interchange::FAttributeKey(TEXT("AddressY"));
+	const UE::Interchange::FAttributeKey Macro_CustombDitherMipMapAlphaKey = UE::Interchange::FAttributeKey(TEXT("bDitherMipMapAlpha"));
+	const UE::Interchange::FAttributeKey Macro_CustomAlphaCoverageThresholdsKey = UE::Interchange::FAttributeKey(TEXT("AlphaCoverageThresholds"));
+	const UE::Interchange::FAttributeKey Macro_CustombFlipGreenChannelKey = UE::Interchange::FAttributeKey(TEXT("bFlipGreenChannel"));
+	const UE::Interchange::FAttributeKey Macro_CustombForcePVRTC4Key = UE::Interchange::FAttributeKey(TEXT("bForcePVRTC4"));
+	const UE::Interchange::FAttributeKey Macro_CustomPowerOfTwoModeKey = UE::Interchange::FAttributeKey(TEXT("PowerOfTwoMode"));
+	const UE::Interchange::FAttributeKey Macro_CustomPaddingColorKey = UE::Interchange::FAttributeKey(TEXT("PaddingColor"));
+	const UE::Interchange::FAttributeKey Macro_CustomFilterKey = UE::Interchange::FAttributeKey(TEXT("Filter"));
+	const UE::Interchange::FAttributeKey Macro_CustomMipLoadOptionsKey = UE::Interchange::FAttributeKey(TEXT("MipLoadOptions"));
+	const UE::Interchange::FAttributeKey Macro_CustomSRGBKey = UE::Interchange::FAttributeKey(TEXT("SRGB"));
+	const UE::Interchange::FAttributeKey Macro_CustombUseLegacyGammaKey = UE::Interchange::FAttributeKey(TEXT("bUseLegacyGamma"));
+	const UE::Interchange::FAttributeKey Macro_CustomVirtualTextureStreamingKey = UE::Interchange::FAttributeKey(TEXT("VirtualTextureStreaming"));
+	const UE::Interchange::FAttributeKey Macro_CustomAddressXKey = UE::Interchange::FAttributeKey(TEXT("AddressX"));
+	const UE::Interchange::FAttributeKey Macro_CustomAddressYKey = UE::Interchange::FAttributeKey(TEXT("AddressY"));
 
 	//Level of Detail
-	const Interchange::FAttributeKey Macro_CustombPreserveBorderKey = Interchange::FAttributeKey(TEXT("bPreserveBorder"));
-	const Interchange::FAttributeKey Macro_CustomMipGenSettingsKey = Interchange::FAttributeKey(TEXT("MipGenSettings"));
-	const Interchange::FAttributeKey Macro_CustomLODBiasKey = Interchange::FAttributeKey(TEXT("LODBias"));
-	const Interchange::FAttributeKey Macro_CustomLODGroupKey = Interchange::FAttributeKey(TEXT("LODGroup"));
+	const UE::Interchange::FAttributeKey Macro_CustombPreserveBorderKey = UE::Interchange::FAttributeKey(TEXT("bPreserveBorder"));
+	const UE::Interchange::FAttributeKey Macro_CustomMipGenSettingsKey = UE::Interchange::FAttributeKey(TEXT("MipGenSettings"));
+	const UE::Interchange::FAttributeKey Macro_CustomLODBiasKey = UE::Interchange::FAttributeKey(TEXT("LODBias"));
+	const UE::Interchange::FAttributeKey Macro_CustomLODGroupKey = UE::Interchange::FAttributeKey(TEXT("LODGroup"));
 	//TODO support per platform data in the FAttributeStorage, so we can set different value per platform at the pipeline stage, We set only the default value for now
-	const Interchange::FAttributeKey Macro_CustomDownscaleKey = Interchange::FAttributeKey(TEXT("Downscale"));
-	const Interchange::FAttributeKey Macro_CustomDownscaleOptionsKey = Interchange::FAttributeKey(TEXT("DownscaleOptions"));
+	const UE::Interchange::FAttributeKey Macro_CustomDownscaleKey = UE::Interchange::FAttributeKey(TEXT("Downscale"));
+	const UE::Interchange::FAttributeKey Macro_CustomDownscaleOptionsKey = UE::Interchange::FAttributeKey(TEXT("DownscaleOptions"));
 
 	//Compositing
-	const Interchange::FAttributeKey Macro_CustomCompositeTextureModeKey = Interchange::FAttributeKey(TEXT("CompositeTextureMode"));
-	const Interchange::FAttributeKey Macro_CustomCompositePowerKey = Interchange::FAttributeKey(TEXT("CompositePower"));
+	const UE::Interchange::FAttributeKey Macro_CustomCompositeTextureModeKey = UE::Interchange::FAttributeKey(TEXT("CompositeTextureMode"));
+	const UE::Interchange::FAttributeKey Macro_CustomCompositePowerKey = UE::Interchange::FAttributeKey(TEXT("CompositePower"));
 
 #if WITH_EDITORONLY_DATA
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AdjustBrightness, float, UTexture, );

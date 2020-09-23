@@ -43,35 +43,35 @@ namespace InternalInterchangePrivate
 	}
 }
 
-Interchange::FScopedSourceData::FScopedSourceData(const FString& Filename)
+UE::Interchange::FScopedSourceData::FScopedSourceData(const FString& Filename)
 {
 	//Found the translator
 	SourceDataPtr = TStrongObjectPtr<UInterchangeSourceData>(UInterchangeManager::GetInterchangeManager().CreateSourceData(Filename));
 	check(SourceDataPtr.IsValid());
 }
 
-UInterchangeSourceData* Interchange::FScopedSourceData::GetSourceData() const
+UInterchangeSourceData* UE::Interchange::FScopedSourceData::GetSourceData() const
 {
 	return SourceDataPtr.Get();
 }
 
-Interchange::FScopedTranslator::FScopedTranslator(const UInterchangeSourceData* SourceData)
+UE::Interchange::FScopedTranslator::FScopedTranslator(const UInterchangeSourceData* SourceData)
 {
 	//Found the translator
 	ScopedTranslatorPtr = TStrongObjectPtr<UInterchangeTranslatorBase>(UInterchangeManager::GetInterchangeManager().GetTranslatorForSourceData(SourceData));
 }
 
-UInterchangeTranslatorBase* Interchange::FScopedTranslator::GetTranslator()
+UInterchangeTranslatorBase* UE::Interchange::FScopedTranslator::GetTranslator()
 {
 	return ScopedTranslatorPtr.Get();
 }
 
-Interchange::FImportAsyncHelper::FImportAsyncHelper()
+UE::Interchange::FImportAsyncHelper::FImportAsyncHelper()
 {
 	RootObjectCompletionEvent = FGraphEvent::CreateGraphEvent();
 }
 
-void Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollector& Collector)
+void UE::Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	for (UInterchangeSourceData* SourceData : SourceDatas)
 	{
@@ -91,7 +91,7 @@ void Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollector& 
 	}
 }
 
-void Interchange::FImportAsyncHelper::CleanUp()
+void UE::Interchange::FImportAsyncHelper::CleanUp()
 {
 	//Release the graph
 	BaseNodeContainers.Empty();
@@ -134,18 +134,18 @@ void Interchange::FImportAsyncHelper::CleanUp()
 	Factories.Empty();
 }
 
-Interchange::FAsyncImportResult::FAsyncImportResult( TFuture< UObject* >&& InFutureObject, const FGraphEventRef& InGraphEvent )
+UE::Interchange::FAsyncImportResult::FAsyncImportResult( TFuture< UObject* >&& InFutureObject, const FGraphEventRef& InGraphEvent )
 	: FutureObject( MoveTemp( InFutureObject ) )
 	, GraphEvent( InGraphEvent )
 {
 }
 
-bool Interchange::FAsyncImportResult::IsValid() const
+bool UE::Interchange::FAsyncImportResult::IsValid() const
 {
 	return FutureObject.IsValid();
 }
 
-UObject* Interchange::FAsyncImportResult::Get() const
+UObject* UE::Interchange::FAsyncImportResult::Get() const
 {
 	if ( !FutureObject.IsReady() )
 	{
@@ -156,12 +156,12 @@ UObject* Interchange::FAsyncImportResult::Get() const
 	return FutureObject.Get();
 }
 
-Interchange::FAsyncImportResult Interchange::FAsyncImportResult::Next( TFunction< UObject*( UObject* ) > Continuation )
+UE::Interchange::FAsyncImportResult UE::Interchange::FAsyncImportResult::Next( TFunction< UObject*( UObject* ) > Continuation )
 {
-	return Interchange::FAsyncImportResult{ FutureObject.Next( Continuation ), GraphEvent };
+	return UE::Interchange::FAsyncImportResult{ FutureObject.Next( Continuation ), GraphEvent };
 }
 
-void Interchange::SanitizeInvalidChar(FString& String)
+void UE::Interchange::SanitizeInvalidChar(FString& String)
 {
 	const TCHAR* InvalidChar = INVALID_OBJECTPATH_CHARACTERS;
 	while (*InvalidChar)
@@ -235,7 +235,7 @@ bool UInterchangeManager::RegisterWriter(const UClass* WriterClass)
 bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* SourceData) const
 {
 	//Found the translator
-	Interchange::FScopedTranslator ScopeDataTranslator(SourceData);
+	UE::Interchange::FScopedTranslator ScopeDataTranslator(SourceData);
 	const UInterchangeTranslatorBase* SourceDataTranslator = ScopeDataTranslator.GetTranslator();
 	if (SourceDataTranslator)
 	{
@@ -249,23 +249,23 @@ bool UInterchangeManager::ImportAsset(const FString& ContentPath, const UInterch
 	return ImportAssetAsync( ContentPath, SourceData, ImportAssetParameters ).IsValid();
 }
 
-Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters)
+UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters)
 {
 	FString PackageBasePath = ContentPath;
 	if(!ImportAssetParameters.ReimportAsset)
 	{
-		Interchange::SanitizeInvalidChar(PackageBasePath);
+		UE::Interchange::SanitizeInvalidChar(PackageBasePath);
 	}
 
 	bool bCanShowDialog = !ImportAssetParameters.bIsAutomated && !IsAttended();
 
 	//Create a task for every source data
-	Interchange::FImportAsyncHelperData TaskData;
+	UE::Interchange::FImportAsyncHelperData TaskData;
 	TaskData.bIsAutomated = ImportAssetParameters.bIsAutomated;
-	TaskData.ImportType = Interchange::EImportType::ImportType_Asset;
+	TaskData.ImportType = UE::Interchange::EImportType::ImportType_Asset;
 	TaskData.ReimportObject = ImportAssetParameters.ReimportAsset;
-	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper = CreateAsyncHelper(TaskData);
-	TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
+	TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper = CreateAsyncHelper(TaskData);
+	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
 	FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_start", "Importing");
@@ -327,7 +327,7 @@ Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FStr
 	check(AsyncHelper->Translators.Num() == AsyncHelper->SourceDatas.Num());
 	for (int32 SourceDataIndex = 0; SourceDataIndex < AsyncHelper->SourceDatas.Num(); ++SourceDataIndex)
 	{
-		int32 TranslatorTaskIndex = AsyncHelper->TranslatorTasks.Add(TGraphTask<Interchange::FTaskTranslator>::CreateTask().ConstructAndDispatchWhenReady(SourceDataIndex, WeakAsyncHelper));
+		int32 TranslatorTaskIndex = AsyncHelper->TranslatorTasks.Add(TGraphTask<UE::Interchange::FTaskTranslator>::CreateTask().ConstructAndDispatchWhenReady(SourceDataIndex, WeakAsyncHelper));
 		PipelinePrerequistes.Add(AsyncHelper->TranslatorTasks[TranslatorTaskIndex]);
 	}
 		
@@ -337,7 +337,7 @@ Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FStr
 		UInterchangePipelineBase* GraphPipeline = AsyncHelper->Pipelines[GraphPipelineIndex];
 		TWeakObjectPtr<UInterchangePipelineBase> WeakPipelinePtr = GraphPipeline;
 		int32 GraphPipelineTaskIndex = INDEX_NONE;
-		GraphPipelineTaskIndex = AsyncHelper->PipelineTasks.Add(TGraphTask<Interchange::FTaskPipeline>::CreateTask(&PipelinePrerequistes).ConstructAndDispatchWhenReady(WeakPipelinePtr, WeakAsyncHelper));
+		GraphPipelineTaskIndex = AsyncHelper->PipelineTasks.Add(TGraphTask<UE::Interchange::FTaskPipeline>::CreateTask(&PipelinePrerequistes).ConstructAndDispatchWhenReady(WeakPipelinePtr, WeakAsyncHelper));
 		//Ensure we run the pipeline in the same order we create the task, since pipeline modify the node container, its important that its not process in parallel, Adding the one we start to the prerequisites
 		//is the way to go here
 		PipelinePrerequistes.Add(AsyncHelper->PipelineTasks[GraphPipelineTaskIndex]);
@@ -348,17 +348,17 @@ Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FStr
 
 	if (GraphParsingPrerequistes.Num() > 0)
 	{
-		AsyncHelper->ParsingTask = TGraphTask<Interchange::FTaskParsing>::CreateTask(&GraphParsingPrerequistes).ConstructAndDispatchWhenReady(this, PackageBasePath, WeakAsyncHelper);
+		AsyncHelper->ParsingTask = TGraphTask<UE::Interchange::FTaskParsing>::CreateTask(&GraphParsingPrerequistes).ConstructAndDispatchWhenReady(this, PackageBasePath, WeakAsyncHelper);
 	}
 	else
 	{
 		//Fallback on the translator pipeline prerequisites (translator must be done if there is no pipeline)
-		AsyncHelper->ParsingTask = TGraphTask<Interchange::FTaskParsing>::CreateTask(&PipelinePrerequistes).ConstructAndDispatchWhenReady(this, PackageBasePath, WeakAsyncHelper);
+		AsyncHelper->ParsingTask = TGraphTask<UE::Interchange::FTaskParsing>::CreateTask(&PipelinePrerequistes).ConstructAndDispatchWhenReady(this, PackageBasePath, WeakAsyncHelper);
 	}
 
 	//The graph parsing task will create the FCreateAssetTask that will run after them, the FAssetImportTask will call the appropriate Post asset import pipeline when the asset is completed
 
-	return Interchange::FAsyncImportResult{ AsyncHelper->RootObject.GetFuture(), AsyncHelper->RootObjectCompletionEvent };
+	return UE::Interchange::FAsyncImportResult{ AsyncHelper->RootObject.GetFuture(), AsyncHelper->RootObjectCompletionEvent };
 }
 
 bool UInterchangeManager::ImportScene(const FString& ImportContext, const UInterchangeSourceData* SourceData, bool bIsReimport, bool bIsAutomated)
@@ -386,9 +386,9 @@ UInterchangeSourceData* UInterchangeManager::CreateSourceData(const FString& InF
 	return SourceDataAsset;
 }
 
-TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchangeManager::CreateAsyncHelper(const Interchange::FImportAsyncHelperData& Data)
+TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchangeManager::CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data)
 {
-	TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = MakeShared<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe>();
+	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = MakeShared<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe>();
 	//Copy the task data
 	AsyncHelper->TaskData = Data;
 	int32 AsyncHelperIndex = ImportTasks.Add(AsyncHelper);
@@ -403,7 +403,7 @@ TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchangeManag
 	return ImportTasks[AsyncHelperIndex];
 }
 
-void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper)
+void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper)
 {
 	check(AsyncHelper.IsValid());
 	ImportTasks.RemoveSingle(AsyncHelper.Pin());

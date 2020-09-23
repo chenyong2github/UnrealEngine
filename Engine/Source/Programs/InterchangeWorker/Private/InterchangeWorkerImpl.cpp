@@ -17,8 +17,7 @@
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 
-using namespace InterchangeDispatcher;
-
+using namespace UE::Interchange;
 
 FInterchangeWorkerImpl::FInterchangeWorkerImpl(int32 InServerPID, int32 InServerPort, FString& InResultFolder)
 	: ServerPID(InServerPID)
@@ -127,7 +126,7 @@ void FInterchangeWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComman
 	//Process the json and run the task
 	FString JSonResult;
 	TArray<FString> JSonMessages;
-	InterchangeDispatcher::FJsonLoadSourceCmd LoadSourceCommand;
+	FJsonLoadSourceCmd LoadSourceCommand;
 	//Any command FromJson function return true if the Json descibe the command
 	if (LoadSourceCommand.FromJson(JsonToProcess))
 	{
@@ -157,20 +156,20 @@ void FInterchangeWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComman
 	UE_LOG(LogInterchangeWorker, Verbose, TEXT("End of Process %s"), *JsonToProcess);
 }
 
-ETaskState FInterchangeWorkerImpl::LoadFbxFile(const InterchangeDispatcher::FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages) const
+ETaskState FInterchangeWorkerImpl::LoadFbxFile(const FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages) const
 {
 	ETaskState ResultState = ETaskState::Unknown;
 	FString SourceFilename = LoadSourceCommand.GetSourceFilename();
 #if PLATFORM_WINDOWS && PLATFORM_64BITS
-	InterchangeFbxParser::FbxParser FbxParser;
+	UE::Interchange::FbxParser FbxParser;
 	FbxParser.LoadFbxFile(SourceFilename, ResultFolder);
-	InterchangeDispatcher::FJsonLoadSourceCmd::JsonResultParser ResultParser;
+	FJsonLoadSourceCmd::JsonResultParser ResultParser;
 	ResultParser.SetResultFilename(FbxParser.GetResultFilepath());
 	OutJSonMessages = FbxParser.GetJsonLoadMessages();
 	OutJSonResult = ResultParser.ToJson();
 	ResultState = ETaskState::ProcessOk;
 #else
-	InterchangeDispatcher::FJsonLoadSourceCmd::JsonResultParser ResultParser;
+	FJsonLoadSourceCmd::JsonResultParser ResultParser;
 	ResultParser.SetResultFilename(FString());
 	OutJSonMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot Execute fbx command on other platform then window 64 bits!\"}}"));
 	ResultState = ETaskState::ProcessFailed;

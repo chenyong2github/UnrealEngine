@@ -13,7 +13,7 @@
 
 namespace UE
 {
-	namespace FbxParser
+	namespace Interchange
 	{
 		namespace Private
 		{
@@ -85,5 +85,5 @@ namespace UE
 				FFbxScene::AddHierarchy(SDKScene, NodeContainer, JSonErrorMessages);
 			}
 		} //ns Private
-	} //ns FbxParser
+	} //ns Interchange
 } //ns UE

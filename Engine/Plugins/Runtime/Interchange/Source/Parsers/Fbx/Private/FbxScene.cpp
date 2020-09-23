@@ -11,11 +11,11 @@
 
 namespace UE
 {
-	namespace FbxParser
+	namespace Interchange
 	{
 		namespace Private
 		{
-			namespace ScenePrivate
+			namespace Scene
 			{
 				UInterchangeSceneNode* AddHierarchyRecursively(FbxNode* Node, FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 				{
@@ -88,7 +88,7 @@ namespace UE
 					}
 					return UnrealNode;
 				}
-			} //ns ScenePrivate
+			} //ns Scene
 
 			UInterchangeSceneNode* FFbxScene::CreateTransformNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, TArray<FString>& JSonErrorMessages)
 			{
@@ -109,8 +109,8 @@ namespace UE
 			void FFbxScene::AddHierarchy(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 			{
 				 FbxNode* RootNode = SDKScene->GetRootNode();
-				 ScenePrivate::AddHierarchyRecursively(RootNode, SDKScene, NodeContainer, JSonErrorMessages);
+				 Scene::AddHierarchyRecursively(RootNode, SDKScene, NodeContainer, JSonErrorMessages);
 			}
 		} //ns Private
-	} //ns FbxParser
+	} //ns Interchange
 }//ns UE

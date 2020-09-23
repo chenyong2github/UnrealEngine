@@ -8,7 +8,7 @@
 #include "Misc/MessageDialog.h"
 #include "RHI.h"
 
-bool Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo)
+bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo)
 {
 	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
 
@@ -49,7 +49,7 @@ bool Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, int32
 	return bValid;
 }
 
-void Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB)
+void UE::Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB)
 {
 	SizeX = InSizeX;
 	SizeY = InSizeY;
@@ -58,7 +58,7 @@ void Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, E
 	SRGB = InSRGB;
 }
 
-void Interchange::FImportImage::Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData)
+void UE::Interchange::FImportImage::Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData)
 {
 #if WITH_EDITOR
 	SizeX = InSizeX;
@@ -73,7 +73,7 @@ void Interchange::FImportImage::Init2DWithOneMip(int32 InSizeX, int32 InSizeY, E
 #endif
 }
 
-void Interchange::FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, const void* InData)
+void UE::Interchange::FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, const void* InData)
 {
 	SizeX = InSizeX;
 	SizeY = InSizeY;
@@ -93,7 +93,7 @@ void Interchange::FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY, int
 	}
 }
 
-int64 Interchange::FImportImage::GetMipSize(int32 InMipIndex) const
+int64 UE::Interchange::FImportImage::GetMipSize(int32 InMipIndex) const
 {
 #if WITH_EDITOR
 	check(InMipIndex >= 0);
@@ -106,7 +106,7 @@ int64 Interchange::FImportImage::GetMipSize(int32 InMipIndex) const
 #endif
 }
 
-void* Interchange::FImportImage::GetMipData(int32 InMipIndex)
+void* UE::Interchange::FImportImage::GetMipData(int32 InMipIndex)
 {
 	int64 Offset = 0;
 	for (int32 MipIndex = 0; MipIndex < InMipIndex; ++MipIndex)

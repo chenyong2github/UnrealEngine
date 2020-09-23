@@ -27,21 +27,21 @@ namespace InterchangePrivateNodeBase
 	 *           return false if the attribute do not exist or there is an error retriving it from the Storage
 	 */
 	template<typename ValueType>
-	bool GetCustomAttribute(const Interchange::FAttributeStorage& Attributes, const Interchange::FAttributeKey& AttributeKey, const FString& OperationName, ValueType& OutAttributeValue)
+	bool GetCustomAttribute(const UE::Interchange::FAttributeStorage& Attributes, const UE::Interchange::FAttributeKey& AttributeKey, const FString& OperationName, ValueType& OutAttributeValue)
 	{
 		if (!Attributes.ContainAttribute(AttributeKey))
 		{
 			return false;
 		}
-		Interchange::FAttributeStorage::TAttributeHandle<ValueType> AttributeHandle = Attributes.GetAttributeHandle<ValueType>(AttributeKey);
+		UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> AttributeHandle = Attributes.GetAttributeHandle<ValueType>(AttributeKey);
 		if (!AttributeHandle.IsValid())
 		{
 			return false;
 		}
-		Interchange::EAttributeStorageResult Result = AttributeHandle.Get(OutAttributeValue);
-		if (!Interchange::IsAttributeStorageResultSuccess(Result))
+		UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(OutAttributeValue);
+		if (!UE::Interchange::IsAttributeStorageResultSuccess(Result))
 		{
-			Interchange::LogAttributeStorageErrors(Result, OperationName, AttributeKey);
+			UE::Interchange::LogAttributeStorageErrors(Result, OperationName, AttributeKey);
 			return false;
 		}
 		return true;
@@ -56,12 +56,12 @@ namespace InterchangePrivateNodeBase
 	 * @param AttributeValue - The value we want to add or update in the storage
 	 */
 	template<typename ValueType>
-	bool SetCustomAttribute(Interchange::FAttributeStorage& Attributes, const Interchange::FAttributeKey& AttributeKey, const FString& OperationName, const ValueType& AttributeValue)
+	bool SetCustomAttribute(UE::Interchange::FAttributeStorage& Attributes, const UE::Interchange::FAttributeKey& AttributeKey, const FString& OperationName, const ValueType& AttributeValue)
 	{
-		Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(AttributeKey, AttributeValue);
-		if (!Interchange::IsAttributeStorageResultSuccess(Result))
+		UE::Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(AttributeKey, AttributeValue);
+		if (!UE::Interchange::IsAttributeStorageResultSuccess(Result))
 		{
-			Interchange::LogAttributeStorageErrors(Result, OperationName, AttributeKey);
+			UE::Interchange::LogAttributeStorageErrors(Result, OperationName, AttributeKey);
 			return false;
 		}
 		return true;
@@ -83,7 +83,7 @@ namespace InterchangePrivateNodeBase
  * @param EnumType - Optional, specify it only if the AssetType member is an enum so we can type cast it in the apply function (we use uint8 to store the enum value)"
  */
 #define IMPLEMENT_NODE_ATTRIBUTE_KEY(AttributeName)																		\
-const Interchange::FAttributeKey Macro_Custom##AttributeName##Key = Interchange::FAttributeKey(TEXT(#AttributeName));	\
+const UE::Interchange::FAttributeKey Macro_Custom##AttributeName##Key = UE::Interchange::FAttributeKey(TEXT(#AttributeName));	\
 
 #if WITH_ENGINE
 #define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AttributeName, AttributeType, AssetType, EnumType)	\
@@ -129,8 +129,8 @@ bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const										\
 	{																																				\
 		if(bAddApplyDelegate)																														\
 		{																																			\
-			TArray<Interchange::FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());				\
-			Delegates.Add(Interchange::FApplyAttributeToAsset::CreateUObject(this, &NodeClassName::ApplyCustom##AttributeName##ToAsset));			\
+			TArray<UE::Interchange::FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());				\
+			Delegates.Add(UE::Interchange::FApplyAttributeToAsset::CreateUObject(this, &NodeClassName::ApplyCustom##AttributeName##ToAsset));			\
 		}																																			\
 		return true;																																\
 	}																																				\
@@ -146,60 +146,63 @@ bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const										\
 
 
 //Interchange namespace
-namespace Interchange
+namespace UE
 {
-
-DECLARE_DELEGATE_RetVal_OneParam(bool, FApplyAttributeToAsset, UObject*);
-
-/**
- * Helper struct use to declare static const data we use in the UInterchangeBaseNode
- * Node that derive from UInterchangeBaseNode can also add a struct that derive from this one to add there static data
- * @note: The static data are mainly for holding Attribute keys. All attributes that are always available for a node should be in this class or a derived class.
- */
-struct FBaseNodeStaticData
-{
-	static const FAttributeKey& UniqueIDKey()
+	namespace Interchange
 	{
-		static FAttributeKey AttributeKey(TEXT("__UNQ_ID_"));
-		return AttributeKey;
-	}
 
-	static const FAttributeKey& DisplayLabelKey()
-	{
-		static FAttributeKey AttributeKey(TEXT("__DSPL_LBL_"));
-		return AttributeKey;
-	}
+		DECLARE_DELEGATE_RetVal_OneParam(bool, FApplyAttributeToAsset, UObject*);
 
-	static const FAttributeKey& ParentIDKey()
-	{
-		static FAttributeKey AttributeKey(TEXT("__PARENT_UID_"));
-		return AttributeKey;
-	}
+		/**
+		 * Helper struct use to declare static const data we use in the UInterchangeBaseNode
+		 * Node that derive from UInterchangeBaseNode can also add a struct that derive from this one to add there static data
+		 * @note: The static data are mainly for holding Attribute keys. All attributes that are always available for a node should be in this class or a derived class.
+		 */
+		struct FBaseNodeStaticData
+		{
+			static const FAttributeKey& UniqueIDKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__UNQ_ID_"));
+				return AttributeKey;
+			}
 
-	static const FAttributeKey& IsEnabledKey()
-	{
-		static FAttributeKey AttributeKey(TEXT("__IS_NBLD_"));
-		return AttributeKey;
-	}
+			static const FAttributeKey& DisplayLabelKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__DSPL_LBL_"));
+				return AttributeKey;
+			}
 
-	static const FAttributeKey& DependencyCountKey()
-	{
-		static FAttributeKey AttributeKey(TEXT("__DEPENDENCY_COUNT_"));
-		return AttributeKey;
-	}
+			static const FAttributeKey& ParentIDKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__PARENT_UID_"));
+				return AttributeKey;
+			}
 
-	static const FAttributeKey& DependencyBaseKey()
-	{
-		static FAttributeKey AttributeKey(TEXT("__DEPENDENCY_INDEX_"));
-		return AttributeKey;
-	}
-};
+			static const FAttributeKey& IsEnabledKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__IS_NBLD_"));
+				return AttributeKey;
+			}
 
-} //ns Interchange
+			static const FAttributeKey& DependencyCountKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__DEPENDENCY_COUNT_"));
+				return AttributeKey;
+			}
+
+			static const FAttributeKey& DependencyBaseKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__DEPENDENCY_INDEX_"));
+				return AttributeKey;
+			}
+		};
+
+	} //ns Interchange
+} //ns UE
 
 /**
  * This struct is used to store and retrieve key value attributes. The attributes are store in a generic FAttributeStorage which serialize the value in a TArray64<uint8>
- * See Interchange::EAttributeTypes to know the supported template types
+ * See UE::Interchange::EAttributeTypes to know the supported template types
  * This is an abstract class. This is the base class of the interchange node graph format, all class in this format should derive from this class
  */
 UCLASS(BlueprintType)
@@ -234,16 +237,16 @@ public:
 	 *
 	 */
 	template<typename T>
-	Interchange::FAttributeStorage::TAttributeHandle<T> RegisterAttribute(const Interchange::FAttributeKey& NodeAttributeKey, const T& Value)
+	UE::Interchange::FAttributeStorage::TAttributeHandle<T> RegisterAttribute(const UE::Interchange::FAttributeKey& NodeAttributeKey, const T& Value)
 	{
-		const Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(NodeAttributeKey, Value);
+		const UE::Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(NodeAttributeKey, Value);
 		
 		if (IsAttributeStorageResultSuccess(Result))
 		{
 			return Attributes.GetAttributeHandle<T>(NodeAttributeKey);
 		}
 		LogAttributeStorageErrors(Result, TEXT("RegisterAttribute"), NodeAttributeKey);
-		return Interchange::FAttributeStorage::TAttributeHandle<T>();
+		return UE::Interchange::FAttributeStorage::TAttributeHandle<T>();
 	}
 
 	/**
@@ -251,7 +254,7 @@ public:
 	 * @param nodeAttributeKey - The key of the searched attribute
 	 *
 	 */
-	virtual bool HasAttribute(const Interchange::FAttributeKey& NodeAttributeKey) const;
+	virtual bool HasAttribute(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
 
 
 	/**
@@ -261,7 +264,7 @@ public:
 	 * @param NodeAttributeKey - The key of the attribute
 	 */
 	template<typename T>
-	Interchange::FAttributeStorage::TAttributeHandle<T> GetAttributeHandle(const Interchange::FAttributeKey& NodeAttributeKey) const
+	UE::Interchange::FAttributeStorage::TAttributeHandle<T> GetAttributeHandle(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 	{
 		return Attributes.GetAttributeHandle<T>(NodeAttributeKey);
 	}
@@ -350,10 +353,10 @@ public:
 	mutable FSoftObjectPath ReferenceObject;
 protected:
 	/** The storage use to store the Key value attribute for this node. */
-	Interchange::FAttributeStorage Attributes;
+	UE::Interchange::FAttributeStorage Attributes;
 
 	/* This array hold the delegate to apply the attribute that has to be set on an UObject */
-	TMap<UClass*, TArray<Interchange::FApplyAttributeToAsset>> ApplyCustomAttributeDelegates;
+	TMap<UClass*, TArray<UE::Interchange::FApplyAttributeToAsset>> ApplyCustomAttributeDelegates;
 
 	bool bIsInitialized = false;
 };

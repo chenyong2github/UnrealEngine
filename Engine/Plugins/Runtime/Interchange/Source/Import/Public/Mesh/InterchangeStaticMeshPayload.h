@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "MeshDescription.h"
 
-namespace Interchange
+namespace UE
 {
-	struct FStaticMeshPayloadData
+	namespace Interchange
 	{
-		TArray<FMeshDescription> MeshDescriptions;
-	};
-}
+		struct FStaticMeshPayloadData
+		{
+			TArray<FMeshDescription> MeshDescriptions;
+		};
+	}//ns Interchange
+}//ns UE

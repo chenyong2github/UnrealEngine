@@ -250,7 +250,7 @@ struct FDatasmithFindAssetTypeHelper< UStaticMesh >
 template<>
 struct FDatasmithFindAssetTypeHelper< UTexture >
 {
-	static const TMap< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
+	static const TMap< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAsyncImportResult >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
 	{
 		return AssetsContext.ParentContext.ImportedTextures;
 	}
@@ -421,11 +421,11 @@ inline UTexture* FDatasmithImporterUtils::FindAsset< UTexture >( const FDatasmit
 	if ( FPaths::IsRelative( ObjectPathName ) )
 	{
 		const TSharedRef< IDatasmithTextureElement >* ImportedElement   = FDatasmithFindAssetTypeHelper< UTexture >::GetImportedElementByName( AssetsContext, ObjectPathName );
-		const TMap< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& ImportedAssetsMap = FDatasmithFindAssetTypeHelper< UTexture >::GetImportedAssetsMap( AssetsContext );
+		const TMap< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAsyncImportResult >& ImportedAssetsMap = FDatasmithFindAssetTypeHelper< UTexture >::GetImportedAssetsMap( AssetsContext );
 
 		if (ImportedElement)
 		{
-			Interchange::FAsyncImportResult* Result =  const_cast< Interchange::FAsyncImportResult* >( ImportedAssetsMap.Find(*ImportedElement) );
+			UE::Interchange::FAsyncImportResult* Result =  const_cast<UE::Interchange::FAsyncImportResult* >( ImportedAssetsMap.Find(*ImportedElement) );
 			ensure(Result);
 			if (Result)
 			{
@@ -434,11 +434,11 @@ inline UTexture* FDatasmithImporterUtils::FindAsset< UTexture >( const FDatasmit
 		}
 		else
 		{
-			for ( const TPair< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& ImportedAssetPair : ImportedAssetsMap )
+			for ( const TPair< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAsyncImportResult >& ImportedAssetPair : ImportedAssetsMap )
 			{
 				if ( FCString::Stricmp( ImportedAssetPair.Key->GetName(), ObjectPathName ) == 0 )
 				{
-					Interchange::FAsyncImportResult& Result = const_cast< Interchange::FAsyncImportResult& >( ImportedAssetPair.Value );
+					UE::Interchange::FAsyncImportResult& Result = const_cast<UE::Interchange::FAsyncImportResult& >( ImportedAssetPair.Value );
 					return Cast< UTexture >( Result.Get() );
 				}
 			}

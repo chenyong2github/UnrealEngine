@@ -308,9 +308,9 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 	return Texture;
 }
 
-Interchange::FAsyncImportResult FDatasmithTextureImporter::CreateTextureAsync(const TSharedPtr<IDatasmithTextureElement>& TextureElement)
+UE::Interchange::FAsyncImportResult FDatasmithTextureImporter::CreateTextureAsync(const TSharedPtr<IDatasmithTextureElement>& TextureElement)
 {
-	Interchange::FScopedSourceData ScopedSourceData( TextureElement->GetFile() );
+	UE::Interchange::FScopedSourceData ScopedSourceData( TextureElement->GetFile() );
 
 	const FString ContentPath = ImportContext.AssetsContext.TexturesImportPackage->GetPathName();
 
@@ -322,7 +322,7 @@ Interchange::FAsyncImportResult FDatasmithTextureImporter::CreateTextureAsync(co
 
 	ImportAssetParameters.OverridePipeline = TexturePipeline;
 
-	Interchange::FAsyncImportResult FutureTexture = UInterchangeManager::GetInterchangeManager().ImportAssetAsync( ContentPath, ScopedSourceData.GetSourceData(), ImportAssetParameters );
+	UE::Interchange::FAsyncImportResult FutureTexture = UInterchangeManager::GetInterchangeManager().ImportAssetAsync( ContentPath, ScopedSourceData.GetSourceData(), ImportAssetParameters );
 
 	return FutureTexture;
 }

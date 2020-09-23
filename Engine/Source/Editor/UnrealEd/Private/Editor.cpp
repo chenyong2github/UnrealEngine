@@ -383,7 +383,7 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 			{
 				if (bUseInterchangeFramework)
 				{
-					Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[0]);
+					UE::Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[0]);
 					if (InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
 					{
 						auto PostImportedLambda = [](UObject* ImportedObject)

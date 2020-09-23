@@ -5,13 +5,16 @@
 #include "CoreMinimal.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 
-namespace Interchange
+namespace UE
 {
-	struct FSkeletalMeshPayloadData
+	namespace Interchange
 	{
-		//Currently the skeletalmesh payload data is editor only, we have to move to something available at runtime
+		struct FSkeletalMeshPayloadData
+		{
+			//Currently the skeletalmesh payload data is editor only, we have to move to something available at runtime
 #if WITH_EDITOR
-		TArray<FSkeletalMeshImportData> SkeletalMeshImportData;
+			TArray<FSkeletalMeshImportData> SkeletalMeshImportData;
 #endif
-	};
-}
+		};
+	}//ns Interchange
+}//ns UE

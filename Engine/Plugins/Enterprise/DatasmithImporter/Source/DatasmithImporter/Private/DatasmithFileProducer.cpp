@@ -293,7 +293,7 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	for ( TPair< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& AssetPair : ImportContextPtr->ImportedTextures )
+	for ( TPair< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAsyncImportResult >& AssetPair : ImportContextPtr->ImportedTextures )
 	{
 		if(AssetPair.Value.IsValid())
 		{

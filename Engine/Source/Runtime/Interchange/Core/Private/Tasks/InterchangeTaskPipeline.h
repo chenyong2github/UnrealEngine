@@ -9,38 +9,41 @@
 #include "Stats/Stats.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-namespace Interchange
+namespace UE
 {
-
-class FTaskPipeline
-{
-private:
-	TWeakObjectPtr<UInterchangePipelineBase> PipelineBase;
-	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
-public:
-	FTaskPipeline(TWeakObjectPtr<UInterchangePipelineBase> InPipelineBase, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
-		: PipelineBase(InPipelineBase)
-		, WeakAsyncHelper(InAsyncHelper)
+	namespace Interchange
 	{
-	}
 
-	ENamedThreads::Type GetDesiredThread()
-	{
-		return PipelineBase.Get()->ScriptedCanExecuteOnAnyThread() ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
-	}
-	
-	static ESubsequentsMode::Type GetSubsequentsMode()
-	{
-		return ESubsequentsMode::TrackSubsequents;
-	}
+		class FTaskPipeline
+		{
+		private:
+			TWeakObjectPtr<UInterchangePipelineBase> PipelineBase;
+			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
+		public:
+			FTaskPipeline(TWeakObjectPtr<UInterchangePipelineBase> InPipelineBase, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
+				: PipelineBase(InPipelineBase)
+				, WeakAsyncHelper(InAsyncHelper)
+			{
+			}
 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskPipeline, STATGROUP_TaskGraphTasks);
-	}
+			ENamedThreads::Type GetDesiredThread()
+			{
+				return PipelineBase.Get()->ScriptedCanExecuteOnAnyThread() ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
+			}
 
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-};
+			static ESubsequentsMode::Type GetSubsequentsMode()
+			{
+				return ESubsequentsMode::TrackSubsequents;
+			}
+
+			FORCEINLINE TStatId GetStatId() const
+			{
+				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskPipeline, STATGROUP_TaskGraphTasks);
+			}
+
+			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+		};
 
 
-} // End namespace Interchange
+	} //ns Interchange
+}//ns UE

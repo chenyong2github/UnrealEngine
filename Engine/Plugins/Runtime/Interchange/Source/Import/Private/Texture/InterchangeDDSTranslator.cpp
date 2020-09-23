@@ -20,10 +20,6 @@
 //////////////////////////////////////////////////////////////////////////
 // DDS helper local function
 
-namespace DDSParserHelper
-{
-} //DDSParserHelper namespace end
-
 bool UInterchangeDDSTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
 {
 	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
@@ -61,15 +57,15 @@ bool UInterchangeDDSTranslator::CanImportSourceData(const UInterchangeSourceData
 
 bool UInterchangeDDSTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	return Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
+	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
 }
 
-TOptional<Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
 	if (!SourceData)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import DDS, bad source data."));
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	TArray64<uint8> SourceDataBuffer;
@@ -79,19 +75,19 @@ TOptional<Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePayloa
 	if (!Filename.Equals(PayLoadKey))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import DDS, wrong payload key. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FPaths::FileExists(Filename))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import DDS, cannot open file. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import DDS, cannot load file content into an array. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	const uint8* Buffer = SourceDataBuffer.GetData();
@@ -111,13 +107,13 @@ TOptional<Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePayloa
 	if (!DDSLoadHelper.IsValid2DTexture())
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import DDS, unsupported format. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 	// DDS 2d texture
-	if (!Interchange::FImportImageHelper::IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo))
+	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PCX, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	ETextureSourceFormat SourceFormat = DDSLoadHelper.ComputeSourceFormat();
@@ -126,17 +122,17 @@ TOptional<Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePayloa
 	if (SourceFormat == TSF_Invalid)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("DDS file [%s] contains data in an unsupported format"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	uint32 MipMapCount = DDSLoadHelper.ComputeMipMapCount();
 	if (MipMapCount <= 0)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("DDS file [%s] do not have any mipmap"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
-	Interchange::FImportImage PayloadData;
+	UE::Interchange::FImportImage PayloadData;
 	PayloadData.Init2DWithMips(
 		DDSLoadHelper.DDSHeader->dwWidth,
 		DDSLoadHelper.DDSHeader->dwHeight,

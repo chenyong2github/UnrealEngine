@@ -7,42 +7,45 @@
 #include "InterchangeDispatcherTask.h"
 #include "InterchangeWorkerHandler.h"
 
-namespace InterchangeDispatcher
+namespace UE
 {
+	namespace Interchange
+	{
 
-// Handle a list of tasks, and a set of external workers to consume them.
-class INTERCHANGEDISPATCHER_API FInterchangeDispatcher
-{
-public:
-	FInterchangeDispatcher(const FString& InResultFolder);
-	~FInterchangeDispatcher() {TerminateProcess();}
+		// Handle a list of tasks, and a set of external workers to consume them.
+		class INTERCHANGEDISPATCHER_API FInterchangeDispatcher
+		{
+		public:
+			FInterchangeDispatcher(const FString& InResultFolder);
+			~FInterchangeDispatcher() { TerminateProcess(); }
 
-	int32 AddTask(const FString& JsonDescription);
-	TOptional<FTask> GetNextTask();
-	void SetTaskState(int32 TaskIndex, ETaskState TaskState, const FString& JsonResult, const TArray<FString>& JSonMessages);
-	void GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, TArray<FString>& JSonMessages);
+			int32 AddTask(const FString& JsonDescription);
+			TOptional<FTask> GetNextTask();
+			void SetTaskState(int32 TaskIndex, ETaskState TaskState, const FString& JsonResult, const TArray<FString>& JSonMessages);
+			void GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, TArray<FString>& JSonMessages);
 
-	void StartProcess();
-	void TerminateProcess();
-	void WaitAllTaskToCompleteExecution();
-	bool IsOver();
+			void StartProcess();
+			void TerminateProcess();
+			void WaitAllTaskToCompleteExecution();
+			bool IsOver();
 
-private:
-	void SpawnHandler();
-	bool IsHandlerAlive();
-	void CloseHandler();
+		private:
+			void SpawnHandler();
+			bool IsHandlerAlive();
+			void CloseHandler();
 
-	// Tasks
-	FCriticalSection TaskPoolCriticalSection;
-	TArray<FTask> TaskPool;
-	int32 NextTaskIndex;
-	int32 CompletedTaskCount;
+			// Tasks
+			FCriticalSection TaskPoolCriticalSection;
+			TArray<FTask> TaskPool;
+			int32 NextTaskIndex;
+			int32 CompletedTaskCount;
 
-	/** Path where the result files are dump */
-	FString ResultFolder;
+			/** Path where the result files are dump */
+			FString ResultFolder;
 
-	// Workers
-	TUniquePtr<FInterchangeWorkerHandler> WorkerHandler = nullptr;
-};
+			// Workers
+			TUniquePtr<FInterchangeWorkerHandler> WorkerHandler = nullptr;
+		};
 
-} // NS InterchangeDispatcher
+	} //ns Interchange
+}//ns UE

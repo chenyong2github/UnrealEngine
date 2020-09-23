@@ -53,12 +53,12 @@ int32 Main(int32 Argc, TCHAR * Argv[])
 	int32 Major = 0;
 	int32 Minor = 0;
 	int32 Patch = 0;
-	if (!InterchangeDispatcher::DispatcherCommandVersion::FromString(InterchangeDispatcherVersion, Major, Minor, Patch))
+	if (!UE::Interchange::DispatcherCommandVersion::FromString(InterchangeDispatcherVersion, Major, Minor, Patch))
 	{
 		UE_LOG(LogInterchangeWorker, Error, TEXT("Incompatible interchange dispatcher version string command argument."));
 		return EXIT_FAILURE;
 	}
- 	if (!InterchangeDispatcher::DispatcherCommandVersion::IsAPICompatible(Major, Minor, Patch))
+ 	if (!UE::Interchange::DispatcherCommandVersion::IsAPICompatible(Major, Minor, Patch))
  	{
  		UE_LOG(LogInterchangeWorker, Error, TEXT("Incompatible interchange dispatcher version. Please recompile InterchangeWorker target."));
  		return EXIT_FAILURE;

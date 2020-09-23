@@ -6,52 +6,55 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 
-namespace InterchangeDispatcher
+namespace UE
 {
-	TSharedPtr<ICommand> CreateCommand(ECommandId CommandType)
+	namespace Interchange
 	{
-		switch (CommandType)
+		TSharedPtr<ICommand> CreateCommand(ECommandId CommandType)
 		{
-			case ECommandId::Ping: return MakeShared<FPingCommand>();
-			case ECommandId::BackPing: return MakeShared<FBackPingCommand>();
-			case ECommandId::RunTask: return MakeShared<FRunTaskCommand>();
-			case ECommandId::NotifyEndTask: return MakeShared<FCompletedTaskCommand>();
-			case ECommandId::Terminate: return MakeShared<FTerminateCommand>();
+			switch (CommandType)
+			{
+				case ECommandId::Ping: return MakeShared<FPingCommand>();
+				case ECommandId::BackPing: return MakeShared<FBackPingCommand>();
+				case ECommandId::RunTask: return MakeShared<FRunTaskCommand>();
+				case ECommandId::NotifyEndTask: return MakeShared<FCompletedTaskCommand>();
+				case ECommandId::Terminate: return MakeShared<FTerminateCommand>();
+			}
+			return nullptr;
 		}
-		return nullptr;
-	}
 
-	void SerializeCommand(ICommand& Command, TArray<uint8>& OutBuffer)
-	{
-		FMemoryWriter ArWriter(OutBuffer);
-		uint8 type = static_cast<uint8>(Command.GetType());
-		ArWriter << type;
-		ArWriter << Command;
-	}
-
-	TSharedPtr<ICommand> DeserializeCommand(const TArray<uint8>& InBuffer)
-	{
-		FMemoryReader ArReader(InBuffer);
-		uint8 type = 0;
-		ArReader << type;
-		if (TSharedPtr<ICommand> Command = CreateCommand(static_cast<ECommandId>(type)))
+		void SerializeCommand(ICommand& Command, TArray<uint8>& OutBuffer)
 		{
-			ArReader << *Command;
-			return ArReader.IsError() ? nullptr : Command;
+			FMemoryWriter ArWriter(OutBuffer);
+			uint8 type = static_cast<uint8>(Command.GetType());
+			ArWriter << type;
+			ArWriter << Command;
 		}
-		return nullptr;
-	}
 
-	void FRunTaskCommand::SerializeImpl(FArchive& Ar)
-	{
-		Ar << JsonDescription;
-		Ar << JobIndex;
-	}
+		TSharedPtr<ICommand> DeserializeCommand(const TArray<uint8>& InBuffer)
+		{
+			FMemoryReader ArReader(InBuffer);
+			uint8 type = 0;
+			ArReader << type;
+			if (TSharedPtr<ICommand> Command = CreateCommand(static_cast<ECommandId>(type)))
+			{
+				ArReader << *Command;
+				return ArReader.IsError() ? nullptr : Command;
+			}
+			return nullptr;
+		}
 
-  	void FCompletedTaskCommand::SerializeImpl(FArchive& Ar)
-	{
-		Ar << ProcessResult;
-		Ar << JSonMessages;
-		Ar << JSonResult;
-	}
-}
+		void FRunTaskCommand::SerializeImpl(FArchive& Ar)
+		{
+			Ar << JsonDescription;
+			Ar << JobIndex;
+		}
+
+		void FCompletedTaskCommand::SerializeImpl(FArchive& Ar)
+		{
+			Ar << ProcessResult;
+			Ar << JSonMessages;
+			Ar << JSonResult;
+		}
+	}//ns Interchange
+}//ns UE

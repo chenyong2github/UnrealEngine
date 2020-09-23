@@ -19,114 +19,116 @@
 #include "InterchangeManager.generated.h"
 
 class FAsyncTaskNotification;
-
-namespace Interchange
+namespace UE
 {
-	class INTERCHANGECORE_API FScopedSourceData
+	namespace Interchange
 	{
-	public:
-		explicit FScopedSourceData(const FString& Filename);
-		UInterchangeSourceData* GetSourceData() const;
-	private:
-		TStrongObjectPtr<UInterchangeSourceData> SourceDataPtr = nullptr;
-	};
-
-	class INTERCHANGECORE_API FScopedTranslator
-	{
-	public:
-		explicit FScopedTranslator(const UInterchangeSourceData* SourceData);
-		UInterchangeTranslatorBase* GetTranslator();
-
-	private:
-		TStrongObjectPtr<UInterchangeTranslatorBase> ScopedTranslatorPtr = nullptr;
-	};
-
-	enum class EImportType : uint8
-	{
-		ImportType_None,
-		ImportType_Asset,
-		ImportType_Scene
-	};
-
-	struct FImportAsyncHelperData
-	{
-		//True if the import process is unattended. We cannot show UI  if the import is automated
-		bool bIsAutomated = false;
-
-		//We can import assets or full scene
-		EImportType ImportType = EImportType::ImportType_None;
-
-		//True if we are reimporting assets or scene
-		UObject* ReimportObject = nullptr;
-	};
-
-	class FImportAsyncHelper : public FGCObject
-	{
-	public:
-		FImportAsyncHelper();
-
-		~FImportAsyncHelper()
+		class INTERCHANGECORE_API FScopedSourceData
 		{
-			CleanUp();
-		}
-
-		/* FGCObject interface */
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
-		TArray <TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
-
-		TArray<UInterchangeSourceData* > SourceDatas;
-		TArray<UInterchangeTranslatorBase* > Translators;
-		TArray<UInterchangePipelineBase* > Pipelines;
-		TArray<UInterchangeFactoryBase* > Factories;
-
-		TArray<FGraphEventRef> TranslatorTasks;
-		TArray<FGraphEventRef> PipelineTasks;
-		FGraphEventRef ParsingTask;
-		TArray<FGraphEventRef> CreateAssetTasks;
-
-		FGraphEventRef CompletionTask;
-
-		//Create package map, Key is package name. We cannot create package asynchronously so we have to create a game thread task to do this
-		FCriticalSection CreatedPackagesLock;
-		TMap<FString, UPackage*> CreatedPackages;
-
-		struct FImportedAssetInfo
-		{
-			UObject* ImportAsset;
-			UInterchangeFactoryBase* Factory;
-			UInterchangeBaseNode* AssetNode;
+		public:
+			explicit FScopedSourceData(const FString& Filename);
+			UInterchangeSourceData* GetSourceData() const;
+		private:
+			TStrongObjectPtr<UInterchangeSourceData> SourceDataPtr = nullptr;
 		};
 
-		FCriticalSection ImportedAssetsPerSourceIndexLock;
-		TMap<int32, TArray<FImportedAssetInfo>> ImportedAssetsPerSourceIndex;
+		class INTERCHANGECORE_API FScopedTranslator
+		{
+		public:
+			explicit FScopedTranslator(const UInterchangeSourceData* SourceData);
+			UInterchangeTranslatorBase* GetTranslator();
 
-		FImportAsyncHelperData TaskData;
+		private:
+			TStrongObjectPtr<UInterchangeTranslatorBase> ScopedTranslatorPtr = nullptr;
+		};
 
-		TPromise< UObject* > RootObject;
-		FGraphEventRef RootObjectCompletionEvent;
+		enum class EImportType : uint8
+		{
+			ImportType_None,
+			ImportType_Asset,
+			ImportType_Scene
+		};
 
-		void CleanUp();
-	};
+		struct FImportAsyncHelperData
+		{
+			//True if the import process is unattended. We cannot show UI  if the import is automated
+			bool bIsAutomated = false;
 
-	class INTERCHANGECORE_API FAsyncImportResult
-	{
-	public:
-		FAsyncImportResult() = default;
-		explicit FAsyncImportResult( TFuture< UObject* >&& InFutureObject, const FGraphEventRef& InGraphEvent );
+			//We can import assets or full scene
+			EImportType ImportType = EImportType::ImportType_None;
 
-		bool IsValid() const;
-		UObject* Get() const;
-		FAsyncImportResult Next( TFunction< UObject*( UObject* ) > Continuation );
+			//True if we are reimporting assets or scene
+			UObject* ReimportObject = nullptr;
+		};
 
-	private:
-		TFuture< UObject* > FutureObject;
-		FGraphEventRef GraphEvent;
-	};
+		class FImportAsyncHelper : public FGCObject
+		{
+		public:
+			FImportAsyncHelper();
 
-	void SanitizeInvalidChar(FString& String);
+			~FImportAsyncHelper()
+			{
+				CleanUp();
+			}
 
-} //End namespace interchange
+			/* FGCObject interface */
+			virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
+			TArray <TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
+
+			TArray<UInterchangeSourceData* > SourceDatas;
+			TArray<UInterchangeTranslatorBase* > Translators;
+			TArray<UInterchangePipelineBase* > Pipelines;
+			TArray<UInterchangeFactoryBase* > Factories;
+
+			TArray<FGraphEventRef> TranslatorTasks;
+			TArray<FGraphEventRef> PipelineTasks;
+			FGraphEventRef ParsingTask;
+			TArray<FGraphEventRef> CreateAssetTasks;
+
+			FGraphEventRef CompletionTask;
+
+			//Create package map, Key is package name. We cannot create package asynchronously so we have to create a game thread task to do this
+			FCriticalSection CreatedPackagesLock;
+			TMap<FString, UPackage*> CreatedPackages;
+
+			struct FImportedAssetInfo
+			{
+				UObject* ImportAsset;
+				UInterchangeFactoryBase* Factory;
+				UInterchangeBaseNode* AssetNode;
+			};
+
+			FCriticalSection ImportedAssetsPerSourceIndexLock;
+			TMap<int32, TArray<FImportedAssetInfo>> ImportedAssetsPerSourceIndex;
+
+			FImportAsyncHelperData TaskData;
+
+			TPromise< UObject* > RootObject;
+			FGraphEventRef RootObjectCompletionEvent;
+
+			void CleanUp();
+		};
+
+		class INTERCHANGECORE_API FAsyncImportResult
+		{
+		public:
+			FAsyncImportResult() = default;
+			explicit FAsyncImportResult(TFuture< UObject* >&& InFutureObject, const FGraphEventRef& InGraphEvent);
+
+			bool IsValid() const;
+			UObject* Get() const;
+			FAsyncImportResult Next(TFunction< UObject* (UObject*) > Continuation);
+
+		private:
+			TFuture< UObject* > FutureObject;
+			FGraphEventRef GraphEvent;
+		};
+
+		void SanitizeInvalidChar(FString& String);
+
+	} //ns interchange
+} //ns UE
 
 USTRUCT(BlueprintType)
 struct FImportAssetParameters
@@ -234,7 +236,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Import Manager")
 	bool ImportAsset(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
-	Interchange::FAsyncImportResult ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
+	UE::Interchange::FAsyncImportResult ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
 
 	/**
 	 * Call this to start an import scene process, the caller must specify a source data.
@@ -298,10 +300,10 @@ public:
 	 * Return an FImportAsynHelper pointer. The pointer is deleted when ReleaseAsyncHelper is call.
 	 * @param Data - The data we want to pass to the different import tasks
 	 */
-	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> CreateAsyncHelper(const Interchange::FImportAsyncHelperData& Data);
+	TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data);
 
 	/** Delete the specified AsyncHelper and remove it from the array that was holding it. */
-	void ReleaseAsyncHelper(TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper);
+	void ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper);
 
 	/*
 	 * Return the first translator that can translate the source data.
@@ -324,7 +326,7 @@ protected:
 
 private:
 	//By using pointer, there is no issue if the array get resize
-	TArray<TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> > ImportTasks;
+	TArray<TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> > ImportTasks;
 
 	TSharedPtr<FAsyncTaskNotification> Notification = nullptr;
 
@@ -345,5 +347,5 @@ private:
 	UPROPERTY()
 	TMap<const UClass*, UInterchangeWriterBase* > RegisteredWriters;
 
-	friend class Interchange::FScopedTranslator;
+	friend class UE::Interchange::FScopedTranslator;
 };

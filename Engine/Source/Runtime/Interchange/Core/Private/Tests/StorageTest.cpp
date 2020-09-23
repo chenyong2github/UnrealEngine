@@ -14,7 +14,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAttributeStorageTest, "System.Runtime.Intercha
 
 bool FAttributeStorageTest::RunTest(const FString& Parameters)
 {
-	using namespace Interchange;
+	using namespace UE::Interchange;
 
 	FString KeyPrefixString = TEXT("TestKey");
 	FName KeyPrefix(*KeyPrefixString);
@@ -118,7 +118,7 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 			ValueRef.Add(static_cast<uint8>(RandomStream.RandHelper(RandHelperUInt8)));
 		}
 
-		if (!IsAttributeStorageResultSuccess(TestStorage.RegisterAttribute(BigArrayKey, ValueRef, Interchange::EAttributeProperty::NoHash)))
+		if (!IsAttributeStorageResultSuccess(TestStorage.RegisterAttribute(BigArrayKey, ValueRef, EAttributeProperty::NoHash)))
 		{
 			AddError(FString(TEXT("`AttributeStorage` must handle adding TArray<uint8> attribute")));
 		}

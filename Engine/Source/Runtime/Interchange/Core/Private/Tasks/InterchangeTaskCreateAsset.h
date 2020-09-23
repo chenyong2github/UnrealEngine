@@ -10,94 +10,97 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Nodes/InterchangeBaseNode.h"
 
-namespace Interchange
+namespace UE
 {
-
-/**
- * This task create package, Cook::PackageTracker::NotifyUObjectCreated is not thread safe, so we need to create the packages on the main thread
- */
-class FTaskCreatePackage
-{
-private:
-	FString PackageBasePath;
-	int32 SourceIndex;
-	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
-	const UInterchangeBaseNode* Node;
-	UInterchangeFactoryBase* Factory;
-
-public:
-	FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const UInterchangeBaseNode* InNode, UInterchangeFactoryBase* InFactory)
-		: PackageBasePath(InPackageBasePath)
-		, SourceIndex(InSourceIndex)
-		, WeakAsyncHelper(InAsyncHelper)
-		, Node(InNode)
-		, Factory(InFactory)
+	namespace Interchange
 	{
-		check(Node);
-		check(Factory);
-	}
 
-	ENamedThreads::Type GetDesiredThread()
-	{
-		if (WeakAsyncHelper.IsValid() && WeakAsyncHelper.Pin()->TaskData.ReimportObject)
+		/**
+		 * This task create package, Cook::PackageTracker::NotifyUObjectCreated is not thread safe, so we need to create the packages on the main thread
+		 */
+		class FTaskCreatePackage
 		{
-			//When doing a reimport the package already exist, so we can get it outside of the main thread
-			return ENamedThreads::AnyBackgroundThreadNormalTask;
-		}
-		return ENamedThreads::GameThread;
-	}
+		private:
+			FString PackageBasePath;
+			int32 SourceIndex;
+			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
+			const UInterchangeBaseNode* Node;
+			UInterchangeFactoryBase* Factory;
 
-	static ESubsequentsMode::Type GetSubsequentsMode()
-	{
-		return ESubsequentsMode::TrackSubsequents;
-	}
+		public:
+			FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const UInterchangeBaseNode* InNode, UInterchangeFactoryBase* InFactory)
+				: PackageBasePath(InPackageBasePath)
+				, SourceIndex(InSourceIndex)
+				, WeakAsyncHelper(InAsyncHelper)
+				, Node(InNode)
+				, Factory(InFactory)
+			{
+				check(Node);
+				check(Factory);
+			}
 
-	TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCreatePackage, STATGROUP_TaskGraphTasks);
-	}
+			ENamedThreads::Type GetDesiredThread()
+			{
+				if (WeakAsyncHelper.IsValid() && WeakAsyncHelper.Pin()->TaskData.ReimportObject)
+				{
+					//When doing a reimport the package already exist, so we can get it outside of the main thread
+					return ENamedThreads::AnyBackgroundThreadNormalTask;
+				}
+				return ENamedThreads::GameThread;
+			}
 
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-};
+			static ESubsequentsMode::Type GetSubsequentsMode()
+			{
+				return ESubsequentsMode::TrackSubsequents;
+			}
 
-class FTaskCreateAsset
-{
-private:
-	FString PackageBasePath;
-	int32 SourceIndex;
-	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
-	const UInterchangeBaseNode* Node;
-	UInterchangeFactoryBase* Factory;
+			TStatId GetStatId() const
+			{
+				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCreatePackage, STATGROUP_TaskGraphTasks);
+			}
 
-public:
-	FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const UInterchangeBaseNode* InNode, UInterchangeFactoryBase* InFactory)
-		: PackageBasePath(InPackageBasePath)
-		, SourceIndex(InSourceIndex)
-		, WeakAsyncHelper(InAsyncHelper)
-		, Node(InNode)
-		, Factory(InFactory)
-	{
-		check(Node);
-		check(Factory);
-	}
+			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+		};
 
-	ENamedThreads::Type GetDesiredThread()
-	{
-		return Factory->CanExecuteOnAnyThread() ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
-	}
+		class FTaskCreateAsset
+		{
+		private:
+			FString PackageBasePath;
+			int32 SourceIndex;
+			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
+			const UInterchangeBaseNode* Node;
+			UInterchangeFactoryBase* Factory;
 
-	static ESubsequentsMode::Type GetSubsequentsMode()
-	{
-		return ESubsequentsMode::TrackSubsequents;
-	}
+		public:
+			FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const UInterchangeBaseNode* InNode, UInterchangeFactoryBase* InFactory)
+				: PackageBasePath(InPackageBasePath)
+				, SourceIndex(InSourceIndex)
+				, WeakAsyncHelper(InAsyncHelper)
+				, Node(InNode)
+				, Factory(InFactory)
+			{
+				check(Node);
+				check(Factory);
+			}
 
-	TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCreateAsset, STATGROUP_TaskGraphTasks);
-	}
+			ENamedThreads::Type GetDesiredThread()
+			{
+				return Factory->CanExecuteOnAnyThread() ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
+			}
 
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-};
+			static ESubsequentsMode::Type GetSubsequentsMode()
+			{
+				return ESubsequentsMode::TrackSubsequents;
+			}
+
+			TStatId GetStatId() const
+			{
+				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCreateAsset, STATGROUP_TaskGraphTasks);
+			}
+
+			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+		};
 
 
-} // End namespace Interchange
+	} //ns Interchange
+}//ns UE

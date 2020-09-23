@@ -1830,7 +1830,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 			const FString& Filename = FilesAndDestinations[FileIdx].Key;
 			const FString DestinationPath = ObjectTools::SanitizeObjectPath(FilesAndDestinations[FileIdx].Value);
 			{
-				Interchange::FScopedSourceData ScopedSourceData(Filename);
+				UE::Interchange::FScopedSourceData ScopedSourceData(Filename);
 				if (!InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
 				{
 					bOnlyInterchangeImport = false;
@@ -1864,7 +1864,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		const FString DestinationPath = ObjectTools::SanitizeObjectPath(FilesAndDestinations[FileIdx].Value);
 		if (bUseInterchangeFramework)
 		{
-			Interchange::FScopedSourceData ScopedSourceData(Filename);
+			UE::Interchange::FScopedSourceData ScopedSourceData(Filename);
 			if (InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
 			{
 				auto PostImportedLambda = [bSyncToBrowser](UObject* ImportedObject)

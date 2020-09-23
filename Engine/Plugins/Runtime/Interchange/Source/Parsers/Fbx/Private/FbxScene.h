@@ -11,7 +11,7 @@ class UInterchangeSceneNode;
 
 namespace UE
 {
-	namespace FbxParser
+	namespace Interchange
 	{
 		namespace Private
 		{
@@ -21,6 +21,6 @@ namespace UE
 				static void AddHierarchy(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages);
 				static UInterchangeSceneNode* CreateTransformNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, TArray<FString>& JSonErrorMessages);
 			};
-		}
-	}
-}
+		}//ns Private
+	}//ns Interchange
+}//ns UE

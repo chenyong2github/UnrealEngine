@@ -7,48 +7,51 @@
 #include "Misc/Paths.h"
 
 //Interchange namespace
-namespace Interchange
+namespace UE
 {
-	class FPackageUtils
+	namespace Interchange
 	{
-	public:
-		static bool IsMapPackageAsset(const FString& ObjectPath)
+		class FPackageUtils
 		{
-			FString MapFilePath;
-			return FPackageUtils::IsMapPackageAsset(ObjectPath, MapFilePath);
-		}
-
-		static bool IsMapPackageAsset(const FString& ObjectPath, FString& MapFilePath)
-		{
-			const FString PackageName = FPackageUtils::ExtractPackageName(ObjectPath);
-			if ( PackageName.Len() > 0 )
+		public:
+			static bool IsMapPackageAsset(const FString& ObjectPath)
 			{
-				FString PackagePath;
-				if ( FPackageName::DoesPackageExist(PackageName, NULL, &PackagePath) )
+				FString MapFilePath;
+				return FPackageUtils::IsMapPackageAsset(ObjectPath, MapFilePath);
+			}
+
+			static bool IsMapPackageAsset(const FString& ObjectPath, FString& MapFilePath)
+			{
+				const FString PackageName = FPackageUtils::ExtractPackageName(ObjectPath);
+				if (PackageName.Len() > 0)
 				{
-					const FString FileExtension = FPaths::GetExtension(PackagePath, true);
-					if ( FileExtension == FPackageName::GetMapPackageExtension() )
+					FString PackagePath;
+					if (FPackageName::DoesPackageExist(PackageName, NULL, &PackagePath))
 					{
-						MapFilePath = PackagePath;
-						return true;
+						const FString FileExtension = FPaths::GetExtension(PackagePath, true);
+						if (FileExtension == FPackageName::GetMapPackageExtension())
+						{
+							MapFilePath = PackagePath;
+							return true;
+						}
 					}
 				}
+
+				return false;
 			}
 
-			return false;
-		}
-
-		static FString ExtractPackageName(const FString& ObjectPath)
-		{
-			// To find the package name in an object path we need to find the path left of the FIRST delimiter.
-			// Assets like BSPs, lightmaps etc. can have multiple '.' delimiters.
-			const int32 PackageDelimiterPos = ObjectPath.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromStart);
-			if ( PackageDelimiterPos != INDEX_NONE )
+			static FString ExtractPackageName(const FString& ObjectPath)
 			{
-				return ObjectPath.Left(PackageDelimiterPos);
-			}
+				// To find the package name in an object path we need to find the path left of the FIRST delimiter.
+				// Assets like BSPs, lightmaps etc. can have multiple '.' delimiters.
+				const int32 PackageDelimiterPos = ObjectPath.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromStart);
+				if (PackageDelimiterPos != INDEX_NONE)
+				{
+					return ObjectPath.Left(PackageDelimiterPos);
+				}
 
-			return ObjectPath;
-		}
-	};
-} //End Interchange namespace
+				return ObjectPath;
+			}
+		};
+	} //ns Interchange
+} //ns UE

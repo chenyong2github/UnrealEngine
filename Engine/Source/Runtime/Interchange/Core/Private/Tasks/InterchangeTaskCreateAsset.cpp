@@ -18,34 +18,40 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Nodes/InterchangeBaseNode.h"
 
-namespace Interchange_InternalImplementation
+namespace UE
 {
-	void InternalGetPackageName(const Interchange::FImportAsyncHelper& AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const UInterchangeBaseNode* Node, FString& OutPackageName, FString& OutAssetName)
+	namespace Interchange
 	{
-		const UInterchangeSourceData* SourceData = AsyncHelper.SourceDatas[SourceIndex];
-		check(SourceData);
-		FString NodeDisplayName = Node->GetDisplayLabel().ToString();
-		const FString BaseFileName = FPaths::GetBaseFilename(SourceData->GetFilename());
-
-		//Set the asset name and the package name
-		if (NodeDisplayName.Equals(BaseFileName) || BaseFileName.IsEmpty())
+		namespace Private
 		{
-			OutAssetName = NodeDisplayName;
-		}
-		else
-		{
-			OutAssetName = BaseFileName.IsEmpty() ? NodeDisplayName : BaseFileName + TEXT("_") + NodeDisplayName;
-		}
-		OutPackageName = FPaths::Combine(*PackageBasePath, *OutAssetName);
-		
-		//Sanitize only the package name
-		Interchange::SanitizeInvalidChar(OutPackageName);
-	}
-}
+			void InternalGetPackageName(const UE::Interchange::FImportAsyncHelper& AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const UInterchangeBaseNode* Node, FString& OutPackageName, FString& OutAssetName)
+			{
+				const UInterchangeSourceData* SourceData = AsyncHelper.SourceDatas[SourceIndex];
+				check(SourceData);
+				FString NodeDisplayName = Node->GetDisplayLabel().ToString();
+				const FString BaseFileName = FPaths::GetBaseFilename(SourceData->GetFilename());
 
-void Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+				//Set the asset name and the package name
+				if (NodeDisplayName.Equals(BaseFileName) || BaseFileName.IsEmpty())
+				{
+					OutAssetName = NodeDisplayName;
+				}
+				else
+				{
+					OutAssetName = BaseFileName.IsEmpty() ? NodeDisplayName : BaseFileName + TEXT("_") + NodeDisplayName;
+				}
+				OutPackageName = FPaths::Combine(*PackageBasePath, *OutAssetName);
+
+				//Sanitize only the package name
+				UE::Interchange::SanitizeInvalidChar(OutPackageName);
+			}
+		}//ns Private
+	}//ns Interchange
+}//ns UE
+
+void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
-	TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
+	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
 	//The create package thread must always execute on the game thread
@@ -62,9 +68,9 @@ void Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, 
 	}
 	else
 	{
-		Interchange_InternalImplementation::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
+		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
 		// We can not create assets that share the name of a map file in the same location
-		if (Interchange::FPackageUtils::IsMapPackageAsset(PackageName))
+		if (UE::Interchange::FPackageUtils::IsMapPackageAsset(PackageName))
 		{
 			const FText Message = FText::Format(NSLOCTEXT("Interchange", "AssetNameInUseByMap", "You can not create an asset named '{0}' because there is already a map file with this name in this folder."), FText::FromString(AssetName));
 			UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
@@ -103,14 +109,14 @@ void Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, 
 	AsyncHelper->CreatedPackages.Add(PackageName, Pkg);
 }
 
-void Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
-	TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
+	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(WeakAsyncHelper.IsValid());
 
 	FString PackageName;
 	FString AssetName;
-	Interchange_InternalImplementation::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
+	Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
 	if (AsyncHelper->TaskData.ReimportObject)
 	{
 		UPackage* Pkg = AsyncHelper->TaskData.ReimportObject->GetPackage();
@@ -157,8 +163,8 @@ void Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread, co
 	if (NodeAsset)
 	{
 		FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
-		TArray<Interchange::FImportAsyncHelper::FImportedAssetInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
-		Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddZeroed_GetRef();
+		TArray<UE::Interchange::FImportAsyncHelper::FImportedAssetInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
+		UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddZeroed_GetRef();
 		AssetInfo.ImportAsset = NodeAsset;
 		Node->ReferenceObject = FSoftObjectPath(NodeAsset);
 		AssetInfo.Factory = Factory;

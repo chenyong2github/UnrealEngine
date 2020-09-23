@@ -1529,7 +1529,7 @@ namespace DatasmithConsumerUtils
 					TextureElement->SetLabel( *Texture->GetName() );
 
 					TPromise< UObject* > TexturePromise = MakeFulfilledPromise< UObject* >( Texture );
-					ImportContext.ImportedTextures.FindOrAdd( TextureElement ) = Interchange::FAsyncImportResult{ TexturePromise.GetFuture(), FGraphEventRef() };
+					ImportContext.ImportedTextures.FindOrAdd( TextureElement ) = UE::Interchange::FAsyncImportResult{ TexturePromise.GetFuture(), FGraphEventRef() };
 					ImportContext.Scene->AddTexture( TextureElement );
 				}
 				else if(UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Asset))

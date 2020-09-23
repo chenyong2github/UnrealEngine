@@ -24,15 +24,15 @@ bool UInterchangeEXRTranslator::CanImportSourceData(const UInterchangeSourceData
 
 bool UInterchangeEXRTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	return Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
+	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
 }
 
-TOptional<Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
 	if (!SourceData)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import EXR, bad source data."));
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	TArray64<uint8> SourceDataBuffer;
@@ -42,19 +42,19 @@ TOptional<Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePayloa
 	if (!Filename.Equals(PayLoadKey))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import EXR, wrong payload key. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FPaths::FileExists(Filename))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import EXR, cannot open file. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import EXR, cannot load file content into an array. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	const uint8* Buffer = SourceDataBuffer.GetData();
@@ -75,16 +75,16 @@ TOptional<Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePayloa
 	if (!ExrImageWrapper.IsValid() || !ExrImageWrapper->SetCompressed(Buffer, Length))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import EXR, unsupported format. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	int32 Width = ExrImageWrapper->GetWidth();
 	int32 Height = ExrImageWrapper->GetHeight();
 
-	if (!Interchange::FImportImageHelper::IsImportResolutionValid(Width, Height, bAllowNonPowerOfTwo))
+	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(Width, Height, bAllowNonPowerOfTwo))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PCX, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), Width, Height, bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	// Select the texture's source format
@@ -101,10 +101,10 @@ TOptional<Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePayloa
 	if (TextureFormat == TSF_Invalid)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("EXR file [%s] contains data in an unsupported format"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
-	Interchange::FImportImage PayloadData;
+	UE::Interchange::FImportImage PayloadData;
 	PayloadData.Init2DWithParams(
 		Width,
 		Height,
@@ -116,7 +116,7 @@ TOptional<Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePayloa
 	if (!ExrImageWrapper->GetRaw(Format, BitDepth, PayloadData.RawData))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to decode EXR. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	return PayloadData;

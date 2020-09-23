@@ -8,37 +8,40 @@
 #include "Stats/Stats.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-namespace Interchange
+namespace UE
 {
-
-class FTaskCompletion
-{
-private:
-	UInterchangeManager* InterchangeManager;
-	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
-public:
-	FTaskCompletion(UInterchangeManager* InInterchangeManager, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
-		: InterchangeManager(InInterchangeManager)
-		, WeakAsyncHelper(InAsyncHelper)
+	namespace Interchange
 	{
-	}
 
-	static FORCEINLINE ENamedThreads::Type GetDesiredThread()
-	{
-		return ENamedThreads::GameThread;
-	}
-	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
-	{
-		return ESubsequentsMode::FireAndForget;
-	}
+		class FTaskCompletion
+		{
+		private:
+			UInterchangeManager* InterchangeManager;
+			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
+		public:
+			FTaskCompletion(UInterchangeManager* InInterchangeManager, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
+				: InterchangeManager(InInterchangeManager)
+				, WeakAsyncHelper(InAsyncHelper)
+			{
+			}
 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCompletion, STATGROUP_TaskGraphTasks);
-	}
+			static FORCEINLINE ENamedThreads::Type GetDesiredThread()
+			{
+				return ENamedThreads::GameThread;
+			}
+			static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+			{
+				return ESubsequentsMode::FireAndForget;
+			}
 
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-};
+			FORCEINLINE TStatId GetStatId() const
+			{
+				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCompletion, STATGROUP_TaskGraphTasks);
+			}
 
-} //end namespace Interchange
+			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+		};
+
+	} //ns Interchange
+}//ns UE
 

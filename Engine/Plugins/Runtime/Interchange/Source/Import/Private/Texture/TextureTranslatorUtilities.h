@@ -7,12 +7,15 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-namespace Interchange
+namespace UE
 {
-	class FTextureTranslatorUtilities
+	namespace Interchange
 	{
-	public:
-		static bool Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer);
-	};
-}
+		class FTextureTranslatorUtilities
+		{
+		public:
+			static bool Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer);
+		};
+	}//ns Interchange
+}//ns UE
 

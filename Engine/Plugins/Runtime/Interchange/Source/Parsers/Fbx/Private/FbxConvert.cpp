@@ -7,7 +7,7 @@
 
 namespace UE
 {
-	namespace FbxParser
+	namespace Interchange
 	{
 		namespace Private
 		{
@@ -174,6 +174,6 @@ namespace UE
 				UnrollFilter.Reset();
 				ApplyUnroll(SDKScene->GetRootNode(), Layer, &UnrollFilter);
 			}
-		}
-	}
-}
+		}//ns Private
+	}//ns Interchange
+}//ns UE

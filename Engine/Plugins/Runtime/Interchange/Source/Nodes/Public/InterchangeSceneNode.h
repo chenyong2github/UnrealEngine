@@ -66,6 +66,6 @@ public:
 
 private:
 	//Scene Attribute Keys
-	const Interchange::FAttributeKey Macro_CustomLocalTransformKey = Interchange::FAttributeKey(TEXT("LocalTransform"));
-	const Interchange::FAttributeKey Macro_CustomGlobalTransformKey = Interchange::FAttributeKey(TEXT("GlobalTransform"));
+	const UE::Interchange::FAttributeKey Macro_CustomLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("LocalTransform"));
+	const UE::Interchange::FAttributeKey Macro_CustomGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("GlobalTransform"));
 };

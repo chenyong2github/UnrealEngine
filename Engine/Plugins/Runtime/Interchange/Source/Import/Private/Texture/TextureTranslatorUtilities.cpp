@@ -9,7 +9,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-bool Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
+bool UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
 {
 	FString Filename = SourceData->GetFilename();
 	if (!FPaths::FileExists(Filename))

@@ -17,9 +17,12 @@ class IDatasmithTextureElement;
 class UTexture;
 class UTextureFactory;
 
-namespace Interchange
+namespace UE
 {
-	class FAsyncImportResult;
+	namespace Interchange
+	{
+		class FAsyncImportResult;
+	}
 }
 
 class FDatasmithTextureImporter : private FNoncopyable
@@ -31,7 +34,7 @@ public:
 	UTexture* CreateTexture(const TSharedPtr<IDatasmithTextureElement>& TextureElement, const TArray<uint8>& TextureData, const FString& Extension);
 	bool GetTextureData(const TSharedPtr<IDatasmithTextureElement>& TextureElement, TArray<uint8>& TextureData, FString& Extension);
 
-	Interchange::FAsyncImportResult CreateTextureAsync(const TSharedPtr<IDatasmithTextureElement>& TextureElement);
+	UE::Interchange::FAsyncImportResult CreateTextureAsync(const TSharedPtr<IDatasmithTextureElement>& TextureElement);
 
 private:
 	bool ResizeTextureElement(const TSharedPtr<IDatasmithTextureElement>& TextureElement, FString& ResizedFilename);

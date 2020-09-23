@@ -4,12 +4,15 @@
 
 #include "CoreMinimal.h"
 
-namespace Interchange
+namespace UE
 {
-	struct FMaterialPayloadData
+	namespace Interchange
 	{
-		//Store any material payload data here, currently not used
-	};
-}
+		struct FMaterialPayloadData
+		{
+			//Store any material payload data here, currently not used
+		};
+	}//ns Interchange
+}//ns UE
 
 

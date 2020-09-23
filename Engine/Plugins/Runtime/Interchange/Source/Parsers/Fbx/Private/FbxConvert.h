@@ -7,7 +7,7 @@
 
 namespace UE
 {
-	namespace FbxParser
+	namespace Interchange
 	{
 		namespace Private
 		{
@@ -71,6 +71,6 @@ namespace UE
 				/** Scene Conversion Private Implementation End */
 				//////////////////////////////////////////////////////////////////////////
 			};
-		}
-	}
-}
+		}//ns Private
+	}//ns Interchange
+}//ns UE

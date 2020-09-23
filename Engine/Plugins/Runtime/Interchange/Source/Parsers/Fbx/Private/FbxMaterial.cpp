@@ -11,7 +11,7 @@
 
 namespace UE
 {
-	namespace FbxParser
+	namespace Interchange
 	{
 		namespace Private
 		{
@@ -183,5 +183,5 @@ namespace UE
 				}
 			}
 		} //ns Private
-	} //ns FbxParser
+	} //ns Interchange
 }//ns UE

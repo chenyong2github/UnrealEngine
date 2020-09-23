@@ -13,7 +13,7 @@ class UInterchangeTextureNode;
 
 namespace UE
 {
-	namespace FbxParser
+	namespace Interchange
 	{
 		namespace Private
 		{
@@ -28,6 +28,6 @@ namespace UE
 			private:
 				static UInterchangeMaterialNode* AddNodeMaterial(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages);
 			};
-		}
-	}
-}
+		}//ns Private
+	}//ns Interchange
+}//ns UE

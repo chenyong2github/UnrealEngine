@@ -12,7 +12,7 @@ class UInterchangeBaseNodeContainer;
 
 namespace UE
 {
-	namespace FbxParser
+	namespace Interchange
 	{
 		namespace Private
 		{
@@ -31,6 +31,6 @@ namespace UE
 				FbxImporter* SDKImporter = nullptr;
 				//FbxGeometryConverter* SDKGeometryConverter = nullptr;
 			};
-		}
-	}
-}
+		}//ns Private
+	}//ns Interchange
+}//ns UE

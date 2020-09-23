@@ -11,71 +11,72 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/Thread.h"
 
-
-namespace InterchangeDispatcher
+namespace UE
 {
-
-class FInterchangeDispatcher;
-
-//Handle a Worker by socket communication
-class INTERCHANGEDISPATCHER_API FInterchangeWorkerHandler
-{
-	enum class EWorkerState
+	namespace Interchange
 	{
-		Uninitialized,
-		Idle, // Initialized, available for processing
-		Processing, // Currently processing a task
-		Closing, // in the process of terminating
-		Terminated, // aka. Not Alive
-	};
+		class FInterchangeDispatcher;
 
-	enum class EWorkerErrorState
-	{
-		Ok,
-		ConnectionFailed_NotBound,
-		ConnectionFailed_NoClient,
-		ConnectionLost,
-		ConnectionLost_SendFailed,
-		WorkerProcess_CantCreate,
-		WorkerProcess_Lost,
-	};
+		//Handle a Worker by socket communication
+		class INTERCHANGEDISPATCHER_API FInterchangeWorkerHandler
+		{
+			enum class EWorkerState
+			{
+				Uninitialized,
+				Idle, // Initialized, available for processing
+				Processing, // Currently processing a task
+				Closing, // in the process of terminating
+				Terminated, // aka. Not Alive
+			};
 
-public:
-	FInterchangeWorkerHandler(FInterchangeDispatcher& InDispatcher, FString& InResultFolder);
-	~FInterchangeWorkerHandler();
+			enum class EWorkerErrorState
+			{
+				Ok,
+				ConnectionFailed_NotBound,
+				ConnectionFailed_NoClient,
+				ConnectionLost,
+				ConnectionLost_SendFailed,
+				WorkerProcess_CantCreate,
+				WorkerProcess_Lost,
+			};
 
-	void Run();
-	bool IsAlive() const;
-	void Stop();
+		public:
+			FInterchangeWorkerHandler(FInterchangeDispatcher& InDispatcher, FString& InResultFolder);
+			~FInterchangeWorkerHandler();
 
-private:
-	void RunInternal();
-	void StartWorkerProcess();
-	void ValidateConnection();
+			void Run();
+			bool IsAlive() const;
+			void Stop();
 
-	void ProcessCommand(ICommand& Command);
-	void ProcessCommand(FPingCommand& PingCommand);
-	void ProcessCommand(FCompletedTaskCommand& RunTaskCommand);
-	const TCHAR* EWorkerErrorStateAsString(EWorkerErrorState e);
+		private:
+			void RunInternal();
+			void StartWorkerProcess();
+			void ValidateConnection();
 
-private:
-	FInterchangeDispatcher& Dispatcher;
+			void ProcessCommand(ICommand& Command);
+			void ProcessCommand(FPingCommand& PingCommand);
+			void ProcessCommand(FCompletedTaskCommand& RunTaskCommand);
+			const TCHAR* EWorkerErrorStateAsString(EWorkerErrorState e);
 
-	// Send and receive commands
-	FNetworkServerNode NetworkInterface;
-	FCommandQueue CommandIO;
-	FThread IOThread;
-	FString ThreadName;
+		private:
+			FInterchangeDispatcher& Dispatcher;
 
-	// External process
-	FProcHandle WorkerHandle;
-	TAtomic<EWorkerState> WorkerState;
-	EWorkerErrorState ErrorState;
+			// Send and receive commands
+			FNetworkServerNode NetworkInterface;
+			FCommandQueue CommandIO;
+			FThread IOThread;
+			FString ThreadName;
 
-	// self
-	FString ResultFolder;
-	TOptional<FTask> CurrentTask;
-	bool bShouldTerminate;
+			// External process
+			FProcHandle WorkerHandle;
+			TAtomic<EWorkerState> WorkerState;
+			EWorkerErrorState ErrorState;
 
-};
-} // namespace InterchangeDispatcher
+			// self
+			FString ResultFolder;
+			TOptional<FTask> CurrentTask;
+			bool bShouldTerminate;
+
+		};
+	} //ns Interchange
+}//ns UE

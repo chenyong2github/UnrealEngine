@@ -20,15 +20,15 @@ public:
 
 private:
 	void InitiatePing();
-	void ProcessCommand(const InterchangeDispatcher::FPingCommand& PingCommand);
-	void ProcessCommand(const InterchangeDispatcher::FBackPingCommand& BackPingCommand);
-	void ProcessCommand(const InterchangeDispatcher::FRunTaskCommand& TerminateCommand);
+	void ProcessCommand(const UE::Interchange::FPingCommand& PingCommand);
+	void ProcessCommand(const UE::Interchange::FBackPingCommand& BackPingCommand);
+	void ProcessCommand(const UE::Interchange::FRunTaskCommand& TerminateCommand);
 
-	InterchangeDispatcher::ETaskState LoadFbxFile(const InterchangeDispatcher::FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages) const;
+	UE::Interchange::ETaskState LoadFbxFile(const UE::Interchange::FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages) const;
 
 private:
-	InterchangeDispatcher::FNetworkClientNode NetworkInterface;
-	InterchangeDispatcher::FCommandQueue CommandIO;
+	UE::Interchange::FNetworkClientNode NetworkInterface;
+	UE::Interchange::FCommandQueue CommandIO;
 
 	int32 ServerPID;
 	int32 ServerPort;

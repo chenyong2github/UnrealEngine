@@ -18,169 +18,174 @@
 
 //////////////////////////////////////////////////////////////////////////
 // PNG helper local function
-
-namespace PNGParserHelper
+namespace UE
 {
-	/**
-	 * This fills any pixels of a texture with have an alpha value of zero,
-	 * with an RGB from the nearest neighboring pixel which has non-zero alpha.
-	 */
-	template<typename PixelDataType, typename ColorDataType, int32 RIdx, int32 GIdx, int32 BIdx, int32 AIdx>
-	class TPNGDataFill
+	namespace Interchange
 	{
-	public:
-
-		TPNGDataFill(int32 SizeX, int32 SizeY, uint8* SourceTextureData)
-			: SourceData(reinterpret_cast<PixelDataType*>(SourceTextureData))
-			, TextureWidth(SizeX)
-			, TextureHeight(SizeY)
+		namespace Private
 		{
-		}
-
-		void ProcessData()
-		{
-			int32 NumZeroedTopRowsToProcess = 0;
-			int32 FillColorRow = -1;
-			for (int32 Y = 0; Y < TextureHeight; ++Y)
+			/**
+			 * This fills any pixels of a texture with have an alpha value of zero,
+			 * with an RGB from the nearest neighboring pixel which has non-zero alpha.
+			 */
+			template<typename PixelDataType, typename ColorDataType, int32 RIdx, int32 GIdx, int32 BIdx, int32 AIdx>
+			class TPNGDataFill
 			{
-				if (!ProcessHorizontalRow(Y))
+			public:
+
+				TPNGDataFill(int32 SizeX, int32 SizeY, uint8* SourceTextureData)
+					: SourceData(reinterpret_cast<PixelDataType*>(SourceTextureData))
+					, TextureWidth(SizeX)
+					, TextureHeight(SizeY)
 				{
-					if (FillColorRow != -1)
+				}
+
+				void ProcessData()
+				{
+					int32 NumZeroedTopRowsToProcess = 0;
+					int32 FillColorRow = -1;
+					for (int32 Y = 0; Y < TextureHeight; ++Y)
 					{
-						FillRowColorPixels(FillColorRow, Y);
+						if (!ProcessHorizontalRow(Y))
+						{
+							if (FillColorRow != -1)
+							{
+								FillRowColorPixels(FillColorRow, Y);
+							}
+							else
+							{
+								NumZeroedTopRowsToProcess = Y;
+							}
+						}
+						else
+						{
+							FillColorRow = Y;
+						}
 					}
-					else
+
+					// Can only fill upwards if image not fully zeroed
+					if (NumZeroedTopRowsToProcess > 0 && NumZeroedTopRowsToProcess + 1 < TextureHeight)
 					{
-						NumZeroedTopRowsToProcess = Y;
+						for (int32 Y = 0; Y <= NumZeroedTopRowsToProcess; ++Y)
+						{
+							FillRowColorPixels(NumZeroedTopRowsToProcess + 1, Y);
+						}
 					}
 				}
-				else
+
+				/** returns False if requires further processing because entire row is filled with zeroed alpha values */
+				bool ProcessHorizontalRow(int32 Y)
 				{
-					FillColorRow = Y;
-				}
-			}
+					// only wipe out colors that are affected by png turning valid colors white if alpha = 0
+					const uint32 WhiteWithZeroAlpha = FColor(255, 255, 255, 0).DWColor();
 
-			// Can only fill upwards if image not fully zeroed
-			if (NumZeroedTopRowsToProcess > 0 && NumZeroedTopRowsToProcess + 1 < TextureHeight)
-			{
-				for (int32 Y = 0; Y <= NumZeroedTopRowsToProcess; ++Y)
-				{
-					FillRowColorPixels(NumZeroedTopRowsToProcess + 1, Y);
-				}
-			}
-		}
-
-		/** returns False if requires further processing because entire row is filled with zeroed alpha values */
-		bool ProcessHorizontalRow(int32 Y)
-		{
-			// only wipe out colors that are affected by png turning valid colors white if alpha = 0
-			const uint32 WhiteWithZeroAlpha = FColor(255, 255, 255, 0).DWColor();
-
-			// Left -> Right
-			int32 NumLeftmostZerosToProcess = 0;
-			const PixelDataType* FillColor = nullptr;
-			for (int32 X = 0; X < TextureWidth; ++X)
-			{
-				PixelDataType* PixelData = SourceData + (Y * TextureWidth + X) * 4;
-				ColorDataType* ColorData = reinterpret_cast<ColorDataType*>(PixelData);
-
-				if (*ColorData == WhiteWithZeroAlpha)
-				{
-					if (FillColor)
+					// Left -> Right
+					int32 NumLeftmostZerosToProcess = 0;
+					const PixelDataType* FillColor = nullptr;
+					for (int32 X = 0; X < TextureWidth; ++X)
 					{
+						PixelDataType* PixelData = SourceData + (Y * TextureWidth + X) * 4;
+						ColorDataType* ColorData = reinterpret_cast<ColorDataType*>(PixelData);
+
+						if (*ColorData == WhiteWithZeroAlpha)
+						{
+							if (FillColor)
+							{
+								PixelData[RIdx] = FillColor[RIdx];
+								PixelData[GIdx] = FillColor[GIdx];
+								PixelData[BIdx] = FillColor[BIdx];
+							}
+							else
+							{
+								// Mark pixel as needing fill
+								*ColorData = 0;
+
+								// Keep track of how many pixels to fill starting at beginning of row
+								NumLeftmostZerosToProcess = X;
+							}
+						}
+						else
+						{
+							FillColor = PixelData;
+						}
+					}
+
+					if (NumLeftmostZerosToProcess == 0)
+					{
+						// No pixels left that are zero
+						return true;
+					}
+
+					if (NumLeftmostZerosToProcess + 1 >= TextureWidth)
+					{
+						// All pixels in this row are zero and must be filled using rows above or below
+						return false;
+					}
+
+					// Fill using non zero pixel immediately to the right of the beginning series of zeros
+					FillColor = SourceData + (Y * TextureWidth + NumLeftmostZerosToProcess + 1) * 4;
+
+					// Fill zero pixels found at beginning of row that could not be filled during the Left to Right pass
+					for (int32 X = 0; X <= NumLeftmostZerosToProcess; ++X)
+					{
+						PixelDataType* PixelData = SourceData + (Y * TextureWidth + X) * 4;
 						PixelData[RIdx] = FillColor[RIdx];
 						PixelData[GIdx] = FillColor[GIdx];
 						PixelData[BIdx] = FillColor[BIdx];
 					}
-					else
-					{
-						// Mark pixel as needing fill
-						*ColorData = 0;
 
-						// Keep track of how many pixels to fill starting at beginning of row
-						NumLeftmostZerosToProcess = X;
+					return true;
+				}
+
+				void FillRowColorPixels(int32 FillColorRow, int32 Y)
+				{
+					for (int32 X = 0; X < TextureWidth; ++X)
+					{
+						const PixelDataType* FillColor = SourceData + (FillColorRow * TextureWidth + X) * 4;
+						PixelDataType* PixelData = SourceData + (Y * TextureWidth + X) * 4;
+						PixelData[RIdx] = FillColor[RIdx];
+						PixelData[GIdx] = FillColor[GIdx];
+						PixelData[BIdx] = FillColor[BIdx];
 					}
 				}
-				else
+
+				PixelDataType* SourceData;
+				int32 TextureWidth;
+				int32 TextureHeight;
+			};
+
+			/**
+			 * For PNG texture importing, this ensures that any pixels with an alpha value of zero have an RGB
+			 * assigned to them from a neighboring pixel which has non-zero alpha.
+			 * This is needed as PNG exporters tend to turn pixels that are RGBA = (x,x,x,0) to (1,1,1,0)
+			 * and this produces artifacts when drawing the texture with bilinear filtering.
+			 *
+			 * @param TextureSource - The source texture
+			 * @param SourceData - The source texture data
+			 */
+			void FillZeroAlphaPNGData(int32 SizeX, int32 SizeY, ETextureSourceFormat SourceFormat, uint8* SourceData)
+			{
+				switch (SourceFormat)
 				{
-					FillColor = PixelData;
+					case TSF_BGRA8:
+					{
+						TPNGDataFill<uint8, uint32, 2, 1, 0, 3> PNGFill(SizeX, SizeY, SourceData);
+						PNGFill.ProcessData();
+						break;
+					}
+
+					case TSF_RGBA16:
+					{
+						TPNGDataFill<uint16, uint64, 0, 1, 2, 3> PNGFill(SizeX, SizeY, SourceData);
+						PNGFill.ProcessData();
+						break;
+					}
 				}
 			}
 
-			if (NumLeftmostZerosToProcess == 0)
-			{
-				// No pixels left that are zero
-				return true;
-			}
-
-			if (NumLeftmostZerosToProcess + 1 >= TextureWidth)
-			{
-				// All pixels in this row are zero and must be filled using rows above or below
-				return false;
-			}
-
-			// Fill using non zero pixel immediately to the right of the beginning series of zeros
-			FillColor = SourceData + (Y * TextureWidth + NumLeftmostZerosToProcess + 1) * 4;
-
-			// Fill zero pixels found at beginning of row that could not be filled during the Left to Right pass
-			for (int32 X = 0; X <= NumLeftmostZerosToProcess; ++X)
-			{
-				PixelDataType* PixelData = SourceData + (Y * TextureWidth + X) * 4;
-				PixelData[RIdx] = FillColor[RIdx];
-				PixelData[GIdx] = FillColor[GIdx];
-				PixelData[BIdx] = FillColor[BIdx];
-			}
-
-			return true;
-		}
-
-		void FillRowColorPixels(int32 FillColorRow, int32 Y)
-		{
-			for (int32 X = 0; X < TextureWidth; ++X)
-			{
-				const PixelDataType* FillColor = SourceData + (FillColorRow * TextureWidth + X) * 4;
-				PixelDataType* PixelData = SourceData + (Y * TextureWidth + X) * 4;
-				PixelData[RIdx] = FillColor[RIdx];
-				PixelData[GIdx] = FillColor[GIdx];
-				PixelData[BIdx] = FillColor[BIdx];
-			}
-		}
-
-		PixelDataType* SourceData;
-		int32 TextureWidth;
-		int32 TextureHeight;
-	};
-
-	/**
-	 * For PNG texture importing, this ensures that any pixels with an alpha value of zero have an RGB
-	 * assigned to them from a neighboring pixel which has non-zero alpha.
-	 * This is needed as PNG exporters tend to turn pixels that are RGBA = (x,x,x,0) to (1,1,1,0)
-	 * and this produces artifacts when drawing the texture with bilinear filtering.
-	 *
-	 * @param TextureSource - The source texture
-	 * @param SourceData - The source texture data
-	 */
-	void FillZeroAlphaPNGData(int32 SizeX, int32 SizeY, ETextureSourceFormat SourceFormat, uint8* SourceData)
-	{
-		switch (SourceFormat)
-		{
-		case TSF_BGRA8:
-		{
-			TPNGDataFill<uint8, uint32, 2, 1, 0, 3> PNGFill(SizeX, SizeY, SourceData);
-			PNGFill.ProcessData();
-			break;
-		}
-
-		case TSF_RGBA16:
-		{
-			TPNGDataFill<uint16, uint64, 0, 1, 2, 3> PNGFill(SizeX, SizeY, SourceData);
-			PNGFill.ProcessData();
-			break;
-		}
-		}
-	}
-
-} //PNGParserHelper namespace end
+		}//ns Private
+	}//ns Interchange
+}//ns UE
 
 bool UInterchangePNGTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
 {
@@ -191,15 +196,15 @@ bool UInterchangePNGTranslator::CanImportSourceData(const UInterchangeSourceData
 
 bool UInterchangePNGTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	return Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
+	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
 }
 
-TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangePNGTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
 	if (!SourceData)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PNG, bad source data."));
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	TArray64<uint8> SourceDataBuffer;
@@ -209,19 +214,19 @@ TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetTexturePayloa
 	if (!Filename.Equals(PayLoadKey))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PNG, wrong payload key. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FPaths::FileExists(Filename))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PNG, cannot open file. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PNG, cannot load file content into an array. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	const uint8* Buffer = SourceDataBuffer.GetData();
@@ -242,12 +247,12 @@ TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetTexturePayloa
 	if (!PngImageWrapper.IsValid() || !PngImageWrapper->SetCompressed(Buffer, Length))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to decode PNG. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
-	if (!Interchange::FImportImageHelper::IsImportResolutionValid(PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo))
+	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PNG, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	// Select the texture's source format
@@ -290,10 +295,10 @@ TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetTexturePayloa
 	if (TextureFormat == TSF_Invalid)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("PNG file [%s] contains data in an unsupported format"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
-	Interchange::FImportImage PayloadData;
+	UE::Interchange::FImportImage PayloadData;
 	PayloadData.Init2DWithParams(
 		PngImageWrapper->GetWidth(),
 		PngImageWrapper->GetHeight(),
@@ -309,13 +314,13 @@ TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetTexturePayloa
 		if (bFillPNGZeroAlpha)
 		{
 			// Replace the pixels with 0.0 alpha with a color value from the nearest neighboring color which has a non-zero alpha
-			PNGParserHelper::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, PayloadData.RawData.GetData());
+			UE::Interchange::Private::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, PayloadData.RawData.GetData());
 		}
 	}
 	else
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to decode PNG. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	return PayloadData;

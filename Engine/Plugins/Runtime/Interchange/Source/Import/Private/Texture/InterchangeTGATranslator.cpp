@@ -15,7 +15,7 @@
 
 namespace TGATranslatorImpl
 {
-	bool DecompressTGA( const FTGAFileHeader* TGA, Interchange::FImportImage& OutImage )
+	bool DecompressTGA( const FTGAFileHeader* TGA, UE::Interchange::FImportImage& OutImage )
 	{
 		if (TGA->ColorMapType == 1 && TGA->ImageTypeCode == 1 && TGA->BitsPerPixel == 8)
 		{
@@ -81,10 +81,10 @@ bool UInterchangeTGATranslator::CanImportSourceData(const UInterchangeSourceData
 
 bool UInterchangeTGATranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	return Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
+	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
 }
 
-TOptional<Interchange::FImportImage> UInterchangeTGATranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeTGATranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
 	if (!SourceData)
 	{
@@ -128,14 +128,14 @@ TOptional<Interchange::FImportImage> UInterchangeTGATranslator::GetTexturePayloa
 	if ( TgaImageWrapper.IsValid() && TgaImageWrapper->SetCompressed( Buffer, Length ) )
 	{
 		// Check the resolution of the imported texture to ensure validity
-		if ( !Interchange::FImportImageHelper::IsImportResolutionValid( TgaImageWrapper->GetWidth(), TgaImageWrapper->GetHeight(), bAllowNonPowerOfTwo ) )
+		if ( !UE::Interchange::FImportImageHelper::IsImportResolutionValid( TgaImageWrapper->GetWidth(), TgaImageWrapper->GetHeight(), bAllowNonPowerOfTwo ) )
 		{
 			return {};
 		}
 
 		const FTGAFileHeader* TGA = (FTGAFileHeader *)Buffer;
 
-		Interchange::FImportImage PayloadData;
+		UE::Interchange::FImportImage PayloadData;
 
 		TGATranslatorImpl::DecompressTGA( TGA, PayloadData );
 

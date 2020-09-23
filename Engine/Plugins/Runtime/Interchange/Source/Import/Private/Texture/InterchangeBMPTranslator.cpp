@@ -17,7 +17,6 @@
 #include "Texture/TextureTranslatorUtilities.h"
 
 
-
 bool UInterchangeBMPTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
 {
 	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
@@ -27,15 +26,15 @@ bool UInterchangeBMPTranslator::CanImportSourceData(const UInterchangeSourceData
 
 bool UInterchangeBMPTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	return Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
+	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
 }
 
-TOptional<Interchange::FImportImage> UInterchangeBMPTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeBMPTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
 	if (!SourceData)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import BMP, bad source data."));
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	TArray64<uint8> SourceDataBuffer;
@@ -45,19 +44,19 @@ TOptional<Interchange::FImportImage> UInterchangeBMPTranslator::GetTexturePayloa
 	if (!Filename.Equals(PayLoadKey))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import BMP, wrong payload key. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FPaths::FileExists(Filename))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import BMP, cannot open file. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import BMP, cannot load file content into an array. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	const uint8* Buffer = SourceDataBuffer.GetData();
@@ -78,18 +77,18 @@ TOptional<Interchange::FImportImage> UInterchangeBMPTranslator::GetTexturePayloa
 	if (!BmpImageWrapper.IsValid() || !BmpImageWrapper->SetCompressed(Buffer, Length))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to decode BMP. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
-	if (!Interchange::FImportImageHelper::IsImportResolutionValid(BmpImageWrapper->GetWidth(), BmpImageWrapper->GetHeight(), bAllowNonPowerOfTwo))
+	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(BmpImageWrapper->GetWidth(), BmpImageWrapper->GetHeight(), bAllowNonPowerOfTwo))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import BMP, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), BmpImageWrapper->GetWidth(), BmpImageWrapper->GetHeight(), bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	int32 BitDepth = BmpImageWrapper->GetBitDepth();
 	ERGBFormat Format = BmpImageWrapper->GetFormat();
 
-	Interchange::FImportImage PayloadData;
+	UE::Interchange::FImportImage PayloadData;
 
 	PayloadData.Init2DWithParams(
 		BmpImageWrapper->GetWidth(),
@@ -101,7 +100,7 @@ TOptional<Interchange::FImportImage> UInterchangeBMPTranslator::GetTexturePayloa
 	if (!BmpImageWrapper->GetRaw(Format, BitDepth, PayloadData.RawData))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to decode BMP. [%s]"), *Filename);
-		return TOptional<Interchange::FImportImage>();
+		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	return PayloadData;

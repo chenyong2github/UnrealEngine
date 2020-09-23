@@ -16,18 +16,21 @@
 #include "InterchangeMaterialNode.generated.h"
 
 //Interchange namespace
-namespace Interchange
+namespace UE
 {
-	
-	struct FMaterialNodeStaticData : public FBaseNodeStaticData
+	namespace Interchange
 	{
-		static const FAttributeKey& PayloadSourceFileKey()
+
+		struct FMaterialNodeStaticData : public FBaseNodeStaticData
 		{
-			static FAttributeKey AttributeKey(TEXT("__PayloadSourceFile__"));
-			return AttributeKey;
-		}
-	};
-} //ns Interchange
+			static const FAttributeKey& PayloadSourceFileKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__PayloadSourceFile__"));
+				return AttributeKey;
+			}
+		};
+	} //ns Interchange
+}//ns UE
 
 /**
  * enum use to declare supported parameter
@@ -103,20 +106,20 @@ public:
 
 	virtual const TOptional<FString> GetPayLoadKey() const
 	{
-		if (!Attributes.ContainAttribute(Interchange::FMaterialNodeStaticData::PayloadSourceFileKey()))
+		if (!Attributes.ContainAttribute(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey()))
 		{
 			return TOptional<FString>();
 		}
-		Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes.GetAttributeHandle<FString>(Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes.GetAttributeHandle<FString>(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
 		if (!AttributeHandle.IsValid())
 		{
 			return TOptional<FString>();
 		}
 		FString PayloadKey;
-		Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
+		UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
 		if (!IsAttributeStorageResultSuccess(Result))
 		{
-			LogAttributeStorageErrors(Result, TEXT("UInterchangeMaterialNode.GetPayLoadKey"), Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeMaterialNode.GetPayLoadKey"), UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
 			return TOptional<FString>();
 		}
 		return TOptional<FString>(PayloadKey);
@@ -125,10 +128,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	virtual void SetPayLoadKey(const FString& PayloadKey)
 	{
-		Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(Interchange::FMaterialNodeStaticData::PayloadSourceFileKey(), PayloadKey);
+		UE::Interchange::EAttributeStorageResult Result = Attributes.RegisterAttribute(UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey(), PayloadKey);
 		if (!IsAttributeStorageResultSuccess(Result))
 		{
-			LogAttributeStorageErrors(Result, TEXT("UInterchangeMaterialNode.SetPayLoadKey"), Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeMaterialNode.SetPayLoadKey"), UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey());
 		}
 	}
 
@@ -360,11 +363,11 @@ private:
 	//This member is serialize manually in the serialize override
 	TMap<EInterchangeMaterialNodeParameterName, FParameterData> ParameterDatas;
 
-	const Interchange::FAttributeKey ClassNameAttributeKey = Interchange::FAttributeKey(TEXT("__ClassTypeAttribute__"));
+	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FAttributeKey(TEXT("__ClassTypeAttribute__"));
 
 	//Material Attribute
-	const Interchange::FAttributeKey Macro_CustomMaterialUsageKey = Interchange::FAttributeKey(TEXT("MaterialUsage"));
-	const Interchange::FAttributeKey Macro_CustomBlendModeKey = Interchange::FAttributeKey(TEXT("BlendMode"));
+	const UE::Interchange::FAttributeKey Macro_CustomMaterialUsageKey = UE::Interchange::FAttributeKey(TEXT("MaterialUsage"));
+	const UE::Interchange::FAttributeKey Macro_CustomBlendModeKey = UE::Interchange::FAttributeKey(TEXT("BlendMode"));
 
 #if WITH_ENGINE
 	bool ApplyCustomMaterialUsageToAsset(UObject * Asset) const

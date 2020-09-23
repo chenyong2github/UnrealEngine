@@ -341,7 +341,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 				break;
 			}
 
-			Interchange::FAsyncImportResult FutureTexture = DatasmithTextureImporter.CreateTextureAsync( FilteredTextureElements[TextureIndex] );
+			UE::Interchange::FAsyncImportResult FutureTexture = DatasmithTextureImporter.CreateTextureAsync( FilteredTextureElements[TextureIndex] );
 
 			if ( FutureTexture.IsValid() )
 			{
@@ -354,7 +354,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 					}
 				);
 
-				Interchange::FAsyncImportResult& ImportedTexture = ImportContext.ImportedTextures.FindOrAdd( FilteredTextureElements[TextureIndex].ToSharedRef() );
+				UE::Interchange::FAsyncImportResult& ImportedTexture = ImportContext.ImportedTextures.FindOrAdd( FilteredTextureElements[TextureIndex].ToSharedRef() );
 				ImportedTexture = MoveTemp( FutureTexture );
 			}
 		}
@@ -443,9 +443,9 @@ UTexture* FDatasmithImporter::ImportTexture( FDatasmithImportContext& ImportCont
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportTexture);
 
-	Interchange::FAsyncImportResult& ImportedTexture = ImportContext.ImportedTextures.FindOrAdd( TextureElement );
+	UE::Interchange::FAsyncImportResult& ImportedTexture = ImportContext.ImportedTextures.FindOrAdd( TextureElement );
 	TPromise< UObject* > TexturePromise = MakeFulfilledPromise< UObject* >( DatasmithTextureImporter.CreateTexture( TextureElement, TextureData, Extension ) );
-	ImportedTexture = Interchange::FAsyncImportResult{ TexturePromise.GetFuture(), FGraphEventRef() };
+	ImportedTexture = UE::Interchange::FAsyncImportResult{ TexturePromise.GetFuture(), FGraphEventRef() };
 
 	if ( !ImportedTexture.Get() )
 	{
@@ -1498,7 +1498,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	FScopedSlowTask* Progress = ProgressPtr.Get();
 
 	// Needs to be done in dependencies order (textures -> materials -> static meshes)
-	for (const TPair< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& ImportedTexturePair : ImportContext.ImportedTextures)
+	for (const TPair< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAsyncImportResult >& ImportedTexturePair : ImportContext.ImportedTextures)
 	{
 		if (ImportContext.bUserCancelled)
 		{
