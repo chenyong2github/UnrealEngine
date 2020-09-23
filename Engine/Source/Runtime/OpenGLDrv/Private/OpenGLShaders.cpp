@@ -265,69 +265,6 @@ static bool VerifyLinkedProgram(GLuint Program)
 	return true;
 }
 
-/**
- * Verify that an OpenGL shader has compiled successfully.
- */
-static bool VerifyCompiledShader(GLuint Shader, const ANSICHAR* GlslCode )
-{
-	SCOPE_CYCLE_COUNTER(STAT_OpenGLShaderCompileVerifyTime);
-
-	if (FOpenGL::SupportsSeparateShaderObjects() && glIsProgram(Shader))
-	{
-		bool const bCompiledOK = VerifyLinkedProgram(Shader);
-#if DEBUG_GL_SHADERS
-		if (!bCompiledOK && GlslCode)
-		{
-			UE_LOG(LogRHI,Error,TEXT("Shader:\n%s"),ANSI_TO_TCHAR(GlslCode));
-		}
-#endif
-		return bCompiledOK;
-	}
-	else
-	{
-		GLint CompileStatus;
-		glGetShaderiv(Shader, GL_COMPILE_STATUS, &CompileStatus);
-		if (CompileStatus != GL_TRUE)
-		{
-			if (ReportShaderCompileFailures())
-			{
-				GLint LogLength;
-				ANSICHAR DefaultLog[] = "No log";
-				ANSICHAR *CompileLog = DefaultLog;
-				glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, &LogLength);
-#if PLATFORM_ANDROID
-				if ( LogLength == 0 )
-				{
-					// make it big anyway
-					// there was a bug in android 2.2 where glGetShaderiv would return 0 even though there was a error message
-					// https://code.google.com/p/android/issues/detail?id=9953
-					LogLength = 4096;
-				}
-#endif
-				if (LogLength > 1)
-				{
-					CompileLog = (ANSICHAR *)FMemory::Malloc(LogLength);
-					glGetShaderInfoLog(Shader, LogLength, NULL, CompileLog);
-				}
-
-#if DEBUG_GL_SHADERS
-				if (GlslCode)
-				{
-					UE_LOG(LogRHI,Error,TEXT("Shader:\n%s"),ANSI_TO_TCHAR(GlslCode));
-				}
-#endif
-				UE_LOG(LogRHI,Error,TEXT("Failed to compile shader. Compile log:\n%s"), ANSI_TO_TCHAR(CompileLog));
-				if (LogLength > 1)
-				{
-					FMemory::Free(CompileLog);
-				}
-			}
-			// if we're required to ignore compile failure then we return true here, it will end with link failure.
-			return CVarIgnoreShaderCompileFailure.GetValueOnAnyThread() == 1;
-		}
-	}
-	return true;
-}
 
 // Verify a program has created successfully, the non-SSO case will log errors and return back success status.
 // TODO: SupportsSeparateShaderObjects case.
@@ -565,8 +502,9 @@ inline uint32 GetTypeHash(FAnsiCharArray const& CharArray)
 	return FCrc::MemCrc32(CharArray.GetData(), CharArray.Num() * sizeof(ANSICHAR));
 }
 
-// Helper to compile a shader and return success, logging errors if necessary.
-GLint CompileCurrentShader(const GLuint Resource, const FAnsiCharArray& GlslCode)
+// Helper to compile a shader 
+// returns true if shader was compiled without any errors or errors should be ignored
+static bool CompileCurrentShader(const GLuint Resource, const FAnsiCharArray& GlslCode)
 {
 	VERIFY_GL_SCOPE();
 	const ANSICHAR * GlslCodeString = GlslCode.GetData();
@@ -575,18 +513,66 @@ GLint CompileCurrentShader(const GLuint Resource, const FAnsiCharArray& GlslCode
 	glShaderSource(Resource, 1, (const GLchar**)&GlslCodeString, &GlslCodeLength);
 	glCompileShader(Resource);
 
-	GLint CompileStatus = GL_TRUE;
-#if ((PLATFORM_ANDROID && !PLATFORM_LUMINGL4) || PLATFORM_IOS) && !UE_BUILD_SHIPPING
-	glGetShaderiv(Resource, GL_COMPILE_STATUS, &CompileStatus);
-	if (CompileStatus == GL_FALSE)
+	// Verify that an OpenGL shader has compiled successfully.
+	SCOPE_CYCLE_COUNTER(STAT_OpenGLShaderCompileVerifyTime);
+	
+	if (FOpenGL::SupportsSeparateShaderObjects() && glIsProgram(Resource))
 	{
-		char Msg[2048];
-		glGetShaderInfoLog(Resource, 2048, nullptr, Msg);
-		UE_LOG(LogRHI, Error, TEXT("Shader compile failed: %s\n Original Source is (len %d) %s"), ANSI_TO_TCHAR(Msg), GlslCodeLength, ANSI_TO_TCHAR(GlslCodeString));
-	}
+		bool const bCompiledOK = VerifyLinkedProgram(Resource);
+#if DEBUG_GL_SHADERS
+		if (!bCompiledOK && GlslCodeString)
+		{
+			UE_LOG(LogRHI,Error,TEXT("Shader:\n%s"), ANSI_TO_TCHAR(GlslCodeString));
+		}
 #endif
-	return CompileStatus;
+		return bCompiledOK;
+	}
+	else
+	{
+		GLint CompileStatus;
+		glGetShaderiv(Resource, GL_COMPILE_STATUS, &CompileStatus);
+		if (CompileStatus != GL_TRUE)
+		{
+			if (ReportShaderCompileFailures())
+			{
+				GLint LogLength;
+				ANSICHAR DefaultLog[] = "No log";
+				ANSICHAR *CompileLog = DefaultLog;
+				glGetShaderiv(Resource, GL_INFO_LOG_LENGTH, &LogLength);
+#if PLATFORM_ANDROID
+				if ( LogLength == 0 )
+				{
+					// make it big anyway
+					// there was a bug in android 2.2 where glGetShaderiv would return 0 even though there was a error message
+					// https://code.google.com/p/android/issues/detail?id=9953
+					LogLength = 4096;
+				}
+#endif
+				if (LogLength > 1)
+				{
+					CompileLog = (ANSICHAR *)FMemory::Malloc(LogLength);
+					glGetShaderInfoLog(Resource, LogLength, NULL, CompileLog);
+				}
+
+#if DEBUG_GL_SHADERS
+				if (GlslCodeString)
+				{
+					UE_LOG(LogRHI,Error,TEXT("Shader:\n%s"),ANSI_TO_TCHAR(GlslCodeString));
+				}
+#endif
+				UE_LOG(LogRHI,Error,TEXT("Failed to compile shader. Compile log:\n%s"), ANSI_TO_TCHAR(CompileLog));
+				if (LogLength > 1)
+				{
+					FMemory::Free(CompileLog);
+				}
+			}
+			// if we're required to ignore compile failure then we return true here, it will end with link failure.
+			return CVarIgnoreShaderCompileFailure.GetValueOnAnyThread() == 1;
+		}
+	}
+	return true;
 }
+
 
 // Set the shader hash for FRHIShaders only.
 template<typename TRHIType>
@@ -725,17 +711,16 @@ ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHA
 		GetCurrentOpenGLShaderDeviceCapabilities(Capabilities);
 		GLSLToDeviceCompatibleGLSL(GlslCodeOriginal, Header.ShaderName, TypeEnum, Capabilities, GlslCode);
 
-		GLint CompileStatus = GL_TRUE;
-
 		// Save the code and defer compilation if our device supports program binaries and we're not checking for shader compatibility.
-		if (!FOpenGLProgramBinaryCache::DeferShaderCompilation(Resource, GlslCode))
-		{
-			CompileStatus = CompileCurrentShader(Resource, GlslCode);
-		}
+		const bool bDeferredCompilation = FOpenGLProgramBinaryCache::DeferShaderCompilation(Resource, GlslCode);
+		// deferred compilation is not supported for SeparateShaderObjects
+		check(!bDeferredCompilation || !Capabilities.bSupportsSeparateShaderObjects);
 
-		if ( CompileStatus == GL_TRUE ) //-V547
+		if (!bDeferredCompilation)
 		{
-			if (Capabilities.bSupportsSeparateShaderObjects)
+			const bool bSuccessfullyCompiled = CompileCurrentShader(Resource, GlslCode);
+			
+			if (Capabilities.bSupportsSeparateShaderObjects && bSuccessfullyCompiled)
 			{
 				ANSICHAR Buf[32] = {0};
 				// Create separate shader program
@@ -744,24 +729,19 @@ ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHA
 				glAttachShader(SeparateResource, Resource);
 				
 				glLinkProgram(SeparateResource);
-				bool const bLinkedOK = VerifyLinkedProgram(SeparateResource);
-				if (!bLinkedOK)
-				{
-					const ANSICHAR* GlslCodeString = GlslCode.GetData();
-					check(VerifyCompiledShader(Resource, GlslCodeString));
-				}
+				VerifyLinkedProgram(SeparateResource);
 			
-#if ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION
+	#if ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION
 				void VerifyUniformBufferLayouts(GLuint Program);
 				VerifyUniformBufferLayouts(SeparateResource);
-#endif // #if ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION
+	#endif // #if ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION
 			
 				Resource = SeparateResource;
 			}
-			
-			// Cache it; compile status will be checked later on link (always caching will prevent multiple attempts to compile a failed shader)
-			GetOpenGLCompiledShaderCache().Add(Key, Resource);
 		}
+
+		// Cache it; (always caching will prevent multiple attempts to compile a failed shader)
+		GetOpenGLCompiledShaderCache().Add(Key, Resource);
 	}
 
 	Shader = new ShaderType();
@@ -2804,17 +2784,7 @@ static bool LinkComputeShader(FRHIComputeShader* ComputeShaderRHI, FOpenGLComput
 	check(ComputeShader->Resource != 0);
 	check(ComputeShaderRHI->GetHash() != FSHAHash());
 
-	const ANSICHAR* GlslCode = NULL;
-	if (!ComputeShader->bSuccessfullyCompiled)
-	{
-#if DEBUG_GL_SHADERS
-		GlslCode = ComputeShader->GlslCodeString;
-#endif
-		ComputeShader->bSuccessfullyCompiled = VerifyCompiledShader(ComputeShader->Resource, GlslCode);
-	}
-
 	FOpenGLLinkedProgramConfiguration Config;
-
 	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].Resource = ComputeShader->Resource;
 	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].Bindings = ComputeShader->Bindings;
 	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_COMPUTE] = ComputeShaderRHI->GetHash();
@@ -2826,12 +2796,9 @@ static bool LinkComputeShader(FRHIComputeShader* ComputeShaderRHI, FOpenGLComput
 		ComputeShader->LinkedProgram = LinkProgram(Config, false);
 		if(ComputeShader->LinkedProgram == nullptr)
 		{
-	#if DEBUG_GL_SHADERS
-			if (ComputeShader->bSuccessfullyCompiled)
-			{
-				UE_LOG(LogRHI, Error, TEXT("Compute Shader:\n%s"), ANSI_TO_TCHAR(ComputeShader->GlslCode.GetData()));
-			}
-	#endif //DEBUG_GL_SHADERS
+		#if DEBUG_GL_SHADERS
+			UE_LOG(LogRHI, Error, TEXT("Compute Shader:\n%s"), ANSI_TO_TCHAR(ComputeShader->GlslCode.GetData()));
+		#endif //DEBUG_GL_SHADERS
 			checkf(ComputeShader->LinkedProgram, TEXT("Compute shader failed to compile & link."));
 
 			FName LinkFailurePanic = FName("FailedComputeProgramLink");
@@ -3319,51 +3286,7 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 				FOpenGLHullShader* HullShader = ResourceCast(HullShaderRHI);
 				FOpenGLDomainShader* DomainShader = ResourceCast(DomainShaderRHI);
 				FOpenGLGeometryShader* GeometryShader = ResourceCast(GeometryShaderRHI);
-
-				// In case ProgramBinaryCache is enabled we defer shader compilation, look LinkProgram
-				if (!FOpenGLProgramBinaryCache::IsEnabled())
-				{
-					const ANSICHAR* GlslCode = NULL;
-					if (!VertexShader->bSuccessfullyCompiled)
-					{
-#if DEBUG_GL_SHADERS
-						GlslCode = VertexShader->GlslCodeString;
-#endif
-						VertexShader->bSuccessfullyCompiled = VerifyCompiledShader(VertexShader->Resource, GlslCode);
-					}
-					if (!PixelShader->bSuccessfullyCompiled)
-					{
-#if DEBUG_GL_SHADERS
-						GlslCode = PixelShader->GlslCodeString;
-#endif
-						PixelShader->bSuccessfullyCompiled = VerifyCompiledShader(PixelShader->Resource, GlslCode);
-					}
-					if (GeometryShader && !GeometryShader->bSuccessfullyCompiled)
-					{
-#if DEBUG_GL_SHADERS
-						GlslCode = GeometryShader->GlslCodeString;
-#endif
-						GeometryShader->bSuccessfullyCompiled = VerifyCompiledShader(GeometryShader->Resource, GlslCode);
-					}
-					if (FOpenGL::SupportsTessellation())
-					{
-						if (HullShader && !HullShader->bSuccessfullyCompiled)
-						{
-#if DEBUG_GL_SHADERS
-							GlslCode = HullShader->GlslCodeString;
-#endif
-							HullShader->bSuccessfullyCompiled = VerifyCompiledShader(HullShader->Resource, GlslCode);
-						}
-						if (DomainShader && !DomainShader->bSuccessfullyCompiled)
-						{
-#if DEBUG_GL_SHADERS
-							GlslCode = DomainShader->GlslCodeString;
-#endif
-							DomainShader->bSuccessfullyCompiled = VerifyCompiledShader(DomainShader->Resource, GlslCode);
-						}
-					}
-				}
-				
+		
 				// Make sure we have OpenGL context set up, and invalidate the parameters cache and current program (as we'll link a new one soon)
 				GetContextStateForCurrentContext().Program = -1;
 				MarkShaderParameterCachesDirty(PendingState.ShaderParameters, false);
@@ -3375,25 +3298,25 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 				if (LinkedProgram == NULL)
 				{
 #if DEBUG_GL_SHADERS
-					if (VertexShader->bSuccessfullyCompiled || FOpenGLProgramBinaryCache::IsEnabled())
+					if (VertexShader)
 					{
 						UE_LOG(LogRHI, Error, TEXT("Vertex Shader:\n%s"), ANSI_TO_TCHAR(VertexShader->GlslCode.GetData()));
 					}
-					if (PixelShader->bSuccessfullyCompiled || FOpenGLProgramBinaryCache::IsEnabled())
+					if (PixelShader)
 					{
 						UE_LOG(LogRHI, Error, TEXT("Pixel Shader:\n%s"), ANSI_TO_TCHAR(PixelShader->GlslCode.GetData()));
 					}
-					if (GeometryShader && GeometryShader->bSuccessfullyCompiled)
+					if (GeometryShader)
 					{
 						UE_LOG(LogRHI, Error, TEXT("Geometry Shader:\n%s"), ANSI_TO_TCHAR(GeometryShader->GlslCode.GetData()));
 					}
 					if (FOpenGL::SupportsTessellation())
 					{
-						if (HullShader && HullShader->bSuccessfullyCompiled)
+						if (HullShader)
 						{
 							UE_LOG(LogRHI, Error, TEXT("Hull Shader:\n%s"), ANSI_TO_TCHAR(HullShader->GlslCode.GetData()));
 						}
-						if (DomainShader && DomainShader->bSuccessfullyCompiled)
+						if (DomainShader)
 						{
 							UE_LOG(LogRHI, Error, TEXT("Domain Shader:\n%s"), ANSI_TO_TCHAR(DomainShader->GlslCode.GetData()));
 						}
@@ -4793,12 +4716,7 @@ void FOpenGLProgramBinaryCache::CompilePendingShaders(const FOpenGLLinkedProgram
 			{
 				TArray<ANSICHAR> GlslCode;
 				UncompressShader(*PendingShaderCodePtr, GlslCode);
-				if(CompileCurrentShader(ShaderResource, GlslCode) != GL_TRUE)
-				{
-					// log shader compile failure.
-					VerifyCompiledShader(ShaderResource, GlslCode.Num() > 0 ? GlslCode.GetData() : nullptr);
-				}
-
+				CompileCurrentShader(ShaderResource, GlslCode);
 				CachePtr->ShadersPendingCompilation.Remove(ShaderResource);
 			}
 		}
