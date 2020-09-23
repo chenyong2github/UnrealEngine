@@ -682,7 +682,7 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 	PassBaseParameters.ColorTexture = SceneColor.Texture;
 	PassBaseParameters.EyeAdaptationTexture = EyeAdaptationTexture;
 
-	if (View.bUseComputePasses)
+	if (View.bUseComputePasses || CVarEyeAdaptationBasicCompute.GetValueOnRenderThread())
 	{
 		FBasicEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationCS::FParameters>();
 		PassParameters->Base = PassBaseParameters;
