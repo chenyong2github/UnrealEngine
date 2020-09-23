@@ -85,6 +85,7 @@ public:
 	//~ UNiagaraDataInterface interface END
 
 	void GetWorldBBoxSize(FVectorVMContext& Context);
+	void GetNumCells(FVectorVMContext& Context);
 
 protected:
 	//~ UNiagaraDataInterface interface
