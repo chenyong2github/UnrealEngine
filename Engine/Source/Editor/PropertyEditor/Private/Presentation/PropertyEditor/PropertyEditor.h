@@ -40,11 +40,14 @@ public:
 
 	void RequestRefresh();
 
-	bool SupportsEditConditionToggle() const;
-	void ToggleEditConditionState();
-
 	/**	@return Whether the property is editconst */
 	bool IsEditConst() const;
+
+	/** @return Whether this property should have an edit condition toggle. */
+	bool SupportsEditConditionToggle() const;
+
+	/** Toggle the current state of the edit condition if this SupportsEditConditionToggle() */
+	void ToggleEditConditionState();
 
 	/**	@return Whether the property has a condition which must be met before allowing editing of it's value */
 	bool HasEditCondition() const;
@@ -123,8 +126,4 @@ private:
 	 
 	/** The property view where this widget resides */
 	TSharedRef< class IPropertyUtilities > PropertyUtilities;
-
-	/** Edit condition expression used to determine if this property editor can modify its property */
-	TSharedPtr<FEditConditionExpression> EditConditionExpression;
-	TSharedPtr<FEditConditionContext> EditConditionContext;
 };

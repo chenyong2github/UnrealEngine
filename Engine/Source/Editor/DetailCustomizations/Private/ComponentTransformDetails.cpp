@@ -320,6 +320,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		ChildrenBuilder.AddCustomRow( LOCTEXT("LocationFilter", "Location") )
 		.CopyAction( CreateCopyAction( ETransformField::Location ) )
 		.PasteAction( CreatePasteAction( ETransformField::Location ) )
+		.OverrideResetToDefault(FResetToDefaultOverride::Create(TAttribute<bool>(this, &FComponentTransformDetails::GetLocationResetVisibility), FSimpleDelegate::CreateSP(this, &FComponentTransformDetails::OnLocationResetClicked)))
 		.NameContent()
 		.VAlign(VAlign_Center)
 		[
@@ -354,29 +355,6 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 				.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginLocationSlider )
 				.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndLocationSlider )
 			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				// Just take up space for alignment
-				SNew( SBox )
-				.WidthOverride( 18.0f )
-			]
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.OnClicked(this, &FComponentTransformDetails::OnLocationResetClicked)
-				.Visibility(this, &FComponentTransformDetails::GetLocationResetVisibility)
-				.ContentPadding(FMargin(5.f, 0.f))
-				.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
-				.Content()
-				[
-					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
-				]
-			]
 		];
 	}
 	
@@ -392,6 +370,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		ChildrenBuilder.AddCustomRow( LOCTEXT("RotationFilter", "Rotation") )
 		.CopyAction( CreateCopyAction(ETransformField::Rotation) )
 		.PasteAction( CreatePasteAction(ETransformField::Rotation) )
+		.OverrideResetToDefault(FResetToDefaultOverride::Create(TAttribute<bool>(this, &FComponentTransformDetails::GetRotationResetVisibility), FSimpleDelegate::CreateSP(this, &FComponentTransformDetails::OnRotationResetClicked)))
 		.NameContent()
 		.VAlign(VAlign_Center)
 		[
@@ -425,29 +404,6 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 				.TypeInterface( TypeInterface )
 				.Font( FontInfo )
 			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				// Just take up space for alignment
-				SNew( SBox )
-				.WidthOverride( 18.0f )
-			]
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.OnClicked(this, &FComponentTransformDetails::OnRotationResetClicked)
-				.Visibility(this, &FComponentTransformDetails::GetRotationResetVisibility)
-				.ContentPadding(FMargin(5.f, 0.f))
-				.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
-				.Content()
-				[
-					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
-				]
-			]
 		];
 	}
 	
@@ -457,6 +413,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		ChildrenBuilder.AddCustomRow( LOCTEXT("ScaleFilter", "Scale") )
 		.CopyAction( CreateCopyAction(ETransformField::Scale) )
 		.PasteAction( CreatePasteAction(ETransformField::Scale) )
+		.OverrideResetToDefault(FResetToDefaultOverride::Create(TAttribute<bool>(this, &FComponentTransformDetails::GetScaleResetVisibility), FSimpleDelegate::CreateSP(this, &FComponentTransformDetails::OnScaleResetClicked)))
 		.NameContent()
 		.VAlign(VAlign_Center)
 		[
@@ -508,22 +465,6 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 					SNew( SImage )
 					.Image( this, &FComponentTransformDetails::GetPreserveScaleRatioImage )
 					.ColorAndOpacity( FSlateColor::UseForeground() )
-				]
-			]
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.OnClicked(this, &FComponentTransformDetails::OnScaleResetClicked)
-				.Visibility(this, &FComponentTransformDetails::GetScaleResetVisibility)
-				.ContentPadding(FMargin(5.f, 0.f))
-				.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
-				.Content()
-				[
-					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault") )
 				]
 			]
 		];
@@ -753,16 +694,16 @@ struct FGetRootComponentArchetype
 	}
 };
 
-EVisibility FComponentTransformDetails::GetLocationResetVisibility() const
+bool FComponentTransformDetails::GetLocationResetVisibility() const
 {
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
 	const FVector Data = Archetype ? Archetype->GetRelativeLocation() : FVector::ZeroVector;
 
 	// unset means multiple differing values, so show "Reset to Default" in that case
-	return CachedLocation.IsSet() && CachedLocation.X.GetValue() == Data.X && CachedLocation.Y.GetValue() == Data.Y && CachedLocation.Z.GetValue() == Data.Z ? EVisibility::Hidden : EVisibility::Visible;
+	return CachedLocation.IsSet() && CachedLocation.X.GetValue() == Data.X && CachedLocation.Y.GetValue() == Data.Y && CachedLocation.Z.GetValue() == Data.Z ? false : true;
 }
 
-FReply FComponentTransformDetails::OnLocationResetClicked()
+void FComponentTransformDetails::OnLocationResetClicked()
 {
 	const FText TransactionName = LOCTEXT("ResetLocation", "Reset Location");
 	FScopedTransaction Transaction(TransactionName);
@@ -771,20 +712,18 @@ FReply FComponentTransformDetails::OnLocationResetClicked()
 	const FVector Data = Archetype ? Archetype->GetRelativeLocation() : FVector::ZeroVector;
 
 	OnSetTransform(ETransformField::Location, EAxisList::All, Data, false, true);
-
-	return FReply::Handled();
 }
 
-EVisibility FComponentTransformDetails::GetRotationResetVisibility() const
+bool FComponentTransformDetails::GetRotationResetVisibility() const
 {
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
 	const FVector Data = Archetype ? Archetype->GetRelativeRotation().Euler() : FVector::ZeroVector;
 
 	// unset means multiple differing values, so show "Reset to Default" in that case
-	return CachedRotation.IsSet() && CachedRotation.X.GetValue() == Data.X && CachedRotation.Y.GetValue() == Data.Y && CachedRotation.Z.GetValue() == Data.Z ? EVisibility::Hidden : EVisibility::Visible;
+	return CachedRotation.IsSet() && CachedRotation.X.GetValue() == Data.X && CachedRotation.Y.GetValue() == Data.Y && CachedRotation.Z.GetValue() == Data.Z ? false : true;
 }
 
-FReply FComponentTransformDetails::OnRotationResetClicked()
+void FComponentTransformDetails::OnRotationResetClicked()
 {
 	const FText TransactionName = LOCTEXT("ResetRotation", "Reset Rotation");
 	FScopedTransaction Transaction(TransactionName);
@@ -793,20 +732,18 @@ FReply FComponentTransformDetails::OnRotationResetClicked()
 	const FVector Data = Archetype ? Archetype->GetRelativeRotation().Euler() : FVector::ZeroVector;
 
 	OnSetTransform(ETransformField::Rotation, EAxisList::All, Data, false, true);
-
-	return FReply::Handled();
 }
 
-EVisibility FComponentTransformDetails::GetScaleResetVisibility() const
+bool FComponentTransformDetails::GetScaleResetVisibility() const
 {
 	const USceneComponent* Archetype = FGetRootComponentArchetype::Get(SelectedObjects[0].Get());
 	const FVector Data = Archetype ? Archetype->GetRelativeScale3D() : FVector(1.0f);
 
 	// unset means multiple differing values, so show "Reset to Default" in that case
-	return CachedScale.IsSet() && CachedScale.X.GetValue() == Data.X && CachedScale.Y.GetValue() == Data.Y && CachedScale.Z.GetValue() == Data.Z ? EVisibility::Hidden : EVisibility::Visible;
+	return CachedScale.IsSet() && CachedScale.X.GetValue() == Data.X && CachedScale.Y.GetValue() == Data.Y && CachedScale.Z.GetValue() == Data.Z ? false : true;
 }
 
-FReply FComponentTransformDetails::OnScaleResetClicked()
+void FComponentTransformDetails::OnScaleResetClicked()
 {
 	const FText TransactionName = LOCTEXT("ResetScale", "Reset Scale");
 	FScopedTransaction Transaction(TransactionName);
@@ -815,8 +752,6 @@ FReply FComponentTransformDetails::OnScaleResetClicked()
 	const FVector Data = Archetype ? Archetype->GetRelativeScale3D() : FVector(1.0f);
 
 	OnSetTransform(ETransformField::Scale, EAxisList::All, Data, false, true);
-
-	return FReply::Handled();
 }
 
 void FComponentTransformDetails::ExtendXScaleContextMenu( FMenuBuilder& MenuBuilder )

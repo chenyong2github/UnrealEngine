@@ -3169,9 +3169,9 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "DetailsView.ViewOptions",         	  new CORE_IMAGE_BRUSH_SVG("Starship/Common/settings",  Icon16x16, FLinearColor::White) );
 		Set( "DetailsView.EditConfigProperties",      new IMAGE_BRUSH("Icons/icon_PropertyMatrix_16px",  Icon16x16, FLinearColor::White ) );
 
-		Set( "DetailsView.CollapsedCategory",         new FSlateColorBrush(FStyleColors::Background));
-		Set( "DetailsView.CategoryTop",               new FSlateColorBrush(FStyleColors::Background));
+		Set( "DetailsView.CollapsedCategory",         new FSlateColorBrush(FStyleColors::Header));
 		Set( "DetailsView.CollapsedCategory_Hovered", new FSlateColorBrush(FStyleColors::Header));
+		Set( "DetailsView.CategoryTop",               new FSlateColorBrush(FStyleColors::Header));
 		Set( "DetailsView.CategoryTop_Hovered",       new FSlateColorBrush(FStyleColors::Header));
 		Set( "DetailsView.CategoryBottom",            new FSlateColorBrush(FStyleColors::Recessed));
 
@@ -3179,18 +3179,25 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "DetailsView.CategoryMiddle_Hovered",    new FSlateColorBrush(FStyleColors::Header));
 		Set( "DetailsView.CategoryMiddle_Highlighted",new FSlateColorBrush(FStyleColors::Background));
 		Set( "DetailsView.CategoryMiddle_Active",     new FSlateColorBrush(FStyleColors::Background));
-		
+
 		Set( "DetailsView.PropertyIsFavorite", new IMAGE_BRUSH("PropertyView/Favorites_Enabled", Icon12x12));
 		Set( "DetailsView.PropertyIsNotFavorite", new IMAGE_BRUSH("PropertyView/Favorites_Disabled", Icon12x12));
 		Set( "DetailsView.NoFavoritesSystem", new IMAGE_BRUSH("PropertyView/NoFavoritesSystem", Icon12x12));
 
 		Set( "DetailsView.Splitter", FSplitterStyle()
-			.SetHandleNormalBrush(   FSlateNoResource())                   
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Transparent))                   
 			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Recessed))
 		);
 
-		Set( "DetailsView.AdvancedDropdownBorder",      new FSlateColorBrush(FStyleColors::Background));
-		Set( "DetailsView.AdvancedDropdownBorder.Open", new FSlateColorBrush(FStyleColors::Background));
+		Set( "DetailsView.Splitter.Outer", FSplitterStyle()
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Recessed))                   
+			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Recessed))
+		);
+
+		Set("DetailsView.GridLine", new FSlateColorBrush(FStyleColors::Recessed));
+
+		Set( "DetailsView.AdvancedDropdownBorder",      new FSlateColorBrush(FStyleColors::Recessed));
+		Set( "DetailsView.AdvancedDropdownBorder.Open", new FSlateColorBrush(FStyleColors::Recessed));
 
 		Set( "DetailsView.CategoryFontStyle", FStyleFonts::Get().NormalBold);
 		Set( "DetailsView.CategoryTextStyle", FTextBlockStyle(NormalText)

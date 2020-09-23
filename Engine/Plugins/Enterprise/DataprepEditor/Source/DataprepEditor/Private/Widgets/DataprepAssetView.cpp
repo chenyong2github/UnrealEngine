@@ -403,11 +403,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 
 	bIsChecked = true;
 
-	ColumnWidth = 0.7f;
-	ColumnSizeData = MakeShared< FDetailColumnSizeData >();
-	ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepAssetView::OnGetLeftColumnWidth);
-	ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepAssetView::OnGetRightColumnWidth);
-	ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepAssetView::OnSetColumnWidth);
+	ColumnSizeData = MakeShared<FDetailColumnSizeData>();
 
 	UDataprepAssetProducers* AssetProducers = DataprepAssetInterfacePtr->GetProducers();
 	check( AssetProducers );

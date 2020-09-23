@@ -7,8 +7,11 @@
 #include "UObject/UnrealType.h"
 #include "PropertyPath.h"
 #include "PropertyEditorModule.h"
+#include "EditConditionParser.h"
 
 class FComplexPropertyNode;
+class FEditConditionContext;
+class FEditConditionExpression;
 class FNotifyHook;
 class FObjectPropertyNode;
 class FPropertyItemValueDataTrackerSlate;
@@ -909,6 +912,22 @@ public:
 	 * Broadcasts reset to default property changes
 	 */
 	void BroadcastPropertyResetToDefault();
+	
+	/** @return Whether this property should have an edit condition toggle. */
+	bool SupportsEditConditionToggle() const;
+
+	/** Toggle the current state of the edit condition if this SupportsEditConditionToggle() */
+	void ToggleEditConditionState();
+
+	/**	@return Whether the property has a condition which must be met before allowing editing of it's value */
+	bool HasEditCondition() const;
+
+	/**	@return Whether the condition has been met to allow editing of this property's value */
+	bool IsEditConditionMet() const;
+
+	/**	@return Whether this property derives its visibility from its edit condition */
+	bool IsOnlyVisibleWhenEditConditionMet() const;
+
 protected:
 
 	// Returns a pointer to the starting point of the structure that contains the property this node uses.
@@ -1002,6 +1021,9 @@ protected:
 	static bool DoesChildPropertyRequireValidation(FProperty* InChildProp);
 
 protected:
+
+	static FEditConditionParser EditConditionParser;
+
 	/**
 	 * The node that is the parent of this node or nullptr for the root
 	 */
@@ -1082,6 +1104,10 @@ protected:
 	* The property path for this property
 	*/
 	FString PropertyPath;
+
+	/** Edit condition expression used to determine if this property editor can modify its property */
+	TSharedPtr<FEditConditionExpression> EditConditionExpression;
+	TSharedPtr<FEditConditionContext> EditConditionContext;
 
 	/**
 	* Cached state of flags that are expensive to update

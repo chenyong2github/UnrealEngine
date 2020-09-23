@@ -16,7 +16,7 @@
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-
+#include "SResetToDefaultPropertyEditor.h"
 
 void SConstrainedBox::Construct(const FArguments& InArgs)
 {
@@ -54,8 +54,8 @@ FVector2D SConstrainedBox::ComputeDesiredSize(float LayoutScaleMultiplier) const
 
 namespace DetailWidgetConstants
 {
-	const FMargin LeftRowPadding( 0.0f, 2.5f, 2.0f, 2.5f );
-	const FMargin RightRowPadding( 3.0f, 2.5f, 2.0f, 2.5f );
+	const FMargin LeftRowPadding( 0.0f, 2.5f, 12.0f, 2.5f );
+	const FMargin RightRowPadding( 12.0f, 2.5f, 2.0f, 2.5f );
 }
 
 namespace SDetailSingleItemRow_Helper
@@ -80,12 +80,12 @@ namespace SDetailSingleItemRow_Helper
 	}
 }
 
-FReply SDetailSingleItemRow::OnFavoriteToggle()
+void SDetailSingleItemRow::OnFavoriteMenuToggle()
 {
 	if (Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->CanDisplayFavorite())
 	{
-		bool toggle = !Customization->GetPropertyNode()->IsFavorite();
-		Customization->GetPropertyNode()->SetFavorite(toggle);
+		bool bToggle = !Customization->GetPropertyNode()->IsFavorite();
+		Customization->GetPropertyNode()->SetFavorite(bToggle);
 		if (OwnerTreeNode.IsValid())
 		{
 			//////////////////////////////////////////////////////////////////////////
@@ -104,28 +104,27 @@ FReply SDetailSingleItemRow::OnFavoriteToggle()
 			}
 			
 			//Get the number of favorite child (simple and advance) to know if the favorite category will be create or remove
-			FString CategoryFavoritesName = TEXT("Favorites");
-			FName CatFavName = *CategoryFavoritesName;
 			int32 SimplePropertiesNum = 0;
 			int32 AdvancePropertiesNum = 0;
 
 			FDetailLayoutBuilderImpl& DetailLayout = OwnerTreeNode.Pin()->GetParentCategory()->GetParentLayoutImpl();
 
-			bool HasCategoryFavorite = DetailLayout.HasCategory(CatFavName);
+			const FName FavoritesCategoryName = TEXT("Favorites");
+			bool HasCategoryFavorite = DetailLayout.HasCategory(FavoritesCategoryName);
 			if(HasCategoryFavorite)
 			{
-				DetailLayout.DefaultCategory(CatFavName).GetCategoryInformation(SimplePropertiesNum, AdvancePropertiesNum);
+				DetailLayout.DefaultCategory(FavoritesCategoryName).GetCategoryInformation(SimplePropertiesNum, AdvancePropertiesNum);
 			}
 
-			//Check if the property we toggle is an advance property
+			// Check if the property we toggle is an advance property
 			bool IsAdvanceProperty = Customization->GetPropertyNode()->HasNodeFlags(EPropertyNodeFlags::IsAdvanced) == 0 ? false : true;
 
-			//Compute the scrolling offset by item
+			// Compute the scrolling offset by item
 			int32 ScrollingOffsetAdd = ExpandSize;
 			int32 ScrollingOffsetRemove = -ExpandSize;
 			if (HasCategoryFavorite)
 			{
-				//Adding the advance button in a category add 1 item
+				// Adding the advance button in a category add 1 item
 				ScrollingOffsetAdd += (IsAdvanceProperty && AdvancePropertiesNum == 0) ? 1 : 0;
 
 				if (IsAdvanceProperty && AdvancePropertiesNum == 1)
@@ -141,22 +140,21 @@ FReply SDetailSingleItemRow::OnFavoriteToggle()
 			}
 			else
 			{
-				//Adding new category (2 items) adding advance button (1 item)
+				// Adding new category (2 items) adding advance button (1 item)
 				ScrollingOffsetAdd += IsAdvanceProperty ? 3 : 2;
 				
-				//We should never remove an item from favorite if there is no favorite category
-				//Set the remove offset to 0
+				// We should never remove an item from favorite if there is no favorite category
+				// Set the remove offset to 0
 				ScrollingOffsetRemove = 0;
 			}
 
-			//Apply the calculated offset
-			OwnerTreeNode.Pin()->GetDetailsView()->MoveScrollOffset(toggle ? ScrollingOffsetAdd : ScrollingOffsetRemove);
+			// Apply the calculated offset
+			OwnerTreeNode.Pin()->GetDetailsView()->MoveScrollOffset(bToggle ? ScrollingOffsetAdd : ScrollingOffsetRemove);
 
-			//Refresh the tree
+			// Refresh the tree
 			OwnerTreeNode.Pin()->GetDetailsView()->ForceRefresh();
 		}
 	}
-	return FReply::Handled();
 }
 
 void SDetailSingleItemRow::OnArrayDragEnter(const FDragDropEvent& DragDropEvent)
@@ -306,177 +304,158 @@ TSharedPtr<IPropertyHandle> SDetailSingleItemRow::GetPropertyHandle() const
 	return Handle;
 }
 
-const FSlateBrush* SDetailSingleItemRow::GetFavoriteButtonBrush() const
-{
-	if (Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->CanDisplayFavorite())
-	{
-		return FEditorStyle::GetBrush(Customization->GetPropertyNode()->IsFavorite() ? TEXT("DetailsView.PropertyIsFavorite") : IsHovered() ? TEXT("DetailsView.PropertyIsNotFavorite") : TEXT("DetailsView.NoFavoritesSystem"));
-	}
-	//Adding a transparent brush make sure all property are left align correctly
-	return FEditorStyle::GetBrush(TEXT("DetailsView.NoFavoritesSystem"));
-}
-
 void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCustomization* InCustomization, bool bHasMultipleColumns, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView )
 {
 	OwnerTreeNode = InOwnerTreeNode;
 	bAllowFavoriteSystem = InArgs._AllowFavoriteSystem;
-
-	ColumnSizeData = InArgs._ColumnSizeData;
-
-	TSharedRef<SWidget> Widget = SNullWidget::NullWidget;
 	Customization = InCustomization;
 
-	EHorizontalAlignment HorizontalAlignment = HAlign_Fill;
-	EVerticalAlignment VerticalAlignment = VAlign_Fill;
-
-	TAttribute<bool> NameWidgetEnabled;
+	TSharedRef<SWidget> Widget = SNullWidget::NullWidget;
 
 	FOnTableRowDragEnter ArrayDragDelegate;
 	FOnTableRowDragLeave ArrayDragLeaveDelegate;
 	FOnTableRowDrop ArrayDropDelegate;
 	FOnCanAcceptDrop ArrayAcceptDropDelegate;
 
+	FDetailColumnSizeData& ColumnSizeData = InOwnerTreeNode->GetDetailsView()->GetColumnSizeData();
+
 	const bool bIsValidTreeNode = InOwnerTreeNode->GetParentCategory().IsValid() && InOwnerTreeNode->GetParentCategory()->IsParentLayoutValid();
-	if(bIsValidTreeNode)
+	if (bIsValidTreeNode)
 	{
-		if(InCustomization->IsValidCustomization())
+		if (Customization->IsValidCustomization())
 		{
+			TAttribute<bool> IsPropertyEditingEnabled = InOwnerTreeNode->IsPropertyEditingEnabled();
+
 			FDetailWidgetRow Row = InCustomization->GetWidgetRow();
 
-			TSharedPtr<SWidget> NameWidget;
-			TSharedPtr<SWidget> ValueWidget;
+			TSharedPtr<SWidget> NameWidget, ValueWidget, ExtensionWidget;
 
 			NameWidget = Row.NameWidget.Widget;
-			if(Row.IsEnabledAttr.IsBound())
-			{
-				NameWidgetEnabled = Row.IsEnabledAttr;
-				NameWidget->SetEnabled(Row.IsEnabledAttr);
-			}
 
 			ValueWidget =
 				SNew(SConstrainedBox)
 				.MinWidth(Row.ValueWidget.MinWidth)
 				.MaxWidth(Row.ValueWidget.MaxWidth)
+				.IsEnabled(IsPropertyEditingEnabled)
 				[
 					Row.ValueWidget.Widget
 				];
 
-			TSharedRef<SWidget> ExtensionWidget = CreateExtensionWidget(ValueWidget.ToSharedRef(), *Customization, InOwnerTreeNode);
+			ExtensionWidget = CreateExtensionWidget(ValueWidget.ToSharedRef(), *Customization, InOwnerTreeNode);
 
-			if(Row.IsEnabledAttr.IsBound())
+			TAttribute<bool> NameWidgetEnabled;
+			if (Row.IsEnabledAttr.IsBound())
 			{
+				NameWidgetEnabled = Row.IsEnabledAttr;
+				NameWidget->SetEnabled(Row.IsEnabledAttr);
 				ValueWidget->SetEnabled(Row.IsEnabledAttr);
 				ExtensionWidget->SetEnabled(Row.IsEnabledAttr);
 			}
 
-			TArray<TSharedRef<SWidget>> GlobalWidgetExtensions;
-			FOnGenerateGlobalRowExtensionArgs Args{ GetPropertyHandle(), GetPropertyNode(), OwnerTreeNode };
+			TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
 
-			FPropertyEditorModule& Module = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			Module.GetGlobalRowExtensionDelegate().Broadcast(Args, FOnGenerateGlobalRowExtensionArgs::EWidgetPosition::Left, GlobalWidgetExtensions);
+			// create outer splitter
+			TSharedRef<SSplitter> OuterSplitter =
+				SNew(SSplitter)
+				.Style(FEditorStyle::Get(), "DetailsView.Splitter.Outer")
+				.PhysicalSplitterHandleSize(1.0f)
+				.HitDetectionSplitterHandleSize(5.0f);
 
-			TSharedRef<SWidget> KeyFrameButton = CreateKeyframeButton(*Customization, InOwnerTreeNode);
-			TAttribute<bool> IsPropertyEditingEnabled = InOwnerTreeNode->IsPropertyEditingEnabled();
+			Widget = OuterSplitter;
 
-			bool const bEnableFavoriteSystem = IsEngineExitRequested() ? false : (GetDefault<UEditorExperimentalSettings>()->bEnableFavoriteSystem && bAllowFavoriteSystem);
-
-			TSharedRef<SHorizontalBox> InternalLeftColumnRowBox =
+			// create Left column:
+			// | Left  | Name | Value | Right |
+			TSharedRef<SHorizontalBox> LeftColumnBox =
 				SNew(SHorizontalBox)
 				.Clipping(EWidgetClipping::OnDemand);
 
-			if(GlobalWidgetExtensions.Num() > 0)
-			{
-				TSharedRef<SHorizontalBox> LeftExtensions = SNew(SHorizontalBox);
-
-				for (TSharedRef<SWidget>& GlobalExtensionWidget : GlobalWidgetExtensions)
-				{
-					LeftExtensions->AddSlot()
-					.AutoWidth()
-					[
-						MoveTemp(GlobalExtensionWidget)
-					];
-				}
-
-				InternalLeftColumnRowBox->AddSlot()
-					.Padding(0.0f, 0.0f)
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						MoveTemp(LeftExtensions)
-					];
-
-			}
-
-			if (bEnableFavoriteSystem)
-			{
-				InternalLeftColumnRowBox->AddSlot()
-					.Padding(0.0f, 0.0f)
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.IsFocusable(false)
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-						.OnClicked(this, &SDetailSingleItemRow::OnFavoriteToggle)
-						[
-							SNew(SImage).Image(this, &SDetailSingleItemRow::GetFavoriteButtonBrush)
-						]
-					];
-			}
-			TSharedPtr<SOverlay> LeftSideOverlay;
-			LeftSideOverlay = SNew(SOverlay);
-			LeftSideOverlay->AddSlot()
-				.Padding(3.0f, 0.0f)
+			// edit condition widget
+			LeftColumnBox->AddSlot()
+				.Padding(0.0f, 0.0f, 3.0f, 0.0f)
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SConstrainedBox)
+					.MinWidth(20)
+					[
+						SNew(SEditConditionWidget)
+						.EditConditionValue(Row.EditConditionValue)
+						.OnEditConditionValueChanged(Row.OnEditConditionValueChanged)
+					]
+				];
+
+			OuterSplitter->AddSlot()
+				.SizeRule(SSplitter::ESizeRule::SizeToContent)
+				[
+					LeftColumnBox
+				];
+
+			TSharedPtr<SSplitter> InnerSplitter;
+
+			// create inner splitter
+			OuterSplitter->AddSlot()
+				.Value(ColumnSizeData.PropertyColumnWidth)
+				.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float){})) // dummy handler, FDetailColumnSizeData handles this calculation
+			[
+				SAssignNew(InnerSplitter, SSplitter)
+				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+				.PhysicalSplitterHandleSize(1.0f)
+				.HitDetectionSplitterHandleSize(5.0f)
+				.HighlightedHandleIndex(ColumnSizeData.HoveredSplitterIndex)
+				.OnHandleHovered(ColumnSizeData.OnSplitterHandleHovered)
+			];
+
+			// create Name column:
+			// | Left  | Name | Value | Right |
+			TSharedRef<SHorizontalBox> NameColumnBox = SNew(SHorizontalBox)
+				.Clipping(EWidgetClipping::OnDemand);
+			
+			TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
+			if (PropertyNode.IsValid())
+			{
+				if (PropertyNode->IsReorderable())
+				{
+					TSharedPtr<SDetailSingleItemRow> InRow = SharedThis(this);
+					TSharedRef<SWidget> Handle = PropertyEditorHelpers::MakePropertyReorderHandle(PropertyNode.ToSharedRef(), InRow);
+					Handle->SetEnabled(IsPropertyEditingEnabled);
+
+					NameColumnBox->AddSlot()
+						.Padding(0.0f, 0.0f, 10.0f, 0.0f)
+						.HAlign(HAlign_Right)
+						.VAlign(VAlign_Center)
+						[
+							Handle
+						];
+
+					ArrayDragDelegate = FOnTableRowDragEnter::CreateSP(this, &SDetailSingleItemRow::OnArrayDragEnter);
+					ArrayDragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayDragLeave);
+					ArrayDropDelegate = FOnTableRowDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayDrop);
+					ArrayAcceptDropDelegate = FOnCanAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayCanAcceptDrop);
+					SwappablePropertyNode = PropertyNode;
+				}
+				else if (CastField<FArrayProperty>(PropertyNode->GetProperty()) != nullptr // Is an array
+					&& CastField<FObjectProperty>(CastField<FArrayProperty>(PropertyNode->GetProperty())->Inner) != nullptr) // Is an object array
+				{
+					ArrayDragDelegate = FOnTableRowDragEnter::CreateSP(this, &SDetailSingleItemRow::OnArrayDragEnter);
+					ArrayDragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayDragLeave);
+					ArrayDropDelegate = FOnTableRowDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayHeaderDrop);
+					ArrayAcceptDropDelegate = FOnCanAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayCanAcceptDrop);
+				}
+			}
+
+			// expander arrow
+			NameColumnBox->AddSlot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				.Padding(0,0,3,0)
+				.AutoWidth()
 				[
 					SNew(SExpanderArrow, SharedThis(this))
 					.BaseIndentLevel(1)
 				];
 
-			TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
-			if (PropertyNode.IsValid() && PropertyNode->IsReorderable())
-			{
-				TSharedPtr<SDetailSingleItemRow> InRow = SharedThis(this);
-				TSharedRef<SWidget> Handle = PropertyEditorHelpers::MakePropertyReorderHandle(PropertyNode.ToSharedRef(), InRow);
-				Handle->SetEnabled(IsPropertyEditingEnabled);
-				LeftSideOverlay->AddSlot()
-					.Padding(0.0f, 0.0f, 10.0f, 0.0f)
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
-					[
-						Handle
-					];
-				ArrayDragDelegate = FOnTableRowDragEnter::CreateSP(this, &SDetailSingleItemRow::OnArrayDragEnter);
-				ArrayDragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayDragLeave);
-				ArrayDropDelegate = FOnTableRowDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayDrop);
-				ArrayAcceptDropDelegate = FOnCanAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayCanAcceptDrop);
-				SwappablePropertyNode = PropertyNode;
-			}
-			else if (PropertyNode.IsValid() 
-				&& CastField<FArrayProperty>(PropertyNode->GetProperty()) != nullptr // Is an array
-				&& CastField<FObjectProperty>(CastField<FArrayProperty>(PropertyNode->GetProperty())->Inner) != nullptr) // Is an object array
-			{
-				ArrayDragDelegate = FOnTableRowDragEnter::CreateSP(this, &SDetailSingleItemRow::OnArrayDragEnter);
-				ArrayDragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayDragLeave);
-				ArrayDropDelegate = FOnTableRowDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayHeaderDrop);
-				ArrayAcceptDropDelegate = FOnCanAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayCanAcceptDrop);
-			}
-			
-			InternalLeftColumnRowBox->AddSlot()
-				.Padding(0.0f, 0.0f)
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					LeftSideOverlay.ToSharedRef()
-				];
-
-			if(bHasMultipleColumns)
+			if (bHasMultipleColumns)
 			{
 				// If the NameWidget has already been disabled, don't re-enable it if IsPropertyEditingEnabled is true.
 				NameWidget->SetEnabled(NameWidgetEnabled.IsBound() ?
@@ -487,111 +466,143 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						}))
 					: IsPropertyEditingEnabled);
 
-				TSharedPtr<SHorizontalBox> HBox;
-
-				InternalLeftColumnRowBox->AddSlot()
+				NameColumnBox->AddSlot()
 					.HAlign(Row.NameWidget.HorizontalAlignment)
 					.VAlign(Row.NameWidget.VerticalAlignment)
 					.Padding(DetailWidgetConstants::LeftRowPadding)
 					[
 						NameWidget.ToSharedRef()
 					];
-				InternalLeftColumnRowBox->AddSlot()
-					.Padding(3.0f, 0.0f)
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
-					.AutoWidth()
+		
+
+				InnerSplitter->AddSlot()
+					.Value(ColumnSizeData.NameColumnWidth)
+					.OnSlotResized(ColumnSizeData.OnNameColumnResized)
 					[
-						KeyFrameButton
+						NameColumnBox
 					];
 
-				GlobalWidgetExtensions.Reset();
-				Module.GetGlobalRowExtensionDelegate().Broadcast(Args, FOnGenerateGlobalRowExtensionArgs::EWidgetPosition::Right, GlobalWidgetExtensions);
-				if (GlobalWidgetExtensions.Num() > 0)
-				{
-					TSharedRef<SHorizontalBox> RightExtensions = SNew(SHorizontalBox);
-
-					for (TSharedRef<SWidget>& GlobalRowExtension: GlobalWidgetExtensions)
-					{
-						RightExtensions->AddSlot()
-						.AutoWidth()
-						[
-							MoveTemp(GlobalRowExtension)
-						];
-					}
-
-					InternalLeftColumnRowBox->AddSlot()
-						.Padding(0.0f, 0.0f)
-						.HAlign(HAlign_Right)
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							MoveTemp(RightExtensions)
-						];
-				}
-
-				TSharedRef<SSplitter> Splitter =
-					SNew(SSplitter)
-					.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-					.PhysicalSplitterHandleSize(1.0f)
-					.HitDetectionSplitterHandleSize(5.0f)
-
-					+ SSplitter::Slot()
-					.Value(ColumnSizeData.LeftColumnWidth)
-					.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SDetailSingleItemRow::OnLeftColumnResized))
+				// create Value column:
+				// | Left  | Name | Value | Right |
+				InnerSplitter->AddSlot()
+					.Value(ColumnSizeData.ValueColumnWidth)
+					.OnSlotResized(ColumnSizeData.OnValueColumnResized) 
 					[
-						InternalLeftColumnRowBox
-					]
-
-					+ SSplitter::Slot()
-					.Value(ColumnSizeData.RightColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnWidthChanged)
-					[
-						SNew(SBox)
-						.IsEnabled(IsPropertyEditingEnabled)
+						SNew(SHorizontalBox)
+						.Clipping(EWidgetClipping::OnDemand)
+						+ SHorizontalBox::Slot()
+						.HAlign(Row.ValueWidget.HorizontalAlignment)
+						.VAlign(Row.ValueWidget.VerticalAlignment)
+						.Padding(DetailWidgetConstants::RightRowPadding)
 						[
-							SNew(SHorizontalBox)
-							+SHorizontalBox::Slot()
-							.FillWidth(1.0f)
-							[
-								SNew(SHorizontalBox)
-								+ SHorizontalBox::Slot()
-								.Padding(DetailWidgetConstants::RightRowPadding)
-								.HAlign(Row.ValueWidget.HorizontalAlignment)
-								.VAlign(Row.ValueWidget.VerticalAlignment)
-								[
-									ValueWidget.ToSharedRef()
-								]
-							]
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							[
-								ExtensionWidget
-							]
+							ValueWidget.ToSharedRef()
 						]
 					];
-				Widget = Splitter;
 			}
 			else
 			{
-				InternalLeftColumnRowBox->SetEnabled(IsPropertyEditingEnabled);
-				InternalLeftColumnRowBox->AddSlot()
+				NameColumnBox->SetEnabled(IsPropertyEditingEnabled);
+				NameColumnBox->AddSlot()
 					.HAlign(Row.WholeRowWidget.HorizontalAlignment)
 					.VAlign(Row.WholeRowWidget.VerticalAlignment)
 					.Padding(DetailWidgetConstants::LeftRowPadding)
 					[
 						Row.WholeRowWidget.Widget
 					];
-				InternalLeftColumnRowBox->AddSlot()
-					.Padding(3.0f, 0.0f)
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
+
+				InnerSplitter->AddSlot()
 					[
-						KeyFrameButton
+						NameColumnBox
 					];
-				Widget = InternalLeftColumnRowBox;
 			}
+
+			TSharedRef<SHorizontalBox> RightColumnBox = SNew(SHorizontalBox)
+				.Clipping(EWidgetClipping::OnDemand);
+
+			// reset to default widget
+			TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
+			if (PropertyHandle.IsValid() && !PropertyHandle->HasMetaData("NoResetToDefualt") && !PropertyHandle->GetInstanceMetaData("NoResetToDefault"))
+			{
+				TSharedPtr<SWidget> ResetWidget = nullptr;
+
+				if (PropertyHandle->IsResetToDefaultCustomized())
+				{
+					// FIXME: Workaround for JIRA UE-73210.
+					// We had an oscillating SPropertyValueWidget width while dragging a UMG widget in the designer.
+					// The way drag&drop is implemented (SDesignerView::ProcessDropAndAddWidget), a new UCanvasPanelSlot gets 
+					// recreated every frame, so the details panel gets refreshed every frame. Since new property rows are created 
+					// before old ones are destroyed in the details panel, the HasCustomResetToDefault flag on the property node 
+					// toggles from frame to frame, so we alternate between having a ResetToDefaultPropertyEditor and not having one.
+					// By having a spacer fill the blank, the property row layout doesn't change while dragging, but we still see 
+					// a flashing yellow reset arrow (when visible).
+					const FSlateBrush* DiffersFromDefaultBrush = FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault");
+					ResetWidget = SNew(SSpacer)
+						.Size(DiffersFromDefaultBrush != nullptr ? DiffersFromDefaultBrush->ImageSize : FVector2D(8.0f, 8.0f));
+				}
+				else
+				{
+					SAssignNew(ResetWidget, SResetToDefaultPropertyEditor, PropertyHandle)
+						.IsEnabled(IsPropertyEditingEnabled)
+						.CustomResetToDefault(Row.CustomResetToDefault);
+				}
+
+				RightColumnBox->AddSlot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.Padding(10,0,0,0)
+					.AutoWidth()
+					[
+						ResetWidget.ToSharedRef()
+					];
+			} 
+
+			// keyframe button
+			RightColumnBox->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(5,0,0,0)
+				.AutoWidth()
+				[
+					CreateKeyframeButton(*Customization, InOwnerTreeNode)
+				];
+
+			// extension widget
+			RightColumnBox->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(5,0,0,0)
+				.AutoWidth()
+				[
+					ExtensionWidget.ToSharedRef()
+				];
+
+			// fetch global extension widgets 
+			FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+			TArray<TSharedRef<SWidget>> GlobalWidgetExtensions;
+			FOnGenerateGlobalRowExtensionArgs Args { GetPropertyHandle(), GetPropertyNode(), OwnerTreeNode };
+			PropertyEditorModule.GetGlobalRowExtensionDelegate().Broadcast(Args, GlobalWidgetExtensions);
+
+			if (GlobalWidgetExtensions.Num() > 0)
+			{
+				for (TSharedRef<SWidget>& GlobalRowExtension : GlobalWidgetExtensions)
+				{
+					RightColumnBox->AddSlot()
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						[
+							MoveTemp(GlobalRowExtension)
+						];
+				}
+			}
+
+			OuterSplitter->AddSlot()
+				.Value(ColumnSizeData.RightColumnWidth)
+				.OnSlotResized(ColumnSizeData.OnRightColumnResized)
+			[
+				RightColumnBox
+			];
 		}
 	}
 	else
@@ -602,12 +613,17 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 	}
 
 	this->ChildSlot
-	[	
+	[
 		SNew( SBorder )
-		.BorderImage( this, &SDetailSingleItemRow::GetBorderImage )
-		.Padding( FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ) )
+		.BorderImage( FEditorStyle::GetBrush( "DetailsView.GridLine" ) )
+		.Padding( FMargin( 0, 0, 0, 1 ) )
 		[
-			Widget
+			SNew( SBorder )
+			.BorderImage( this, &SDetailSingleItemRow::GetBorderImage )
+			.Padding( FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ) )
+			[
+				Widget
+			]
 		]
 	];
 
@@ -623,7 +639,6 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 	);
 }
 
-
 bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 {
 	const bool bIsCopyPasteBound = Customization->GetWidgetRow().IsCopyPasteBound();
@@ -631,7 +646,7 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 	FUIAction CopyAction;
 	FUIAction PasteAction;
 
-	if(bIsCopyPasteBound)
+	if (bIsCopyPasteBound)
 	{
 		CopyAction = Customization->GetWidgetRow().CopyMenuAction;
 		PasteAction = Customization->GetWidgetRow().PasteMenuAction;
@@ -645,6 +660,13 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 			CopyAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnCopyProperty);
 			PasteAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnPasteProperty);
 			PasteAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::CanPasteProperty);
+		}
+		else
+		{
+			CopyAction.ExecuteAction = FExecuteAction::CreateLambda([](){});
+			CopyAction.CanExecuteAction = FCanExecuteAction::CreateLambda([]() { return false; });
+			PasteAction.ExecuteAction = FExecuteAction::CreateLambda([](){});
+			PasteAction.CanExecuteAction = FCanExecuteAction::CreateLambda([]() { return false; });
 		}
 	}
 
@@ -668,9 +690,32 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 			NSLOCTEXT("PropertyView", "PasteProperty_ToolTip", "Paste the copied value here"),
 			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Paste"),
 			PasteAction);
-
-		bAddedMenuEntry = true;
 	}
+
+	FUIAction FavoriteAction;
+	FavoriteAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnFavoriteMenuToggle);
+	FavoriteAction.CanExecuteAction = FCanExecuteAction::CreateLambda([this]()
+		{
+			return Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->CanDisplayFavorite();
+		});
+
+	FText FavoriteText = NSLOCTEXT("PropertyView", "FavoriteProperty", "Add to Favorites");
+	FText FavoriteTooltipText = NSLOCTEXT("PropertyView", "FavoriteProperty_ToolTip", "Add this property to your favorites.");
+	FName FavoriteIcon = "DetailsView.PropertyIsFavorite";
+
+	bool IsFavorite = Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->IsFavorite();
+	if (IsFavorite)
+	{
+		FavoriteText = NSLOCTEXT("PropertyView", "RemoveFavoriteProperty", "Remove from Favorites");
+		FavoriteTooltipText = NSLOCTEXT("PropertyView", "RemoveFavoriteProperty_ToolTip", "Remove this property from your favorites.");
+		FavoriteIcon = "DetailsView.PropertyIsNotFavorite";
+	}
+
+	MenuBuilder.AddMenuEntry(
+		FavoriteText,
+		FavoriteTooltipText,
+		FSlateIcon(FEditorStyle::Get().GetStyleSetName(), FavoriteIcon),
+		FavoriteAction);
 
 	const TArray<FDetailWidgetRow::FCustomMenuData>& CustomMenuActions = Customization->GetWidgetRow().CustomMenuItems;
 	if (CustomMenuActions.Num() > 0)
@@ -689,18 +734,11 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 				CustomMenuData.Tooltip,
 				CustomMenuData.SlateIcon,
 				CustomMenuData.Action);
-			bAddedMenuEntry = true;
 		}
 
 	}
 
-	return bAddedMenuEntry;
-}
-
-void SDetailSingleItemRow::OnLeftColumnResized( float InNewWidth )
-{
-	// This has to be bound or the splitter will take it upon itself to determine the size
-	// We do nothing here because it is handled by the column size data
+	return true;
 }
 
 void SDetailSingleItemRow::OnCopyProperty()
@@ -807,7 +845,7 @@ bool SDetailSingleItemRow::CanPasteProperty() const
 		FPropertyEditor* PropertyEditor = PropertyRow->GetPropertyEditor().Get();
 		if (PropertyEditor)
 		{
-			return !PropertyEditor->IsEditConst() && (!PropertyEditor->HasEditCondition() || PropertyEditor->IsEditConditionMet());
+			return !PropertyEditor->IsEditConst();
 		}
 	}
 
@@ -849,7 +887,7 @@ TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget(TSharedRef<SWidg
 	TSharedPtr<SWidget> ExtensionWidget = SNullWidget::NullWidget;
 
 	if(InTreeNode->GetParentCategory().IsValid())
-	{
+	{ 
 		IDetailsViewPrivate* DetailsView = InTreeNode->GetDetailsView();
 		TSharedPtr<IDetailPropertyExtensionHandler> ExtensionHandler = DetailsView->GetExtensionHandler();
 

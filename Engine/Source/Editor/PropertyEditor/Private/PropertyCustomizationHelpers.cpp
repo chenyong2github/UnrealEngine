@@ -495,17 +495,6 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 		}
 	}
 
-	TSharedPtr<SResetToDefaultPropertyEditor> ResetButton = nullptr;
-
-	if (InArgs._CustomResetToDefault.IsSet() || (PropertyHandle.IsValid() && !PropertyHandle->HasMetaData(TEXT("NoResetToDefault")) && !PropertyHandle->IsResetToDefaultCustomized()))
-	{
-		SAssignNew(ResetButton, SResetToDefaultPropertyEditor, PropertyHandle)
-			.IsEnabled(this, &SObjectPropertyEntryBox::IsEnabled)
-			.CustomResetToDefault(InArgs._CustomResetToDefault);		
-	};
-
-	TSharedRef<SWidget> ResetWidget = ResetButton.IsValid() ? ResetButton.ToSharedRef() : SNullWidget::NullWidget;
-
 	ChildSlot
 	[	
 		SNew(SHorizontalBox)
@@ -533,10 +522,6 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 				.CustomContentSlot()
 				[
 					InArgs._CustomContentSlot.Widget
-				]
-				.ResetToDefaultSlot()
-				[
-					ResetWidget
 				]
 		]
 	];

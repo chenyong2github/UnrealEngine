@@ -29,7 +29,6 @@ public:
 	virtual void EnqueueDeferredAction( FSimpleDelegate DeferredAction ) override;
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override;
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override {}
-	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const override;
 
 	virtual bool GetIsUserAllowedToChangeRoot() override;
 	virtual void SetIsUserAllowedToChangeRoot( bool InAllowUserToChangeRoot ) override;

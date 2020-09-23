@@ -60,17 +60,6 @@ void SPropertyNameWidget::Construct( const FArguments& InArgs, TSharedPtr<FPrope
 		]
 	
 	];
-
-	if( InArgs._DisplayResetToDefault && !PropertyEditor->GetPropertyHandle()->HasMetaData(TEXT("NoResetToDefault")) )
-	{
-		HorizontalBox->AddSlot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.Padding(2,1)
-		[
-			SNew( SResetToDefaultPropertyEditor, PropertyEditor->GetPropertyHandle())
-		];
-	}
 }
 
 void SPropertyValueWidget::Construct( const FArguments& InArgs, TSharedPtr<FPropertyEditor> PropertyEditor, TSharedPtr<IPropertyUtilities> InPropertyUtilities )
@@ -78,11 +67,9 @@ void SPropertyValueWidget::Construct( const FArguments& InArgs, TSharedPtr<FProp
 	MinDesiredWidth = 0.0f;
 	MaxDesiredWidth = 0.0f;
 
-	bCreatedResetButton = false;
 	SetEnabled( TAttribute<bool>( PropertyEditor.ToSharedRef(), &FPropertyEditor::IsPropertyEditingEnabled ) );
 
-
-	ValueEditorWidget = ConstructPropertyEditorWidget( PropertyEditor, InPropertyUtilities, InArgs._OptionalResetWidget );
+	ValueEditorWidget = ConstructPropertyEditorWidget( PropertyEditor, InPropertyUtilities );
 
 	if ( !ValueEditorWidget->GetToolTip().IsValid() )
 	{
@@ -134,7 +121,7 @@ void SPropertyValueWidget::Construct( const FArguments& InArgs, TSharedPtr<FProp
 
 }
 
-TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TSharedPtr<FPropertyEditor>& PropertyEditor, TSharedPtr<IPropertyUtilities> InPropertyUtilities, TSharedRef<SWidget> InResetDefaultWidget)
+TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TSharedPtr<FPropertyEditor>& PropertyEditor, TSharedPtr<IPropertyUtilities> InPropertyUtilities )
 {
 	const TSharedRef<FPropertyEditor> PropertyEditorRef = PropertyEditor.ToSharedRef();
 	//const TSharedRef<IPropertyUtilities> PropertyUtilitiesRef = InPropertyUtilities.ToSharedRef();
@@ -192,15 +179,8 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 		{
 			TSharedRef<SPropertyEditorAsset> AssetWidget = 
 				SAssignNew( PropertyWidget, SPropertyEditorAsset, PropertyEditorRef )
-				.ThumbnailPool( InPropertyUtilities.IsValid() ? InPropertyUtilities->GetThumbnailPool() : nullptr )
-				.ResetToDefaultSlot()
-				[
-					InResetDefaultWidget
-				];
-			if (InResetDefaultWidget != SNullWidget::NullWidget)
-			{
-				bCreatedResetButton = true;
-			}
+				.ThumbnailPool( InPropertyUtilities.IsValid() ? InPropertyUtilities->GetThumbnailPool() : nullptr );
+			
 			AssetWidget->GetDesiredWidth( MinDesiredWidth, MaxDesiredWidth );
 		}
 		else if ( SPropertyEditorNumeric<float>::Supports( PropertyEditorRef ) )
@@ -346,10 +326,10 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 	return PropertyWidget.ToSharedRef();
 }
 
-void SEditConditionWidget::Construct( const FArguments& Args, TSharedPtr<FPropertyEditor> InPropertyEditor )
+void SEditConditionWidget::Construct( const FArguments& Args )
 {
-	PropertyEditor = InPropertyEditor;
-	CustomEditCondition = Args._CustomEditCondition;
+	EditConditionValue = Args._EditConditionValue;
+	OnEditConditionValueChanged = Args._OnEditConditionValueChanged;
 
 	SetVisibility(HasEditConditionToggle() ? EVisibility::Visible : EVisibility::Collapsed);
 
@@ -366,29 +346,21 @@ void SEditConditionWidget::Construct( const FArguments& Args, TSharedPtr<FProper
 
 bool SEditConditionWidget::HasEditConditionToggle() const
 {
-	return (PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->SupportsEditConditionToggle())
-		|| (CustomEditCondition.OnEditConditionValueChanged.IsBound());
+	return OnEditConditionValueChanged.IsBound();
 }
 
 void SEditConditionWidget::OnEditConditionCheckChanged( ECheckBoxState CheckState )
 {
-	FScopedTransaction EditConditionChangedTransaction(FText::Format(LOCTEXT("UpdatedEditConditionFmt", "{0} Edit Condition Changed"), PropertyEditor->GetDisplayName()));
-
-	if (PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->SupportsEditConditionToggle())
-	{
-		PropertyEditor->ToggleEditConditionState();
-	}
-	else
-	{
-		CustomEditCondition.OnEditConditionValueChanged.ExecuteIfBound(CheckState == ECheckBoxState::Checked);
-	}
+	FScopedTransaction EditConditionChangedTransaction(LOCTEXT("UpdatedEditConditionFmt", "Edit Condition Changed"));
+	
+	OnEditConditionValueChanged.ExecuteIfBound(CheckState == ECheckBoxState::Checked);
 }
 
 ECheckBoxState SEditConditionWidget::OnGetEditConditionCheckState() const
 {
-	bool bEditConditionMet = (PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->IsEditConditionMet())
-		|| CustomEditCondition.EditConditionValue.Get();
-	return bEditConditionMet ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	checkSlow(HasEditConditionToggle());
+
+	return EditConditionValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 namespace PropertyEditorHelpers

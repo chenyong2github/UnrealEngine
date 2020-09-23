@@ -31,7 +31,6 @@ SDetailsViewBase::~SDetailsViewBase()
 	ThumbnailPool.Reset();
 }
 
-
 void SDetailsViewBase::OnGetChildrenForDetailTree(TSharedRef<FDetailTreeNode> InTreeNode, TArray< TSharedRef<FDetailTreeNode> >& OutChildren)
 {
 	InTreeNode->GetChildren(OutChildren);
@@ -39,7 +38,7 @@ void SDetailsViewBase::OnGetChildrenForDetailTree(TSharedRef<FDetailTreeNode> In
 
 TSharedRef<ITableRow> SDetailsViewBase::OnGenerateRowForDetailTree(TSharedRef<FDetailTreeNode> InTreeNode, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return InTreeNode->GenerateWidgetForTableView(OwnerTable, ColumnSizeData, DetailsViewArgs.bAllowFavoriteSystem);
+	return InTreeNode->GenerateWidgetForTableView(OwnerTable, DetailsViewArgs.bAllowFavoriteSystem);
 }
 
 void SDetailsViewBase::SetRootExpansionStates(const bool bExpand, const bool bRecurse)
@@ -388,7 +387,7 @@ void SDetailsViewBase::UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> 
 	TSharedPtr<FComplexPropertyNode> RootPropertyNode = InRootPropertyNode;
 	check(RootPropertyNode.IsValid());
 
-	const bool bEnableFavoriteSystem = IsEngineExitRequested() ? false : (GetDefault<UEditorExperimentalSettings>()->bEnableFavoriteSystem && DetailsViewArgs.bAllowFavoriteSystem);
+	const bool bEnableFavoriteSystem = IsEngineExitRequested() ? false : DetailsViewArgs.bAllowFavoriteSystem;
 
 	DetailLayoutHelpers::FUpdatePropertyMapArgs Args;
 
@@ -505,16 +504,6 @@ TSharedPtr<FAssetThumbnailPool> SDetailsViewBase::GetThumbnailPool() const
 	}
 
 	return ThumbnailPool;
-}
-
-TSharedPtr<FEditConditionParser> SDetailsViewBase::GetEditConditionParser() const
-{
-	if (!EditConditionParser.IsValid())
-	{
-		EditConditionParser = MakeShareable(new FEditConditionParser);
-	}
-
-	return EditConditionParser;
 }
 
 void SDetailsViewBase::NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)

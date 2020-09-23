@@ -595,19 +595,8 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 	bColumnPadding = InArgs._ColumnPadding;
 	bResizableColumn = InArgs._ResizableColumn;
 
-	if (InArgs._ColumnSizeData.IsValid())
-	{
-		ColumnSizeData = InArgs._ColumnSizeData;
-	}
-	else
-	{
-		ColumnWidth = 0.7f;
-		ColumnSizeData = MakeShared<FDetailColumnSizeData>();
-		ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepDetailsView::OnGetLeftColumnWidth);
-		ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepDetailsView::OnGetRightColumnWidth);
-		ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepDetailsView::OnSetColumnWidth);
-	}
-	
+	ColumnSizeData = MakeShared<FDetailColumnSizeData>();
+
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	FPropertyRowGeneratorArgs Args;
@@ -793,20 +782,6 @@ void SDataprepInstanceParentWidget::Construct(const FArguments& InArgs)
 	{
 		return;
 	}
-
-	if (InArgs._ColumnSizeData.IsValid())
-	{
-		ColumnSizeData = InArgs._ColumnSizeData;
-	}
-	else
-	{
-		ColumnWidth = 0.5f;
-		ColumnSizeData = MakeShared<FDetailColumnSizeData>();
-		ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepInstanceParentWidget::OnGetLeftColumnWidth);
-		ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepInstanceParentWidget::OnGetRightColumnWidth);
-		ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepInstanceParentWidget::OnSetColumnWidth);
-	}
-
 
 	TSharedRef<SWidget> NameWidget = SNew(SHorizontalBox)
 	.Clipping(EWidgetClipping::OnDemand)

@@ -787,12 +787,3 @@ private:
 	int32 ThumbnailSize;
 	int32 SectionsLodIndex;
 };
-
-struct FDetailColumnSizeData
-{
-	TAttribute<float> LeftColumnWidth;
-	TAttribute<float> RightColumnWidth;
-	SSplitter::FOnSlotResized OnWidthChanged;
-
-	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
-};

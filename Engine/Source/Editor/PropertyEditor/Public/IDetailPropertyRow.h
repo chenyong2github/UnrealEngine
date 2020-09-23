@@ -11,6 +11,64 @@
 class FDetailWidgetRow;
 class FDetailWidgetDecl;
 
+class FDetailColumnSizeData
+{
+public:
+	
+	FDetailColumnSizeData()
+	{
+		ValueColumnWidthValue = 0.65f;
+		RightColumnWidthValue = 0.05f;
+		HoveredSplitterIndexValue = INDEX_NONE;
+
+		NameColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetNameColumnWidth);
+		ValueColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetValueColumnWidth);
+		PropertyColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetPropertyColumnWidth);
+		RightColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetRightColumnWidth);
+		HoveredSplitterIndex.BindRaw(this, &FDetailColumnSizeData::GetHoveredSplitterIndex);
+		OnValueColumnResized.BindRaw(this, &FDetailColumnSizeData::OnSetValueColumnWidth);
+		OnRightColumnResized.BindRaw(this, &FDetailColumnSizeData::OnSetRightColumnWidth);
+		OnSplitterHandleHovered.BindRaw(this, &FDetailColumnSizeData::OnSetHoveredSplitterIndex);
+	}
+
+	TAttribute<float> NameColumnWidth;
+	TAttribute<float> ValueColumnWidth;
+	TAttribute<float> PropertyColumnWidth;
+	TAttribute<float> RightColumnWidth;
+	TAttribute<int32> HoveredSplitterIndex;
+	SSplitter::FOnSlotResized OnNameColumnResized; // intentionally left unbound, since we don't need a handler
+	SSplitter::FOnSlotResized OnValueColumnResized;
+	SSplitter::FOnSlotResized OnRightColumnResized;
+	SSplitter::FOnHandleHovered OnSplitterHandleHovered;
+
+private:
+	float ValueColumnWidthValue;
+	float RightColumnWidthValue;
+	int HoveredSplitterIndexValue;
+
+	float GetNameColumnWidth() const { return 1.0f - ValueColumnWidthValue; }
+	float GetValueColumnWidth() const { return ValueColumnWidthValue; }
+	float GetRightColumnWidth() const { return RightColumnWidthValue; }
+	float GetPropertyColumnWidth() const { return 1.0f - RightColumnWidthValue; }
+	int32 GetHoveredSplitterIndex() const { return HoveredSplitterIndexValue; }
+
+	void OnSetValueColumnWidth(float NewWidth)
+	{ 
+		ensure(NewWidth <= 1.0f); 
+		ValueColumnWidthValue = NewWidth;
+	} 
+
+	void OnSetRightColumnWidth(float NewWidth)
+	{
+		ensure(NewWidth <= 1.0f);
+		RightColumnWidthValue = NewWidth;
+	}
+
+	void OnSetHoveredSplitterIndex(int32 HoveredIndex)
+	{
+		HoveredSplitterIndexValue = HoveredIndex;
+	}
+};
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsResetToDefaultVisible, TSharedPtr<IPropertyHandle> /* PropertyHandle */);
 DECLARE_DELEGATE_OneParam(FResetToDefaultHandler, TSharedPtr<IPropertyHandle> /* PropertyHandle*/);
@@ -26,7 +84,7 @@ public:
 	{
 		FResetToDefaultOverride ResetToDefault;
 		ResetToDefault.bForceShow = true;
-		ResetToDefault.OnResetToDefaultClickedDelegate = InResetToDefaultClicked;
+		ResetToDefault.OnClickedPropertyDelegate = InResetToDefaultClicked;
 		ResetToDefault.bPropagateToChildren = InPropagateToChildren;
 		ResetToDefault.bForceHide = false;
 		return ResetToDefault;
@@ -37,8 +95,31 @@ public:
 	{
 		FResetToDefaultOverride ResetToDefault;
 		ResetToDefault.bForceShow = false;
-		ResetToDefault.IsResetToDefaultVisibleDelegate = InIsResetToDefaultVisible;
-		ResetToDefault.OnResetToDefaultClickedDelegate = InResetToDefaultClicked;
+		ResetToDefault.IsVisiblePropertyDelegate = InIsResetToDefaultVisible;
+		ResetToDefault.OnClickedPropertyDelegate = InResetToDefaultClicked;
+		ResetToDefault.bPropagateToChildren = InPropagateToChildren;
+		ResetToDefault.bForceHide = false;
+		return ResetToDefault;
+	} 
+
+	/** Create a FResetToDefaultOverride from a visibility attribute. */
+	static FResetToDefaultOverride Create(TAttribute<bool> InIsResetToDefaultVisible, const bool InPropagateToChildren = false)
+	{
+		FResetToDefaultOverride ResetToDefault;
+		ResetToDefault.bForceShow = false;
+		ResetToDefault.IsVisibleAttribute = InIsResetToDefaultVisible;
+		ResetToDefault.bPropagateToChildren = InPropagateToChildren;
+		ResetToDefault.bForceHide = false;
+		return ResetToDefault;
+	}
+
+	/** Create a FResetToDefaultOverride from a visibility attribute and a simple delegate. */
+	static FResetToDefaultOverride Create(TAttribute<bool> InIsResetToDefaultVisible, FSimpleDelegate InResetToDefaultClicked, const bool InPropagateToChildren = false)
+	{
+		FResetToDefaultOverride ResetToDefault;
+		ResetToDefault.bForceShow = false;
+		ResetToDefault.IsVisibleAttribute = InIsResetToDefaultVisible;
+		ResetToDefault.OnClickedDelegate = InResetToDefaultClicked;
 		ResetToDefault.bPropagateToChildren = InPropagateToChildren;
 		ResetToDefault.bForceHide = false;
 		return ResetToDefault;
@@ -61,17 +142,42 @@ public:
 		{
 			return true;
 		}
-		if (!bForceHide && IsResetToDefaultVisibleDelegate.IsBound())
+
+		if (bForceHide)
 		{
-			return IsResetToDefaultVisibleDelegate.Execute(Property);
+			return false;
 		}
+
+		if (IsVisiblePropertyDelegate.IsBound() && Property.IsValid())
+		{
+			return IsVisiblePropertyDelegate.Execute(Property);
+		}
+
+		if (IsVisibleAttribute.IsSet())
+		{
+			return IsVisibleAttribute.Get();
+		}
+		
 		return false;
 	}
 
-	/** Called by the property editor to actually reset the property to default */
-	FResetToDefaultHandler OnResetToDefaultClicked() const
+	/** Does this have a custom reset to default handler? */
+	bool HasResetToDefaultHandler() const
 	{
-		return OnResetToDefaultClickedDelegate;
+		return OnClickedPropertyDelegate.IsBound() || OnClickedDelegate.IsBound();
+	}
+
+	/** Called by the property editor to actually reset the property to default */
+	void OnResetToDefaultClicked(TSharedPtr<IPropertyHandle> PropertyHandle) const
+	{
+		if (PropertyHandle.IsValid() && OnClickedPropertyDelegate.IsBound())
+		{
+			PropertyHandle->ExecuteCustomResetToDefault(*this);
+		} 
+		else
+		{
+			OnClickedDelegate.ExecuteIfBound();
+		}
 	}
 
 	/** Called by properties to determine whether this override should set on their children */
@@ -82,10 +188,16 @@ public:
 
 private:
 	/** Callback to indicate whether or not reset to default is visible */
-	FIsResetToDefaultVisible IsResetToDefaultVisibleDelegate;
+	FIsResetToDefaultVisible IsVisiblePropertyDelegate;
 
 	/** Delegate called when reset to default is clicked */
-	FResetToDefaultHandler OnResetToDefaultClickedDelegate;
+	FResetToDefaultHandler OnClickedPropertyDelegate;
+
+	/** Attribute to determine whether or not reset to default is visible */
+	TAttribute<bool> IsVisibleAttribute; 
+
+	/** Delegate called when reset to default is clicked */
+	FSimpleDelegate OnClickedDelegate;
 
 	/** Should properties pass this on to their children? */
 	bool bPropagateToChildren;

@@ -2215,8 +2215,7 @@ TSharedRef<SWidget> FPropertyHandleBase::CreatePropertyNameWidget( const FText& 
 
 		TSharedPtr<FPropertyEditor> PropertyEditor = FPropertyEditor::Create( Implementation->GetPropertyNode().ToSharedRef(), Implementation->GetPropertyUtilities().ToSharedRef() );
 
-		return SNew( SPropertyNameWidget, PropertyEditor )
-				.DisplayResetToDefault( bDisplayResetToDefault );
+		return SNew( SPropertyNameWidget, PropertyEditor );
 	}
 
 	return SNullWidget::NullWidget;
@@ -2495,16 +2494,16 @@ TSharedPtr<FPropertyNode> FPropertyHandleBase::GetPropertyNode() const
 	return Implementation->GetPropertyNode();
 }
 
-void FPropertyHandleBase::OnCustomResetToDefault(const FResetToDefaultOverride& OnCustomResetToDefault)
+void FPropertyHandleBase::OnCustomResetToDefault(const FResetToDefaultOverride& CustomResetToDefault)
 {
-	if (OnCustomResetToDefault.OnResetToDefaultClicked().IsBound())
+	if (CustomResetToDefault.HasResetToDefaultHandler())
 	{
 		FScopedTransaction Transaction(LOCTEXT("PropertyCustomResetToDefault", "Custom Reset to Default"));
 		if (Implementation->GetPropertyUtilities().IsValid() && Implementation->GetPropertyUtilities()->GetNotifyHook() != nullptr)
 		{
 			Implementation->GetPropertyNode()->NotifyPreChange(Implementation->GetPropertyNode()->GetProperty(), Implementation->GetPropertyUtilities()->GetNotifyHook());
 		}
-		OnCustomResetToDefault.OnResetToDefaultClicked().Execute(SharedThis(this));
+		CustomResetToDefault.OnResetToDefaultClicked(SharedThis(this));
 
 		// Call PostEditchange on all the objects
 		FPropertyChangedEvent ChangeEvent(Implementation->GetPropertyNode()->GetProperty());

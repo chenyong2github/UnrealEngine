@@ -16,7 +16,6 @@ class STableViewBase;
 class FDetailWidgetRow;
 class FPropertyNode;
 class FComplexPropertyNode;
-struct FDetailColumnSizeData;
 struct FDetailFilter;
 
 enum class ENodeVisibility : uint8
@@ -51,7 +50,7 @@ public:
 	 * @param OwnerTable		The table owner of the widget being generated
 	 * @param PropertyUtilities	Property utilities to help generate widgets
 	 */
-	virtual TSharedRef< ITableRow > GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem) = 0;
+	virtual TSharedRef< ITableRow > GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem) = 0;
 
 	virtual bool GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const = 0;
 

@@ -15,6 +15,7 @@
 #include "IDetailPropertyRow.h"
 #include "MaterialPropertyHelpers.h"
 #include "PropertyCustomizationHelpers.h"
+
 class IPropertyHandle;
 class UMaterialEditorInstanceConstant;
 class SMaterialLayersFunctionsInstanceTree;
@@ -34,7 +35,6 @@ public:
 	SLATE_ARGUMENT(SMaterialLayersFunctionsInstanceTree*, InTree)
 	SLATE_END_ARGS()
 
-	FDetailColumnSizeData ColumnSizeData;
 	bool bIsBeingDragged;
 
 private:
@@ -134,9 +134,6 @@ public:
 	void OnExpansionChanged(TSharedPtr<FSortedParamData> Item, bool bIsExpanded);
 	void SetParentsExpansionState();
 
-	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
-	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
 	void ShowHiddenValues(bool& bShowHiddenParameters) { bShowHiddenParameters = true; }
 	FName LayersFunctionsParameterName;
 	class UDEditorParameterValue* FunctionParameter;
@@ -180,8 +177,7 @@ private:
 
 	TArray<FUnsortedParamData> NonLayerProperties;
 
-	/** The actual width of the right column.  The left column is 1-ColumnWidth */
-	float ColumnWidth;
+	FDetailColumnSizeData ColumnSizeData;
 
 	SMaterialLayersFunctionsInstanceWrapper* Wrapper;
 
@@ -284,9 +280,6 @@ public:
 		void OnGetChildrenMaterialLayersFunctionsTreeView(TSharedPtr<FSortedParamData> InParent, TArray< TSharedPtr<FSortedParamData> >& OutChildren);
 		void OnExpansionChanged(TSharedPtr<FSortedParamData> Item, bool bIsExpanded);
 		void SetParentsExpansionState();
-		float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
-		float OnGetRightColumnWidth() const { return ColumnWidth; }
-		void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
 		void ShowHiddenValues(bool& bShowHiddenParameters) { bShowHiddenParameters = true; }
 		FName LayersFunctionsParameterName;
 		class UDEditorParameterValue* FunctionParameter;
@@ -313,8 +306,7 @@ private:
 
 	TArray<FUnsortedParamData> NonLayerProperties;
 
-	/** The actual width of the right column.  The left column is 1-ColumnWidth */
-	float ColumnWidth;
+	FDetailColumnSizeData ColumnSizeData;
 
 	SMaterialLayersFunctionsMaterialWrapper* Wrapper;
 };

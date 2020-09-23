@@ -113,11 +113,6 @@ TSharedPtr<class FAssetThumbnailPool> FPropertyTable::GetThumbnailPool() const
 	return NULL;
 }
 
-TSharedPtr<FEditConditionParser> FPropertyTable::GetEditConditionParser() const
-{
-	return EditConditionParser;
-}
-
 bool FPropertyTable::GetIsUserAllowedToChangeRoot()
 {
 	return AllowUserToChangeRoot;

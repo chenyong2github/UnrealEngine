@@ -15,14 +15,13 @@
 class FAdvancedDropdownNode : public FDetailTreeNode, public TSharedFromThis<FAdvancedDropdownNode>
 {
 public:
-	FAdvancedDropdownNode( FDetailCategoryImpl& InParentCategory, const TAttribute<bool>& InExpanded, const TAttribute<bool>& InEnabled, bool bInShouldShowAdvancedButton, bool bInDisplayShowAdvancedMessage, bool bInShowSplitter )
+	FAdvancedDropdownNode( FDetailCategoryImpl& InParentCategory, const TAttribute<bool>& InExpanded, const TAttribute<bool>& InEnabled, bool bInShouldShowAdvancedButton, bool bInDisplayShowAdvancedMessage )
 		: ParentCategory( InParentCategory )
 		, IsEnabled( InEnabled )
 		, IsExpanded( InExpanded )
 		, bShouldShowAdvancedButton( bInShouldShowAdvancedButton )
 		, bIsTopNode( false )
 		, bDisplayShowAdvancedMessage( bInDisplayShowAdvancedMessage )
-		, bShowSplitter( bInShowSplitter )
 	{}
 
 	FAdvancedDropdownNode( FDetailCategoryImpl& InParentCategory, bool bInIsTopNode )
@@ -30,12 +29,11 @@ public:
 		, bShouldShowAdvancedButton( false )
 		, bIsTopNode( bInIsTopNode )
 		, bDisplayShowAdvancedMessage( false  )
-		, bShowSplitter( false )
 	{}
 private:
 	/** IDetailTreeNode Interface */
 	virtual IDetailsViewPrivate* GetDetailsView() const override{ return ParentCategory.GetDetailsView(); }
-	virtual TSharedRef< ITableRow > GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem) override;
+	virtual TSharedRef< ITableRow > GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem) override;
 	virtual bool GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const override;
 	virtual void GetChildren(FDetailNodeList& OutChildren) override {}
 	virtual void OnItemExpansionChanged( bool bIsExpanded, bool bShouldSaveState) override {}
@@ -51,6 +49,7 @@ private:
 
 	/** Called when the advanced drop down arrow is clicked */
 	FReply OnAdvancedDropDownClicked();
+
 private:
 	FDetailCategoryImpl& ParentCategory;
 	TAttribute<bool> IsEnabled;
@@ -58,5 +57,4 @@ private:
 	bool bShouldShowAdvancedButton;
 	bool bIsTopNode;
 	bool bDisplayShowAdvancedMessage;
-	bool bShowSplitter;
 };

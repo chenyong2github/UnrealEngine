@@ -90,11 +90,6 @@ public:
 		return false;
 	}
 
-	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const override
-	{
-		return nullptr;
-	}
-
 private:
 	TWeakPtr< SSingleProperty > View;
 };
@@ -179,7 +174,6 @@ void SSingleProperty::SetObject( UObject* InObject )
 			.VAlign( VAlign_Center )
 			[
 				SNew( SPropertyNameWidget, PropertyEditor )
-				.DisplayResetToDefault( false )
 			];
 		}
 

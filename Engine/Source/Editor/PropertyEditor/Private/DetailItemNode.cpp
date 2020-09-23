@@ -219,7 +219,7 @@ void FDetailItemNode::SetExpansionState(bool bWantsExpanded, bool bSaveState)
 	OnItemExpansionChanged(bIsExpanded, bSaveState);
 }
 
-TSharedRef< ITableRow > FDetailItemNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem)
+TSharedRef< ITableRow > FDetailItemNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)
 {
 	FTagMetaData TagMeta(TEXT("DetailRowItem"));
 	if (ParentCategory.IsValid())
@@ -233,21 +233,20 @@ TSharedRef< ITableRow > FDetailItemNode::GenerateWidgetForTableView( const TShar
 			TagMeta.Tag = Customization.GetWidgetRow().RowTagName;
 		}
 	}
+
 	if( Customization.HasPropertyNode() && Customization.GetPropertyNode()->AsCategoryNode() )
 	{
 		return
 			SNew(SDetailCategoryTableRow, AsShared(), OwnerTable)
 			.DisplayName(Customization.GetPropertyNode()->GetDisplayName())
 			.AddMetaData<FTagMetaData>(TagMeta)
-			.ColumnSizeData(&ColumnSizeData)
-			.InnerCategory( true );
+			.InnerCategory(true);
 	}
 	else
 	{
 		return
 			SNew(SDetailSingleItemRow, &Customization, HasMultiColumnWidget(), AsShared(), OwnerTable )
 			.AddMetaData<FTagMetaData>(TagMeta)
-			.ColumnSizeData(ColumnSizeData)
 			.AllowFavoriteSystem(bAllowFavoriteSystem);
 	}
 }
@@ -583,7 +582,7 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 		else if (InCustomization.HasCustomWidget())
 		{
 			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, InCustomization.WidgetDecl->FilterTextString.ToString());
-			const bool bPassesModifiedFilter = (InFilter.bShowOnlyModifiedProperties == false || InCustomization.WidgetDecl->DiffersFromDefaultAttr.Get() == true);
+			const bool bPassesModifiedFilter = InFilter.bShowOnlyModifiedProperties == false || InCustomization.WidgetDecl->EditConditionValue.Get(false);
 			//@todo we need to support custom widgets for keyable,animated, in particularly for transforms(ComponentTransformDetails).
 			const bool bPassesKeyableFilter = (InFilter.bShowKeyable == false);
 			const bool bPassesAnimatedFilter = (InFilter.bShowAnimated == false);

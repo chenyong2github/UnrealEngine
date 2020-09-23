@@ -183,13 +183,13 @@ private:
 	FUIAction CreatePasteAction( ETransformField::Type TransformField ) const;
 
 	/** Called when the "Reset to Default" button for the location has been clicked */
-	FReply OnLocationResetClicked();
+	void OnLocationResetClicked();
 
 	/** Called when the "Reset to Default" button for the rotation has been clicked */
-	FReply OnRotationResetClicked();
+	void OnRotationResetClicked();
 
 	/** Called when the "Reset to Default" button for the scale has been clicked */
-	FReply OnScaleResetClicked();
+	void OnScaleResetClicked();
 
 	/** Extend the context menu for the X component */
 	void ExtendXScaleContextMenu( FMenuBuilder& MenuBuilder );
@@ -212,7 +212,7 @@ private:
 	/** @return The Z component of location */
 	TOptional<float> GetLocationZ() const { return CachedLocation.Z; }
 	/** @return The visibility of the "Reset to Default" button for the location component */
-	EVisibility GetLocationResetVisibility() const;
+	bool GetLocationResetVisibility() const;
 
 	/** @return The X component of rotation */
 	TOptional<float> GetRotationX() const { return CachedRotation.X; }
@@ -221,7 +221,7 @@ private:
 	/** @return The Z component of rotation */
 	TOptional<float> GetRotationZ() const { return CachedRotation.Z; }
 	/** @return The visibility of the "Reset to Default" button for the rotation component */
-	EVisibility GetRotationResetVisibility() const;
+	bool GetRotationResetVisibility() const;
 
 	/** @return The X component of scale */
 	TOptional<float> GetScaleX() const { return CachedScale.X; }
@@ -230,7 +230,7 @@ private:
 	/** @return The Z component of scale */
 	TOptional<float> GetScaleZ() const { return CachedScale.Z; }
 	/** @return The visibility of the "Reset to Default" button for the scale component */
-	EVisibility GetScaleResetVisibility() const;
+	bool GetScaleResetVisibility() const;
 
 	/** Cache a single unit to display all location components in */
 	void CacheCommonLocationUnits();

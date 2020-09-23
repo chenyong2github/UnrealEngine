@@ -622,21 +622,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 			ActorPicker
 		];
 	}
-
-	if(InArgs._ResetToDefaultSlot.Widget != SNullWidget::NullWidget )
-	{
-		TSharedRef<SWidget> ResetToDefaultWidget  = InArgs._ResetToDefaultSlot.Widget;
-		ResetToDefaultWidget->SetEnabled( IsEnabledAttribute );
-
-		ButtonBox->AddSlot()
-		.Padding( 4.0f, 0.0f )
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			ResetToDefaultWidget
-		];
-	}
-
+	
 	if (ButtonBoxWrapper.IsValid())
 	{
 		ButtonBoxWrapper->SetVisibility(ButtonBox->NumSlots() > 0 ? EVisibility::Visible : EVisibility::Collapsed);

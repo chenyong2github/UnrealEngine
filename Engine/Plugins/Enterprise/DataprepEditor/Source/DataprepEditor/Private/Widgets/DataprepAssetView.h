@@ -39,10 +39,6 @@ private:
 	/** Handles changes in the Dataprep asset */
 	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType);
 
-	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
-	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
-
 	TSharedRef<ITableRow> OnGenerateRowForCategoryTree( TSharedRef<EDataprepCategory> InTreeNode, const TSharedRef<STableViewBase>& InOwnerTable );
 	void OnGetChildrenForCategoryTree( TSharedRef<EDataprepCategory> InTreeNode, TArray< TSharedRef<EDataprepCategory> >& OutChildren ) {}
 
@@ -61,9 +57,6 @@ private:
 
 	/** Container used by all splitters in the details view, so that they move in sync */
 	TSharedPtr< FDetailColumnSizeData > ColumnSizeData;
-
-	/** Relative width to control splitters */
-	float ColumnWidth;
 
 	FDelegateHandle OnParameterizationWasEdited;
 };

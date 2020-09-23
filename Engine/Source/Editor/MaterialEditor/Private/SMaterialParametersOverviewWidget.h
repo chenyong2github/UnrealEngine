@@ -58,8 +58,6 @@ private:
 
 	/** The set of material parameters this is associated with */
 	UMaterialEditorPreviewParameters* MaterialEditorInstance;
-
-	FDetailColumnSizeData ColumnSizeData;
 };
 
 // ********* SMaterialParametersOverviewPanel *******
@@ -93,6 +91,7 @@ private:
 
 	TSharedPtr<class SScrollBar> ExternalScrollbar;
 	TWeakPtr<class IPropertyRowGenerator> Generator;
+	
 };
 
 // ********* SMaterialParametersOverviewTree *******
@@ -120,9 +119,6 @@ public:
 	void OnExpansionChanged(TSharedPtr<FSortedParamData> Item, bool bIsExpanded);
 	void SetParentsExpansionState();
 
-	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
-	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
 	TSharedPtr<class FAssetThumbnailPool> GetTreeThumbnailPool();
 
 	/** Object that stores all of the possible parameters we can edit */
@@ -134,6 +130,8 @@ public:
 	TWeakPtr<SMaterialParametersOverviewPanel> GetOwner() { return Owner; }
 	bool HasAnyParameters() const { return bHasAnyParameters; }
 
+	FDetailColumnSizeData& GetColumnSizeData() { return ColumnSizeData; }
+
 protected:
 
 	void ShowSubParameters();
@@ -144,11 +142,9 @@ private:
 
 	TArray<FUnsortedParamData> UnsortedParameters;
 
-	/** The actual width of the right column.  The left column is 1-ColumnWidth */
-	float ColumnWidth;
-
 	TWeakPtr<SMaterialParametersOverviewPanel> Owner;
 
 	bool bHasAnyParameters;
-
+	
+	FDetailColumnSizeData ColumnSizeData;
 };

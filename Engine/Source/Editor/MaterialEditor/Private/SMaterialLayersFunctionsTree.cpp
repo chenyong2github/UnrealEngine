@@ -226,9 +226,6 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 	StackParameterData = InArgs._StackParameterData;
 	MaterialEditorInstance = InArgs._MaterialEditorInstance;
 	Tree = InArgs._InTree;
-	ColumnSizeData.LeftColumnWidth = TAttribute<float>(Tree, &SMaterialLayersFunctionsInstanceTree::OnGetLeftColumnWidth);
-	ColumnSizeData.RightColumnWidth = TAttribute<float>(Tree, &SMaterialLayersFunctionsInstanceTree::OnGetRightColumnWidth);
-	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(Tree, &SMaterialLayersFunctionsInstanceTree::OnSetColumnWidth);
 
 	TSharedRef<SWidget> LeftSideWidget = SNullWidget::NullWidget;
 	TSharedRef<SWidget> RightSideWidget = SNullWidget::NullWidget;
@@ -251,10 +248,10 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 
 		if (StackParameterData->ParameterInfo.Index != 0)
 		{
-			TAttribute<bool>::FGetter IsEnabledGetter = TAttribute<bool>::FGetter::CreateSP(InArgs._InTree, &SMaterialLayersFunctionsInstanceTree::IsLayerVisible, StackParameterData->ParameterInfo.Index);
+			TAttribute<bool>::FGetter IsEnabledGetter = TAttribute<bool>::FGetter::CreateSP(Tree, &SMaterialLayersFunctionsInstanceTree::IsLayerVisible, StackParameterData->ParameterInfo.Index);
 			TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::Create(IsEnabledGetter);
 
-			FOnClicked VisibilityClickedDelegate = FOnClicked::CreateSP(InArgs._InTree, &SMaterialLayersFunctionsInstanceTree::ToggleLayerVisibility, StackParameterData->ParameterInfo.Index);
+			FOnClicked VisibilityClickedDelegate = FOnClicked::CreateSP(Tree, &SMaterialLayersFunctionsInstanceTree::ToggleLayerVisibility, StackParameterData->ParameterInfo.Index);
 
 			HeaderRowWidget->AddSlot()
 				.AutoWidth()
@@ -999,6 +996,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 		default:
 			break;
 		}
+
 		WrapperWidget->AddSlot()
 			.AutoHeight()
 			[
@@ -1011,8 +1009,8 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					.PhysicalSplitterHandleSize(1.0f)
 					.HitDetectionSplitterHandleSize(5.0f)
 					+ SSplitter::Slot()
-					.Value(ColumnSizeData.LeftColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnWidthChanged)
+					.Value(Tree->ColumnSizeData.NameColumnWidth)
+					.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float){}))
 					.Value(0.25f)
 					[
 						SNew(SHorizontalBox)
@@ -1031,8 +1029,8 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 						]
 					]
 					+ SSplitter::Slot()
-					.Value(ColumnSizeData.RightColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnWidthChanged)
+					.Value(Tree->ColumnSizeData.ValueColumnWidth)
+					.OnSlotResized(Tree->ColumnSizeData.OnValueColumnResized)
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
@@ -1083,7 +1081,8 @@ FString SMaterialLayersFunctionsInstanceTreeItem::GetInstancePath(SMaterialLayer
 
 void SMaterialLayersFunctionsInstanceTree::Construct(const FArguments& InArgs)
 {
-	ColumnWidth = 0.5f;
+	ColumnSizeData.OnValueColumnResized.Execute(0.5f);
+
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Wrapper = InArgs._InWrapper;
 	ShowHiddenDelegate = InArgs._InShowHiddenDelegate;
@@ -1901,9 +1900,6 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 	StackParameterData = InArgs._StackParameterData;
 	MaterialEditorInstance = InArgs._MaterialEditorInstance;
 	Tree = InArgs._InTree;
-	ColumnSizeData.LeftColumnWidth = TAttribute<float>(Tree, &SMaterialLayersFunctionsMaterialTree::OnGetLeftColumnWidth);
-	ColumnSizeData.RightColumnWidth = TAttribute<float>(Tree, &SMaterialLayersFunctionsMaterialTree::OnGetRightColumnWidth);
-	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(Tree, &SMaterialLayersFunctionsMaterialTree::OnSetColumnWidth);
 
 	TSharedRef<SWidget> LeftSideWidget = SNullWidget::NullWidget;
 	TSharedRef<SWidget> RightSideWidget = SNullWidget::NullWidget;
@@ -2490,8 +2486,8 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 					.PhysicalSplitterHandleSize(1.0f)
 					.HitDetectionSplitterHandleSize(5.0f)
 					+ SSplitter::Slot()
-					.Value(ColumnSizeData.LeftColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnWidthChanged)
+					.Value(Tree->ColumnSizeData.NameColumnWidth)
+					.OnSlotResized(Tree->ColumnSizeData.OnNameColumnResized)
 					.Value(0.25f)
 					[
 						SNew(SHorizontalBox)
@@ -2510,8 +2506,8 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 						]
 					]
 					+ SSplitter::Slot()
-					.Value(ColumnSizeData.RightColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnWidthChanged)
+					.Value(Tree->ColumnSizeData.ValueColumnWidth)
+					.OnSlotResized(Tree->ColumnSizeData.OnValueColumnResized)
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
@@ -2556,7 +2552,8 @@ FString SMaterialLayersFunctionsMaterialTreeItem::GetInstancePath(SMaterialLayer
 
 void SMaterialLayersFunctionsMaterialTree::Construct(const FArguments& InArgs)
 {
-	ColumnWidth = 0.5f;
+	ColumnSizeData.OnValueColumnResized.Execute(0.5f);
+
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Wrapper = InArgs._InWrapper;
 	CreateGroupsWidget();

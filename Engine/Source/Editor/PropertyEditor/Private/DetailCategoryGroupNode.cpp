@@ -2,14 +2,14 @@
 
 #include "DetailCategoryGroupNode.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorConstants.h"
+
 void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView )
 {
 	OwnerTreeNode = InOwnerTreeNode;
 
 	bIsInnerCategory = InArgs._InnerCategory;
 	bShowBorder = InArgs._ShowBorder;
-
-	const FDetailColumnSizeData* OptionalSizeData = InArgs._ColumnSizeData;
 
 	TSharedPtr<SWidget> Widget = SNullWidget::NullWidget;
 
@@ -19,68 +19,39 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 	float ChildSlotPadding = 2.0f;
 	float BorderVerticalPadding = 3.0f;
 
-	if (OptionalSizeData != nullptr)
-	{
-		// If we're going to draw a splitter, move any padding from the child slot and the border
-		// to the content widget instead
+	FDetailColumnSizeData& ColumnSizeData = InOwnerTreeNode->GetDetailsView()->GetColumnSizeData();
 
-		MyContentTopPadding += ChildSlotPadding + 2 * BorderVerticalPadding;
-		MyContentBottomPadding += 2 * BorderVerticalPadding;
+	MyContentTopPadding += ChildSlotPadding + 2 * BorderVerticalPadding;
+	MyContentBottomPadding += 2 * BorderVerticalPadding;
 
-		ChildSlotPadding = 0.0f;
-		BorderVerticalPadding = 0.0f;
-	}
+	ChildSlotPadding = 0.0f;
+	BorderVerticalPadding = 0.0f;
 
-	TSharedPtr<SHorizontalBox> MyContent = SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, MyContentTopPadding, 2.0f, MyContentBottomPadding)
-			.AutoWidth()
-			[
-				SNew(SExpanderArrow, SharedThis(this))
-			]
+	Widget = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.TransformPolicy(ETextTransformPolicy::ToUpper)
-				.Text(InArgs._DisplayName)
-				.Font(FAppStyle::Get().GetFontStyle(bIsInnerCategory ? "PropertyWindow.NormalFont" : "DetailsView.CategoryFontStyle"))
-				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
-			];
-
-	// If column size data was specified, add a separator
-	if (OptionalSizeData != nullptr)
-	{
-		Widget = SNew(SSplitter)
-			.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-			.PhysicalSplitterHandleSize(1.0f)
-			.HitDetectionSplitterHandleSize(5.0f)
-
-			+ SSplitter::Slot()
-			.Value(OptionalSizeData->LeftColumnWidth)
-			.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SDetailCategoryTableRow::OnColumnResized))
-			[
-				MyContent.ToSharedRef()
-			]
-			
-			+SSplitter::Slot()
-			.Value(OptionalSizeData->RightColumnWidth)
-			.OnSlotResized(OptionalSizeData->OnWidthChanged)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				[
-					InArgs._HeaderContent.IsValid() ? InArgs._HeaderContent.ToSharedRef() : SNullWidget::NullWidget
-				]
-			];
-	}
-	else
-	{
-		Widget = MyContent;
-	}
-
+		.VAlign(VAlign_Center)
+		.Padding(12.0f, MyContentTopPadding, 12.0f, MyContentBottomPadding)
+		.AutoWidth()
+		[
+			SNew(SExpanderArrow, SharedThis(this))
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.FillWidth(0.5f)
+		[
+			SNew(STextBlock)
+			.TransformPolicy(ETextTransformPolicy::ToUpper)
+			.Text(InArgs._DisplayName)
+			.Font(FAppStyle::Get().GetFontStyle(bIsInnerCategory ? PropertyEditorConstants::PropertyFontStyle : PropertyEditorConstants::CategoryFontStyle))
+			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.FillWidth(0.5f)
+		[
+			InArgs._HeaderContent.IsValid() ? InArgs._HeaderContent.ToSharedRef() : SNullWidget::NullWidget
+		];
+	
 	ChildSlot
 	.Padding( 0.0f, bIsInnerCategory ? 0.0f : ChildSlotPadding, 0.0f, 0.0f )
 	[	
@@ -111,10 +82,20 @@ const FSlateBrush* SDetailCategoryTableRow::GetBackgroundImage() const
 	{
 		if (IsHovered())
 		{
+			if (bIsInnerCategory)
+			{
+				return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Hovered");
+			}
+
 			return IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
 		}
 		else
 		{
+			if (bIsInnerCategory)
+			{
+				return FEditorStyle::GetBrush("DetailsView.CategoryMiddle");
+			}
+			
 			return IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
 		}
 	}
@@ -135,16 +116,10 @@ FReply SDetailCategoryTableRow::OnMouseButtonDown( const FGeometry& MyGeometry, 
 	}
 }
 
-FReply SDetailCategoryTableRow::OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent )
+FReply SDetailCategoryTableRow::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	return OnMouseButtonDown(InMyGeometry, InMouseEvent);
 }
-
-void SDetailCategoryTableRow::OnColumnResized(float InNewWidth)
-{
-	// Intentionally do nothing
-}
-
 
 FDetailCategoryGroupNode::FDetailCategoryGroupNode( const FDetailNodeList& InChildNodes, FName InGroupName, FDetailCategoryImpl& InParentCategory )
 	: ChildNodes( InChildNodes )
@@ -156,16 +131,12 @@ FDetailCategoryGroupNode::FDetailCategoryGroupNode( const FDetailNodeList& InChi
 {
 }
 
-TSharedRef< ITableRow > FDetailCategoryGroupNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem)
+TSharedRef< ITableRow > FDetailCategoryGroupNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)
 {
-	const FDetailColumnSizeData* SizeData = bHasSplitter ? &ColumnSizeData : nullptr;
-
-	return
-		SNew( SDetailCategoryTableRow, AsShared(), OwnerTable )
+	return SNew( SDetailCategoryTableRow, AsShared(), OwnerTable )
 		.DisplayName( FText::FromName(GroupName) )
 		.InnerCategory( true )
-		.ShowBorder( bShowBorder )
-		.ColumnSizeData(SizeData);
+		.ShowBorder( bShowBorder );
 }
 
 
@@ -181,7 +152,7 @@ bool FDetailCategoryGroupNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow
 	return true;
 }
 
-void FDetailCategoryGroupNode::GetChildren(FDetailNodeList& OutChildren)
+void FDetailCategoryGroupNode::GetChildren( FDetailNodeList& OutChildren )
 {
 	for( int32 ChildIndex = 0; ChildIndex < ChildNodes.Num(); ++ChildIndex )
 	{

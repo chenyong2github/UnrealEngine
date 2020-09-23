@@ -56,7 +56,6 @@ public:
 		, _ObjectPath()
 		, _Class(nullptr)
 		, _CustomContentSlot()
-		, _ResetToDefaultSlot()
 		{}
 		SLATE_ATTRIBUTE( FSlateFontInfo, AssetFont )
 		SLATE_ATTRIBUTE( FSlateFontInfo, ClassFont )
@@ -74,7 +73,6 @@ public:
 		SLATE_EVENT( FOnSetObject, OnSetObject )
 		SLATE_EVENT(FOnShouldFilterAsset, OnShouldFilterAsset)
 		SLATE_NAMED_SLOT( FArguments, CustomContentSlot )
-		SLATE_NAMED_SLOT( FArguments, ResetToDefaultSlot )
 		SLATE_ARGUMENT( TSharedPtr<IPropertyHandle>, PropertyHandle )
 		SLATE_ARGUMENT( TArray<FAssetData>, OwnerAssetDataArray)
 

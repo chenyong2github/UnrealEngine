@@ -76,12 +76,6 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnFinishedChangingProperties, const FProper
 
 struct FOnGenerateGlobalRowExtensionArgs
 {
-	enum class EWidgetPosition : uint8
-	{
-		Left,
-		Right
-	};
-
 	/** The detail row's property handle. */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	/** The detail row's property node. */
@@ -96,7 +90,7 @@ struct FOnGenerateGlobalRowExtensionArgs
  * When called, EWidgetPosition indicates the position for which the delegate is gathering extensions.
  * ie. The favorite system is implemented by adding the star widget when the delegate is called with the left position.
  */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnGenerateGlobalRowExtension, const FOnGenerateGlobalRowExtensionArgs& /*InArgs*/, FOnGenerateGlobalRowExtensionArgs::EWidgetPosition /*InWidgetPosition*/, TArray<TSharedRef<class SWidget>>& /*OutExtensions*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGenerateGlobalRowExtension, const FOnGenerateGlobalRowExtensionArgs& /*InArgs*/, TArray<TSharedRef<class SWidget>>& /*OutExtensions*/);
 
 /**
  * Callback executed to query the custom layout of details

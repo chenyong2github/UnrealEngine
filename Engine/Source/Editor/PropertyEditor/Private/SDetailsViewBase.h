@@ -70,14 +70,11 @@ struct FDetailFilter
 	TSet<FPropertyPath> WhitelistedProperties;
 };
 
-
-
 class SDetailsViewBase : public IDetailsViewPrivate
 {
 public:
-	SDetailsViewBase()
-		: ColumnWidth(.65f)
-		, bHasActiveFilter(false)
+	SDetailsViewBase() : 
+		bHasActiveFilter(false)
 		, bIsLocked(false)
 		, bHasOpenColorPicker(false)
 		, bDisableCustomDetailLayouts( false )
@@ -163,7 +160,6 @@ public:
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	void RefreshTree() override;
 	TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override;
-	TSharedPtr<FEditConditionParser> GetEditConditionParser() const override;
 	TSharedPtr<IPropertyUtilities> GetPropertyUtilities() override;
 	void CreateColorPickerWindow(const TSharedRef< class FPropertyEditor >& PropertyEditor, bool bUseAlpha) override;
 	virtual void UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> InRootPropertyNode, FDetailLayoutData& LayoutData, bool bIsExternal) override;
@@ -171,6 +167,7 @@ public:
 	virtual const FCustomPropertyTypeLayoutMap& GetCustomPropertyTypeLayoutMap() const { return InstancedTypeToLayoutMap; }
 	virtual void SaveExpandedItems( TSharedRef<FPropertyNode> StartNode ) override;
 	virtual void RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode) override;
+	virtual FDetailColumnSizeData& GetColumnSizeData() override { return ColumnSizeData; }
 
 	virtual bool IsConnected() const = 0;
 	virtual FRootPropertyNodeList& GetRootNodes() = 0;
@@ -195,11 +192,6 @@ public:
 	 * @param bRecurse			Whether or not to apply the expansion change to any children
 	 */
 	void SetRootExpansionStates(const bool bExpand, const bool bRecurse);
-
-	/** Column width accessibility */
-	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
-	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
 
 	/**
 	 * Adds an action to execute next tick
@@ -403,8 +395,6 @@ protected:
 	mutable FOnFinishedChangingProperties OnFinishedChangingPropertiesDelegate;
 	/** Container for passing around column size data to rows in the tree (each row has a splitter which can affect the column size)*/
 	FDetailColumnSizeData ColumnSizeData;
-	/** The actual width of the right column.  The left column is 1-ColumnWidth */
-	float ColumnWidth;
 	/** True if there is an active filter (text in the filter box) */
 	UE_DEPRECATED(4.26, "Use HasActiveSearch function instead.")
 	bool bHasActiveFilter;

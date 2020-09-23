@@ -19,7 +19,6 @@ class FPropertyRowGeneratorUtilities : public IPropertyUtilities
 public:
 	FPropertyRowGeneratorUtilities(FPropertyRowGenerator& InGenerator)
 		: Generator(&InGenerator)
-		, EditConditionParser(new FEditConditionParser)
 	{
 	}
 
@@ -91,14 +90,8 @@ public:
 		return Generator != nullptr && Generator->HasClassDefaultObject();
 	}
 
-	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const override
-	{
-		return EditConditionParser;
-	}
-
 private:
 	FPropertyRowGenerator* Generator;
-	TSharedPtr<FEditConditionParser> EditConditionParser;
 };
 
 

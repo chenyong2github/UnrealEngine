@@ -389,11 +389,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 				.Orientation(Orient_Horizontal)
 				+ SSplitter::Slot()
 				.Value(ColumnSizeData.LeftColumnWidth)
-				.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth)
-				{
-					//This has to be bound or the splitter will take it upon itself to determine the size
-					//We do nothing here because it is handled by the column size data
-				}))
+				.OnSlotResized(ColumnSizeData.OnNameColumnResized)
 				[
 					SNew(SBox)
 					.HeightOverride(CommonHeaderMaxHeight)
@@ -447,7 +443,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 				]
 				+ SSplitter::Slot()
 				.Value(ColumnSizeData.RightColumnWidth)
-				.OnSlotResized(ColumnSizeData.OnWidthChanged)
+				.OnSlotResized(ColumnSizeData.OnValueColumnResized)
 				[
 					SNew(SBox)
 					.HeightOverride(CommonHeaderMaxHeight)

@@ -32,6 +32,7 @@ public:
 
 	void Construct(const FArguments& InArgs);
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
+
 private:
 	TAttribute< TOptional<float> > MinWidth;
 	TAttribute< TOptional<float> > MaxWidth;
@@ -53,15 +54,12 @@ public:
 		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
 	};
 
-
 	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	TSharedPtr<class FArrayRowDragDropOp> CreateDragDropOperation(TSharedPtr<SDetailSingleItemRow> InRow);
 
 private:
 	TWeakPtr<SDetailSingleItemRow> ParentRow;
 };
-
-
 
 /**
  * A widget for details that span the entire tree row and have no columns                                                              
@@ -85,8 +83,8 @@ public:
 
 protected:
 	virtual bool OnContextMenuOpening( FMenuBuilder& MenuBuilder ) override;
+
 private:
-	void OnLeftColumnResized( float InNewWidth );
 	void OnCopyProperty();
 	void OnPasteProperty();
 	bool CanPasteProperty() const;
@@ -97,8 +95,7 @@ private:
 	FReply OnAddKeyframeClicked();
 	bool IsHighlighted() const;
 
-	const FSlateBrush* GetFavoriteButtonBrush() const;
-	FReply OnFavoriteToggle();
+	void OnFavoriteMenuToggle();
 
 	void OnArrayDragEnter(const FDragDropEvent& DragDropEvent);
 	void OnArrayDragLeave(const FDragDropEvent& DragDropEvent);
@@ -112,14 +109,14 @@ private:
 	/** Checks if the current drop event is being dropped into a valid location
 	 */
 	bool CheckValidDrop(const TSharedPtr<SDetailSingleItemRow> RowPtr) const;
-
+	
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
+
 private:
 	TWeakPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Customization for this widget */
 	FDetailLayoutCustomization* Customization;
-	FDetailColumnSizeData ColumnSizeData;
 	bool bAllowFavoriteSystem;
 	bool bIsHoveredDragTarget;
 	bool bIsDragDropObject;

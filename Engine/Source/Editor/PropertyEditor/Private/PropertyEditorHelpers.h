@@ -43,10 +43,8 @@ class SPropertyNameWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SPropertyNameWidget )
-		:_DisplayResetToDefault(true)
 	{}
 		SLATE_EVENT( FOnClicked, OnDoubleClicked )
-		SLATE_ARGUMENT( bool, DisplayResetToDefault )
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, TSharedPtr<FPropertyEditor> PropertyEditor );
@@ -59,11 +57,9 @@ class SPropertyValueWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SPropertyValueWidget )
-		: _ShowPropertyButtons( true ),
-		_OptionalResetWidget(SNullWidget::NullWidget)
+		: _ShowPropertyButtons( true )
 	{}
 		SLATE_ARGUMENT( bool, ShowPropertyButtons )
-		SLATE_ARGUMENT( TSharedRef<SWidget>, OptionalResetWidget)
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, TSharedPtr<FPropertyEditor> InPropertyEditor, TSharedPtr<IPropertyUtilities> InPropertyUtilities );
@@ -74,36 +70,25 @@ public:
 	/** @return The maximum desired with if this property value */
 	float GetMaxDesiredWidth() const { return MaxDesiredWidth; }
 
-	/** @return Whether this widget handles its own reset button */
-	bool CreatedResetButton() const { return bCreatedResetButton; }
-
 private:
-	TSharedRef<SWidget> ConstructPropertyEditorWidget( TSharedPtr<FPropertyEditor>& PropertyEditor, TSharedPtr<IPropertyUtilities> InPropertyUtilities, TSharedRef<SWidget> InOptionalResetDefaultWidget = SNullWidget::NullWidget);
+	TSharedRef<SWidget> ConstructPropertyEditorWidget( TSharedPtr<FPropertyEditor>& PropertyEditor, TSharedPtr<IPropertyUtilities> InPropertyUtilities );
 private:
 	TSharedPtr< SWidget > ValueEditorWidget;
 	/** The minimum desired with if this property value */
 	float MinDesiredWidth;
 	/** The maximum desired with if this property value */
 	float MaxDesiredWidth;
-	/** Whether or not this value widget handled its own reset button */
-	bool bCreatedResetButton;
-};
-
-
-struct FCustomEditCondition
-{
-	TAttribute<bool> EditConditionValue;
-	FOnBooleanValueChanged OnEditConditionValueChanged;
 };
 
 class SEditConditionWidget : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS( SEditConditionWidget )
 	{}
-		SLATE_ARGUMENT( FCustomEditCondition, CustomEditCondition )
+		SLATE_ATTRIBUTE( bool, EditConditionValue )
+		SLATE_EVENT( FOnBooleanValueChanged, OnEditConditionValueChanged )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& Args, TSharedPtr<FPropertyEditor> InPropertyEditor );
+	void Construct( const FArguments& Args );
 
 private:
 	void OnEditConditionCheckChanged( ECheckBoxState CheckState );
@@ -111,8 +96,8 @@ private:
 	ECheckBoxState OnGetEditConditionCheckState() const;
 
 private:
-	TSharedPtr<FPropertyEditor> PropertyEditor;
-	FCustomEditCondition CustomEditCondition;
+	TAttribute<bool> EditConditionValue;
+	FOnBooleanValueChanged OnEditConditionValueChanged;
 };
 
 namespace PropertyEditorHelpers

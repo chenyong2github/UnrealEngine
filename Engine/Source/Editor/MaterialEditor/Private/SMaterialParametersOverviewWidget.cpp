@@ -76,9 +76,6 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 	StackParameterData = InArgs._StackParameterData;
 	MaterialEditorInstance = InArgs._MaterialEditorInstance;
 	Tree = InArgs._InTree;
-	ColumnSizeData.LeftColumnWidth = TAttribute<float>(Tree.Pin().Get(), &SMaterialParametersOverviewTree::OnGetLeftColumnWidth);
-	ColumnSizeData.RightColumnWidth = TAttribute<float>(Tree.Pin().Get(), &SMaterialParametersOverviewTree::OnGetRightColumnWidth);
-	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(Tree.Pin().Get(), &SMaterialParametersOverviewTree::OnSetColumnWidth);
 
 	TSharedRef<SWidget> LeftSideWidget = SNullWidget::NullWidget;
 	TSharedRef<SWidget> RightSideWidget = SNullWidget::NullWidget;
@@ -457,7 +454,10 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 // END PROPERTY CHILD
 
 // FINAL WRAPPER
+
 	{
+		FDetailColumnSizeData& ColumnSizeData = InArgs._InTree->GetColumnSizeData();
+
 		float ValuePadding = bisPaddedProperty ? 20.0f : 0.0f;
 		WrapperWidget->AddSlot()
 			.AutoHeight()
@@ -471,8 +471,8 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 					.PhysicalSplitterHandleSize(1.0f)
 					.HitDetectionSplitterHandleSize(5.0f)
 					+ SSplitter::Slot()
-					.Value(ColumnSizeData.LeftColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnWidthChanged)
+					.Value(ColumnSizeData.NameColumnWidth)
+					.OnSlotResized(ColumnSizeData.OnNameColumnResized)
 					.Value(0.25f)
 					[
 						SNew(SHorizontalBox)
@@ -491,8 +491,8 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 						]
 					]
 					+ SSplitter::Slot()
-					.Value(ColumnSizeData.RightColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnWidthChanged)
+					.Value(ColumnSizeData.ValueColumnWidth)
+					.OnSlotResized(ColumnSizeData.OnValueColumnResized) 
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
@@ -524,11 +524,9 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 void SMaterialParametersOverviewTree::Construct(const FArguments& InArgs)
 {
 	bHasAnyParameters = false;
-	ColumnWidth = 0.5f;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Owner = InArgs._InOwner;
 	CreateGroupsWidget();
-
 
 	STreeView<TSharedPtr<FSortedParamData>>::Construct(
 		STreeView::FArguments()
@@ -828,68 +826,68 @@ void SMaterialParametersOverviewPanel::Refresh()
 	if (NestedTree->HasAnyParameters())
 	{
 		this->ChildSlot
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
 			[
 				SNew(SBorder)
 				.BorderImage(this, &SMaterialParametersOverviewPanel::GetBackgroundImage)
-			.Padding(FMargin(4.0f))
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SAssignNew(HeaderBox, SHorizontalBox)
-				+ SHorizontalBox::Slot()
-			.Padding(FMargin(3.0f, 1.0f))
-			.HAlign(HAlign_Left)
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ParameterDefaults", "Parameter Defaults"))
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-			.ShadowOffset(FVector2D(1.0f, 1.0f))
+				.Padding(FMargin(4.0f))
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew(HeaderBox, SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(FMargin(3.0f, 1.0f))
+						.HAlign(HAlign_Left)
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ParameterDefaults", "Parameter Defaults"))
+							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+							.ShadowOffset(FVector2D(1.0f, 1.0f))
+						]
+					]
+					+ SVerticalBox::Slot()
+					.Padding(FMargin(3.0f, 2.0f, 3.0f, 3.0f))
+					[
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.HAlign(HAlign_Fill)
+							[
+								SNew(SWidgetSwitcher)
+								.WidgetIndex(this, &SMaterialParametersOverviewPanel::GetPanelIndex)
+								+ SWidgetSwitcher::Slot()
+								[
+									SNew(STextBlock)
+									.Text(LOCTEXT("AddParams", "Add parameters to see them here."))
+								]
+								+ SWidgetSwitcher::Slot()
+								[
+									NestedTree.ToSharedRef()
+								]
+							]
+							+ SHorizontalBox::Slot()
+							.HAlign(HAlign_Right)
+							.AutoWidth()
+							[
+								SNew(SBox)
+								.WidthOverride(16.0f)
+								[
+									ExternalScrollbar.ToSharedRef()
+								]
+							]
+						]
+					]
+				]
 			]
-			]
-		+ SVerticalBox::Slot()
-			.Padding(FMargin(3.0f, 2.0f, 3.0f, 3.0f))
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Fill)
-			[
-				SNew(SWidgetSwitcher)
-				.WidgetIndex(this, &SMaterialParametersOverviewPanel::GetPanelIndex)
-			+ SWidgetSwitcher::Slot()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("AddParams", "Add parameters to see them here."))
-			]
-		+ SWidgetSwitcher::Slot()
-			[
-				NestedTree.ToSharedRef()
-			]
-			]
-		+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Right)
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.WidthOverride(16.0f)
-			[
-				ExternalScrollbar.ToSharedRef()
-			]
-			]
-			]
-			]
-			]
-			]
-			];
+		];
 
 		HeaderBox->AddSlot()
 			.FillWidth(1.0f)
@@ -905,28 +903,28 @@ void SMaterialParametersOverviewPanel::Refresh()
 				[
 					SNew(SButton)
 					.ButtonStyle(FEditorStyle::Get(), "FlatButton.DarkGrey")
-				.HAlign(HAlign_Center)
-				.OnClicked(OnChildButtonClicked)
-				.ToolTipText(LOCTEXT("SaveToChildInstance", "Save To Child Instance"))
-				.Content()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Text(FText::FromString(FString(TEXT("\xf0c7 \xf149"))) /*fa-filter*/)
-				]
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Text(FText::FromString(FString(TEXT(" Save Child"))) /*fa-filter*/)
-				]
-				]
+					.HAlign(HAlign_Center)
+					.OnClicked(OnChildButtonClicked)
+					.ToolTipText(LOCTEXT("SaveToChildInstance", "Save To Child Instance"))
+					.Content()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+							.Text(FText::FromString(FString(TEXT("\xf0c7 \xf149"))) /*fa-filter*/)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+							.Text(FText::FromString(FString(TEXT(" Save Child"))) /*fa-filter*/)
+						]
+					]
 				];
 		}
 	}

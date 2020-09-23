@@ -46,11 +46,6 @@ void SStructureDetailsView::Construct(const FArguments& InArgs)
 	PropertyUtilities = MakeShareable( new FPropertyDetailsUtilities( *this ) );
 	PropertyGenerationUtilities = MakeShareable(new FDetailsViewPropertyGenerationUtilities(*this));
 	
-	ColumnWidth = DetailsViewArgs.ColumnWidth;
-	ColumnSizeData.LeftColumnWidth = TAttribute<float>(this, &SStructureDetailsView::OnGetLeftColumnWidth);
-	ColumnSizeData.RightColumnWidth = TAttribute<float>(this, &SStructureDetailsView::OnGetRightColumnWidth);
-	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SStructureDetailsView::OnSetColumnWidth);
-
 	TSharedRef<SScrollBar> ExternalScrollbar = SNew(SScrollBar);
 
 	// See note in SDetailsView for why visibility is set after construction

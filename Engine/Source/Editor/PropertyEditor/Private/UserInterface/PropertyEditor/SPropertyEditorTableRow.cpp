@@ -72,7 +72,10 @@ TSharedRef< SWidget > SPropertyEditorTableRow::ConstructNameColumnWidget()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
-			SNew( SEditConditionWidget, PropertyEditor )
+			SNew( SEditConditionWidget )
+			.EditConditionValue(PropertyEditor.ToSharedRef(), &FPropertyEditor::IsEditConditionMet)
+			.OnEditConditionValueChanged_Lambda([this](bool bValue) { PropertyEditor->ToggleEditConditionState(); })
+
 		]
 		+SHorizontalBox::Slot()
 		.AutoWidth()

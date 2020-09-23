@@ -174,26 +174,8 @@ FDetailWidgetRow FDetailGroup::GetWidgetRow()
 		[
 			MakeNameWidget()
 		];
-		Row.ValueContent()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.OnClicked(this, &FDetailGroup::OnResetClicked)
-				.Visibility(this, &FDetailGroup::GetResetVisibility)
-				.ContentPadding(FMargin(5.f, 0.f))
-				.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
-				]
-			]
-		];
+
+		Row.OverrideResetToDefault(FResetToDefaultOverride::Create(TAttribute<bool>(this, &FDetailGroup::IsResetVisible), FSimpleDelegate::CreateSP(this, &FDetailGroup::OnResetClicked)));
 
 		return Row;
 	}
@@ -244,7 +226,7 @@ TSharedRef<SWidget> FDetailGroup::MakeNameWidget()
 		];
 }
 
-FReply FDetailGroup::OnResetClicked()
+void FDetailGroup::OnResetClicked()
 {
 	if (ResetEnabled)
 	{
@@ -260,11 +242,9 @@ FReply FDetailGroup::OnResetClicked()
 			OnDetailGroupReset.Broadcast();
 		}
 	}
-
-	return FReply::Handled();
 }
 
-EVisibility FDetailGroup::GetResetVisibility() const
+bool FDetailGroup::IsResetVisible() const
 {
 	if (ResetEnabled)
 	{
@@ -276,13 +256,13 @@ EVisibility FDetailGroup::GetResetVisibility() const
 			{
 				if (PropertyHandle->DiffersFromDefault())
 				{
-					return EVisibility::Visible;
+					return true;
 				}
 			}
 		}
 	}
 
-	return EVisibility::Hidden;
+	return false;
 }
 
 void FDetailGroup::EnableReset(bool InValue)

@@ -26,7 +26,6 @@ public:
 	virtual bool DontUpdateValueWhileEditing() const override;
 	const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const override;
 	virtual bool HasClassDefaultObject() const override;
-	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const override;
 
 private:
 	IDetailsViewPrivate& DetailsView;

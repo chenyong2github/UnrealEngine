@@ -45,7 +45,7 @@ void FAnimBlueprintFunctionPinInfoDetails::CustomizeHeader(TSharedRef<IPropertyH
 	StructPropertyHandle->MarkResetToDefaultCustomized(true);
 
 	InHeaderRow
-	.DiffersFromDefault(false)
+	.OverrideResetToDefault(FResetToDefaultOverride::Hide())
 	.NameContent()
 	[
 		SNew(SHorizontalBox)

@@ -196,19 +196,27 @@ void FDetailLayoutBuilderImpl::ForceRefreshDetails()
 	PropertyDetailsUtilities.Pin()->ForceRefresh();
 }
 
-FDetailCategoryImpl& FDetailLayoutBuilderImpl::DefaultCategory( FName CategoryName )
+FDetailCategoryImpl& FDetailLayoutBuilderImpl::DefaultCategory(FName CategoryName)
 {
-	TSharedPtr<FDetailCategoryImpl>& CategoryImpl = DefaultCategoryMap.FindOrAdd( CategoryName );
-
-	if( !CategoryImpl.IsValid() )
+	for (const TSharedRef<FDetailTreeNode>& RootTreeNode : AllRootTreeNodes)
 	{
-		CategoryImpl = MakeShareable( new FDetailCategoryImpl( CategoryName, SharedThis(this) ) );
+		if (RootTreeNode->GetNodeType() == EDetailNodeType::Category && 
+			CategoryName == RootTreeNode->GetNodeName())
+		{
+			return (FDetailCategoryImpl&) RootTreeNode.Get();
+		}
+	}
+
+	TSharedPtr<FDetailCategoryImpl>& CategoryImpl = DefaultCategoryMap.FindOrAdd(CategoryName);
+	if (!CategoryImpl.IsValid())
+	{
+		CategoryImpl = MakeShareable(new FDetailCategoryImpl(CategoryName, SharedThis(this)));
 
 		// We want categories within a type to display in the order they were added but sorting is unstable so we make unique numbers 
-		uint32 SortOrder = (uint32)ECategoryPriority::Default * 1000 + (DefaultCategoryMap.Num() - 1);
-		CategoryImpl->SetSortOrder( SortOrder );
+		uint32 SortOrder = (uint32) ECategoryPriority::Default * 1000 + (DefaultCategoryMap.Num() - 1);
+		CategoryImpl->SetSortOrder(SortOrder);
 
-		CategoryImpl->SetDisplayName( CategoryName, FText::GetEmpty() );
+		CategoryImpl->SetDisplayName(CategoryName, FText::GetEmpty());
 	}
 
 	return *CategoryImpl;

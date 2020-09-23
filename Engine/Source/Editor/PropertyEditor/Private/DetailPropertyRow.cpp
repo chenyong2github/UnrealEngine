@@ -102,10 +102,8 @@ IDetailPropertyRow& FDetailPropertyRow::ShowPropertyButtons( bool bInShowPropert
 
 IDetailPropertyRow& FDetailPropertyRow::EditCondition( TAttribute<bool> EditConditionValue, FOnBooleanValueChanged OnEditConditionValueChanged )
 {
-	CustomEditCondition = MakeShareable( new FCustomEditCondition );
-
-	CustomEditCondition->EditConditionValue = EditConditionValue;
-	CustomEditCondition->OnEditConditionValueChanged = OnEditConditionValueChanged;
+	CustomEditConditionValue = EditConditionValue;
+	CustomEditConditionValueChanged = OnEditConditionValueChanged;
 	return *this;
 }
 
@@ -151,8 +149,8 @@ void FDetailPropertyRow::GetDefaultWidgets( TSharedPtr<SWidget>& OutNameWidget, 
 		CustomTypeInterface->CustomizeHeader(PropertyHandle.ToSharedRef(), *CustomTypeRow, *this);
 	}
 
-	MakeNameOrKeyWidget(Row,CustomTypeRow);
-	MakeValueWidget(Row,CustomTypeRow,bAddWidgetDecoration);
+	MakeNameOrKeyWidget(Row, CustomTypeRow);
+	MakeValueWidget(Row, CustomTypeRow, bAddWidgetDecoration);
 
 	OutNameWidget = Row.NameWidget.Widget;
 	OutValueWidget = Row.ValueWidget.Widget;
@@ -616,18 +614,18 @@ EVisibility FDetailPropertyRow::GetPropertyVisibility() const
 
 bool FDetailPropertyRow::HasEditCondition() const
 {
-	return ( PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() ) || CustomEditCondition.IsValid();
+	return (PropertyEditor.IsValid() && PropertyEditor->HasEditCondition()) || CustomEditConditionValue.IsSet();
 }
 
 bool FDetailPropertyRow::GetEnabledState() const
 {
 	bool Result = IsParentEnabled.Get();
 
-	if( HasEditCondition() ) 
+	if (HasEditCondition())
 	{
-		if (CustomEditCondition.IsValid())
+		if (CustomEditConditionValue.IsSet())
 		{
-			Result = Result && CustomEditCondition->EditConditionValue.Get();
+			Result = Result && CustomEditConditionValue.Get();
 		}
 		else
 		{
@@ -662,40 +660,30 @@ bool FDetailPropertyRow::GetForceAutoExpansion() const
 void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TSharedPtr<FDetailWidgetRow> InCustomRow ) const
 {
 	EVerticalAlignment VerticalAlignment = VAlign_Center;
-	EHorizontalAlignment HorizontalAlignment = HAlign_Fill;
+	EHorizontalAlignment HorizontalAlignment = HAlign_Right;
 
 	// We will only use key widgets for non-struct keys
 	const bool bHasKeyNode = PropertyKeyEditor.IsValid() && !PropertyHandle->HasMetaData(TEXT("ReadOnlyKeys"));
 
-	if( !bHasKeyNode && InCustomRow.IsValid() )
+	if (!bHasKeyNode && InCustomRow.IsValid())
 	{
 		VerticalAlignment = InCustomRow->NameWidget.VerticalAlignment;
 		HorizontalAlignment = InCustomRow->NameWidget.HorizontalAlignment;
 	}
 
 	TAttribute<bool> IsEnabledAttrib = CustomIsEnabledAttrib;
+	
+	if (HasEditCondition())
+	{
+		IsEnabledAttrib.Bind( this, &FDetailPropertyRow::GetEnabledState );
+	}
 
 	TSharedRef<SHorizontalBox> NameHorizontalBox = SNew(SHorizontalBox);
 	
-	if( HasEditCondition() )
-	{
-		IsEnabledAttrib.Bind( this, &FDetailPropertyRow::GetEnabledState );
-
-		NameHorizontalBox->AddSlot()
-		.AutoWidth()
-		.Padding( 0.0f, 0.0f )
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Right)
-		[
-			SNew( SEditConditionWidget, PropertyEditor )
-			.CustomEditCondition( CustomEditCondition.IsValid() ? *CustomEditCondition : FCustomEditCondition() )
-		];
-	}
-
 	TSharedPtr<SWidget> NameWidget;
 
 	// Key nodes take precedence over custom rows
-	if ( bHasKeyNode )
+	if (bHasKeyNode)
 	{
 		// Does this key have a custom type, use it
 		if (CachedKeyCustomTypeInterface)
@@ -717,7 +705,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 		}
 
 	}
-	else if( InCustomRow.IsValid() )
+	else if (InCustomRow.IsValid())
 	{
 		NameWidget = 
 			SNew( SBox )
@@ -730,8 +718,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 	{
 		NameWidget = 
 			SNew( SPropertyNameWidget, PropertyEditor )
-			.IsEnabled( IsEnabledAttrib )
-			.DisplayResetToDefault( false );
+			.IsEnabled( IsEnabledAttrib );
 	}
 
 	SHorizontalBox::FSlot& Slot = NameHorizontalBox->AddSlot()
@@ -755,7 +742,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 	}
 
 	Row.NameContent()
-	.HAlign( HAlign_Right )
+	.HAlign( HorizontalAlignment )
 	.VAlign( VerticalAlignment )
 	[
 		NameHorizontalBox
@@ -786,32 +773,6 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 		SNew( SHorizontalBox )
 		.IsEnabled( IsEnabledAttrib );
 
-	TSharedPtr<SResetToDefaultPropertyEditor> ResetButton = nullptr;
-	TSharedPtr<SWidget> ResetWidget = nullptr;
-	if (!PropertyHandle->HasMetaData(TEXT("NoResetToDefault")) && !PropertyHandle->GetInstanceMetaData(TEXT("NoResetToDefault")))
-	{
-		if (PropertyHandle->IsResetToDefaultCustomized())
-		{
-			// FIXME: Workaround for JIRA UE-73210.
-			// We had an oscillating SPropertyValueWidget width while dragging a UMG widget in the designer.
-			// The way drag&drop is implemented (SDesignerView::ProcessDropAndAddWidget), a new UCanvasPanelSlot gets 
-			// recreated every frame, so the details panel gets refreshed every frame. Since new property rows are created 
-			// before old ones are destroyed in the details panel, the HasCustomResetToDefault flag on the property node 
-			// toggles from frame to frame, so we alternate between having a ResetToDefaultPropertyEditor and not having one.
-			// By having a spacer fill the blank, the property row layout doesn't change while dragging, but we still see 
-			// a flashing yellow reset arrow (when visible).
-			const FSlateBrush* DiffersFromDefaultBrush = FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault");
-			ResetWidget = SNew(SSpacer).Size(DiffersFromDefaultBrush != nullptr ? DiffersFromDefaultBrush->ImageSize : FVector2D(8.0f, 8.0f));
-		}
-		else
-		{
-			SAssignNew(ResetButton, SResetToDefaultPropertyEditor, PropertyEditor->GetPropertyHandle())
-				.IsEnabled(IsEnabledAttrib)
-				.CustomResetToDefault(CustomResetToDefault);
-			ResetWidget = ResetButton;
-		}
-	};
-
 	TSharedPtr<SPropertyValueWidget> PropertyValue;
 
 	if( InCustomRow.IsValid() )
@@ -830,13 +791,12 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 		[
 			SAssignNew( PropertyValue, SPropertyValueWidget, PropertyEditor, GetPropertyUtilities() )
 			.ShowPropertyButtons( false ) // We handle this ourselves
-			.OptionalResetWidget(ResetButton.IsValid() ? ResetButton.ToSharedRef() : SNullWidget::NullWidget)
 		];
 		MinWidth = PropertyValue->GetMinDesiredWidth();
 		MaxWidth = PropertyValue->GetMaxDesiredWidth();
 	}
 
-	if(bAddWidgetDecoration)
+	if( bAddWidgetDecoration )
 	{
 		if( bShowPropertyButtons )
 		{
@@ -867,29 +827,37 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 				PropertyCustomizationHelpers::MakeEditConfigHierarchyButton(FSimpleDelegate::CreateSP(PropertyEditor.ToSharedRef(), &FPropertyEditor::EditConfigHierarchy))
 			];
 		}
-
-		if ((!PropertyValue.IsValid() || (PropertyValue.IsValid() && !PropertyValue->CreatedResetButton()))
-			&& ResetWidget.IsValid())
-		{
-			ValueWidget->AddSlot()
-			.Padding(4.0f, 0.0f)
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				ResetWidget.ToSharedRef()
-			];
-		}
 	}
 
 	Row.ValueContent()
-	.HAlign( HorizontalAlignment )
-	.VAlign( VerticalAlignment )	
-	.MinDesiredWidth( MinWidth )
-	.MaxDesiredWidth( MaxWidth )
-	[
-		ValueWidget
-	];
+		.HAlign( HorizontalAlignment )
+		.VAlign( VerticalAlignment )	
+		.MinDesiredWidth( MinWidth )
+		.MaxDesiredWidth( MaxWidth )
+		[
+			ValueWidget
+		];
+	
+	// set edit condition handlers - use customized if provided
+	TAttribute<bool> EditConditionValue = CustomEditConditionValue;
+	if (!EditConditionValue.IsSet())
+	{
+		EditConditionValue = TAttribute<bool>(PropertyEditor.ToSharedRef(), &FPropertyEditor::IsEditConditionMet);
+	}
+
+	FOnBooleanValueChanged OnEditConditionValueChanged = CustomEditConditionValueChanged;
+	if (!OnEditConditionValueChanged.IsBound() && PropertyEditor->SupportsEditConditionToggle())
+	{
+		OnEditConditionValueChanged = FOnBooleanValueChanged::CreateLambda([this](bool bValue) 
+		{ 
+			if (PropertyEditor->IsEditConditionMet() != bValue)
+			{
+				PropertyEditor->ToggleEditConditionState();
+			}
+		});
+	}
+
+	Row.EditCondition(EditConditionValue, OnEditConditionValueChanged);
 }
 
 #undef LOCTEXT_NAMESPACE

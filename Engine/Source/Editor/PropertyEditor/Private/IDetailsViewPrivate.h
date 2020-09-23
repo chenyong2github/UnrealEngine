@@ -140,5 +140,6 @@ public:
 	*/
 	virtual void RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode) = 0;
 
-	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const = 0;
+	/** Column width accessibility */
+	virtual FDetailColumnSizeData& GetColumnSizeData() = 0;
 };

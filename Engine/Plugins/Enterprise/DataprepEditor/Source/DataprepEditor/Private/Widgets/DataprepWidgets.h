@@ -67,7 +67,6 @@ class SDataprepCategoryWidget : public STableRow< TSharedPtr< EDataprepCategory 
 public:
 
 	SLATE_BEGIN_ARGS(SDataprepCategoryWidget) {}
-	SLATE_ARGUMENT(TSharedPtr< FDetailColumnSizeData >, ColumnSizeData)
 	SLATE_ARGUMENT(FText, Title)
 	SLATE_ARGUMENT(TSharedPtr< SWidget >, TitleDetail)
 	SLATE_END_ARGS()
@@ -95,7 +94,6 @@ public:
 		, _ColumnPadding(false)
 		, _ResizableColumn(true)
 		{}
-		SLATE_ARGUMENT(TSharedPtr<FDetailColumnSizeData>, ColumnSizeData)
 		SLATE_ARGUMENT(UObject*, Object)
 		SLATE_ARGUMENT(float, Spacing)
 		SLATE_ARGUMENT(bool, ColumnPadding)
@@ -149,17 +147,6 @@ private:
 	 */
 	void CreateDefaultWidget(int32 Index, TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, const FDataprepParameterizationContext& ParameterizationContext);
 
-	/** Callback used by all splitters in the details view, so that they move in sync */
-	void OnLeftColumnResized(float InNewWidth)
-	{
-		// This has to be bound or the splitter will take it upon itself to determine the size
-		// We do nothing here because it is handled by the column size data
-	}
-
-	float OnGetLeftColumnWidth() const { return 1.0f - ColumnWidth; }
-	float OnGetRightColumnWidth() const { return ColumnWidth; }
-	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth < 0.5f ? 0.5f : InWidth; }
-
 	/** Callback to track property changes on array properties */
 	void OnPropertyChanged( const struct FPropertyChangedEvent& InEvent );
 
@@ -191,9 +178,6 @@ private:
 
 	/** Delegate handle to track when a object was transacted */
 	FDelegateHandle OnObjectTransactedHandle;
-
-	/** Relative width to control splitters. */
-	float ColumnWidth;
 
 	/** Points to the currently used column size data. Can be provided via argument as well. */
 	TSharedPtr< FDetailColumnSizeData > ColumnSizeData;

@@ -74,8 +74,3 @@ bool FPropertyDetailsUtilities::HasClassDefaultObject() const
 {
 	return DetailsView.HasClassDefaultObject();
 }
-
-TSharedPtr<FEditConditionParser> FPropertyDetailsUtilities::GetEditConditionParser() const
-{
-	return DetailsView.GetEditConditionParser();
-}

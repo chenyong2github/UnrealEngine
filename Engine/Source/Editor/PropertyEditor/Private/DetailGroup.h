@@ -97,8 +97,8 @@ private:
 	TSharedRef<SWidget> MakeNameWidget();
 
 	/** Called when the "Reset to Default" button for the location has been clicked */
-	FReply OnResetClicked();
-	EVisibility GetResetVisibility() const;
+	void OnResetClicked();
+	bool IsResetVisible() const;
 	bool GetAllChildrenPropertyHandles(TArray<TSharedPtr<IPropertyHandle>>& PropertyHandles) const;
 	bool GetAllChildrenPropertyHandlesRecursive(const FDetailGroup* CurrentDetailGroup, TArray<TSharedPtr<IPropertyHandle>>& PropertyHandles) const;
 

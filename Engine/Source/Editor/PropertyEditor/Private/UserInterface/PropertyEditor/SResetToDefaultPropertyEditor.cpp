@@ -71,20 +71,13 @@ FText SResetToDefaultPropertyEditor::GetResetToolTip() const
 
 FReply SResetToDefaultPropertyEditor::OnResetClicked()
 {
-	if (PropertyHandle.IsValid())
+	if (OptionalCustomResetToDefault.IsSet())
 	{
-		if (OptionalCustomResetToDefault.IsSet())
-		{
-			PropertyHandle->ExecuteCustomResetToDefault(OptionalCustomResetToDefault.GetValue());
-		}
-		else
-		{
-			PropertyHandle->ResetToDefault();
-		}
+		OptionalCustomResetToDefault.GetValue().OnResetToDefaultClicked(PropertyHandle);
 	}
-	else if(OptionalCustomResetToDefault.IsSet())
+	else if (PropertyHandle.IsValid())
 	{
-		OptionalCustomResetToDefault.GetValue().OnResetToDefaultClicked().ExecuteIfBound(PropertyHandle);
+		PropertyHandle->ResetToDefault();
 	}
 
 	return FReply::Handled();

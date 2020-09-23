@@ -20,28 +20,26 @@ public:
 	SLATE_BEGIN_ARGS( SDetailCategoryTableRow )
 		: _InnerCategory( false )
 		, _ShowBorder( true )
-		, _ColumnSizeData(nullptr)
 	{}
 		SLATE_ARGUMENT( FText, DisplayName )
 		SLATE_ARGUMENT( bool, InnerCategory )
 		SLATE_ARGUMENT( TSharedPtr<SWidget>, HeaderContent )
 		SLATE_ARGUMENT( bool, ShowBorder )
-		SLATE_ARGUMENT( const FDetailColumnSizeData*, ColumnSizeData )
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView );
+
 private:
 	EVisibility IsSeparatorVisible() const;
 	const FSlateBrush* GetBackgroundImage() const;
-private:
+
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
-	void OnColumnResized(float InNewWidth);
+
 private:
 	bool bIsInnerCategory;
 	bool bShowBorder;
 };
-
 
 class FDetailCategoryGroupNode : public FDetailTreeNode, public TSharedFromThis<FDetailCategoryGroupNode>
 {
@@ -61,7 +59,7 @@ private:
 	virtual void OnItemExpansionChanged( bool bIsExpanded, bool bShouldSaveState) override {}
 	virtual bool ShouldBeExpanded() const override { return true; }
 	virtual ENodeVisibility GetVisibility() const override { return bShouldBeVisible ? ENodeVisibility::Visible : ENodeVisibility::HiddenDueToFiltering; }
-	virtual TSharedRef< ITableRow > GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem) override;
+	virtual TSharedRef< ITableRow > GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem) override;
 	virtual bool GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const override;
 
 	virtual EDetailNodeType GetNodeType() const override { return EDetailNodeType::Category; }
@@ -73,6 +71,7 @@ private:
 	virtual void Tick( float DeltaTime ) override {}
 	virtual bool ShouldShowOnlyChildren() const override { return false; }
 	virtual FName GetNodeName() const override { return GroupName; }
+
 private:
 	FDetailNodeList ChildNodes;
 	FDetailCategoryImpl& ParentCategory;

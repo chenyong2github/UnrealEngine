@@ -663,7 +663,7 @@ void FDetailCategoryImpl::SetDisplayName(FName InCategoryName, const FText& Loca
 }
 
 
-TSharedRef<ITableRow> FDetailCategoryImpl::GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem)
+TSharedRef<ITableRow> FDetailCategoryImpl::GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)
 {
 	TSharedPtr<SWidget> HeaderContent = HeaderContentWidget;
 	if (InlinePropertyNode.IsValid())
@@ -673,12 +673,10 @@ TSharedRef<ITableRow> FDetailCategoryImpl::GenerateWidgetForTableView(const TSha
 		HeaderContent = Row.ValueWidget.Widget;
 	}
 
-	return
-		SNew(SDetailCategoryTableRow, AsShared(), OwnerTable)
+	return SNew(SDetailCategoryTableRow, AsShared(), OwnerTable)
 		.InnerCategory(DetailLayoutBuilder.IsValid() ? DetailLayoutBuilder.Pin()->IsLayoutForExternalRoot() : false)
 		.DisplayName(GetDisplayName())
-		.HeaderContent(HeaderContent)
-		.ColumnSizeData(&ColumnSizeData);
+		.HeaderContent(HeaderContent);
 }
 
 
@@ -920,8 +918,7 @@ void FDetailCategoryImpl::GenerateChildrenForLayouts()
 			AdvancedDropdownNodeTop = MakeShareable(new FAdvancedDropdownNode(*this, true));
 		}
 
-		const bool bShowSplitter = bLastItemHasMultipleColumns;
-		AdvancedDropdownNodeBottom = MakeShareable(new FAdvancedDropdownNode(*this, ShowAdvanced, IsEnabled, AdvancedChildNodes.Num() > 0, SimpleChildNodes.Num() == 0, bShowSplitter));
+		AdvancedDropdownNodeBottom = MakeShareable(new FAdvancedDropdownNode(*this, ShowAdvanced, IsEnabled, AdvancedChildNodes.Num() > 0, SimpleChildNodes.Num() == 0));
 	}
 }
 

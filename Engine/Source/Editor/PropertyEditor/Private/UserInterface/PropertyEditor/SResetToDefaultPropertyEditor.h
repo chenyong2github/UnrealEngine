@@ -22,12 +22,13 @@ public:
 		: _NonVisibleState( EVisibility::Hidden )
 		{}
 		SLATE_ARGUMENT( EVisibility, NonVisibleState )
-		SLATE_ARGUMENT(TOptional<FResetToDefaultOverride>, CustomResetToDefault)
+		SLATE_ARGUMENT( TOptional<FResetToDefaultOverride>, CustomResetToDefault )
 	SLATE_END_ARGS()
 
 	~SResetToDefaultPropertyEditor();
 
 	void Construct( const FArguments& InArgs, const TSharedPtr< class IPropertyHandle>& InPropertyHandle );
+
 private:
 	FText GetResetToolTip() const;
 
@@ -38,6 +39,7 @@ private:
 	FReply OnResetClicked();
 
 	void UpdateDiffersFromDefaultState();
+
 private:
 	TOptional<FResetToDefaultOverride> OptionalCustomResetToDefault;
 

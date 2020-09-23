@@ -17,7 +17,6 @@ public:
 		SLATE_ATTRIBUTE( bool, IsExpanded )
 		SLATE_ATTRIBUTE( bool, IsButtonEnabled )
 		SLATE_ARGUMENT( bool, ShouldShowAdvancedButton )
-		SLATE_ARGUMENT( FDetailColumnSizeData, ColumnSizeData )
 		SLATE_EVENT( FOnClicked, OnClicked )
 	SLATE_END_ARGS()
 
@@ -26,22 +25,21 @@ public:
 	 *
 	 * @param InArgs   A declaration from which to construct the widget
 	 */
-	void Construct( const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, bool bIsTopNode, bool bInDisplayShowAdvancedMessage, bool bShowSplitter )
+	void Construct( const FArguments& InArgs, IDetailsViewPrivate* InDetailsView, const TSharedRef<STableViewBase>& InOwnerTableView, bool bIsTopNode, bool bInDisplayShowAdvancedMessage)
 	{
 		IsExpanded = InArgs._IsExpanded;
-
+		DetailsView = InDetailsView;
 		bDisplayShowAdvancedMessage = bInDisplayShowAdvancedMessage;
 
 		TSharedPtr<SWidget> ContentWidget;
 		if( bIsTopNode )
 		{
-			ContentWidget =
-				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryMiddle") )
-				.Padding( FMargin( 0.0f, 3.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ) )
+			ContentWidget = SNew( SBorder )
+				.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle") )
+				.Padding(FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ) )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder.Open") )
+					.Image(FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder.Open"))
 				];
 		}
 		else if( InArgs._ShouldShowAdvancedButton )
@@ -78,57 +76,15 @@ public:
 						]
 					]
 				];
-
 		}
 		else
 		{
-			TSharedPtr<SWidget> SplitterArea;
-			if( bShowSplitter )
-			{
-				SplitterArea = 
-					SNew( SSplitter )
-					.PhysicalSplitterHandleSize( 1.0f )
-					.HitDetectionSplitterHandleSize( 5.0f )
-					.Style( FEditorStyle::Get(), "DetailsView.Splitter" )
-					+ SSplitter::Slot()
-					.Value( InArgs._ColumnSizeData.LeftColumnWidth )
-					.OnSlotResized( SSplitter::FOnSlotResized::CreateSP( this, &SAdvancedDropdownRow::OnLeftColumnResized ) )
-					[
-						SNew( SHorizontalBox )
-						+ SHorizontalBox::Slot()
-						.Padding( 3.0f, 0.0f )
-						.HAlign( HAlign_Left )
-						.VAlign( VAlign_Center )
-						.AutoWidth()
-						[
-							SNew( SExpanderArrow, SharedThis(this) )
-						]
-						+ SHorizontalBox::Slot()
-						.HAlign( HAlign_Left )
-						.Padding( FMargin( 0.0f, 2.5f, 2.0f, 2.5f ) )
-						[
-							SNew( SSpacer )
-						]
-
-					]
-					+ SSplitter::Slot()
-					.Value( InArgs._ColumnSizeData.RightColumnWidth )
-					.OnSlotResized( InArgs._ColumnSizeData.OnWidthChanged )
-					[
-						SNew( SSpacer )
-					];
-			}
-			else
-			{
-				SplitterArea = SNew(SSpacer);
-			}
-
 			ContentWidget =
 				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryMiddle") )
+				.BorderImage( FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder") )
 				.Padding( FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 2.0f ) )
 				[
-					SplitterArea.ToSharedRef()	
+					SNew(SSpacer)
 				];
 		}
 		
@@ -146,7 +102,7 @@ public:
         		.HeightOverride(2.f)
         		[ 
 					SNew( SBorder )
-					.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryBottom") )
+					.BorderImage( FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder") )
 				]
 			]
 		];
@@ -158,12 +114,8 @@ public:
 			InOwnerTableView
 		);	
 	}
+
 private:
-	void OnLeftColumnResized( float InNewWidth )
-	{
-		// This has to be bound or the splitter will take it upon itself to determine the size
-		// We do nothing here because it is handled by the column size data
-	}
 
 	EVisibility OnGetHelpTextVisibility() const
 	{
@@ -191,18 +143,16 @@ private:
 	TAttribute<bool> IsExpanded;
 	TSharedPtr<SButton> ExpanderButton;
 	bool bDisplayShowAdvancedMessage;
+	IDetailsViewPrivate* DetailsView;
 };
 
-
-TSharedRef< ITableRow > FAdvancedDropdownNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem)
+TSharedRef< ITableRow > FAdvancedDropdownNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)
 {
-	return 
-		SNew( SAdvancedDropdownRow, OwnerTable, bIsTopNode, bDisplayShowAdvancedMessage, bShowSplitter )
+	return SNew( SAdvancedDropdownRow, ParentCategory.GetDetailsView(), OwnerTable, bIsTopNode, bDisplayShowAdvancedMessage )
 		.OnClicked( this, &FAdvancedDropdownNode::OnAdvancedDropDownClicked )
 		.IsButtonEnabled( IsEnabled )
 		.IsExpanded( IsExpanded )
-		.ShouldShowAdvancedButton( bShouldShowAdvancedButton )
-		.ColumnSizeData( ColumnSizeData );
+		.ShouldShowAdvancedButton( bShouldShowAdvancedButton );
 }
 
 bool FAdvancedDropdownNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const

@@ -193,7 +193,9 @@ private:
 	/** Custom widgets to use for this row instead of the default ones */
 	TSharedPtr<FDetailWidgetRow> CustomPropertyWidget;
 	/** User customized edit condition */
-	TSharedPtr<struct FCustomEditCondition> CustomEditCondition;
+	TAttribute<bool> CustomEditConditionValue;
+	/** User customized edit condition change handler. */
+	FOnBooleanValueChanged CustomEditConditionValueChanged;
 	/** User customized reset to default */
 	TOptional<FResetToDefaultOverride> CustomResetToDefault;
 	/** The category this row resides in */

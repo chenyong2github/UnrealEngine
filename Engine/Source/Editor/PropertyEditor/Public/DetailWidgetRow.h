@@ -3,15 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
+#include "IDetailPropertyRow.h"
+#include "PropertyHandle.h"
+#include "Framework/Commands/UIAction.h"
 #include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
-#include "Framework/Commands/UIAction.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "PropertyHandle.h"
 
 class FDetailWidgetRow;
+struct FCustomEditCondition;
+class FResetToDefaultOverride;
 
 /** Widget declaration for custom widgets in a widget row */
 class FDetailWidgetDecl
@@ -104,7 +107,6 @@ public:
 		, CopyMenuAction()
 		, PasteMenuAction()
 		, RowTagName()
-		, DiffersFromDefaultAttr( false )
 	{
 	}
 	
@@ -160,7 +162,7 @@ public:
 	}
 
 	/**
-	 * Sets the visibility of the entire row
+	 * Sets the enabled state of the entire row
 	 */
 	FDetailWidgetRow& IsEnabled( const TAttribute<bool>& InIsEnabled )
 	{
@@ -239,12 +241,17 @@ public:
 	/**
 	* Sets flag to indicate if property value differs from the default
 	*/
-	FDetailWidgetRow& DiffersFromDefault(const TAttribute<bool>& InDiffersFromDefaultAttr)
+	FDetailWidgetRow& OverrideResetToDefault(const FResetToDefaultOverride& InResetToDefaultOverride)
 	{
-		DiffersFromDefaultAttr = InDiffersFromDefaultAttr;
+		CustomResetToDefault = InResetToDefaultOverride;
 		return *this;
 	}
 
+	/** 
+	 * Override the edit condition.
+	 */ 
+	FDetailWidgetRow& EditCondition(TAttribute<bool> EditConditionValue, FOnBooleanValueChanged OnEditConditionValueChanged);
+	
 	/**
 	* Used to provide all the property handles this WidgetRow represent
 	*/
@@ -296,8 +303,12 @@ public:
 
 	/* Tag to identify this row */
 	FName RowTagName;
-	/* Flag to track if property has been modified from default */
-	TAttribute<bool> DiffersFromDefaultAttr;
+	/** Custom reset to default handler */
+	TOptional<FResetToDefaultOverride> CustomResetToDefault;
+	/** Custom edit condition value. */
+	TAttribute<bool> EditConditionValue;
+	/** Custom edit condition value changed handler. */
+	FOnBooleanValueChanged OnEditConditionValueChanged;
 	/* All property handle that this custom widget represent */
 	TArray<TSharedPtr<IPropertyHandle>> PropertyHandles;
 };

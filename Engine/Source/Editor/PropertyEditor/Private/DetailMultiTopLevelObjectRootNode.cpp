@@ -145,7 +145,7 @@ ENodeVisibility FDetailMultiTopLevelObjectRootNode::GetVisibility() const
 	return FinalVisibility;
 }
 
-TSharedRef< ITableRow > FDetailMultiTopLevelObjectRootNode::GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem)
+TSharedRef< ITableRow > FDetailMultiTopLevelObjectRootNode::GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)
 {
 	EExpansionArrowUsage ExpansionArrowUsage = EExpansionArrowUsage::None;
 
