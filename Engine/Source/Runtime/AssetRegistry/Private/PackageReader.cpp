@@ -97,6 +97,11 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 			SetPackageErrorCode(EOpenPackageResult::CustomVersionMissing);
 			return false;
 		}
+		else if (Diff.Type == ECustomVersionDifference::Invalid)
+		{
+			SetPackageErrorCode(EOpenPackageResult::CustomVersionInvalid);
+			return false;
+		}
 		else if (Diff.Type == ECustomVersionDifference::Newer)
 		{
 			UE_LOG(LogAssetRegistry, Error, TEXT("Package %s has newer custom version of %s"), *PackageFilename, *Diff.Version->GetFriendlyName().ToString());
