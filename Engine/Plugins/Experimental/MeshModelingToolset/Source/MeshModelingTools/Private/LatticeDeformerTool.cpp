@@ -70,8 +70,11 @@ FVector3i ULatticeDeformerTool::GetLatticeResolution() const
 
 void ULatticeDeformerTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
+	EViewInteractionState State = RenderAPI->GetViewInteractionState();
+	bool bThisViewHasFocus = !!(State & EViewInteractionState::Focused);
+
 	// Draw the drag rectangle if it's active
-	if (ControlPointsMechanic->bIsDragging)
+	if (bThisViewHasFocus && ControlPointsMechanic->bIsDragging)
 	{		
 		FVector2D Start = ControlPointsMechanic->DragStartScreenPosition;
 		FVector2D Curr = ControlPointsMechanic->DragCurrentScreenPosition;
