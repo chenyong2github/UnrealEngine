@@ -71,7 +71,7 @@ public:
 	double RevolutionDegreesOffset = 0;
 
 	/** Number of steps to take while revolving. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "1", ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "1", ClampMin = "1", UIMax = "100", ClampMax = "5000"))
 	int Steps = 24;
 
 	/** By default, revolution is done counterclockwise if looking down the revolution axis. This reverses the direction.*/
