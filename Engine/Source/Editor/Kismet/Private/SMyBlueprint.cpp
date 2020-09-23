@@ -3113,7 +3113,7 @@ void SMyBlueprint::OnMoveToParent()
 				ParentBlueprint->Modify();
 
 				FBPGraphClipboardData CopiedGraph(GraphAction->EdGraph);
-				if (CopiedGraph.CreateAndPopulateGraph(ParentBlueprint, PinnedEditor.Get(), GraphAction->GetCategory()))
+				if (CopiedGraph.CreateAndPopulateGraph(ParentBlueprint, CopiedGraph.GetOriginalBlueprint(), PinnedEditor.Get(), GraphAction->GetCategory()))
 				{
 					PinnedEditor->CloseDocumentTab(GraphAction->EdGraph);
 					OnDeleteEntry();
@@ -3422,7 +3422,7 @@ void SMyBlueprint::OnPasteFunction()
 		if (PinnedEditor.IsValid())
 		{
 			Blueprint->Modify();
-			UEdGraph* Graph = FuncData.CreateAndPopulateGraph(Blueprint, PinnedEditor.Get(), GetPasteCategory());
+			UEdGraph* Graph = FuncData.CreateAndPopulateGraph(Blueprint, FuncData.GetOriginalBlueprint(), PinnedEditor.Get(), GetPasteCategory());
 
 			if (Graph)
 			{
@@ -3483,7 +3483,7 @@ void SMyBlueprint::OnPasteMacro()
 		if (PinnedEditor.IsValid())
 		{
 			Blueprint->Modify();
-			UEdGraph* Graph = FuncData.CreateAndPopulateGraph(Blueprint, PinnedEditor.Get(), GetPasteCategory());
+			UEdGraph* Graph = FuncData.CreateAndPopulateGraph(Blueprint, FuncData.GetOriginalBlueprint(), PinnedEditor.Get(), GetPasteCategory());
 
 			if (Graph)
 			{
