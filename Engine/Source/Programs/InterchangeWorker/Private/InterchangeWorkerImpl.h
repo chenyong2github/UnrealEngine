@@ -24,7 +24,7 @@ private:
 	void ProcessCommand(const InterchangeDispatcher::FBackPingCommand& BackPingCommand);
 	void ProcessCommand(const InterchangeDispatcher::FRunTaskCommand& TerminateCommand);
 
-	InterchangeDispatcher::ETaskState LoadFbxFile(const InterchangeDispatcher::FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, FString& OutJSonMessages) const;
+	InterchangeDispatcher::ETaskState LoadFbxFile(const InterchangeDispatcher::FJsonLoadSourceCmd& LoadSourceCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages) const;
 
 private:
 	InterchangeDispatcher::FNetworkClientNode NetworkInterface;

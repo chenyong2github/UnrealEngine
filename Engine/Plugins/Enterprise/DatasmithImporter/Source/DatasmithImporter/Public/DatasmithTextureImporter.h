@@ -48,7 +48,7 @@ class UDatasmithTexturePipeline : public UInterchangePipelineBase
 	GENERATED_BODY()
 
 public:
-	virtual bool ExecuteImportPipeline(UInterchangeBaseNodeContainerAdapter* BaseNodeContainerAdapter) override;
+	virtual bool ExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer) override;
 
 	TSharedPtr< IDatasmithTextureElement > TextureElement;
 };

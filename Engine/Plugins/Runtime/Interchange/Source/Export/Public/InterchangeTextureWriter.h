@@ -3,9 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeWriterBase.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "InterchangeWriterBase.h"
 
 #include "InterchangeTextureWriter.generated.h"
 
@@ -20,7 +21,7 @@ public:
 	 * @param BaseNodeContainer - Contain nodes describing what to export
 	 * @return true if the writer can export the nodes, false otherwise.
 	 */
-	virtual bool Export(Interchange::FBaseNodeContainer& BaseNodeContainer) const override;
+	virtual bool Export(UInterchangeBaseNodeContainer* BaseNodeContainer) const override;
 };
 
 

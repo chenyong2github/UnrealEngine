@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/BaseNode.h"
+#include "Nodes/InterchangeBaseNode.h"
 #include "InterchangeTranslatorBase.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
@@ -38,7 +38,7 @@ public:
 		FString AssetName = FString();
 
 		/** The base node that describe how to create the asset */
-		const Interchange::FBaseNode* AssetNode = nullptr;
+		const UInterchangeBaseNode* AssetNode = nullptr;
 
 		/** The translator is use to retrieve the PayLoad data in case the factory need it */
 		const UInterchangeTranslatorBase* Translator = nullptr;
@@ -46,6 +46,13 @@ public:
 		/** The source data, mainly use to set the asset import data file. TODO: we have to refactor UAssetImportData, the source data should be the base class for this now */
 		const UInterchangeSourceData* SourceData = nullptr;
 
+		/** The node container associate with the current source index */
+		const UInterchangeBaseNodeContainer* NodeContainer = nullptr;
+
+		/**
+		 * If when we try to create the package we found out the asset already exist, this field will contain
+		 * the asset we want to re-import. The re-import should just change the source data and not any asset settings.
+		 */
 		UObject* ReimportObject = nullptr;
 	};
 

@@ -13,7 +13,7 @@
 #include "Misc/AsyncTaskNotification.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "PackageUtils/PackageUtils.h"
 #include "Tasks/InterchangeTaskParsing.h"
 #include "Tasks/InterchangeTaskPipeline.h"
@@ -93,8 +93,8 @@ void Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollector& 
 
 void Interchange::FImportAsyncHelper::CleanUp()
 {
-	//Release the node graph adapters
-	BaseNodeContainerAdapters.Empty();
+	//Release the graph
+	BaseNodeContainers.Empty();
 
 	for (UInterchangeSourceData* SourceData : SourceDatas)
 	{
@@ -295,13 +295,11 @@ Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FStr
 		ensure(AsyncHelper->Translators.Add(GetTranslatorForSourceData(AsyncHelper->SourceDatas[SourceDataIndex])) == SourceDataIndex);
 	}
 
-	//Create the node graphs and the adapters (TStrongObjectPtr must be use only on the main thread, so we create them here before filling the node Containers)
-	AsyncHelper->BaseNodeContainers.AddDefaulted(AsyncHelper->SourceDatas.Num());
+	//Create the node graphs for each source data (StrongObjectPtr has to be created on the main thread)
 	for (int32 SourceDataIndex = 0; SourceDataIndex < AsyncHelper->SourceDatas.Num(); ++SourceDataIndex)
 	{
-		AsyncHelper->BaseNodeContainerAdapters.Add(TStrongObjectPtr<UInterchangeBaseNodeContainerAdapter>(NewObject<UInterchangeBaseNodeContainerAdapter>(GetTransientPackage(), NAME_None)));
-		check(AsyncHelper->BaseNodeContainerAdapters[SourceDataIndex].IsValid());
-		AsyncHelper->BaseNodeContainerAdapters[SourceDataIndex].Get()->SetBaseNodeContainer(&AsyncHelper->BaseNodeContainers[SourceDataIndex]);
+		AsyncHelper->BaseNodeContainers.Add(TStrongObjectPtr<UInterchangeBaseNodeContainer>(NewObject<UInterchangeBaseNodeContainer>(GetTransientPackage(), NAME_None)));
+		check(AsyncHelper->BaseNodeContainers[SourceDataIndex].IsValid());
 	}
 
 	if ( ImportAssetParameters.OverridePipeline == nullptr )

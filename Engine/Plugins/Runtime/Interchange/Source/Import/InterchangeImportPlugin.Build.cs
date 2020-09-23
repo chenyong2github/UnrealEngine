@@ -15,7 +15,7 @@ namespace UnrealBuildTool.Rules
 					"InterchangeCore",
 					"InterchangeDispatcher",
 					"InterchangeNodePlugin",
-					"MeshDescription"
+					"MeshDescription",
 				}
 				);
 			PrivateDependencyModuleNames.AddRange(

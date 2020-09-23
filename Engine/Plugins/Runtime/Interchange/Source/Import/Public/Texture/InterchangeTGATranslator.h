@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "InterchangeTranslatorBase.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/InterchangeTexturePayloadData.h"
-#include "Texture/InterchangeTextureTranslator.h"
+#include "Texture/InterchangeTexturePayloadInterface.h"
 
 #include "InterchangeTGATranslator.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeTGATranslator : public UInterchangeTextureTranslator
+class INTERCHANGEIMPORTPLUGIN_API UInterchangeTGATranslator : public UInterchangeTranslatorBase, public IInterchangeTexturePayloadInterface
 {
 	GENERATED_BODY()
 public:
@@ -29,7 +29,9 @@ public:
 	 * @param BaseNodeContainer - The unreal objects descriptions container where to put the translated source data.
 	 * @return true if the translator can translate the source data, false otherwise.
 	 */
-	virtual bool Translate(const UInterchangeSourceData* SourceData, Interchange::FBaseNodeContainer& BaseNodeContainer) const override;
+	virtual bool Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const override;
+
+	/* IInterchangeTexturePayloadInterface Begin */
 
 	/**
 	 * Once the translation is done, the import process need a way to retrieve payload data.
@@ -39,7 +41,9 @@ public:
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
 	 * @return a PayloadData containing the import image data. The TOptional will not be set if there is an error.
 	 */
-	virtual const TOptional<Interchange::FImportImage> GetPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
+	virtual TOptional<Interchange::FImportImage> GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
+
+	/* IInterchangeTexturePayloadInterface End */
 };
 
 

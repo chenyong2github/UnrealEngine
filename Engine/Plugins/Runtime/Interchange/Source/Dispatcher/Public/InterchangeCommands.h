@@ -141,7 +141,7 @@ protected:
 public:
 	ETaskState ProcessResult = ETaskState::Unknown;
 	FString JSonResult;
-	FString JSonMessages;
+	TArray<FString> JSonMessages;
 };
 
 } // ns InterchangeDispatcher

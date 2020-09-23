@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterchangeWorker.h"
-#include "InterchangeWorkerImpl.h"
 
+#include "HAL/PlatformProcess.h"
+#include "InterchangeWorkerImpl.h"
 #include "RequiredProgramMainCPPInclude.h"
 
 IMPLEMENT_APPLICATION(InterchangeWorker, "InterchangeWorker");
@@ -69,24 +70,36 @@ int32 Main(int32 Argc, TCHAR * Argv[])
 	return EXIT_SUCCESS;
 }
 
+#if PLATFORM_WINDOWS
 int32 Filter(uint32 Code, struct _EXCEPTION_POINTERS *Ep)
 {
 	return EXCEPTION_EXECUTE_HANDLER;
 }
+#endif //#if PLATFORM_WINDOWS
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
+	int32 ReturnCode = 0;
 	GEngineLoop.PreInit(ArgC, ArgV);
 
+#if PLATFORM_WINDOWS
 	SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 	_set_abort_behavior(0, _WRITE_ABORT_MSG);
 	__try
 	{
-		return Main(ArgC, ArgV);
+		ReturnCode = Main(ArgC, ArgV);
 	}
 	__except (Filter(GetExceptionCode(), GetExceptionInformation()))
 	{
-		return EXIT_FAILURE;
+		ReturnCode = EXIT_FAILURE;
 	}
-	return EXIT_SUCCESS;
+#else // PLATFORM_WINDOWS
+	ReturnCode = Main(ArgC, ArgV);
+#endif // PLATFORM_WINDOWS
+
+	FEngineLoop::AppPreExit();
+	FModuleManager::Get().UnloadModulesAtShutdown();
+	FEngineLoop::AppExit();
+
+	return ReturnCode;
 }

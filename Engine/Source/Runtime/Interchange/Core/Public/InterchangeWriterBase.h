@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -20,5 +20,5 @@ public:
 	 * @param BaseNodeContainer - The container holding nodes that describe what to export
 	 * @return true if the writer can export the Nodes, false otherwise.
 	 */
-	virtual bool Export(Interchange::FBaseNodeContainer& BaseNodeContainer) const {return false;}
+	virtual bool Export(UInterchangeBaseNodeContainer* BaseNodeContainer) const {return false;}
 };

@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "UObject/StrongObjectPtr.h"
 
 namespace InterchangeFbxParser
 {
@@ -19,12 +20,12 @@ public:
 	void LoadFbxFile(const FString& Filename, const FString& ResultFolder);
 	
 	FString GetResultFilepath(){ return ResultFilepath; }
-	FString GetJsonLoadMessages() { return JsonLoadMessages; }
+	TArray<FString> GetJsonLoadMessages() { return JsonLoadMessages; }
 
 private:
-	Interchange::FBaseNodeContainer Container;
+	TStrongObjectPtr<UInterchangeBaseNodeContainer> Container = nullptr;
 	FString ResultFilepath;
-	FString JsonLoadMessages;
+	TArray<FString> JsonLoadMessages;
 };
 
 } // ns InterchangeFbxParser

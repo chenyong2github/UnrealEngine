@@ -24,6 +24,12 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			if (Target.bCompileAgainstEngine)
+			{
+				PrivateDependencyModuleNames.Add("Engine");
+
+			}
+
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"FBX"
 			);

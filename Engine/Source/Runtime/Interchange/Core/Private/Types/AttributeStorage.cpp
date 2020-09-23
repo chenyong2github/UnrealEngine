@@ -61,6 +61,19 @@ namespace Interchange
 		}
 	}
 
+	FAttributeStorage::FAttributeStorage(const FAttributeStorage& Other)
+	{
+		//Lock both Storage mutex
+		FScopeLock ScopeLock(&StorageMutex);
+		FScopeLock ScopeLockOther(&Other.StorageMutex);
+
+		//Copy all value
+		AttributeAllocationTable = Other.AttributeAllocationTable;
+		AttributeStorage = Other.AttributeStorage;
+		FragmentedMemoryCost = Other.FragmentedMemoryCost;
+		DefragRatio = Other.DefragRatio;
+	}
+
 	FAttributeStorage& FAttributeStorage::operator=(const FAttributeStorage& Other)
 	{
 		//Lock both Storage mutex

@@ -9,7 +9,7 @@
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 
 void Interchange::FTaskTranslator::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
@@ -27,12 +27,12 @@ void Interchange::FTaskTranslator::DoTask(ENamedThreads::Type CurrentThread, con
 		return;
 	}
 
-	if (!AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
+	if (!AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex) || !AsyncHelper->BaseNodeContainers[SourceIndex].IsValid())
 	{
 		return;
 	}
 
 	//Translate the source data
-	Interchange::FBaseNodeContainer& BaseNodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex];
+	UInterchangeBaseNodeContainer& BaseNodeContainer = *(AsyncHelper->BaseNodeContainers[SourceIndex].Get());
 	Translator->Translate(SourceData, BaseNodeContainer);
 }

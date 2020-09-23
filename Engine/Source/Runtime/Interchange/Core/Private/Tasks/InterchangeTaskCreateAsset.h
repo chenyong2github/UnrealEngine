@@ -8,7 +8,7 @@
 #include "InterchangeManager.h"
 #include "Stats/Stats.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Nodes/BaseNode.h"
+#include "Nodes/InterchangeBaseNode.h"
 
 namespace Interchange
 {
@@ -22,11 +22,11 @@ private:
 	FString PackageBasePath;
 	int32 SourceIndex;
 	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
-	const FBaseNode* Node;
+	const UInterchangeBaseNode* Node;
 	UInterchangeFactoryBase* Factory;
 
 public:
-	FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const Interchange::FBaseNode* InNode, UInterchangeFactoryBase* InFactory)
+	FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const UInterchangeBaseNode* InNode, UInterchangeFactoryBase* InFactory)
 		: PackageBasePath(InPackageBasePath)
 		, SourceIndex(InSourceIndex)
 		, WeakAsyncHelper(InAsyncHelper)
@@ -66,11 +66,11 @@ private:
 	FString PackageBasePath;
 	int32 SourceIndex;
 	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
-	const FBaseNode* Node;
+	const UInterchangeBaseNode* Node;
 	UInterchangeFactoryBase* Factory;
 
 public:
-	FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const Interchange::FBaseNode* InNode, UInterchangeFactoryBase* InFactory)
+	FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const UInterchangeBaseNode* InNode, UInterchangeFactoryBase* InFactory)
 		: PackageBasePath(InPackageBasePath)
 		, SourceIndex(InSourceIndex)
 		, WeakAsyncHelper(InAsyncHelper)

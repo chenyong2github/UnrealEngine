@@ -3,20 +3,23 @@
 
 #include "Dom/JsonValue.h"
 #include "Dom/JsonObject.h"
+#include "HAL/PlatformFileManager.h"
 #include "InterchangeDispatcher.h"
 #include "InterchangeDispatcherTask.h"
+#include "InterchangeManager.h"
 #include "LogInterchangeImportPlugin.h"
-#include "Material/MaterialPayLoad.h"
-#include "Mesh/SkeletalMeshPayload.h"
-#include "Mesh/StaticMeshPayload.h"
+#include "Material/InterchangeMaterialPayloadData.h"
+#include "Mesh/InterchangeSkeletalMeshPayload.h"
+#include "Mesh/InterchangeStaticMeshPayload.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
-#include "HAL/PlatformFileManager.h"
+#include "Texture/InterchangeTexturePayloadData.h"
+#include "UObject/GCObjectScopeGuard.h"
 
 UInterchangeFbxTranslator::UInterchangeFbxTranslator(const class FObjectInitializer& ObjectInitializer)
 {
@@ -31,7 +34,7 @@ bool UInterchangeFbxTranslator::CanImportSourceData(const UInterchangeSourceData
 	return FbxExtension.StartsWith(Extension,ESearchCase::IgnoreCase);
 }
 
-bool UInterchangeFbxTranslator::Translate(const UInterchangeSourceData* SourceData, Interchange::FBaseNodeContainer& BaseNodeContainer) const
+bool UInterchangeFbxTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
 	FString Filename = SourceData->GetFilename();
 	if (!FPaths::FileExists(Filename))
@@ -86,7 +89,7 @@ bool UInterchangeFbxTranslator::Translate(const UInterchangeSourceData* SourceDa
 		
 	InterchangeDispatcher::ETaskState TaskState;
 	FString JsonResult;
-	FString JSonMessages;
+	TArray<FString> JSonMessages;
 	Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
 
 	//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
@@ -101,6 +104,7 @@ bool UInterchangeFbxTranslator::Translate(const UInterchangeSourceData* SourceDa
 	FString BaseNodeContainerFilename = ResultParser.GetResultFilename();
 
 	//Parse the filename to fill the container
+	BaseNodeContainer.LoadFromFile(BaseNodeContainerFilename);
 
 	return true;
 }
@@ -113,40 +117,42 @@ void UInterchangeFbxTranslator::ImportFinish()
 	}
 }
 
-TOptional<Interchange::FStaticMeshPayloadData> UInterchangeFbxTranslator::GetStaticMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
-{
-	if (!SourceData)
-	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import Fbx, bad source data."));
-		return TOptional<Interchange::FStaticMeshPayloadData>();
-	}
-	//Use the Source data has the key for the dispatcher and send a command to retrieve the staticmesh bulk data
-	TOptional<Interchange::FStaticMeshPayloadData> PayloadData = Interchange::FStaticMeshPayloadData();
-	return PayloadData;
-}
 
-TOptional<Interchange::FSkeletalMeshPayloadData> UInterchangeFbxTranslator::GetSkeletalMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
-	if (!SourceData)
+	UInterchangeSourceData* PayloadSourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(PayLoadKey);
+	FGCObjectScopeGuard ScopedSourceData(PayloadSourceData);
+	
+	if (!PayloadSourceData)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import Fbx, bad source data."));
-		return TOptional<Interchange::FSkeletalMeshPayloadData>();
+		return TOptional<Interchange::FImportImage>();
 	}
-	//Use the Source data has the key for the dispatcher and send a command to retrieve the skeletalmesh bulk data
-	TOptional<Interchange::FSkeletalMeshPayloadData> PayloadData = Interchange::FSkeletalMeshPayloadData();
-	return PayloadData;
+	UInterchangeTranslatorBase* SourceTranslator = UInterchangeManager::GetInterchangeManager().GetTranslatorForSourceData(PayloadSourceData);
+	FGCObjectScopeGuard ScopedSourceTranslator(SourceTranslator);
+	const IInterchangeTexturePayloadInterface* TextureTranslator = Cast<IInterchangeTexturePayloadInterface>(SourceTranslator);
+	if (!ensure(TextureTranslator))
+	{
+		return TOptional<Interchange::FImportImage>();
+	}
+	return TextureTranslator->GetTexturePayloadData(PayloadSourceData, PayLoadKey);
 }
 
 TOptional<Interchange::FMaterialPayloadData> UInterchangeFbxTranslator::GetMaterialPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
-	if (!SourceData)
-	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import Fbx, bad source data."));
-		return TOptional<Interchange::FMaterialPayloadData>();
-	}
-	//Use the Source data has the key for the dispatcher and send a command to retrieve the material bulk data
-	TOptional<Interchange::FMaterialPayloadData> PayloadData = Interchange::FMaterialPayloadData();
-	return PayloadData;
+	//Not implemented, currently we do not have any payload data for the material
+	return TOptional<Interchange::FMaterialPayloadData>();
+}
+
+TOptional<Interchange::FStaticMeshPayloadData> UInterchangeFbxTranslator::GetStaticMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+{
+	//Not implemented, currently we do not have any payload data for static meshes
+	return TOptional<Interchange::FStaticMeshPayloadData>();
+}
+
+TOptional<Interchange::FSkeletalMeshPayloadData> UInterchangeFbxTranslator::GetSkeletalMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+{
+	//Not implemented, currently we do not have any payload data for skeletal meshes
+	return TOptional<Interchange::FSkeletalMeshPayloadData>();
 }
 
 FString UInterchangeFbxTranslator::CreateLoadFbxFileCommand(const FString& FbxFilePath) const

@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Texture/InterchangeTextureFactory.h"
 
+#include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
+#include "InterchangeTextureNode.h"
 #include "LogInterchangeImportPlugin.h"
-#include "Nodes/BaseNode.h"
-#include "TextureNode.h"
+#include "Nodes/InterchangeBaseNode.h"
+#include "Texture/InterchangeTexturePayloadInterface.h"
 #include "TextureCompiler.h"
-#include "Texture/InterchangeTextureTranslator.h"
-#include "TextureNode.h"
 
 
 #if WITH_EDITORONLY_DATA
@@ -30,7 +31,7 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 		return nullptr;
 	}
 
-	const Interchange::FTextureNode* TextureNode = static_cast<const Interchange::FTextureNode*>(Arguments.AssetNode);
+	const UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Arguments.AssetNode);
 	if (TextureNode == nullptr)
 	{
 		return nullptr;
@@ -46,7 +47,10 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 	}
 
 	const UClass* TextureClass = TextureNode->GetAssetClass();
-	check(TextureClass && TextureClass->IsChildOf(UTexture::StaticClass()));
+	if (!ensure(TextureClass && TextureClass->IsChildOf(GetFactoryClass())))
+	{
+		return nullptr;
+	}
 
 	// create an asset if it doesn't exist
 	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
@@ -54,7 +58,7 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 	// create a new texture or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
-		Texture = NewObject<UObject>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public);
+		Texture = NewObject<UObject>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
 	}
 	else if (ExistingAsset->GetClass()->IsChildOf(TextureClass))
 	{
@@ -85,13 +89,13 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		return nullptr;
 	}
 
-	const Interchange::FTextureNode* TextureNode = static_cast<const Interchange::FTextureNode*>(Arguments.AssetNode);
+	const UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Arguments.AssetNode);
 	if (TextureNode == nullptr)
 	{
 		return nullptr;
 	}
 
-	const UInterchangeTextureTranslator* TextureTranslator = Cast<UInterchangeTextureTranslator>(Arguments.Translator);
+	const IInterchangeTexturePayloadInterface* TextureTranslator = Cast<IInterchangeTexturePayloadInterface>(Arguments.Translator);
 	if (!TextureTranslator)
 	{
 		return nullptr;
@@ -105,7 +109,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	{
 		return nullptr;
 	}
-	const TOptional<Interchange::FImportImage> PayloadData = TextureTranslator->GetPayloadData(Arguments.SourceData, PayLoadKey.GetValue());
+	const TOptional<Interchange::FImportImage> PayloadData = TextureTranslator->GetTexturePayloadData(Arguments.SourceData, PayLoadKey.GetValue());
 	if(!PayloadData.IsSet())
 	{
 		return nullptr;
@@ -113,7 +117,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	const Interchange::FImportImage& Image = PayloadData.GetValue();
 
 	const UClass* TextureClass = TextureNode->GetAssetClass();
-	check(TextureClass && TextureClass->IsChildOf(UTexture::StaticClass()));
+	check(TextureClass && TextureClass->IsChildOf(GetFactoryClass()));
 
 	// create an asset if it doesn't exist
 	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
@@ -125,7 +129,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
 		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
 		check(IsInGameThread());
-		Texture = NewObject<UObject>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public);
+		Texture = NewObject<UObject>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(TextureClass))
 	{
@@ -161,7 +165,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		}
 
 		//The re-import change only the source data and will not apply any custom attribute to the asset.
-		if(!ExistingAsset)
+		if(!Arguments.ReimportObject)
 		{
 			/** Apply all TextureNode custom attributes to the texture asset */
 			TextureNode->ApplyAllCustomAttributeToAsset(Texture2D);

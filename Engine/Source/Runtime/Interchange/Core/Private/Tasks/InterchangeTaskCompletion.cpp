@@ -19,7 +19,7 @@ void Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread, con
 {
 	TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
-
+	bool bIsFutureRootObjectSet = false;
 	for(TPair<int32, TArray<Interchange::FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
 	{
 		const int32 SourceIndex = AssetInfosPerSourceIndexPair.Key;
@@ -58,8 +58,9 @@ void Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread, con
 			FAssetRegistryModule::AssetCreated(Asset);
 #endif //WITH_ENGINE
 
-			if (SourceIndex == 0)
+			if (!bIsFutureRootObjectSet && SourceIndex == 0)
 			{
+				bIsFutureRootObjectSet = true;
 				AsyncHelper->RootObject.SetValue(Asset);
 				AsyncHelper->RootObjectCompletionEvent->DispatchSubsequents();
 			}

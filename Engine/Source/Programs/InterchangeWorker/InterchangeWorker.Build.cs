@@ -16,6 +16,7 @@ public class InterchangeWorker : ModuleRules
 			{
 				"ApplicationCore",
 				"Core",
+				"CoreUObject",
 				"InterchangeDispatcher",
 				"Json",
 				"Projects",
@@ -23,11 +24,18 @@ public class InterchangeWorker : ModuleRules
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PrivateDependencyModuleNames.Add("InterchangeFbxParser");
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"InterchangeCore",
+					"InterchangeFbxParser",
+					"InterchangeNodePlugin"
+				}
+			);
 		}
-
-		PublicDelayLoadDLLs.Add("kernel_io.dll");
 	}
 }

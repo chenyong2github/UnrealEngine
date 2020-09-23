@@ -46,7 +46,7 @@ TOptional<FTask> FInterchangeDispatcher::GetNextTask()
 	return TaskPool[NextTaskIndex++];
 }
 
-void FInterchangeDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState, const FString& JsonResult, const FString& JSonMessages)
+void FInterchangeDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState, const FString& JsonResult, const TArray<FString>& JSonMessages)
 {
 	FString JsonDescription;
 	{
@@ -80,7 +80,7 @@ void FInterchangeDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState,
 	UE_CLOG(TaskState == ETaskState::ProcessFailed, LogInterchangeDispatcher, Error, TEXT("Json processing failure: %s"), *JsonDescription);
 }
 
-void FInterchangeDispatcher::GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, FString& JSonMessages)
+void FInterchangeDispatcher::GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, TArray<FString>& JSonMessages)
 {
 	FScopeLock Lock(&TaskPoolCriticalSection);
 

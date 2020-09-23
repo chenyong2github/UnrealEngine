@@ -4,6 +4,7 @@
 #include "Fbx/InterchangeFbxTranslator.h"
 #include "IInterchangeImportPlugin.h"
 #include "InterchangeManager.h"
+#include "Material/InterchangeMaterialFactory.h"
 #include "Modules/ModuleManager.h"
 #include "Texture/InterchangeBMPTranslator.h"
 #include "Texture/InterchangeDDSTranslator.h"
@@ -47,6 +48,7 @@ void FInterchangeImportPlugin::StartupModule()
 
 	//Register the factories
 	InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());
+	InterchangeManager.RegisterFactory(UInterchangeMaterialFactory::StaticClass());
 }
 
 

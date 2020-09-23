@@ -16,11 +16,11 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Nodes/BaseNode.h"
+#include "Nodes/InterchangeBaseNode.h"
 
 namespace Interchange_InternalImplementation
 {
-	void InternalGetPackageName(const Interchange::FImportAsyncHelper& AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const Interchange::FBaseNode* Node, FString& OutPackageName, FString& OutAssetName)
+	void InternalGetPackageName(const Interchange::FImportAsyncHelper& AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const UInterchangeBaseNode* Node, FString& OutPackageName, FString& OutAssetName)
 	{
 		const UInterchangeSourceData* SourceData = AsyncHelper.SourceDatas[SourceIndex];
 		check(SourceData);
@@ -88,6 +88,10 @@ void Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, 
 		CreateAssetParams.Parent = Pkg;
 		CreateAssetParams.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 		CreateAssetParams.Translator = nullptr;
+		if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
+		{
+			CreateAssetParams.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+		}
 		CreateAssetParams.ReimportObject = AsyncHelper->TaskData.ReimportObject;
 		//Make sure the asset UObject is created with the correct type on the main thread
 		Factory->CreateEmptyAsset(CreateAssetParams);
@@ -113,25 +117,27 @@ void Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread, co
 		PackageName = Pkg->GetPathName();
 	}
 
-	FScopeLock Lock(&AsyncHelper->CreatedPackagesLock);
-	UPackage** PkgPtr = AsyncHelper->CreatedPackages.Find(PackageName);
-	Lock.Unlock();
-
-	if (!PkgPtr || !(*PkgPtr))
+	UPackage* Pkg = nullptr;
 	{
-		const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetNoPackageErrorMsg", "Cannot create asset named '{1}', package '{0}'was not created properly."), FText::FromString(PackageName), FText::FromString(AssetName));
-		UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
-		return;
-	}
+		FScopeLock Lock(&AsyncHelper->CreatedPackagesLock);
+		UPackage** PkgPtr = AsyncHelper->CreatedPackages.Find(PackageName);
 
-	if (!AsyncHelper->SourceDatas.IsValidIndex(SourceIndex) || !AsyncHelper->Translators.IsValidIndex(SourceIndex))
-	{
-		const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetMissingDataErrorMsg", "Cannot create asset named '{0}', Source data or translator is invalid."), FText::FromString(AssetName));
-		UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
-		return;
-	}
+		if (!PkgPtr || !(*PkgPtr))
+		{
+			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetNoPackageErrorMsg", "Cannot create asset named '{1}', package '{0}'was not created properly."), FText::FromString(PackageName), FText::FromString(AssetName));
+			UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
+			return;
+		}
 
-	UPackage* Pkg = *PkgPtr;
+		if (!AsyncHelper->SourceDatas.IsValidIndex(SourceIndex) || !AsyncHelper->Translators.IsValidIndex(SourceIndex))
+		{
+			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetMissingDataErrorMsg", "Cannot create asset named '{0}', Source data or translator is invalid."), FText::FromString(AssetName));
+			UE_LOG(LogInterchangeCore, Warning, TEXT("%s"), *Message.ToString());
+			return;
+		}
+
+		Pkg = *PkgPtr;
+	}
 
 	UInterchangeTranslatorBase* Translator = AsyncHelper->Translators[SourceIndex];
 	//Import Asset describe by the node
@@ -141,14 +147,20 @@ void Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread, co
 	CreateAssetParams.Parent = Pkg;
 	CreateAssetParams.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 	CreateAssetParams.Translator = Translator;
+	if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
+	{
+		CreateAssetParams.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+	}
 	CreateAssetParams.ReimportObject = AsyncHelper->TaskData.ReimportObject;
 
 	UObject* NodeAsset = Factory->CreateAsset(CreateAssetParams);
 	if (NodeAsset)
 	{
+		FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
 		TArray<Interchange::FImportAsyncHelper::FImportedAssetInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
 		Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddZeroed_GetRef();
 		AssetInfo.ImportAsset = NodeAsset;
+		Node->ReferenceObject = FSoftObjectPath(NodeAsset);
 		AssetInfo.Factory = Factory;
 	}
 }

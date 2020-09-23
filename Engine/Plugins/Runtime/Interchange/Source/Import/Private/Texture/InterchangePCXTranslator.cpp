@@ -5,15 +5,15 @@
 #include "Engine/Texture2D.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
+#include "InterchangeTextureNode.h"
 #include "LogInterchangeImportPlugin.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
-#include "Nodes/BaseNodeContainer.h"
-#include "TextureNode.h"
-
+#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Texture/TextureTranslatorUtilities.h"
 
 //////////////////////////////////////////////////////////////////////////
 // PCX helper local function
@@ -68,29 +68,12 @@ bool UInterchangePCXTranslator::CanImportSourceData(const UInterchangeSourceData
 	return PCXExtension.StartsWith(Extension);
 }
 
-bool UInterchangePCXTranslator::Translate(const UInterchangeSourceData* SourceData, Interchange::FBaseNodeContainer& BaseNodeContainer) const
+bool UInterchangePCXTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	FString Filename = SourceData->GetFilename();
-	if (!FPaths::FileExists(Filename))
-	{
-		return false;
-	}
-
-	FName DisplayLabel = *FPaths::GetBaseFilename(Filename);
-	Interchange::FNodeUniqueID NodeUID(*Filename);
-	//PCX is creating a UTexture2D
-	TUniquePtr<Interchange::FTextureNode> TextureNode = MakeUnique<Interchange::FTextureNode>(NodeUID, DisplayLabel, UTexture2D::StaticClass());
-	TextureNode->SetPayLoadKey(Filename);
-
-	//Test node change
- 	//TextureNode->SetCustomLODGroup((uint8)TextureGroup::TEXTUREGROUP_WorldNormalMap);
- 	//TextureNode->SetCustomCompressionSettings((uint8)TextureCompressionSettings::TC_Normalmap);
-
-	BaseNodeContainer.AddNode(MoveTemp(TextureNode));
-	return true;
+	return Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
 }
 
-const TOptional<Interchange::FImportImage> UInterchangePCXTranslator::GetPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<Interchange::FImportImage> UInterchangePCXTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
 	if (!SourceData)
 	{

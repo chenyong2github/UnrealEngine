@@ -1,17 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Mesh/InterchangeSkeletalMeshPayload.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "InterchangeTranslatorBase.h"
-#include "Texture/InterchangeTexturePayloadData.h"
 
-#include "InterchangeTextureTranslator.generated.h"
+#include "InterchangeSkeletalMeshPayloadInterface.generated.h"
 
-UCLASS(Abstract, BlueprintType)
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeTextureTranslator : public UInterchangeTranslatorBase
+UINTERFACE()
+class INTERCHANGEIMPORTPLUGIN_API UInterchangeSkeletalMeshPayloadInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * Skeletal mesh payload interface. Derive from this interface if your payload can import skeletal mesh
+ */
+class INTERCHANGEIMPORTPLUGIN_API IInterchangeSkeletalMeshPayloadInterface
 {
 	GENERATED_BODY()
 public:
@@ -24,7 +30,7 @@ public:
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
 	 * @return a PayloadData containing the import image data. The TOptional will not be set if there is an error.
 	 */
-	virtual const TOptional<Interchange::FImportImage> GetPayloadData(const UInterchangeSourceData* SourceData, const FString& PayloadKey) const;
+	virtual TOptional<Interchange::FSkeletalMeshPayloadData> GetSkeletalMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayloadKey) const = 0;
 };
 
 

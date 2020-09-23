@@ -412,6 +412,10 @@ namespace Interchange
 			friend FAttributeStorage;
 		};
 
+		FAttributeStorage() = default;
+
+		FAttributeStorage(const FAttributeStorage& Other);
+
 		FAttributeStorage& operator=(const FAttributeStorage& Other);
 
 		/**

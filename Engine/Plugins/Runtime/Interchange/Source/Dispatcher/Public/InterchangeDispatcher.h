@@ -19,8 +19,8 @@ public:
 
 	int32 AddTask(const FString& JsonDescription);
 	TOptional<FTask> GetNextTask();
-	void SetTaskState(int32 TaskIndex, ETaskState TaskState, const FString& JsonResult, const FString& JSonMessages);
-	void GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, FString& JSonMessages);
+	void SetTaskState(int32 TaskIndex, ETaskState TaskState, const FString& JsonResult, const TArray<FString>& JSonMessages);
+	void GetTaskState(int32 TaskIndex, ETaskState& TaskState, FString& JsonResult, TArray<FString>& JSonMessages);
 
 	void StartProcess();
 	void TerminateProcess();

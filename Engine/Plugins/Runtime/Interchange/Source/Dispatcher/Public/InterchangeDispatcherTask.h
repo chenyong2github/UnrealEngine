@@ -29,7 +29,7 @@ struct FTask
 	int32 Index = -1;
 	ETaskState State = ETaskState::Unknown;
 	FString JsonResult;
-	FString JsonMessages;
+	TArray<FString> JsonMessages;
 };
 
 /**

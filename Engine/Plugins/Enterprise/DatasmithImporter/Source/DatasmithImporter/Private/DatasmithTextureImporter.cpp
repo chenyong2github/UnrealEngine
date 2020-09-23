@@ -33,7 +33,7 @@
 #include "InterchangeManager.h"
 #include "ObjectTools.h"
 #include "RHI.h"
-#include "TextureNode.h"
+#include "InterchangeTextureNode.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithTextureImport"
 
@@ -327,7 +327,7 @@ Interchange::FAsyncImportResult FDatasmithTextureImporter::CreateTextureAsync(co
 	return FutureTexture;
 }
 
-bool UDatasmithTexturePipeline::ExecuteImportPipeline(UInterchangeBaseNodeContainerAdapter* BaseNodeContainerAdapter)
+bool UDatasmithTexturePipeline::ExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer)
 {
 	if ( !TextureElement.IsValid() )
 	{
@@ -335,14 +335,18 @@ bool UDatasmithTexturePipeline::ExecuteImportPipeline(UInterchangeBaseNodeContai
 	}
 
 	TArray< FName > Nodes;
-	BaseNodeContainerAdapter->GetRoots( Nodes );
+	BaseNodeContainer->GetRoots( Nodes );
 
 	if ( Nodes.Num() <= 0)
 	{
 		return false;
 	}
 
-	Interchange::FTextureNode& TextureNode = static_cast< Interchange::FTextureNode& >( BaseNodeContainerAdapter->BaseNodeContainer->GetNodeChecked( Nodes[0] ) );
+	UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode >( BaseNodeContainer->GetNode( Nodes[0] ) );
+	if (!ensure(TextureNode))
+	{
+		return false;
+	}
 
 	TOptional< bool > bFlipNormalMapGreenChannel;
 	TOptional< TextureMipGenSettings > MipGenSettings;
@@ -418,42 +422,42 @@ bool UDatasmithTexturePipeline::ExecuteImportPipeline(UInterchangeBaseNodeContai
 		bSrgb = false;
 	}
 
-	TextureNode.SetCustomAddressX( (TextureAddress)TextureElement->GetTextureAddressX() );
-	TextureNode.SetCustomAddressY( (TextureAddress)TextureElement->GetTextureAddressY() );
+	TextureNode->SetCustomAddressX( (TextureAddress)TextureElement->GetTextureAddressX() );
+	TextureNode->SetCustomAddressY( (TextureAddress)TextureElement->GetTextureAddressY() );
 
 	if ( bSrgb.IsSet() )
 	{
-		TextureNode.SetCustomSRGB( bSrgb.GetValue() );
+		TextureNode->SetCustomSRGB( bSrgb.GetValue() );
 	}
 
 	if ( bFlipNormalMapGreenChannel.IsSet() )
 	{
-		TextureNode.SetCustombFlipGreenChannel( bFlipNormalMapGreenChannel.GetValue() );
+		TextureNode->SetCustombFlipGreenChannel( bFlipNormalMapGreenChannel.GetValue() );
 	}
 
 	if ( MipGenSettings.IsSet() )
 	{
-		TextureNode.SetCustomMipGenSettings( MipGenSettings.GetValue() );
+		TextureNode->SetCustomMipGenSettings( MipGenSettings.GetValue() );
 	}
 
 	if ( LODGroup.IsSet() )
 	{
-		TextureNode.SetCustomLODGroup( LODGroup.GetValue() );
+		TextureNode->SetCustomLODGroup( LODGroup.GetValue() );
 	}
 
 	if ( CompressionSettings.IsSet() )
 	{
-		TextureNode.SetCustomLODGroup( CompressionSettings.GetValue() );
+		TextureNode->SetCustomLODGroup( CompressionSettings.GetValue() );
 	}
 
 	if ( RGBCurve.IsSet() )
 	{
-		TextureNode.SetCustomAdjustRGBCurve( RGBCurve.GetValue() );
+		TextureNode->SetCustomAdjustRGBCurve( RGBCurve.GetValue() );
 	}
 
 	if ( TexFilter.IsSet() )
 	{
-		TextureNode.SetCustomFilter( TexFilter.GetValue() );
+		TextureNode->SetCustomFilter( TexFilter.GetValue() );
 	}
 
 	return true;

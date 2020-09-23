@@ -17,8 +17,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Nodes/BaseNode.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 
 void Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
@@ -28,10 +28,10 @@ void Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, const 
 	//Parse each graph and prepare import task data, we will then be able to create all the task with the correct dependencies
 	struct FTaskData
 	{
-		Interchange::FNodeUniqueID UniqueID;
+		FName UniqueID;
 		int32 SourceIndex;
-		const Interchange::FBaseNode* Node;
-		TArray<Interchange::FNodeUniqueID> Dependencies;
+		const UInterchangeBaseNode* Node;
+		TArray<FName> Dependencies;
 		FGraphEventRef GraphEventRef;
 		FGraphEventArray Prerequistes;
 		UInterchangeFactoryBase* Factory;
@@ -43,7 +43,16 @@ void Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, const 
 	TArray<FTaskData> TaskDatas;
 	for (int32 SourceIndex = 0; SourceIndex < AsyncHelper->SourceDatas.Num(); ++SourceIndex)
 	{
-		AsyncHelper->BaseNodeContainers[SourceIndex].IterateNodes([&](const Interchange::FNodeUniqueID NodeUID, const Interchange::FBaseNode* Node)
+		if (!AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
+		{
+			continue;
+		}
+		UInterchangeBaseNodeContainer* BaseNodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+		if (!BaseNodeContainer)
+		{
+			continue;
+		}
+		BaseNodeContainer->IterateNodes([&](const FName NodeUID, const UInterchangeBaseNode* Node)
 		{
 			if (Node->GetAssetClass() != nullptr)
 			{

@@ -3,15 +3,15 @@
 
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
+#include "InterchangeTextureNode.h"
 #include "LogInterchangeImportPlugin.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "Nodes/BaseNodeContainer.h"
-#include "TextureNode.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Texture/TextureTranslatorUtilities.h"
 #include "TgaImageSupport.h"
-
 
 namespace TGATranslatorImpl
 {
@@ -79,26 +79,12 @@ bool UInterchangeTGATranslator::CanImportSourceData(const UInterchangeSourceData
 	return TGAExtension.StartsWith(Extension);
 }
 
-bool UInterchangeTGATranslator::Translate(const UInterchangeSourceData* SourceData, Interchange::FBaseNodeContainer& BaseNodeContainer) const
+bool UInterchangeTGATranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	FString Filename = SourceData->GetFilename();
-	if ( !FPaths::FileExists( Filename ) )
-	{
-		return false;
-	}
-
-	FName DisplayLabel = *FPaths::GetBaseFilename( Filename );
-	Interchange::FNodeUniqueID NodeUID( *Filename );
-	//TGA is creating a UTexture2D
-	TUniquePtr< Interchange::FTextureNode > TextureNode = MakeUnique< Interchange::FTextureNode >( NodeUID, DisplayLabel, UTexture2D::StaticClass() );
-	TextureNode->SetPayLoadKey( Filename );
-
-	BaseNodeContainer.AddNode( MoveTemp( TextureNode ) );
-
-	return true;
+	return Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
 }
 
-const TOptional<Interchange::FImportImage> UInterchangeTGATranslator::GetPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<Interchange::FImportImage> UInterchangeTGATranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
 	if (!SourceData)
 	{

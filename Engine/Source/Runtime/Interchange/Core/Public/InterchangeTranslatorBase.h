@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "InterchangeSourceData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -29,7 +29,7 @@ public:
 	 * @param BaseNodeContainer - The nodes container where to put the translated source data result.
 	 * @return true if the translator can translate the source data, false otherwise.
 	 */
-	virtual bool Translate(const UInterchangeSourceData* SourceData, Interchange::FBaseNodeContainer& BaseNodeContainer) const
+	virtual bool Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
 	{
 		return false;
 	}

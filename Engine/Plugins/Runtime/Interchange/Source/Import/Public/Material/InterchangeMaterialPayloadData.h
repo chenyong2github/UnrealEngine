@@ -8,6 +8,8 @@ namespace Interchange
 {
 	struct FMaterialPayloadData
 	{
-		FColor BaseColor;
+		//Store any material payload data here, currently not used
 	};
 }
+
+

@@ -8,7 +8,7 @@
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 
 void Interchange::FTaskPipeline::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
@@ -19,8 +19,8 @@ void Interchange::FTaskPipeline::DoTask(ENamedThreads::Type CurrentThread, const
 	{
 		for (int32 GraphIndex = 0; GraphIndex < AsyncHelper->BaseNodeContainers.Num(); ++GraphIndex)
 		{
-			check(AsyncHelper->BaseNodeContainerAdapters[GraphIndex].IsValid());
-			Pipeline->ScriptedExecuteImportPipeline(AsyncHelper->BaseNodeContainerAdapters[GraphIndex].Get());
+			check(AsyncHelper->BaseNodeContainers[GraphIndex].IsValid());
+			Pipeline->ScriptedExecuteImportPipeline(AsyncHelper->BaseNodeContainers[GraphIndex].Get());
 		}
 	}
 }

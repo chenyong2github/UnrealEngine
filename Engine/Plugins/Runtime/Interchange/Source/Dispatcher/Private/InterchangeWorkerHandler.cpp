@@ -178,7 +178,8 @@ void FInterchangeWorkerHandler::RunInternal()
 					else
 					{
 						// Signal that the Task was not processed
-						Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::UnTreated, FString(), FString());
+						TArray<FString> GarbageMessages;
+						Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::UnTreated, FString(), GarbageMessages);
 
 						UE_LOG(LogInterchangeDispatcher, Error, TEXT("New task command issue"));
 						WorkerState = EWorkerState::Closing;
@@ -223,7 +224,8 @@ void FInterchangeWorkerHandler::RunInternal()
 					{
 						if (CurrentTask.IsSet())
 						{
-							Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::ProcessFailed, FString(), FString());
+							TArray<FString> GarbageMessages;
+							Dispatcher.SetTaskState(CurrentTask->Index, ETaskState::ProcessFailed, FString(), GarbageMessages);
 							CurrentTask.Reset();
 						}
 

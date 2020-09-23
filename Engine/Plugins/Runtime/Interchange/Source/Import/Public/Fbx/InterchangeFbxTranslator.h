@@ -1,20 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeDispatcher.h"
-#include "Material/MaterialPayLoad.h"
-#include "Mesh/SkeletalMeshPayload.h"
-#include "Mesh/StaticMeshPayload.h"
+#include "Material/InterchangeMaterialPayloadInterface.h"
+#include "Mesh/InterchangeSkeletalMeshPayload.h"
+#include "Mesh/InterchangeSkeletalMeshPayloadInterface.h"
+#include "Mesh/InterchangeStaticMeshPayload.h"
+#include "Mesh/InterchangeStaticMeshPayloadInterface.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Texture/InterchangeTexturePayloadInterface.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
 #include "InterchangeFbxTranslator.generated.h"
 
+/* Fbx translator class support import of texture, material, static mesh, skeletal mesh, */
+
 UCLASS(BlueprintType)
 class INTERCHANGEIMPORTPLUGIN_API UInterchangeFbxTranslator : public UInterchangeTranslatorBase
+, public IInterchangeTexturePayloadInterface
+, public IInterchangeMaterialPayloadInterface
+, public IInterchangeStaticMeshPayloadInterface
+, public IInterchangeSkeletalMeshPayloadInterface
 {
 	GENERATED_BODY()
 public:
@@ -22,19 +31,13 @@ public:
 
 	/** Begin UInterchangeTranslatorBase API*/
 	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const override;
-	virtual bool Translate(const UInterchangeSourceData* SourceData, Interchange::FBaseNodeContainer& BaseNodeContainer) const override;
+	virtual bool Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const override;
 	virtual void ImportFinish() override;
 	/** End UInterchangeTranslatorBase API*/
 
-	/**
-	 * Once the translation is done, the import process need a way to retrieve payload data.
-	 * This payload will be use by the factories to create the asset.
-	 *
-	 * @param SourceData - The source data containing the data to translate
-	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
-	 * @return a PayloadData containing the mesh data to import. The TOptional will not be set if there is an error.
-	 */
-	virtual TOptional<Interchange::FStaticMeshPayloadData> GetStaticMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const;
+
+	//////////////////////////////////////////////////////////////////////////
+	/* IInterchangeTexturePayloadInterface Begin */
 
 	/**
 	 * Once the translation is done, the import process need a way to retrieve payload data.
@@ -42,9 +45,15 @@ public:
 	 *
 	 * @param SourceData - The source data containing the data to translate
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
-	 * @return a PayloadData containing the mesh data to import. The TOptional will not be set if there is an error.
+	 * @return a PayloadData containing the imported data. The TOptional will not be set if there is an error.
 	 */
-	virtual TOptional<Interchange::FSkeletalMeshPayloadData> GetSkeletalMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const;
+	virtual TOptional<Interchange::FImportImage> GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
+
+	/* IInterchangeTexturePayloadInterface End */
+
+
+	//////////////////////////////////////////////////////////////////////////
+	/* IInterchangeMaterialPayloadInterface Begin */
 
 	/**
 	 * Once the translation is done, the import process need a way to retrieve payload data.
@@ -52,10 +61,43 @@ public:
 	 *
 	 * @param SourceData - The source data containing the data to translate
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
-	 * @return a PayloadData containing the mesh data to import. The TOptional will not be set if there is an error.
+	 * @return a PayloadData containing the imported data. The TOptional will not be set if there is an error.
 	 */
-	virtual TOptional<Interchange::FMaterialPayloadData> GetMaterialPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const;
+	virtual TOptional<Interchange::FMaterialPayloadData> GetMaterialPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
 
+	/* IInterchangeMaterialPayloadInterface End */
+
+
+	//////////////////////////////////////////////////////////////////////////
+	/* IInterchangeStaticMeshPayloadInterface Begin */
+
+	/**
+	 * Once the translation is done, the import process need a way to retrieve payload data.
+	 * This payload will be use by the factories to create the asset.
+	 *
+	 * @param SourceData - The source data containing the data to translate
+	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
+	 * @return a PayloadData containing the imported data. The TOptional will not be set if there is an error.
+	 */
+	virtual TOptional<Interchange::FStaticMeshPayloadData> GetStaticMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
+
+	/* IInterchangeStaticMeshPayloadInterface End */
+
+
+	//////////////////////////////////////////////////////////////////////////
+	/* IInterchangeSkeletalMeshPayloadInterface Begin */
+
+	/**
+	 * Once the translation is done, the import process need a way to retrieve payload data.
+	 * This payload will be use by the factories to create the asset.
+	 *
+	 * @param SourceData - The source data containing the data to translate
+	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
+	 * @return a PayloadData containing the imported data. The TOptional will not be set if there is an error.
+	 */
+	virtual TOptional<Interchange::FSkeletalMeshPayloadData> GetSkeletalMeshPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const override;
+
+	/* IInterchangeSkeletalMeshPayloadInterface End */
 private:
 
 	FString CreateLoadFbxFileCommand(const FString& FbxFilePath) const;

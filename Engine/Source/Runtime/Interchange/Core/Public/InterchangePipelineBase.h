@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "InterchangeSourceData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -22,9 +22,9 @@ public:
 	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	bool ScriptedExecuteImportPipeline(UInterchangeBaseNodeContainerAdapter* BaseNodeContainerAdapter);
+	bool ScriptedExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter);
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
-	bool ScriptedExecuteImportPipeline_Implementation(UInterchangeBaseNodeContainerAdapter* BaseNodeContainerAdapter)
+	bool ScriptedExecuteImportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter)
 	{
 		//By default we call the virtual import pipeline execution
 		return ExecuteImportPipeline(BaseNodeContainerAdapter);
@@ -35,10 +35,10 @@ public:
 	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interchange | Translator")
-	bool ScriptedExecuteExportPipeline(UInterchangeBaseNodeContainerAdapter* BaseNodeContainerAdapter);
+	bool ScriptedExecuteExportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteExportPipeline */
-	bool ScriptedExecuteExportPipeline_Implementation(UInterchangeBaseNodeContainerAdapter* BaseNodeContainerAdapter)
+	bool ScriptedExecuteExportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter)
 	{
 		return ExecuteExportPipeline(BaseNodeContainerAdapter);
 	}
@@ -62,7 +62,7 @@ protected:
 	 * The interchange manager is not calling this function directly. It is calling the blueprint native event in case this object is a blueprint derive object.
 	 * By default the scripted implementation is calling this virtual pipeline.
 	 */
-	virtual bool ExecuteImportPipeline(UInterchangeBaseNodeContainerAdapter* BaseNodeContainerAdapter)
+	virtual bool ExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter)
 	{
 		return false;
 	}
@@ -79,7 +79,7 @@ protected:
 	}
 
 	/** This function can modify the BaseNodeContainer to create a pipeline that will set/validate the graph nodes hierarchy and options.*/
-	virtual bool ExecuteExportPipeline(UInterchangeBaseNodeContainerAdapter* BaseNodeContainerAdapter)
+	virtual bool ExecuteExportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter)
 	{
 		return false;
 	}

@@ -10,7 +10,7 @@
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeWriterBase.h"
-#include "Nodes/InterchangeBaseNodeContainerAdapter.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "UObject/Package.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -73,8 +73,7 @@ namespace Interchange
 		/* FGCObject interface */
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-		TArray<TStrongObjectPtr<UInterchangeBaseNodeContainerAdapter>> BaseNodeContainerAdapters;
-		TArray <FBaseNodeContainer> BaseNodeContainers;
+		TArray <TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
 
 		TArray<UInterchangeSourceData* > SourceDatas;
 		TArray<UInterchangeTranslatorBase* > Translators;
@@ -96,8 +95,10 @@ namespace Interchange
 		{
 			UObject* ImportAsset;
 			UInterchangeFactoryBase* Factory;
+			UInterchangeBaseNode* AssetNode;
 		};
 
+		FCriticalSection ImportedAssetsPerSourceIndexLock;
 		TMap<int32, TArray<FImportedAssetInfo>> ImportedAssetsPerSourceIndex;
 
 		FImportAsyncHelperData TaskData;
@@ -302,14 +303,14 @@ public:
 	/** Delete the specified AsyncHelper and remove it from the array that was holding it. */
 	void ReleaseAsyncHelper(TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper);
 
-protected:
-
 	/*
 	 * Return the first translator that can translate the source data.
 	 * @Param SourceData - The source data for which we search a translator.
 	 * @return return a matching translator or nullptr if there is no match.
 	 */
 	UInterchangeTranslatorBase* GetTranslatorForSourceData(const UInterchangeSourceData* SourceData) const;
+
+protected:
 
 	/** Return true if we can show some UI */
 	static bool IsAttended();
