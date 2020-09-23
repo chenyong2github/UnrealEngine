@@ -153,8 +153,9 @@ void FButtonStyle::PostSerialize(const FArchive& Ar)
 FComboButtonStyle::FComboButtonStyle()
 	: ShadowOffset(FVector2D::ZeroVector)
 	, ShadowColorAndOpacity(FLinearColor::Black)
-	, MenuBorderPadding(FMargin(0.0f))
-	, ContentPadding(FMargin(5.0f))
+	, MenuBorderPadding(0.0f)
+	, ContentPadding(5.0f)
+	, DownArrowPadding(2.0f)
 {
 }
 
