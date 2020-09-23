@@ -21,11 +21,14 @@
 #include "GlobalShader.h"
 #include "RenderGraph.h"
 #include "MeshCardRepresentation.h"
-#include "IMeshBuilderModule.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
 #include "MeshUtilities.h"
+#endif
+
+#if WITH_EDITORONLY_DATA
+#include "IMeshBuilderModule.h"
 #endif
 
 CSV_DEFINE_CATEGORY(DistanceField, false);

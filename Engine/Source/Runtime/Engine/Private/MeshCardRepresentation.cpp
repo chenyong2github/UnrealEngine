@@ -17,11 +17,14 @@
 #include "Engine/StaticMesh.h"
 #include "Misc/AutomationTest.h"
 #include "Async/ParallelFor.h"
-#include "IMeshBuilderModule.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
 #include "MeshUtilities.h"
+#endif
+
+#if WITH_EDITORONLY_DATA
+#include "IMeshBuilderModule.h"
 #endif
 
 #if ENABLE_COOK_STATS
