@@ -9,6 +9,7 @@
 #include "Classes/GameFramework/PlayerController.h"
 #include "Classes/Engine/LocalPlayer.h"
 #include "EngineUtils.h"
+#include "ActorLayerUtilities.h"
 
 #include "ComposureLayersEditor/Private/ICompElementManager.h"
 #include "ComposureLayersEditor/Private/CompElementManager.h"
@@ -215,4 +216,19 @@ void UComposureBlueprintLibrary::RefreshComposureElementList()
 	{
 		CompElementManager->RefreshElementsList();
 	}
+}
+
+bool FComposureActorLayer::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	static FName OldDataName("ActorLayer");
+	if (Tag.Type == NAME_StructProperty && Tag.StructName == OldDataName)
+	{
+		FActorLayer OldDataType;
+		FActorLayer::StaticStruct()->SerializeItem(Slot, &OldDataType, nullptr);
+	
+		Name = OldDataType.Name;
+		return true;
+	}
+
+	return false;
 }
