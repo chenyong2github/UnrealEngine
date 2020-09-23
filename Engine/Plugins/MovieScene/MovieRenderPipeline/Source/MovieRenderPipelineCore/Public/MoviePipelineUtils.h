@@ -3,10 +3,38 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Scene.h"
+#include "Engine/Engine.h"
 
 // Forward Declare
 class UClass;
 class UMoviePipelineAntiAliasingSetting;
+
+namespace MoviePipeline
+{
+static UWorld* FindCurrentWorld()
+{
+	UWorld* World = nullptr;
+	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+	{
+		if (WorldContext.WorldType == EWorldType::Game)
+		{
+			World = WorldContext.World();
+		}
+#if WITH_EDITOR
+		else if (GIsEditor && WorldContext.WorldType == EWorldType::PIE)
+		{
+			World = WorldContext.World();
+			if (World)
+			{
+				return World;
+			}
+		}
+#endif
+	}
+
+	return World;
+}
+}
 
 #define MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(InOutVariable, CVarName, OverrideValue, bUseOverride) \
 { \
