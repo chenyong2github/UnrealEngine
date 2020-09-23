@@ -54,11 +54,12 @@ public:
 #endif // WITH_EDITOR
 
 	virtual void BeginDestroy() override;
-	virtual const Audio::FModulationMixFunction& GetMixFunction() const;
 
-	virtual float GetDefaultNormalizedValue() const { return Parameter ? Parameter->Settings.ValueNormalized : 1.0f; }
+	const Audio::FModulationMixFunction GetMixFunction() const;
 
-	virtual FName GetOutputParameterName() const override
+	float GetDefaultNormalizedValue() const { return Parameter ? Parameter->Settings.ValueNormalized : 1.0f; }
+
+	FName GetOutputParameterName() const override
 	{
 		if (Parameter)
 		{
