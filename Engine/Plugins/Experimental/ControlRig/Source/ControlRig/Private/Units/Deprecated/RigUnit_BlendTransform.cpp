@@ -38,8 +38,11 @@ FRigUnit_BlendTransform_Execute()
 				BlendTransform.Add(Source);
 				BlendWeights.Add(SourceWeight);
 			}
-
+			
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			// deprecated node calls a deprecated function, suppress warning for this case
 			FAnimationRuntime::BlendTransformsByWeight(Result, BlendTransform, BlendWeights);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
