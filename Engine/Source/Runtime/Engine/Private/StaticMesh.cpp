@@ -1600,6 +1600,10 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 {
 #if WITH_EDITOR
 	ResolveSectionInfo(Owner);
+
+	// CPU data isn't streamed in editor so valid RHI resources will be created for all LODs during InitResources
+	CurrentFirstLODIdx = 0;
+	Owner->SetCachedNumResidentLODs(LODResources.Num());
 #endif // #if WITH_EDITOR
 
 	for (int32 LODIndex = 0; LODIndex < LODResources.Num(); ++LODIndex)
