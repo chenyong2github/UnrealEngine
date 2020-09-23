@@ -2,9 +2,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeSourceData.h"
+#include "Texture/InterchangeTexturePayloadData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Texture/InterchangeTexturePayloadData.h"
 
 #include "InterchangeTexturePayloadInterface.generated.h"
 

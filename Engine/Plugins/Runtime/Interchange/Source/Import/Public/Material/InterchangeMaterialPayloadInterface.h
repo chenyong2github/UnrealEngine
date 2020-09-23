@@ -2,9 +2,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeSourceData.h"
+#include "Material/InterchangeMaterialPayloadData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Material/InterchangeMaterialPayloadData.h"
 
 #include "InterchangeMaterialPayloadInterface.generated.h"
 

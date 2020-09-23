@@ -2,9 +2,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeSourceData.h"
+#include "Mesh/InterchangeStaticMeshPayload.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Mesh/InterchangeStaticMeshPayload.h"
 
 #include "InterchangeStaticMeshPayloadInterface.generated.h"
 
