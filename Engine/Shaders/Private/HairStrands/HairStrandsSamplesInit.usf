@@ -2,7 +2,12 @@
 #include "../Common.ush"
 
 uint MaxVertexCount;
+#if PERMUTATION_POSITION_TYPE == 0
 Buffer<float> VertexPositionsBuffer;
+#elif PERMUTATION_POSITION_TYPE == 1
+Buffer<float> RDGVertexPositionsBuffer;
+#define VertexPositionsBuffer RDGVertexPositionsBuffer
+#endif
 
 uint MaxSampleCount;
 Buffer<uint> SampleIndicesBuffer;
@@ -15,7 +20,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (SampleIndex >= MaxSampleCount) 
 		return;
 
-	const int VertexIndex = SampleIndicesBuffer[SampleIndex];
+	const uint VertexIndex = SampleIndicesBuffer[SampleIndex];
 	if (VertexIndex >= MaxVertexCount) 
 		return;
 

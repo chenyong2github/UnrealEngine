@@ -284,7 +284,7 @@ private:
 	mutable TMap<EPixelFormat, DummyUAVPool> DummyBufferPool;
 	mutable TMap<EPixelFormat, DummyUAVPool> DummyTexturePool;
 
-	FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const;
+	NIAGARA_API FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const;
 	void ResetEmptyUAVPool(TMap<EPixelFormat, DummyUAVPool>& UAVMap);
 	void ResetEmptyUAVPools(FRHICommandList& RHICmdList);
 

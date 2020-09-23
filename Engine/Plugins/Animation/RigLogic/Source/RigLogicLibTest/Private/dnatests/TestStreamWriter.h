@@ -3,7 +3,6 @@
 #pragma once
 
 #include "dnatests/Defs.h"
-#include "dnatests/FakeStream.h"
 
 #include "dna/StreamReader.h"
 #include "dna/StreamWriter.h"
@@ -16,8 +15,9 @@ class StreamWriterTest : public ::testing::Test {
 
     protected:
         void SetUp() override {
-            writer = dna::StreamWriter::create(&stream, &memRes);
-            reader = dna::StreamReader::create(&stream, dna::DataLayer::All, 0u, &memRes);
+            stream = pma::makeScoped<trio::MemoryStream>();
+            writer = dna::StreamWriter::create(stream.get(), &memRes);
+            reader = dna::StreamReader::create(stream.get(), dna::DataLayer::All, 0u, &memRes);
         }
 
         void TearDown() override {
@@ -26,7 +26,7 @@ class StreamWriterTest : public ::testing::Test {
         }
 
     protected:
-        dnatests::FakeStream stream;
+        pma::ScopedPtr<trio::MemoryStream, pma::FactoryDestroy<trio::MemoryStream> > stream;
         pma::DefaultMemoryResource memRes;
         dna::StreamWriter* writer;
         dna::StreamReader* reader;

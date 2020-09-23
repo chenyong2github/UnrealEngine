@@ -7,8 +7,8 @@ Texture2D<float> SceneDepthTexture;
 
 void MainPS(
 	in FScreenVertexOutput Input,
-	out float OutDepth: SV_Depth)
+	out float OutDepth: SV_DEPTH)
 {
-	const uint2 PixelCoord = floor(Input.Position.xy);
+	const uint2 PixelCoord = uint2(floor(Input.Position.xy));
 	OutDepth = SceneDepthTexture.Load(uint3(PixelCoord,0));
 }

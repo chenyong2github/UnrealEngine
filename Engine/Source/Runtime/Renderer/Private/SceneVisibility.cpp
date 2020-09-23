@@ -2002,7 +2002,7 @@ struct FRelevancePacket
 			const bool bEditorSelectionRelevance = ViewRelevance.bEditorStaticSelectionRelevance;
 			const bool bTranslucentRelevance = ViewRelevance.HasTranslucency();
 
-			const bool bHairStrandsEnabled = ViewRelevance.bHairStrands && IsHairStrandsEnable(Scene->GetShaderPlatform());
+			const bool bHairStrandsEnabled = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform());
 			if (!bEditorRelevance && bHairStrandsEnabled)
 			{
 				++NumVisibleDynamicPrimitives;
@@ -2839,7 +2839,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		BatchAndProxy.SortKey = MeshBatch.PrimitiveSceneProxy->GetTranslucencySortPriority();
 	}
 	
-	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnable(View.GetShaderPlatform());
+	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, View.GetShaderPlatform());
 	if (bIsHairStrandsCompatible)
 	{
 		View.HairStrandsMeshElements.AddUninitialized(1);
@@ -3027,7 +3027,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
 
-	if (IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0)
+	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views[0]);

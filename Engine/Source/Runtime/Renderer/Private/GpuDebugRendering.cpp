@@ -11,15 +11,17 @@
 namespace ShaderDrawDebug 
 {
 	// Console variables
+	static int32 GShaderDrawDebug_Enable = 1;
 	static TAutoConsoleVariable<int32> CVarShaderDrawEnable(
 		TEXT("r.ShaderDrawDebug"),
-		1,
+		GShaderDrawDebug_Enable,
 		TEXT("ShaderDrawDebug debugging toggle.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
-	static TAutoConsoleVariable<int32> CVarShaderDrawMaxElementCount(
+	static int32 GShaderDrawDebug_MaxElementCount;
+	static FAutoConsoleVariableRef CVarShaderDrawMaxElementCount(
 		TEXT("r.ShaderDrawDebug.MaxElementCount"),
-		10000,
+		GShaderDrawDebug_MaxElementCount,
 		TEXT("ShaderDraw output buffer size in element.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
@@ -32,7 +34,7 @@ namespace ShaderDrawDebug
 	bool IsShaderDrawDebugEnabled()
 	{
 #if WITH_EDITOR
-		return CVarShaderDrawEnable.GetValueOnAnyThread() > 0;
+		return GShaderDrawDebug_Enable > 0;
 #else
 		return false;
 #endif
@@ -52,14 +54,32 @@ namespace ShaderDrawDebug
 		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsPCPlatform(Platform) && !IsOpenGLPlatform(Platform);
 	}
 
+	void SetEnabled(bool bInEnabled)
+	{
+#if WITH_EDITOR
+		GShaderDrawDebug_Enable = bInEnabled ? 1 : 0;
+#endif		
+	}
+
+	void SetMaxElementCount(uint32 MaxCount)
+	{
+#if WITH_EDITOR
+		GShaderDrawDebug_MaxElementCount = FMath::Max(1024, int32(MaxCount));
+#endif		
+	}
+
+	uint32 GetMaxElementCount()
+	{
+#if WITH_EDITOR
+		return uint32(FMath::Max(1, GShaderDrawDebug_MaxElementCount));
+#else
+		return 0;
+#endif			
+	}
+
 	bool IsShaderDrawDebugEnabled(const FViewInfo& View)
 	{
 		return IsShaderDrawDebugEnabled() && IsShaderDrawDebugEnabled(View.GetShaderPlatform());
-	}
-
-	static uint32 GetMaxShaderDrawElementCount()
-	{
-		return uint32(FMath::Max(1, CVarShaderDrawMaxElementCount.GetValueOnRenderThread()));
 	}
 
 	struct ShaderDrawDebugElement
@@ -222,7 +242,7 @@ namespace ShaderDrawDebug
 		}
 
 		FRDGBuilder GraphBuilder(InRHICmdList);
-		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderDrawDebugElement), GetMaxShaderDrawElementCount()), TEXT("ShaderDrawDataBuffer"));
+		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderDrawDebugElement), GetMaxElementCount()), TEXT("ShaderDrawDataBuffer"));
 		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDrawDataIndirectBuffer"));
 
 		FShaderDrawDebugClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugClearCS::FParameters>();
@@ -248,7 +268,7 @@ namespace ShaderDrawDebug
 
 		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
 		{
-			LockedData.Buffer.Initialize(sizeof(ShaderDrawDebugElement), GetMaxShaderDrawElementCount(), 0U, TEXT("ShaderDrawDataBuffer"));
+			LockedData.Buffer.Initialize(sizeof(ShaderDrawDebugElement), GetMaxElementCount(), 0U, TEXT("ShaderDrawDataBuffer"));
 			LockedData.IndirectBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect, TEXT("ShaderDrawDataIndirectBuffer"));
 		}
 
@@ -404,7 +424,7 @@ namespace ShaderDrawDebug
 		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(Data.IndirectBuffer);
 
 		OutParameters.ShaderDrawCursorPos = Data.CursorPosition;
-		OutParameters.ShaderDrawMaxElementCount = GetMaxShaderDrawElementCount();
+		OutParameters.ShaderDrawMaxElementCount = GetMaxElementCount();
 		OutParameters.OutShaderDrawPrimitive = GraphBuilder.CreateUAV(DataBuffer);
 		OutParameters.OutputShaderDrawIndirect = GraphBuilder.CreateUAV(IndirectBuffer);
 	}

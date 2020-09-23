@@ -2,10 +2,6 @@
 
 #pragma once
 
-// Use a custom BSDF which match more closely PBRT's one.
-// This allows to compare with offline/reference rendering
-#define HAIR_CUSTOM_BSDF 1
-
 struct HairAverageEnergy
 {
 	float3 A_R;

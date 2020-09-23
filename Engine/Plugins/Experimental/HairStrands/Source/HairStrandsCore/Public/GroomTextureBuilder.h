@@ -37,44 +37,40 @@ struct FStrandsTexturesInfo
 	USkeletalMesh* SkeletalMesh = nullptr;
 	UStaticMesh* StaticMesh = nullptr;
 	uint32 Resolution = 2048;
+	uint32 LODIndex = 0;
 	uint32 SectionIndex = 0;
 	uint32 UVChannelIndex = 0;
 	float MaxTracingDistance = 1;
+	int32 TracingDirection = 1;
+	TArray<int32> GroupIndices;
 };
 
 struct FStrandsTexturesOutput
 {
+	class UTexture2D* Depth = nullptr;
 	class UTexture2D* Tangent = nullptr;
 	class UTexture2D* Coverage = nullptr;
 	class UTexture2D* Attribute = nullptr;
-	bool IsValid() const { return Tangent && Coverage && Attribute; }
+	bool IsValid() const { return Depth && Tangent && Coverage && Attribute; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FHairAssetHelper
-{
-	/* Generate a unique asset & package name */
-	typedef void (*TCreateFilename)(const FString& InAssetName, const FString& Suffix, FString& OutPackageName, FString& OutAssetName);
-
-	/* Register a texture asset */
-	typedef void (*TRegisterTexture)(UTexture2D* Out);
-
-	TCreateFilename CreateFilename;
-	TRegisterTexture RegisterTexture;
-};
-
 struct HAIRSTRANDSCORE_API FGroomTextureBuilder
 {
 	// Follicle texture
-	static UTexture2D* CreateGroomFollicleMaskTexture(const UGroomAsset* GroomAsset, uint32 Resolution, FHairAssetHelper Helper);
+#if WITH_EDITOR
+	static UTexture2D* CreateGroomFollicleMaskTexture(const UGroomAsset* GroomAsset, uint32 Resolution);
+#endif
 	static void AllocateFollicleTextureResources(UTexture2D* OuTexture);
-	static void AllocateFollicleTextureResources(UTexture2D* OuTexture, uint32 Resolution, uint32 MipCount);
+	static void AllocateFollicleTextureResources(UTexture2D* OuTexture, const FIntPoint& Resolution, uint32 MipCount);
 	static void BuildFollicleTexture(const TArray<FFollicleInfo>& InInfos, UTexture2D* OutFollicleTexture, bool bUseGPU);
 
 	// Strands textures
-	static FStrandsTexturesOutput CreateGroomStrandsTexturesTexture(const UGroomAsset* GroomAsset, uint32 Resolution, FHairAssetHelper Helper);
+#if WITH_EDITOR
+	static FStrandsTexturesOutput CreateGroomStrandsTexturesTexture(const UGroomAsset* GroomAsset, uint32 Resolution);
 	static void BuildStrandsTextures(const FStrandsTexturesInfo& InInfo, const FStrandsTexturesOutput& Output);
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

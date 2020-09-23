@@ -220,6 +220,16 @@ struct FHairStrandsRootNormalFormat
 	static const EPixelFormat Format = PF_FloatRGBA;
 };
 
+struct FHairStrandsRootUtils
+{
+	static uint32	 EncodeTriangleIndex(uint32 TriangleIndex, uint32 SectionIndex);
+	static void		 DecodeTriangleIndex(uint32 Encoded, uint32& OutTriangleIndex, uint32& OutSectionIndex);
+	static uint32	 EncodeBarycentrics(const FVector2D& B);
+	static FVector2D DecodeBarycentrics(uint32 B);
+	static uint32	 PackUVs(const FVector2D& UV);
+	static float	 PackUVsToFloat(const FVector2D& UV);
+};
+
 /** Hair strands points interpolation attributes */
 struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 {
@@ -401,4 +411,142 @@ struct HAIRSTRANDSCORE_API FHairStrandsDebugDatas
 		TRefCountPtr<FRDGPooledBuffer> VoxelOffsetAndCount;
 		TRefCountPtr<FRDGPooledBuffer> VoxelData;
 	};
+};
+
+/* Source/CPU data for root resources (GPU resources are stored into FHairStrandsRootResources) */
+struct FHairStrandsRootData
+{
+	/** Build the hair strands resource */
+	FHairStrandsRootData();
+	FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
+	void Serialize(FArchive& Ar);
+	void Reset();
+	bool HasProjectionData() const;
+	bool IsValid() const { return RootCount > 0; }
+
+	struct FMeshProjectionLOD
+	{
+		int32 LODIndex = -1;
+
+		/* Triangle on which a root is attached */
+		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
+		   In this case we need to separate index computation. The barycentric coords remain the same however. */
+		TArray<FHairStrandsCurveTriangleIndexFormat::Type> RootTriangleIndexBuffer;
+		TArray<FHairStrandsCurveTriangleBarycentricFormat::Type> RootTriangleBarycentricBuffer;
+
+		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition0Buffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition1Buffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition2Buffer;
+
+		/* Number of samples used for the mesh interpolation */
+		uint32 SampleCount = 0;
+
+		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount */
+		TArray<FHairStrandsWeightFormat::Type> MeshInterpolationWeightsBuffer;
+
+		/* Store the samples vertex indices */
+		TArray<FHairStrandsIndexFormat::Type> MeshSampleIndicesBuffer;
+
+		/* Store the samples rest positions */
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestSamplePositionsBuffer;
+	};
+
+	/* Number of roots */
+	uint32 RootCount;
+
+	/* Curve index for every vertices */
+	TArray<FHairStrandsIndexFormat::Type> VertexToCurveIndexBuffer;
+
+	/* Curve root's positions */
+	TArray<FHairStrandsRootPositionFormat::Type> RootPositionBuffer;
+
+	/* Curve root's normal orientation */
+	TArray<FHairStrandsRootNormalFormat::Type> RootNormalBuffer;
+
+	/* Store the hair projection information for each mesh LOD */
+	TArray<FMeshProjectionLOD> MeshProjectionLODs;
+};
+
+struct FHairStrandsClusterCullingData
+{
+	FHairStrandsClusterCullingData();
+	void Reset();
+	void Serialize(FArchive& Ar);
+	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
+
+	static const uint32 MaxLOD = 8;
+
+	/* Structure describing the LOD settings (Screen size, vertex info, ...) for each clusters.
+		The packed version of this structure corresponds to the GPU data layout (HairStrandsClusterCommon.ush)
+		This uses by the GPU LOD selection. */
+	struct FHairClusterInfo
+	{
+		struct Packed
+		{
+			uint32 LODInfoOffset : 24;
+			uint32 LODCount : 8;
+
+			uint32 LOD_ScreenSize_0 : 10;
+			uint32 LOD_ScreenSize_1 : 10;
+			uint32 LOD_ScreenSize_2 : 10;
+			uint32 Pad0 : 2;
+
+			uint32 LOD_ScreenSize_3 : 10;
+			uint32 LOD_ScreenSize_4 : 10;
+			uint32 LOD_ScreenSize_5 : 10;
+			uint32 Pad1 : 2;
+
+			uint32 LOD_ScreenSize_6 : 10;
+			uint32 LOD_ScreenSize_7 : 10;
+			uint32 LOD_bIsVisible : 8;
+			uint32 Pad2 : 4;
+		};
+
+		FHairClusterInfo()
+		{
+			for (uint32 LODIt = 0; LODIt < MaxLOD; ++LODIt)
+			{
+				ScreenSize[LODIt] = 0;
+				bIsVisible[LODIt] = true;
+			}
+		}
+
+		uint32 LODCount = 0;
+		uint32 LODInfoOffset = 0;
+		TStaticArray<float, MaxLOD>  ScreenSize;
+		TStaticArray<bool, MaxLOD>   bIsVisible;
+	};
+
+	/* Structure describing the LOD settings common to all clusters. The layout of this structure is
+		identical the GPU data layout (HairStrandsClusterCommon.ush). This uses by the GPU LOD selection. */
+	struct FHairClusterLODInfo
+	{
+		uint32 VertexOffset = 0;
+		uint32 VertexCount0 = 0;
+		uint32 VertexCount1 = 0;
+		FFloat16 RadiusScale0 = 0;
+		FFloat16 RadiusScale1 = 0;
+	};
+
+	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
+	TArray<bool>				LODVisibility;
+
+	/* Screen size at which LOD should switches on CPU */
+	TArray<float>				CPULODScreenSize;
+
+	/* LOD info for the various clusters for LOD management on GPU */
+	TArray<FHairClusterInfo>	ClusterInfos;
+	TArray<FHairClusterLODInfo> ClusterLODInfos;
+	TArray<uint32>				VertexToClusterIds;
+	TArray<uint32>				ClusterVertexIds;
+
+	/* Packed LOD info packed into GPU format */
+	TArray<FHairClusterInfo::Packed> PackedClusterInfos;
+
+	/* Number of cluster  */
+	uint32 ClusterCount = 0;
+
+	/* Number of vertex  */
+	uint32 VertexCount = 0;
 };

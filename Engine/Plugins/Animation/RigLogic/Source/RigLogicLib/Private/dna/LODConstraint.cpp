@@ -50,4 +50,8 @@ void LODConstraint::applyTo(Vector<std::uint16_t>& unconstrainedLODs) const {
     extd::filter(unconstrainedLODs, extd::byPosition(lods));
 }
 
+void LODConstraint::applyTo(DynArray<std::uint16_t>& unconstrainedLODs) const {
+    extd::filter(unconstrainedLODs, extd::byPosition(lods));
+}
+
 }  // namespace dna

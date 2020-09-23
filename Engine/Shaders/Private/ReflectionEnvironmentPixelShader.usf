@@ -176,9 +176,8 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 		float3 V = -normalize(mul(float4(ScreenPosition, 1, 0), View.ScreenToWorld).xyz);
 		float3 L = normalize(V - N * dot(V, N));
 		SkyLightingNormal = L;
-		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
-		bool bEvalMultiScatter = true;
-		DiffuseColor = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0), bEvalMultiScatter);
+		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
+		DiffuseColor = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
 	}
 
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLOTH)

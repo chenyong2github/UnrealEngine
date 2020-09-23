@@ -86,3 +86,33 @@ bool FHairGroupsInterpolation::operator==(const FHairGroupsInterpolation& A) con
 		DecimationSettings == A.DecimationSettings &&
 		InterpolationSettings == A.InterpolationSettings;
 }
+
+void FHairGroupsInterpolation::BuildDDCKey(FArchive& Ar)
+{
+	Ar << DecimationSettings.CurveDecimation;
+	Ar << DecimationSettings.VertexDecimation;
+	Ar << InterpolationSettings.bOverrideGuides;
+	Ar << InterpolationSettings.HairToGuideDensity;
+	Ar << InterpolationSettings.InterpolationQuality;
+	Ar << InterpolationSettings.InterpolationDistance;
+	Ar << InterpolationSettings.bRandomizeGuide;
+	Ar << InterpolationSettings.bUseUniqueGuide;
+}
+
+void FHairGroupsLOD::BuildDDCKey(FArchive& Ar)
+{
+	Ar << ClusterWorldSize;
+	Ar << ClusterScreenSizeScale;
+
+	for (FHairLODSettings& LOD : LODs)
+	{
+		if (LOD.GeometryType == EGroomGeometryType::Strands)
+		{
+			Ar << LOD.CurveDecimation;
+			Ar << LOD.VertexDecimation;
+			Ar << LOD.AngularThreshold;
+			Ar << LOD.ScreenSize;
+			Ar << LOD.ThicknessScale;
+		}
+	}
+}

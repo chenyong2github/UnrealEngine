@@ -12,12 +12,15 @@
 class FSkeletalMeshRenderData;
 struct FHairStrandsRestRootResource;
 struct FHairStrandsDeformedRootResource;
+struct FHairMeshesRestResource;
+struct FHairMeshesDeformedResource;
 
 struct FHairStrandsProjectionMeshData
 {
 	struct Section
 	{
 		FTransform LocalToWorld;
+		FRDGBufferSRVRef RDGPositionBuffer = nullptr;
 		FRHIShaderResourceView* PositionBuffer = nullptr;
 		FRHIShaderResourceView* UVsBuffer = nullptr;
 		FRHIShaderResourceView* IndexBuffer = nullptr;
@@ -39,8 +42,9 @@ struct FHairStrandsProjectionMeshData
 	TArray<LOD> LODs;
 };
 
-// Return the max number of section a skeletal mesh can have. After this count, binding will be disabled
+// Return the max number of section/triangle a skeletal mesh can have. After this count, binding will be disabled
 uint32 GetHairStrandsMaxSectionCount();
+uint32 GetHairStrandsMaxTriangleCount();
 
 /* Project hair strands onto a LOD mesh */
 void ProjectHairStrandsOntoMesh(
@@ -118,7 +122,7 @@ void GenerateFolliculeMask(
 	const uint32 MipCount,
 	const uint32 KernelSizeInPixels,
 	const uint32 Channel,
-	const TArray<FRWBuffer>& RootUVBuffers,
+	const TArray<FRDGBufferRef>& RootUVBuffers,
 	FRDGTextureRef& OutTexture);
 
 void AddComputeMipsPass(
@@ -135,7 +139,7 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 	FHairStrandsDeformedRootResource* DeformedResources,
 	FBufferTransitionQueue& OutTransitionQueue);
 
-void UpateSkin(
+void AddSkinUpdatePass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	class FSkinWeightVertexBuffer* SkinWeight,
@@ -144,5 +148,14 @@ void UpateSkin(
 	FRDGBufferRef MatrixOffsets,
 	FRDGBufferRef OutDeformedosition);
 
+void AddHairMeshesInterpolationPass(
+	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	const int32 MeshLODIndex,
+	FHairMeshesRestResource* RestResources,
+	FHairMeshesDeformedResource* DeformedResources,
+	FHairStrandsRestRootResource* RestRootResources,
+	FHairStrandsDeformedRootResource* DeformedRootResources,
+	FBufferTransitionQueue& OutTransitionQueue);
 
 FHairStrandsProjectionMeshData ExtractMeshData(FSkeletalMeshRenderData* RenderData);

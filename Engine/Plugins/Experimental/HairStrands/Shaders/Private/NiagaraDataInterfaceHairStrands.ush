@@ -736,23 +736,33 @@ void DIHairStrands_AttachNodeOrientation(in FDIHairStrandsContext DIContext, in 
  * Attached the root to the skinned cache
  * -----------------------------------------------------------------
  */
+// Duplicate from #include "HairStrands/HairStrandsMeshRBF.ush"
+float3 ApplyRBF(
+	float3 RestControlPoint,
+	int InMaxSampleCount,
+	Buffer<float4> InRestSamplePositionsBuffer,
+	Buffer<float4> InMeshSampleWeightsBuffer)
+{
+	float3 ControlPoint = RestControlPoint;
+	// Apply rbf interpolation from the samples set
+	for (int i = 0; i < InMaxSampleCount; ++i)
+	{
+		const float3 PositionDelta = RestControlPoint - InRestSamplePositionsBuffer[i].xyz;
+		const float FunctionValue = sqrt(dot(PositionDelta, PositionDelta) + 1);
+		ControlPoint += FunctionValue * InMeshSampleWeightsBuffer[i].xyz;
+	}
+	ControlPoint += InMeshSampleWeightsBuffer[InMaxSampleCount].xyz;
+	ControlPoint += InMeshSampleWeightsBuffer[InMaxSampleCount + 1].xyz * RestControlPoint.x;
+	ControlPoint += InMeshSampleWeightsBuffer[InMaxSampleCount + 2].xyz * RestControlPoint.y;
+	ControlPoint += InMeshSampleWeightsBuffer[InMaxSampleCount + 3].xyz * RestControlPoint.z;
+	return ControlPoint;
+}
 
  // Compute the global position
 void DIHairStrands_EvalGlobalPosition(in FDIHairStrandsContext DIContext, in float3 RestPosition, out float3 OutGlobalPosition)
 {
 	const float3 RestSkinnedPosition = RestPosition;
-
-	OutGlobalPosition = RestPosition;
-	for(int i = 0; i < DIContext.SampleCount; ++i)
-	{
-		const float3 PositionDelta = RestSkinnedPosition - DIContext.RestSamplePositionsBuffer[i].xyz;
-		const float FunctionValue = sqrt( dot(PositionDelta,PositionDelta)+1);
-		OutGlobalPosition += FunctionValue * DIContext.MeshSampleWeightsBuffer[i].xyz;
-	}
-	OutGlobalPosition += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount].xyz;
-	OutGlobalPosition += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount+1].xyz * RestSkinnedPosition.x;
-	OutGlobalPosition += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount+2].xyz * RestSkinnedPosition.y;
-	OutGlobalPosition += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount+3].xyz * RestSkinnedPosition.z;
+	OutGlobalPosition = ApplyRBF(RestPosition, DIContext.SampleCount, DIContext.RestSamplePositionsBuffer, DIContext.MeshSampleWeightsBuffer);
 }
 
 // Compute the global position

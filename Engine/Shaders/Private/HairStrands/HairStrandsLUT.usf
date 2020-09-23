@@ -110,7 +110,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const float3 N = float3(0,0,1); // N is the vector parallel to hair pointing toward root. I.e., the tangent T is up
 	const float3 V = float3(CosAngle, 0, SinAngle);
 	const float OpaqueVisibility = 1;
-	const FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+	FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
+	TransmittanceData.bUseSeparableR = false;
 
 	const float MaxCosThetaRadius = cos(0.25f * PI / float(ThetaCount)); // [0, Pi/2] / ThetaCount which is divided by 2 for getting the actual radius
 	float3x3 ToViewBasis = GetTangentBasis(V);
@@ -219,9 +220,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const float3 N = float3(0, 0, 1); // N is the vector parallel to hair pointing toward root. I.e., the tangent T is up
 	const float3 V = float3(CosAngle, 0, SinAngle);
 	const float OpaqueVisibility = 1;
-	FHairTransmittanceData Setting_R   = InitHairTransmittanceData(); Setting_R.ScatteringComponent		= HAIR_COMPONENT_R;
-	FHairTransmittanceData Setting_TT  = InitHairTransmittanceData(); Setting_TT.ScatteringComponent	= HAIR_COMPONENT_TT;
-	FHairTransmittanceData Setting_TRT = InitHairTransmittanceData(); Setting_TRT.ScatteringComponent	= HAIR_COMPONENT_TRT;
+	FHairTransmittanceData Setting_R   = InitHairStrandsTransmittanceData(); Setting_R.ScatteringComponent		= HAIR_COMPONENT_R;
+	FHairTransmittanceData Setting_TT  = InitHairStrandsTransmittanceData(); Setting_TT.ScatteringComponent		= HAIR_COMPONENT_TT;
+	FHairTransmittanceData Setting_TRT = InitHairStrandsTransmittanceData(); Setting_TRT.ScatteringComponent	= HAIR_COMPONENT_TRT;
 
 	const float MaxCosThetaRadius = cos(0.25f * PI / float(ThetaCount)); // [0, Pi/2] / ThetaCount which is divided by 2 for getting the actual radius
 	float3x3 ToViewBasis = GetTangentBasis(V);

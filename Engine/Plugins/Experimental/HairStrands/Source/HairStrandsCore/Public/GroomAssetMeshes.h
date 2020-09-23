@@ -4,6 +4,7 @@
 
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "GroomAssetCards.h"
 
 #include "GroomAssetMeshes.generated.h"
 
@@ -19,18 +20,25 @@ struct HAIRSTRANDSCORE_API FHairGroupsMeshesSourceDescription
 
 	FHairGroupsMeshesSourceDescription();
 
-	UPROPERTY(EditAnywhere, Category = "Rendering", meta = (ToolTip = "Material used for meshes rendering"))
+	/* Deprecated */
+	UPROPERTY()
 	UMaterialInterface* Material = nullptr;
+
+	UPROPERTY()
+	FName MaterialSlotName;
 
 	UPROPERTY(EditAnywhere, Category = "MeshSettings", meta = (ToolTip = "Mesh settings"))
 	class UStaticMesh* ImportedMesh;
 
+	UPROPERTY(EditAnywhere, Category = "MeshesSource")
+	FHairGroupCardsTextures Textures;
+
 	/* Group index on which this mesh geometry will be used (#hair_todo: change this to be a dropdown selection menu in FHairLODSettings instead) */
-	UPROPERTY(EditAnywhere, Category = "CardsSource")
+	UPROPERTY(EditAnywhere, Category = "MeshesSource")
 	int32 GroupIndex = 0;
 
 	/* LOD on which this mesh geometry will be used. -1 means not used  (#hair_todo: change this to be a dropdown selection menu in FHairLODSettings instead) */
-	UPROPERTY(EditAnywhere, Category = "CardsSource")
+	UPROPERTY(EditAnywhere, Category = "MeshesSource")
 	int32 LODIndex = -1;
 
 	bool operator==(const FHairGroupsMeshesSourceDescription& A) const;

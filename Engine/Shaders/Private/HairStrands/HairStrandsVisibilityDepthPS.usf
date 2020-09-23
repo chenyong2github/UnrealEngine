@@ -11,7 +11,7 @@ Texture2D<uint4> CategorisationTexture;
 
 void MainPS(
 	in FScreenVertexOutput Input,
-	out float SvDepth		: SV_Depth,
+	out float SvDepth		: SV_DEPTH,
 	out float4  OutGBufferB	: SV_Target0,
 	out float4 OutColor		: SV_Target1
 )
@@ -22,7 +22,7 @@ void MainPS(
 		discard;
 	}
 
-	SvDepth = CategorisationData.ClosestDepth;
+	SvDepth = 0; // CategorisationData.ClosestDepth;
 	OutGBufferB = 0;
 	OutColor = 0;
 }

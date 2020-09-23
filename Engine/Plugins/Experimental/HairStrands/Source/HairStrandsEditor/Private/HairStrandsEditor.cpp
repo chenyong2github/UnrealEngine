@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsEditor.h"
+#include "HairStrandsCore.h"
+
 #include "GroomActions.h"
 #include "GroomBindingActions.h"
 
@@ -13,12 +15,42 @@
 
 #include "GroomEditorCommands.h"
 #include "GroomEditorMode.h"
+#include "GroomAsset.h"
+#include "GroomComponentDetailsCustomization.h"
+
+#include "AssetRegistryModule.h"
+#include "Tools/EditorToolAssetAPI.h"
 
 IMPLEMENT_MODULE(FGroomEditor, HairStrandsEditor);
 
 #define LOCTEXT_NAMESPACE "GroomEditor"
 
 FName FGroomEditor::GroomEditorAppIdentifier(TEXT("GroomEditor"));
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+void CreateFilename(const FString& InAssetName, const FString& Suffix, FString& OutPackageName, FString& OutAssetName)
+{
+	// Get a unique package and asset name
+	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(InAssetName, Suffix, OutPackageName, OutAssetName);
+}
+
+void RegisterAsset(UObject* Out)
+{
+	FAssetRegistryModule::AssetCreated(Out);
+}
+
+void SaveAsset(UObject* Object)
+{
+	UPackage* Package = Object->GetOutermost();
+	Package->MarkPackageDirty(); 
+	//AutoSaveGeneratedAsset(Object, Package); <= possible?
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FGroomEditor::StartupModule()
 {
@@ -62,6 +94,10 @@ void FGroomEditor::StartupModule()
 		StyleSet->Set("GroomEditor.SimulationOptions.Small", new FSlateImageBrush(HairStrandsContent + "/Icons/S_SimulationOptions_40x.png", Icon20x20));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
+
+		// Custom widget for groom component (Group desc override, ...)
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout(UGroomComponent::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGroomComponentDetailsCustomization::MakeInstance));
 	}
 
 	FGroomEditorCommands::Register();
@@ -70,6 +106,14 @@ void FGroomEditor::StartupModule()
 		LOCTEXT("GroomEditorMode", "Groom Editor"),
 		FSlateIcon(),
 		false);
+
+	// Asset create/edition helper/wrapper for creating/edition asset withn the HairStrandsCore 
+	// project without any editor dependencies
+	FHairAssetHelper Helper;
+	Helper.CreateFilename = CreateFilename;
+	Helper.RegisterAsset = RegisterAsset;
+	Helper.SaveAsset = SaveAsset;
+	FHairStrandsCore::RegisterAssetHelper(Helper);
 }
 
 void FGroomEditor::ShutdownModule()

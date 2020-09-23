@@ -9,10 +9,14 @@
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
 
+struct FHairStrandsRestRootResource;
+
 struct HAIRSTRANDSCORE_API FGroomBindingBuilder
 {
+	static FString GetVersion();
+
 	// Build binding asset data
-	static void BuildBinding(class UGroomBindingAsset* BindingAsset, bool bUseGPU, bool bInitResources);
+	static bool BuildBinding(class UGroomBindingAsset* BindingAsset, bool bUseGPU, bool bInitResources);
 
 	// Transfer mesh vertex position from a source mesh on to a target mesh.
 	// The topology of the two meshes can be different, but they need to shader the same UV layout
@@ -27,9 +31,5 @@ struct HAIRSTRANDSCORE_API FGroomBindingBuilder
 		FRDGBuilder& GraphBuilder,
 		const FTransform& LocalToWorld,
 		const FHairStrandsProjectionMeshData& TargetMeshData,
-		struct FHairStrandsRestRootResource* RenRestRootResources,
-		struct FHairStrandsRestRootResource* SimRestRootResources);
+		TArray<FHairStrandsRestRootResource*>& InRestRootResources);
 };
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Mesh projection & transfer (Immediate)

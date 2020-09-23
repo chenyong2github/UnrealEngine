@@ -68,7 +68,7 @@ FilteredInputArchive::FilteredInputArchive(BoundedIOStream* stream_,
     unconstrainedLODCount{} {
 }
 
-template<typename TContainer>
+template<class TContainer>
 void FilteredInputArchive::processSubset(TContainer& dest, std::size_t offset, std::size_t size) {
     using ElementType = typename TContainer::value_type;
     const auto availableSize = processSize();
@@ -77,7 +77,7 @@ void FilteredInputArchive::processSubset(TContainer& dest, std::size_t offset, s
     // Skip over first N elements
     stream->seek(startPosition + offset * sizeof(ElementType));
     // Read requested number of elements
-    processElements(dest, size);
+    BaseArchive::processElements(dest, size);
     // Even if not all elements were read, seek to the end of the list
     stream->seek(startPosition + availableSize * sizeof(ElementType));
 }
@@ -143,7 +143,7 @@ void FilteredInputArchive::process(RawJoints& dest) {
         // Discard everything that falls outside the region bounded by LOD constraints
         lodConstraint.applyTo(jointGroup.lods);
         // Input indices are all loaded always (unless the whole joint group is empty)
-        const auto jointGroupRowCount = (jointGroup.lods.empty() ? static_cast<std::uint16_t>(0) : jointGroup.lods.front());
+        const auto jointGroupRowCount = (jointGroup.lods.empty() ? static_cast<std::uint16_t>(0) : jointGroup.lods[0]);
         if (jointGroupRowCount != 0u) {
             process(jointGroup.inputIndices);
         } else {
@@ -184,7 +184,7 @@ void FilteredInputArchive::process(RawBlendShapeChannels& dest) {
     }
     // Discard everything that falls outside the region bounded by LOD constraints
     lodConstraint.applyTo(dest.lods);
-    const auto count = (dest.lods.empty() ? static_cast<std::uint16_t>(0) : dest.lods.front());
+    const auto count = (dest.lods.empty() ? static_cast<std::uint16_t>(0) : dest.lods[0]);
     processSubset(dest.inputIndices, 0ul, count);
     processSubset(dest.outputIndices, 0ul, count);
 }
@@ -197,7 +197,7 @@ void FilteredInputArchive::process(RawAnimatedMaps& dest) {
     }
     // Discard everything that falls outside the region bounded by LOD constraints
     lodConstraint.applyTo(dest.lods);
-    const auto rowCount = (dest.lods.empty() ? static_cast<std::uint16_t>(0) : dest.lods.front());
+    const auto rowCount = (dest.lods.empty() ? static_cast<std::uint16_t>(0) : dest.lods[0]);
     processSubset(dest.conditionals.inputIndices, 0ul, rowCount);
     processSubset(dest.conditionals.outputIndices, 0ul, rowCount);
     processSubset(dest.conditionals.fromValues, 0ul, rowCount);
@@ -272,17 +272,26 @@ void FilteredInputArchive::process(RawVertexSkinWeights& dest) {
     if (lodConstraint.hasImpactOn(unconstrainedLODCount)) {
         assert(dest.weights.size() == dest.jointIndices.size());
 
-        auto itWeight = dest.weights.begin();
-        auto itJoint = dest.jointIndices.begin();
-        while (itJoint != dest.jointIndices.end()) {
-            if (JointFilter::passes(*itJoint)) {
-                ++itJoint;
-                ++itWeight;
+        auto itWeightSrc = dest.weights.begin();
+        auto itWeightDst = itWeightSrc;
+        auto itJointSrc = dest.jointIndices.begin();
+        auto itJointDst = itJointSrc;
+        while (itJointSrc != dest.jointIndices.end()) {
+            if (JointFilter::passes(*itJointSrc)) {
+                *itJointDst = *itJointSrc;
+                ++itJointSrc;
+                ++itJointDst;
+
+                *itWeightDst = *itWeightSrc;
+                ++itWeightSrc;
+                ++itWeightDst;
             } else {
-                itJoint = dest.jointIndices.erase(itJoint);
-                itWeight = dest.weights.erase(itWeight);
+                ++itJointSrc;
+                ++itWeightSrc;
             }
         }
+        dest.jointIndices.resize(static_cast<std::size_t>(std::distance(dest.jointIndices.begin(), itJointDst)));
+        dest.weights.resize(static_cast<std::size_t>(std::distance(dest.weights.begin(), itWeightDst)));
 
         for (auto& jntIdx : dest.jointIndices) {
             jntIdx = JointFilter::remapped(jntIdx);

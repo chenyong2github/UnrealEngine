@@ -231,8 +231,8 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 		}
 
 		// We expect more slots to be needed due to multiple mesh draws per renderer, and for culled draws per view
-		int32 RecommendedDrawIndirectArgsCount = FMath::Max(GNiagaraMinGPUDrawIndirectArgs, (int32)(ExpectedDrawIndirectArgs * GNiagaraGPUDrawIndirectArgsBufferSlack));
-		if (ExpectedDrawIndirectArgs > AllocatedDrawIndirectArgs || (int32)(RecommendedDrawIndirectArgsCount * GNiagaraGPUDrawIndirectArgsBufferSlack) < AllocatedDrawIndirectArgs)
+		const int32 RecommendedDrawIndirectArgsCount = FMath::Max(GNiagaraMinGPUDrawIndirectArgs, (int32)(ExpectedDrawIndirectArgs * GNiagaraGPUDrawIndirectArgsBufferSlack));
+		if (RecommendedDrawIndirectArgsCount > AllocatedDrawIndirectArgs || (int32)(RecommendedDrawIndirectArgsCount * GNiagaraGPUDrawIndirectArgsBufferSlack) < AllocatedDrawIndirectArgs)
 		{
 			DrawIndirectBuffer.Release();
 			AllocatedDrawIndirectArgs = RecommendedDrawIndirectArgsCount;
