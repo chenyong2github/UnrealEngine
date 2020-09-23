@@ -211,10 +211,10 @@ public:
 	struct FRecordOctreeSemantics
 	{
 		enum { MaxElementsPerLeaf = 4 };
-		enum { MaxNodeDepth = 12 };
+		enum { MaxNodeDepth = 24 };
 		enum { LoosenessDenominator = 16 };
 
-		typedef TInlineAllocator<MaxElementsPerLeaf> ElementAllocator;
+		typedef TInlineAllocator<MaxElementsPerLeaf * 8> ElementAllocator;
 
 		static FBoxCenterAndExtent GetBoundingBox(const FRecord<SampleType>& LightingRecord)
 		{
