@@ -4,8 +4,10 @@
 
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "CoreGlobals.h"
+#include "EngineModule.h"
 #include "Engine/Texture2D.h"
 #include "HAL/IConsoleManager.h"
+#include "RendererInterface.h"
 #include "UObject/UObjectIterator.h"
 #include "VT/RuntimeVirtualTexture.h"
 
@@ -161,6 +163,12 @@ namespace VirtualTextureScalability
 					BeginReleaseResource(It->Resource);
 				}
 			}
+
+			// Force garbage collect of pools
+			ENQUEUE_RENDER_COMMAND(VirtualTextureScalability_Release)([](FRHICommandList& RHICmdList)
+			{
+				GetRendererModule().ReleaseVirtualTexturePendingResources();
+			});
 
 			// Now all pools should be flushed...
 			// Reinit streaming virtual textures
