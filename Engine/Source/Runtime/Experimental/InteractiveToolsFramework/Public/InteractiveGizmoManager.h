@@ -170,7 +170,8 @@ public:
 	/** Render any active Gizmos. Called by UInteractiveToolsContext. */
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
-
+	/** Let active Gizmos do screen space drawing.  Called by UInteractiveToolsContext */
+	virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
 
 	//
 	// access to APIs, etc
