@@ -231,6 +231,7 @@ public:
 		FShaderResourceViewRHIRef UVsBufferSRV = nullptr;
 		FShaderResourceViewRHIRef ColorBufferSRV = nullptr;
 		FShaderResourceViewRHIRef PositionBufferSRV = nullptr;
+		FShaderResourceViewRHIRef ClothPositionsAndNormalsBuffer = nullptr;
 
 		// skin weight input
 		uint32 InputWeightStart = 0;
@@ -472,7 +473,6 @@ protected:
 	FRHIShaderResourceView* PostSkinningVertexOffsetSRV = nullptr;
 	FRHIShaderResourceView* MorphBuffer;
 	FShaderResourceViewRHIRef ClothBuffer;
-	FShaderResourceViewRHIRef ClothPositionsAndNormalsBuffer;
 	int32 LOD;
 
 	bool bMultipleClothSkinInfluences;
@@ -527,10 +527,13 @@ public:
 		ClothWorldToLocal.Bind(Initializer.ParameterMap, TEXT("ClothWorldToLocal"));
 	}
 
-	void SetParameters(FRHICommandListImmediate& RHICmdList, const FVertexBufferAndSRV& BoneBuffer,
+	void SetParameters(
+		FRHICommandListImmediate& RHICmdList, 
+		const FVertexBufferAndSRV& BoneBuffer,
 		FGPUSkinCacheEntry* Entry,
 		FGPUSkinCacheEntry::FSectionDispatchData& DispatchData,
-		FRHIUnorderedAccessView* PositionUAV, FRHIUnorderedAccessView* TangentUAV)
+		FRHIUnorderedAccessView* PositionUAV, FRHIUnorderedAccessView* TangentUAV
+		)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
@@ -570,7 +573,7 @@ public:
 		if (bCloth)
 		{
 			SetSRVParameter(RHICmdList, ShaderRHI, ClothBuffer, Entry->ClothBuffer);
-			SetSRVParameter(RHICmdList, ShaderRHI, ClothPositionsAndNormalsBuffer, Entry->ClothPositionsAndNormalsBuffer);
+			SetSRVParameter(RHICmdList, ShaderRHI, ClothPositionsAndNormalsBuffer, DispatchData.ClothPositionsAndNormalsBuffer);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothBufferOffset, DispatchData.ClothBufferOffset);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothBlendWeight, DispatchData.ClothBlendWeight);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothLocalToWorld, DispatchData.ClothLocalToWorld);
@@ -1375,7 +1378,7 @@ void FGPUSkinCache::ProcessEntry(
         FRHIResourceCreateInfo CreateInfo(ResourceArray);
         ClothPositionAndNormalsBuffer.VertexBufferRHI = RHICreateVertexBuffer( ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
         ClothPositionAndNormalsBuffer.VertexBufferSRV = RHICreateShaderResourceView(ClothPositionAndNormalsBuffer.VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
-        InOutEntry->ClothPositionsAndNormalsBuffer = ClothPositionAndNormalsBuffer.VertexBufferSRV;
+        InOutEntry->DispatchData[Section].ClothPositionsAndNormalsBuffer = ClothPositionAndNormalsBuffer.VertexBufferSRV;
 
         InOutEntry->DispatchData[Section].ClothBlendWeight = ClothBlendWeight;
         InOutEntry->DispatchData[Section].ClothLocalToWorld = ClothLocalToWorld;
