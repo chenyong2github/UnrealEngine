@@ -1375,16 +1375,44 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 						if(Visualizer.IsValid())
 						{
 							VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
-
-							// If there is an undo/redo operation in progress, the edited component may be restored
-							// so set the active component visualizer accordingly.
-							if (GIsTransacting && Visualizer->GetEditedComponent() == Comp)
-							{
-								ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, Visualizer);
-							}
 						}
 					}
 				}
+			}
+		}
+	}
+	else if (SelectionThatChanged == GetSelectedComponents())
+	{
+		VisualizersForSelection.Empty();
+
+		// Iterate over all selected components
+		for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
+		{
+			if (UActorComponent* Comp = Cast<UActorComponent>(*It))
+			{
+				if (Comp->IsRegistered())
+				{
+					// Try and find a visualizer
+					TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
+					if (Visualizer.IsValid())
+					{
+						VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
+					}
+				}
+				
+			}
+		}
+	}
+
+	// If there is an undo/redo operation in progress, restore the active component visualizer.
+	if (GIsTransacting)
+	{
+		for (FCachedComponentVisualizer& CachedComponentVisualizer : VisualizersForSelection)
+		{
+			if (CachedComponentVisualizer.Visualizer->GetEditedComponent() != nullptr)
+			{
+				ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, CachedComponentVisualizer.Visualizer);
+				break;
 			}
 		}
 	}
