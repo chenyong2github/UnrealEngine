@@ -1212,7 +1212,10 @@ namespace SceneOutliner
 		SharedData->bRepresentingPlayWorld = SharedData->RepresentingWorld->WorldType == EWorldType::PIE;
 
 		// Get a collection of items and folders which were formerly collapsed
-		const FParentsExpansionState ExpansionStateInfo = GetParentsExpansionState();
+		if (CachedExpansionStateInfo.Num() == 0)
+		{
+			CachedExpansionStateInfo.Append(GetParentsExpansionState());
+		}
 
 		bool bMadeAnySignificantChanges = false;
 		if(bFullRefresh)
@@ -1254,8 +1257,6 @@ namespace SceneOutliner
 		}
 
 		PendingOperations.RemoveAt(0, End);
-		SetParentsExpansionState(ExpansionStateInfo);
-
 
 		for (FName Folder : PendingFoldersSelect)
 		{
@@ -1270,6 +1271,9 @@ namespace SceneOutliner
 		bool bFinalSort = false;
 		if (PendingOperations.Num() == 0)
 		{
+			SetParentsExpansionState(CachedExpansionStateInfo);
+			CachedExpansionStateInfo.Empty();
+
 			// We're fully refreshed now.
 			NewItemActions.Empty();
 			bNeedsRefresh = false;
