@@ -987,6 +987,21 @@ void UWorld::FinishDestroy()
 	Super::FinishDestroy();
 }
 
+bool UWorld::IsReadyForFinishDestroy()
+{
+#if WITH_CHAOS
+	if (PhysicsScene != nullptr)
+	{
+		if (PhysicsScene->IsCompletionEventComplete() == false)
+		{
+			return false;
+		}
+	}
+#endif
+
+	return Super::IsReadyForFinishDestroy();
+}
+
 void UWorld::PostLoad()
 {
 	EWorldType::Type * PreLoadWorldType = UWorld::WorldTypePreLoadMap.Find(GetOuter()->GetFName());

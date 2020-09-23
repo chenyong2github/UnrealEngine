@@ -160,6 +160,16 @@ namespace Chaos
 			}
 		}
 
+		bool IsPendingTasksComplete() const
+		{
+			if (PendingTasks && !PendingTasks->IsComplete())
+			{
+				return false;
+			}
+
+			return true;
+		}
+
 		const UObject* GetOwner() const
 		{ 
 			return Owner; 
