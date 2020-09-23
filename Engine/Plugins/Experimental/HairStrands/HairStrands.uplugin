@@ -18,7 +18,7 @@
 		{
 			"Name": "HairStrandsCore",
 			"Type": "Runtime",
-			"LoadingPhase": "EarliestPossible",
+			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32"
@@ -33,15 +33,6 @@
 				"Win32"
 			]
 		},
-		{
-			"Name": "HairStrandsNiagara",
-			"Type": "RunTime",
-			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"
-			]
-		}
 	],
 	"Plugins": [
 		{
