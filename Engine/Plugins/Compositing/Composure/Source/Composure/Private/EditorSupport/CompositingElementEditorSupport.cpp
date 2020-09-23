@@ -12,6 +12,7 @@
 #include "EditorSupport/ICompositingEditor.h"
 #include "Engine/Blueprint.h"
 
+
 namespace CompositingElementEditorSupport_Impl
 {
 	template<class T>
@@ -99,7 +100,7 @@ void ACompositingElement::OnEndPreview()
 bool ACompositingElement::UseImplicitGammaForPreview() const 
 {
 	UCompositingElementTransform* PreviewPass = GetPreviewPass();
-	return (PreviewPass == nullptr) || !PreviewPass->bEnabled;
+	return (PreviewPass == nullptr) || !PreviewPass->IsPassEnabled();
 }
 
 UTexture* ACompositingElement::GetColorPickerDisplayImage()
@@ -231,6 +232,10 @@ void ACompositingElement::PostEditChangeProperty(FPropertyChangedEvent& Property
 			}
 			RefreshInternalOutputsList();
 		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ACompositingElement, bAutoRunChildElementsAndSelf))
+	{
+		SetAutoRunChildrenAndSelf(bAutoRunChildElementsAndSelf);
 	}
 
 	if (ICompositingEditor* CompositingEditor = ICompositingEditor::Get())

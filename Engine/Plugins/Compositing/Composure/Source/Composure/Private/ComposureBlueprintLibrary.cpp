@@ -10,12 +10,16 @@
 #include "Classes/Engine/LocalPlayer.h"
 #include "EngineUtils.h"
 
+#include "ComposureLayersEditor/Private/ICompElementManager.h"
+#include "ComposureLayersEditor/Private/CompElementManager.h"
+
 #include "ComposurePlayerCompositingTarget.h"
 #include "ComposureUtils.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
-
+#include "Modules/ModuleManager.h"
+#include "ComposureLayersEditor/Public/CompElementEditorModule.h"
 
 UComposureBlueprintLibrary::UComposureBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -116,4 +120,99 @@ TArray<AActor*> UComposureBlueprintLibrary::GetActors(UObject* WorldContextObjec
 	}
 
 	return AllActors;
+}
+
+ACompositingElement* UComposureBlueprintLibrary::CreateComposureElement(const FName CompName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext)
+{
+	if (ClassType)
+	{
+		ICompElementEditorModule* EditorModule = FModuleManager::Get().GetModulePtr<ICompElementEditorModule>("ComposureLayersEditor");
+		TSharedPtr<ICompElementManager> CompElementManager;
+		if (EditorModule && (CompElementManager = EditorModule->GetCompElementManager()).IsValid())
+		{
+			TWeakObjectPtr<ACompositingElement> CreatedElement = CompElementManager->CreateElement(CompName, ClassType, LevelContext);
+			CompElementManager->OnCreateNewElement(CreatedElement.Get());
+			return CreatedElement.Get();
+		}
+	}
+	return nullptr;
+}
+
+ACompositingElement* UComposureBlueprintLibrary::GetComposureElement(const FName ElementName)
+{
+	ICompElementEditorModule* EditorModule = FModuleManager::Get().GetModulePtr<ICompElementEditorModule>("ComposureLayersEditor");
+	TSharedPtr<ICompElementManager> CompElementManager;
+	if (EditorModule && (CompElementManager = EditorModule->GetCompElementManager()).IsValid())
+	{
+		return CompElementManager->GetElement(ElementName).Get();
+	}
+	return nullptr;
+}
+
+
+void UComposureBlueprintLibrary::DeleteComposureElementAndChildren(const FName ElementToDelete)
+{
+	ICompElementEditorModule* EditorModule = FModuleManager::Get().GetModulePtr<ICompElementEditorModule>("ComposureLayersEditor");
+	TSharedPtr<ICompElementManager> CompElementManager;
+	if (EditorModule && (CompElementManager = EditorModule->GetCompElementManager()).IsValid())
+	{
+		CompElementManager->DeleteElementAndChildren(ElementToDelete,false);
+	}
+}
+
+bool UComposureBlueprintLibrary::RenameComposureElement(const FName OriginalName, const FName NewCompName)
+{
+	ICompElementEditorModule* EditorModule = FModuleManager::Get().GetModulePtr<ICompElementEditorModule>("ComposureLayersEditor");
+	TSharedPtr<ICompElementManager> CompElementManager;
+	if (EditorModule && (CompElementManager = EditorModule->GetCompElementManager()).IsValid())
+	{
+		return CompElementManager->RenameElement(OriginalName, NewCompName);
+	}
+	return false;
+}
+
+bool UComposureBlueprintLibrary::AttachComposureElement(const FName ParentName, const FName ChildName)
+{
+	ICompElementEditorModule* EditorModule = FModuleManager::Get().GetModulePtr<ICompElementEditorModule>("ComposureLayersEditor");
+	TSharedPtr<ICompElementManager> CompElementManager;
+	if (EditorModule && (CompElementManager = EditorModule->GetCompElementManager()).IsValid())
+	{
+		return CompElementManager->AttachCompElement(ParentName, ChildName);
+	}
+	return false;
+}
+
+bool UComposureBlueprintLibrary::IsComposureElementDrawing(ACompositingElement* CompElement)
+{
+	bool bIsDrawing = false;
+	if (CompElement)
+	{
+		ICompElementEditorModule* EditorModule = FModuleManager::Get().GetModulePtr<ICompElementEditorModule>("ComposureLayersEditor");
+		TSharedPtr<ICompElementManager> CompElementManager;
+		if (EditorModule && (CompElementManager = EditorModule->GetCompElementManager()).IsValid())
+		{
+			bIsDrawing = CompElementManager->IsDrawing(CompElement);
+		}
+	}
+	return bIsDrawing;
+}
+
+void UComposureBlueprintLibrary::RequestRedrawComposureViewport()
+{
+	ICompElementEditorModule* EditorModule = FModuleManager::Get().GetModulePtr<ICompElementEditorModule>("ComposureLayersEditor");
+	TSharedPtr<ICompElementManager> CompElementManager;
+	if (EditorModule && (CompElementManager = EditorModule->GetCompElementManager()).IsValid())
+	{
+		CompElementManager->RequestRedraw();
+	}
+}
+
+void UComposureBlueprintLibrary::RefreshComposureElementList()
+{
+	ICompElementEditorModule* EditorModule = FModuleManager::Get().GetModulePtr<ICompElementEditorModule>("ComposureLayersEditor");
+	TSharedPtr<ICompElementManager> CompElementManager;
+	if (EditorModule && (CompElementManager = EditorModule->GetCompElementManager()).IsValid())
+	{
+		CompElementManager->RefreshElementsList();
+	}
 }

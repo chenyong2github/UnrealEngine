@@ -33,15 +33,15 @@ public:
 
 public: 
 	//~ Begin ICompElementManager interface
-	virtual TWeakObjectPtr<ACompositingElement> CreateElement(const FName& CompName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext = nullptr) override;
+	virtual TWeakObjectPtr<ACompositingElement> CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext = nullptr) override;
 	virtual TWeakObjectPtr<ACompositingElement> GetElement(const FName& ElementName) const override;
 	virtual bool TryGetElement(const FName& ElementName, TWeakObjectPtr<ACompositingElement>& OutElement) override;
 	virtual void AddAllCompElementsTo(TArray< TWeakObjectPtr<ACompositingElement> >& OutElements) const override;
-	virtual void DeleteElement(const FName& CompToDelete) override;
-	virtual void DeleteElements(const TArray<FName>& CompsToDelete) override;
-	virtual bool RenameElement(const FName OriginalCompName, const FName& NewCompName) override;
+	virtual void DeleteElementAndChildren(const FName& ElementToDelete, bool isCalledFromEditor = true) override;
+	virtual void DeleteElements(const TArray<FName>& ElementsToDelete, bool isCalledFromEditor = true) override;
+	virtual bool RenameElement(const FName OriginalElementName, const FName& NewElementName) override;
 	virtual bool AttachCompElement(const FName ParentName, const FName ElementName) override;
-	virtual bool SelectElementActors(const TArray<FName>& CompNames, bool bSelect, bool bNotify, bool bSelectEvenIfHidden = false, const TSharedPtr<FActorFilter>& Filter = TSharedPtr<FActorFilter>(nullptr)) override;
+	virtual bool SelectElementActors(const TArray<FName>& ElementNames, bool bSelect, bool bNotify, bool bSelectEvenIfHidden = false, const TSharedPtr<FActorFilter>& Filter = TSharedPtr<FActorFilter>(nullptr)) override;
 	virtual void ToggleElementRendering(const FName& ElementName) override;
 	virtual void ToggleElementFreezeFrame(const FName& ElementName) override;
 	virtual void ToggleMediaCapture(const FName& ElementName) override;
@@ -50,6 +50,8 @@ public:
 	virtual void RefreshElementsList() override;
 	void RequestRedraw() override;
 	virtual bool IsDrawing(ACompositingElement* CompElement) const override;
+	virtual void OnCreateNewElement(AActor* NewElement) override;
+	virtual void OnDeleteElement(AActor* ElementToDelete) override;
 
 	DECLARE_DERIVED_EVENT(FCompElementManager, ICompElementManager::FOnElementsChanged, FOnElementsChanged);
 	virtual FOnElementsChanged& OnElementsChanged() override { return CompsChanged; }
@@ -70,6 +72,14 @@ private:
 
 	/** Utility function for looking up and creating a element if it doesn't already exist. */
 	TWeakObjectPtr<ACompositingElement> EnsureElementExists(const FName& ElementName);
+
+	/**
+	 * Find all the child elements' FName given a parent element. 
+	 *
+	 * @param  ElementName	        The name of the parent element.
+	 * @return TArray<FName>        Array containing all the child elements' FName.
+	 */
+	TArray<FName> FindNamesOfAllChildElements(FName ElementName) const;
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);
