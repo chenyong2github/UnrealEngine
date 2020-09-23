@@ -8,9 +8,10 @@
 #include "Misc/Timecode.h"
 #include "VCamBlueprintFunctionLibrary.generated.h"
 
+class UCineCameraComponent;
 class ULevelSequence;
-class UVirtualCameraClipsMetaData;
 class USceneCaptureComponent2D;
+class UVirtualCameraClipsMetaData;
 class UVirtualCameraUserSettings; 
 
 UCLASS(config=VirtualCamera, BlueprintType)
@@ -119,6 +120,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static void EditorSetGameView(bool bIsToggled);
 
+	/** Calculates auto focus */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static float CalculateAutoFocusDistance(FVector2D ReticlePosition, UCineCameraComponent* CineCamera);
+
+private:
+
+	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);
 };
 
 

@@ -10,7 +10,6 @@
 #include "Engine/GameViewportClient.h"
 #include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
-#include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "ILiveLinkClient.h"
 #include "Channels/RemoteSessionImageChannel.h"
@@ -51,8 +50,6 @@ namespace
 	static const FName DefaultLiveLinkSubjectName(TEXT("CameraTransform"));
 	static const FVector2D DefaultViewportResolution(1536, 1152);
 	static const float MaxFocusTraceDistance = 1000000.0f;
-	//circle of confusion constant used to calculate hyperfocal distance
-	static const float CircleOfConfusion = 0.03f;
 
 	void FindSceneViewport(TWeakPtr<SWindow>& OutInputWindow, TWeakPtr<FSceneViewport>& OutSceneViewport)
 	{
@@ -173,7 +170,6 @@ AVirtualCameraActor::AVirtualCameraActor(const FObjectInitializer& ObjectInitial
 	, ActorWorld(nullptr)
 	, PreviousViewTarget(nullptr)
 	, bAllowFocusVisualization(true)
-	, FocusMethod(EVirtualCameraFocusMethod::Manual)
 	, DesiredDistanceUnits(EUnit::Meters)
 	, bSaveSettingsOnStopStreaming(false)
 	, bIsStreaming(false)
@@ -263,49 +259,11 @@ void AVirtualCameraActor::AddBlendableToCamera_Implementation(const TScriptInter
 	CineCamera->PostProcessSettings.AddBlendable(InBlendableToAdd, InWeight);
 }
 
-void AVirtualCameraActor::SetFocusDistance_Implementation(float InFocusDistanceCentimeters)
-{
-	UCineCameraComponent* CineCamera = StreamedCamera;
-	CineCamera->FocusSettings.ManualFocusDistance = InFocusDistanceCentimeters;
-	CineCamera->FocusSettings.FocusOffset = 0.0f;
-}
-
 void AVirtualCameraActor::SetTrackedActorForFocus_Implementation(AActor* InActorToTrack, const FVector& InTrackingPointOffset)
 {
 	UCineCameraComponent* CineCamera = StreamedCamera;
 	CineCamera->FocusSettings.TrackingFocusSettings.ActorToTrack = InActorToTrack;
 	CineCamera->FocusSettings.TrackingFocusSettings.RelativeOffset = InTrackingPointOffset;
-}
-
-void AVirtualCameraActor::SetFocusMethod_Implementation(EVirtualCameraFocusMethod InNewFocusMethod)
-{
-	FocusMethod = InNewFocusMethod;
-
-	UCineCameraComponent* CineCamera = StreamedCamera;
-
-	switch (InNewFocusMethod)
-	{
-		case EVirtualCameraFocusMethod::None:
-			CineCamera->FocusSettings.FocusMethod = ECameraFocusMethod::DoNotOverride;
-			break;
-		case EVirtualCameraFocusMethod::Auto:
-			CineCamera->FocusSettings.FocusMethod = ECameraFocusMethod::Manual;
-			break;
-		case EVirtualCameraFocusMethod::Manual:
-			CineCamera->FocusSettings.FocusMethod = ECameraFocusMethod::Manual;
-			break;
-		case EVirtualCameraFocusMethod::Tracking:
-			CineCamera->FocusSettings.FocusMethod = ECameraFocusMethod::Tracking;
-			break;
-		default: // Should never be reached, but just in case new focus methods are added
-			UE_LOG(LogVirtualCamera, Warning, TEXT("Specified focus method is not currently supported in Virtual Camera!"))
-			break;
-	}
-}
-
-EVirtualCameraFocusMethod AVirtualCameraActor::GetFocusMethod_Implementation() const
-{
-	return FocusMethod;
 }
 
 void AVirtualCameraActor::SetFocusVisualization_Implementation(bool bInShowFocusVisualization)
@@ -317,39 +275,6 @@ void AVirtualCameraActor::SetFocusVisualization_Implementation(bool bInShowFocus
 		return;
 	}
 	CineCamera->FocusSettings.bDrawDebugFocusPlane = bInShowFocusVisualization;
-}
-
-void AVirtualCameraActor::SetReticlePosition_Implementation(const FVector2D & InViewportPosition)
-{
-	ReticlePosition = InViewportPosition;
-}
-
-FVector2D AVirtualCameraActor::GetReticlePosition_Implementation() const
-{
-	return ReticlePosition;
-}
-
-void AVirtualCameraActor::UpdateHyperfocalDistance_Implementation()
-{
-	UCineCameraComponent* CineCamera = StreamedCamera;
-
-	//avoid division by zero
-	if (CineCamera->CurrentAperture == 0.0f)
-	{
-		HyperfocalDistance = 0.0f;
-	}
-	else
-	{
-		//hyperfocal distance formula:((focal length ^2)/(fstop * CoC)) + focal length
-		HyperfocalDistance = ((CineCamera->CurrentFocalLength * CineCamera->CurrentFocalLength) / (CineCamera->CurrentAperture * CircleOfConfusion)) + CineCamera->CurrentFocalLength;
-		//convert from mm to cm
-		HyperfocalDistance *= 0.1f;
-	}
-}
-
-float AVirtualCameraActor::GetHyperfocalDistance_Implementation() const
-{
-	return HyperfocalDistance;
 }
 
 void AVirtualCameraActor::SetBeforeSetVirtualCameraTransformDelegate_Implementation(const FPreSetVirtualCameraTransform& InDelegate)
@@ -388,11 +313,6 @@ void AVirtualCameraActor::Tick(float DeltaSeconds)
 
 	FMinimalViewInfo ViewInfo;
 	CalcCamera(DeltaSeconds, ViewInfo);
-
-	if (FocusMethod == EVirtualCameraFocusMethod::Auto)
-	{
-		UpdateAutoFocus();
-	}
 
 	if (OnVirtualCameraUpdatedDelegates.IsBound())
 	{
@@ -866,28 +786,6 @@ void AVirtualCameraActor::LoadSettings()
 	}
 
 	PresetIndex = FVirtualCameraSettingsPreset::NextIndex;
-}
-
-void AVirtualCameraActor::UpdateAutoFocus()
-{
-	FVector TraceDirection;
-	FVector CameraWorldLocation;
-	if (!DeprojectScreenToWorld(ReticlePosition, CameraWorldLocation, TraceDirection))
-	{
-		return;
-	}
-
-	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(UpdateAutoFocus), true);
-
-	const FVector TraceEnd = CameraWorldLocation + TraceDirection * MaxFocusTraceDistance;
-	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, CameraWorldLocation, TraceEnd, ECC_Visibility, TraceParams);
-
-	//we don't want to set a focus distance bigger than hyperfocal distance
-	float FocusDistance = (bHit && Hit.Distance < HyperfocalDistance) ? Hit.Distance : HyperfocalDistance;
-
-	FEditorScriptExecutionGuard ScriptGuard;
-	Execute_SetFocusDistance(this, FocusDistance);
 }
 
 #if WITH_EDITOR
