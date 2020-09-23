@@ -623,7 +623,8 @@ namespace UsdStageImporterImpl
 			// If mesh's label has changed, update its name
 			if (ExistingAsset->GetFName() != Asset->GetFName())
 			{
-				MovedAsset->Rename(*TargetAssetName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
+				// We can't dirty the package here. Read the comment around MarkPackageDirty, below
+				MovedAsset->Rename(*TargetAssetName, Package, REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
 			}
 
 			if (UStaticMesh* DestinationMesh = Cast< UStaticMesh >(MovedAsset))
@@ -641,7 +642,8 @@ namespace UsdStageImporterImpl
 		}
 		else
 		{
-			Asset->Rename(*TargetAssetName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
+			// We can't dirty the package here. Read the comment around MarkPackageDirty, below
+			Asset->Rename(*TargetAssetName, Package, REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty );
 			MovedAsset = Asset;
 		}
 
@@ -654,7 +656,14 @@ namespace UsdStageImporterImpl
 		MovedAsset->SetFlags(ImportContext.ImportObjectFlags);
 		MovedAsset->ClearFlags(EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient | EObjectFlags::RF_NonPIEDuplicateTransient);
 
-		Package->MarkPackageDirty();
+		// We need to make sure that "dirtying the final package" is not added to the transaction, because if we undo this transaction
+		// the assets should remain on their final destination, so we still want the packages to remain marked as dirty (as they're really not on the disk yet).
+		// If we didn't suppress, the package would become transactional by this call. When undoing, the assets would still remain on the final package,
+		// but the "dirtying" would be undone, so the engine would think the assets weren't dirty (i.e. were already saved), which is not true
+		{
+			TGuardValue< ITransaction* > SuppressTransaction{ GUndo, nullptr };
+			Package->MarkPackageDirty();
+		}
 
 		if (!ExistingAsset)
 		{
@@ -1074,7 +1083,7 @@ namespace UsdStageImporterImpl
 	/** This returns the outer imported folder so that we can return it from the factories and have the content browser navigate to it */
 	void FetchMainImportedPackage( FUsdStageImportContext& ImportContext )
 	{
-		FString PackagePath = FPaths::Combine( ImportContext.PackagePath, ImportContext.ObjectName );
+		FString PackagePath = UPackageTools::SanitizePackageName( FPaths::Combine( ImportContext.PackagePath, ImportContext.ObjectName ) );
 
 		UPackage* ImportedPackage = FindPackage( nullptr, *PackagePath );
 		if ( !ImportedPackage && FPackageName::DoesPackageExist( PackagePath ) )
