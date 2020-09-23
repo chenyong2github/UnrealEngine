@@ -22,11 +22,19 @@ namespace AudioModulation
 	FModulatorBusMixStageSettings::FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage, Audio::FDeviceId InDeviceId)
 		: TModulatorBase<FBusId>(InStage.Bus->GetName(), InStage.Bus->GetUniqueID())
 		, Address(InStage.Bus->Address)
-		, ParamClassId(InStage.Bus->Parameter->GetClass()->GetUniqueID())
-		, ParamId(InStage.Bus->Parameter->GetUniqueID())
+		, ParamClassId(INDEX_NONE)
+		, ParamId(INDEX_NONE)
 		, Value(InStage.Value)
 		, BusSettings(FControlBusSettings(*InStage.Bus, InDeviceId))
 	{
+		if (USoundModulationParameter* Parameter = InStage.Bus->Parameter)
+		{
+			ParamId = Parameter->GetUniqueID();
+
+			UClass* Class = Parameter->GetClass();
+			check(Class);
+			ParamClassId = Class->GetUniqueID();
+		}
 	}
 
 	FModulatorBusMixStageProxy::FModulatorBusMixStageProxy(const FModulatorBusMixStageSettings& InSettings, FAudioModulationSystem& OutModSystem)
