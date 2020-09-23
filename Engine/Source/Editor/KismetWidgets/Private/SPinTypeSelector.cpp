@@ -17,6 +17,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 
 #define LOCTEXT_NAMESPACE "PinTypeSelector"
 
@@ -212,6 +213,8 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 
 	SearchText = FText::GetEmpty();
 
+	ReadOnly = InArgs._ReadOnly;
+
 	OnTypeChanged = InArgs._OnPinTypeChanged;
 	OnTypePreChanged = InArgs._OnPinTypePreChanged;
 
@@ -262,168 +265,207 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				.Image(this, &SPinTypeSelector::GetTypeIconImage)
 				.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor);
 	}
-	else if (SelectorType == ESelectorType::Full)
+	else if (SelectorType == ESelectorType::Full || SelectorType == ESelectorType::Partial)
 	{
-		// Traditional Pin Type Selector with a combo button, the icon, the current type name, and a toggle button for being an array
-		TSharedPtr<SWidget> ContainerControl = SNew(SComboButton)
-		.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-		.HasDownArrow(false)
-		.MenuPlacement(EMenuPlacement::MenuPlacement_ComboBoxRight)
-		.OnGetMenuContent(
-			FOnGetContent::CreateLambda(
-				[this]()
-				{
-					typedef SListView< TSharedPtr<EPinContainerType> > SPinContainerListView;
-					return SNew(SPinContainerListView)
-						.ListItemsSource(&PinTypes)
-						.OnGenerateRow(
-							SPinContainerListView::FOnGenerateRow::CreateLambda(
-								[this](TSharedPtr<EPinContainerType> InPinContainerType, const TSharedRef<STableViewBase>& OwnerTable)->TSharedRef<ITableRow>
-								{
-									EPinContainerType PinContainerType = *InPinContainerType;
-									check(sizeof(Images) / sizeof(*Images) > (int32)PinContainerType);
-									check(sizeof(Tooltips) / sizeof(*Tooltips) > (int32)PinContainerType);
-									const FSlateBrush* SecondaryIcon = PinContainerType == EPinContainerType::Map ? FEditorStyle::GetBrush(TEXT("Kismet.VariableList.MapValueTypeIcon")) : nullptr;
+		TSharedPtr<SWidget> ContainerControl;
 
-									return SNew(STableRow<TSharedPtr<EPinContainerType>>, OwnerTable)
-										.Content()
-										[
-											SNew(
-												SLayeredImage,
-													SecondaryIcon,
-													TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor)
-													)
-											.Image(Images[(int32)PinContainerType])
-											.ToolTip(IDocumentation::Get()->CreateToolTip(Tooltips[(int32)PinContainerType], nullptr, *BigTooltipDocLink, TEXT("Containers")))
-											.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor)
-										]
-										.IsEnabled(
-											TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda( 
-												[PinContainerType, this]() 
-												{ 
-													return !ContainerRequiresGetTypeHash(PinContainerType) || FBlueprintEditorUtils::HasGetTypeHash( this->TargetPinType.Get() );
-												} ) )
+		if(SelectorType == ESelectorType::Full)
+		{
+			// Traditional Pin Type Selector with a combo button, the icon, the current type name, and a toggle button for being an array
+			ContainerControl = SNew(SComboButton)
+				.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+				.HasDownArrow(false)
+				.MenuPlacement(EMenuPlacement::MenuPlacement_ComboBoxRight)
+				.OnGetMenuContent(
+					FOnGetContent::CreateLambda(
+						[this]()
+						{
+							typedef SListView< TSharedPtr<EPinContainerType> > SPinContainerListView;
+							return SNew(SPinContainerListView)
+								.ListItemsSource(&PinTypes)
+								.OnGenerateRow(
+									SPinContainerListView::FOnGenerateRow::CreateLambda(
+										[this](TSharedPtr<EPinContainerType> InPinContainerType, const TSharedRef<STableViewBase>& OwnerTable)->TSharedRef<ITableRow>
+										{
+											EPinContainerType PinContainerType = *InPinContainerType;
+											check(sizeof(Images) / sizeof(*Images) > (int32)PinContainerType);
+											check(sizeof(Tooltips) / sizeof(*Tooltips) > (int32)PinContainerType);
+											const FSlateBrush* SecondaryIcon = PinContainerType == EPinContainerType::Map ? FEditorStyle::GetBrush(TEXT("Kismet.VariableList.MapValueTypeIcon")) : nullptr;
+
+											return SNew(STableRow<TSharedPtr<EPinContainerType>>, OwnerTable)
+												.Content()
+												[
+													SNew(SLayeredImage, SecondaryIcon, TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor))
+													.Image(Images[(int32)PinContainerType])
+													.ToolTip(IDocumentation::Get()->CreateToolTip(Tooltips[(int32)PinContainerType], nullptr, *BigTooltipDocLink, TEXT("Containers")))
+													.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor)
+												]
+											.IsEnabled(
+												TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(
+													[PinContainerType, this]()
+													{
+														return !ContainerRequiresGetTypeHash(PinContainerType) || FBlueprintEditorUtils::HasGetTypeHash(this->TargetPinType.Get());
+													}))
 											);
-								}
-							)
-						)
-						.OnSelectionChanged(
-							SPinContainerListView::FOnSelectionChanged::CreateLambda(
-								[this](TSharedPtr<EPinContainerType> InType, ESelectInfo::Type)
-								{
-									this->OnContainerTypeSelectionChanged(*InType);
-								}
-							)
-						);
-				}
-			)
-		)
-		.ContentPadding(0)
-		.ToolTip(IDocumentation::Get()->CreateToolTip( TAttribute<FText>(this, &SPinTypeSelector::GetToolTipForContainerWidget), NULL, *BigTooltipDocLink, TEXT("Containers")))
-		.IsEnabled( TargetPinType.Get().PinCategory != UEdGraphSchema_K2::PC_Exec )
-		.Visibility(InArgs._bAllowArrays ? EVisibility::Visible : EVisibility::Collapsed)
-		.ButtonContent()
-		[
-			SNew(
-				SLayeredImage,
-				TAttribute<const FSlateBrush*>(this, &SPinTypeSelector::GetSecondaryTypeIconImage),
-				TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor)
-			)
-			.Image(this, &SPinTypeSelector::GetTypeIconImage)
-			.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor)
-		];
+										}
+									)
+								)
+								.OnSelectionChanged(
+									SPinContainerListView::FOnSelectionChanged::CreateLambda(
+										[this](TSharedPtr<EPinContainerType> InType, ESelectInfo::Type)
+										{
+											this->OnContainerTypeSelectionChanged(*InType);
+										}
+									)
+								);
+						}
+					)
+				)
+				.ContentPadding(0)
+							.ToolTip(IDocumentation::Get()->CreateToolTip(TAttribute<FText>(this, &SPinTypeSelector::GetToolTipForContainerWidget), NULL, *BigTooltipDocLink, TEXT("Containers")))
+							.IsEnabled(TargetPinType.Get().PinCategory != UEdGraphSchema_K2::PC_Exec)
+							.Visibility(InArgs._bAllowArrays ? EVisibility::Visible : EVisibility::Collapsed)
+							.ButtonContent()
+							[
+								SNew(SLayeredImage, TAttribute<const FSlateBrush*>(this, &SPinTypeSelector::GetSecondaryTypeIconImage), TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor))
+								.Image(this, &SPinTypeSelector::GetTypeIconImage)
+								.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor)
+							];
+		}
 
-		Widget = SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
+		TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox).Clipping(EWidgetClipping::ClipToBoundsAlways);
+		Widget = HBox;
+
+		HBox->AddSlot()
+		.HAlign(HAlign_Left)
 		[
 			SNew(SBox)
-			.WidthOverride(100.f)
+			.WidthOverride(SelectorType == ESelectorType::Full ? 125.f : FOptionalSize())
 			[
-				SAssignNew( TypeComboButton, SComboButton )
-				.MenuPlacement(EMenuPlacement::MenuPlacement_ComboBoxRight)
+				SAssignNew(TypeComboButton, SComboButton)
+				.ComboButtonStyle(FAppStyle::Get(), SelectorType == ESelectorType::Full ? "ComboButton" : "BlueprintEditor.CompactVariableTypeSelector")
 				.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, false)
 				.ContentPadding(0)
 				.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxType)
+				.ForegroundColor(FSlateColor::UseForeground())
 				.ButtonContent()
 				[
 					SNew(SHorizontalBox)
-					.Clipping(EWidgetClipping::OnDemand)
-						
+					.Clipping(EWidgetClipping::ClipToBoundsAlways)
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Left)
+					.Padding(0.0f, 0.0f, 2.0f, 0.0f)
 					.AutoWidth()
 					[
 						SNew(SImage)
-						.Image( this, &SPinTypeSelector::GetTypeIconImage )
-						.ColorAndOpacity( this, &SPinTypeSelector::GetTypeIconColor )
+						.Image(this, &SPinTypeSelector::GetTypeIconImage)
+						.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor)
 					]
-						
 					+ SHorizontalBox::Slot()
+					.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Left)
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text( this, &SPinTypeSelector::GetTypeDescription )
+						.Text(this, &SPinTypeSelector::GetTypeDescription )
 						.Font(InArgs._Font)
-					]
-				]
-			]
-		]
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
-		[
-			ContainerControl.ToSharedRef()
-		]
-
-		+SHorizontalBox::Slot()
-		[
-			SNew(SBox)
-			.Visibility(
-				TAttribute<EVisibility>::Create(
-					TAttribute<EVisibility>::FGetter::CreateLambda(
-						[this]() {return this->TargetPinType.Get().IsMap() == true ? EVisibility::Visible : EVisibility::Collapsed; }
-					)
-				)
-			)
-			[
-				SAssignNew( SecondaryTypeComboButton, SComboButton )
-				.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, true )
-				.ContentPadding(0)
-				.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxSecondaryType)
-				.ButtonContent()
-				[
-					SNew(SHorizontalBox)
-					.Clipping(EWidgetClipping::OnDemand)
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Center)
-					[
-						SNew(SImage)
-						.Image( this, &SPinTypeSelector::GetSecondaryTypeIconImage )
-						.ColorAndOpacity( this, &SPinTypeSelector::GetSecondaryTypeIconColor )
-					]
-					+SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					[
-						SNew(STextBlock)
-						.Text( this, &SPinTypeSelector::GetSecondaryTypeDescription )
-						.Font(InArgs._Font)
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]
 			]
 		];
+
+		if(SelectorType == ESelectorType::Full)
+		{
+			HBox->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					ContainerControl.ToSharedRef()
+				];
+	
+			HBox->AddSlot()
+			[
+				SNew(SBox)
+				.Visibility(
+					TAttribute<EVisibility>::Create(
+						TAttribute<EVisibility>::FGetter::CreateLambda(
+							[this]() {return this->TargetPinType.Get().IsMap() == true ? EVisibility::Visible : EVisibility::Collapsed; }
+						)
+					)
+				)
+				[
+					SAssignNew( SecondaryTypeComboButton, SComboButton )
+					.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, true )
+					.ContentPadding(0)
+					.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxSecondaryType)
+					.ButtonContent()
+					[
+						SNew(SHorizontalBox)
+						.Clipping(EWidgetClipping::OnDemand)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+						[
+							SNew(SImage)
+							.Image( this, &SPinTypeSelector::GetSecondaryTypeIconImage )
+							.ColorAndOpacity( this, &SPinTypeSelector::GetSecondaryTypeIconColor )
+						]
+						+SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+						[
+							SNew(STextBlock)
+							.Text( this, &SPinTypeSelector::GetSecondaryTypeDescription )
+							.Font(InArgs._Font)
+						]
+					]
+				]
+			];
+		}
 	}
+
+
 	this->ChildSlot
 	[
-		Widget.ToSharedRef()
+		SNew(SWidgetSwitcher)
+		.WidgetIndex_Lambda([this](){return ReadOnly.Get() ? 1 : 0; })
+		+ SWidgetSwitcher::Slot()
+		[
+			Widget.ToSharedRef()
+		]
+		+ SWidgetSwitcher::Slot()
+		[
+			SNew(SHorizontalBox)
+			.Clipping(EWidgetClipping::OnDemand)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.Padding(FMargin(0.0f, 2.0f, 2.0f, 2.0f))
+			.AutoWidth()
+			[
+				SNew(SImage)
+				.Image(this, &SPinTypeSelector::GetTypeIconImage)
+				.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor)
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(2.0f, 2.0f)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(this, &SPinTypeSelector::GetTypeDescription)
+				.Font(InArgs._Font)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+			]
+		]	
 	];
 }
 

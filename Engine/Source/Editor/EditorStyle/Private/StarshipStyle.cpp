@@ -5243,6 +5243,17 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 			.SetNormalPadding ( FMargin( 0,0,0,0 ) )
 			.SetPressedPadding( FMargin( 1,1,2,2 ) )
 			);
+
+		const FComboButtonStyle& SimpleComboButton = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton");
+		
+		Set("BlueprintEditor.CompactVariableTypeSelector", 
+			FComboButtonStyle(SimpleComboButton)
+			.SetDownArrowPadding(0)
+			.SetButtonStyle(
+				FButtonStyle(SimpleComboButton.ButtonStyle)
+				.SetNormalPadding(FMargin(0, 2, 2, 2))
+				.SetPressedPadding(FMargin(0, 3, 2, 1)))
+		);
 	}
 
 	// Access modifier display in MyBlueprint window for functions/variables

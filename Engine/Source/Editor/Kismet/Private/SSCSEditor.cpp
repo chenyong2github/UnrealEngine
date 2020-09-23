@@ -4042,7 +4042,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		]
 
 		+ SVerticalBox::Slot()
-		.Padding(0.0f, 0.0f)
+		.Padding(4.0f, 0.0f)
 		[
 			SNew(SBox)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ComponentsPanel")))

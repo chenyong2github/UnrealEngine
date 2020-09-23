@@ -694,6 +694,7 @@ class SPinTypeSelectorHelper : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SPinTypeSelectorHelper ) {}
+		SLATE_ATTRIBUTE(bool, ReadOnly)
 	SLATE_END_ARGS()
 
 	/**
@@ -714,11 +715,12 @@ public:
 		this->ChildSlot
 		[
 			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
+			.ReadOnly(InArgs._ReadOnly)
 			.Schema(Schema)
 			.TargetPinType(this, &SPinTypeSelectorHelper::OnGetVarType)
 			.OnPinTypeChanged(this, &SPinTypeSelectorHelper::OnVarTypeChanged)
 			.TypeTreeFilter(ETypeTreeFilter::None)
-			.SelectorType(BlueprintEditorPtr.IsValid() ? SPinTypeSelector::ESelectorType::Compact : SPinTypeSelector::ESelectorType::None)
+			.SelectorType(BlueprintEditorPtr.IsValid() ? SPinTypeSelector::ESelectorType::Partial : SPinTypeSelector::ESelectorType::None)
 		];
 	}
 
@@ -1079,7 +1081,8 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 			{
 				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 				IconWidget = SNew(SPinTypeSelectorHelper, VariableProp, Blueprint, BlueprintEditorPtr)
-					.IsEnabled(bIsEditingEnabled);
+					.IsEnabled(bIsEditingEnabled)
+					.ReadOnly_Lambda([this]() {return !IsHovered(); });
 			}
 		}
 	};
@@ -1154,52 +1157,83 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 	// Create the widget with an icon
 	TSharedRef<SHorizontalBox> ActionBox = SNew(SHorizontalBox)		
 		.AddMetaData<FTutorialMetaData>(TagMeta);
-
-	ActionBox.Get().AddSlot()
-		.AutoWidth()
-		.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0f))
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SPaletteItemVisibilityToggle, ActionPtr, InBlueprintEditor, InBlueprint)
-			.IsEnabled(bIsEditingEnabled)
-		];
-
-
-	ActionBox.Get().AddSlot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			IconWidget
-		];
-
-	// Only add an access specifier if we have one
-	if (ActionAccessSpecifier != EAccessSpecifier::None)
+	
+	if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId() || GraphAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
 	{
 		ActionBox.Get().AddSlot()
-			.MaxWidth(50.f)
-			.FillWidth(AccessSpecifierEnabled ? 0.4f : 0.0f)
-			.Padding(FMargin(/* horizontal */ AccessSpecifierEnabled ? 6.0f : 0.0f, /* vertical */ 0.0f))
+			.FillWidth(0.6f)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
+			.Padding(3.0f, 0.0f)
 			[
-				SNew(STextBlock)
-				// Will only display text if we have a modifier level
+				NameSlotWidget
+			];
+
+		ActionBox.Get().AddSlot()
+			.FillWidth(0.4f)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				IconWidget
+			];
+
+		ActionBox.Get().AddSlot()
+			.AutoWidth()
+			.Padding(FMargin(6.0f, 0.0f, 3.0f, 0.0f))
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SPaletteItemVisibilityToggle, ActionPtr, InBlueprintEditor, InBlueprint)
+				.IsEnabled(bIsEditingEnabled)
+			];
+	}
+	else
+	{
+		ActionBox.Get().AddSlot()
+			.AutoWidth()
+			.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0f))
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SPaletteItemVisibilityToggle, ActionPtr, InBlueprintEditor, InBlueprint)
+				.IsEnabled(bIsEditingEnabled)
+			];
+
+
+		ActionBox.Get().AddSlot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				IconWidget
+			];
+
+		// Only add an access specifier if we have one
+		if (ActionAccessSpecifier != EAccessSpecifier::None)
+		{
+			ActionBox.Get().AddSlot()
+				.MaxWidth(50.f)
+				.FillWidth(AccessSpecifierEnabled ? 0.4f : 0.0f)
+				.Padding(FMargin(/* horizontal */ AccessSpecifierEnabled ? 6.0f : 0.0f, /* vertical */ 0.0f))
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					// Will only display text if we have a modifier level
 					.IsEnabled(AccessSpecifierEnabled)
 					.Text(AccessModifierText)
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 					// Bold if public
 					.TextStyle(FEditorStyle::Get(), ActionAccessSpecifier == EAccessSpecifier::Public ? "BlueprintEditor.AccessModifier.Public" : "BlueprintEditor.AccessModifier.Default")
+				];
+		}
+
+		ActionBox.Get().AddSlot()
+			.FillWidth(1.f)
+			.VAlign(VAlign_Center)
+			.Padding(/* horizontal */ 3.0f, /* vertical */ 3.0f)
+			[
+				NameSlotWidget
 			];
 	}
-
-	ActionBox.Get().AddSlot()
-		.FillWidth(1.f)
-		.VAlign(VAlign_Center)
-		.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
-		[
-			NameSlotWidget
-		];
 
 	// Now, create the actual widget
 	ChildSlot

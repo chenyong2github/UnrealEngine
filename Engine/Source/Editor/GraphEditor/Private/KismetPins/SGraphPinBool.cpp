@@ -13,7 +13,6 @@ void SGraphPinBool::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinO
 TSharedRef<SWidget>	SGraphPinBool::GetDefaultValueWidget()
 {
 	return SNew(SCheckBox)
-		.Style(FEditorStyle::Get(), "Graph.Checkbox")
 		.IsChecked(this, &SGraphPinBool::IsDefaultValueChecked)
 		.IsEnabled(this, &SGraphPin::GetDefaultValueIsEditable)
 		.OnCheckStateChanged(this, &SGraphPinBool::OnDefaultValueCheckBoxChanged)

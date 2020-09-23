@@ -50,19 +50,24 @@ public:
 	enum class ESelectorType : uint8
 	{
 		None,
+		// Shows only the type selector pill
 		Compact,
+		// Shows the type selector pill and full name of type
+		Partial,
+		// Shows the type selector pill, full name of type, and container selection type
 		Full
 	};
 
-	SLATE_BEGIN_ARGS( SPinTypeSelector )
+	SLATE_BEGIN_ARGS(SPinTypeSelector)
 		: _TargetPinType()
 		, _Schema(nullptr)
 		, _TypeTreeFilter(ETypeTreeFilter::None)
 		, _bAllowArrays(true)
 		, _TreeViewWidth(300.f)
 		, _TreeViewHeight(400.f)
-		, _Font( FEditorStyle::GetFontStyle( TEXT("NormalFont") ) )
-		, _SelectorType( ESelectorType::Full )
+		, _Font(FEditorStyle::GetFontStyle(TEXT("NormalFont")))
+		, _SelectorType(ESelectorType::Full)
+		, _ReadOnly(false)
 		{}
 		SLATE_ATTRIBUTE( FEdGraphPinType, TargetPinType )
 		SLATE_ARGUMENT( const UEdGraphSchema_K2*, Schema )
@@ -74,6 +79,7 @@ public:
 		SLATE_EVENT( FOnPinTypeChanged, OnPinTypeChanged )
 		SLATE_ATTRIBUTE( FSlateFontInfo, Font )
 		SLATE_ARGUMENT( ESelectorType, SelectorType )
+		SLATE_ATTRIBUTE(bool, ReadOnly);
 	SLATE_END_ARGS()
 public:
 	void Construct(const FArguments& InArgs, FGetPinTypeTree GetPinTypeTreeFunc);
@@ -138,6 +144,9 @@ protected:
 
 	/** Whether the selector is using the compact or full mode, or not a selector at all, but just the type image.*/
 	ESelectorType SelectorType;
+
+	/** Whether or not the type is read only and not editable (implies a different style) */
+	TAttribute<bool> ReadOnly;
 
 	/** Holds a cache of the allowed Object Reference types for the last sub-menu opened. */
 	TArray<FObjectReferenceListItem> AllowedObjectReferenceTypes;
