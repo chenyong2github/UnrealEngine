@@ -544,6 +544,7 @@ void UCurveControlPointsMechanic::UpdatePointLocation(int32 PointID, const FVect
 
 bool UCurveControlPointsMechanic::HitTest(const FInputDeviceRay& ClickPos, FInputRayHit& ResultOut)
 {
+	ResultOut = FInputRayHit();
 	FGeometrySet3::FNearest Nearest;
 
 	// See if we are adding a new point (either in interactive initialization, or by adding a point on the end)
@@ -553,7 +554,10 @@ bool UCurveControlPointsMechanic::HitTest(const FInputDeviceRay& ClickPos, FInpu
 	{
 		FVector3d HitPoint;
 		bool bHit = DrawPlane.RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, 2, HitPoint);
-		ResultOut = FInputRayHit(ClickPos.WorldRay.GetParameter((FVector)HitPoint));
+		if (bHit)
+		{
+			ResultOut = FInputRayHit(ClickPos.WorldRay.GetParameter((FVector)HitPoint));
+		}
 		return bHit;
 	}
 	// Otherwise, see if we are in insert mode and hitting a segment
