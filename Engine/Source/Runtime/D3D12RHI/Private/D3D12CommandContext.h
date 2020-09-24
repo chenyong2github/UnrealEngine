@@ -487,11 +487,7 @@ public:
 
 	// Special implementation that only signal the fence once.
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) final override;
-	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;
-
-	// Special implementation that only signal the fence once.
-	virtual void RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
-	virtual void RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
+	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;	
 
 	FORCEINLINE virtual void RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override
 	{
