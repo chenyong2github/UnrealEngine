@@ -19,7 +19,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("13D0F6D9-69DA-432F-B440-8F9013E6DC62")
+#define NANITE_DERIVEDDATA_VER TEXT("BEF7ACD2-BFF8-4B83-8A38-7B370FC1C7F6")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -3896,7 +3896,7 @@ static uint32 BuildCoarseRepresentation(
 		Section.MaterialIndex = Range.MaterialIndex;
 
 		// Range of vertices and indices used when rendering this section.
-		Section.FirstIndex = Range.RangeStart;
+		Section.FirstIndex = Range.RangeStart * 3;
 		Section.NumTriangles = Range.RangeLength;
 		Section.MinVertexIndex = TNumericLimits<uint32>::Max();
 		Section.MaxVertexIndex = TNumericLimits<uint32>::Min();
