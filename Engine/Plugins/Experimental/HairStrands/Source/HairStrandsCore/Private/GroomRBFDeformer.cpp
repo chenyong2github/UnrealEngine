@@ -7,6 +7,7 @@
 #include "GroomBuilder.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "MeshAttributes.h"
+#include "Engine/StaticMesh.h"
 
 // HairStrandsSamplesInit.usf
 void InitMeshSamples(
