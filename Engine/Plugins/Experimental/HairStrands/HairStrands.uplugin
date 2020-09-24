@@ -18,11 +18,7 @@
 		{
 			"Name": "HairStrandsCore",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"
-			]
+			"LoadingPhase": "PostConfigInit"
 		},
 		{
 			"Name": "HairStrandsEditor",
