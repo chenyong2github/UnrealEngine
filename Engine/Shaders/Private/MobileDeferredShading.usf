@@ -15,6 +15,8 @@
 #include "ReflectionEnvironmentComposite.ush"
 #if METAL_PROFILE
 #include "/Engine/Public/Platform/Metal/MetalSubpassSupport.ush"
+#elif VULKAN_PROFILE
+#include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
 #endif
 
 #ifndef INVERSE_SQUARED_FALLOFF 
@@ -51,7 +53,7 @@ void FetchGBuffer(in float2 UV, out float4 GBufferA, out float4 GBufferB, out fl
 	GBufferB = VulkanSubpassFetch2(); 
 	GBufferC = VulkanSubpassFetch3(); 
 	GBufferD = 0;
-	SceneDepth = ConvertFromDeviceZ(VulkanSubpassFetch4().r);
+	SceneDepth = ConvertFromDeviceZ(VulkanSubpassDepthFetch());
 #elif METAL_PROFILE
 	GBufferA = SubpassFetchRGBA_1(); 
 	GBufferB = SubpassFetchRGBA_2(); 
