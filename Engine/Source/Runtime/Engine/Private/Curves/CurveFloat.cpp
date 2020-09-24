@@ -68,4 +68,3 @@ bool UCurveFloat::operator==( const UCurveFloat& Curve ) const
 {
 	return bIsEventCurve == Curve.bIsEventCurve && FloatCurve == Curve.FloatCurve;
 }
-

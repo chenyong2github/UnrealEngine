@@ -6960,6 +6960,49 @@ int32 FHLSLMaterialTranslator::SkyAtmosphereDistantLightScatteredLuminance()
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth)
+{
+	if (ShaderFrequency == SF_Vertex && FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	{
+		// mobile currently does not support this, we need to read a separate copy of the depth, we must disable framebuffer fetch and force scene texture reads.
+		return Errorf(TEXT("Cannot read scene depth from the vertex shader with feature level ES3.1 or below."));
+	}
+
+	if (!Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Shading Model is Single Layer Water."));
+	}
+	
+	if (Material->GetMaterialDomain() != MD_Surface)
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Domain is set to Surface."));
+	}
+
+	if (IsTranslucentBlendMode(Material->GetBlendMode()))
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Blend Mode isn't translucent."));
+	}
+
+	if (Offset == INDEX_NONE && bUseOffset)
+	{
+		return INDEX_NONE;
+	}
+
+	AddEstimatedTextureSample();
+
+	const FString UserDepthCode(TEXT("MaterialExpressionSceneDepthWithoutWater(%s, %s)"));
+	const FString FallbackString(FString::SanitizeFloat(FallbackDepth));
+	const int32 TexCoordCode = GetScreenAlignedUV(Offset, ViewportUV, bUseOffset);
+
+	// add the code string
+	return AddCodeChunk(
+		MCT_Float,
+		*UserDepthCode,
+		*GetParameterCode(TexCoordCode),
+		*FallbackString
+	);
+}
+
 int32 FHLSLMaterialTranslator::GetCloudSampleAltitude()
 {
 	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionCloudSampleAltitude(Parameters)"));

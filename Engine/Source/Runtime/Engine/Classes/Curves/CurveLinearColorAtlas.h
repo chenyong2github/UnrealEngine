@@ -17,7 +17,7 @@ static FName NAME_GradientScale = FName(TEXT("GradientScale"));
 static FName NAME_GradientCount = FName(TEXT("GradientCount"));
 
 class UCurveLinearColor;
-
+class UCurveBase;
 
 
 /**
@@ -38,7 +38,7 @@ class ENGINE_API UCurveLinearColorAtlas : public UTexture2D
 	}
 
 	// Immediately render a new material to the specified slot index(SlotIndex must be within this section's range)
-	void UpdateGradientSlot(UCurveLinearColor* Gradient);
+	void OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::Type ChangeType);
 
 	// Re-render all texture groups
 	void UpdateTextures();
