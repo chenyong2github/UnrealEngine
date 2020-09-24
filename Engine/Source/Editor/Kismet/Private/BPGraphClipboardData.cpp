@@ -42,6 +42,8 @@ void FBPGraphClipboardData::SetFromGraph(const UEdGraph* InFuncGraph)
 {
 	if (InFuncGraph)
 	{
+		OriginalBlueprint = Cast<UBlueprint>(InFuncGraph->GetOuter());
+
 		GraphName = InFuncGraph->GetFName();
 
 		if (const UEdGraphSchema* Schema = InFuncGraph->GetSchema())
@@ -61,7 +63,7 @@ void FBPGraphClipboardData::SetFromGraph(const UEdGraph* InFuncGraph)
 	}
 }
 
-UEdGraph* FBPGraphClipboardData::CreateAndPopulateGraph(UBlueprint* InBlueprint, FBlueprintEditor* InBlueprintEditor, const FText& InCategoryOverride)
+UEdGraph* FBPGraphClipboardData::CreateAndPopulateGraph(UBlueprint* InBlueprint, UBlueprint* FromBP, FBlueprintEditor* InBlueprintEditor, const FText& InCategoryOverride)
 {
 	if (InBlueprint && IsValid())
 	{
@@ -74,7 +76,7 @@ UEdGraph* FBPGraphClipboardData::CreateAndPopulateGraph(UBlueprint* InBlueprint,
 
 		if (Graph)
 		{
-			if (!PopulateGraph(Graph, InBlueprintEditor))
+			if (!PopulateGraph(Graph, FromBP, InBlueprintEditor))
 			{
 				FBlueprintEditorUtils::RemoveGraph(InBlueprint, Graph);
 				return nullptr;
@@ -129,7 +131,7 @@ UEdGraph* FBPGraphClipboardData::CreateAndPopulateGraph(UBlueprint* InBlueprint,
 	return nullptr;
 }
 
-bool FBPGraphClipboardData::PopulateGraph(UEdGraph* InFuncGraph, FBlueprintEditor* InBlueprintEditor)
+bool FBPGraphClipboardData::PopulateGraph(UEdGraph* InFuncGraph, UBlueprint* FromBP, FBlueprintEditor* InBlueprintEditor)
 {
 	if (FEdGraphUtilities::CanImportNodesFromText(InFuncGraph, NodesString))
 	{
@@ -153,7 +155,7 @@ bool FBPGraphClipboardData::PopulateGraph(UEdGraph* InFuncGraph, FBlueprintEdito
 			}
 			if (FixupNodes.Num() > 0)
 			{
-				if (!SFixupSelfContextDialog::CreateModal(FixupNodes, InBlueprintEditor, FixupNodes.Num() != PastedNodes.Num()))
+				if (!SFixupSelfContextDialog::CreateModal(FixupNodes, FromBP, InBlueprintEditor, FixupNodes.Num() != PastedNodes.Num()))
 				{
 					for (UEdGraphNode* Node : PastedNodes)
 					{
