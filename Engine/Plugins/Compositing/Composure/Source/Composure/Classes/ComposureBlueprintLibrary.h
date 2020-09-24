@@ -19,10 +19,23 @@ struct FComposureActorLayer
 {
 	GENERATED_BODY()
 
+	/** Used to convert a serialized ActorLayer property to ComposureActorLayer */
+		bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+
 	/** The name of this layer */
 		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Layer)
 		FName Name;
 };
+
+template<>
+struct TStructOpsTypeTraits<FComposureActorLayer> : public TStructOpsTypeTraitsBase2<FComposureActorLayer>
+{
+	enum
+	{
+		WithStructuredSerializeFromMismatchedTag = true,
+	};
+};
+
 
 UCLASS(MinimalAPI, meta=(ScriptName="ComposureLibrary"))
 class UComposureBlueprintLibrary : public UBlueprintFunctionLibrary
