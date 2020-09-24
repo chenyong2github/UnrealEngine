@@ -14,6 +14,17 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#if PLATFORM_WINDOWS
+#	define TRACE_PRIVATE_STOMP 0 // 1=overflow, 2=underflow
+#	if TRACE_PRIVATE_STOMP
+#	include "Windows/AllowWindowsPlatformTypes.h"
+#		include "Windows/WindowsHWrapper.h"
+#	include "Windows/HideWindowsPlatformTypes.h"
+#	endif
+#else
+#	define TRACE_PRIVATE_STOMP 0
+#endif
+
 namespace Trace {
 namespace Private {
 
@@ -31,14 +42,14 @@ void			Writer_ShutdownControl();
 
 
 ////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync|Important)
+UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync)
 	UE_TRACE_EVENT_FIELD(uint32, Serial)
 	UE_TRACE_EVENT_FIELD(uint16, UserUidBias)
 	UE_TRACE_EVENT_FIELD(uint16, Endian)
 	UE_TRACE_EVENT_FIELD(uint8, PointerSize)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN($Trace, Timing, NoSync|Important)
+UE_TRACE_EVENT_BEGIN($Trace, Timing, NoSync)
 	UE_TRACE_EVENT_FIELD(uint64, StartCycle)
 	UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
 UE_TRACE_EVENT_END()
@@ -51,14 +62,6 @@ uint64							GStartCycle;		// = 0;
 TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-enum EKnownThreadIds
-{
-	Tid_NewEvents,
-	Tid_Header,
-	Tid_Process		= 8,
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FWriteTlsContext
@@ -88,8 +91,8 @@ uint32 FWriteTlsContext::GetThreadId()
 	}
 
 	static uint32 volatile Counter;
-	ThreadId = AtomicAddRelaxed(&Counter, 1u) + 1;
-	return ThreadId + Tid_Process;
+	ThreadId = AtomicAddRelaxed(&Counter, 1u) + ETransportTid::Bias;
+	return ThreadId;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,6 +112,26 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 	TWriteBufferRedirect<6 << 10> TraceData;
 
 	void* Ret = nullptr;
+
+#if TRACE_PRIVATE_STOMP
+	static uint8* Base;
+	if (Base == nullptr)
+	{
+		Base = (uint8*)VirtualAlloc(0, 1ull << 40, MEM_RESERVE, PAGE_READWRITE);
+	}
+
+	static SIZE_T PageSize = 4096;
+	Base += PageSize;
+	uint8* NextBase = Base + ((PageSize - 1 + Size) & ~(PageSize - 1));
+	VirtualAlloc(Base, SIZE_T(NextBase - Base), MEM_COMMIT, PAGE_READWRITE);
+#if TRACE_PRIVATE_STOMP == 1
+	Ret = NextBase - Size;
+#elif TRACE_PRIVATE_STOMP == 2
+	Ret = Base;
+#endif
+	Base = NextBase;
+#else // TRACE_PRIVATE_STOMP
+
 #if defined(_MSC_VER)
 	Ret = _aligned_malloc(Size, Alignment);
 #elif (defined(__ANDROID_API__) && __ANDROID_API__ < 28) || defined(__APPLE__)
@@ -116,6 +139,7 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 #else
 	Ret = aligned_alloc(Alignment, Size);
 #endif
+#endif // TRACE_PRIVATE_STOMP
 
 	if (TraceData.GetSize())
 	{
@@ -127,8 +151,22 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Writer_MemoryFree(void* Address)
+void Writer_MemoryFree(void* Address, uint32 Size)
 {
+#if TRACE_PRIVATE_STOMP
+	if (Address == nullptr)
+	{
+		return;
+	}
+
+	*(uint8*)Address = 0xfe;
+
+	MEMORY_BASIC_INFORMATION MemInfo;
+	VirtualQuery(Address, &MemInfo, sizeof(MemInfo));
+
+	DWORD Unused;
+	VirtualProtect(MemInfo.BaseAddress, MemInfo.RegionSize, PAGE_READONLY, &Unused);
+#else // TRACE_PRIVATE_STOMP
 	TWriteBufferRedirect<6 << 10> TraceData;
 
 #if defined(_MSC_VER)
@@ -142,6 +180,7 @@ void Writer_MemoryFree(void* Address)
 		uint32 ThreadId = Writer_GetThreadId();
 		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
 	}
+#endif // TRACE_PRIVATE_STOMP
 }
 
 
@@ -149,6 +188,16 @@ void Writer_MemoryFree(void* Address)
 ////////////////////////////////////////////////////////////////////////////////
 static UPTRINT					GDataHandle;		// = 0
 UPTRINT							GPendingDataHandle;	// = 0
+
+////////////////////////////////////////////////////////////////////////////////
+void Writer_SendDataRaw(const void* Data, uint32 Size)
+{
+	if (!IoWrite(GDataHandle, Data, Size))
+	{
+		IoClose(GDataHandle);
+		GDataHandle = 0;
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
@@ -175,11 +224,7 @@ uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 		Packet->ThreadId = uint16(ThreadId & 0x7fff);
 		Packet->PacketSize = uint16(Size);
 
-		if (!IoWrite(GDataHandle, Data, Size))
-		{
-			IoClose(GDataHandle);
-			GDataHandle = 0;
-		}
+		Writer_SendDataRaw(Data, Size);
 
 		return Size;
 	}
@@ -205,13 +250,49 @@ uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 	Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
 	Packet.PacketSize += sizeof(FPacketEncoded);
 
-	if (!IoWrite(GDataHandle, (uint8*)&Packet, Packet.PacketSize))
-	{
-		IoClose(GDataHandle);
-		GDataHandle = 0;
-	}
+	Writer_SendDataRaw(&Packet, Packet.PacketSize);
 
 	return Packet.PacketSize;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 Writer_SendData(uint8* __restrict Data, uint32 Size)
+{
+	return Writer_SendData(ETransportTid::Internal, Data, Size);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_DescribeEvents()
+{
+	TWriteBufferRedirect<4096> TraceData;
+
+	FEventNode::FIter Iter = FEventNode::ReadNew();
+	while (const FEventNode* Event = Iter.GetNext())
+	{
+		Event->Describe();
+
+		// Flush just in case an NewEvent event will be larger than 512 bytes.
+		if (TraceData.GetSize() >= (TraceData.GetCapacity() - 512))
+		{
+			Writer_SendData(TraceData.GetData(), TraceData.GetSize());
+			TraceData.Reset();
+		}
+	}
+
+	if (TraceData.GetSize())
+	{
+		Writer_SendData(TraceData.GetData(), TraceData.GetSize());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_AnnounceChannels()
+{
+	FChannel::Iter Iter = FChannel::ReadNew();
+	while (const FChannel* Channel = Iter.GetNext())
+	{
+		Channel->Announce();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -222,35 +303,8 @@ static void Writer_DescribeAnnounce()
 		return;
 	}
 
-	// Describe new events
-	{
-		TWriteBufferRedirect<4096> TraceData;
-
-		FEventNode::FIter Iter = FEventNode::ReadNew();
-		while (const FEventNode* Event = Iter.GetNext())
-		{
-			Event->Describe();
-
-			// Flush just in case an NewEvent event will be larger than 512 bytes.
-			if (TraceData.GetSize() >= (TraceData.GetCapacity() - 512))
-			{
-				Writer_SendData(Tid_NewEvents, TraceData.GetData(), TraceData.GetSize());
-				TraceData.Reset();
-			}
-		}
-
-		if (TraceData.GetSize())
-		{
-			Writer_SendData(Tid_NewEvents, TraceData.GetData(), TraceData.GetSize());
-		}
-	}
-
-	// Announce new channels
-	FChannel::Iter Iter = FChannel::ReadNew();
-	while (const FChannel* Channel = Iter.GetNext())
-	{
-		Channel->Announce();
-	}
+	Writer_DescribeEvents();
+	Writer_AnnounceChannels();
 }
 
 
@@ -274,7 +328,7 @@ static void Writer_LogTimingHeader()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static bool Writer_UpdateData()
+static bool Writer_UpdateConnection()
 {
 	if (!GPendingDataHandle)
 	{
@@ -311,12 +365,14 @@ static bool Writer_UpdateData()
 	}
 
 	// Send the header events
-	{
-		TWriteBufferRedirect<512> HeaderEvents;
-		Writer_LogHeader();
-		Writer_LogTimingHeader();
-		Writer_SendData(Tid_Header, HeaderEvents.GetData(), HeaderEvents.GetSize());
-	}
+	TWriteBufferRedirect<512> HeaderEvents;
+	Writer_LogHeader();
+	Writer_LogTimingHeader();
+	HeaderEvents.Close();
+
+	Writer_DescribeEvents();
+
+	Writer_SendData(HeaderEvents.GetData(), HeaderEvents.GetSize());
 
 	return true;
 }
@@ -331,7 +387,7 @@ static volatile bool	GWorkerThreadQuit;	// = false;
 static void Writer_WorkerUpdate()
 {
 	Writer_UpdateControl();
-	Writer_UpdateData();
+	Writer_UpdateConnection();
 	Writer_DescribeAnnounce();
 	Writer_DrainBuffers();
 }
@@ -352,7 +408,7 @@ static void Writer_WorkerThread()
 		ThreadSleep(SleepMs);
 		PrologueMs -= SleepMs;
 
-		if (Writer_UpdateData())
+		if (Writer_UpdateConnection())
 		{
 			break;
 		}
@@ -366,8 +422,6 @@ static void Writer_WorkerThread()
 		const uint32 SleepMs = 17;
 		ThreadSleep(SleepMs);
 	}
-
-	Writer_DrainBuffers();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -394,8 +448,6 @@ static void Writer_InternalInitializeImpl()
 	GInitialized = true;
 	GStartCycle = TimeGetTimestamp();
 
-	Trace::ThreadRegister(TEXT("GameThread"), 0, -1);
-
 	Writer_InitializePool();
 	Writer_InitializeControl();
 }
@@ -414,6 +466,15 @@ static void Writer_InternalShutdown()
 		ThreadJoin(GWorkerThread);
 		ThreadDestroy(GWorkerThread);
 		GWorkerThread = 0;
+	}
+
+	Writer_WorkerUpdate();
+	Writer_DrainBuffers();
+
+	if (GDataHandle)
+	{
+		IoClose(GDataHandle);
+		GDataHandle = 0;
 	}
 
 	Writer_ShutdownControl();
@@ -450,6 +511,12 @@ void Writer_Initialize(const FInitializeDesc& Desc)
 	{
 		Writer_WorkerCreate();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void Writer_Shutdown()
+{
+	Writer_InternalShutdown();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

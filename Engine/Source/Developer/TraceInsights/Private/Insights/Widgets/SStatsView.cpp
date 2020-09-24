@@ -32,6 +32,8 @@
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
 
+#include <limits>
+
 #define LOCTEXT_NAMESPACE "SStatsView"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -47,7 +49,8 @@ SStatsView::SStatsView()
 	, ColumnSortMode(GetDefaultColumnSortMode())
 	, Aggregator(MakeShared<Insights::FCounterAggregator>())
 {
-	FMemory::Memset(bStatsNodeIsVisible, 1);
+	FMemory::Memset(FilterByNodeType, 1);
+	FMemory::Memset(FilterByDataType, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -169,14 +172,14 @@ void SStatsView::Construct(const FArguments& InArgs)
 					.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
 					.FillWidth(1.0f)
 					[
-						GetToggleButtonForStatsType(EStatsNodeType::Int64)
+						GetToggleButtonForDataType(EStatsNodeDataType::Int64)
 					]
 
 					+ SHorizontalBox::Slot()
 					.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
 					.FillWidth(1.0f)
 					[
-						GetToggleButtonForStatsType(EStatsNodeType::Float)
+						GetToggleButtonForDataType(EStatsNodeDataType::Double)
 					]
 				]
 			]
@@ -678,7 +681,8 @@ void SStatsView::ApplyFiltering()
 			// Add a child.
 			const FStatsNodePtr& NodePtr = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(GroupChildren[Cx]);
 			const bool bIsChildVisible = (!bFilterOutZeroCountStats || NodePtr->GetAggregatedStats().Count > 0)
-									  && bStatsNodeIsVisible[static_cast<int>(NodePtr->GetType())]
+									  && FilterByNodeType[static_cast<int>(NodePtr->GetType())]
+									  && FilterByDataType[static_cast<int>(NodePtr->GetDataType())]
 									  && Filters->PassesAllFilters(NodePtr);
 			if (bIsChildVisible)
 			{
@@ -730,6 +734,77 @@ void SStatsView::ApplyFiltering()
 		}
 	}
 
+	// Update aggregations for groups.
+	for (FStatsNodePtr& GroupPtr : FilteredGroupNodes)
+	{
+		FAggregatedStats& AggregatedStats = GroupPtr->GetAggregatedStats();
+
+		GroupPtr->ResetAggregatedStats();
+
+		AggregatedStats.DoubleStats.Min = std::numeric_limits<double>::max();
+		AggregatedStats.DoubleStats.Max = std::numeric_limits<double>::lowest();
+		constexpr double NotAvailableDoubleValue = std::numeric_limits<double>::quiet_NaN();
+		AggregatedStats.DoubleStats.Average = NotAvailableDoubleValue;
+		AggregatedStats.DoubleStats.Median = NotAvailableDoubleValue;
+		AggregatedStats.DoubleStats.LowerQuartile = NotAvailableDoubleValue;
+		AggregatedStats.DoubleStats.UpperQuartile = NotAvailableDoubleValue;
+
+		AggregatedStats.Int64Stats.Min = std::numeric_limits<int64>::max();
+		AggregatedStats.Int64Stats.Max = std::numeric_limits<int64>::lowest();
+		constexpr int64 NotAvailableIntegerValue = 0;// std::numeric_limits<int64>::max();
+		AggregatedStats.Int64Stats.Average = NotAvailableIntegerValue;
+		AggregatedStats.Int64Stats.Median = NotAvailableIntegerValue;
+		AggregatedStats.Int64Stats.LowerQuartile = NotAvailableIntegerValue;
+		AggregatedStats.Int64Stats.UpperQuartile = NotAvailableIntegerValue;
+
+		EStatsNodeDataType GroupDataType = EStatsNodeDataType::InvalidOrMax;
+
+		const TArray<Insights::FBaseTreeNodePtr>& GroupChildren = GroupPtr->GetFilteredChildren();
+		for (const Insights::FBaseTreeNodePtr& ChildPtr : GroupChildren)
+		{
+			const FStatsNodePtr& NodePtr = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(ChildPtr);
+			const FAggregatedStats& NodeAggregatedStats = NodePtr->GetAggregatedStats();
+
+			if (NodeAggregatedStats.Count > 0)
+			{
+				AggregatedStats.Count += NodeAggregatedStats.Count;
+
+				AggregatedStats.DoubleStats.Sum += NodeAggregatedStats.DoubleStats.Sum;
+				AggregatedStats.DoubleStats.Min = FMath::Min(AggregatedStats.DoubleStats.Min, NodeAggregatedStats.DoubleStats.Min);
+				AggregatedStats.DoubleStats.Max = FMath::Max(AggregatedStats.DoubleStats.Max, NodeAggregatedStats.DoubleStats.Max);
+
+				AggregatedStats.Int64Stats.Sum += NodeAggregatedStats.Int64Stats.Sum;
+				AggregatedStats.Int64Stats.Min = FMath::Min(AggregatedStats.Int64Stats.Min, NodeAggregatedStats.Int64Stats.Min);
+				AggregatedStats.Int64Stats.Max = FMath::Max(AggregatedStats.Int64Stats.Max, NodeAggregatedStats.Int64Stats.Max);
+			}
+
+			if (GroupDataType == EStatsNodeDataType::InvalidOrMax)
+			{
+				GroupDataType = NodePtr->GetDataType();
+			}
+			else
+			{
+				if (GroupDataType != NodePtr->GetDataType())
+				{
+					GroupDataType = EStatsNodeDataType::Undefined;
+				}
+			}
+		}
+
+		// If not all children have same type, reset aggregated stats for group.
+		if (GroupDataType >= EStatsNodeDataType::Undefined)
+		{
+			AggregatedStats.DoubleStats.Sum = NotAvailableDoubleValue;
+			AggregatedStats.DoubleStats.Min = NotAvailableDoubleValue;
+			AggregatedStats.DoubleStats.Max = NotAvailableDoubleValue;
+
+			AggregatedStats.Int64Stats.Sum = NotAvailableIntegerValue;
+			AggregatedStats.Int64Stats.Min = NotAvailableIntegerValue;
+			AggregatedStats.Int64Stats.Max = NotAvailableIntegerValue;
+		}
+		GroupPtr->SetDataType(GroupDataType);
+	}
+
 	// Request tree refresh
 	TreeView->RequestTreeRefresh();
 }
@@ -743,7 +818,7 @@ void SStatsView::HandleItemToStringArray(const FStatsNodePtr& FStatsNodePtr, TAr
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStatsView::GetToggleButtonForStatsType(const EStatsNodeType NodeType)
+TSharedRef<SWidget> SStatsView::GetToggleButtonForNodeType(const EStatsNodeType NodeType)
 {
 	return SNew(SCheckBox)
 		.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
@@ -760,7 +835,7 @@ TSharedRef<SWidget> SStatsView::GetToggleButtonForStatsType(const EStatsNodeType
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-						.Image(StatsNodeTypeHelper::GetIconForStatsNodeType(NodeType))
+						.Image(StatsNodeTypeHelper::GetIcon(NodeType))
 				]
 
 			+ SHorizontalBox::Slot()
@@ -769,6 +844,39 @@ TSharedRef<SWidget> SStatsView::GetToggleButtonForStatsType(const EStatsNodeType
 				[
 					SNew(STextBlock)
 						.Text(StatsNodeTypeHelper::ToText(NodeType))
+						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
+				]
+		];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStatsView::GetToggleButtonForDataType(const EStatsNodeDataType DataType)
+{
+	return SNew(SCheckBox)
+		.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+		.HAlign(HAlign_Center)
+		.Padding(2.0f)
+		.OnCheckStateChanged(this, &SStatsView::FilterByStatsDataType_OnCheckStateChanged, DataType)
+		.IsChecked(this, &SStatsView::FilterByStatsDataType_IsChecked, DataType)
+		.ToolTipText(StatsNodeDataTypeHelper::ToDescription(DataType))
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+						.Image(StatsNodeDataTypeHelper::GetIcon(DataType))
+				]
+
+			+ SHorizontalBox::Slot()
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+						.Text(StatsNodeDataTypeHelper::ToText(DataType))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
 				]
 		];
@@ -791,17 +899,32 @@ ECheckBoxState SStatsView::FilterOutZeroCountStats_IsChecked() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStatsView::FilterByStatsType_OnCheckStateChanged(ECheckBoxState NewRadioState, const EStatsNodeType InStatType)
+void SStatsView::FilterByStatsType_OnCheckStateChanged(ECheckBoxState NewRadioState, const EStatsNodeType InNodeType)
 {
-	bStatsNodeIsVisible[static_cast<int>(InStatType)] = (NewRadioState == ECheckBoxState::Checked);
+	FilterByNodeType[static_cast<int>(InNodeType)] = (NewRadioState == ECheckBoxState::Checked);
 	ApplyFiltering();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ECheckBoxState SStatsView::FilterByStatsType_IsChecked(const EStatsNodeType InStatType) const
+ECheckBoxState SStatsView::FilterByStatsType_IsChecked(const EStatsNodeType InNodeType) const
 {
-	return bStatsNodeIsVisible[static_cast<int>(InStatType)] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return FilterByNodeType[static_cast<int>(InNodeType)] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::FilterByStatsDataType_OnCheckStateChanged(ECheckBoxState NewRadioState, const EStatsNodeDataType InDataType)
+{
+	FilterByDataType[static_cast<int>(InDataType)] = (NewRadioState == ECheckBoxState::Checked);
+	ApplyFiltering();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ECheckBoxState SStatsView::FilterByStatsDataType_IsChecked(const EStatsNodeDataType InDataType) const
+{
+	return FilterByDataType[static_cast<int>(InDataType)] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1020,7 +1143,7 @@ void SStatsView::CreateGroups()
 		GroupNodeSet.KeySort([](const FName& A, const FName& B) { return A.Compare(B) < 0; }); // sort groups by name
 		GroupNodeSet.GenerateValueArray(GroupNodes);
 	}
-	// Creates one group for each stat type.
+	// Creates one group for each node type.
 	else if (GroupingMode == EStatsGroupingMode::ByType)
 	{
 		TMap<EStatsNodeType, FStatsNodePtr> GroupNodeSet;
@@ -1037,6 +1160,25 @@ void SStatsView::CreateGroups()
 			TreeView->SetItemExpansion(GroupPtr, true);
 		}
 		GroupNodeSet.KeySort([](const EStatsNodeType& A, const EStatsNodeType& B) { return A < B; }); // sort groups by type
+		GroupNodeSet.GenerateValueArray(GroupNodes);
+	}
+	// Creates one group for each data type.
+	else if (GroupingMode == EStatsGroupingMode::ByDataType)
+	{
+		TMap<EStatsNodeDataType, FStatsNodePtr> GroupNodeSet;
+		for (const FStatsNodePtr& NodePtr : StatsNodes)
+		{
+			const EStatsNodeDataType DataType = NodePtr->GetDataType();
+			FStatsNodePtr GroupPtr = GroupNodeSet.FindRef(DataType);
+			if (!GroupPtr)
+			{
+				const FName GroupName = *StatsNodeDataTypeHelper::ToText(DataType).ToString();
+				GroupPtr = GroupNodeSet.Add(DataType, MakeShared<FStatsNode>(GroupName));
+			}
+			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			TreeView->SetItemExpansion(GroupPtr, true);
+		}
+		GroupNodeSet.KeySort([](const EStatsNodeDataType& A, const EStatsNodeDataType& B) { return A < B; }); // sort groups by data type
 		GroupNodeSet.GenerateValueArray(GroupNodes);
 	}
 	// Creates one group for one letter.
@@ -1107,6 +1249,7 @@ void SStatsView::CreateGroupByOptionsSources()
 	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::ByName));
 	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::ByMetaGroupName));
 	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::ByType));
+	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::ByDataType));
 	GroupByOptionsSource.Add(MakeShared<EStatsGroupingMode>(EStatsGroupingMode::ByCount));
 
 	EStatsGroupingModePtr* GroupingModePtrPtr = GroupByOptionsSource.FindByPredicate([&](const EStatsGroupingModePtr InGroupingModePtr) { return *InGroupingModePtr == GroupingMode; });
@@ -1629,7 +1772,7 @@ void SStatsView::RebuildTree(bool bResync)
 			StatsNodesIdMap.Reserve(CounterCount);
 
 			const FName MemoryGroup(TEXT("Memory"));
-			const FName MiscFloatGroup(TEXT("Misc_float"));
+			const FName MiscFloatGroup(TEXT("Misc_double"));
 			const FName MiscInt64Group(TEXT("Misc_int64"));
 
 			// Add nodes only for new counters.
@@ -1641,8 +1784,9 @@ void SStatsView::RebuildTree(bool bResync)
 					FName Name(Counter.GetName());
 					const FName Group = ((Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory) ? MemoryGroup :
 										  Counter.IsFloatingPoint() ? MiscFloatGroup : MiscInt64Group);
-					const EStatsNodeType Type = Counter.IsFloatingPoint() ? EStatsNodeType::Float : EStatsNodeType::Int64;
-					NodePtr = MakeShared<FStatsNode>(CounterId, Name, Group, Type);
+					const EStatsNodeType Type = EStatsNodeType::Counter;
+					const EStatsNodeDataType DataType = Counter.IsFloatingPoint() ? EStatsNodeDataType::Double : EStatsNodeDataType::Int64;
+					NodePtr = MakeShared<FStatsNode>(CounterId, Name, Group, Type, DataType);
 					UpdateNode(NodePtr);
 					StatsNodes.Add(NodePtr);
 					StatsNodesIdMap.Add(CounterId, NodePtr);

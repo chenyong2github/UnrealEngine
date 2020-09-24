@@ -13,6 +13,11 @@ enum class EEventEnumerate
 	Stop,
 };
 
+enum class EEventSortOrder
+{
+	ByStartTime,
+	ByEndTime,
+};
 
 template<typename InEventType>
 class ITimeline
@@ -21,6 +26,8 @@ public:
 	typedef InEventType EventType;
 	typedef TFunctionRef<EEventEnumerate(bool /*bStart*/, double /*Time*/, const EventType& /*Event*/)> EventCallback;
 	typedef TFunctionRef<EEventEnumerate(double /*StartTime*/, double /*EndTime*/, uint32 /*Depth*/, const EventType&/*Event*/)> EventRangeCallback;
+	typedef TFunction<EEventEnumerate(double /*StartTime*/, double /*EndTime*/, uint32 /*Depth*/, const EventType&/*Event*/, uint32 TaskIndex)> AsyncEventRangeCallback;
+	typedef TFunction<void(uint32 /*NumTasks*/)> TaskInfoCallback;
 
 	struct FTimelineEventInfo
 	{
@@ -28,6 +35,16 @@ public:
 		double EndTime;
 		double ExclTime = 0.0;
 		EventType Event;
+	};
+
+	struct EnumerateAsyncParams
+	{
+		double IntervalStart = 0.0;
+		double IntervalEnd = -1.0;
+		double Resolution = 0;
+		EEventSortOrder SortOrder = EEventSortOrder::ByEndTime;
+		typename ITimeline<EventType>::TaskInfoCallback SetupCallback;
+		typename ITimeline<EventType>::AsyncEventRangeCallback Callback;
 	};
 
 	virtual ~ITimeline() = default;
@@ -38,6 +55,7 @@ public:
 	virtual double GetEndTime() const = 0;
 	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, EventCallback Callback) const = 0;
 	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, EventRangeCallback Callback) const = 0;
+	virtual void EnumerateEventsDownSampledAsync(const EnumerateAsyncParams& EnumerateAsyncParams) const {};
 	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, EventCallback Callback) const = 0;
 	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, EventRangeCallback Callback) const = 0;
 	

@@ -11,14 +11,27 @@
 
 enum class EStatsNodeType
 {
-	/** The StatsNode is a floating number stats. */
-	Float,
+	/** A Counter node. */
+	Counter,
 
-	/** The StatsNode is an integer number stats. */
-	Int64,
+	/** A "Stat" node. */
+	Stat,
 
-	/** The StatsNode is a group node. */
+	/** A group node. */
 	Group,
+
+	/** Invalid enum type, may be used as a number of enumerations. */
+	InvalidOrMax,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class EStatsNodeDataType
+{
+	Double, // all values are double
+	Int64,  // all values are int64
+
+	Undefined, // a mix of double and int64 values (ex.: for a group node)
 
 	/** Invalid enum type, may be used as a number of enumerations. */
 	InvalidOrMax,
@@ -51,8 +64,6 @@ union FStatsNodeAggregatedStatsValue
 template<typename Type>
 struct TAggregatedStats
 {
-	uint64 Count; /** Number of values. */
-
 	Type Sum; /** Sum of all values. */
 	Type Min; /** Min value. */
 	Type Max; /** Max value. */
@@ -62,8 +73,7 @@ struct TAggregatedStats
 	Type UpperQuartile; /** Upper Quartile value. */
 
 	TAggregatedStats()
-		: Count(0)
-		, Sum(0)
+		: Sum(0)
 		, Min(0)
 		, Max(0)
 		, Average(0)
@@ -75,7 +85,6 @@ struct TAggregatedStats
 
 	void Reset()
 	{
-		Count = 0;
 		Sum = 0;
 		Min = 0;
 		Max = 0;
@@ -86,8 +95,19 @@ struct TAggregatedStats
 	}
 };
 
-typedef TAggregatedStats<double> FAggregatedStats;
-typedef TAggregatedStats<int64> FAggregatedIntegerStats;
+struct FAggregatedStats
+{
+	uint64 Count = 0; /** Number of values. */
+	TAggregatedStats<double> DoubleStats;
+	TAggregatedStats<int64> Int64Stats;
+
+	void Reset()
+	{
+		Count = 0;
+		DoubleStats.Reset();
+		Int64Stats.Reset();
+	}
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -117,11 +137,12 @@ public:
 
 public:
 	/** Initialization constructor for the stats node. */
-	FStatsNode(uint32 InCounterId, const FName InName, const FName InMetaGroupName, EStatsNodeType InType)
+	FStatsNode(uint32 InCounterId, const FName InName, const FName InMetaGroupName, EStatsNodeType InType, EStatsNodeDataType InDataType)
 		: FBaseTreeNode(InName, InType == EStatsNodeType::Group)
 		, CounterId(InCounterId)
 		, MetaGroupName(InMetaGroupName)
 		, Type(InType)
+		, DataType(InDataType)
 		, bIsAddedToGraph(false)
 	{
 		const uint32 HashColor = GetCounterId() * 0x2c2c57ed;
@@ -138,6 +159,7 @@ public:
 		: FBaseTreeNode(InGroupName, true)
 		, CounterId(InvalidCounterId)
 		, Type(EStatsNodeType::Group)
+		, DataType(EStatsNodeDataType::InvalidOrMax)
 		, Color(0.0, 0.0, 0.0, 1.0)
 		, bIsAddedToGraph(false)
 	{
@@ -152,7 +174,7 @@ public:
 	uint32 GetCounterId() const { return CounterId; }
 
 	/**
-	 * @return a name of the meta group that this stats node belongs to, taken from the metadata.
+	 * @return the name of the meta group that this stats node belongs to, taken from the metadata.
 	 */
 	const FName& GetMetaGroupName() const
 	{
@@ -160,11 +182,26 @@ public:
 	}
 
 	/**
-	 * @return a type of this stats node or EStatsNodeType::Group for group nodes.
+	 * @return the type of this node or EStatsNodeType::Group for group nodes.
 	 */
-	const EStatsNodeType& GetType() const
+	EStatsNodeType GetType() const
 	{
 		return Type;
+	}
+
+	/**
+	 * @return the data type of node values
+	 */
+	const EStatsNodeDataType GetDataType() const
+	{
+		return DataType;
+	}
+	/**
+	 * Sets the data type of node values.
+	 */
+	void SetDataType(EStatsNodeDataType InDataType)
+	{
+		DataType = InDataType;
 	}
 
 	/**
@@ -186,28 +223,18 @@ public:
 	}
 
 	/**
-	 * @return the aggregated stats of this stats counter (if counter is a "float number" type).
+	 * @return the aggregated stats of this stats counter.
 	 */
-	const FAggregatedStats& GetAggregatedStats() const
-	{
-		return AggregatedStats;
-	}
+	const FAggregatedStats& GetAggregatedStats() const { return AggregatedStats; }
+	FAggregatedStats& GetAggregatedStats() { return AggregatedStats; }
 
 	void ResetAggregatedStats();
 
-	void SetAggregatedStats(const FAggregatedStats& AggregatedStats);
+	void SetAggregatedStatsDouble(uint64 InCount, const TAggregatedStats<double>& InAggregatedStats);
+	void SetAggregatedStatsInt64(uint64 InCount, const TAggregatedStats<int64>& InAggregatedStats);
 
-	/**
-	 * @return the aggregated stats of this stats counter (if counter is an "integer number" type).
-	 */
-	const FAggregatedIntegerStats& GetAggregatedIntegerStats() const
-	{
-		return AggregatedIntegerStats;
-	}
-
-	void ResetAggregatedIntegerStats();
-
-	void SetAggregatedIntegerStats(const FAggregatedIntegerStats& AggregatedIntegerStats);
+	void UpdateAggregatedStatsInt64FromDouble();
+	void UpdateAggregatedStatsDoubleFromInt64();
 
 	const FText FormatValue(double Value) const;
 	const FText FormatValue(int64 Value) const;
@@ -240,19 +267,20 @@ private:
 	/** The name of the meta group that this stats counter belongs to, based on the stats' metadata; only valid for stats counter nodes. */
 	const FName MetaGroupName;
 
-	/** Holds the type of this stats counter. */
+	/** The type of this node. */
 	const EStatsNodeType Type;
+
+	/** The data type of counter values. */
+	EStatsNodeDataType DataType;
 
 	/** Color of the node. */
 	FLinearColor Color;
 
+	/** If a graph series was added to the Main Graph for this counter. */
 	bool bIsAddedToGraph;
 
-	/** Aggregated stats (double). */
+	/** Aggregated stats. */
 	FAggregatedStats AggregatedStats;
-
-	/** Aggregated stats (int64). */
-	FAggregatedIntegerStats AggregatedIntegerStats;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

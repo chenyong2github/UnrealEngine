@@ -66,7 +66,7 @@ void FInsightsTestRunner::Initialize(IUnrealInsightsModule& InsightsModule)
 	}
 
 	SessionAnalysisCompletedHandle = FInsightsManager::Get()->GetSessionAnalysisCompletedEvent().AddSP(this, &FInsightsTestRunner::OnSessionAnalysisCompleted);
-	
+
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FInsightsTestRunner::Tick);
 	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
@@ -225,6 +225,7 @@ bool FInsightsTestRunner::Tick(float DeltaTime)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #undef LOCTEXT_NAMESPACE
 
 #endif //UE_BUILD_SHIPPING && !WITH_EDITOR

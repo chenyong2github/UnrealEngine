@@ -697,26 +697,74 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 
 			if (bFilterOnlyByEventType)
 			{
-				TimingProfilerProvider.ReadTimeline(TimelineIndex,
-					[&Viewport, this, &Builder, TimerReader, FilterEventType](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-					{
-						// Note: Enumerating events for filtering should not use downsampling.
-						//const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
-						//Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel,
-						Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
-							[this, &Builder, TimerReader, FilterEventType](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+				//TODO: Add a setting to switch this on/off
+				if (true)
+				{
+					TimingProfilerProvider.ReadTimeline(TimelineIndex,
+						[&Viewport, this, &Builder, TimerReader, FilterEventType](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+						{
+							TArray<TArray<FPendingEventInfo>> FilteredEvents;
+
+							Trace::ITimeline<Trace::FTimingProfilerEvent>::EnumerateAsyncParams Params;
+							Params.IntervalStart = Viewport.GetStartTime();
+							Params.IntervalEnd = Viewport.GetEndTime();
+							Params.Resolution = 0.0;
+							Params.SetupCallback = [&FilteredEvents](uint32 NumTasks)
+							{
+								FilteredEvents.AddDefaulted(NumTasks);
+							};
+							Params.Callback = [this, &Builder, TimerReader, FilterEventType, &FilteredEvents](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event, uint32 TaskIndex)
 							{
 								const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
 								if (ensure(Timer != nullptr))
 								{
 									if (Timer->Id == FilterEventType)
 									{
-										AddTimingEventToBuilder(Builder, StartTime, EndTime, Depth, Event.TimerIndex, Timer);
+										FPendingEventInfo TimelineEvent;
+										TimelineEvent.StartTime = StartTime;
+										TimelineEvent.EndTime = EndTime;
+										TimelineEvent.Depth = Depth;
+										TimelineEvent.TimerIndex = Event.TimerIndex;
+										FilteredEvents[TaskIndex].Add(TimelineEvent);
 									}
 								}
 								return Trace::EEventEnumerate::Continue;
-							});
-					});
+							};
+
+							// Note: Enumerating events for filtering should not use downsampling.
+							Timeline.EnumerateEventsDownSampledAsync(Params);
+
+							for (TArray<FPendingEventInfo>& Array : FilteredEvents)
+							{
+								for (FPendingEventInfo& TimelineEvent : Array)
+								{
+									const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(TimelineEvent.TimerIndex);
+									AddTimingEventToBuilder(Builder, TimelineEvent.StartTime, TimelineEvent.EndTime, TimelineEvent.Depth, TimelineEvent.TimerIndex, Timer);
+								}
+							}
+						});
+				}
+				else
+				{
+					TimingProfilerProvider.ReadTimeline(TimelineIndex,
+						[&Viewport, this, &Builder, TimerReader, FilterEventType](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+						{
+							// Note: Enumerating events for filtering should not use downsampling.
+							Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), 0,
+								[this, &Builder, TimerReader, FilterEventType](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+								{
+									const Trace::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
+									if (ensure(Timer != nullptr))
+									{
+										if (Timer->Id == FilterEventType)
+										{
+											AddTimingEventToBuilder(Builder, StartTime, EndTime, Depth, Event.TimerIndex, Timer);
+										}
+									}
+									return Trace::EEventEnumerate::Continue;
+								});
+						});
+				}
 			}
 			else // generic filter
 			{
@@ -1049,6 +1097,16 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			MenuBuilder.AddMenuEntry(
 				FText::Format(LOCTEXT("CpuThreadGroupFmt", "CPU Thread Group: {0}"), FText::FromString(GetGroupName())),
+				FText(),
+				FSlateIcon(),
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([]() { return false; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+
+			const FString ThreadIdStr = FString::Printf(TEXT("%s%u (0x%X)"), ThreadId & 0x70000000 ? "*" : "", ThreadId & ~0x70000000, ThreadId);
+			MenuBuilder.AddMenuEntry(
+				FText::Format(LOCTEXT("CpuThreadIdFmt", "Thread Id: {0}"), FText::FromString(ThreadIdStr)),
 				FText(),
 				FSlateIcon(),
 				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([]() { return false; })),

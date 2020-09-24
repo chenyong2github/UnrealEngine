@@ -106,6 +106,7 @@ public:
 	 * @return the aggregated stats for this timer.
 	 */
 	const Trace::FTimingProfilerAggregatedStats& GetAggregatedStats() const { return AggregatedStats; }
+	Trace::FTimingProfilerAggregatedStats& GetAggregatedStats() { return AggregatedStats; }
 
 	void ResetAggregatedStats();
 	void SetAggregatedStats(const Trace::FTimingProfilerAggregatedStats& AggregatedStats);

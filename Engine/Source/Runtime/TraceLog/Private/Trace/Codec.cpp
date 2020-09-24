@@ -33,6 +33,12 @@ int32 Encode(const void* Src, int32 SrcSize, void* Dest, int32 DestSize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 GetEncodeMaxSize(uint32 InputSize)
+{
+	return LZ4_COMPRESSBOUND(InputSize);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 TRACELOG_API int32 Decode(const void* Src, int32 SrcSize, void* Dest, int32 DestSize)
 {
 	return Trace::LZ4_decompress_safe((const char*)Src, (char*)Dest, SrcSize, DestSize);
