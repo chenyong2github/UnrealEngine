@@ -42,6 +42,7 @@
 #define DEBUG_FLAG_CULL_FRUSTUM_BOX					0x8
 #define DEBUG_FLAG_CULL_FRUSTUM_SPHERE				0x10
 
+// TODO: Query from RHI per platform
 #define NUM_PERSISTENT_THREADS	1440				// TODO: Find a better way to estimate the number of threads we will need
 
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCull,		TEXT("Nanite Instance Cull"));
@@ -3962,7 +3963,7 @@ void DrawBasePass(
 
 			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, 8);	// Only run DepthExport shader on viewport. We have already asserted that ViewRect.Min=0.
 
-			const uint32 PlatformConfig = 0; // TODO: Platform config from depth target, queried from RHI
+			const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTargets.GetBufferSizeXY().X, SceneTargets.GetBufferSizeXY().Y);
 
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
@@ -4410,8 +4411,9 @@ void DrawBasePass(
 
 			FHTileVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHTileVisualizeCS::FParameters>();
 
-			const uint32 PlatformConfig = 0; // TODO: Platform config from depth target, queried from RHI
 			const uint32 PixelsWide = uint32(ViewSize.X);
+			const uint32 PixelsTall = uint32(ViewSize.Y);
+			const uint32 PlatformConfig = RHIGetHTilePlatformConfig(PixelsWide, PixelsTall);
 
 			PassParameters->HTileBuffer  = HTileBufferRef;
 			PassParameters->HTileDisplay = GraphBuilder.CreateUAV(DebugOutput);
