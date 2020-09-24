@@ -4143,7 +4143,7 @@ namespace WindowsMixedReality
 
 	bool MixedRealityInterop::SetEnabledMixedRealityCamera(bool enabled)
 	{
-		if (!IsInitialized() || IsRemoting())
+		if (!IsInitialized() || IsRemoting() || HolographicDisplay::GetDefault() == nullptr)
 		{
 			//remoting may has no default display in some time
 			isThirdCameraActive = false;
@@ -4163,7 +4163,7 @@ namespace WindowsMixedReality
 
 	bool MixedRealityInterop::ResizeMixedRealityCamera(SIZE& sz)
 	{
-		if (!IsInitialized() || IsRemoting())
+		if (!IsInitialized() || IsRemoting() || HolographicDisplay::GetDefault() == nullptr)
 		{
 			return false;
 		}
