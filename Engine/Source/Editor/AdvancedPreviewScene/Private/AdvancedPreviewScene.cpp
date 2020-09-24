@@ -150,7 +150,7 @@ void FAdvancedPreviewScene::UpdateScene(FPreviewSceneProfile& Profile, bool bUpd
 
 			// Update light direction as well
 			FRotator LightDir = GetLightDirection();
-			LightDir.Yaw = Profile.LightingRigRotation;
+			LightDir.Yaw = -Profile.LightingRigRotation;
 			SetLightDirection(LightDir);
 			DefaultSettings->Profiles[CurrentProfileIndex].DirectionalLightRotation = LightDir;
 			SkyLight->SourceCubemapAngle = Profile.LightingRigRotation;
