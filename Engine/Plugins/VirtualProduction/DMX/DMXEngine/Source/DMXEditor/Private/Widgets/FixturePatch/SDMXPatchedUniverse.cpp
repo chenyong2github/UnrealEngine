@@ -141,7 +141,7 @@ void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
 		}
 
 		// Update the channel connectors' Universe ID
-		for (const TSharedPtr<SDMXChannelConnector> Connector : ChannelConnectors)
+		for (const TSharedPtr<SDMXChannelConnector>& Connector : ChannelConnectors)
 		{
 			Connector->SetUniverseID(NewUniverseID);
 		}
@@ -269,7 +269,7 @@ void SDMXPatchedUniverse::AddNodeToGrid(const TSharedPtr<FDMXFixturePatchNode>& 
 void SDMXPatchedUniverse::RemoveNodeFromGrid(const TSharedPtr<FDMXFixturePatchNode>& Node)
 {
 	check(Node.IsValid());
-	for (const TSharedPtr<SWidget>& Widget : Node->GetFragmentedWidgets())
+	for (const TSharedPtr<SDMXFixturePatchFragment>& Widget : Node->GetFragmentedWidgets())
 	{
 		Grid->RemoveSlot(Widget.ToSharedRef());
 	}

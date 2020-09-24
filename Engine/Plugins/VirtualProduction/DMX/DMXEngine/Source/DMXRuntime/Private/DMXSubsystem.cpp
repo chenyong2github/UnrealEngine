@@ -277,7 +277,7 @@ bool UDMXSubsystem::GetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIn
 				for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
 				{
 					TArray<uint8> ChannelValues;
-					for (const TPair<FDMXAttributeName, int32> AttributeNameChannelKvp : AttributeNameChannelMap)
+					for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
 					{
 						if (CellAttribute.Attribute != AttributeNameChannelKvp.Key)
 						{

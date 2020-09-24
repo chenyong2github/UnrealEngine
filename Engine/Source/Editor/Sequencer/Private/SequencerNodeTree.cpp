@@ -1321,7 +1321,7 @@ void FSequencerNodeTree::UpdateFilters()
 
 	// Count the total number of display nodes
 	TSet<TSharedRef<FSequencerDisplayNode>> Nodes;
-	for (const TSharedRef<FSequencerDisplayNode> Node : GetRootNodes())
+	for (const TSharedRef<FSequencerDisplayNode>& Node : GetRootNodes())
 	{
 		SequencerHelpers::GetDescendantNodes(RootNode, Nodes);
 	}

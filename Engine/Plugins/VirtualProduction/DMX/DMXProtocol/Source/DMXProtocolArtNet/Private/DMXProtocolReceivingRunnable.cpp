@@ -76,7 +76,7 @@ void FDMXProtocolReceivingRunnable::Update()
 		IncomingMap.Empty();
 	}
 
-	for (const TPair<uint16, FArrayReaderPtr> CompletedPair : CompletedMap)
+	for (const TPair<uint16, FArrayReaderPtr>& CompletedPair : CompletedMap)
 	{
 		if (TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = Protocol->GetUniverseByIdCreateDefault(CompletedPair.Key))
 		{

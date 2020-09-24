@@ -1181,7 +1181,7 @@ namespace WidgetReflectorRecursive
 {
 	bool FindNodeWithReflectionData(const TArray<TSharedRef<FWidgetReflectorNodeBase>>& NodeBase, TArray<TSharedRef<FWidgetReflectorNodeBase>>& Result)
 	{
-		for (const TSharedRef<FWidgetReflectorNodeBase> Node : NodeBase)
+		for (const TSharedRef<FWidgetReflectorNodeBase>& Node : NodeBase)
 		{
 			if (Node->HasValidWidgetAssetData())
 			{
@@ -1189,7 +1189,7 @@ namespace WidgetReflectorRecursive
 			}
 
 		}
-		for (const TSharedRef<FWidgetReflectorNodeBase> Node : NodeBase)
+		for (const TSharedRef<FWidgetReflectorNodeBase>& Node : NodeBase)
 		{
 			if (FindNodeWithReflectionData(Node->GetChildNodes(), Result))
 			{
