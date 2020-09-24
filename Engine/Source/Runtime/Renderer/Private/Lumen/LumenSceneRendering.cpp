@@ -311,13 +311,9 @@ protected:
 
 	FLumenCardVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FLumenCardPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
+	{}
 
-	FLumenCardVS()
-	{
-	}
+	FLumenCardVS() = default;
 };
 
 
@@ -336,13 +332,9 @@ public:
 
 	FLumenCardPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		:	FMeshMaterialShader(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FLumenCardPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
+	{}
 
-	FLumenCardPS()
-	{
-	}
+	FLumenCardPS() = default;
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FLumenCardPS,TEXT("/Engine/Private/Lumen/LumenCardPixelShader.usf"),TEXT("Main"),SF_Pixel);

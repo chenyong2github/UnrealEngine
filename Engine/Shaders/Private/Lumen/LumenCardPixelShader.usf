@@ -14,7 +14,7 @@
 
 struct FLumenCardInterpolantsVSToPS
 {
-	
+
 };
 
 void Main(
@@ -50,11 +50,11 @@ void Main(
 
 	EnvBRDFApproxFullyRough(DiffuseColor, SpecularColor);
 
-	//if (LumenCardPass.OverrideDiffuseReflectivity > 0.0f)
-	//{
-	//	float DiffuseMaxComponent = max(DiffuseColor.r, max(DiffuseColor.g, DiffuseColor.b));
-	//	DiffuseColor = saturate(DiffuseColor * max(LumenCardPass.DiffuseReflectivityOverride / max(DiffuseMaxComponent, .0001f), 1.0f));
-	//}
+	if (LumenCardPass.OverrideDiffuseReflectivity > 0.0f)
+	{
+		float DiffuseMaxComponent = max(DiffuseColor.r, max(DiffuseColor.g, DiffuseColor.b));
+		DiffuseColor = saturate(DiffuseColor * max(LumenCardPass.DiffuseReflectivityOverride / max(DiffuseMaxComponent, .0001f), 1.0f));
+	}
 
 	//@todo DynamicGI better encoding for low precision, hemispherical normal encoding
 	OutTarget0 = float4(sqrt(DiffuseColor), Opacity);
