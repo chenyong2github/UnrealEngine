@@ -41,20 +41,21 @@ UThumbnailInfo* FAssetTypeActions_World::GetThumbnailInfo(UObject* Asset) const
 TArray<FAssetData> FAssetTypeActions_World::GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDatas, bool bIsPreview)
 {
 	TArray<FAssetData> AssetsToOpen;
-	for (const FAssetData& AssetData : InAssetDatas)
+	if (InAssetDatas.Num())
 	{
-		if (FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString()))
+		const FAssetData& AssetData = InAssetDatas[0];
+
+		// If there are any unsaved changes to the current level, see if the user wants to save those first
+		// If they do not wish to save, then we will bail out of opening this asset.
+		constexpr bool bPromptUserToSave = true;
+		constexpr bool bSaveMapPackages = true;
+		constexpr bool bSaveContentPackages = true;
+		if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages))
 		{
-			// If there are any unsaved changes to the current level, see if the user wants to save those first
-			// If they do not wish to save, then we will bail out of opening this asset.
-			constexpr bool bPromptUserToSave = true;
-			constexpr bool bSaveMapPackages = true;
-			constexpr bool bSaveContentPackages = true;
-			if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages))
+			if (FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString()))
 			{
 				AssetsToOpen.Add(AssetData);
 			}
-			break;
 		}
 	}
 
