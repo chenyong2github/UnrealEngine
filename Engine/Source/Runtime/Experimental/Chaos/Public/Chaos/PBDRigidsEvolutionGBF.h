@@ -90,15 +90,16 @@ namespace Chaos
 		using FExternalForces = TPerParticleExternalForces<FReal, 3>;
 		using FRigidClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
 
-		static constexpr int32 DefaultNumIterations = 1;
-		static constexpr int32 DefaultNumPairIterations = 1;
-		static constexpr int32 DefaultNumPushOutIterations = 3;
-		static constexpr int32 DefaultNumPushOutPairIterations = 2;
+		// Default iteration counts
+		static constexpr int32 DefaultNumIterations = 4;
+		static constexpr int32 DefaultNumCollisionPairIterations = 4;
+		static constexpr int32 DefaultNumPushOutIterations = 4;
+		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 4;
 
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
 
-		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
+		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, bool InIsSingleThreaded = false);
 		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 		FORCEINLINE void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
