@@ -997,6 +997,29 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			{
 				FScopedSlowTask CompilingBlueprintsSlowTask(BlueprintsToRecompileThisBatch.Num(), NSLOCTEXT("UnrealEd", "CompilingBlueprints", "Compiling Blueprints"));
 
+				TArray<UObject*> BPs;
+				GetObjectsOfClass(UBlueprint::StaticClass(), BPs);
+				for (UObject* BP : BPs)
+				{
+					UBlueprint* AsBP = CastChecked<UBlueprint>(BP);
+					AsBP->bCachedDependenciesUpToDate = false;
+					FBlueprintEditorUtils::EnsureCachedDependenciesUpToDate(AsBP);
+					for (TWeakObjectPtr<UBlueprint> Dependent : AsBP->CachedDependents)
+					{
+						if (UBlueprint* StillAlive = Dependent.Get())
+						{
+							StillAlive->CachedDependencies.Add(AsBP);
+						}
+					}
+					for (TWeakObjectPtr<UBlueprint> Dependent : AsBP->CachedDependencies)
+					{
+						if (UBlueprint* StillAlive = Dependent.Get())
+						{
+							StillAlive->CachedDependents.Add(AsBP);
+						}
+					}
+				}
+
 				for (UBlueprint* BlueprintToRecompile : BlueprintsToRecompileThisBatch)
 				{
 					CompilingBlueprintsSlowTask.EnterProgressFrame(1.0f);
