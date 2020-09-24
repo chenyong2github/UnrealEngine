@@ -65,6 +65,15 @@ namespace Turnkey
 
 			if (bIsRemotePath && (bIsLargeFile || bIsDirectory))
 			{
+				// look in out local cache
+				string OperationTag = string.Format("file_op:{0}", Operation);
+				string CachedLocation = LocalCache.GetCachedPathByTag(OperationTag);
+
+				if (CachedLocation != null)
+				{
+					return CachedLocation;
+				}
+
 				string CopyLocation = Path.Combine(LocalCache.CreateTempDirectory(), Path.GetFileName(OutputPath));
 
 				if (bIsDirectory)
@@ -87,6 +96,7 @@ namespace Turnkey
 					}
 				}
 
+				LocalCache.CacheLocationByTag(OperationTag, CopyLocation);
 				TurnkeyUtils.Log("Done!");
 
 				return CopyLocation;

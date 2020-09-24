@@ -241,17 +241,24 @@ namespace Turnkey.Commands
 
 							if (bUpdateIfNeeded)
 							{
-								FileSource MatchingInstallableSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type);
-
-								if (MatchingInstallableSdk == null)
+								if (Device.bCanConnect)
 								{
-									TurnkeyUtils.Log("ERROR: {0}: Unable top find any Sdks that could be installed on {1}", Platform, Device.Name);
-									TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+									FileSource MatchingInstallableSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type);
+
+									if (MatchingInstallableSdk == null)
+									{
+										TurnkeyUtils.Log("ERROR: {0}: Unable top find any Sdks that could be installed on {1}", Platform, Device.Name);
+										TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+									}
+									else
+									{
+										MatchingInstallableSdk.DownloadOrInstall(Platform, Device, bUnattended);
+										TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
+									}
 								}
 								else
 								{
-									MatchingInstallableSdk.DownloadOrInstall(Platform, Device, bUnattended);
-									TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
+									TurnkeyUtils.Log("Skipping device {0} because it cannot connect.", Device.Name);
 								}
 							}
 						}
