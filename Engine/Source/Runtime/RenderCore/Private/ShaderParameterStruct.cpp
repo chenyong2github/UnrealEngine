@@ -282,7 +282,7 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 			}
 		}
 
-		UE_LOG(LogShaders, Fatal, TEXT("%s"), *ErrorString);
+		ensureMsgf(false, TEXT("%s"), *ErrorString);
 	}
 }
 
