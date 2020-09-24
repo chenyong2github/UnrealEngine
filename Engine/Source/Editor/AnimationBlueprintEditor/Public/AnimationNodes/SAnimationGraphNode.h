@@ -29,7 +29,6 @@ protected:
 	virtual TArray<FOverlayWidgetInfo> GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const override;
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle) override;
 	virtual void GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGraphInformationPopupInfo>& Popups) const override;
-	virtual void CreatePinWidgets() override;
 	// End of SGraphNode interface
 
 private:
@@ -40,6 +39,9 @@ private:
 
 	// Handle the node informing us that the title has changed
 	void HandleNodeTitleChanged();
+
+	// Tweak any created pin widgets so they respond to bindings
+	void ReconfigurePinWidgetsForPropertyBindings();
 
 	/** Keep a reference to the indicator widget handing around */
 	TSharedPtr<SWidget> IndicatorWidget;
