@@ -189,6 +189,7 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void Serialize(FArchive& Ar) override;
 	// End of UObject interface
 
 	// UEdGraphNode interface
@@ -200,6 +201,7 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual FString GetPinMetaData(FName InPinName, FName InKey) override;
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
+	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	// End of UEdGraphNode interface
 
 	// UK2Node interface
