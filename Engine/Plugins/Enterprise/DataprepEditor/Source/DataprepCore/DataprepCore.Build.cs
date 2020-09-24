@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"MessageLog",
 					"PropertyEditor",
 					"RenderCore",
+					"RHI",
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",

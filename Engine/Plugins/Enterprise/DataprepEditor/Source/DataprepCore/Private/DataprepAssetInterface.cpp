@@ -6,7 +6,7 @@
 #include "DataprepAssetProducers.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepCoreLogCategory.h"
-#include "DataprepCorePrivateUtils.h"
+#include "Shared/DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 
 #include "AssetRegistryModule.h"

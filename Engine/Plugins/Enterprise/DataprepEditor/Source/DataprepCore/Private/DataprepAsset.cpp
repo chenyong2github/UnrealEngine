@@ -8,7 +8,7 @@
 #include "DataprepContentConsumer.h"
 #include "DataprepContentProducer.h"
 #include "DataprepCoreLogCategory.h"
-#include "DataprepCorePrivateUtils.h"
+#include "Shared/DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepParameterizableObject.h"
 #include "Parameterization/DataprepParameterization.h"
