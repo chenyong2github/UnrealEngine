@@ -41,7 +41,14 @@ public:
 		uint16 HLSLCCMinor		: 8;
 		uint16 Format			: 8;
 	};
-	
+	FMetalShaderFormat()
+	{
+		FMetalCompilerToolchain::CreateAndInit();
+	}
+	virtual ~FMetalShaderFormat()
+	{
+		FMetalCompilerToolchain::Destroy();
+	}
 	virtual uint32 GetVersion(FName Format) const override final
 	{
 		return GetMetalFormatVersion(Format);
@@ -345,13 +352,10 @@ public:
 	virtual void StartupModule() override
 	{
 		Singleton = new FMetalShaderFormat();
-		FMetalCompilerToolchain::CreateAndInit();
 	}
 
 	virtual void ShutdownModule() override
 	{
-		FMetalCompilerToolchain::Destroy();
-
 		delete Singleton;
 		Singleton = nullptr;
 	}
@@ -525,81 +529,74 @@ const FString& FMetalCompilerToolchain::GetCompilerVersionString(EShaderPlatform
 
 void FMetalCompilerToolchain::Init()
 {
+	// Set this define to get additional logging information about Metal toolchain setup.
+#define CHECK_METAL_COMPILER_TOOLCHAIN_SETUP 0
+
+	bToolchainAvailable = false;
+	bToolchainBinariesPresent = false;
+	bSkipPCH = true;
+
 #if PLATFORM_MAC
-	#define DO_METAL_TOOLS_SETUP           EMetalToolchainStatus Result = DoMacNativeSetup()
-	#define METAL_COMPILER_SETUP_LOG_LEVEL Warning
+	EMetalToolchainStatus Result = DoMacNativeSetup();
 #else
-	#define DO_METAL_TOOLS_SETUP           EMetalToolchainStatus Result = DoWindowsSetup()
-	#define METAL_COMPILER_SETUP_LOG_LEVEL Display
+	EMetalToolchainStatus Result = DoWindowsSetup();
 #endif
-
-	this->bToolchainAvailable = false;
-	this->bToolchainBinariesPresent = false;
-	this->bSkipPCH = true;
-
-	bool bLogShaderFormatModuleToolchainDiscovery = false;
-	GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bLogShaderFormatModuleToolchainDiscovery"), bLogShaderFormatModuleToolchainDiscovery, GEngineIni);
-
-	DO_METAL_TOOLS_SETUP;
 
 	if (Result != EMetalToolchainStatus::Success)
 	{
-		if (bLogShaderFormatModuleToolchainDiscovery)
-		{
-			UE_LOG(LogMetalCompilerSetup, METAL_COMPILER_SETUP_LOG_LEVEL, TEXT("Metal compiler not found. Shaders will be stored as text."));
-		}
-		this->bToolchainAvailable = false;
+#if CHECK_METAL_COMPILER_TOOLCHAIN_SETUP
+		UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Metal compiler not found. Shaders will be stored as text."));
+#endif
+		bToolchainAvailable = false;
 	}
 	else
 	{
-		Result = this->FetchCompilerVersion();
+		Result = FetchCompilerVersion();
 
 		if (Result != EMetalToolchainStatus::Success)
 		{
 			UE_LOG(LogMetalCompilerSetup, Log, TEXT("Could not parse compiler version."));
 		}
 
-		Result = this->FetchMetalStandardLibraryPath();
+		Result = FetchMetalStandardLibraryPath();
 
 		if (Result != EMetalToolchainStatus::Success)
 		{
 			UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Could not parse metal_stdlib path. Will not use PCH."));
-			this->bSkipPCH = true;
+			bSkipPCH = true;
 			// This is not really an error since we can compile without the PCH just fine.
 			Result = EMetalToolchainStatus::Success;
 		}
 		else
 		{
 			// This is forced off for now. If we wish to re-enable it a lot of testing should be done.
-			//this->bSkipPCH = false;
+			//bSkipPCH = false;
 		}
 
-		this->bToolchainAvailable = true;
+		bToolchainAvailable = true;
 	}
 
+#if CHECK_METAL_COMPILER_TOOLCHAIN_SETUP
 	if (Result == EMetalToolchainStatus::Success)
 	{
-		check(this->IsCompilerAvailable());
+		check(IsCompilerAvailable());
 		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Metal toolchain setup complete."));
 #if PLATFORM_WINDOWS
 		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Using Local Metal compiler"));
-		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Mac metalfe found at %s"), *this->MetalFrontendBinaryCommand[AppleSDKMac]);
-		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Mobile metalfe found at %s"), *this->MetalFrontendBinaryCommand[AppleSDKMobile]);
+		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Mac metalfe found at %s"), *MetalFrontendBinaryCommand[AppleSDKMac]);
+		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Mobile metalfe found at %s"), *MetalFrontendBinaryCommand[AppleSDKMobile]);
 #else
 		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Using Local Metal compiler"));
 #endif
-		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Mac metalfe version %s"), *this->MetalCompilerVersionString[AppleSDKMac]);
-		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Mobile metalfe version %s"), *this->MetalCompilerVersionString[AppleSDKMobile]);
+		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Mac metalfe version %s"), *MetalCompilerVersionString[AppleSDKMac]);
+		UE_LOG(LogMetalCompilerSetup, Log, TEXT("Mobile metalfe version %s"), *MetalCompilerVersionString[AppleSDKMobile]);
 	}
 	else
 	{
-		if (bLogShaderFormatModuleToolchainDiscovery)
-		{
-			UE_LOG(LogMetalCompilerSetup, METAL_COMPILER_SETUP_LOG_LEVEL, TEXT("Failed to set up Metal toolchain. See log above. Shaders will not be compiled offline."));
-		}
+		 UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Failed to set up Metal toolchain. See log above. Shaders will not be compiled offline."));
 	}
-#undef DO_METAL_TOOLS_SETUP
-#undef METAL_COMPILER_SETUP_LOG_LEVEL
+#endif
+#undef CHECK_METAL_COMPILER_TOOLCHAIN_SETUP
 }
 
 void FMetalCompilerToolchain::Teardown()
