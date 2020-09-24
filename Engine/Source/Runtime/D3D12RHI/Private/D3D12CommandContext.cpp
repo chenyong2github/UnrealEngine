@@ -45,6 +45,46 @@ FD3D12CommandContextBase::FD3D12CommandContextBase(class FD3D12Adapter* InParent
 {
 }
 
+static D3D12_RESOURCE_STATES GetValidResourceStates(D3D12_COMMAND_LIST_TYPE CommandListType)
+{
+	// For reasons, we can't just list the allowed states, we have to list the disallowed states.
+	// For reference on allowed/disallowed states, see:
+	//    https://microsoft.github.io/DirectX-Specs/d3d/CPUEfficiency.html#state-support-by-command-list-type
+	
+	const D3D12_RESOURCE_STATES DisallowedDirectStates =
+		static_cast<D3D12_RESOURCE_STATES>(0);
+
+	const D3D12_RESOURCE_STATES DisallowedComputeStates =
+		DisallowedDirectStates |
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER |
+		D3D12_RESOURCE_STATE_INDEX_BUFFER |
+		D3D12_RESOURCE_STATE_RENDER_TARGET |
+		D3D12_RESOURCE_STATE_DEPTH_WRITE |
+		D3D12_RESOURCE_STATE_DEPTH_READ |
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+		D3D12_RESOURCE_STATE_STREAM_OUT |
+		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT |
+		D3D12_RESOURCE_STATE_RESOLVE_DEST |
+		D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+
+	const D3D12_RESOURCE_STATES DisallowedCopyStates =
+		DisallowedComputeStates |
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS |
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+
+
+	if (CommandListType == D3D12_COMMAND_LIST_TYPE_COPY)
+	{
+		return ~DisallowedCopyStates;
+	}
+
+	if (CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+		return ~DisallowedComputeStates;
+	}
+
+	return ~DisallowedDirectStates;
+}
 
 FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, bool InIsDefaultContext, bool InIsAsyncComputeContext) :
 	FD3D12CommandContextBase(InParent->GetParentAdapter(), InParent->GetGPUMask(), InIsDefaultContext, InIsAsyncComputeContext),
@@ -68,6 +108,7 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, bool InIsDefa
 	VRSShadingRate(D3D12_SHADING_RATE_1X1),
 #endif
 	SkipFastClearEliminateState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+	ValidResourceStates(GetValidResourceStates(InIsAsyncComputeContext ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT)),
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	bNeedFlushTextureCache(false),
 #endif
@@ -176,7 +217,7 @@ void FD3D12CommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 
 #if NV_AFTERMATH
 		// Only track aftermath for default context?
-		if (IsDefaultContext() && GDX12NVAfterMathEnabled)
+		if (IsDefaultContext() && GDX12NVAfterMathEnabled && GDX12NVAfterMathMarkers)
 			GFSDK_Aftermath_SetEventMarker(CommandListHandle.AftermathCommandContext(), &GPUEventStack[0], GPUEventStack.Num() * sizeof(uint32));
 #endif // NV_AFTERMATH		
 	}
@@ -231,16 +272,6 @@ void FD3D12CommandContext::RHIPopEvent()
 		PIXEndEvent(CommandListHandle.GraphicsCommandList());
 	}
 #endif
-}
-
-void FD3D12CommandContext::RHIAutomaticCacheFlushAfterComputeShader(bool bEnable)
-{
-	StateCache.AutoFlushComputeShaderCache(bEnable);
-}
-
-void FD3D12CommandContext::RHIFlushComputeShaderCache()
-{
-	StateCache.FlushComputeShaderCache(true);
 }
 
 FD3D12CommandListManager& FD3D12CommandContext::GetCommandListManager()
@@ -322,6 +353,7 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 #endif
 
 	FD3D12Device* Device = GetParentDevice();
+	const bool bIsCommandListOpen = !CommandListHandle.IsClosed();
 	const bool bHasPendingWork = Device->PendingCommandLists.Num() > 0;
 	const bool bHasDoneWork = HasDoneWork() || bHasPendingWork;
 	const bool bOpenNewCmdList = WaitForCompletion || bHasDoneWork || bHasProfileGPUAction;
@@ -330,24 +362,45 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 	if (bOpenNewCmdList)
 	{
 		// Close the current command list
-		CloseCommandList();
+		if (bIsCommandListOpen)
+		{
+			CloseCommandList();
+		}
 
 		if (bHasPendingWork)
 		{
-			// Submit all pending command lists and the current command list
-			Device->PendingCommandLists.Add(CommandListHandle);
+			// Submit all pending command lists and the current command list if it was still open
+			if (bIsCommandListOpen)
+			{
+				Device->PendingCommandLists.Add(CommandListHandle);				
+			}
+			else
+			{
+				// otherwise it should be already part of the pending list
+				check(Device->PendingCommandLists.Contains(CommandListHandle));
+
+				// This use case should only happen when force flush is called from the rendering thread using the FScopedRHIThreadStaller
+				// which could insert a flush in between pending command lists
+				check(IsInRenderingThread());
+			}
 			GetCommandListManager().ExecuteCommandLists(Device->PendingCommandLists, WaitForCompletion);
 			Device->PendingCommandLists.Reset();
 		}
 		else
 		{
+			// If there are no pending command lists then we assyme that the current command list is open
+			check(bIsCommandListOpen);
+
 			// Just submit the current command list
 			CommandListHandle.Execute(WaitForCompletion);
 		}
 
-		// Get a new command list to replace the one we submitted for execution. 
-		// Restore the state from the previous command list.
-		OpenCommandList();
+		if (bIsCommandListOpen)
+		{
+			// Get a new command list to replace the one we submitted for execution. 
+			// Restore the state from the previous command list.
+			OpenCommandList();
+		}
 	}
 
 	return CommandListHandle;
@@ -393,7 +446,7 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 		bTrackingEvents |= bIsDefaultContext && Device->GetGPUProfiler().bTrackingEvents;
 
 #if D3D12_SUBMISSION_GAP_RECORDER
-		if (GEnableGapRecorder)
+		if (GEnableGapRecorder && !GTriggerGPUProfile)
 		{
 			Device->GetDefaultCommandContext().FlushCommands(bWaitForCommands, FlushAction);
 			GGapRecorderActiveOnBeginFrame = true;
@@ -841,21 +894,36 @@ IRHICommandContextContainer* FD3D12DynamicRHI::RHIGetCommandContextContainer(int
 
 #endif // D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
 
-void FD3D12DynamicRHI::RHICreateResourceTransition(FRHITransition* Transition, EResourceTransitionPipeline Pipeline, EResourceTransitionPipelineFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+void FD3D12DynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
 {
-	ERHIPipeline SrcPipelines = ERHIPipeline::Graphics;
-	ERHIPipeline DstPipelines = ERHIPipeline::Graphics;
-	switch (Pipeline)
-	{
-	case EResourceTransitionPipeline::Graphics_To_Graphics:
-		SrcPipelines = ERHIPipeline::Graphics;
-		DstPipelines = ERHIPipeline::Graphics;
-		break;
+	checkf(FMath::IsPowerOfTwo(uint32(SrcPipelines)) && FMath::IsPowerOfTwo(uint32(DstPipelines)), TEXT("Support for multi-pipe resources is not yet implemented."));
 
-	case EResourceTransitionPipeline::Graphics_To_AsyncCompute:
-		SrcPipelines = ERHIPipeline::Graphics;
-		DstPipelines = ERHIPipeline::AsyncCompute;
-		break;
+	// Construct the data in-place on the transition instance
+	FD3D12TransitionData* Data = new (Transition->GetPrivateData<FD3D12TransitionData>()) FD3D12TransitionData;
+
+	Data->SrcPipelines = SrcPipelines;
+	Data->DstPipelines = DstPipelines;
+	Data->CreateFlags = CreateFlags;
+
+	const bool bCrossPipeline = SrcPipelines != DstPipelines;
+
+	if (bCrossPipeline && !EnumHasAnyFlags(Data->CreateFlags, ERHICreateTransitionFlags::NoFence))
+	{
+		const FName Name = SrcPipelines == ERHIPipeline::Graphics ? L"<Graphics To AsyncCompute>" : L"<AsyncCompute To Graphics>";
+
+		Data->Fence = new FD3D12Fence(&GetAdapter(), FRHIGPUMask::All(), Name);
+		Data->Fence->CreateFence();
+	}
+
+	Data->bCrossPipeline = bCrossPipeline;
+	Data->Infos.Append(Infos.GetData(), Infos.Num());
+}
+
+void FD3D12DynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
+{
+	// Destruct the transition data
+	Transition->GetPrivateData<FD3D12TransitionData>()->~FD3D12TransitionData();
+}
 
 	case EResourceTransitionPipeline::AsyncCompute_To_Graphics:
 		SrcPipelines = ERHIPipeline::AsyncCompute;
@@ -910,20 +978,15 @@ FD3D12CommandContextRedirector::FD3D12CommandContextRedirector(class FD3D12Adapt
 	FMemory::Memzero(PhysicalContexts, sizeof(PhysicalContexts[0]) * MAX_NUM_GPUS);
 }
 
-void FD3D12CommandContextRedirector::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFenceRHI)
+void FD3D12CommandContextRedirector::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
 {
-	ContextRedirect(RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr));
+	ContextRedirect(RHIBeginTransitionsWithoutFencing(Transitions));
+	SignalTransitionFences(Transitions);
+}
 
-	// The fence must only be written after evey GPU has transitionned the resource as it handles all GPU.
-	if (WriteComputeFenceRHI)
-	{
-		RHISubmitCommandsHint();
-
-		FD3D12Fence* Fence = FD3D12DynamicRHI::ResourceCast(WriteComputeFenceRHI);
-		Fence->WriteFence();
-
-		Fence->Signal(ED3D12CommandQueueType::Default);
-	}	
+void FD3D12CommandContextRedirector::RHIEndTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	ContextRedirect(RHIEndTransitions(Transitions));
 }
 
 void FD3D12CommandContextRedirector::RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions)

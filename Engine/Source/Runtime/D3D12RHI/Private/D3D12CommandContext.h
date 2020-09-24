@@ -43,8 +43,6 @@ public:
 
 	virtual void SetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) = 0;
 
-	void RHIWaitComputeFence(FRHIComputeFence* InFence) final override;
-
 	virtual void UpdateMemoryStats();
 
 	FRHIGPUMask GetGPUMask() const { return GPUMask; }
@@ -54,7 +52,6 @@ public:
 	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) {}
 
 protected:
-
 	virtual FD3D12CommandContext* GetContext(uint32 InGPUIndex) = 0;
 
 	void SignalTransitionFences(TArrayView<const FRHITransition*> Transitions);
@@ -140,7 +137,6 @@ public:
 	FD3D12TextureBase* CurrentDepthTexture;
 	uint32 NumSimultaneousRenderTargets;
 
-
 	/** Track the currently bound uniform buffers. */
 	FD3D12UniformBuffer* BoundUniformBuffers[SF_NumStandardFrequencies][MAX_CBS];
 	FUniformBufferRHIRef BoundUniformBufferRefs[SF_NumStandardFrequencies][MAX_CBS];
@@ -173,6 +169,7 @@ public:
 	virtual void FlushMetadata(FRHITexture** InTextures, int32 NumTextures) {};
 
 	D3D12_RESOURCE_STATES SkipFastClearEliminateState;
+	D3D12_RESOURCE_STATES ValidResourceStates;
 
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	bool bNeedFlushTextureCache;
@@ -244,15 +241,14 @@ public:
 	virtual void SetAsyncComputeBudgetInternal(EAsyncComputeBudget Budget) {}
 
 	void RHIBeginTransitionsWithoutFencing(TArrayView<const FRHITransition*> Transitions);
-	virtual void RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
-	virtual void RHIEndResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
+	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) final override;
+	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 
 	// IRHIComputeContext interface
 	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) final override;
 	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) final override;
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) final override;
 	virtual void RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override;
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFenceRHI) final override;
 	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) final override;
 	virtual void RHISetShaderTexture(FRHIComputeShader* PixelShader, uint32 TextureIndex, FRHITexture* NewTexture) final override;
 	virtual void RHISetShaderSampler(FRHIComputeShader* ComputeShader, uint32 SamplerIndex, FRHISamplerState* NewState) final override;
@@ -267,14 +263,11 @@ public:
 	virtual void RHISubmitCommandsHint() final override;
 
 	// IRHICommandContext interface
-	virtual void RHIAutomaticCacheFlushAfterComputeShader(bool bEnable) final override;
-	virtual void RHIFlushComputeShaderCache() final override;
 	virtual void RHISetMultipleViewports(uint32 Count, const FViewportBounds* Data) final override;
 	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values) final override;
 	virtual void RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values) final override;
 	virtual void RHICopyToResolveTarget(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FResolveParams& ResolveParams) override;
 	virtual void RHICopyTexture(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FRHICopyTextureInfo& CopyInfo) final override;
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures) final override;
 	virtual void RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override;
 	virtual void RHIWriteGPUFence(FRHIGPUFence* Fence) final override;
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override;
@@ -297,7 +290,6 @@ public:
 	virtual void RHISetBlendFactor(const FLinearColor& BlendFactor) final override;
 	virtual void SetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) final override;
 	void SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo);
-	virtual void RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil) final override;
 	virtual void RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances) final override;
 	virtual void RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override;
 	virtual void RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIStructuredBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances) final override;
@@ -316,29 +308,6 @@ public:
 
 	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
 	{
-		if (InInfo.bGeneratingMips)
-		{
-			FRHITexture* Textures[MaxSimultaneousRenderTargets];
-			FRHITexture** LastTexture = Textures;
-			for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-			{
-				if (!InInfo.ColorRenderTargets[Index].RenderTarget)
-				{
-					break;
-				}
-
-				*LastTexture = InInfo.ColorRenderTargets[Index].RenderTarget;
-				++LastTexture;
-			}
-
-			//Use RWBarrier since we don't transition individual subresources.  Basically treat the whole texture as R/W as we walk down the mip chain.
-			int32 NumTextures = (int32)(LastTexture - Textures);
-			if (NumTextures)
-			{
-				RHITransitionResources(EResourceTransitionAccess::ERWSubResBarrier, Textures, NumTextures);
-			}
-		}
-
 		FRHISetRenderTargetsInfo RTInfo;
 		InInfo.ConvertToRenderTargetsInfo(RTInfo);
 		SetRenderTargetsAndClear(RTInfo);
@@ -442,7 +411,8 @@ public:
 
 	static inline FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture, uint32 GPUIndex)
 	{
-		return Texture ? static_cast<FD3D12TextureBase*>(Texture->GetTextureBaseRHI())->GetLinkedObject(GPUIndex) : nullptr;
+		FD3D12TextureBase* RHITexture = GetD3D12TextureFromRHITexture(Texture);
+		return RHITexture ? RHITexture->GetLinkedObject(GPUIndex) : nullptr;
 	}
 
 	FORCEINLINE_DEBUGGABLE FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture)
@@ -514,8 +484,10 @@ public:
 	{
 		ContextRedirect(RHIDispatchIndirectComputeShader(ArgumentBuffer, ArgumentOffset));
 	}
+
 	// Special implementation that only signal the fence once.
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFenceRHI) final override;
+	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) final override;
+	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 
 	// Special implementation that only signal the fence once.
 	virtual void RHIBeginResourceTransitions(TArrayView<const FRHITransition*> Transitions) final override;
@@ -575,14 +547,6 @@ public:
 	}
 
 	// IRHICommandContext interface
-	FORCEINLINE virtual void RHIAutomaticCacheFlushAfterComputeShader(bool bEnable) final override
-	{
-		ContextRedirect(RHIAutomaticCacheFlushAfterComputeShader(bEnable));
-	}
-	FORCEINLINE virtual void RHIFlushComputeShaderCache() final override
-	{
-		ContextRedirect(RHIFlushComputeShaderCache());
-	}
 	FORCEINLINE virtual void RHISetMultipleViewports(uint32 Count, const FViewportBounds* Data) final override
 	{
 		ContextRedirect(RHISetMultipleViewports(Count, Data));
@@ -602,10 +566,6 @@ public:
 	FORCEINLINE virtual void RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo) final override
 	{
 		ContextRedirect(RHICopyTexture(SourceTextureRHI, DestTextureRHI, CopyInfo));
-	}
-	FORCEINLINE virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures) final override
-	{
-		ContextRedirect(RHITransitionResources(TransitionType, InTextures, NumTextures));
 	}
 	FORCEINLINE virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override
 	{
@@ -682,10 +642,6 @@ public:
 	FORCEINLINE void SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
 	{
 		ContextRedirect(SetRenderTargetsAndClear(RenderTargetsInfo));
-	}
-	FORCEINLINE virtual void RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil) final override
-	{
-		ContextRedirect(RHIBindClearMRTValues(bClearColor, bClearDepth, bClearStencil));
 	}
 	FORCEINLINE virtual void RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances) final override
 	{
@@ -906,7 +862,7 @@ private:
 struct FD3D12TransitionData
 {
 	ERHIPipeline SrcPipelines, DstPipelines;
-	EResourceTransitionPipelineFlags CreateFlags = EResourceTransitionPipelineFlags::None;
+	ERHICreateTransitionFlags CreateFlags = ERHICreateTransitionFlags::None;
 
 	TArray<FRHITransitionInfo, TInlineAllocator<4>> Infos;
 	TRefCountPtr<FD3D12Fence> Fence;
