@@ -206,7 +206,21 @@ bool UAnimationGraphSchema::TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) 
 		}
 	}
 
-	return Super::TryCreateConnection(A, B);
+	if(Super::TryCreateConnection(A, B))
+	{
+		// Connection made - remove any bindings on the input pin
+		if(UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(InputPin->GetOwningNode()))
+		{
+			// Compare FName without number to make sure we catch array properties that are split into multiple pins
+			FName ComparisonName = InputPin->GetFName();
+			ComparisonName.SetNumber(0);
+			AnimGraphNode->PropertyBindings.Remove(ComparisonName);
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 const FPinConnectionResponse UAnimationGraphSchema::DetermineConnectionResponseOfCompatibleTypedPins(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const
