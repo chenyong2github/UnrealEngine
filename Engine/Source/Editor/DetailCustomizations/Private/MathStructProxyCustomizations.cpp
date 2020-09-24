@@ -461,7 +461,7 @@ bool FMatrixStructCustomization::FlushValues( TWeakPtr<IPropertyHandle> Property
 
 	if (PropertyUtilities.IsValid() && !bIsInteractiveChangeInProgress)
 	{
-		FPropertyChangedEvent ChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet);
+		FPropertyChangedEvent ChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet, OuterObjects);
 		PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
 	}
 
@@ -600,7 +600,7 @@ bool FTransformStructCustomization::FlushValues( TWeakPtr<IPropertyHandle> Prope
 
 	if (PropertyUtilities.IsValid() && !bIsInteractiveChangeInProgress)
 	{
-		FPropertyChangedEvent ChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet);
+		FPropertyChangedEvent ChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet, OuterObjects);
 		PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
 	}
 
@@ -741,7 +741,7 @@ bool FQuatStructCustomization::FlushValues(TWeakPtr<IPropertyHandle> PropertyHan
 
 	if (PropertyUtilities.IsValid() && !bIsInteractiveChangeInProgress)
 	{
-		FPropertyChangedEvent ChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet);
+		FPropertyChangedEvent ChangeEvent(PropertyHandle->GetProperty(), EPropertyChangeType::ValueSet, OuterObjects);
 		PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
 	}
 
