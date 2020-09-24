@@ -1171,6 +1171,11 @@ public:
 		return RHI->RHIGetViewportBackBufferUAV(ViewportRHI);
 	}
 
+	virtual uint32 RHIGetHTilePlatformConfig(uint32 DepthWidth, uint32 DepthHeight) const override final
+	{
+		return RHI->RHIGetHTilePlatformConfig(DepthWidth, DepthHeight);
+	}
+
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITexture2D* RenderTarget) override final
 	{
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceViewHTile(RenderTarget);
