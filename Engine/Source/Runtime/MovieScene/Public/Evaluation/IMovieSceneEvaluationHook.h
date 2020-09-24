@@ -5,6 +5,7 @@
 #include "UObject/Interface.h"
 #include "MovieSceneSequenceID.h"
 #include "Misc/Guid.h"
+#include "Evaluation/MovieScenePlayback.h"
 #include "IMovieSceneEvaluationHook.generated.h"
 
 class IMovieScenePlayer;
