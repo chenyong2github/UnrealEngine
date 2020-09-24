@@ -607,18 +607,52 @@ bool FPluginUtils::ValidateNewPluginNameAndLocation(const FString& PluginName, c
 		return false;
 	}
 
-	// Check if a .uplugin file exists at the specified location (if any)
 	if (!PluginLocation.IsEmpty())
 	{
-		const FString PluginFilePath = FPluginUtils::GetPluginFilePath(PluginLocation, PluginName);
+		// Check if a .uplugin file exists at the specified location (if any)
+		{
+			const FString PluginFilePath = FPluginUtils::GetPluginFilePath(PluginLocation, PluginName);
 
-		if (!PluginFilePath.IsEmpty() && FPaths::FileExists(*PluginFilePath))
+			if (!PluginFilePath.IsEmpty() && FPaths::FileExists(*PluginFilePath))
+			{
+				if (FailReason)
+				{
+					*FailReason = FText::Format(LOCTEXT("PluginPathExists", "Plugin already exists at this location\n{0}"), FText::FromString(FPaths::ConvertRelativePathToFull(PluginFilePath)));
+				}
+				return false;
+			}
+		}
+
+		// Check that the plugin location is a valid path (it doesn't have to exist; it will be created if needed)
+		if (!FPaths::ValidatePath(PluginLocation, FailReason))
 		{
 			if (FailReason)
 			{
-				*FailReason = FText::Format(LOCTEXT("PluginPathExists", "Plugin already exists at this location\n{0}"), FText::FromString(FPaths::ConvertRelativePathToFull(PluginFilePath)));
+				*FailReason = FText::Format(LOCTEXT("PluginLocationIsNotValidPath", "Plugin location is not a valid path\n{0}"), *FailReason);
 			}
 			return false;
+		}
+
+		// Check there isn't an existing file along the plugin folder path that would prevent creating the directory tree
+		{
+			FString ExistingFilePath = FPluginUtils::GetPluginFolder(PluginLocation, PluginName, true /*bFullPath*/);
+			while (!ExistingFilePath.IsEmpty())
+			{
+				if (FPaths::FileExists(ExistingFilePath))
+				{
+					break;
+				}
+				ExistingFilePath = FPaths::GetPath(ExistingFilePath);
+			}
+			
+			if (!ExistingFilePath.IsEmpty())
+			{
+				if (FailReason)
+				{
+					*FailReason = FText::Format(LOCTEXT("PluginLocationIsFile", "Plugin location is invalid because a file exists at this path\n{0}"), FText::FromString(ExistingFilePath));
+				}
+				return false;
+			}
 		}
 	}
 
