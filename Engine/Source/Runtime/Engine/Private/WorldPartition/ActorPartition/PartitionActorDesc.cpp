@@ -5,6 +5,7 @@
 
 #if WITH_EDITOR
 #include "Engine/Level.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 void FPartitionActorDesc::InitFrom(const AActor* InActor)
 {
@@ -13,7 +14,8 @@ void FPartitionActorDesc::InitFrom(const AActor* InActor)
 	const APartitionActor* PartitionActor = CastChecked<APartitionActor>(InActor);
 
 	GridSize = PartitionActor->GridSize;
-
+	GridGuid = PartitionActor->GetGridGuid();
+	
 	const FVector ActorLocation = InActor->GetActorLocation();
 	GridIndexX = FMath::FloorToInt(ActorLocation.X / GridSize);
 	GridIndexY = FMath::FloorToInt(ActorLocation.Y / GridSize);
@@ -22,8 +24,15 @@ void FPartitionActorDesc::InitFrom(const AActor* InActor)
 
 void FPartitionActorDesc::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
 	FWorldPartitionActorDesc::Serialize(Ar);
 
 	Ar << GridSize << GridIndexX << GridIndexY << GridIndexZ;
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::PartitionActorDescSerializeGridGuid)
+	{
+		Ar << GridGuid;
+	}
 }
 #endif

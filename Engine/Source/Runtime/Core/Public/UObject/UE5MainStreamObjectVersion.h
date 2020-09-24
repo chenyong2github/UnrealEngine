@@ -25,6 +25,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// This is the correct versioning for MeshDescription changes which were added to ReleaseObjectVersion.
 		MeshDescriptionNewFormat,
 
+		// Serialize GridGuid in PartitionActorDesc
+		PartitionActorDescSerializeGridGuid,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

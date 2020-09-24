@@ -15,6 +15,7 @@
 #include "LandscapeComponent.h"
 #include "LandscapeWeightmapUsage.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
+#include "ActorPartition/PartitionActor.h"
 
 #include "LandscapeProxy.generated.h"
 
@@ -401,7 +402,7 @@ private:
 };
 
 UCLASS(Abstract, MinimalAPI, NotBlueprintable, NotPlaceable, hidecategories=(Display, Attachment, Physics, Debug, Lighting, LOD), showcategories=(Lighting, Rendering, "Utilities|Transformation"), hidecategories=(Mobility))
-class ALandscapeProxy : public AActor
+class ALandscapeProxy : public APartitionActor
 {
 	GENERATED_BODY()
 
@@ -856,8 +857,8 @@ public:
 	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override;
 	virtual bool ShouldExport() override;
 	//~ End AActor Interface
-
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override { return 1; }
+	virtual FGuid GetGridGuid() const override { return LandscapeGuid; }
 #endif	//WITH_EDITOR
 
 	FGuid GetLandscapeGuid() const { return LandscapeGuid; }

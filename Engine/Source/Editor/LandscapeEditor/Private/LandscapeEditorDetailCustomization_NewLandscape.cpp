@@ -42,6 +42,7 @@
 #include "LandscapeDataAccess.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Editor.h"
+#include "LandscapeSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"
 
@@ -91,7 +92,17 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 
 	TSharedRef<IPropertyHandle> PropertyHandle_CanHaveLayersContent = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, bCanHaveLayersContent));
 	NewLandscapeCategory.AddProperty(PropertyHandle_CanHaveLayersContent);
+	TSharedRef<IPropertyHandle> PropertyHandle_GridSize = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, WorldPartitionGridSize));
 	
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode->GetWorld()->GetSubsystem<ULandscapeSubsystem>()->IsGridBased())
+	{
+		NewLandscapeCategory.AddProperty(PropertyHandle_GridSize);
+	}
+	else
+	{
+		DetailBuilder.HideProperty(PropertyHandle_GridSize);
+	}
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapFilename = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapFilename));
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapImportResult = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapImportResult));
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapErrorMessage = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapErrorMessage));
@@ -878,6 +889,8 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		LandscapeEdMode->SetCurrentTool("Select"); // change tool so switching back to the manage mode doesn't give "New Landscape" again
 		LandscapeEdMode->SetCurrentTool("Sculpt"); // change to sculpting mode and tool
 		LandscapeEdMode->SetCurrentLayer(0);
+
+		LandscapeEdMode->GetWorld()->GetSubsystem<ULandscapeSubsystem>()->UpdateGrid(LandscapeInfo, UISettings->WorldPartitionGridSize);
 
 		if (LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
 		{

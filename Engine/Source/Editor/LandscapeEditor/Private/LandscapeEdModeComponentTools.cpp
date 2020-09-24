@@ -22,6 +22,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Materials/MaterialExpressionLandscapeVisibilityMask.h"
 #include "Algo/Copy.h"
+#include "LandscapeSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -526,8 +527,7 @@ public:
 
 	virtual void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
-		ALandscapeProxy* LandscapeProxy = LandscapeInfo ? LandscapeInfo->GetCurrentLevelLandscapeProxy(true) : nullptr;
-		if (LandscapeProxy && EdMode->LandscapeRenderAddCollision)
+		if (LandscapeInfo && EdMode->LandscapeRenderAddCollision)
 		{
 			check(Brush->GetBrushType() == ELandscapeBrushType::Component);
 
@@ -544,7 +544,7 @@ public:
 
 			// Find component range for this block of data, non shared vertices
 			int32 ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2;
-			ALandscape::CalcComponentIndicesNoOverlap(X1, Y1, X2, Y2, LandscapeProxy->ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
+			ALandscape::CalcComponentIndicesNoOverlap(X1, Y1, X2, Y2, LandscapeInfo->ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
 
 			// expand the area by one vertex in each direction to ensure normals are calculated correctly
 			X1 -= 1;
@@ -559,9 +559,11 @@ public:
 			HeightCache.GetCachedData(X1, Y1, X2, Y2, Data);
 			bool bHasXYOffset = XYOffsetCache.GetCachedData(X1, Y1, X2, Y2, XYOffsetData);
 
+			UWorld* World = ViewportClient->GetScene()->GetWorld();
+			
 			TArray<ULandscapeComponent*> NewComponents;
-			LandscapeProxy->Modify();
 			LandscapeInfo->Modify();
+			ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>();
 			for (int32 ComponentIndexY = ComponentIndexY1; ComponentIndexY <= ComponentIndexY2; ComponentIndexY++)
 			{
 				for (int32 ComponentIndexX = ComponentIndexX1; ComponentIndexX <= ComponentIndexX2; ComponentIndexX++)
@@ -570,34 +572,39 @@ public:
 					if (!LandscapeComponent)
 					{
 						// Add New component...
-						FIntPoint ComponentBase = FIntPoint(ComponentIndexX, ComponentIndexY)*LandscapeProxy->ComponentSizeQuads;
-						LandscapeComponent = NewObject<ULandscapeComponent>(LandscapeProxy, NAME_None, RF_Transactional);
-						LandscapeProxy->LandscapeComponents.Add(LandscapeComponent);
-						NewComponents.Add(LandscapeComponent);
-						LandscapeComponent->Init(
-							ComponentBase.X, ComponentBase.Y,
-							LandscapeProxy->ComponentSizeQuads,
-							LandscapeProxy->NumSubsections,
-							LandscapeProxy->SubsectionSizeQuads
+						FIntPoint ComponentBase = FIntPoint(ComponentIndexX, ComponentIndexY)* LandscapeInfo->ComponentSizeQuads;
+
+						ALandscapeProxy* LandscapeProxy = LandscapeSubsystem->FindOrAddLandscapeProxy(LandscapeInfo, ComponentBase);
+						if (LandscapeProxy)
+						{
+							LandscapeComponent = NewObject<ULandscapeComponent>(LandscapeProxy, NAME_None, RF_Transactional);
+							LandscapeProxy->LandscapeComponents.Add(LandscapeComponent);
+							NewComponents.Add(LandscapeComponent);
+							LandscapeComponent->Init(
+								ComponentBase.X, ComponentBase.Y,
+								LandscapeProxy->ComponentSizeQuads,
+								LandscapeProxy->NumSubsections,
+								LandscapeProxy->SubsectionSizeQuads
 							);
-						LandscapeComponent->AttachToComponent(LandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+							LandscapeComponent->AttachToComponent(LandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 
-						// Assign shared properties
-						LandscapeComponent->UpdatedSharedPropertiesFromActor();
+							// Assign shared properties
+							LandscapeComponent->UpdatedSharedPropertiesFromActor();
 
-						int32 ComponentVerts = (LandscapeProxy->SubsectionSizeQuads + 1) * LandscapeProxy->NumSubsections;
-						// Update Weightmap Scale Bias
-						LandscapeComponent->WeightmapScaleBias = FVector4(1.0f / (float)ComponentVerts, 1.0f / (float)ComponentVerts, 0.5f / (float)ComponentVerts, 0.5f / (float)ComponentVerts);
-						LandscapeComponent->WeightmapSubsectionOffset = (float)(LandscapeComponent->SubsectionSizeQuads + 1) / (float)ComponentVerts;
+							int32 ComponentVerts = (LandscapeProxy->SubsectionSizeQuads + 1) * LandscapeProxy->NumSubsections;
+							// Update Weightmap Scale Bias
+							LandscapeComponent->WeightmapScaleBias = FVector4(1.0f / (float)ComponentVerts, 1.0f / (float)ComponentVerts, 0.5f / (float)ComponentVerts, 0.5f / (float)ComponentVerts);
+							LandscapeComponent->WeightmapSubsectionOffset = (float)(LandscapeComponent->SubsectionSizeQuads + 1) / (float)ComponentVerts;
 
-						TArray<FColor> HeightData;
-						HeightData.Empty(FMath::Square(ComponentVerts));
-						HeightData.AddZeroed(FMath::Square(ComponentVerts));
-						LandscapeComponent->InitHeightmapData(HeightData, true);
-						LandscapeComponent->UpdateMaterialInstances();
+							TArray<FColor> HeightData;
+							HeightData.Empty(FMath::Square(ComponentVerts));
+							HeightData.AddZeroed(FMath::Square(ComponentVerts));
+							LandscapeComponent->InitHeightmapData(HeightData, true);
+							LandscapeComponent->UpdateMaterialInstances();
 
-						LandscapeInfo->XYtoComponentMap.Add(FIntPoint(ComponentIndexX, ComponentIndexY), LandscapeComponent);
-						LandscapeInfo->XYtoAddCollisionMap.Remove(FIntPoint(ComponentIndexX, ComponentIndexY));
+							LandscapeInfo->XYtoComponentMap.Add(FIntPoint(ComponentIndexX, ComponentIndexY), LandscapeComponent);
+							LandscapeInfo->XYtoAddCollisionMap.Remove(FIntPoint(ComponentIndexX, ComponentIndexY));
+						}
 					}
 				}
 			}
@@ -661,7 +668,8 @@ public:
 				TMap<ULandscapeLayerInfoObject*, int32> NeighbourLayerInfoObjectCount;
 
 				{
-					FScopedSetLandscapeEditingLayer Scope(Landscape, Landscape ? Landscape->GetLayer(0)->Guid : FGuid(), [=] { });
+					FLandscapeLayer* LandscapeLayer = Landscape ? Landscape->GetLayer(0) : nullptr;
+					FScopedSetLandscapeEditingLayer Scope(Landscape, LandscapeLayer ? LandscapeLayer->Guid : FGuid(), [=] { });
 
 					// Cover 9 tiles around us to determine which object should we use by default
 					for (int32 ComponentIndexX = ComponentIndexX1 - 1; ComponentIndexX <= ComponentIndexX2 + 1; ++ComponentIndexX)

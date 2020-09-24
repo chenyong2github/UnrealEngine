@@ -40,6 +40,8 @@ LandscapeEdit.cpp: Landscape editing
 #include "LandscapeSplinesComponent.h"
 #include "Serialization/MemoryWriter.h"
 #if WITH_EDITOR
+#include "Engine/World.h"
+#include "LandscapeSubsystem.h"
 #include "StaticMeshAttributes.h"
 #include "MeshUtilitiesCommon.h"
 
@@ -4097,6 +4099,11 @@ void ULandscapeInfo::UpdateAllComponentMaterialInstances()
 	});
 }
 
+uint32 ULandscapeInfo::GetGridSize(uint32 InGridSizeInComponents) const
+{
+	return InGridSizeInComponents * ComponentSizeQuads;
+}
+
 ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel, FName NewProxyName)
 {
 	ALandscape* Landscape = LandscapeActor.Get();
@@ -4104,7 +4111,7 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 
 	// Make sure references are in a different package (should be fixed up before calling this method)
 	// Check the Physical Material is same package with Landscape
-	if(Landscape->DefaultPhysMaterial && Landscape->DefaultPhysMaterial->GetOutermost() == Landscape->GetOutermost())
+	if (Landscape->DefaultPhysMaterial && Landscape->DefaultPhysMaterial->GetOutermost() == Landscape->GetOutermost())
 	{
 		return nullptr;
 	}
@@ -4129,6 +4136,30 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 		}
 	}
 
+	ALandscapeProxy* LandscapeProxy = GetLandscapeProxyForLevel(TargetLevel);
+	bool bSetPositionAndOffset = false;
+	if (!LandscapeProxy)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Name = NewProxyName;
+		SpawnParams.OverrideLevel = TargetLevel;
+		LandscapeProxy = TargetLevel->GetWorld()->SpawnActor<ALandscapeStreamingProxy>(SpawnParams);
+
+		// copy shared properties to this new proxy
+		LandscapeProxy->GetSharedProperties(Landscape);
+		LandscapeProxy->CreateLandscapeInfo();
+		LandscapeProxy->SetActorLabel(LandscapeProxy->GetName());
+		bSetPositionAndOffset = true;
+	}
+
+	return MoveComponentsToProxy(InComponents, LandscapeProxy, bSetPositionAndOffset, TargetLevel);
+}
+
+ALandscapeProxy* ULandscapeInfo::MoveComponentsToProxy(const TArray<ULandscapeComponent*>& InComponents, ALandscapeProxy* LandscapeProxy, bool bSetPositionAndOffset, ULevel* TargetLevel)
+{
+	ALandscape* Landscape = LandscapeActor.Get();
+	check(Landscape != nullptr);
+	
 	struct FCompareULandscapeComponentBySectionBase
 	{
 		FORCEINLINE bool operator()(const ULandscapeComponent& A, const ULandscapeComponent& B) const
@@ -4148,14 +4179,14 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 	for (ULandscapeComponent* Component : ComponentsToMove)
 	{
 		SelectProxies.Add(Component->GetLandscapeProxy());
-		if (Component->GetLandscapeProxy()->GetOuter() != TargetLevel)
+		if (Component->GetLandscapeProxy() != LandscapeProxy && (!TargetLevel || Component->GetLandscapeProxy()->GetOuter() != TargetLevel))
 		{
 			TargetSelectedComponents.Add(Component);
 		}
 
 		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->CollisionComponent.Get();
 		SelectProxies.Add(CollisionComp->GetLandscapeProxy());
-		if (CollisionComp->GetLandscapeProxy()->GetOuter() != TargetLevel)
+		if (CollisionComp->GetLandscapeProxy() != LandscapeProxy && (!TargetLevel || CollisionComp->GetLandscapeProxy()->GetOuter() != TargetLevel))
 		{
 			TargetSelectedCollisionComponents.Add(CollisionComp);
 		}
@@ -4194,30 +4225,20 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 		}
 	}
 
-	ALandscapeProxy* LandscapeProxy = GetLandscapeProxyForLevel(TargetLevel);
-	if (!LandscapeProxy)
+	// Proxy position/offset needs to be set
+	if(bSetPositionAndOffset)
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Name = NewProxyName;
-		SpawnParams.OverrideLevel = TargetLevel;
-		LandscapeProxy = TargetLevel->GetWorld()->SpawnActor<ALandscapeStreamingProxy>(SpawnParams);
-		
-		// copy shared properties to this new proxy
-		LandscapeProxy->GetSharedProperties(Landscape);
-		LandscapeProxy->CreateLandscapeInfo();
-		LandscapeProxy->SetActorLabel(LandscapeProxy->GetName());
-
 		// set proxy location
 		// by default first component location
 		ULandscapeComponent* FirstComponent = *TargetSelectedComponents.CreateConstIterator();
 		LandscapeProxy->GetRootComponent()->SetWorldLocationAndRotation(FirstComponent->GetComponentLocation(), FirstComponent->GetComponentRotation());
 		LandscapeProxy->LandscapeSectionOffset = FirstComponent->GetSectionBase();
+	}
 
-		// Hide(unregister) the new landscape if owning level currently in hidden state
-		if (LandscapeProxy->GetLevel()->bIsVisible == false)
-		{
-			LandscapeProxy->UnregisterAllComponents();
-		}
+	// Hide(unregister) the new landscape if owning level currently in hidden state
+	if (LandscapeProxy->GetLevel()->bIsVisible == false)
+	{
+		LandscapeProxy->UnregisterAllComponents();
 	}
 
 	// Changing Heightmap format for selected components
@@ -4308,7 +4329,7 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 		Component->AttachToComponent(LandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 
 		// Move any foliage associated
-		AInstancedFoliageActor::MoveInstancesForComponentToLevel(Component, TargetLevel);
+		AInstancedFoliageActor::MoveInstancesForComponentToLevel(Component, LandscapeProxy->GetLevel());
 	}
 		
 	// Register our new components if destination landscape is registered in scene 
@@ -4776,6 +4797,21 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		ChangedPhysMaterial();
 	}
+}
+
+bool ALandscapeStreamingProxy::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ALandscapeStreamingProxy, LandscapeActor))
+	{
+		return !GetWorld()->GetSubsystem<ULandscapeSubsystem>()->IsGridBased();
+	}
+
+	return true;
 }
 
 void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

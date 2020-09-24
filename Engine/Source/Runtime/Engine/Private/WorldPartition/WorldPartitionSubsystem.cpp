@@ -191,14 +191,20 @@ void UWorldPartitionSubsystem::DrawRuntimeHash2D(UCanvas* Canvas, class APlayerC
 //
 
 #if WITH_EDITOR
-TArray<const FWorldPartitionActorDesc*> UWorldPartitionSubsystem::GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const
+void UWorldPartitionSubsystem::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
 {
-	TArray<const FWorldPartitionActorDesc*> ActorDescs;
 	if (const UWorldPartition* MainPartition = GetMainWorldPartition())
 	{
-		ActorDescs = MainPartition->GetIntersectingActorDescs(Box, ActorClass);
+		MainPartition->ForEachIntersectingActorDesc(Box, ActorClass, Predicate);
 	}
-	return MoveTemp(ActorDescs);
+}
+
+void UWorldPartitionSubsystem::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
+{
+	if (const UWorldPartition* MainPartition = GetMainWorldPartition())
+	{
+		MainPartition->ForEachActorDesc(ActorClass, Predicate);
+	}
 }
 
 void UWorldPartitionSubsystem::UpdateActorDesc(AActor* Actor)

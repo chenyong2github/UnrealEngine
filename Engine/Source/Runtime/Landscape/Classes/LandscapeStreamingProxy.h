@@ -25,6 +25,7 @@ public:
 #if WITH_EDITOR
 	virtual bool ShouldExport() override { return false;  }
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	//~ End UObject Interface
 

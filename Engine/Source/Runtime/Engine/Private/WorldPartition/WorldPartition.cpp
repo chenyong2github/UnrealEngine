@@ -525,19 +525,30 @@ FWorldPartitionActorDescFactory* UWorldPartition::GetActorDescFactory(const AAct
 	return GetActorDescFactory(Actor->GetClass());
 }
 
-TArray<const FWorldPartitionActorDesc*> UWorldPartition::GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const
+void UWorldPartition::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
 {
-	TArray<const FWorldPartitionActorDesc*> ActorDescs;
-
-	EditorHash->ForEachIntersectingActor(Box, [&ActorDescs, &ActorClass](const FWorldPartitionActorDesc* ActorDesc)
+	EditorHash->ForEachIntersectingActor(Box, [&ActorClass, Predicate](const FWorldPartitionActorDesc* ActorDesc)
 	{
 		if (ActorDesc->GetActorClass()->IsChildOf(ActorClass))
 		{
-			ActorDescs.Add(ActorDesc);
+			Predicate(ActorDesc);
 		}
 	});
-	
-	return MoveTemp(ActorDescs);
+}
+
+void UWorldPartition::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
+{
+	for (const TPair<FGuid, TUniquePtr<FWorldPartitionActorDesc>>& Pair : Actors)
+	{
+		FWorldPartitionActorDesc* ActorDesc = Pair.Value.Get();
+		if (ActorDesc->GetActorClass()->IsChildOf(ActorClass))
+		{
+			if (!Predicate(ActorDesc))
+			{
+				return;
+			}
+		}
+	}
 }
 
 const FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid) const

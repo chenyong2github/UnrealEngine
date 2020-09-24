@@ -17,7 +17,7 @@ public:
 	int64 GridIndexX;
 	int64 GridIndexY;
 	int64 GridIndexZ;
-
+	FGuid GridGuid;
 protected:
 	virtual void InitFrom(const AActor* InActor) override;
 	virtual void Serialize(FArchive& Ar) override;

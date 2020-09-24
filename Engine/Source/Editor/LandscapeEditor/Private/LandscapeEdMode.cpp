@@ -14,6 +14,7 @@
 #include "LandscapeEditorObject.h"
 #include "Landscape.h"
 #include "LandscapeStreamingProxy.h"
+#include "LandscapeSubsystem.h"
 
 #include "EditorSupportDelegates.h"
 #include "ScopedTransaction.h"
@@ -2301,6 +2302,11 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 	}
 
 	return CurrentIndex;
+}
+
+bool FEdModeLandscape::IsGridBased() const
+{
+	return GetWorld()->GetSubsystem<ULandscapeSubsystem>()->IsGridBased();
 }
 
 bool FEdModeLandscape::HasValidLandscapeEditLayerSelection() const

@@ -545,6 +545,8 @@ public:
 	void OnLandscapeMaterialChangedDelegate();
 	void RefreshDetailPanel();
 
+	bool IsGridBased() const;
+
 	// Edit Layers
 	bool HasValidLandscapeEditLayerSelection() const;
 	bool CanHaveLandscapeLayersContent() const;

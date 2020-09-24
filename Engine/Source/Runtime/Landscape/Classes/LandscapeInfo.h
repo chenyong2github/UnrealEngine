@@ -241,6 +241,9 @@ public:
 	/** Moves Components to target level. Creates ALandscapeProxy if needed. */
 	LANDSCAPE_API ALandscapeProxy* MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel, FName NewProxyName = NAME_None);
 
+	/** Moves Components to target proxy. */
+	LANDSCAPE_API ALandscapeProxy* MoveComponentsToProxy(const TArray<ULandscapeComponent*>& InComponents, ALandscapeProxy* LandscapeProxy, bool bSetPositionAndOffset = false, ULevel* TargetLevel = nullptr);
+
 	/** Moves Splines connected to this control point to target level. Creates ULandscapeSplineComponent if needed. */
 	LANDSCAPE_API void MoveSplineToLevel(ULandscapeSplineControlPoint* InControlPoint, ULevel* TargetLevel);
 
@@ -249,6 +252,9 @@ public:
 
 	/** Will call UpdateAllComponentMaterialInstances on all LandscapeProxies */
 	LANDSCAPE_API void UpdateAllComponentMaterialInstances();
+
+	/** Returns LandscapeStreamingProxy Cell Size in WorldPartition */
+	LANDSCAPE_API uint32 GetGridSize(uint32 InGridSizeInComponents) const;
 #endif
 
 	/**

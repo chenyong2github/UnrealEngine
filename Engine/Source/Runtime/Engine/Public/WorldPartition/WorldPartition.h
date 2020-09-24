@@ -93,7 +93,8 @@ private:
 	friend class UWorldPartitionSubsystem;
 
 	// UActorPartitionSubsystem interface+
-	TArray<const FWorldPartitionActorDesc*> GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const;
+	void ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
+	void ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
 	// UActorPartitionSubsystem interface-
 
 	void ApplyActorTransform(AActor* InActor, const FTransform& InTransform);

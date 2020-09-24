@@ -6,9 +6,11 @@
 #include "UObject/ObjectMacros.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Tickable.h"
+#include "WorldPartition/Landscape/LandscapeActorDescFactory.h"
 #include "LandscapeSubsystem.generated.h"
 
 class ALandscapeProxy;
+class ULandscapeInfo;
 
 UCLASS(MinimalAPI)
 class ULandscapeSubsystem : public UWorldSubsystem, public FTickableGameObject
@@ -32,6 +34,10 @@ public:
 #if WITH_EDITOR
 	LANDSCAPE_API void BuildGrassMaps();
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount();
+
+	LANDSCAPE_API bool IsGridBased() const;
+	LANDSCAPE_API void UpdateGrid(ULandscapeInfo* LandscapeInfo, uint32 GridSizeInComponents);
+	LANDSCAPE_API ALandscapeProxy* FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase);
 #endif
 
 private:
@@ -44,5 +50,6 @@ private:
 
 #if WITH_EDITOR
 	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
+	FLandscapeActorDescFactory LandscapeActorDescFactory;
 #endif
 };

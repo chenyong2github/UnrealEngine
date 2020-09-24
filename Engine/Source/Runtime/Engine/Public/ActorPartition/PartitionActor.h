@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Misc/Guid.h"
 #include "PartitionActor.generated.h"
 
 class UBoxComponent;
@@ -21,6 +22,7 @@ public:
 #if WITH_EDITOR	
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::Location; }
 	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
+	virtual FGuid GetGridGuid() const { return FGuid(); }
 #endif
 	//~ End AActor Interface	
 
