@@ -1411,10 +1411,7 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	// Gather all the variables
 	OutFinalFormatArgs = FMoviePipelineFormatArgs();
 	OutFinalFormatArgs.InJob = CurrentJob;
-
-	// From Settings
-	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
-
+	
 	// Ensure they used relative frame numbers in the output so they get the right number of output frames.
 	bool bForceRelativeFrameNumbers = false;
 	if (InFormatString.Contains(TEXT("{frame")) && InOutputState && InOutputState->TimeData.IsTimeDilated() && !InFormatString.Contains(TEXT("_rel}")))
@@ -1430,6 +1427,9 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 		InOutputState->GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset + InFrameNumberOffset, bForceRelativeFrameNumbers);
 	}
 
+	// From Settings
+	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
+
 	// And from ourself
 	{
 		OutFinalFormatArgs.FilenameArguments.Add(TEXT("date"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
@@ -1442,6 +1442,8 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobDate"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobTime"), InitializationTime.ToString(TEXT("%H.%M.%S")));
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobVersion"), InitializationVersion);
+		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobName"), CurrentJob->JobName);
+		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobAuthor"), CurrentJob->Author);
 
 		// By default, we don't want to show frame duplication numbers. If we need to start writing them,
 		// they need to come before the frame number (so that tools recognize them as a sequence).
