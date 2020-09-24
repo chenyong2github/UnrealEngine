@@ -235,7 +235,7 @@ TArray<UObject*> ULevelSequenceEditorBlueprintLibrary::GetBoundObjects(FMovieSce
 	TArray<UObject*> BoundObjects;
 	if (CurrentSequencer.IsValid())
 	{
-		for (TWeakObjectPtr<> WeakObject : CurrentSequencer.Pin()->FindBoundObjects(ObjectBinding.GetGuid(), CurrentSequencer.Pin()->GetFocusedTemplateID()))
+		for (TWeakObjectPtr<> WeakObject : CurrentSequencer.Pin()->FindBoundObjects(ObjectBinding.GetGuid(), ObjectBinding.GetSequenceID()))
 		{
 			if (WeakObject.IsValid())
 			{
