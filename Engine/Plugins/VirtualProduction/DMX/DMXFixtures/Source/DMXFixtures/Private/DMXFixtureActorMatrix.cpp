@@ -536,7 +536,9 @@ void ADMXFixtureActorMatrix::GenerateMatrixBeam()
 	FVector Normal = FVector(0, 0, 1);
 
 	// Build quads
-	float MaxDistance = 15;
+	float MaxDistance = MatrixWidth * MatrixHeight * 0.01f;
+	MaxDistance = FMath::Min(MaxDistance, 50.0f);
+
 	float QuadDistance = MaxDistance / NbrSamples;
 	float QuadWidth = MatrixWidth / XCells;
 	float QuadHeight = MatrixHeight / YCells;
@@ -566,7 +568,7 @@ void ADMXFixtureActorMatrix::GenerateMatrixBeam()
 				uint8 LowByte = QuadIndex % 256;
 
 				// Positions
-				FVector CenterPosition(StartX + ColumnOffset, StartY + RowOffset, 5 + (QuadDistance * SampleIndex));
+				FVector CenterPosition(StartX + ColumnOffset, StartY + RowOffset, 1.0f + (QuadDistance * SampleIndex));
 				FVector P1 = CenterPosition + (TopLeftDirection * QuadSize * QuadScale);
 				FVector P2 = CenterPosition + (BottomLeftDirection * QuadSize * QuadScale);
 				FVector P3 = CenterPosition + (BottomRightDirection * QuadSize * QuadScale);
