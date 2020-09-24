@@ -83,6 +83,9 @@ void SGraphNodeDetailsWidget::ShowDetailsObjects(const TArray<UObject*>& Objects
 	bRefreshOnTick = true;
 	RefreshPropertyObjects.Empty();
 
+	// Flush content of IDetailView widget. It will be rebuilt on next tick
+	PropertyView->SetObjects(TArray<UObject*>());
+
 	RefreshPropertyObjects.Append(Objects);
 }
 

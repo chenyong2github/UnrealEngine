@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataprepCorePrivateUtils.h"
+#include "Shared/DataprepCorePrivateUtils.h"
 
 #include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"

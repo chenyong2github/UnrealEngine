@@ -44,6 +44,11 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 				}
 			);
+
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					"DataprepCore/Private/Shared",
+				});
 		}
 	}
 }
