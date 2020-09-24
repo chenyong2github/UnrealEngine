@@ -1175,9 +1175,18 @@ const UClass* FSequencerObjectBindingNode::GetClassForObjectBinding() const
 	
 	// should exist, but also shouldn't be both a spawnable and a possessable
 	check((Spawnable != nullptr) ^ (Possessable != nullptr));
-	const UClass* ObjectClass = Spawnable ? Spawnable->GetObjectTemplate()->GetClass() : Possessable->GetPossessedObjectClass();
 
-	return ObjectClass;
+	if (Spawnable && Spawnable->GetObjectTemplate() != nullptr)
+	{
+		return Spawnable->GetObjectTemplate()->GetClass();
+	}
+
+	if (Possessable)
+	{
+		return Possessable->GetPossessedObjectClass();
+	}
+
+	return nullptr;
 }
 
 /* FSequencerObjectBindingNode callbacks
