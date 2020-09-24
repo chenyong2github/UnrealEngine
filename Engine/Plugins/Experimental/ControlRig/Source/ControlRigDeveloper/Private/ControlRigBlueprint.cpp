@@ -523,7 +523,6 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
 	FRigElementKey SpaceKey;
-	FTransform OffsetTransform = FTransform::Identity;
 	if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(InPin->GetPinForLink()->GetNode()))
 	{
 		if (TSharedPtr<FStructOnScope> DefaultStructScope = StructNode->ConstructStructInstance())
@@ -534,9 +533,8 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 			FString Left, Right;
 
 			if (URigVMPin::SplitPinPathAtStart(PinPath, Left, Right))
-			{
+		{
 				SpaceKey = DefaultStruct->DetermineSpaceForPin(Right, &HierarchyContainer);
-				OffsetTransform = DefaultStruct->DetermineOffsetTransformForPin(Right, &HierarchyContainer);
 			}
 		}
 	}
@@ -549,7 +547,7 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
 		if (InstancedControlRig)
 		{
-			FName ControlName = InstancedControlRig->AddTransientControl(InPin, SpaceKey, OffsetTransform);
+			FName ControlName = InstancedControlRig->AddTransientControl(InPin, SpaceKey);
 			if (ReturnName == NAME_None)
 			{
 				ReturnName = ControlName;
@@ -559,13 +557,6 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 
 	if (ReturnName != NAME_None)
 	{
-		// de-select all elements so that they don't trigger "cleartransientcontrol()" in "OnElementAdded => OnHierachyChanged"
-		TArray<FRigElementKey> SelectedElements = HierarchyContainer.CurrentSelection();
-		for (const FRigElementKey& SelectedElement : SelectedElements)
-		{
-			HierarchyContainer.OnElementSelected.Broadcast(&HierarchyContainer, SelectedElement, false);
-		}
-
 		HierarchyContainer.OnElementAdded.Broadcast(&HierarchyContainer, FRigElementKey(ReturnName, ERigElementType::Control));
 		HierarchyContainer.OnElementSelected.Broadcast(&HierarchyContainer, FRigElementKey(ReturnName, ERigElementType::Control), true);
 	}
@@ -1553,10 +1544,10 @@ void UControlRigBlueprint::PropagateHierarchyFromBPToInstances(bool bInitializeC
 				DefaultObject->Hierarchy.Initialize(false);
 			}
 
-			TArray<UObject*> ArchetypeInstances;
-			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
-			for (UObject* ArchetypeInstance : ArchetypeInstances)
-			{
+						TArray<UObject*> ArchetypeInstances;
+						DefaultObject->GetArchetypeInstances(ArchetypeInstances);
+						for (UObject* ArchetypeInstance : ArchetypeInstances)
+						{
 				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
 				{
 					InstanceRig->Hierarchy = HierarchyContainer;
@@ -1789,7 +1780,7 @@ void UControlRigBlueprint::HandleOnElementSelected(FRigHierarchyContainer* InCon
 		{
 			if (FRigControl* Control = RigBeingDebugged->FindControl(InKey.Name))
 			{
-				if (!Control->bIsTransientControl && bSelected)
+				if (!Control->bIsTransientControl)
 				{
 					ClearTransientControls();
 				}
