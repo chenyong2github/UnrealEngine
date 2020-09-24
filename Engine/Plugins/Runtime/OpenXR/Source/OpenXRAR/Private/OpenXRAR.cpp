@@ -3,6 +3,8 @@
 #include "OpenXRAR.h"
 #include "OpenXRHMD.h"
 #include "IOpenXRExtensionPlugin.h"
+#include "MRMeshComponent.h"
+#include "ARLifeCycleComponent.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
@@ -13,14 +15,18 @@
 
 #define LOCTEXT_NAMESPACE "OpenXRAR"
 
+DECLARE_CYCLE_STAT(TEXT("Process Mesh Updates"), STAT_FOpenXRARSystem_ProcessMeshUpdates, STATGROUP_OPENXRAR);
 
 
 FOpenXRARSystem::FOpenXRARSystem()
 {
+	SpawnARActorDelegateHandle = UARLifeCycleComponent::OnSpawnARActorDelegate.AddRaw(this, &FOpenXRARSystem::OnSpawnARActor);
 }
 
 FOpenXRARSystem::~FOpenXRARSystem()
 {
+	UARLifeCycleComponent::OnSpawnARActorDelegate.Remove(SpawnARActorDelegateHandle);
+
 	OnStopARSession();
 }
 
@@ -51,14 +57,53 @@ void FOpenXRARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 	SessionConfig = InSessionConfig; 
 
 	SessionStatus.Status = EARSessionStatus::Running;
+
+	for (auto Plugin : TrackingSystem->GetExtensionPlugins())
+	{
+		Plugin->OnStartARSession(InSessionConfig);
+	}
 }
 
 void FOpenXRARSystem::OnStopARSession() 
 {
+	for (auto Plugin : TrackingSystem->GetExtensionPlugins())
+	{
+		Plugin->OnStopARSession();
+	}
+
 	SessionStatus.Status = EARSessionStatus::NotStarted;
 
 	SessionConfig = nullptr;
+
+	ClearAnchors();
+	ClearTrackedGeometries();
 }
+
+void FOpenXRARSystem::OnPauseARSession() 
+{
+	for (auto Plugin : TrackingSystem->GetExtensionPlugins())
+	{
+		Plugin->OnPauseARSession();
+	}
+}
+
+void FOpenXRARSystem::OnSetAlignmentTransform(const FTransform& InAlignmentTransform)
+{
+	const FTransform& NewAlignmentTransform = InAlignmentTransform;
+
+	TArray<UARTrackedGeometry*> AllTrackedGeometries = OnGetAllTrackedGeometries();
+	for (UARTrackedGeometry* TrackedGeometry : AllTrackedGeometries)
+	{
+		TrackedGeometry->UpdateAlignmentTransform(NewAlignmentTransform);
+	}
+
+	TArray<UARPin*> AllARPins = OnGetAllPins();
+	for (UARPin* SomePin : AllARPins)
+	{
+		SomePin->UpdateAlignmentTransform(NewAlignmentTransform);
+	}
+}
+
 
 
 /** @return the info about whether the session is running normally or encountered some kind of error. */
@@ -263,7 +308,267 @@ void FOpenXRARSystem::RemoveAllSavedARPins()
 }
 
 
+
+void FOpenXRARSystem::ClearAnchors()
+{
+	TArray<UARPin*> TempPins;
+	for (UARPin* Pin : Pins)
+	{
+		TempPins.Add(Pin);
+	}
+
+	for (UARPin* PinToRemove : TempPins)
+	{
+		OnRemovePin(PinToRemove);
+	}
+}
+
 //=========== End of Pins =============================================
+
+//=========== Tracked Geometries =============================================
+
+
+TArray<FARTraceResult> FOpenXRARSystem::OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels)
+{
+	return {};
+}
+
+TArray<FARTraceResult> FOpenXRARSystem::OnLineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels)
+{
+	return {};
+}
+
+TArray<UARTrackedGeometry*> FOpenXRARSystem::OnGetAllTrackedGeometries() const
+{ 
+	TArray<UARTrackedGeometry*> Geometries;
+	// Gather all geometries
+	for (auto GeoIt = TrackedGeometryGroups.CreateConstIterator(); GeoIt; ++GeoIt)
+	{
+		Geometries.Add(GeoIt.Value().TrackedGeometry);
+	}
+	return Geometries;
+}
+
+void FOpenXRARSystem::StartMeshUpdates()
+{
+	CurrentUpdateSync.Lock();
+	CurrentUpdate = new FMeshUpdateSet();
+
+}
+
+FOpenXRMeshUpdate* FOpenXRARSystem::AllocateMeshUpdate(FGuid InGuidMeshUpdate)
+{
+	FOpenXRMeshUpdate* MeshUpdate = new FOpenXRMeshUpdate();
+	MeshUpdate->Id = InGuidMeshUpdate;
+
+	CurrentUpdate->GuidToMeshUpdateList.Add(MeshUpdate->Id, MeshUpdate);
+	return MeshUpdate;
+}
+
+void FOpenXRARSystem::RemoveMesh(FGuid InGuidMeshUpdate)
+{
+	auto GTTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::RemoveMesh_GameThread, InGuidMeshUpdate);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(GTTask, GET_STATID(STAT_FOpenXRARSystem_ProcessMeshUpdates), nullptr, ENamedThreads::GameThread);
+}
+
+void FOpenXRARSystem::EndMeshUpdates()
+{
+	bool bNeedsThreadQueueing = true;
+	// Lock the list to process, append our new work, and then release our work set
+	{
+		FScopeLock sl(&MeshUpdateListSync);
+		MeshUpdateList.Add(CurrentUpdate);
+		bNeedsThreadQueueing = MeshUpdateList.Num() == 1;
+	}
+	CurrentUpdate = nullptr;
+
+	// Since the game thread worker works through the queue we only need queue if there is only 1 item
+	if (bNeedsThreadQueueing)
+	{
+		// Queue a game thread processing update
+		auto MeshProcessTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(this, &FOpenXRARSystem::ProcessMeshUpdates_GameThread);
+		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(MeshProcessTask, GET_STATID(STAT_FOpenXRARSystem_ProcessMeshUpdates), nullptr, ENamedThreads::GameThread);
+	}
+
+	CurrentUpdateSync.Unlock();
+}
+
+
+void FOpenXRARSystem::RemoveMesh_GameThread(FGuid InGuidMeshUpdate)
+{
+	FTrackedGeometryGroup* FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(InGuidMeshUpdate);
+	if (FoundTrackedGeometryGroup != nullptr)
+	{
+		UARTrackedGeometry* TrackedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
+		UARComponent* ARComponent = FoundTrackedGeometryGroup->ARComponent;
+		AARActor* ARActor = FoundTrackedGeometryGroup->ARActor;
+
+		check(TrackedGeometry != nullptr);
+
+		//send the notification before we delete anything
+		if (ARComponent)
+		{
+			ARComponent->Remove(TrackedGeometry);
+			AARActor::RequestDestroyARActor(ARActor);
+		}
+		TrackedGeometry->SetTrackingState(EARTrackingState::NotTracking);
+
+		// Detach the mesh component from our scene if it's valid
+		UMRMeshComponent* MRMesh = TrackedGeometry->GetUnderlyingMesh();
+		if (MRMesh != nullptr)
+		{
+			MRMesh->UnregisterComponent();
+			TrackedGeometry->SetUnderlyingMesh(nullptr);
+		}
+
+		TrackedGeometryGroups.Remove(InGuidMeshUpdate);
+		TriggerOnTrackableRemovedDelegates(TrackedGeometry);
+	}
+}
+
+void FOpenXRARSystem::ProcessMeshUpdates_GameThread()
+{
+	FMeshUpdateSet* UpdateToProcess = nullptr;
+	bool bIsDone = false;
+	while (!bIsDone)
+	{
+		// Lock our game thread queue to pull the next set of updates
+		{
+			FScopeLock sl(&MeshUpdateListSync);
+			if (MeshUpdateList.Num() > 0)
+			{
+				UpdateToProcess = MeshUpdateList[0];
+				MeshUpdateList.RemoveAt(0);
+			}
+			else
+			{
+				bIsDone = true;
+			}
+		}
+		// It's possible that a previous call handled the updates since we loop
+		if (UpdateToProcess != nullptr)
+		{
+			// Iterate through the list of updates processing them
+			for (TMap<FGuid, FOpenXRMeshUpdate*>::TConstIterator Iter(UpdateToProcess->GuidToMeshUpdateList); Iter; ++Iter)
+			{
+				FOpenXRMeshUpdate* CurrentMeshUpdate = Iter.Value();
+				AddOrUpdateMesh_GameThread(CurrentMeshUpdate);
+				delete CurrentMeshUpdate;
+			}
+
+			// This update is done, so delete it
+			delete UpdateToProcess;
+			UpdateToProcess = nullptr;
+		}
+	}
+}
+
+void FOpenXRARSystem::AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh)
+{
+	bool bIsAdd = false;
+
+	FTrackedGeometryGroup* FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(CurrentMesh->Id);
+	if (FoundTrackedGeometryGroup == nullptr)
+	{
+		// We haven't seen this one before so add it to our set
+		FTrackedGeometryGroup TrackedGeometryGroup(NewObject<UARTrackedGeometry>());
+		TrackedGeometryGroups.Add(CurrentMesh->Id, TrackedGeometryGroup);
+
+		FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(CurrentMesh->Id);
+		check(FoundTrackedGeometryGroup);
+
+		bIsAdd = true;
+
+		AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
+	}
+
+	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
+	UARComponent* NewUpdatedARComponent = FoundTrackedGeometryGroup->ARComponent;
+
+	check(NewUpdatedGeometry != nullptr);
+
+	if (CurrentMesh->Vertices.Num() > 0)
+	{
+		// Update MRMesh if it's available
+		if (auto MRMesh = NewUpdatedGeometry->GetUnderlyingMesh())
+		{
+			// MRMesh takes ownership of the data in the arrays at this point
+			MRMesh->UpdateMesh(CurrentMesh->LocalToTrackingTransform.GetLocation(), CurrentMesh->LocalToTrackingTransform.GetRotation(), CurrentMesh->LocalToTrackingTransform.GetScale3D(), CurrentMesh->Vertices, CurrentMesh->Indices);
+		}
+	}
+
+	// Update the tracking data, it MUST be done after UpdateMesh
+	NewUpdatedGeometry->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
+		GFrameCounter,
+		FPlatformTime::Seconds(),
+		CurrentMesh->LocalToTrackingTransform,
+		TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform());
+	// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
+	NewUpdatedGeometry->SetObjectClassification(CurrentMesh->Type);
+	NewUpdatedGeometry->SetTrackingState(CurrentMesh->TrackingState);
+
+	// Trigger the proper notification delegate
+	if (!bIsAdd)
+	{
+		if (NewUpdatedARComponent)
+		{
+			NewUpdatedARComponent->Update(NewUpdatedGeometry);
+			TriggerOnTrackableUpdatedDelegates(NewUpdatedGeometry);
+		}
+	}
+}
+
+
+void FOpenXRARSystem::ClearTrackedGeometries()
+{
+	for (auto GeoIt = TrackedGeometryGroups.CreateIterator(); GeoIt; ++GeoIt)
+	{
+		FTrackedGeometryGroup& TrackedGeometryGroup = GeoIt.Value();
+		if (TrackedGeometryGroup.ARActor)
+		{
+			AARActor::RequestDestroyARActor(TrackedGeometryGroup.ARActor);
+		}
+		// Remove the occlusion mesh if present
+		UARTrackedGeometry* TrackedGeometryBeingRemoved = TrackedGeometryGroup.TrackedGeometry;
+		check(TrackedGeometryBeingRemoved);
+		UMRMeshComponent* MRMesh = TrackedGeometryBeingRemoved->GetUnderlyingMesh();
+		if (MRMesh != nullptr)
+		{
+			MRMesh->DestroyComponent();
+			TrackedGeometryBeingRemoved->SetUnderlyingMesh(nullptr);
+		}
+	}
+	TrackedGeometryGroups.Empty();
+}
+
+
+void FOpenXRARSystem::OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID)
+{
+	FTrackedGeometryGroup* TrackedGeometryGroup = TrackedGeometryGroups.Find(NativeID);
+	if (TrackedGeometryGroup != nullptr)
+	{
+		//this should still be null
+		check(TrackedGeometryGroup->ARActor == nullptr);
+		check(TrackedGeometryGroup->ARComponent == nullptr);
+
+		check(NewARActor);
+		check(NewARComponent);
+
+		TrackedGeometryGroup->ARActor = NewARActor;
+		TrackedGeometryGroup->ARComponent = NewARComponent;
+
+		//NOW, we can make the callbacks
+		TrackedGeometryGroup->ARComponent->Update(TrackedGeometryGroup->TrackedGeometry);
+		TriggerOnTrackableAddedDelegates(TrackedGeometryGroup->TrackedGeometry);
+	}
+	else
+	{
+		UE_LOG(LogOpenXRAR, Warning, TEXT("AR NativeID not found.  Make sure to set this on the ARComponent!"));
+	}
+}
+
+//=========== End of Tracked Geometries =============================================
+
 
 bool FOpenXRARSystem::OnStartARGameFrame(FWorldContext& WorldContext)
 {
@@ -271,7 +576,6 @@ bool FOpenXRARSystem::OnStartARGameFrame(FWorldContext& WorldContext)
 
 	return true;
 }
-
 
 /**
 * Pure virtual that must be overloaded by the inheriting class. Use this
@@ -283,6 +587,16 @@ void FOpenXRARSystem::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(SessionConfig);
 	Collector.AddReferencedObjects(Pins);
+
+	// Iterate all geometries
+	for (auto GeoIt = TrackedGeometryGroups.CreateIterator(); GeoIt; ++GeoIt)
+	{
+		FTrackedGeometryGroup& TrackedGeometryGroup = GeoIt.Value();
+
+		Collector.AddReferencedObject(TrackedGeometryGroup.TrackedGeometry);
+		Collector.AddReferencedObject(TrackedGeometryGroup.ARActor);
+		Collector.AddReferencedObject(TrackedGeometryGroup.ARComponent);
+	}
 }
 
 
@@ -318,6 +632,12 @@ bool OpenXRARModuleImpl::GetExtensions(TArray<const ANSICHAR*>& OutExtensions)
 {
 	return true;
 }
+
+IOpenXRARTrackedMeshHolder* OpenXRARModuleImpl::GetTrackedMeshHolder()
+{
+	return ARSystem.Get();
+}
+
 
 
 IMPLEMENT_MODULE(OpenXRARModuleImpl, OpenXRAR)
