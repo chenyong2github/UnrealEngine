@@ -12,7 +12,7 @@
 #include "DataprepContentConsumer.h"
 #include "DataprepContentProducer.h"
 #include "DataprepCoreLogCategory.h"
-#include "DataprepCorePrivateUtils.h"
+#include "Shared/DataprepCorePrivateUtils.h"
 #include "DataprepOperation.h"
 #include "DataprepParameterizableObject.h"
 #include "IDataprepProgressReporter.h"
@@ -642,10 +642,11 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 		{
 			if(UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(AssetObject))
 			{
-				MaterialInterfaces.Add( MaterialInterface );
-				if(MaterialInterface->GetMaterial())
+				if (!MaterialInterfaces.Contains(MaterialInterface))
 				{
-					MaterialInterfaces.Add( MaterialInterface->GetMaterial() );
+					// Force compilation of materials which have no render proxy
+					DataprepCorePrivateUtils::CompileMaterial(MaterialInterface);
+					MaterialInterfaces.Add(MaterialInterface);
 				}
 			}
 			else if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(AssetObject))
@@ -655,75 +656,13 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 		}
 	}
 
-	int32 AssetToBuildCount = MaterialInterfaces.Num() + StaticMeshes.Num();
-	FDataprepWorkReporter Task( ProgressReporterPtr, LOCTEXT( "BuildAssets_Building", "Building assets ..." ), (float)AssetToBuildCount, 1.0f, false );
-
-	// Force compilation of materials which have no render proxy
-	if(MaterialInterfaces.Num() > 0)
-	{
-		// Post-processing on materials inspired from FDatasmithImporterImpl::CompileMaterial
-
-		// Check if material must be recompiled
-		auto MustRecompile = [](UMaterialInterface* MaterialInterface) -> bool
-		{
-			// Force recompilation of constant material instances which either override blend mode or any static switch
-			if(UMaterialInstanceConstant* ConstantMaterialInstance = Cast< UMaterialInstanceConstant >(MaterialInterface))
-			{
-				// If BlendMode override property has been changed, make sure this combination of the parent material is compiled
-				if ( ConstantMaterialInstance->BasePropertyOverrides.bOverride_BlendMode == true )
-				{
-					return true;
-				}
-				else
-				{
-					// If a static switch is overridden, we need to recompile
-					FStaticParameterSet StaticParameters;
-					ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
-
-					for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
-					{
-						if ( Switch.bOverride )
-						{
-							return true;
-						}
-					}
-				}
-			}
-
-			// Force compilation if there is no valid render proxy
-			const FMaterialRenderProxy* RenderProxy = MaterialInterface->GetRenderProxy();
-
-			return RenderProxy == nullptr || !RenderProxy->IsInitialized();
-		};
-
-		int32 AssetBuiltCount = 0;
-		AssetToBuildCount = MaterialInterfaces.Num();
-
-		for(UMaterialInterface* MaterialInterface : MaterialInterfaces)
-		{
-			++AssetBuiltCount;
-			Task.ReportNextStep(FText::Format(LOCTEXT( "BuildAssets_Building_Materials", "Building materials ({0} / {1})" ), AssetBuiltCount, AssetToBuildCount), 1.0f);
-
-			if(MaterialInterface)
-			{
-				if( MustRecompile( MaterialInterface ) )
-				{
-					MaterialInterface->ForceRecompileForRendering();
-				}
-
-				// Do not assume the material has been properly initialized, force post-edit on it
-				MaterialInterface->PreEditChange( nullptr );
-				MaterialInterface->PostEditChange();
-			}
-		}
-	}
+	FDataprepWorkReporter Task( ProgressReporterPtr, LOCTEXT( "BuildAssets_Building", "Building static meshes ..." ), (float)StaticMeshes.Num(), 1.0f, false );
 
 	// Build static meshes
 	int32 AssetBuiltCount = 0;
-	AssetToBuildCount = StaticMeshes.Num();
 	DataprepCorePrivateUtils::BuildStaticMeshes(StaticMeshes, [&](UStaticMesh* StaticMesh) -> bool {
 		++AssetBuiltCount;
-		Task.ReportNextStep(FText::Format(LOCTEXT( "BuildAssets_Building_Meshes", "Building static meshes ({0} / {1})" ), AssetBuiltCount, AssetToBuildCount), 1.0f);
+		Task.ReportNextStep(FText::Format(LOCTEXT( "BuildAssets_Building_Meshes", "Building static meshes ({0} / {1})" ), AssetBuiltCount, StaticMeshes.Num()), 1.0f);
 		return true;
 	});
 }

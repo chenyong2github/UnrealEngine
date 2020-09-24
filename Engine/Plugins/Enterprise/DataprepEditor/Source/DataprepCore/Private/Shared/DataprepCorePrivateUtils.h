@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 
 #include "Logging/TokenizedMessage.h"
+#include "MaterialShared.h"
+#include "Materials/MaterialInstanceConstant.h"
 
 class AActor;
 class IDataprepProgressReporter;
@@ -73,4 +75,10 @@ namespace DataprepCorePrivateUtils
 
 	/** Build the render data based on the current geometry available in the static mesh */
 	void BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshes, TFunction<bool(UStaticMesh*)> ProgressFunction, bool bForceBuild = false);
+
+	/**
+	 * Ensures the material is ready for rendering
+	 * @remark This is only to be shared with the Dataprep editor
+	 */
+	void DATAPREPCORE_API CompileMaterial(UMaterialInterface* MaterialInterface);
 }

@@ -6,7 +6,7 @@
 #include "DataprepAssetProducers.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepCoreLogCategory.h"
-#include "DataprepCorePrivateUtils.h"
+#include "Shared/DataprepCorePrivateUtils.h"
 #include "Parameterization/DataprepParameterization.h"
 
 void UDataprepAssetInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
