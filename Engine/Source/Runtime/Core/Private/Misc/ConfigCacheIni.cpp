@@ -3919,7 +3919,7 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"));
 
 	// Load user game settings .ini, allowing merging. This also updates the user .ini if necessary.
-#if PLATFORM_PS4
+#if ALLOW_CONFIG_CACHE_DOWNLOAD_0
 	FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"), nullptr, false, false, true, *GetGameUserSettingsDir());
 #else
 	FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"));
@@ -4128,7 +4128,7 @@ FString FConfigCacheIni::GetGameUserSettingsDir()
 	// Default value from LoadGlobalIniFile
 	FString ConfigDir = FPaths::GeneratedConfigDir();
 
-#if PLATFORM_PS4
+#if ALLOW_CONFIG_CACHE_DOWNLOAD_0
 	bool bUsesDownloadZero = false;
 	if (GConfig->GetBool(TEXT("/Script/PS4PlatformEditor.PS4TargetSettings"), TEXT("bUsesDownloadZero"), bUsesDownloadZero, GEngineIni) && bUsesDownloadZero)
 	{
