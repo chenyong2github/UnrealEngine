@@ -2526,7 +2526,7 @@ AInstancedFoliageActor* AInstancedFoliageActor::Get(UWorld* InWorld, bool bCreat
 {
 	UActorPartitionSubsystem* ActorPartitionSubsystem = InWorld->GetSubsystem<UActorPartitionSubsystem>();
 
-	return CastChecked<AInstancedFoliageActor>(
+	return Cast<AInstancedFoliageActor>(
 		ActorPartitionSubsystem->GetActor(
 			FActorPartitionGetParams(
 				AInstancedFoliageActor::StaticClass(), 
