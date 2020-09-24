@@ -32,7 +32,7 @@ void FContourList::Initialize(const TSharedRef<FData>& Data)
 			Edge->ComputeTangentX();
 		}
 
-		for (const FPartPtr Point : Contour)
+		for (const FPartPtr& Point : Contour)
 		{
 			Point->ComputeSmooth();
 		}
@@ -112,7 +112,7 @@ void FContourList::Reset()
 {
 	for (FContour& Contour : *this)
 	{
-		for (const FPartPtr Part : Contour)
+		for (const FPartPtr& Part : Contour)
 		{
 			Part->ResetDoneExpand();
 		}

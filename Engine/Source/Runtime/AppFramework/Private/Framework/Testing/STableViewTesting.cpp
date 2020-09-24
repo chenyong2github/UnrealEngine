@@ -139,7 +139,7 @@ class FTestData
 
 		static float MakeRandomItemHeight()
 		{
-			return static_cast<float>(rand()) / RAND_MAX * 50.0f;
+			return static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 50.0f;
 		}
 
 		/**

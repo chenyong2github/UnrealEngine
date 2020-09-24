@@ -116,7 +116,7 @@ struct TDefaultNumericTypeInterface : INumericTypeInterface<NumericType>
 		TValueOrError<double, FExpressionError> Result = Parser.Evaluate(*InString, InExistingValue);
 		if (Result.IsValid())
 		{
-			double ClampedValue = FMath::Clamp<double>(Result.GetValue(), TNumericLimits<NumericType>::Lowest(), TNumericLimits<NumericType>::Max());
+			long double ClampedValue = FMath::Clamp<long double>(Result.GetValue(), TNumericLimits<NumericType>::Lowest(), TNumericLimits<NumericType>::Max());
 			return NumericType(ClampedValue);
 		}
 

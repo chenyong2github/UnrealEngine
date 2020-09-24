@@ -24,7 +24,7 @@ FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TSharedRef<FSequencerDis
 	TArray<TSharedRef<FSequencerDisplayNode>> FilteredNodes;
 
 	// Remove any child nodes that have a parent also included in the set
-	for (TSharedRef<FSequencerDisplayNode> ProspectiveNode : InNodes)
+	for (const TSharedRef<FSequencerDisplayNode>& ProspectiveNode : InNodes)
 	{
 		TSharedPtr<FSequencerDisplayNode> Parent = ProspectiveNode->GetParent();
 		while (Parent)
@@ -58,7 +58,7 @@ FAddKeyOperation FAddKeyOperation::FromKeyAreas(ISequencerTrackEditor* TrackEdit
 	FAddKeyOperation Operation;
 	if (ensure(TrackEditor))
 	{
-		for (const TSharedRef<IKeyArea> KeyArea : InKeyAreas)
+		for (const TSharedRef<IKeyArea>& KeyArea : InKeyAreas)
 		{
 			Operation.ProcessKeyArea(TrackEditor, KeyArea);
 		}
@@ -82,7 +82,7 @@ void FAddKeyOperation::AddPreFilteredNodes(TArrayView<const TSharedRef<FSequence
 		return true;
 	};
 
-	for (TSharedRef<FSequencerDisplayNode> Node : FilteredNodes)
+	for (const TSharedRef<FSequencerDisplayNode>& Node : FilteredNodes)
 	{
 		if (TSharedPtr<FSequencerTrackNode> ParentTrack = Node->FindParentTrackNode())
 		{
@@ -126,7 +126,7 @@ bool FAddKeyOperation::ProcessKeyAreaNode(FSequencerTrackNode* InTrackNode, cons
 {
 	bool bKeyedAnything = false;
 
-	for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
+	for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNode->GetAllKeyAreas())
 	{
 		bKeyedAnything |= ProcessKeyArea(InTrackNode, KeyArea);
 	}

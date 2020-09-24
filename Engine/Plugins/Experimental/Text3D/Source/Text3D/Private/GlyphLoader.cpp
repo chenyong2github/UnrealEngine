@@ -624,7 +624,7 @@ void FGlyphLoader::MakeArrangement(const TSharedPtr<const FPolygon2f> Contour)
 {
 	FAxisAlignedBox2f Box = FAxisAlignedBox2f::Empty();
 
-	for (const FVector2f Vertex : Contour->GetVertices())
+	for (const FVector2f& Vertex : Contour->GetVertices())
 	{
 		Box.Contain(Vertex);
 	}
@@ -776,12 +776,12 @@ void FGlyphLoader::RemoveUnneededNodes(const TSharedContourNode Node) const
 
 void FGlyphLoader::MergeRootForDetaching(const TSharedContourNode RemovedNode, const TSharedContourNode RootForDetaching, const TSharedContourNode RemovedNodeParent) const
 {
-	for (const TSharedContourNode Child : RemovedNode->Children)
+	for (const TSharedContourNode& Child : RemovedNode->Children)
 		{
 		Insert(Child, RootForDetaching);
 		}
 
-	for (const TSharedContourNode Child : RootForDetaching->Children)
+	for (const TSharedContourNode& Child : RootForDetaching->Children)
 		{
 		RemovedNodeParent->Children.Add(Child);
 		}

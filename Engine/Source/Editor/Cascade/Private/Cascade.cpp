@@ -4760,7 +4760,7 @@ void FCascade::OnSetRandomSeed()
 		ParticleSystem->PreEditChange(NULL);
 		ParticleSystemComponent->PreEditChange(NULL);
 
-		int32 RandomSeed = FMath::RoundToInt(RAND_MAX * RandomStream.FRand());
+		int32 RandomSeed = FMath::RoundToInt(static_cast<float>(RAND_MAX) * RandomStream.FRand());
 		if (SelectedModule->SetRandomSeedEntry(0, RandomSeed) == false)
 		{
 			UE_LOG(LogCascade, Warning, TEXT("Failed to set random seed entry on module %s"), *(SelectedModule->GetClass()->GetName()));
@@ -4902,7 +4902,7 @@ bool FCascade::ConvertModuleToSeeded(UParticleSystem* ParticleSystem, UParticleE
 			if (RandSeedInfo != NULL)
 			{
 				RandSeedInfo->bResetSeedOnEmitterLooping = true;
-				RandSeedInfo->RandomSeeds.Add(FMath::TruncToInt(RandomStream.FRand() * UINT_MAX));
+				RandSeedInfo->RandomSeeds.Add(FMath::TruncToInt(RandomStream.FRand() * static_cast<float>(UINT_MAX)));
 			}
 		}
 
