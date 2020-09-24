@@ -248,7 +248,7 @@ bool FAssetRenameManager::RenameAssets(const TArray<FAssetRenameData>& AssetsAnd
 	return FixReferencesAndRename(AssetsAndNames, bAutoCheckout, bWithDialog);
 }
 
-void FAssetRenameManager::RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout) const
+EAssetRenameResult FAssetRenameManager::RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout) const
 {
 	bool bWithDialog = true;
 
@@ -260,11 +260,14 @@ void FAssetRenameManager::RenameAssetsWithDialog(const TArray<FAssetRenameData>&
 		SDiscoveringAssetsDialog::OpenDiscoveringAssetsDialog(
 			SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateSP(this, &FAssetRenameManager::FixReferencesAndRenameCallback, AssetsAndNames, bAutoCheckout, bWithDialog)
 		);
+		return EAssetRenameResult::Pending;
 	}
 	else
 	{
 		// No need to wait, attempt to fix references and rename now.
-		FixReferencesAndRename(AssetsAndNames, bAutoCheckout, bWithDialog);
+		return FixReferencesAndRename(AssetsAndNames, bAutoCheckout, bWithDialog)
+			? EAssetRenameResult::Success
+			: EAssetRenameResult::Failure;
 	}
 }
 
@@ -806,43 +809,49 @@ bool FAssetRenameManager::CheckOutPackages(TArray<FAssetRenameDataWithReferencer
 	// Check out the packages
 	if (PackagesToCheckOut.Num() > 0)
 	{
+		TArray<UPackage*> PackagesCheckedOutOrMadeWritable;
+		TArray<UPackage*> PackagesNotNeedingCheckout;
 		if (ISourceControlModule::Get().IsEnabled())
 		{
-			TArray<UPackage*> PackagesCheckedOutOrMadeWritable;
-			TArray<UPackage*> PackagesNotNeedingCheckout;
+			// SCC is enabled, so allow auto or manual checkout
 			bUserAcceptedCheckout = bAutoCheckout ? AutoCheckOut(PackagesToCheckOut) : FEditorFileUtils::PromptToCheckoutPackages(false, PackagesToCheckOut, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout);
-			if (bUserAcceptedCheckout)
-			{
-				// Make a list of any packages in the list which weren't checked out for some reason
-				TArray<UPackage*> PackagesThatCouldNotBeCheckedOut = PackagesToCheckOut;
-
-				for (UPackage* Package : PackagesCheckedOutOrMadeWritable)
-				{
-					PackagesThatCouldNotBeCheckedOut.RemoveSwap(Package);
-				}
-
-				for (UPackage* Package : PackagesNotNeedingCheckout)
-				{
-					PackagesThatCouldNotBeCheckedOut.RemoveSwap(Package);
-				}
-
-				// If there's anything which couldn't be checked out, abort the operation.
-				if (PackagesThatCouldNotBeCheckedOut.Num() > 0)
-				{
-					bUserAcceptedCheckout = false;
-				}
-			}
 		}
 		else
 		{
-			TArray<FString> PackageFilenames = USourceControlHelpers::PackageFilenames(PackagesToCheckOut);
-			for (const FString& PackageFilename : PackageFilenames)
+			// SCC is disabled, so give the user a chance to make any files writable, but don't do that automatically
+			bUserAcceptedCheckout = !bAutoCheckout && FEditorFileUtils::PromptToCheckoutPackages(false, PackagesToCheckOut, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout);
+		}
+		if (bUserAcceptedCheckout)
+		{
+			// Make a list of any packages in the list which weren't checked out for some reason
+			TArray<UPackage*> PackagesThatCouldNotBeCheckedOut = PackagesToCheckOut;
+
+			for (UPackage* Package : PackagesCheckedOutOrMadeWritable)
 			{
-				// If the file exist but readonly, do not allow the rename.
-				if (IFileManager::Get().FileExists(*PackageFilename) && IFileManager::Get().IsReadOnly(*PackageFilename))
+				PackagesThatCouldNotBeCheckedOut.RemoveSwap(Package);
+			}
+
+			for (UPackage* Package : PackagesNotNeedingCheckout)
+			{
+				PackagesThatCouldNotBeCheckedOut.RemoveSwap(Package);
+			}
+
+			// If there's anything which couldn't be checked out, abort the operation.
+			if (PackagesThatCouldNotBeCheckedOut.Num() > 0)
+			{
+				bUserAcceptedCheckout = false;
+			}
+		}
+
+		// If the checkout was declined (or failed), then fail the entire rename request
+		if (!bUserAcceptedCheckout)
+		{
+			for (FAssetRenameDataWithReferencers& AssetToRename : AssetsToRename)
+			{
+				if (!AssetToRename.bRenameFailed)
 				{
-					bUserAcceptedCheckout = false;
-					break;
+					AssetToRename.bRenameFailed = true;
+					AssetToRename.FailureReason = LOCTEXT("RenameFailedNotCheckedOutOrWritable", "Not checked-out or writable.");
 				}
 			}
 		}

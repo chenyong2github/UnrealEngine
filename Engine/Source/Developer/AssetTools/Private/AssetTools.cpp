@@ -1042,9 +1042,9 @@ bool UAssetToolsImpl::RenameAssets(const TArray<FAssetRenameData>& AssetsAndName
 	return AssetRenameManager->RenameAssets(AssetsAndNames);
 }
 
-void UAssetToolsImpl::RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout)
+EAssetRenameResult UAssetToolsImpl::RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout)
 {
-	AssetRenameManager->RenameAssetsWithDialog(AssetsAndNames, bAutoCheckout);
+	return AssetRenameManager->RenameAssetsWithDialog(AssetsAndNames, bAutoCheckout);
 }
 
 void UAssetToolsImpl::FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects)
