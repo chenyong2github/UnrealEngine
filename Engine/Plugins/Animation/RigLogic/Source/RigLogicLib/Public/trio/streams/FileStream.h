@@ -5,6 +5,7 @@
 #include "trio/Defs.h"
 #include "trio/Stream.h"
 #include "trio/types/Aliases.h"
+#include "trio/types/Parameters.h"
 
 namespace trio {
 
@@ -13,15 +14,9 @@ namespace trio {
 */
 class TRIOAPI FileStream : public BoundedIOStream {
     public:
-        enum class AccessMode {
-            Read = 1,
-            Write = 2,
-            ReadWrite = 3
-        };
-        enum class OpenMode {
-            Binary = 4,
-            Text = 8
-        };
+        using AccessMode = trio::AccessMode;
+        using OpenMode = trio::OpenMode;
+
         static const sc::StatusCode OpenError;
         static const sc::StatusCode ReadError;
         static const sc::StatusCode WriteError;

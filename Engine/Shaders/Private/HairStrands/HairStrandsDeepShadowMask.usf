@@ -483,7 +483,7 @@ void MainPS(
 
 	// Depending of if the light is direction (i.e., WholeSceneLight) or a local light (Point/Spot/Rect), 
 	// we change the output layout
-	OutColor = bIsWholeSceneLight ? float4(Visibility, 1, 1, 1) : float4(1, 1, Visibility, 1);
+	OutColor = bIsWholeSceneLight ? float4(Visibility, Visibility, 1, 1) : float4(1, 1, Visibility, Visibility);
 }
 
 #endif

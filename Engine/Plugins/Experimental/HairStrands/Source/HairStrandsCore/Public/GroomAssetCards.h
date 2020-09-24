@@ -19,6 +19,14 @@ enum class EHairCardsClusterType : uint8
 	High,
 };
 
+UENUM(BlueprintType)
+enum class EHairCardsGenerationType : uint8
+{
+	CardsCount,
+	UseGuides,
+};
+
+/* Deprecated */
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairCardsClusterSettings
 {
@@ -26,16 +34,16 @@ struct HAIRSTRANDSCORE_API FHairCardsClusterSettings
 
 	FHairCardsClusterSettings();
 
-	/** Decimation factor to initialize cluster center (only used when UseGuide is disabled) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ClusterSettings", meta = (ClampMin = "0", UIMin = "0", UIMax = "1.0"))
+	/** Decimation factor use to initialized cluster (only used when UseGuide is disabled). This changes the number of generated cards */
+	UPROPERTY()
 	float ClusterDecimation;
 
-	/** Quality of clustering when group hair to cluster center */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ClusterSettings")
+	/** Quality of clustering when group hair to cluster center. This does not change the number cards, but only how cards are shaped (size/shape) */
+	UPROPERTY()
 	EHairCardsClusterType Type;
 
-	/** Use the simulation guide to generate the cards instead of the decimation parameters */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ClusterSettings")
+	/** Use the simulation guide to generate the cards instead of the decimation parameter. This changes the number of generated cards. */
+	UPROPERTY()
 	bool bUseGuide;
 
 	bool operator==(const FHairCardsClusterSettings& A) const;
@@ -49,19 +57,33 @@ struct HAIRSTRANDSCORE_API FHairCardsGeometrySettings
 
 	FHairCardsGeometrySettings();
 
-	/** Number of cards per hair cluster */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
-	UPROPERTY()
-	int32 CardsPerCluster;
+	/** Define how cards should be generated. Cards count: define a targeted number of cards. Use guides: use simulation guide as cards. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ClusterSettings")
+	EHairCardsGenerationType GenerationType;
+
+	/** Define how many cards should be generated. The generated number can be lower, as some cards can be discarded by other options. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ClusterSettings", meta = (ClampMin = "1", UIMin = "1"))
+	int32 CardsCount;
+
+	/** Quality of clustering when group hair to belong to a similar cards. This does not change the number cards, but only how cards are shaped (size/shape) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ClusterSettings")
+	EHairCardsClusterType ClusterType;
 
 	/** Minimum size of a card segment */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", AdvancedDisplay, meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "8.0", SliderExponent = 6))
 	float MinSegmentLength;
 	
-	/** Use the curve orientation to smoothly orient the cards */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", AdvancedDisplay)
-	UPROPERTY()
-	float UseCurveOrientation;
+	/** Max angular difference between adjacents vertices to remove vertices during simplification with MinSegmentLength, in degrees. */
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ClampMin = "0", ClampMax = "45", UIMin = "0", UIMax = "45.0"))
+	float AngularThreshold;
+
+	/** Length below which generated cards are discard, as there are considered too small. (Default:0, which means no trimming) */
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ClampMin = "0", UIMin = "0"))
+	float MinCardsLength;
+
+	/** Length above which generated cards are discard, as there are considered too larger. (Default:0, which means no trimming) */
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ClampMin = "0", UIMin = "0"))
+	float MaxCardsLength;
 
 	bool operator==(const FHairCardsGeometrySettings& A) const;
 };
@@ -101,7 +123,8 @@ struct HAIRSTRANDSCORE_API FHairGroupsProceduralCards
 
 	FHairGroupsProceduralCards();
 
-	UPROPERTY(EditAnywhere, Category = "ClusterSettings", meta = (ToolTip = "Cards cluster settings"))
+	/* Deprecated */
+	UPROPERTY()
 	FHairCardsClusterSettings ClusterSettings;
 
 	UPROPERTY(EditAnywhere, Category = "GeometrySettings", meta = (ToolTip = "Cards geometry settings"))
@@ -110,7 +133,13 @@ struct HAIRSTRANDSCORE_API FHairGroupsProceduralCards
 	UPROPERTY(EditAnywhere, Category = "TextureSettings", meta = (ToolTip = "Cards texture atlast settings"))
 	FHairCardsTextureSettings TextureSettings;
 
+	/* Use to track when a cards asset need to be regenerated */
+	UPROPERTY()
+	int32 Version;
+
 	bool operator==(const FHairGroupsProceduralCards& A) const;
+
+	void BuildDDCKey(FArchive& Ar);
 };
 
 UENUM(BlueprintType)
@@ -133,23 +162,54 @@ struct HAIRSTRANDSCORE_API FHairGroupCardsInfo
 };
 
 USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairGroupCardsTextures
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "CardsTextures")
+	UTexture2D* DepthTexture = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "CardsTextures")
+	UTexture2D* CoverageTexture = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "CardsTextures")
+	UTexture2D* TangentTexture = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "CardsAttributes")
+	UTexture2D* AttributeTexture = nullptr;
+};
+
+USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairGroupsCardsSourceDescription
 {
 	GENERATED_BODY()
 
 	FHairGroupsCardsSourceDescription();
 
-	UPROPERTY(EditAnywhere, Category = "CardsSource")
+	/* Deprecated */
+	UPROPERTY()
 	UMaterialInterface* Material = nullptr;
+
+	UPROPERTY()
+	FName MaterialSlotName;
 
 	UPROPERTY(EditAnywhere, Category = "CardsSource")
 	EHairCardsSourceType SourceType = EHairCardsSourceType::Procedural;
+
+	UPROPERTY(EditAnywhere, Category = "CardsSource")
+	UStaticMesh* ProceduralMesh = nullptr;
+
+	UPROPERTY()
+	FString ProceduralMeshKey;
 
 	UPROPERTY(EditAnywhere, Category = "CardsSource")
 	UStaticMesh* ImportedMesh = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "CardsSource")
 	FHairGroupsProceduralCards ProceduralSettings;
+
+	UPROPERTY(EditAnywhere, Category = "CardsSource")
+	FHairGroupCardsTextures Textures;
 
 	/* Group index on which this cards geometry will be used (#hair_todo: change this to be a dropdown selection menu in FHairLODSettings instead) */
 	UPROPERTY(EditAnywhere, Category = "CardsSource")

@@ -200,6 +200,7 @@ void SGroomEditorViewport::BindCommands()
 	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_BaseColor,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairBaseColor),		FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode));
 	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_Roughness,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairRoughness),		FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode));
 	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_VisCluster,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderVisCluster),			FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode));
+	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_CardsGuides,		FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnCardsGuides), FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanCardsGuides));
 }
 
 void SGroomEditorViewport::OnViewMode(EHairStrandsDebugMode Mode)
@@ -221,6 +222,35 @@ void SGroomEditorViewport::OnViewMode(EHairStrandsDebugMode Mode)
 bool SGroomEditorViewport::CanViewMode() const
 {
 	return GroomComponent && GroomComponent->GroomAsset != nullptr;
+}
+
+void SGroomEditorViewport::OnCardsGuides()
+{
+	bool bEnabled = true;
+	if (GroomComponent && GroomComponent->GroomAsset != nullptr)
+	{
+		for (uint32 GroupIt=0, GroupCount=GroomComponent->GetGroupCount(); GroupIt < GroupCount; ++GroupIt)
+		{
+			FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(GroupIt);
+			Instance->Debug.bDrawCardsGuides = !Instance->Debug.bDrawCardsGuides;
+		}
+	}
+}
+
+bool SGroomEditorViewport::CanCardsGuides() const
+{
+	if (GroomComponent && GroomComponent->GroomAsset != nullptr)
+	{
+		for (uint32 GroupIt = 0, GroupCount = GroomComponent->GetGroupCount(); GroupIt < GroupCount; ++GroupIt)
+		{
+			const FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(GroupIt); 
+			if (Instance->GeometryType == EHairGeometryType::Cards)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void SGroomEditorViewport::RefreshViewport()

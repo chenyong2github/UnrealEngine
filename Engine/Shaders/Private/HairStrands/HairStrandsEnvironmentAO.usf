@@ -54,9 +54,9 @@ float TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition, float
 		float2(0.19984126, 0.78641367),
 		float2(0.14383161, -0.14100790)
 	};
-	const uint SampleCount = clamp(AO_SampleCount, 1, 16);
+	const uint SampleCount = clamp(AO_SampleCount, 1u, 16u);
 #else
-	const uint SampleCount = max(AO_SampleCount, 1);
+	const uint SampleCount = max(AO_SampleCount, 1u);
 #endif
 
 	FVirtualVoxelCommonDesc CommonDesc;

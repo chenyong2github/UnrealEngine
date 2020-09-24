@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsMeshProjectionCommon.ush" 
 
 #ifndef MAX_SECTION_COUNT
 #error MAX_SECTION_COUNT needs to be defined
 #endif
+
+uint Pass_SectionStart;
+uint Pass_SectionCount;
 
 uint MaxSectionCount; 
 uint MeshMaxIndexCount		[MAX_SECTION_COUNT]; 
@@ -24,6 +27,11 @@ Buffer<uint> MeshIndexBuffer5;
 Buffer<uint> MeshIndexBuffer6;
 Buffer<uint> MeshIndexBuffer7;
 
+// Note on buffer input type
+// There are two different input buffer permutation, as if skin cache is enabled, we are using raw RHI SRV 
+// (while the skin cache system is not converted to RDG). If skin cache is disable, a manual skin compute 
+// update happens in the hair system, and its output are RDG buffers.
+#if PERMUTATION_POSITION_TYPE == 0
 Buffer<float> MeshPositionBuffer0;
 Buffer<float> MeshPositionBuffer1;
 Buffer<float> MeshPositionBuffer2;
@@ -32,6 +40,25 @@ Buffer<float> MeshPositionBuffer4;
 Buffer<float> MeshPositionBuffer5;
 Buffer<float> MeshPositionBuffer6;
 Buffer<float> MeshPositionBuffer7;
+#else
+Buffer<float> RDGMeshPositionBuffer0;
+Buffer<float> RDGMeshPositionBuffer1;
+Buffer<float> RDGMeshPositionBuffer2;
+Buffer<float> RDGMeshPositionBuffer3;
+Buffer<float> RDGMeshPositionBuffer4;
+Buffer<float> RDGMeshPositionBuffer5;
+Buffer<float> RDGMeshPositionBuffer6;
+Buffer<float> RDGMeshPositionBuffer7;
+
+#define MeshPositionBuffer0 RDGMeshPositionBuffer0
+#define MeshPositionBuffer1 RDGMeshPositionBuffer1
+#define MeshPositionBuffer2 RDGMeshPositionBuffer2
+#define MeshPositionBuffer3 RDGMeshPositionBuffer3
+#define MeshPositionBuffer4 RDGMeshPositionBuffer4
+#define MeshPositionBuffer5 RDGMeshPositionBuffer5
+#define MeshPositionBuffer6 RDGMeshPositionBuffer6
+#define MeshPositionBuffer7 RDGMeshPositionBuffer7
+#endif 
 
 #if PERMUTATION_WITHUV == 1
 Buffer<float2> MeshUVsBuffer0;
@@ -128,7 +155,6 @@ FHairMeshTriangle GetTriangleData(FHairTriangleIndex TriangleIndex, uint Section
 	}
 	return (FHairMeshTriangle)0;
 }
-
 #endif
 
 [numthreads(128, 1, 1)]
@@ -144,14 +170,19 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	const uint SectionIndex = TriangleIndex.SectionIndex;
 
+	if (!(Pass_SectionStart <= SectionIndex && SectionIndex <= Pass_SectionStart + Pass_SectionCount))
+		return;
+
+	// Compute the slod index of the resources for the section index (this is done in multiple pass
+	const uint SectionSlotIndex = SectionIndex - Pass_SectionStart;
 #if PERMUTATION_WITHUV == 1
-	const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, SectionIndex);
+	const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, SectionSlotIndex);
 
 	OutRootTrianglePosition0[RootIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
 	OutRootTrianglePosition1[RootIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
 	OutRootTrianglePosition2[RootIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
 #else
-	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, SectionIndex);
+	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, SectionSlotIndex);
 
 	OutRootTrianglePosition0[RootIndex] = (float4(Tri.P0, 1));
 	OutRootTrianglePosition1[RootIndex] = (float4(Tri.P1, 1));

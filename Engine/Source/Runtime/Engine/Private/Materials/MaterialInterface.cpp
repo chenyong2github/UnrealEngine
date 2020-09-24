@@ -38,6 +38,35 @@ UEnum* UMaterialInterface::SamplerTypeEnum = nullptr;
 
 //////////////////////////////////////////////////////////////////////////
 
+bool IsHairStrandsGeometrySupported(const EShaderPlatform Platform)
+{
+	check(Platform != SP_NumPlatforms);
+	return
+		(
+			((IsD3DPlatform(Platform, false) || IsVulkanSM5Platform(Platform)) && IsPCPlatform(Platform) && !IsMobilePlatform(Platform)) || (IsConsolePlatform(Platform) && !IsSwitchPlatform(Platform))
+		)
+		&&
+		GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
+}
+
+bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLevel::Type FeatureLevel)
+{
+	return
+		ERHIFeatureLevel::SM5 == FeatureLevel &&
+		Material && Material->IsUsedWithHairStrands() && Material->GetShadingModels().HasShadingModel(MSM_Hair) &&
+		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
+}
+
+bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShaderParameters& Parameters)
+{
+	return
+		IsHairStrandsGeometrySupported(Platform) &&
+		Parameters.bIsUsedWithHairStrands && Parameters.ShadingModels.HasShadingModel(MSM_Hair) &&
+		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 /** Copies the material's relevance flags to a primitive's view relevance flags. */
 void FMaterialRelevance::SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutViewRelevance) const
 {

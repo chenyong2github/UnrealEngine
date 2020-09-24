@@ -11,60 +11,6 @@
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
 
-/* Source/CPU data for root resources (GPU resources are stored into FHairStrandsRootResources) */
-struct FHairStrandsRootData
-{
-	/** Build the hair strands resource */
-	FHairStrandsRootData();
-	FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
-	void Serialize(FArchive& Ar);
-	void Reset();
-	bool HasProjectionData() const;
-
-	struct FMeshProjectionLOD
-	{
-		int32 LODIndex = -1;
-
-		/* Triangle on which a root is attached */
-		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
-		   In this case we need to separate index computation. The barycentric coords remain the same however. */
-		TArray<FHairStrandsCurveTriangleIndexFormat::Type> RootTriangleIndexBuffer;
-		TArray<FHairStrandsCurveTriangleBarycentricFormat::Type> RootTriangleBarycentricBuffer;
-
-		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition0Buffer;
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition1Buffer;
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition2Buffer;
-
-		/* Number of samples used for the mesh interpolation */
-		uint32 SampleCount = 0;
-
-		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount */
-		TArray<FHairStrandsWeightFormat::Type> MeshInterpolationWeightsBuffer;
-
-		/* Store the samples vertex indices */
-		TArray<FHairStrandsIndexFormat::Type> MeshSampleIndicesBuffer;
-
-		/* Store the samples rest positions */
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestSamplePositionsBuffer;
-	};
-
-	/* Number of roots */
-	uint32 RootCount;
-
-	/* Curve index for every vertices */
-	TArray<FHairStrandsIndexFormat::Type> VertexToCurveIndexBuffer;
-
-	/* Curve root's positions */
-	TArray<FHairStrandsRootPositionFormat::Type> RootPositionBuffer;
-
-	/* Curve root's normal orientation */
-	TArray<FHairStrandsRootNormalFormat::Type> RootNormalBuffer;
-
-	/* Store the hair projection information for each mesh LOD */
-	TArray<FMeshProjectionLOD> MeshProjectionLODs;
-};
-
 /* Render buffers for root deformation for dynamic meshes */
 struct FHairStrandsRestRootResource : public FRenderResource
 {
@@ -120,7 +66,6 @@ struct FHairStrandsRestRootResource : public FRenderResource
 	/* Store CPU data for root info & root binding */
 	FHairStrandsRootData RootData;
 };
-
 
 /* Render buffers for root deformation for dynamic meshes */
 struct FHairStrandsDeformedRootResource : public FRenderResource
@@ -246,7 +191,7 @@ struct FHairStrandsDeformedResource : public FRenderResource
 
 struct FHairStrandsClusterCullingResource : public FRenderResource
 {
-	FHairStrandsClusterCullingResource(const FHairStrandsDatas& RenStrandsData, const float InGroomAssetRadius, const struct FHairGroupsLOD& InSettings);
+	FHairStrandsClusterCullingResource(const FHairStrandsClusterCullingData& Data);
 
 	/* Init the buffer */
 	virtual void InitRHI() override;
@@ -256,73 +201,6 @@ struct FHairStrandsClusterCullingResource : public FRenderResource
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsClusterResource"); }
-
-	static const uint32 MaxLOD = 8;
-
-
-	/* Structure describing the LOD settings (Screen size, vertex info, ...) for each clusters. 
-	   The packed version of this structure corresponds to the GPU data layout (HairStrandsClusterCommon.ush)
-	   This uses by the GPU LOD selection. */
-	struct FHairClusterInfo
-	{
-		struct Packed
-		{
-			uint32 LODInfoOffset : 24;
-			uint32 LODCount : 8;
-
-			uint32 LOD_ScreenSize_0 : 10;
-			uint32 LOD_ScreenSize_1 : 10;
-			uint32 LOD_ScreenSize_2 : 10;
-			uint32 Pad0 : 2;
-
-			uint32 LOD_ScreenSize_3 : 10;
-			uint32 LOD_ScreenSize_4 : 10;
-			uint32 LOD_ScreenSize_5 : 10;
-			uint32 Pad1 : 2;
-
-			uint32 LOD_ScreenSize_6 : 10;
-			uint32 LOD_ScreenSize_7 : 10;
-			uint32 LOD_bIsVisible   : 8;
-			uint32 Pad2 : 4;
-		};
-
-		FHairClusterInfo()
-		{
-			for (uint32 LODIt = 0; LODIt < MaxLOD; ++LODIt)
-			{
-				ScreenSize[LODIt] = 0;
-				bIsVisible[LODIt] = true;
-			}
-		}
-
-		uint32 LODCount = 0;
-		uint32 LODInfoOffset = 0;
-		float  ScreenSize[MaxLOD];
-		bool   bIsVisible[MaxLOD];
-	};
-
-	/* Structure describing the LOD settings common to all clusters. The layout of this structure is 
-	   identical the GPU data layout (HairStrandsClusterCommon.ush). This uses by the GPU LOD selection. */
-	struct FHairClusterLODInfo
-	{
-		uint32 VertexOffset = 0;
-		uint32 VertexCount0 = 0;
-		uint32 VertexCount1 = 0;
-		FFloat16 RadiusScale0 = 0;
-		FFloat16 RadiusScale1 = 0;
-	};
-
-	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
-	TArray<bool>				LODVisibility;
-
-	/* Screen size at which LOD should switches on CPU */
-	TArray<float>				CPULODScreenSize;
-
-	/* LOD info for the various clusters for LOD management on GPU */
-	TArray<FHairClusterInfo>	ClusterInfos;
-	TArray<FHairClusterLODInfo> ClusterLODInfos;
-	TArray<uint32>				VertexToClusterIds;
-	TArray<uint32>				ClusterVertexIds;
 
 	/* Cluster info buffer */
 	FRWBufferStructured ClusterInfoBuffer;	 
@@ -334,11 +212,7 @@ struct FHairStrandsClusterCullingResource : public FRenderResource
 	/* Concatenated data for each cluster: list of VertexId pointed to by ClusterInfoBuffer */
 	FReadBuffer ClusterVertexIdBuffer;
 
-	/* Number of cluster  */
-	uint32 ClusterCount;
-
-	/* Number of vertex  */
-	uint32 VertexCount;
+	const FHairStrandsClusterCullingData& Data;
 };
 
 struct FHairStrandsInterpolationResource : public FRenderResource
@@ -430,10 +304,10 @@ struct FHairCardsRestResource : public FRenderResource
 	FSamplerStateRHIRef CoverageSampler;
 	FSamplerStateRHIRef AttributeSampler;
 
-	TRefCountPtr<IPooledRenderTarget> CardsDepthTextureRT;
-	TRefCountPtr<IPooledRenderTarget> CardsCoverageTextureRT;
-	TRefCountPtr<IPooledRenderTarget> CardsTangentTextureRT;
-	TRefCountPtr<IPooledRenderTarget> CardsAttributeTextureRT;
+	FTextureReferenceRHIRef	DepthTexture = nullptr;
+	FTextureReferenceRHIRef	CoverageTexture = nullptr;
+	FTextureReferenceRHIRef	TangentTexture = nullptr;
+	FTextureReferenceRHIRef	AttributeTexture = nullptr;
 
 	/* Reference to the hair strands render data */
 	const FHairCardsDatas::FRenderData& RenderData;
@@ -465,10 +339,6 @@ struct FHairCardsProceduralResource : public FRenderResource
 	FRWBuffer ClusterBoundBuffer;
 	FRWBuffer CardsStrandsPositions;
 	FRWBuffer CardsStrandsAttributes;
-	TRefCountPtr<IPooledRenderTarget> CardsDepthTextureRT;
-	TRefCountPtr<IPooledRenderTarget> CardsCoverageTextureRT;
-	TRefCountPtr<IPooledRenderTarget> CardsTangentTextureRT;
-	TRefCountPtr<IPooledRenderTarget> CardsAttributeTextureRT;
 
 	FHairCardsVoxel CardVoxel;
 
@@ -570,10 +440,10 @@ struct FHairCardsInterpolationResource : public FRenderResource
 // Meshes
 
 /* Render buffers that will be used for rendering */
-struct FHairMeshesResource : public FRenderResource
+struct FHairMeshesRestResource : public FRenderResource
 {
 	/** Build the hair strands resource */
-	FHairMeshesResource(const FHairMeshesDatas::FRenderData& HairMeshesRenderData, uint32 VertexCount, uint32 PrimitiveCount);
+	FHairMeshesRestResource(const FHairMeshesDatas::FRenderData& HairMeshesRenderData, uint32 VertexCount, uint32 PrimitiveCount);
 
 	virtual void InitResource() override;
 	virtual void ReleaseResource() override;
@@ -585,7 +455,7 @@ struct FHairMeshesResource : public FRenderResource
 	virtual void ReleaseRHI() override;
 
 	/* Get the resource name */
-	virtual FString GetFriendlyName() const override { return TEXT("FHairMeshesResource"); }
+	virtual FString GetFriendlyName() const override { return TEXT("FHairMeshesRestResource"); }
 
 	/* Strand hair rest position buffer */
 	FRWBuffer PositionBuffer;
@@ -596,12 +466,58 @@ struct FHairMeshesResource : public FRenderResource
 	FRWBuffer NormalsBuffer;
 	FRWBuffer UVsBuffer;
 
-	UTexture2D* DepthTexture = nullptr;
-	UTexture2D* TangentTexture = nullptr;
-	UTexture2D* CoverageTexture = nullptr;
+	FSamplerStateRHIRef DepthSampler;
+	FSamplerStateRHIRef TangentSampler;
+	FSamplerStateRHIRef CoverageSampler;
+	FSamplerStateRHIRef AttributeSampler;
+
+	FTextureReferenceRHIRef	DepthTexture = nullptr;
+	FTextureReferenceRHIRef	CoverageTexture = nullptr;
+	FTextureReferenceRHIRef	TangentTexture = nullptr;
+	FTextureReferenceRHIRef	AttributeTexture = nullptr;
 
 	/* Reference to the hair strands render data */
 	const FHairMeshesDatas::FRenderData& RenderData;
+};
+
+
+/* Render buffers that will be used for rendering */
+struct FHairMeshesDeformedResource : public FRenderResource
+{
+	/** Build the hair strands resource */
+	FHairMeshesDeformedResource(const FHairMeshesDatas::FRenderData& HairMeshesRenderData, bool bInInitializedData);
+
+	/* Init the buffer */
+	virtual void InitRHI() override;
+
+	/* Release the buffer */
+	virtual void ReleaseRHI() override;
+
+	/* Get the resource name */
+	virtual FString GetFriendlyName() const override { return TEXT("FHairMeshesDeformedResource"); }
+
+	/* Strand hair deformed position buffer (previous and current) */
+	FRWBuffer DeformedPositionBuffer[2];
+
+	/* Reference to the hair strands render data */
+	const FHairMeshesDatas::FRenderData& RenderData;
+
+	/* Whether the GPU data should be initialized with the asset data or not */
+	const bool bInitializedData = false;
+
+	/* Whether the GPU data should be initialized with the asset data or not */
+	uint32 CurrentIndex = 0;
+
+	enum EFrameType
+	{
+		Previous,
+		Current
+	};
+
+	// Helper accessors
+	inline uint32 GetIndex(EFrameType T) { return T == EFrameType::Current ? CurrentIndex : 1u - CurrentIndex; }
+	inline FRWBuffer& GetBuffer(EFrameType T) { return DeformedPositionBuffer[GetIndex(T)]; }
+	inline void SwapBuffer() { CurrentIndex = 1u - CurrentIndex; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

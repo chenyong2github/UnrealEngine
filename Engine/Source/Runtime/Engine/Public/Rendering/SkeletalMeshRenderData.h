@@ -43,6 +43,7 @@ public:
 
 #if WITH_EDITOR
 	void Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner);
+	FString GetDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner);
 
 	void SyncUVChannelData(const TArray<FSkeletalMaterial>& ObjectData);
 #endif

@@ -609,7 +609,8 @@ bool FAlembicHairTranslator::Translate(const FString& FileName, FHairDescription
 
 	FMatrix ConversionMatrix = FScaleMatrix::Make(ConversionSettings.Scale) * FRotationMatrix::Make(FQuat::MakeFromEuler(ConversionSettings.Rotation));
 	FMatrix ParentMatrix = FMatrix::Identity;
-	ParseObject(TopObject, HairDescription, ParentMatrix, ConversionMatrix, ConversionSettings.Scale.X, true);
+	const float StrandsWidthScale = FMath::Abs(ConversionSettings.Scale.X); // Assume uniform scaling
+	ParseObject(TopObject, HairDescription, ParentMatrix, ConversionMatrix, StrandsWidthScale, true);
 
 	return HairDescription.IsValid();
 }

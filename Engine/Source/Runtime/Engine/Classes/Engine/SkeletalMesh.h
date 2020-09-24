@@ -1351,7 +1351,11 @@ public:
 	* Every big data should not be in the ddc key and should use this function, because its slow to create a key with big data.
 	*/
 	void InvalidateDeriveDataCacheGUID();
+
+	/** Generate the derived data key used to fetch derived data */
+	FString GetDerivedDataKey();
 #endif 
+
 private:
 
 #if WITH_EDITOR

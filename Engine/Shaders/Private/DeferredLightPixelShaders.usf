@@ -17,11 +17,9 @@
 
 #if USE_HAIR_LIGHTING
 	#include "HairStrands/HairStrandsVisibilityCommon.ush"
-	#if HAIR_CUSTOM_BSDF == 1
-	#include "HairBsdf.ush"
-	#endif
 #endif
-#if USE_HAIR_LIGHTING == 2
+
+#if USE_HAIR_LIGHTING == 1
 	#include "HairStrands/HairStrandsDeepShadowCommon.ush"
 	#include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
 	#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
@@ -143,11 +141,7 @@ float3 GetAtmosphericLightTransmittance(in float3 StableLargeWorldPosition, in f
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if USE_HAIR_LIGHTING == 1
-Texture2D<uint4> HairCategorizationTexture;
-#endif
-
-#if USE_HAIR_LIGHTING == 0 || USE_HAIR_LIGHTING == 1
+#if USE_HAIR_LIGHTING == 0
 
 void DeferredLightPixelMain(
 #if LIGHT_SOURCE_SHAPE > 0
@@ -185,15 +179,6 @@ void DeferredLightPixelMain(
 #endif
 		)
 	{
-	#if USE_HAIR_LIGHTING
-		const uint3 PixelCoord = uint3(floor(InputParams.PixelPos), 0);
-		const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));	
-		const float HairCoverage = saturate(CatData.PixelCoverage);
-		const float OpaqueVisibility = 1.0f - HairCoverage;
-	#else
-		const float OpaqueVisibility = 1.0f;
-	#endif
-
 		const float SceneDepth = CalcSceneDepth(InputParams.ScreenUV);
 		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
 
@@ -206,7 +191,7 @@ void DeferredLightPixelMain(
 		const float4 Radiance = GetDynamicLighting(DerivedParams.WorldPosition, DerivedParams.CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InputParams.ScreenUV), Dither, uint2(InputParams.PixelPos), RectTexture, SurfaceShadow);
 		const float  Attenuation = ComputeLightProfileMultiplier(DerivedParams.WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
-		OutColor += (Radiance * Attenuation) * OpaqueVisibility;
+		OutColor += (Radiance * Attenuation);
 
 
 	#if USE_ATMOSPHERE_TRANSMITTANCE || USE_CLOUD_TRANSMITTANCE
@@ -233,7 +218,7 @@ void DeferredLightPixelMain(
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if USE_HAIR_LIGHTING == 2
+#if USE_HAIR_LIGHTING == 1
 
 Texture2D<uint> HairVisibilityNodeOffsetAndCount;
 StructuredBuffer<FPackedHairSample> HairVisibilityNodeData;
@@ -251,8 +236,8 @@ float HairDualScatteringRoughnessOverride;
 
 void DeferredLightPixelMain(
 	float4 SVPos : SV_POSITION,
-	uint NodeCount  : DISPATCH_NODECOUNT,
-	uint2 Resolution : DISPATCH_RESOLUTION,
+	nointerpolation uint NodeCount  : DISPATCH_NODECOUNT,
+	nointerpolation uint2 Resolution : DISPATCH_RESOLUTION,
 	out float4 OutColor : SV_Target0)
 {
 	OutColor = 0;
@@ -281,7 +266,7 @@ void DeferredLightPixelMain(
 
 	// Inject material data from the visibility/mini-gbuffer for hair
 	const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
-	FScreenSpaceData HairScreenSpaceData;
+	FScreenSpaceData HairScreenSpaceData = (FScreenSpaceData)0;
 	HairScreenSpaceData.AmbientOcclusion = 1;
 	HairScreenSpaceData.GBuffer.WorldNormal = Sample.Tangent;
 	HairScreenSpaceData.GBuffer.BaseColor = Sample.BaseColor;
@@ -302,6 +287,7 @@ void DeferredLightPixelMain(
 	const float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
 
 	FDeferredLightData LightData = SetupLightDataForStandardDeferred();
+	LightData.HairTransmittance.bUseLegacyAbsorption = false;
 	LightData.HairTransmittance.ScatteringComponent = HairComponents;
 
 	// todo add light culling/early out

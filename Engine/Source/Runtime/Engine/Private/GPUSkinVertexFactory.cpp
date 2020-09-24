@@ -38,15 +38,15 @@ static TAutoConsoleVariable<int32> CVarGPUSkinLimit2BoneInfluences(
 	TEXT("Whether to use 2 bones influence instead of default 4/8 for GPU skinning. Cannot be changed at runtime."),
 	ECVF_ReadOnly);
 
-static const bool GCVarUnlimitedBoneInfluences = false;
-static TAutoConsoleVariable<bool> CVarUnlimitedBoneInfluences(
+static int32 GCVarUnlimitedBoneInfluences = 0;
+static FAutoConsoleVariableRef CVarUnlimitedBoneInfluences(
 	TEXT("r.GPUSkin.UnlimitedBoneInfluences"),
 	GCVarUnlimitedBoneInfluences,
 	TEXT("Whether to use unlimited bone influences instead of default 4/8 for GPU skinning. Cannot be changed at runtime."),
 	ECVF_ReadOnly);
 
 static int32 GCVarUnlimitedBoneInfluencesThreshold = EXTRA_BONE_INFLUENCES;
-static TAutoConsoleVariable<int32> CVarUnlimitedBoneInfluencesThreshold(
+static FAutoConsoleVariableRef CVarUnlimitedBoneInfluencesThreshold(
 	TEXT("r.GPUSkin.UnlimitedBoneInfluencesThreshold"),
 	GCVarUnlimitedBoneInfluencesThreshold,
 	TEXT("Unlimited Bone Influences Threshold to use unlimited bone influences buffer if r.GPUSkin.UnlimitedBoneInfluences is enabled. Should be unsigned int. Cannot be changed at runtime."),
@@ -364,14 +364,14 @@ int32 FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones()
 
 bool FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences)
 {
-	const bool bUnlimitedBoneInfluence = GCVarUnlimitedBoneInfluences;
+	const bool bUnlimitedBoneInfluence = (GCVarUnlimitedBoneInfluences!=0);
 	const uint32 UnlimitedBoneInfluencesThreshold = (uint32) GCVarUnlimitedBoneInfluencesThreshold;
 	return bUnlimitedBoneInfluence && MaxBoneInfluences > UnlimitedBoneInfluencesThreshold;
 }
 
 bool FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences()
 {
-	return GCVarUnlimitedBoneInfluences;
+	return (GCVarUnlimitedBoneInfluences!=0);
 }
 
 /*-----------------------------------------------------------------------------

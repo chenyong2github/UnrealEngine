@@ -9,6 +9,7 @@
     #pragma warning(disable : 4365)
 #endif
 #include <cstddef>
+#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -29,6 +30,9 @@ using Vector = std::vector<T, Allocator>;
 
 template<typename T, typename Allocator = PolyAllocator<Vector<T> > >
 using Matrix = Vector<Vector<T>, Allocator>;
+
+template<typename T, typename Allocator = PolyAllocator<T> >
+using List = std::list<T, Allocator>;
 
 template<typename T, typename Allocator = PolyAllocator<T> >
 using Set = std::set<T, std::less<T>, Allocator>;

@@ -11,6 +11,8 @@
 #include <status/StatusCode.h>
 #include <trio/Stream.h>
 #include <trio/streams/FileStream.h>
+#include <trio/streams/MemoryMappedFileStream.h>
+#include <trio/streams/MemoryStream.h>
 
 namespace dna {
 
@@ -22,6 +24,8 @@ using ConstArrayView = trust::ConstArrayView<T>;
 
 using trio::BoundedIOStream;
 using trio::FileStream;
+using trio::MemoryMappedFileStream;
+using trio::MemoryStream;
 using sc::Status;
 
 using namespace pma;

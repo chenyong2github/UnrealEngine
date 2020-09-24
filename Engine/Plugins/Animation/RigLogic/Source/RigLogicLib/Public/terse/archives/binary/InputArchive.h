@@ -4,8 +4,9 @@
 
 #include "terse/Archive.h"
 #include "terse/archives/binary/Traits.h"
+#include "terse/types/DynArray.h"
 #include "terse/utils/ArchiveOffset.h"
-#include "terse/utils/Endianness.h"
+#include "terse/utils/ByteSwap.h"
 
 #ifdef _MSC_VER
     #pragma warning(push)
@@ -96,19 +97,6 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
         }
 
     protected:
-        template<typename T>
-        void reconstruct(T& value) {
-            using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
-            static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
-            // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
-            // The seemingly unnecessary copies and memcpy calls are all optimized away,
-            // compiler knows what's up.
-            UIntType hostOrder;
-            std::memcpy(std::addressof(hostOrder), std::addressof(value), sizeof(T));
-            hostOrder = ntoh(hostOrder);
-            std::memcpy(std::addressof(value), std::addressof(hostOrder), sizeof(T));
-        }
-
         void process(ArchiveOffset<OffsetType>& dest) {
             // Store the position of the offset itself, so it can be seeked to when writing the stream
             dest.position = stream->tell();
@@ -143,7 +131,7 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
         typename std::enable_if<!traits::has_load<T>::value && !traits::has_serialize<T>::value, void>::type process(T& dest) {
             // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             stream->read(reinterpret_cast<char*>(&dest), sizeof(T));
-            reconstruct(dest);
+            networkToHost(dest);
         }
 
         template<typename T, std::size_t N>
@@ -155,6 +143,12 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
 
         template<typename T, typename ... Args>
         void process(std::vector<T, Args...>& dest) {
+            const auto size = processSize();
+            processElements(dest, size);
+        }
+
+        template<typename T, typename ... Args>
+        void process(DynArray<T, Args...>& dest) {
             const auto size = processSize();
             processElements(dest, size);
         }
@@ -199,11 +193,17 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
         processElements(TContainer& dest, std::size_t size) {
             using ValueType = typename TContainer::value_type;
             if (size != 0ul) {
-                dest.resize(size);
+                resize(dest, size);
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-                stream->read(reinterpret_cast<char*>(std::addressof(dest[0])), size * sizeof(ValueType));
-                for (std::size_t i = 0ul; i < size; ++i) {
-                    reconstruct(dest[i]);
+                stream->read(reinterpret_cast<char*>(&dest[0]), size * sizeof(ValueType));
+                const std::size_t blockWidth = 16ul / sizeof(ValueType);
+                const std::size_t alignedSize = size - (size % blockWidth);
+                for (std::size_t i = 0ul; i < alignedSize; i += blockWidth) {
+                    networkToHost128(&dest[i]);
+                }
+
+                for (std::size_t i = alignedSize; i < size; ++i) {
+                    networkToHost(dest[i]);
                 }
             }
         }
@@ -213,10 +213,21 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
         processElements(TContainer& dest, std::size_t size) {
             using ValueType = typename TContainer::value_type;
             if (size != 0ul) {
-                dest.resize(size);
+                resize(dest, size);
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-                stream->read(reinterpret_cast<char*>(std::addressof(dest[0])), size * sizeof(ValueType));
+                stream->read(reinterpret_cast<char*>(&dest[0]), size * sizeof(ValueType));
             }
+        }
+
+    private:
+        template<class TContainer>
+        void resize(TContainer& dest, std::size_t size) {
+            dest.resize(size);
+        }
+
+        template<typename T, class TAllocator>
+        void resize(DynArray<T, TAllocator>& dest, std::size_t size) {
+            dest.resize_uninitialized(size);
         }
 
     private:

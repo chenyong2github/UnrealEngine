@@ -72,6 +72,21 @@ static FAutoConsoleVariableRef CVarHairStrandsCull			(TEXT("r.HairStrands.Cull")
 static FAutoConsoleVariableRef CVarHairStrandsCullIndex		(TEXT("r.HairStrands.Cull.Index"), GHairStrandsCullIndex, TEXT("Hair strands index to be kept. Other will be culled."));
 static FAutoConsoleVariableRef CVarHairStrandsUpdateCullIndex(TEXT("r.HairStrands.Cull.Update"), GHairStrandsUpdateCullIndex, TEXT("Update the guide index to be kept using mouse position for fast selection."));
 
+static bool IsDebugDrawAndDebugPrintEnabled(const FViewInfo& View)
+{
+	return ShaderDrawDebug::IsShaderDrawDebugEnabled() && ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View);
+}
+
+static bool IsDebugDrawAndDebugPrintEnabled(const TArray<FViewInfo>& Views)
+{
+	return Views.Num() > 0 && IsDebugDrawAndDebugPrintEnabled(Views[0]);
+}
+
+static bool IsDebugDrawAndDebugPrintEnabled(const TArrayView<FViewInfo>& Views)
+{
+	return Views.Num() > 0 && IsDebugDrawAndDebugPrintEnabled(Views[0]);
+}
+
 bool IsHairStrandsClusterDebugEnable()
 {
 	return GHairStrandsClusterDebug > 0;
@@ -278,7 +293,7 @@ class FHairDebugPrintCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// Skip optimization for avoiding long compilation time due to large UAV writes
@@ -362,7 +377,7 @@ class FHairDebugPS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairDebugPS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "MainPS", SF_Pixel);
@@ -495,7 +510,7 @@ class FDeepShadowVisualizePS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -600,7 +615,7 @@ class FDeepShadowInfoCS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -667,7 +682,7 @@ class FVoxelVirtualRaymarchingCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// Skip optimization for avoiding long compilation time due to large UAV writes
@@ -684,6 +699,11 @@ static void AddVoxelPageRaymarchingPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	FRDGTextureRef& OutputTexture)
 {
+	if (!IsDebugDrawAndDebugPrintEnabled(View))
+	{
+		return;
+	}
+
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	const FVirtualVoxelResources& VoxelResources = MacroGroupDatas.VirtualVoxelResources;
@@ -732,7 +752,7 @@ class FHairStrandsPlotBSDFPS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -819,6 +839,7 @@ class FHairStrandsPlotSamplePS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, MaxResolution)
 		SHADER_PARAMETER(uint32, HairComponents)
 		SHADER_PARAMETER(float, Exposure)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, HairScatteringLUTTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HairLUTSampler)
@@ -826,7 +847,7 @@ class FHairStrandsPlotSamplePS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -850,6 +871,7 @@ static void AddPlotSamplePass(
 	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
 
 	FHairStrandsDebugData::SetParameters(GraphBuilder, DebugData, Parameters->DebugData);
+	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->OutputOffset = FIntPoint(100, 100);
 	Parameters->OutputResolution = FIntPoint(256, 256);
 	Parameters->MaxResolution = OutputTexture->Desc.Extent;
@@ -930,7 +952,7 @@ class FHairVisibilityDebugPPLLCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsHairStrandsSupported(Parameters.Platform);
+		return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -969,7 +991,7 @@ class FDrawDebugClusterAABBCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -988,9 +1010,12 @@ static void AddDrawDebugClusterPass(
 	FRDGBuilder& GraphBuilder,
 	const FHairStrandsMacroGroupViews& InMacroGroupViews,
 	const FHairStrandClusterData& HairClusterData,
-	TArrayView<FViewInfo> Views)
+	const TArrayView<FViewInfo>& Views)
 {
-	check(ShaderDrawDebug::IsShaderDrawDebugEnabled());
+	if (!IsDebugDrawAndDebugPrintEnabled(Views))
+	{
+		return;
+	}
 
 	const bool bDebugEnable = IsHairStrandsClusterDebugAABBEnable();
 	const bool bCullingEnable = IsHairStrandsClusterCullingEnable();
@@ -1336,7 +1361,7 @@ void RenderHairStrandsDebugInfo(
 		}
 	}
 
-	if (ShaderDrawDebug::IsShaderDrawDebugEnabled() && GHairStrandsClusterDebug > 0)
+	if (GHairStrandsClusterDebug > 0)
 	{
 		AddDrawDebugClusterPass(GraphBuilder, InMacroGroupViews, HairClusterData, Views);
 	}

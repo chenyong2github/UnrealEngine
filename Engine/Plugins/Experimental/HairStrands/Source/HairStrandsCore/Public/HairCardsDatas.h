@@ -190,6 +190,25 @@ struct FHairCardsGeometry
 	TArray<uint32> IndexOffsets;
 	TArray<uint32> IndexCounts;
 
+	FBox BoundingBox;
+
+	void Reset()
+	{
+		UVs.Reset();
+		Normals.Reset();
+		Tangents.Reset();
+		Positions.Reset();
+		Indices.Reset();
+
+		PointOffsets.Reset();
+		PointCounts.Reset();
+
+		IndexOffsets.Reset();
+		IndexCounts.Reset();
+
+		BoundingBox.Init();
+	}
+
 	void SetNum(uint32 Count)
 	{
 		// Geometry
@@ -217,6 +236,11 @@ struct FHairCardsGeometry
 	{
 		return Positions.Num();
 	}
+
+	uint32 GetNumCards() const
+	{
+		return PointOffsets.Num();
+	}
 };
 
 struct FHairCardsDatas
@@ -226,6 +250,7 @@ struct FHairCardsDatas
 	UTexture2D* DepthTexture = nullptr;
 	UTexture2D* TangentTexture = nullptr;
 	UTexture2D* CoverageTexture = nullptr;
+	UTexture2D* AttributeTexture = nullptr;
 
 	struct FRenderData
 	{
@@ -350,8 +375,6 @@ struct FHairCardsProceduralDatas
 	} RenderData;
 };
 
-FArchive& operator<<(FArchive& Ar, FHairCardsProceduralDatas& ProceduralCardData);
-
 struct HAIRSTRANDSCORE_API FHairCardsSourceData
 {
 	FHairCardsDatas				ImportedData;
@@ -370,6 +393,8 @@ struct FHairMeshes
 	TArray<FVector>   Positions;
 	TArray<uint32>    Indices;
 
+	FBox BoundingBox;
+
 	void SetNum(uint32 Count)
 	{
 		// Geometry
@@ -378,6 +403,8 @@ struct FHairMeshes
 		Tangents.Empty();
 		Positions.Empty();
 		Indices.Empty();
+
+		BoundingBox.Init();
 	}
 
 	uint32 GetNumTriangles() const
@@ -401,6 +428,7 @@ struct FHairMeshesDatas
 		TArray<FHairCardsNormalFormat::Type> Normals;
 		TArray<FHairCardsUVFormat::Type> UVs;
 		TArray<FHairCardsIndexFormat::Type> Indices;		
-		//void Serialize(FArchive& Ar);
 	} RenderData;
 };
+
+FArchive& operator<<(FArchive& Ar, FHairMeshesDatas& MeshData);
