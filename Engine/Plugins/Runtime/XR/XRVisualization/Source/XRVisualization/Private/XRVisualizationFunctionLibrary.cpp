@@ -11,6 +11,8 @@
 #include "Engine/StaticMesh.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
+#include "ProceduralMeshComponent.h"
+#include "IHandTracker.h"
 
 
 UXRVisualizationLoadHelper::UXRVisualizationLoadHelper(const FObjectInitializer& ObjectInitializer)
@@ -91,7 +93,7 @@ void UXRVisualizationFunctionLibrary::RenderMotionController(const FXRMotionCont
 
 			FTransform WorldTransform(XRControllerData.GripRotation, XRControllerData.GripPosition, bRight ? FVector(1.0f, -1.0f, 1.0f) : FVector(1.0f, 1.0f, 1.0f));
 
-			FName ActorName(*FString::Printf(TEXT("XR_%s_%x"), *XRControllerData.DeviceName.ToString(), (PTRINT)&XRControllerData));
+			FName ActorName(*FString::Printf(TEXT("XR_%s_%x_%d"), *XRControllerData.DeviceName.ToString(), (PTRINT)&XRControllerData), (int)XRControllerData.HandIndex);
 
 			UStaticMesh* MeshToUse = nullptr;
 			if (XRControllerData.DeviceName == TEXT("OculusHMD"))
@@ -169,11 +171,81 @@ void UXRVisualizationFunctionLibrary::RenderGenericMesh(const FName& ActorName, 
 
 void UXRVisualizationFunctionLibrary::RenderHandMesh(const FXRMotionControllerData& XRControllerData)
 {
-	//if (XRVisualizationData.ApplicationInstanceID == FApp::GetInstanceId())
-	//{
-	//	//ASK TRACKING SYSTEM FOR SPECIFIC MESH IT MIGHT PROVIDE
-	//}
-	//else
+	bool bLocalRender = false;
+
+	if (XRControllerData.ApplicationInstanceID == FApp::GetInstanceId())
+	{
+		TArray<IHandTracker*> HandTrackers = IModularFeatures::Get().GetModularFeatureImplementations<IHandTracker>(IHandTracker::GetModularFeatureName());
+		IHandTracker* HandTracker = nullptr;
+		for (auto Itr : HandTrackers)
+		{
+			if (Itr->IsHandTrackingStateValid() && Itr->HasHandMeshData())
+			{
+				HandTracker = Itr;
+				break;
+			}
+		}
+
+		if (HandTracker != nullptr)
+		{
+			int32 HandIndex = (int)XRControllerData.HandIndex;
+			if ((HandIndex < 0) || (HandIndex >= 2))
+			{
+				return;
+			}
+
+			TArray<struct FVector> Vertices, Normals;
+			TArray<int32> Indices;
+			FTransform HandMeshTransform;
+
+			if ((HandTracker->GetHandMeshData((EControllerHand)XRControllerData.HandIndex, Vertices, Normals, Indices, HandMeshTransform)) && (Vertices.Num() > 0))
+			{
+				bLocalRender = true;
+
+				FName ActorName(*FString::Printf(TEXT("XR_hand_mesh_%s_%x_%d"), *XRControllerData.DeviceName.ToString(), (PTRINT)&XRControllerData, XRControllerData.HandIndex));
+				ULevel* CurrentLevel = GWorld->GetCurrentLevel();
+
+				AActor* FoundActor = FindObjectFast<AActor>(CurrentLevel, ActorName, true);
+				UProceduralMeshComponent* ProceduralMeshComponent = nullptr;
+				if ((FoundActor == nullptr) || (FoundActor->IsPendingKill()))
+				{
+					//create actor
+					FoundActor = NewObject<AActor>(CurrentLevel, ActorName);
+					//create component
+					ProceduralMeshComponent = NewObject<UProceduralMeshComponent>(FoundActor, UProceduralMeshComponent::StaticClass());
+					ProceduralMeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+					ProceduralMeshComponent->RegisterComponentWithWorld(GWorld);
+				}
+				else
+				{
+					//get static mesh component out of the actor
+					ProceduralMeshComponent = Cast<UProceduralMeshComponent>(FoundActor->GetComponentByClass(UProceduralMeshComponent::StaticClass()));
+				}
+
+				if (ProceduralMeshComponent)
+				{
+					TArray<FLinearColor> Colors(&FLinearColor::White, Vertices.Num());
+
+					//Upload the data
+					ProceduralMeshComponent->CreateMeshSection_LinearColor(0, Vertices, Indices, Normals, {}, Colors, {}, false);
+
+					//Update the transform
+					ProceduralMeshComponent->SetWorldTransform(HandMeshTransform);
+
+					FTimerManager& TimerManager = FoundActor->GetWorldTimerManager();
+					//reset this timer and start over
+					TimerManager.ClearAllTimersForObject(FoundActor);
+
+					//Add timer to turn the component back off
+					FTimerHandle TempHandle;
+					TimerManager.SetTimer(TempHandle, FoundActor, &AActor::K2_DestroyActor, 2.0f, true);
+				}
+			}
+		}
+	}
+
+	//in case no hand tracker provided rendering 
+	if (!bLocalRender)
 	{
 		RenderFinger(XRControllerData, (int32)EHandKeypoint::ThumbMetacarpal, (int32)EHandKeypoint::ThumbTip);
 		RenderFinger(XRControllerData, (int32)EHandKeypoint::IndexMetacarpal, (int32)EHandKeypoint::IndexTip);
