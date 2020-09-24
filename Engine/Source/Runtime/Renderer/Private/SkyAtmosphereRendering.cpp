@@ -1328,7 +1328,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		FViewUniformShaderParameters ReflectionViewParameters = *View.CachedViewUniformShaderParameters;
 		FViewMatrices ViewMatrices = View.ViewMatrices;
 		ViewMatrices.HackRemoveTemporalAAProjectionJitter();
-		ViewMatrices.UpdateViewMatrix(Scene->SkyLight->CapturePosition, FRotator());
+		ViewMatrices.UpdateViewMatrix(Scene->SkyLight->CapturePosition, FRotator(EForceInit::ForceInitToZero));
 		View.SetupCommonViewUniformBufferParameters(
 			ReflectionViewParameters,
 			View.ViewRect.Size(), 1,
