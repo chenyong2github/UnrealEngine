@@ -429,5 +429,8 @@ namespace WindowsMixedReality
 
 	private:
 		void CreateSpectatorScreenController();
+
+		//At runtime, EnableStereo can call FWindowsMixedRealityStatics::ConnectToRemoteHoloLens, but in the editor FWindowsMixedRealityStatics::ConnectToRemoteHoloLens calls EnableStereo.  This is to prevent a stack overflow
+		static bool bEnableStereoReentranceGuard;
 	};
 }
