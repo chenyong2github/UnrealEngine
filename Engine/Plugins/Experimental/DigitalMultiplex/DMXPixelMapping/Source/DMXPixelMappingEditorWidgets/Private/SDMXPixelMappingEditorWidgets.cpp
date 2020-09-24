@@ -23,26 +23,26 @@ void SDMXPixelMappingScreenLayout::Construct(const FArguments& InArgs)
 	bShowUniverse = InArgs._bShowUniverse;
 	RemoteUniverse = InArgs._RemoteUniverse;
 	StartAddress = InArgs._StartAddress;
-	NumXPanels = InArgs._NumXPanels;
-	NumYPanels = InArgs._NumYPanels;
+	NumXCells = InArgs._NumXCells;
+	NumYCells = InArgs._NumYCells;
 	Distribution = InArgs._Distribution;
 	PixelFormat = InArgs._PixelFormat;
 	Brush = InArgs._Brush;
 
-	uint32 DMXPixelStep = FDMXPixelMappingUtils::GetNumChannelsPerPixel(PixelFormat);
+	uint32 DMXCellStep = FDMXPixelMappingUtils::GetNumChannelsPerCell(PixelFormat);
 	uint32 UniverseMaxChannels = FDMXPixelMappingUtils::GetUniverseMaxChannels(PixelFormat, StartAddress);
-	bool bShouldAddChannels = FDMXPixelMappingUtils::CanFitPixelIntoChannels(PixelFormat, StartAddress);
+	bool bShouldAddChannels = FDMXPixelMappingUtils::CanFitCellIntoChannels(PixelFormat, StartAddress);
 
 	// Prepare unsorted list
 	uint32 UniverseChannel = StartAddress;
 	uint32 UniverseIndex = 0;
-	const int32 TotalPixels = NumXPanels * NumYPanels;
+	const int32 TotalPixels = NumXCells * NumYCells;
 
 	if (bShouldAddChannels)
 	{
-		for (int32 PixelIndex = 0; PixelIndex < TotalPixels; ++PixelIndex)
+		for (int32 CellID = 0; CellID < TotalPixels; ++CellID)
 		{
-			if (UniverseChannel + (DMXPixelStep - 1) > DMX_MAX_ADDRESS)
+			if (UniverseChannel + (DMXCellStep - 1) > DMX_MAX_ADDRESS)
 			{
 				UniverseChannel = StartAddress;
 				UniverseIndex++;
@@ -53,18 +53,18 @@ void SDMXPixelMappingScreenLayout::Construct(const FArguments& InArgs)
 			AddressUniversePair.Value = RemoteUniverse + UniverseIndex;
 			UnorderedList.Add(AddressUniversePair);
 
-			UniverseChannel += DMXPixelStep;
+			UniverseChannel += DMXCellStep;
 		}
 
-		FDMXUtils::PixelsDistributionSort<TPair<int32, int32>>(Distribution, NumXPanels, NumYPanels, UnorderedList, SortedList);
+		FDMXUtils::PixelMappingDistributionSort<TPair<int32, int32>>(Distribution, NumXCells, NumYCells, UnorderedList, SortedList);
 	}
 
 	SAssignNew(GridPanel, SUniformGridPanel);
 
 	uint32 XYIndex = 0;
-	for (int32 XIndex = 0; XIndex < NumXPanels; ++XIndex)
+	for (int32 XIndex = 0; XIndex < NumXCells; ++XIndex)
 	{
-		for (int32 YIndex = 0; YIndex < NumYPanels; ++YIndex)
+		for (int32 YIndex = 0; YIndex < NumYCells; ++YIndex)
 		{
 			GridPanel->AddSlot(XIndex, YIndex)
 				.HAlign(HAlign_Fill)
@@ -145,8 +145,8 @@ void SDMXPixelMappingSimpleScreenLayout::Construct(const FArguments& InArgs)
 	StartAddress = InArgs._StartAddress;
 	Brush = InArgs._Brush;
 
-	NumXPanels = InArgs._NumXPanels;
-	NumYPanels = InArgs._NumYPanels;
+	NumXCells = InArgs._NumXCells;
+	NumYCells = InArgs._NumYCells;
 
 	ChildSlot
 		[
@@ -181,7 +181,7 @@ void SDMXPixelMappingSimpleScreenLayout::Construct(const FArguments& InArgs)
 									SNew(STextBlock)
 									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.ColorAndOpacity(FSlateColor::UseForeground())
-									.Text(FText::Format(LOCTEXT("Num_Pixels", "{0} x {1} pixels"), NumXPanels, NumYPanels))
+									.Text(FText::Format(LOCTEXT("Num_Pixels", "{0} x {1} pixels"), NumXCells, NumYCells))
 								]
 								+ SVerticalBox::Slot()
 								.HAlign(HAlign_Center)
@@ -200,11 +200,11 @@ void SDMXPixelMappingSimpleScreenLayout::Construct(const FArguments& InArgs)
 		];
 }
 
-void SDMXPixelMappingPixel::Construct(const FArguments& InArgs)
+void SDMXPixelMappingCell::Construct(const FArguments& InArgs)
 {
 	Brush = InArgs._Brush;
 
-	PixelIndex = InArgs._PixelIndex;
+	CellID = InArgs._CellID;
 
 	ChildSlot
 		[
@@ -239,7 +239,7 @@ void SDMXPixelMappingPixel::Construct(const FArguments& InArgs)
 									SNew(STextBlock)
 									.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 									.ColorAndOpacity(FSlateColor::UseForeground())
-									.Text(FText::Format(LOCTEXT("PixelIndex", "{0}"), PixelIndex))
+									.Text(FText::Format(LOCTEXT("CellID", "{0}"), CellID))
 								]
 							]
 						]

@@ -18,16 +18,16 @@ class SInlineEditableTextBlock;
 
 using SDMXFunctionItemListView = SListView<TSharedPtr<FDMXFixtureFunctionItem>>;
 
-struct FDMXPixelFunctionItem
+struct FDMXCellAttributeItem
 {
-	FDMXPixelFunctionItem(const TSharedPtr<IPropertyHandle> InPixelFunctionHandle);
+	FDMXCellAttributeItem(const TSharedPtr<IPropertyHandle> InCellFunctionHandle);
 
-	TSharedPtr<IPropertyHandle> PixelFunctionHandle;
+	TSharedPtr<IPropertyHandle> CellFunctionHandle;
 
 	FText GetAttributeName() const;
 };
 
-using SDMXPixelFunctionItemListView = SListView<TSharedPtr<FDMXPixelFunctionItem>>;
+using SDMXCellAttributeItemListView = SListView<TSharedPtr<FDMXCellAttributeItem>>;
 
 struct FDMXFunctionDetailColumnSizeData
 {
@@ -72,7 +72,7 @@ public:
 	/** Enters editing  */
 	void EnterEditingMode();
 
-	EVisibility CheckPixelFunctionsOverlap() const;
+	EVisibility CheckCellChannelsOverlap() const;
 
 private:
 	//~ Begin SWidget interface
@@ -150,8 +150,8 @@ private:
 	/** Generates a Table Row of Function names */
 	TSharedRef<ITableRow> GenerateFunctionNameRow(TSharedPtr<FDMXFixtureFunctionItem> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
-	/** Generates a Table Row of Pixel Function names */
-	TSharedRef<ITableRow> GeneratePixelFunctionNameRow(TSharedPtr<FDMXPixelFunctionItem> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	/** Generates a Table Row of Cell Function names */
+	TSharedRef<ITableRow> GenerateCellAttributeNameRow(TSharedPtr<FDMXCellAttributeItem> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Callback for when the a function is selected in the list view */
 	void OnListSelectionChanged(TSharedPtr<FDMXFixtureFunctionItem>, ESelectInfo::Type SelectInfo);
@@ -200,23 +200,23 @@ private:
 	float OnGetRightColumnWidth() const { return ColumnWidth; }
 	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth; }
 
-	EVisibility GetPixelFunctionsVisibility() const;
-	FText GetPixelFunctionsHeader() const;
+	EVisibility GetFixtureMatrixVisibility() const;
+	FText GetCellAttributesHeader() const;
 
-	FText GetPixelFunctionsStartChannel() const;
+	FText GetCellChannelsStartChannel() const;
 
 private:
 	/** The list widget where the user can select function names */
 	TSharedPtr<SDMXFunctionItemListView> ListView;
 
 	/** The list widget where the user can select function names */
-	TSharedPtr<SDMXPixelFunctionItemListView> PixelListView;
+	TSharedPtr<SDMXCellAttributeItemListView> CellAttributeListView;
 
 	/** Source for the list view as an array of Function Items */
 	TArray<TSharedPtr<FDMXFixtureFunctionItem>> ListSource;
 
-	/** Source for the list view as an array of Pixel Function Items */
-	TArray<TSharedPtr<FDMXPixelFunctionItem>> PixelListSource;
+	/** Source for the list view as an array of Cell Function Items */
+	TArray<TSharedPtr<FDMXCellAttributeItem>> CellAttributeListSource;
 
 	/** Table rows displayed in the list view */
 	TArray<TSharedPtr<SDMXFunctionTableRow>> TableRows;

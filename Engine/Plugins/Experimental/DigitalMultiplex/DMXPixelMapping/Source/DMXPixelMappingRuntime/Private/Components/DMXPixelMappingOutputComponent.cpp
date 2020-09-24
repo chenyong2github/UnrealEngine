@@ -22,7 +22,7 @@ UDMXPixelMappingOutputComponent::UDMXPixelMappingOutputComponent()
 		.WidthOverride(SizeY);
 #endif // WITH_EDITOR
 
-	PixelBlendingQuality = EDMXPixelBlendingQuality::Low;
+	CellBlendingQuality = EDMXPixelBlendingQuality::Low;
 }
 
 #if WITH_EDITOR

@@ -14,7 +14,7 @@ class UDMXPixelMappingOutputComponent;
 class UDMXPixelMappingOutputDMXComponent;
 class UDMXPixelMappingFixtureGroupComponent;
 class UDMXPixelMappingMatrixComponent;
-class UDMXPixelMappingMatrixPixelComponent;
+class UDMXPixelMappingMatrixCellComponent;
 
 using TComponentPredicate = TFunctionRef<void(UDMXPixelMappingBaseComponent*)>;
 template <typename Type>
