@@ -116,7 +116,7 @@ TUniquePtr<Chaos::FTriangleMeshImplicitObject> FChaosDerivedDataCooker::BuildSin
 
 	if(EnableMeshClean)
 	{
-		Chaos::CleanTrimesh(FinalVerts, FinalIndices, nullptr);
+		Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap);
 	}
 
 	// Build particle list #BG Maybe allow TParticles to copy vectors?
