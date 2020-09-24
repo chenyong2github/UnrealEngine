@@ -115,8 +115,9 @@ public:
 							for (UMaterialInterface* Material : Materials)
 							{
 								FMaterialSubstitutionDataTable RowData;
-								RowData.StringMatch = EEditorScriptingStringMatchType::Contains;
-								RowData.MaterialReplacement = Material;
+								RowData.SearchString = Material->GetName();
+								RowData.StringMatch = EEditorScriptingStringMatchType::ExactMatch;
+								RowData.MaterialReplacement = nullptr;
 								DataTable->AddRow(Material->GetFName(), RowData);
 							}
 
