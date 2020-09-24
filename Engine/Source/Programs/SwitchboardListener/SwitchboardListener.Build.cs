@@ -13,16 +13,13 @@ public class SwitchboardListener : ModuleRules
 				"CoreUObject",
 				"Json",
 				"Networking",
-				"PerforceSourceControl",
 				"Projects", // for LaunchEngineLoop.cpp dependency
-				"SourceControl",
 			}
 		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Launch",
-				"SourceControl",
 			}
 		);
 

@@ -18,13 +18,6 @@ FString CreateProgramKillFailedMessage(const FString& InProgramID, const FString
 
 FString CreateProgramEndedMessage(const FString& InProgramID, int InReturnCode, const FString& InProgramOutput);
 
-FString CreateVcsInitCompletedMessage();
-FString CreateVcsInitFailedMessage(const FString& InError);
-FString CreateVcsReportRevisionCompletedMessage(const FString& InRevision);
-FString CreateVcsReportRevisionFailedMessage(const FString& InError);
-FString CreateVcsSyncCompletedMessage(const FString& InSyncedChange);
-FString CreateVcsSyncFailedMessage(const FString& InErrorMessage);
-
 FString CreateReceiveFileFromClientCompletedMessage(const FString& InDestinationPath);
 FString CreateReceiveFileFromClientFailedMessage(const FString& InDestinationPath, const FString& InError);
 

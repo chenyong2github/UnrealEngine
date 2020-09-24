@@ -4,11 +4,6 @@
 #include "SwitchboardListenerApp.h"
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "ISourceControlState.h"
-#include "ISourceControlModule.h"
-#include "ISourceControlProvider.h"
-#include "SourceControlOperations.h"
-
 #include "RequiredProgramMainCPPInclude.h"
 
 IMPLEMENT_APPLICATION(SwitchboardListener, "SwitchboardListener");
@@ -127,7 +122,6 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 		FTicker::GetCoreTicker().Tick(DeltaTime);
 
 		bListenerIsRunning = Listener.Tick();
-		ISourceControlModule::Get().Tick();
 
 		GFrameCounter++;
 		FStats::AdvanceFrame(false);
@@ -161,6 +155,10 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		return 1;
 	}
 	UE_LOG(LogSwitchboard, Display, TEXT("Successfully initialized socket system."));
+
+#if PLATFORM_WINDOWS
+	ShowWindow(GetConsoleWindow(), SW_MINIMIZE);
+#endif
 
 	const bool bListenerResult = RunSwitchboardListener(ArgC, ArgV);
 	UninitEngine();

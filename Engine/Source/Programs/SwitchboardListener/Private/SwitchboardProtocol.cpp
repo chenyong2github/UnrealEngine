@@ -67,36 +67,6 @@ FString CreateProgramEndedMessage(const FString& InProgramID, int InReturnCode, 
 	return Message;
 }
 
-FString CreateVcsInitCompletedMessage()
-{
-	return CreateMessage(TEXT("vcs init complete"), true, {});
-}
-
-FString CreateVcsInitFailedMessage(const FString& InError)
-{
-	return CreateMessage(TEXT("vcs init complete"), false, { { TEXT("error"), InError } });
-}
-
-FString CreateVcsReportRevisionCompletedMessage(const FString& InRevision)
-{
-	return CreateMessage(TEXT("vcs report revision complete"), true, { { TEXT("revision"), InRevision } });
-}
-
-FString CreateVcsReportRevisionFailedMessage(const FString& InError)
-{
-	return CreateMessage(TEXT("vcs report revision complete"), false, { { TEXT("error"), InError } });
-}
-
-FString CreateVcsSyncCompletedMessage(const FString& InSyncedChange)
-{
-	return CreateMessage(TEXT("vcs sync complete"), true, { { TEXT("revision"), InSyncedChange } });
-}
-
-FString CreateVcsSyncFailedMessage(const FString& InErrorMessage)
-{
-	return CreateMessage(TEXT("vcs sync complete"), false, { { TEXT("error"), InErrorMessage } });
-}
-
 FString CreateReceiveFileFromClientCompletedMessage(const FString& InDestinationPath)
 {
 	return CreateMessage(TEXT("send file complete"), true, { { TEXT("destination"), InDestinationPath } });
@@ -184,44 +154,6 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		if (SourceField.IsValid())
 		{
 			OutTask = MakeUnique<FSwitchboardSendFileToClientTask>(MessageID, InEndpoint, SourceField->AsString());
-			return true;
-		}
-	}
-	else if (CommandName == TEXT("vcs init"))
-	{
-		TSharedPtr<FJsonValue> ProviderField = JsonData->TryGetField(TEXT("provider"));
-		const TSharedPtr<FJsonObject>* SettingsObject = nullptr;
-		if (JsonData->TryGetObjectField(TEXT("vcs settings"), SettingsObject))
-		{
-			TMap<FString, FString> VcsSettings;
-			for (auto CIter = (*SettingsObject)->Values.CreateConstIterator(); CIter; ++CIter)
-			{
-				if (CIter->Value.IsValid())
-				{
-					VcsSettings.Add(CIter->Key, CIter->Value->AsString());
-				}
-			}
-
-			OutTask = MakeUnique<FSwitchboardVcsInitTask>(MessageID, InEndpoint, ProviderField->AsString(), VcsSettings);
-			return true;
-		}
-	}
-	else if (CommandName == TEXT("vcs report revision"))
-	{
-		TSharedPtr<FJsonValue> PathField = JsonData->TryGetField(TEXT("path"));
-		if (PathField.IsValid())
-		{
-			OutTask = MakeUnique<FSwitchboardVcsReportRevisionTask>(MessageID, InEndpoint, PathField->AsString());
-			return true;
-		}
-	}
-	else if (CommandName == TEXT("vcs sync"))
-	{
-		TSharedPtr<FJsonValue> RevisionField = JsonData->TryGetField(TEXT("revision"));
-		TSharedPtr<FJsonValue> PathField = JsonData->TryGetField(TEXT("path"));
-		if (RevisionField.IsValid() && PathField.IsValid())
-		{
-			OutTask = MakeUnique<FSwitchboardVcsSyncTask>(MessageID, InEndpoint, RevisionField->AsString(), PathField->AsString());
 			return true;
 		}
 	}
