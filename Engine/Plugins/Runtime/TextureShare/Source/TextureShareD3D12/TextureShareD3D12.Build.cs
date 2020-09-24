@@ -7,7 +7,7 @@ public class TextureShareD3D12 : ModuleRules
 {
 	public TextureShareD3D12(ReadOnlyTargetRules Target) : base(Target)
 	{
-			PrivateDependencyModuleNames.AddRange(
+		PrivateDependencyModuleNames.AddRange(
 						new string[]
 						{
 							"Core",
@@ -17,13 +17,13 @@ public class TextureShareD3D12 : ModuleRules
 							"D3D12RHI",
 						});
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-							"../../../../Source/Runtime/D3D12RHI/Private",
-							"../../../../Source/Runtime/D3D12RHI/Private/Windows",
-							"../../../../Source/ThirdParty/Windows/D3DX12/Include"
-				});
+		PrivateIncludePaths.AddRange(
+			new string[]
+			{
+						"../../../../Source/Runtime/D3D12RHI/Private",
+						"../../../../Source/Runtime/D3D12RHI/Private/Windows",
+						"../../../../Source/ThirdParty/Windows/D3DX12/Include"
+			});
 
 		// Allow D3D12 Cross GPU Heap resource API (experimental)
 		PublicDefinitions.Add("TEXTURESHARE_CROSSGPUHEAP=0");
