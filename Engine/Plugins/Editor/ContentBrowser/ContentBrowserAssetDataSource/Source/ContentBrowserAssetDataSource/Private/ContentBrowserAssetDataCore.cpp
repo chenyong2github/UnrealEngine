@@ -763,8 +763,8 @@ bool RenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFi
 
 		TArray<FAssetRenameData> AssetsAndNames;
 		AssetsAndNames.Emplace(FAssetRenameData(Asset, PackagePath, InNewName));
-		InAssetTools->RenameAssetsWithDialog(AssetsAndNames);
-		return true;
+		// Note: This also returns false for Pending results as the rename may yet fail or be canceled, so the change has to be detected later via the asset registry
+		return InAssetTools->RenameAssetsWithDialog(AssetsAndNames) == EAssetRenameResult::Success;
 	}
 
 	return false;
