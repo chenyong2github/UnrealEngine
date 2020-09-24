@@ -19,23 +19,23 @@ class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingScreenLayout
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXPixelMappingScreenLayout) 
-		: _NumXPanels(1)
-		, _NumYPanels(1)
-		, _Distribution(EDMXPixelsDistribution::TopLeftToRight)
-		, _PixelFormat(EDMXPixelFormat::PF_RGB)
+		: _NumXCells(1)
+		, _NumYCells(1)
+		, _Distribution(EDMXPixelMappingDistribution::TopLeftToRight)
+		, _PixelFormat(EDMXCellFormat::PF_RGB)
 		, _bShowAddresses(false)
 		, _bShowUniverse(false)
 		, _RemoteUniverse(1)
 		, _StartAddress(1)
 	{}
 		
-		SLATE_ARGUMENT(int32, NumXPanels)
+		SLATE_ARGUMENT(int32, NumXCells)
 
-		SLATE_ARGUMENT(int32, NumYPanels)
+		SLATE_ARGUMENT(int32, NumYCells)
 
-		SLATE_ARGUMENT(EDMXPixelsDistribution, Distribution)
+		SLATE_ARGUMENT(EDMXPixelMappingDistribution, Distribution)
 
-		SLATE_ARGUMENT(EDMXPixelFormat, PixelFormat)
+		SLATE_ARGUMENT(EDMXCellFormat, PixelFormat)
 		
 		SLATE_ARGUMENT(bool, bShowAddresses)
 
@@ -54,13 +54,13 @@ public:
 	//~ Begin SCompoundWidget interface
 
 private:
-	int32 NumXPanels;
+	int32 NumXCells;
 
-	int32 NumYPanels;
+	int32 NumYCells;
 
-	EDMXPixelsDistribution Distribution;
+	EDMXPixelMappingDistribution Distribution;
 
-	EDMXPixelFormat PixelFormat;
+	EDMXCellFormat PixelFormat;
 
 	bool bShowAddresses;
 
@@ -86,15 +86,15 @@ class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingSimpleScreenLayout
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXPixelMappingSimpleScreenLayout)
-		: _NumXPanels(1)
-		, _NumYPanels(1)
+		: _NumXCells(1)
+		, _NumYCells(1)
 		, _RemoteUniverse(1)
 		, _StartAddress(1)
 	{}
 
-		SLATE_ARGUMENT(int32, NumXPanels)
+		SLATE_ARGUMENT(int32, NumXCells)
 
-		SLATE_ARGUMENT(int32, NumYPanels)
+		SLATE_ARGUMENT(int32, NumYCells)
 
 		SLATE_ARGUMENT(int32, RemoteUniverse)
 
@@ -113,22 +113,22 @@ private:
 
 	int32 StartAddress;
 
-	int32 NumXPanels;
+	int32 NumXCells;
 
-	int32 NumYPanels;
+	int32 NumYCells;
 
 	TAttribute<const FSlateBrush*> Brush;
 };
 
-class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingPixel
+class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingCell
 	: public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SDMXPixelMappingPixel)
-		: _PixelIndex(1)
+	SLATE_BEGIN_ARGS(SDMXPixelMappingCell)
+		: _CellID(1)
 	{}
 
-		SLATE_ARGUMENT(int32, PixelIndex)
+		SLATE_ARGUMENT(int32, CellID)
 
 		SLATE_ATTRIBUTE(const FSlateBrush*, Brush)
 
@@ -142,6 +142,6 @@ public:
 	TAttribute<const FSlateBrush*> Brush;
 
 private:
-	int32 PixelIndex;
+	int32 CellID;
 };
 

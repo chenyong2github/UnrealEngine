@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Library/DMXEntityFixtureType.h"
+
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXImport.h"
@@ -178,58 +178,58 @@ void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureFunction& InFunction, uin
 
 #endif // WITH_EDITOR
 
-bool FDMXPixelMatrix::GetChannelsFromPixel(FIntPoint Pixel, FDMXAttributeName Attribute, TArray<int32>& Channels) const
+bool FDMXFixtureMatrix::GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttributeName Attribute, TArray<int32>& Channels) const
 {
 	Channels.Reset();
 
 	TArray<int32> AllChannels;
 
-	if (Pixel.X < 0 || Pixel.X >= XPixels)
+	if (CellCoordinate.X < 0 || CellCoordinate.X >= XCells)
 	{
 		return false;
 	}
 
-	if (Pixel.Y < 0 || Pixel.Y >= YPixels)
+	if (CellCoordinate.Y < 0 || CellCoordinate.Y >= YCells)
 	{
 		return false;
 	}
 
-	for (int32 YPixel = 0; YPixel < YPixels; YPixel++)
+	for (int32 YCell = 0; YCell < YCells; YCell++)
 	{
-		for (int32 XPixel = 0; XPixel < XPixels; XPixel++)
+		for (int32 XCell = 0; XCell < XCells; XCell++)
 		{
-			AllChannels.Add(XPixel + YPixel * XPixels);
+			AllChannels.Add(XCell + YCell * XCells);
 		}
 	}
 
 	TArray<int32> OrderedChannels;
-	FDMXUtils::PixelsDistributionSort(PixelsDistribution, XPixels, YPixels, AllChannels, OrderedChannels);
+	FDMXUtils::PixelMappingDistributionSort(PixelMappingDistribution, XCells, YCells, AllChannels, OrderedChannels);
 
 	check(AllChannels.Num() == OrderedChannels.Num());
 
-	int32 PixelSize = 0;
-	int32 PixelFunctionIndex = -1;
-	int32 PixelFunctionSize = 0;
-	for (const FDMXFixturePixelFunction& PixelFunction : PixelFunctions)
+	int32 CellSize = 0;
+	int32 CellAttributeIndex = -1;
+	int32 CellAttributeSize = 0;
+	for (const FDMXFixtureCellAttribute& CellAttribute : CellAttributes)
 	{
-		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType);
-		if (PixelFunction.Attribute.GetAttribute() == Attribute.GetAttribute())
+		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+		if (CellAttribute.Attribute.GetAttribute() == Attribute.GetAttribute())
 		{
-			PixelFunctionIndex = PixelSize;
-			PixelFunctionSize = CurrentFunctionSize;
+			CellAttributeIndex = CellSize;
+			CellAttributeSize = CurrentFunctionSize;
 		}
-		PixelSize += CurrentFunctionSize;
+		CellSize += CurrentFunctionSize;
 	}
 
 	// no function found
-	if (PixelFunctionIndex < 0 || PixelFunctionSize == 0)
+	if (CellAttributeIndex < 0 || CellAttributeSize == 0)
 	{
 		return false;
 	}
 
-	int32 ChannelBase = FirstPixelChannel + (OrderedChannels[Pixel.Y + Pixel.X * YPixels] * PixelSize) + PixelFunctionIndex;
+	int32 ChannelBase = FirstCellChannel + (OrderedChannels[CellCoordinate.Y + CellCoordinate.X * YCells] * CellSize) + CellAttributeIndex;
 
-	for (int32 ChannelIndex = 0; ChannelIndex < PixelFunctionSize; ChannelIndex++)
+	for (int32 ChannelIndex = 0; ChannelIndex < CellAttributeSize; ChannelIndex++)
 	{
 		Channels.Add(ChannelBase + ChannelIndex);
 	}
@@ -237,21 +237,21 @@ bool FDMXPixelMatrix::GetChannelsFromPixel(FIntPoint Pixel, FDMXAttributeName At
 	return true;
 }
 
-int32 FDMXPixelMatrix::GetPixelFunctionsLastChannel() const
+int32 FDMXFixtureMatrix::GetFixtureMatrixLastChannel() const
 {
-	int32 PixelSize = 0;
-	for (const FDMXFixturePixelFunction& PixelFunction : PixelFunctions)
+	int32 CellAttributeSize = 0;
+	for (const FDMXFixtureCellAttribute& Attribute : CellAttributes)
 	{
-		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType);
-		PixelSize += CurrentFunctionSize;
+		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(Attribute.DataType);
+		CellAttributeSize += CurrentFunctionSize;
 	}
-	int32 AllPixels = XPixels * YPixels * PixelSize;
-	if (AllPixels == 0)
+	int32 AllCells = XCells * YCells * CellAttributeSize;
+	if (AllCells == 0)
 	{
-		return FirstPixelChannel;
+		return FirstCellChannel;
 	}
 
-	int32 LastChannel = FirstPixelChannel + AllPixels - 1;
+	int32 LastChannel = FirstCellChannel + AllCells - 1;
 
 	return LastChannel;
 }
@@ -270,9 +270,9 @@ bool UDMXEntityFixtureType::IsFunctionInModeRange(const FDMXFixtureFunction& InF
 	return !bLastChannelExceedsChannelSpan && !bLastChannelExceedsUniverseSize;
 }
 
-bool UDMXEntityFixtureType::IsFixtureMatrixInModeRange(const FDMXPixelMatrix& InFixtureMatrix, const FDMXFixtureMode& InMode, int32 ChannelOffset /*= 0*/)
+bool UDMXEntityFixtureType::IsFixtureMatrixInModeRange(const FDMXFixtureMatrix& InFixtureMatrix, const FDMXFixtureMode& InMode, int32 ChannelOffset /*= 0*/)
 {
-	const int32 LastChannel = InFixtureMatrix.GetPixelFunctionsLastChannel();
+	const int32 LastChannel = InFixtureMatrix.GetFixtureMatrixLastChannel();
 	bool bLastChannelExceedsChannelSpan = LastChannel > InMode.ChannelSpan;
 	bool bLastChannelExceedsUniverseSize = LastChannel + ChannelOffset > DMX_MAX_ADDRESS;
 
@@ -444,13 +444,13 @@ void UDMXEntityFixtureType::PostEditChangeProperty(FPropertyChangedEvent& Proper
 
 	FName PropertyName = PropertyChangedEvent.GetPropertyName();
 		
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bPixelFunctionsEnabled))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bFixtureMatrixEnabled))
 	{				
 		for (FDMXFixtureMode& Mode : Modes)
 		{
-			if (!bPixelFunctionsEnabled)
+			if (!bFixtureMatrixEnabled)
 			{
-				Mode.PixelMatrixConfig.PixelFunctions.Reset();
+				Mode.FixtureMatrixConfig.CellAttributes.Reset();
 			}
 			UpdateModeChannelProperties(Mode);
 		}
@@ -468,8 +468,7 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DefaultValue) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DataType))
 	{
-		const int32 ModeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes).ToString());		
-
+		const int32 ModeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes).ToString());	
 		check(ModeIndex != INDEX_NONE);
 
 		for (FDMXFixtureFunction& Function : Modes[ModeIndex].Functions)
@@ -479,11 +478,11 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 	}
 
 	// Refresh ChannelSpan from functions' settings
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bPixelFunctionsEnabled) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, XPixels) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, YPixels) ||	
-		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, FirstPixelChannel) ||
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bFixtureMatrixEnabled) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, XCells) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, YCells) ||	
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, FirstCellChannel) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, bAutoChannelSpan) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, ChannelOffset) ||
@@ -522,7 +521,7 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 		FDMXFixtureMode& Mode = Modes[ModeIndex];
 
 		const int32 ChangedFunctionIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions).ToString());
-		const int32 ChangedPixelFunctionIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions).ToString());
+		const int32 ChangedCellAttributeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes).ToString());
 
 		FDMXAttributeName ChangedAttribute;
 		if (ChangedFunctionIndex != INDEX_NONE)
@@ -532,8 +531,8 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 		}
 		else
 		{
-			check(Mode.PixelMatrixConfig.PixelFunctions.IsValidIndex(ChangedPixelFunctionIndex));
-			ChangedAttribute = Mode.PixelMatrixConfig.PixelFunctions[ChangedPixelFunctionIndex].Attribute;
+			check(Mode.FixtureMatrixConfig.CellAttributes.IsValidIndex(ChangedCellAttributeIndex));
+			ChangedAttribute = Mode.FixtureMatrixConfig.CellAttributes[ChangedCellAttributeIndex].Attribute;
 		}
 
 		for (int32 IdxOtherFunction = 0; IdxOtherFunction < Mode.Functions.Num(); IdxOtherFunction++)
@@ -550,15 +549,15 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 			}
 		}
 
-		int32 NumPixelFunctions = Mode.PixelMatrixConfig.PixelFunctions.Num();
-		for (int32 IdxOtherPixelFunction = 0; IdxOtherPixelFunction < NumPixelFunctions; IdxOtherPixelFunction++)
+		int32 NumCellAttributes = Mode.FixtureMatrixConfig.CellAttributes.Num();
+		for (int32 IdxOtherCellAttribute = 0; IdxOtherCellAttribute < NumCellAttributes; IdxOtherCellAttribute++)
 		{
-			if (ChangedPixelFunctionIndex == IdxOtherPixelFunction)
+			if (ChangedCellAttributeIndex == IdxOtherCellAttribute)
 			{
 				continue;
 			}
 
-			FDMXAttributeName& Attribute = Mode.PixelMatrixConfig.PixelFunctions[IdxOtherPixelFunction].Attribute;
+			FDMXAttributeName& Attribute = Mode.FixtureMatrixConfig.CellAttributes[IdxOtherCellAttribute].Attribute;
 			if (ChangedAttribute == Attribute)
 			{
 				Attribute = FDMXAttributeName::None;
@@ -602,7 +601,7 @@ void UDMXEntityFixtureType::UpdateModeChannelProperties(FDMXFixtureMode& Mode)
 	if (Mode.bAutoChannelSpan)
 	{
 		if (Mode.Functions.Num() == 0 &&
-			Mode.PixelMatrixConfig.PixelFunctions.Num() == 0)
+			Mode.FixtureMatrixConfig.CellAttributes.Num() == 0)
 		{
 			Mode.ChannelSpan = 0;
 		}
@@ -636,25 +635,24 @@ void UDMXEntityFixtureType::UpdateModeChannelProperties(FDMXFixtureMode& Mode)
 				}
 			}
 
-			// If pixel functions are enabled, add their channel span
-			int32 NumPixels = Mode.PixelMatrixConfig.XPixels * Mode.PixelMatrixConfig.YPixels;
-			if (bPixelFunctionsEnabled && NumPixels > 0)
+			// If fixture matrix is enabled, add the channel span of the matrix
+			int32 NumCells = Mode.FixtureMatrixConfig.XCells * Mode.FixtureMatrixConfig.YCells;
+			if (bFixtureMatrixEnabled && NumCells > 0)
 			{
-				// Add 'empty' channels bewtween normal functions and pixel functions to the channel span
-				ChannelSpan = FMath::Max(ChannelSpan, Mode.PixelMatrixConfig.FirstPixelChannel);
+				// Add 'empty' channels bewtween normal functions and cell attributes to the channel span
+				ChannelSpan = FMath::Max(ChannelSpan, Mode.FixtureMatrixConfig.FirstCellChannel);
 
-				int32 PixelFunctionFirstChannel = Mode.PixelMatrixConfig.FirstPixelChannel;
+				int32 FirstCellChannel = Mode.FixtureMatrixConfig.FirstCellChannel;
 
 				// Ignore channels that are overlapping commmon functions
-				PixelFunctionFirstChannel = FMath::Max(PixelFunctionFirstChannel, ChannelSpan + 1);
+				FirstCellChannel = FMath::Max(FirstCellChannel, ChannelSpan + 1);
 
-				int32 PixelFunctionLastChannel = Mode.PixelMatrixConfig.GetPixelFunctionsLastChannel();
+				int32 FixtureMatrixLastChannel = Mode.FixtureMatrixConfig.GetFixtureMatrixLastChannel();
 
-				ChannelSpan += PixelFunctionLastChannel - PixelFunctionFirstChannel + 1;
+				ChannelSpan += FixtureMatrixLastChannel - FirstCellChannel + 1;
 			}
 
 			ChannelSpan = FMath::Max(ChannelSpan, 1);
-
 			Mode.ChannelSpan = ChannelSpan;
 		}
 

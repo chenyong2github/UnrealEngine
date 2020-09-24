@@ -72,12 +72,12 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeChainProperty(FPropert
 		}, false);
 	}
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, PixelBlendingQuality))
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, CellBlendingQuality))
 	{
 		// Update all children
 		ForEachComponentOfClass<UDMXPixelMappingFixtureGroupItemComponent>([&](UDMXPixelMappingFixtureGroupItemComponent* InComponent)
 		{
-			InComponent->PixelBlendingQuality = PixelBlendingQuality;
+			InComponent->CellBlendingQuality = CellBlendingQuality;
 		}, false);
 	}
 

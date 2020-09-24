@@ -81,7 +81,7 @@ void FDMXPixelMappingRenderer::DownsampleRender_GameThread(
 	const FVector2D& UVCellSize,
 	const FIntPoint& TargetSize,
 	const FIntPoint& TextureSize,
-	EDMXPixelBlendingQuality PixelBlendingQuality,
+	EDMXPixelBlendingQuality CellBlendingQuality,
 	bool bStaticCalculateUV,
 	SurfaceReadCallback ReadCallback)
 {
@@ -104,7 +104,7 @@ void FDMXPixelMappingRenderer::DownsampleRender_GameThread(
 		UVCellSize,
 		TargetSize,
 		TextureSize,
-		PixelBlendingQuality,
+		CellBlendingQuality,
 		bStaticCalculateUV,
 	};
 
@@ -277,7 +277,7 @@ void FDMXPixelMappingRenderer::Render_RenderThread(FRHICommandListImmediate& RHI
 		PassData.PSParameters.InputSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		FDMXPixelMappingRendererPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FDMXPixelBlendingQualityDimension>((EDMXPixelShaderBlendingQuality)InContext.PixelBlendingQuality);
+		PermutationVector.Set<FDMXPixelBlendingQualityDimension>((EDMXPixelShaderBlendingQuality)InContext.CellBlendingQuality);
 		PermutationVector.Set<FDMXVertexUVDimension>(InContext.bStaticCalculateUV);
 		
 		// Get shaders

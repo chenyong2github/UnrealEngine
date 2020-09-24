@@ -72,11 +72,11 @@ public:
 	/** Resize the target to max available size, it is driven by children components */
 	void SetSizeWithinMaxBoundaryBox();
 
-	void SetPositionBasedOnRelativePixel(UDMXPixelMappingMatrixPixelComponent* InMatrixPixelComponent, FVector2D InDelta);
+	void SetPositionBasedOnRelativePixel(UDMXPixelMappingMatrixCellComponent* InMatrixPixelComponent, FVector2D InDelta);
 
 	void SetNumPixels(const FIntPoint& InNumPixels);
 
-	void SetChildSizeAndPosition(UDMXPixelMappingMatrixPixelComponent* InMatrixPixelComponent, const FIntPoint& InPixelCoordinate);
+	void SetChildSizeAndPosition(UDMXPixelMappingMatrixCellComponent* InMatrixPixelComponent, const FIntPoint& InPixelCoordinate);
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
@@ -148,7 +148,7 @@ public:
 	FVector2D PixelSize;
 
 	UPROPERTY()
-	EDMXPixelsDistribution Distribution;
+	EDMXPixelMappingDistribution Distribution;
 
 private:
 	UPROPERTY(Transient)

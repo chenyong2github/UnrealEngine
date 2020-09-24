@@ -94,28 +94,28 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 			}
 		}
 
-		const FDMXPixelMatrix& PixelMatrix = Mode.PixelMatrixConfig;
-		if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(PixelMatrix, Mode, PatchChannelOffset))
+		const FDMXFixtureMatrix& FixtureMatrix = Mode.FixtureMatrixConfig;
+		if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(FixtureMatrix, Mode, PatchChannelOffset))
 		{
 			UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 			check(DMXSubsystem);
 
-			TArray<FDMXPixel> Pixels;
-			DMXSubsystem->GetAllMatrixPixels(FixturePatch, Pixels);
+			TArray<FDMXCell> Cells;
+			DMXSubsystem->GetAllMatrixCells(FixturePatch, Cells);
 
-			for (const FDMXPixel& Pixel : Pixels)
+			for (const FDMXCell& Cell : Cells)
 			{
 				TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-				DMXSubsystem->GetMatrixPixelChannelsAbsolute(FixturePatch, Pixel.Coordinate, AttributeNameChannelMap);
+				DMXSubsystem->GetMatrixCellChannelsAbsolute(FixturePatch, Cell.Coordinate, AttributeNameChannelMap);
 				
 				bool bLoggedMissingAttribute = false;
 				for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
 				{
-					const FDMXFixturePixelFunction* PixelFunctionPtr = PixelMatrix.PixelFunctions.FindByPredicate([&AttributeNameChannelKvp](const FDMXFixturePixelFunction& TestedPixelFunction){
-							return TestedPixelFunction.Attribute == AttributeNameChannelKvp.Key;
+					const FDMXFixtureCellAttribute* CellAttributePtr = FixtureMatrix.CellAttributes.FindByPredicate([&AttributeNameChannelKvp](const FDMXFixtureCellAttribute& TestedCellAttribute){
+							return TestedCellAttribute.Attribute == AttributeNameChannelKvp.Key;
 						});
 
-					if (!PixelFunctionPtr)
+					if (!CellAttributePtr)
 					{
 						if (!bLoggedMissingAttribute)
 						{
@@ -127,14 +127,14 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 						continue;
 					}
 
-					const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
+					const FDMXFixtureCellAttribute& CellAttribute = *CellAttributePtr;
 					int32 FirstChannelAddress = AttributeNameChannelKvp.Value;
-					int32 LastChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+					int32 LastChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
-					int32 DefaultValue = PixelFunction.DefaultValue;
+					int32 DefaultValue = CellAttribute.DefaultValue;
 
 					uint8 ValueBytes[4] = { 0 };
-					UDMXEntityFixtureType::IntToBytes(PixelFunction.DataType, PixelFunction.bUseLSBMode, DefaultValue, ValueBytes);
+					UDMXEntityFixtureType::IntToBytes(CellAttribute.DataType, CellAttribute.bUseLSBMode, DefaultValue, ValueBytes);
 
 					int32 ByteIndex = 0;
 					for (int32 ChannelIndex = FirstChannelAddress; ChannelIndex <= LastChannelAddress && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
@@ -257,8 +257,8 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 			check(DMXSubsystem);
 
 			const FDMXFixtureMode& Mode = FixtureType->Modes[PatchChannel.ActiveMode];
-			const FDMXPixelMatrix& MatrixConfig = Mode.PixelMatrixConfig;
-			const TArray<FDMXFixturePixelFunction>& PixelFunctions = MatrixConfig.PixelFunctions;
+			const FDMXFixtureMatrix& MatrixConfig = Mode.FixtureMatrixConfig;
+			const TArray<FDMXFixtureCellAttribute>& CellAttributes = MatrixConfig.CellAttributes;
 
 			// Channel offset for the Patch
 			const int32 PatchChannelOffset = FixturePatch->GetStartingChannel() - 1;
@@ -276,14 +276,14 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 				if (FunctionChannel.IsCellFunction())
 				{
 					TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-					DMXSubsystem->GetMatrixPixelChannelsAbsolute(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
+					DMXSubsystem->GetMatrixCellChannelsAbsolute(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
 
-					const FDMXFixturePixelFunction* PixelFunctionPtr = PixelFunctions.FindByPredicate([&FunctionChannel](const FDMXFixturePixelFunction& PixelFunction) {
-						return PixelFunction.Attribute == FunctionChannel.AttributeName;
+					const FDMXFixtureCellAttribute* CellAttributePtr = CellAttributes.FindByPredicate([&FunctionChannel](const FDMXFixtureCellAttribute& CellAttribute) {
+						return CellAttribute.Attribute == FunctionChannel.AttributeName;
 						});
 
-					bool bMissingFunction = !AttributeNameChannelMap.Contains(FunctionChannel.AttributeName) || !PixelFunctionPtr;
-					if (!PixelFunctionPtr)
+					bool bMissingFunction = !AttributeNameChannelMap.Contains(FunctionChannel.AttributeName) || !CellAttributePtr;
+					if (!CellAttributePtr)
 					{
 						if (bMissingFunction && !bLoggedMissingFunction)
 						{
@@ -295,9 +295,9 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 						continue;
 					}
 
-					const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
+					const FDMXFixtureCellAttribute& CellAttribute = *CellAttributePtr;
 					int32 FirstChannelAddress = AttributeNameChannelMap[FunctionChannel.AttributeName];
-					int32 LastChannelAddress = AttributeNameChannelMap[FunctionChannel.AttributeName] + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+					int32 LastChannelAddress = AttributeNameChannelMap[FunctionChannel.AttributeName] + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
 					float ChannelValue = 0.0f;
 					if (FunctionChannel.Channel.Evaluate(Time, ChannelValue))
@@ -307,7 +307,7 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 
 						// Round to int so if the user draws into the tracks, values are assigned to int accurately
 						TArray<uint8> ByteArr;
-						DMXSubsystem->IntValueToBytes(FunctionValue, PixelFunction.DataType, ByteArr, PixelFunction.bUseLSBMode);
+						DMXSubsystem->IntValueToBytes(FunctionValue, CellAttribute.DataType, ByteArr, CellAttribute.bUseLSBMode);
 
 						WriteDMXFragment(FixturePatch, FirstChannelAddress, ByteArr);
 					}					
