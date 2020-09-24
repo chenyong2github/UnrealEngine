@@ -68,7 +68,7 @@ TOptional<NumericType> TNumericUnitTypeInterface<NumericType>::FromString(const 
 			SourceUnits = FixedDisplayUnits.GetValue();
 		}
 		double ConvertedValue = FUnitConversion::Convert(NewValue.GetValue().Value, SourceUnits, UnderlyingUnits);
-		double ClampedValue = FMath::Clamp<double>(ConvertedValue, TNumericLimits<NumericType>::Lowest(), TNumericLimits<NumericType>::Max());
+		long double ClampedValue = FMath::Clamp<long double>(ConvertedValue, TNumericLimits<NumericType>::Lowest(), TNumericLimits<NumericType>::Max());
 		return NumericType(ClampedValue);
 	}
 

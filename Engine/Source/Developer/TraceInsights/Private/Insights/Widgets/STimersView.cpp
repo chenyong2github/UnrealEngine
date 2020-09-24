@@ -1817,7 +1817,7 @@ void STimersView::FinishAggregation()
 	Aggregator->ResetResults();
 
 	// Invalidate all tree table rows.
-	for (const FTimerNodePtr NodePtr : TimerNodes)
+	for (const FTimerNodePtr& NodePtr : TimerNodes)
 	{
 		TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(NodePtr);
 		if (TableRowPtr.IsValid())

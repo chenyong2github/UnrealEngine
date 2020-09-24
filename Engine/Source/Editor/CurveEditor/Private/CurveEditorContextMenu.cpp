@@ -126,7 +126,7 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 			// Test if at least one curve is editable
 			bool bIsReadOnly = true;
 			TSet<FCurveModelID> CurvesToAddTo;
-			for(const FCurveModelID CurveModelID : CurveEditor->GetEditedCurves())
+			for(const FCurveModelID& CurveModelID : CurveEditor->GetEditedCurves())
 			{
 				if (const FCurveModel* CurveModel = CurveEditor->FindCurve(CurveModelID))
 				{
