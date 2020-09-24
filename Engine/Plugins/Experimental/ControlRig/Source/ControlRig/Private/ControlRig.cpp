@@ -1165,7 +1165,6 @@ FRigControlValue UControlRig::GetControlValueFromGlobalTransform(const FName& In
 		}
 
 		FTransform Transform = InGlobalTransform.GetRelativeTransform(ParentTransform);
-		Transform = Transform.GetRelativeTransform(Control->OffsetTransform);
 
 		FRigControlValue PreviousVal = Control->Value;
 		Control->SetValueFromTransform(Transform, ERigControlValueType::Current);
@@ -1283,7 +1282,7 @@ void UControlRig::UpdateAvailableControls()
 	AvailableControlsOverride.Append(TransientControls);
 }
 
-FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey, FTransform OffsetTransform)
+FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey)
 {
 	if (InPin == nullptr)
 	{
@@ -1324,8 +1323,6 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey
 			NewControl.ParentName = Hierarchy.BoneHierarchy[NewControl.ParentIndex].Name;
 		}
 	}
-
-	NewControl.OffsetTransform = OffsetTransform;
 
 	TransientControls.Add(NewControl);
 
