@@ -277,12 +277,26 @@ namespace Chaos
 			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color);
 		}
 
-		void DrawParticleBoundsImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, const FColor& Color)
+		void DrawParticleBoundsImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle)
 		{
 			TAABB<FReal, 3> Box = InParticle->WorldSpaceInflatedBounds();
 			FVec3 P = SpaceTransform.TransformPosition(Box.GetCenter());
 			FRotation3 Q = SpaceTransform.GetRotation();
 			FMatrix33 Qm = Q.ToMatrix();
+			FColor Color = FColor::Black;
+			if (InParticle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				Color = FColor::Yellow;
+			}
+			else if (InParticle->ObjectState() == EObjectStateType::Sleeping)
+			{
+				Color = FColor(64, 64, 0);
+			}
+			else if (InParticle->ObjectState() == EObjectStateType::Kinematic)
+			{
+				Color = FColor(64, 0, 0);
+			}
+
 			FDebugDrawQueue::GetInstance().DrawDebugBox(P, 0.5f * Box.Extents(), Q, Color, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
 		}
 
@@ -587,40 +601,40 @@ namespace Chaos
 #endif
 		}
 
-		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle));
 				}
 			}
 #endif
 		}
 
-		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TKinematicGeometryParticles<float, 3>>& ParticlesView)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle));
 				}
 			}
 #endif
 		}
 
-		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView, const FColor& Color)
+		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TPBDRigidParticles<float, 3>>& ParticlesView)
 		{
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				for (auto& Particle : ParticlesView)
 				{
-					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), Color);
+					DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle));
 				}
 			}
 #endif

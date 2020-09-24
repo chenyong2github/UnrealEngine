@@ -82,9 +82,11 @@ namespace ChaosTest {
 		const int32 Iterations = 10;
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		TEvolution Evolution(Particles, PhysicalMaterials, Iterations);
+		TEvolution Evolution(Particles, PhysicalMaterials);
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> Dynamics = Evolution.CreateDynamicParticles(2);
 		TArray<FVec3> PositionConstraintPositions = { FVec3(0, 0, 0) };
+
+		Evolution.SetNumIterations(Iterations);
 
 		Dynamics[1]->X() = FVec3(500, 0, 0);
 		FVec3 JointConstraintPosition = FVec3(0, 0, 0);
