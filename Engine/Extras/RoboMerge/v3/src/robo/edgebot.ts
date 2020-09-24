@@ -984,6 +984,10 @@ export class EdgeBot extends EdgeBotEntryPoints {
 
 		this.revertPendingCLWithShelf = this.proxyAsync("revertPendingCLWithShelf")
 		this.performMerge = this.proxyAsync("performMerge")
+
+		if (options.forcePause) {
+			this.impl.pause('Pause forced in branchspec.json', 'branchspec')
+		}
 	}
 
 	// Could extend this by offering _log_action() calls
