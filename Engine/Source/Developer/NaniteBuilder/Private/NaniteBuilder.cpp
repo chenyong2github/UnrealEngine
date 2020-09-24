@@ -832,10 +832,10 @@ static void CalculateQuantizedPositions(TArray< Nanite::FCluster >& Clusters, co
 		IDToShift.SetNumZeroed( NumIDs );
 	}
 
-	bool QuantizationShiftsChanged = true;
-	while (QuantizationShiftsChanged)	// Keep going until no cluster had to expand its quantization level
+	bool bQuantizationShiftChanged = true;
+	while (bQuantizationShiftChanged)	// Keep going until no cluster had to expand its quantization level
 	{
-		QuantizationShiftsChanged = false;
+		bQuantizationShiftChanged = false;
 		for( uint32 ClusterIndex = 0; ClusterIndex < NumClusters; ClusterIndex++ )
 		{
 			FCluster& Cluster = Clusters[ ClusterIndex ];
@@ -859,7 +859,11 @@ static void CalculateQuantizedPositions(TArray< Nanite::FCluster >& Clusters, co
 
 					// Quantization level of vertex is max of all clusters it is a part of
 					uint8& PositionShift = IDToShift[ID];
-					PositionShift = FMath::Max(PositionShift, (uint8)ClusterShift);
+					if (ClusterShift > PositionShift)
+					{
+						PositionShift = ClusterShift;
+						bQuantizationShiftChanged = true;
+					}
 
 					// Extend bounds with vertex
 					FUIntVector QuantizedPosition = QuantizeUInt(UIntPosition, PositionShift);
@@ -879,7 +883,6 @@ static void CalculateQuantizedPositions(TArray< Nanite::FCluster >& Clusters, co
 				if (Delta <= POSITION_QUANTIZATION_MASK)
 					break;	// If it doesn't fit try again at next quantization level
 				ClusterShift++;
-				QuantizationShiftsChanged = true;
 			}
 
 			Cluster.QuantizedPosStart = UIntClusterMin;
